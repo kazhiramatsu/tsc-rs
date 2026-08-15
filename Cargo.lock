@@ -356,6 +356,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-ci-harness"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-ci-adapter-protocol",
+ "tsc-rs-ci-core",
+ "tsc-rs-compiler",
+ "tsc-rs-harness",
+]
+
+[[package]]
 name = "tsc-rs-ci-runner"
 version = "0.1.0"
 dependencies = [

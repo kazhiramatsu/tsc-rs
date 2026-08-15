@@ -1,8 +1,10 @@
 use core::fmt;
+use std::convert::TryInto;
 
 use tsc_ci_core::{
-    ActionKeyV1, CanonicalEncode, CanonicalError, CanonicalSink, GraphDigestV1, ImplementationIdV1,
-    InputDigestV1, InvocationIdV1, ObjectDigestV1, SchemaIdV1,
+    decode_canonical, ActionKeyV1, CanonicalEncode, CanonicalError, CanonicalSink, CanonicalValue,
+    DecodeError, GraphDigestV1, ImplementationIdV1, InputDigestV1, InvocationIdV1, ObjectDigestV1,
+    SchemaIdV1,
 };
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -22,6 +24,29 @@ impl fmt::Display for ProtocolError {
 }
 
 impl std::error::Error for ProtocolError {}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum ProtocolDecodeError {
+    Canonical(DecodeError),
+    Shape,
+    InvalidHex,
+    InvalidInteger,
+    Validation(ProtocolError),
+}
+
+impl fmt::Display for ProtocolDecodeError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(formatter, "protocol decode error: {self:?}")
+    }
+}
+
+impl std::error::Error for ProtocolDecodeError {}
+
+impl From<DecodeError> for ProtocolDecodeError {
+    fn from(error: DecodeError) -> Self {
+        Self::Canonical(error)
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct ActionInvocationV1 {
@@ -112,6 +137,48 @@ impl ActionInvocationV1 {
     pub const fn max_output_bytes(&self) -> u64 {
         self.max_output_bytes
     }
+
+    /// Decode one bounded canonical invocation produced by
+    /// [`CanonicalEncode`]. The typed constructor remains the single
+    /// validation point after the generic parser has checked the wire shape.
+    pub fn decode_canonical(bytes: &[u8], max_bytes: u64) -> Result<Self, ProtocolDecodeError> {
+        let value = decode_canonical(bytes, max_bytes, 32)?;
+        let fields = object_fields(
+            value,
+            &[
+                "action",
+                "attempt",
+                "implementation",
+                "input",
+                "invocation",
+                "max_output_bytes",
+                "repetition",
+                "schema",
+                "source_snapshot",
+            ],
+        )?;
+        let action = fixed32(field(&fields, "action")?)?;
+        let implementation = fixed16(field(&fields, "implementation")?)?;
+        let input = fixed32(field(&fields, "input")?)?;
+        let invocation = fixed16(field(&fields, "invocation")?)?;
+        let source_snapshot = fixed32(field(&fields, "source_snapshot")?)?;
+        let schema = fixed16(field(&fields, "schema")?)?;
+        let attempt = small_u8(field(&fields, "attempt")?)?;
+        let max_output_bytes = unsigned(field(&fields, "max_output_bytes")?)?;
+        let repetition = small_u8(field(&fields, "repetition")?)?;
+        Self::try_new(
+            ActionKeyV1::from_bytes(action),
+            SchemaIdV1::from_bytes(schema),
+            ImplementationIdV1::from_bytes(implementation),
+            InputDigestV1::from_bytes(input),
+            InvocationIdV1::from_bytes(invocation),
+            ObjectDigestV1::from_bytes(source_snapshot),
+            repetition,
+            attempt,
+            max_output_bytes,
+        )
+        .map_err(ProtocolDecodeError::Validation)
+    }
 }
 
 impl CanonicalEncode for ActionInvocationV1 {
@@ -195,6 +262,37 @@ impl ObservationEnvelopeV1 {
 
     pub fn bytes(&self) -> &[u8] {
         &self.bytes
+    }
+
+    /// Decode one bounded canonical observation envelope. The nested
+    /// observation remains opaque to this protocol crate; its adapter owns
+    /// the semantic schema and verifies it after the process boundary.
+    pub fn decode_canonical(bytes: &[u8], max_bytes: u64) -> Result<Self, ProtocolDecodeError> {
+        let value = decode_canonical(bytes, max_bytes, 32)?;
+        let fields = object_fields(
+            value,
+            &[
+                "action",
+                "implementation",
+                "observation",
+                "repetition",
+                "schema",
+            ],
+        )?;
+        let action = fixed32(field(&fields, "action")?)?;
+        let implementation = fixed16(field(&fields, "implementation")?)?;
+        let observation = hex_bytes(field(&fields, "observation")?)?;
+        let repetition = small_u8(field(&fields, "repetition")?)?;
+        let schema = fixed16(field(&fields, "schema")?)?;
+        Self::try_new(
+            ActionKeyV1::from_bytes(action),
+            SchemaIdV1::from_bytes(schema),
+            ImplementationIdV1::from_bytes(implementation),
+            repetition,
+            observation,
+            max_bytes,
+        )
+        .map_err(ProtocolDecodeError::Validation)
     }
 }
 
@@ -493,6 +591,83 @@ impl CanonicalEncode for FixedPlanV1 {
         out.write(b"],\"suite\":")?;
         self.suite.encode_canonical(out)?;
         out.write(b"}")
+    }
+}
+
+fn object_fields(
+    value: CanonicalValue,
+    allowed: &[&str],
+) -> Result<Vec<(String, CanonicalValue)>, ProtocolDecodeError> {
+    let CanonicalValue::Object(fields) = value else {
+        return Err(ProtocolDecodeError::Shape);
+    };
+    if fields.len() != allowed.len()
+        || fields
+            .iter()
+            .any(|(key, _)| !allowed.iter().any(|allowed| *allowed == key))
+    {
+        return Err(ProtocolDecodeError::Shape);
+    }
+    Ok(fields)
+}
+
+fn field<'a>(
+    fields: &'a [(String, CanonicalValue)],
+    name: &str,
+) -> Result<&'a CanonicalValue, ProtocolDecodeError> {
+    fields
+        .iter()
+        .find_map(|(key, value)| (key == name).then_some(value))
+        .ok_or(ProtocolDecodeError::Shape)
+}
+
+fn unsigned(value: &CanonicalValue) -> Result<u64, ProtocolDecodeError> {
+    match value {
+        CanonicalValue::Unsigned(value) => Ok(*value),
+        CanonicalValue::Signed(value) if *value >= 0 => Ok(*value as u64),
+        _ => Err(ProtocolDecodeError::InvalidInteger),
+    }
+}
+
+fn small_u8(value: &CanonicalValue) -> Result<u8, ProtocolDecodeError> {
+    unsigned(value)?
+        .try_into()
+        .map_err(|_| ProtocolDecodeError::InvalidInteger)
+}
+
+fn hex_bytes(value: &CanonicalValue) -> Result<Vec<u8>, ProtocolDecodeError> {
+    let CanonicalValue::String(value) = value else {
+        return Err(ProtocolDecodeError::InvalidHex);
+    };
+    if value.len() % 2 != 0 {
+        return Err(ProtocolDecodeError::InvalidHex);
+    }
+    let mut bytes = Vec::with_capacity(value.len() / 2);
+    for pair in value.as_bytes().chunks_exact(2) {
+        let high = hex_nibble(pair[0]).ok_or(ProtocolDecodeError::InvalidHex)?;
+        let low = hex_nibble(pair[1]).ok_or(ProtocolDecodeError::InvalidHex)?;
+        bytes.push((high << 4) | low);
+    }
+    Ok(bytes)
+}
+
+fn fixed16(value: &CanonicalValue) -> Result<[u8; 16], ProtocolDecodeError> {
+    hex_bytes(value)?
+        .try_into()
+        .map_err(|_| ProtocolDecodeError::InvalidHex)
+}
+
+fn fixed32(value: &CanonicalValue) -> Result<[u8; 32], ProtocolDecodeError> {
+    hex_bytes(value)?
+        .try_into()
+        .map_err(|_| ProtocolDecodeError::InvalidHex)
+}
+
+fn hex_nibble(byte: u8) -> Option<u8> {
+    match byte {
+        b'0'..=b'9' => Some(byte - b'0'),
+        b'a'..=b'f' => Some(byte - b'a' + 10),
+        _ => None,
     }
 }
 

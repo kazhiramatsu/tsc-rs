@@ -17,6 +17,7 @@ members = [
     "crates/ci-testkit",
     "crates/ci-adapter-tsc-rs-protocol",
     "crates/ci-adapter-tsc-rs-control",
+    "crates/ci-harness-tsc-rs",
     "crates/fuzz",
     "crates/xtask",
 ]
@@ -41,6 +42,7 @@ tsc-ci-runner = { package = "tsc-rs-ci-runner", path = "crates/ci-runner" }
 tsc-ci-testkit = { package = "tsc-rs-ci-testkit", path = "crates/ci-testkit" }
 tsc-ci-adapter-protocol = { package = "tsc-rs-ci-adapter-protocol", path = "crates/ci-adapter-tsc-rs-protocol" }
 tsc-ci-adapter-control = { package = "tsc-rs-ci-adapter-control", path = "crates/ci-adapter-tsc-rs-control" }
+tsc-ci-harness = { package = "tsc-rs-ci-harness", path = "crates/ci-harness-tsc-rs" }
 tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }
 tsc-conformance = { package = "tsc-rs-conformance", path = "crates/conformance" }
 tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" }

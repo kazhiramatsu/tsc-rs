@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-5b",
+  "status": "ready",
+  "trustedBase": "695d2bd55db02ce2a7a46b51ba5fc2367f2a8497",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-5b-candidate-harness.md",
+    "sha256": "cff382c32df73396f1e2dd83a1833f4ec6b7250ebd716ef8aeb6a61be3c2e738"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-5a",
+      "receiptSha256": "9a9f55e88e1d720b2255c2b187ea228ef4b6d146e5c8a23862133c4ff6bb4160"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/ci-adapter-tsc-rs-protocol/src/lib.rs",
+    "crates/ci-adapter-tsc-rs-protocol/tests/protocol.rs",
+    "crates/ci-harness-tsc-rs/Cargo.toml",
+    "crates/ci-harness-tsc-rs/src/main.rs",
+    "crates/ci-harness-tsc-rs/tests/process.rs",
+    "docs/design/greenfield/slices/fci-5b-candidate-harness.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-5b.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/ci-adapter-tsc-rs-control",
+    "crates/ci-core",
+    "crates/ci-runner",
+    "crates/ci-testkit",
+    "crates/compiler",
+    "crates/oracle",
+    "crates/xtask",
+    "crates/emitter",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g",
+    "ratchets/h2"
+  ],
+  "proof": {
+    "commands": [
+      "cargo xtask test ci-adapter-tsc-rs-protocol",
+      "cargo xtask test ci-harness-tsc-rs",
+      "cargo xtask test ci-adapter-tsc-rs-control",
+      "cargo tree -p tsc-rs-ci-harness --edges normal,build,dev",
+      "cargo tree -p tsc-rs-ci-adapter-control --edges normal,build,dev",
+      "node .github/ci/slice-readiness.mjs --check fci-5b"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-5b.v1.json"
+  }
+}
