@@ -573,8 +573,12 @@ const fn is_property_name(kind: SyntaxKind) -> bool {
 /// `ElementAccessExpression` deliberately does not participate: tsc produces
 /// this fact only for private property access and the `#name in value` form.
 ///
-/// tsc-port: createBasePropertyAccessExpression/createBinaryExpression @6.0.3
-/// tsc-span: _tsc.js:22464-22470,22785-22808
+/// tsc-port: createBasePropertyAccessExpression @6.0.3
+/// tsc-hash: 62c0288e0c2c8af918be4f39ac85edfdbc62c8e545366f7d6143c15f147b4e1b
+/// tsc-span: _tsc.js:22464-22470
+/// tsc-port: createBinaryExpression @6.0.3
+/// tsc-hash: dca056c920de60b7104debd82eb40887c1c51cbed8e4ad5cca24124dd24460d9
+/// tsc-span: _tsc.js:22785-22808
 pub(crate) fn private_identifier_expression_flags(
     arena: &TransformArena,
     source: TransformSourceId,

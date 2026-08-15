@@ -2311,6 +2311,20 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         if self.context.arena().node(node)?.kind != SyntaxKind::Identifier {
             return Ok(Vec::new());
         }
+        // `getLocalName` projections are references to the local binding
+        // inside a generated lowering (for example the standard-decorator
+        // class IIFE). They retain the parsed declaration as resolver
+        // provenance, but must not turn an internal assignment into a live
+        // SystemJS publication. CommonJS applies the same ownership rule in
+        // `is_local_name`; keep SystemJS aligned with that semantic boundary.
+        if self
+            .context
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::LOCAL_NAME))
+        {
+            return Ok(Vec::new());
+        }
         let original = self.context.arena().get_original_node(node);
         if self.context.arena().node(original)?.pos == u32::MAX
             || NodeFlags::from_bits(self.context.arena().node(original)?.flags)

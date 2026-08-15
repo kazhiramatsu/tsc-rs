@@ -196,7 +196,7 @@
     },
     {
       "path": "crates/emitter/src/builtins/system.rs",
-      "sha256": "436170800f72e8f57824f1fe4cf4548a048e9a100f347b306e99a4bbfec84e32"
+      "sha256": "3546d66f492220bb4165f8cdc559065682ae43c809b78204d2258c01f7244019"
     },
     {
       "path": "crates/emitter/src/execute.rs",
@@ -204,7 +204,7 @@
     },
     {
       "path": "crates/emitter/src/factory.rs",
-      "sha256": "2dcd0adcc832ca821cfac931c396f32db5beec3dca62afa49e14ddf79e31b655"
+      "sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
     },
     {
       "path": "crates/emitter/src/host.rs",
@@ -224,7 +224,7 @@
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "95ca5a7d30b287e622ca78834790f2d98899b0c0acb8c4b4a7b7a66b0aff2839"
+      "sha256": "59fdc408aa57fcacf8dbbe2908df19a0b2dcd89618f574f7bc98727522f8cc46"
     },
     {
       "path": "crates/emitter/src/resolver.rs",
@@ -320,7 +320,7 @@
     },
     {
       "path": "crates/xtask/src/h2_2c_acceptance.rs",
-      "sha256": "48430b334fd1485b5d8296c6bb22c8ee3b901481d7fbaa011f9b67560942c14b"
+      "sha256": "aad7eb5ec2d112602889cc9e6dd63f75ef82f9950b904a37b7b17d0a7e197588"
     },
     {
       "path": "crates/xtask/src/h2_2d_acceptance.rs",
@@ -360,7 +360,7 @@
     },
     {
       "path": "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs",
-      "sha256": "81140d0993b41db17f521c5857b58e0716f34bb4e584b3a68ca77045180a04d3"
+      "sha256": "6ad789a76065b0273515b64c53b6234e971836d9dbfd6c84b991cbcd647266a0"
     },
     {
       "path": "crates/xtask/tests/unit/h2_2d_acceptance/tests.rs",
@@ -396,7 +396,7 @@
     },
     {
       "path": "crates/emitter/src/builtins/legacy_decorators.rs",
-      "sha256": "dc287fe82b4f035ffd10643ce50d0f3f5013676d3d5a3786846116b9585845d4"
+      "sha256": "5281bc266e18851e001d2315802fe61ff01963d17dfdf614ad3bd92543c3fffb"
     },
     {
       "path": "crates/checker/src/engine.rs",
@@ -1270,5 +1270,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "641db901e9c28403fca90cd81282c3cec7217a9a5a051132fa114ddd544bf436"
+  "profile_fingerprint_sha256": "1f43655f9312e249bffd15f3009be8150a35b28c3d275ac1028018a5748c7d08"
 }

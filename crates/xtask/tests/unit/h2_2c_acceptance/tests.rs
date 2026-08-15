@@ -234,6 +234,16 @@ fn h2_5g_case_disposition_uses_the_first_typed_deferred_owner() {
 }
 
 #[test]
+fn h2_5g_worker_selection_is_bounded_and_local_default_is_serial() {
+    assert_eq!(super::select_h2_5g_workers(None, 8).unwrap(), 1);
+    assert_eq!(super::select_h2_5g_workers(Some("2"), 8).unwrap(), 2);
+    assert_eq!(super::select_h2_5g_workers(Some("2"), 1).unwrap(), 1);
+    assert!(super::select_h2_5g_workers(Some("0"), 8).is_err());
+    assert!(super::select_h2_5g_workers(Some("3"), 8).is_err());
+    assert!(super::select_h2_5g_workers(Some("wat"), 8).is_err());
+}
+
+#[test]
 fn h2_5g_duplicate_output_block_routes_sources_without_transforming_them() {
     const CASE_ID: &str = "typescript-6.0.3/compiler/filesEmittingIntoSameOutput.ts#default";
     let workspace = workspace();

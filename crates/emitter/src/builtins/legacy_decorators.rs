@@ -229,8 +229,15 @@ impl DecoratorOwner {
 /// Every other computed expression is dynamic, even an identifier, and owns
 /// an independent accessor decoration.
 ///
-/// tsc-port: isDynamicName/getPropertyNameForPropertyNameNode/
-/// getAllAccessorDeclarations @6.0.3
+/// tsc-port: isDynamicName @6.0.3
+/// tsc-hash: 8f6cc6444b97a25155fab32522270e0343d00cc5850bad4b862fdeae66bd5459
+/// tsc-span: _tsc.js:15854-15860
+/// tsc-port: getPropertyNameForPropertyNameNode @6.0.3
+/// tsc-hash: 5770eff9fe2f071f83fce9a7aaff9c54fa6f09141154c33c0f7f3e5dc86ee117
+/// tsc-span: _tsc.js:15861-15887
+/// tsc-port: getAllAccessorDeclarations @6.0.3
+/// tsc-hash: 8e23b58d85c286c6344992bac81b90a2c92285508dcf40a9c80d316dca13286
+/// tsc-span: _tsc.js:16719-16760
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum AccessorPropertyNameIdentity {
     Static(String),
@@ -396,8 +403,8 @@ struct TransformedClassMembers {
 /// but tsc deliberately emits no declaration or class-key assignment for it.
 /// Ambient/abstract properties keep using their source expression directly.
 ///
-/// tsc-port: getExpressionForPropertyName(...,
-/// !hasSyntacticModifier(member, ModifierFlags.Ambient)) @6.0.3
+/// tsc-port: getExpressionForPropertyName @6.0.3 (ambient modifier branch)
+/// tsc-hash: 3c3938a76a138e167c35b38619e871b6a626404b55d0f7a38b861189627839ab
 /// tsc-span: _tsc.js:98805-98809
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DecoratorComputedNamePlan {
@@ -4131,6 +4138,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     /// Typed class-declaration branch of tsc's `moveRangePastModifiers`.
     ///
     /// tsc-port: moveRangePastModifiers @6.0.3
+    /// tsc-hash: b0df0c59ffe7c4af307850c527a3bc0b05173114f39b040e05a509dd4c918aef
     /// tsc-span: _tsc.js:17311-17318
     fn move_range_past_modifiers(
         &self,

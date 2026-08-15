@@ -468,6 +468,7 @@ enum ExpressionGrammarContext {
 /// losing ASI safety when a child needs a more specific grammar context.
 ///
 /// tsc-port: parenthesizeExpressionForNoAsi @6.0.3
+/// tsc-hash: e0efdc025b86d2ce47abf2a53f3090af033533205b0ae238ae92b4d95299a98e
 /// tsc-span: _tsc.js:118768-118876
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct ExpressionSyntaxContext {
@@ -7049,6 +7050,7 @@ impl Printer {
     /// require a generated pair, while calls of those expressions do not.
     ///
     /// tsc-port: parenthesizeExpressionOfExportDefault @6.0.3
+    /// tsc-hash: b679ce5fcfe28d204e724e3f74823d351eb0d86503befebc7fbdaa10faf999e5
     /// tsc-span: _tsc.js:20436-20450
     fn export_default_requires_parentheses(
         &self,
@@ -7070,9 +7072,12 @@ impl Printer {
     /// to the two precedences below assignment: comma and spread. `yield` is
     /// the deliberate right-associative exception and remains unwrapped.
     ///
-    /// tsc-port: getParenthesizeRightSideOfBinaryForOperator(EqualsToken)
-    /// @6.0.3
-    /// tsc-span: _tsc.js:20313-20324,20411-20434
+    /// tsc-port: getParenthesizeRightSideOfBinaryForOperator(EqualsToken) @6.0.3
+    /// tsc-hash: c082a99a3883046ad8f86bee8dfb592228089bcb8d28281b56bda781695c3318
+    /// tsc-span: _tsc.js:20313-20324
+    /// tsc-port: parenthesizeRightSideOfBinary @6.0.3
+    /// tsc-hash: 19c3ea90e1320cd4de06da5b5407e64efcbddf729a0f73ebfa0821401cd3de33
+    /// tsc-span: _tsc.js:20411-20434
     fn assignment_right_side_requires_parentheses(
         &self,
         transformation: &TransformationResult<'_>,
@@ -7457,6 +7462,7 @@ impl Printer {
     /// information, so ASI safety never depends on scanning comment text.
     ///
     /// tsc-port: willEmitLeadingNewLine @6.0.3
+    /// tsc-hash: 8cb68561fa1cfbb44b49b2b64e763e26fe9867765597f7eec92c32bfe3924e9c
     /// tsc-span: _tsc.js:118768-118789
     fn will_emit_leading_new_line(
         &self,

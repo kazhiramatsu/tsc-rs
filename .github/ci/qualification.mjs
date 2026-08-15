@@ -12,6 +12,7 @@ const RUST_SOURCE_MAX_BYTES = 4 * 1024 * 1024;
 const RUST_LEXICAL_NESTING_MAX = 256;
 
 const HOSTED_ACCEPTANCE_MODULES = Object.freeze([
+  "crates/xtask/src/bounded_pipeline.rs",
   "crates/xtask/src/h1_emit_acceptance.rs",
   "crates/xtask/src/h2_1a_acceptance.rs",
   "crates/xtask/src/h2_1b_acceptance.rs",

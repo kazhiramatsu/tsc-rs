@@ -74,6 +74,25 @@ struct H2_5gExecutionInputs {
     compiler_cases: HashMap<String, RecordedCompilerCase>,
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct H2_5gCaseTotals {
+    admitted: usize,
+    h2_8a_deferred: usize,
+    h2_9_deferred: usize,
+    writes: usize,
+    diagnostics: usize,
+}
+
+impl H2_5gCaseTotals {
+    fn add_assign(&mut self, other: Self) {
+        self.admitted += other.admitted;
+        self.h2_8a_deferred += other.h2_8a_deferred;
+        self.h2_9_deferred += other.h2_9_deferred;
+        self.writes += other.writes;
+        self.diagnostics += other.diagnostics;
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum H2_5gDeferredOwner {
     H2_8a,
@@ -84,6 +103,38 @@ enum H2_5gDeferredOwner {
 enum H2_5gCaseDisposition {
     Admitted,
     Deferred(H2_5gDeferredOwner),
+}
+
+const MAX_H2_5G_WORKERS: usize = 2;
+const H2_5G_WORKERS_ENV: &str = "TSRS_H2_5G_WORKERS";
+
+fn select_h2_5g_workers(configured: Option<&str>, available: usize) -> Result<usize, String> {
+    if available == 0 {
+        return Err("available H2.5g parallelism must be positive".to_owned());
+    }
+    let ceiling = available.min(MAX_H2_5G_WORKERS);
+    let Some(configured) = configured else {
+        // Keep local acceptance resource-safe. Hosted CI opts into two
+        // workers explicitly; the pipeline itself remains ordered below.
+        return Ok(1);
+    };
+    let workers = configured.parse::<usize>().map_err(|_| {
+        format!("{H2_5G_WORKERS_ENV} must be an integer from 1 to {MAX_H2_5G_WORKERS}")
+    })?;
+    if workers == 0 || workers > MAX_H2_5G_WORKERS {
+        return Err(format!(
+            "{H2_5G_WORKERS_ENV} must be an integer from 1 to {MAX_H2_5G_WORKERS}"
+        ));
+    }
+    Ok(workers.min(ceiling))
+}
+
+fn h2_5g_worker_count() -> Result<usize, Box<dyn Error>> {
+    let available = std::thread::available_parallelism()
+        .map(std::num::NonZeroUsize::get)
+        .unwrap_or(1);
+    select_h2_5g_workers(std::env::var(H2_5G_WORKERS_ENV).ok().as_deref(), available)
+        .map_err(Into::into)
 }
 
 fn validate_h2_5g_qualification(artifact: &Value) -> Result<&[Value], Box<dyn Error>> {
@@ -1360,6 +1411,37 @@ fn execute_h2_5g_observed(
     execute_slice_observed_with_inputs(workspace, case, AcceptanceSlice::H2_5g, Some(inputs))
 }
 
+fn execute_h2_5g_case(
+    workspace: &Path,
+    case: &Value,
+    inputs: &H2_5gExecutionInputs,
+) -> Result<H2_5gCaseTotals, String> {
+    let result = (|| -> Result<H2_5gCaseTotals, Box<dyn Error>> {
+        compact_typescript_observation(case)?;
+        let totals = match classify_h2_5g_case(case)? {
+            H2_5gCaseDisposition::Admitted => {
+                let (writes, diagnostics) = execute_h2_5g_observed(workspace, case, inputs)?;
+                H2_5gCaseTotals {
+                    admitted: 1,
+                    writes,
+                    diagnostics,
+                    ..H2_5gCaseTotals::default()
+                }
+            }
+            H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_8a) => H2_5gCaseTotals {
+                h2_8a_deferred: 1,
+                ..H2_5gCaseTotals::default()
+            },
+            H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_9) => H2_5gCaseTotals {
+                h2_9_deferred: 1,
+                ..H2_5gCaseTotals::default()
+            },
+        };
+        Ok(totals)
+    })();
+    result.map_err(|error| error.to_string())
+}
+
 fn expected_node_format_sources(
     case: &Value,
     transform_source_paths: &BTreeSet<&str>,
@@ -2119,29 +2201,26 @@ pub fn run_h2_5g(workspace: &Path) -> Result<(), Box<dyn Error>> {
     )?)?;
     let cases = validate_h2_5g_qualification(&artifact)?;
     let inputs = H2_5gExecutionInputs::load(workspace)?;
-    let mut admitted = 0;
-    let mut h2_8a_deferred = 0;
-    let mut h2_9_deferred = 0;
-    let mut writes = 0;
-    let mut diagnostics = 0;
-    for case in cases {
-        compact_typescript_observation(case)?;
-        match classify_h2_5g_case(case)? {
-            H2_5gCaseDisposition::Admitted => {
-                admitted += 1;
-                let (case_writes, case_diagnostics) =
-                    execute_h2_5g_observed(workspace, case, &inputs)?;
-                writes += case_writes;
-                diagnostics += case_diagnostics;
-            }
-            H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_8a) => {
-                h2_8a_deferred += 1;
-            }
-            H2_5gCaseDisposition::Deferred(H2_5gDeferredOwner::H2_9) => {
-                h2_9_deferred += 1;
-            }
-        }
+    let worker_count = h2_5g_worker_count()?.min(cases.len());
+    println!(
+        "H2.5g ordered acceptance pipeline: cases={} workers={worker_count}",
+        cases.len()
+    );
+    let results = crate::bounded_pipeline::ordered_map(cases, worker_count, |index, case| {
+        execute_h2_5g_case(workspace, case, &inputs)
+            .map_err(|error| format!("H2.5g case index {index}: {error}"))
+    })?;
+    let mut totals = H2_5gCaseTotals::default();
+    for result in results {
+        totals.add_assign(result.map_err(failure)?);
     }
+    let H2_5gCaseTotals {
+        admitted,
+        h2_8a_deferred,
+        h2_9_deferred,
+        writes,
+        diagnostics,
+    } = totals;
     if admitted != 8_511
         || h2_8a_deferred != 6
         || h2_9_deferred != 510
