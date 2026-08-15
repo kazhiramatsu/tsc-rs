@@ -1,6 +1,6 @@
 # FCI-1a: pure core identifiers and dependency boundary
 
-Status: **design; readiness is checked by the packet-control bootstrap**.
+Status: **ready (FCI-1a v1; non-authoritative shadow)**.
 
 This packet is the first production Functional-CI packet. It is intentionally
 small and pre-closure safe: it creates only inert, generic values in
@@ -8,7 +8,8 @@ small and pre-closure safe: it creates only inert, generic values in
 
 ## Base and prerequisites
 
-- Trusted base: `315746b775eda9efe1b2ae77a3a7dc58a3f348cb`.
+- Trusted base: `f7f0b1c59e1951f9295048034c1b9fed7c19b33f` (the packet-control
+  bootstrap commit).
 - Predecessor: `packet-control-bootstrap` proof and its readiness receipt.
 - No FCI-1b or later symbols may be referenced.
 

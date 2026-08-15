@@ -1,0 +1,15 @@
+[package]
+name = "tsc-rs-ci-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[package.metadata.tsc-rs]
+role = "ci-core"
+
+[lib]
+name = "tsc_ci_core"
+path = "src/lib.rs"
+
+[dependencies]

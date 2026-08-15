@@ -12,6 +12,7 @@ members = [
     "crates/harness",
     "crates/oracle",
     "crates/conformance",
+    "crates/ci-core",
     "crates/fuzz",
     "crates/xtask",
 ]
@@ -31,6 +32,7 @@ iter_over_hash_type = "deny"
 [workspace.dependencies]
 tsc-binder = { package = "tsc-rs-binder", path = "crates/binder" }
 tsc-checker = { package = "tsc-rs-checker", path = "crates/checker" }
+tsc-ci-core = { package = "tsc-rs-ci-core", path = "crates/ci-core" }
 tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }
 tsc-conformance = { package = "tsc-rs-conformance", path = "crates/conformance" }
 tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" }
