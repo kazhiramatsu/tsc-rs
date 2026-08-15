@@ -977,6 +977,32 @@ pub enum TransformError {
         parent: SyntaxKind,
         field: &'static str,
     },
+    UnexpectedChildKind {
+        parent: SyntaxKind,
+        field: &'static str,
+        actual: SyntaxKind,
+    },
+    ContextualNodeArrayOwnerConflict {
+        context: &'static str,
+        array: TransformNodeArray,
+        existing_parent: TransformNode,
+        attempted_parent: TransformNode,
+    },
+    ContextualNodeArrayAlreadyVisited {
+        context: &'static str,
+        array: TransformNodeArray,
+        parent: TransformNode,
+    },
+    ReentrantContextualNodeArrayVisit {
+        context: &'static str,
+        array: TransformNodeArray,
+        parent: TransformNode,
+    },
+    ContextualNodeArrayWrongVisitor {
+        context: &'static str,
+        array: TransformNodeArray,
+        parent: TransformNode,
+    },
     MissingProgramSource(TransformNode),
     ResolverNodeNotInParseTree(TransformNode),
     InvalidSourceRange {
@@ -1070,6 +1096,65 @@ impl fmt::Display for TransformError {
             Self::RequiredChildRemoved { parent, field } => write!(
                 formatter,
                 "transform removed required child {field} from {parent:?}"
+            ),
+            Self::UnexpectedChildKind {
+                parent,
+                field,
+                actual,
+            } => write!(
+                formatter,
+                "transform found unexpected {actual:?} child in {parent:?}.{field}"
+            ),
+            Self::ContextualNodeArrayOwnerConflict {
+                context,
+                array,
+                existing_parent,
+                attempted_parent,
+            } => write!(
+                formatter,
+                "{context} array {}:{} is owned by {}:{}, not attempted parent {}:{}",
+                array.source().raw(),
+                array.array().0,
+                existing_parent.source().raw(),
+                existing_parent.node().0,
+                attempted_parent.source().raw(),
+                attempted_parent.node().0
+            ),
+            Self::ContextualNodeArrayAlreadyVisited {
+                context,
+                array,
+                parent,
+            } => write!(
+                formatter,
+                "{context} array {}:{} for parent {}:{} was already visited",
+                array.source().raw(),
+                array.array().0,
+                parent.source().raw(),
+                parent.node().0
+            ),
+            Self::ReentrantContextualNodeArrayVisit {
+                context,
+                array,
+                parent,
+            } => write!(
+                formatter,
+                "{context} array {}:{} for parent {}:{} was visited reentrantly",
+                array.source().raw(),
+                array.array().0,
+                parent.source().raw(),
+                parent.node().0
+            ),
+            Self::ContextualNodeArrayWrongVisitor {
+                context,
+                array,
+                parent,
+            } => write!(
+                formatter,
+                "{context} array {}:{} for parent {}:{} reached the ordinary array visitor",
+                array.source().raw(),
+                array.array().0,
+                parent.source().raw(),
+                parent.node().0
             ),
             Self::MissingProgramSource(node) => write!(
                 formatter,

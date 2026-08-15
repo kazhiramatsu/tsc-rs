@@ -8948,6 +8948,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     downlevel_iteration: bool,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
+    class_member_arrays: BTreeMap<NodeArrayId, ClassMemberArrayVisit>,
     expanded_enums: BTreeMap<NodeId, Vec<NodeId>>,
     expanded_modules: BTreeMap<NodeId, Vec<NodeId>>,
     emitted_declarations: BTreeSet<(NodeId, String)>,
@@ -8958,6 +8959,22 @@ struct TypeScriptVisitor<'context, 'resolver> {
     source_identifier_names: BTreeSet<String>,
     generated_namespace_names: BTreeSet<String>,
     temp_ordinal: usize,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ClassMemberArrayVisit {
+    Visiting { parent: NodeId },
+    Visited { parent: NodeId },
+}
+
+const TYPESCRIPT_CLASS_MEMBERS_CONTEXT: &str = "transformTypeScript class members";
+
+impl ClassMemberArrayVisit {
+    const fn parent(self) -> NodeId {
+        match self {
+            Self::Visiting { parent } | Self::Visited { parent } => parent,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -9014,6 +9031,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             downlevel_iteration,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
+            class_member_arrays: BTreeMap::new(),
             expanded_enums: BTreeMap::new(),
             expanded_modules: BTreeMap::new(),
             emitted_declarations: BTreeSet::new(),
@@ -9331,18 +9349,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                             }
                         }
                         data.type_parameters = None;
-                        if self.project_parameter_properties_for_class_fields {
-                            data.members = self.prepend_parameter_property_members(data.members)?;
-                        }
-                        Some(self.update_generic(original, NodeData::ClassDeclaration(data))?)
+                        Some(self.update_class_declaration(original, id, data)?)
                     }
                 }
                 NodeData::ClassExpression(mut data) => {
                     data.type_parameters = None;
-                    if self.project_parameter_properties_for_class_fields {
-                        data.members = self.prepend_parameter_property_members(data.members)?;
-                    }
-                    Some(self.update_generic(original, NodeData::ClassExpression(data))?)
+                    Some(self.update_class_expression(original, id, data)?)
                 }
                 NodeData::PropertyDeclaration(mut data) => {
                     if self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?
@@ -9543,12 +9555,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     /// tsc-span: _tsc.js:94564-94598
     fn prepend_parameter_property_members(
         &mut self,
-        members: Option<NodeArrayId>,
-    ) -> Result<Option<NodeArrayId>, TransformError> {
-        let Some(members) = members else {
-            return Ok(None);
-        };
-        let original = self.array(members);
+        original: TransformNodeArray,
+        members: Vec<TransformNode>,
+    ) -> Result<Vec<TransformNode>, TransformError> {
         let member_ids = self.context.arena().node_array(original)?.nodes.clone();
         let mut parameters = Vec::new();
         for member in &member_ids {
@@ -9562,21 +9571,16 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             }
         }
         if parameters.is_empty() {
-            return Ok(Some(members));
+            return Ok(members);
         }
-        let mut projected = Vec::with_capacity(parameters.len() + member_ids.len());
+        let mut projected = Vec::with_capacity(parameters.len() + members.len());
         for parameter in parameters {
             if let Some(property) = self.create_parameter_property_declaration(parameter)? {
                 projected.push(property);
             }
         }
-        projected.extend(member_ids.into_iter().map(|member| self.node(member)));
-        Ok(Some(
-            self.context
-                .factory()?
-                .update_node_array(original, projected)?
-                .array(),
-        ))
+        projected.extend(members);
+        Ok(projected)
     }
 
     fn parameter_properties(
@@ -12511,6 +12515,215 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         Ok(false)
     }
 
+    /// Once a class itself is admitted to `transformTypeScript`, tsc uses a
+    /// closed class-element visitor rather than applying one uniform
+    /// `ContainsTypeScript` gate to every immediate member. Keep that
+    /// contextual route in a class-specific child traversal so the type
+    /// system, rather than an ambient array registry, owns the distinction.
+    ///
+    /// This distinction is observable for parser-recovery syntax. An
+    /// `accessor constructor` does not itself carry `ContainsTypeScript`, but
+    /// its modifiers are erased when a TypeScript-bearing parent class is
+    /// transformed. The same member remains untouched when its parent class
+    /// is never admitted.
+    ///
+    /// tsc-port: transformTypeScript/getClassElementVisitor/classElementVisitorWorker @6.0.3
+    /// tsc-hash: f5a88121af2c5fa8bf55dfef44ac548a1801ca8ea2a4b2227a33958193f15bc2
+    /// tsc-span: _tsc.js:94215-94239
+    fn update_class_declaration(
+        &mut self,
+        original: TransformNode,
+        parent: NodeId,
+        mut data: tsc_syntax::nodes::ClassDeclarationData,
+    ) -> Result<NodeId, TransformError> {
+        data.modifiers = self.visit_optional_child_array(data.modifiers)?;
+        data.name = self.visit_optional_child(data.name)?;
+        data.heritage_clauses = self.visit_optional_child_array(data.heritage_clauses)?;
+        data.members = self.visit_optional_class_members(parent, data.members)?;
+        let data = NodeData::ClassDeclaration(data);
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        Ok(self
+            .context
+            .factory()?
+            .update_node(original, data, flags)?
+            .node())
+    }
+
+    fn update_class_expression(
+        &mut self,
+        original: TransformNode,
+        parent: NodeId,
+        mut data: tsc_syntax::nodes::ClassExpressionData,
+    ) -> Result<NodeId, TransformError> {
+        data.modifiers = self.visit_optional_child_array(data.modifiers)?;
+        data.name = self.visit_optional_child(data.name)?;
+        data.heritage_clauses = self.visit_optional_child_array(data.heritage_clauses)?;
+        data.members = self.visit_optional_class_members(parent, data.members)?;
+        let data = NodeData::ClassExpression(data);
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        Ok(self
+            .context
+            .factory()?
+            .update_node(original, data, flags)?
+            .node())
+    }
+
+    fn visit_optional_child(
+        &mut self,
+        child: Option<NodeId>,
+    ) -> Result<Option<NodeId>, TransformError> {
+        child
+            .map(|child| self.visit(child))
+            .transpose()
+            .map(Option::flatten)
+    }
+
+    fn visit_optional_child_array(
+        &mut self,
+        children: Option<NodeArrayId>,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        children
+            .map(|children| self.visit_nodes(children))
+            .transpose()
+            .map(Option::flatten)
+    }
+
+    fn visit_optional_class_members(
+        &mut self,
+        parent: NodeId,
+        members: Option<NodeArrayId>,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        members
+            .map(|members| self.visit_class_members(parent, members))
+            .transpose()
+            .map(Option::flatten)
+    }
+
+    fn visit_class_members(
+        &mut self,
+        parent: NodeId,
+        members: NodeArrayId,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        let original = self.array(members);
+        let parent_node = self.node(parent);
+        if let Some(state) = self.class_member_arrays.get(&members).copied() {
+            let existing_parent = state.parent();
+            if existing_parent != parent {
+                return Err(TransformError::ContextualNodeArrayOwnerConflict {
+                    context: TYPESCRIPT_CLASS_MEMBERS_CONTEXT,
+                    array: original,
+                    existing_parent: self.node(existing_parent),
+                    attempted_parent: parent_node,
+                });
+            }
+            return match state {
+                ClassMemberArrayVisit::Visiting { .. } => {
+                    Err(TransformError::ReentrantContextualNodeArrayVisit {
+                        context: TYPESCRIPT_CLASS_MEMBERS_CONTEXT,
+                        array: original,
+                        parent: parent_node,
+                    })
+                }
+                ClassMemberArrayVisit::Visited { .. } => {
+                    Err(TransformError::ContextualNodeArrayAlreadyVisited {
+                        context: TYPESCRIPT_CLASS_MEMBERS_CONTEXT,
+                        array: original,
+                        parent: parent_node,
+                    })
+                }
+            };
+        }
+        if self.arrays.contains_key(&members) {
+            return Err(TransformError::ContextualNodeArrayAlreadyVisited {
+                context: TYPESCRIPT_CLASS_MEMBERS_CONTEXT,
+                array: original,
+                parent: parent_node,
+            });
+        }
+        self.class_member_arrays
+            .insert(members, ClassMemberArrayVisit::Visiting { parent });
+        let input = self.context.arena().node_array(original)?.nodes.clone();
+        let mut visited = Vec::with_capacity(input.len());
+        for member in input {
+            if let Some(member) = self.visit_class_element(parent, member)? {
+                visited.push(self.node(member));
+            }
+        }
+        if self.project_parameter_properties_for_class_fields {
+            visited = self.prepend_parameter_property_members(original, visited)?;
+        }
+        let updated = self
+            .context
+            .factory()?
+            .update_node_array(original, visited)?;
+        let mapped = Some(updated.array());
+        self.arrays.insert(members, mapped);
+        self.class_member_arrays
+            .insert(members, ClassMemberArrayVisit::Visited { parent });
+        Ok(mapped)
+    }
+
+    fn visit_class_element(
+        &mut self,
+        parent: NodeId,
+        member: NodeId,
+    ) -> Result<Option<NodeId>, TransformError> {
+        let parent_kind = self.context.arena().node(self.node(parent))?.kind;
+        let kind = self.context.arena().node(self.node(member))?.kind;
+        match kind {
+            SyntaxKind::Constructor | SyntaxKind::PropertyDeclaration => {
+                self.visit_typescript(member)
+            }
+            SyntaxKind::GetAccessor | SyntaxKind::SetAccessor | SyntaxKind::MethodDeclaration => {
+                self.visit(member)
+            }
+            SyntaxKind::ClassStaticBlockDeclaration => {
+                self.visit_class_static_block_children(member)
+            }
+            SyntaxKind::SemicolonClassElement => {
+                self.nodes.entry(member).or_insert(Some(member));
+                Ok(Some(member))
+            }
+            SyntaxKind::IndexSignature => {
+                self.nodes.insert(member, None);
+                Ok(None)
+            }
+            actual => Err(TransformError::UnexpectedChildKind {
+                parent: parent_kind,
+                field: "members",
+                actual,
+            }),
+        }
+    }
+
+    /// tsc's class-element dispatcher applies `visitEachChild` directly to a
+    /// static block: the block node bypasses admission, while each child still
+    /// uses the ordinary TypeScript visitor and its normal gate.
+    fn visit_class_static_block_children(
+        &mut self,
+        id: NodeId,
+    ) -> Result<Option<NodeId>, TransformError> {
+        if let Some(mapped) = self.nodes.get(&id) {
+            return Ok(*mapped);
+        }
+        let original = self
+            .context
+            .arena()
+            .node_ref(self.source, id)
+            .ok_or_else(|| TransformError::UnknownNode(self.node(id)))?;
+        let record = self.context.arena().node(original)?.clone();
+        let NodeData::ClassStaticBlockDeclaration(data) = record.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ClassStaticBlockDeclaration,
+                actual: record.kind,
+            });
+        };
+        let transformed =
+            Some(self.update_generic(original, NodeData::ClassStaticBlockDeclaration(data))?);
+        self.nodes.insert(id, transformed);
+        Ok(transformed)
+    }
+
     const fn node(&self, id: NodeId) -> TransformNode {
         TransformNode::new(self.source, id)
     }
@@ -12536,6 +12749,13 @@ impl NodeDataChildVisitor for TypeScriptVisitor<'_, '_> {
     }
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        if let Some(state) = self.class_member_arrays.get(&id).copied() {
+            return Err(TransformError::ContextualNodeArrayWrongVisitor {
+                context: TYPESCRIPT_CLASS_MEMBERS_CONTEXT,
+                array: self.array(id),
+                parent: self.node(state.parent()),
+            });
+        }
         if let Some(mapped) = self.arrays.get(&id) {
             return Ok(*mapped);
         }

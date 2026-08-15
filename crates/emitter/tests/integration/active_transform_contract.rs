@@ -623,6 +623,75 @@ fn constructor_and_getter_recovery_fields_follow_factory_update_boundaries() {
 }
 
 #[test]
+fn isolated_accessor_constructor_retains_modifier_without_parent_typescript_visit() {
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            "class C { accessor constructor() { } }\n",
+            ScriptTarget::ES_NEXT,
+        ),
+        "class C {\n    accessor constructor() { }\n}\n",
+    );
+}
+
+#[test]
+fn abstract_class_forces_constructor_through_typescript_class_element_visitor() {
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            "abstract class C { accessor constructor() { } }\n",
+            ScriptTarget::ES_NEXT,
+        ),
+        "class C {\n    constructor() { }\n}\n",
+    );
+}
+
+#[test]
+fn typescript_parent_preserves_non_constructor_accessor_recovery_modifiers() {
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            concat!(
+                "abstract class C {\n",
+                "    accessor i() { }\n",
+                "    accessor get j() { return false; }\n",
+                "    accessor set k(v) { }\n",
+                "    accessor constructor() { }\n",
+                "}\n",
+            ),
+            ScriptTarget::ES_NEXT,
+        ),
+        concat!(
+            "class C {\n",
+            "    accessor i() { }\n",
+            "    accessor get j() { return false; }\n",
+            "    accessor set k(v) { }\n",
+            "    constructor() { }\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn typed_sibling_forces_constructor_through_typescript_class_element_visitor() {
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            "class C { value: number; accessor constructor() { } }\n",
+            ScriptTarget::ES_NEXT,
+        ),
+        "class C {\n    value;\n    constructor() { }\n}\n",
+    );
+}
+
+#[test]
+fn typed_class_expression_forces_constructor_through_typescript_class_element_visitor() {
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            "const C = class { value: number; accessor constructor() { } };\n",
+            ScriptTarget::ES_NEXT,
+        ),
+        "const C = class {\n    value;\n    constructor() { }\n};\n",
+    );
+}
+
+#[test]
 fn parser_recovery_statement_tokens_keep_tsc_canonical_spacing() {
     assert_eq!(
         transform_and_print_canonical_at_target(

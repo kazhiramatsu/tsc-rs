@@ -3,12 +3,12 @@ use std::rc::Rc;
 
 use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_emitter::{
-    create_printer, transform_nodes, CommentRange, DisabledSourceMapRecorder, EmitFlags,
-    EmitHelper, EmitHint, EmitResolverNode, JavaScriptString, NewLineKind, PrintRequest,
-    PrinterError, PrinterOptions, SourceByteRange, SourceFileId, SourceFileTextMode, SourceRange,
-    SyntheticComment, SyntheticCommentKind, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformRoot, TransformSourceId, TransformationContext, TransformationState,
-    Transformer,
+    create_printer, get_script_transformers, transform_nodes, CommentRange,
+    DisabledSourceMapRecorder, EmitFlags, EmitHelper, EmitHint, EmitResolverNode, JavaScriptString,
+    NewLineKind, PrintRequest, PrinterError, PrinterOptions, SourceByteRange, SourceFileId,
+    SourceFileTextMode, SourceRange, SyntheticComment, SyntheticCommentKind, TransformArena,
+    TransformError, TransformFlags, TransformNode, TransformRoot, TransformSourceId,
+    TransformationContext, TransformationState, Transformer, UnavailableEmitResolver,
 };
 use tsc_syntax::{
     for_each_child,
@@ -19,7 +19,7 @@ use tsc_syntax::{
     parse_source_file, parse_source_file_from_snapshot_in_identity_domain, NodeData, ParseOptions,
     SyntaxKind,
 };
-use tsc_types::IdentityDomain;
+use tsc_types::{CompilerOptions, IdentityDomain, ModuleKind, ScriptTarget};
 
 #[derive(Debug, Default)]
 struct ProbeState {
@@ -288,6 +288,124 @@ fn failed_transformation_disposes_initialized_transformers() {
     .expect("probe transformer fails");
     assert_eq!(error, TransformError::BlockScopeRequired);
     assert_eq!(*disposed.borrow(), 1);
+}
+
+struct SharedClassMemberArrayTransformer;
+
+impl Transformer for SharedClassMemberArrayTransformer {
+    fn name(&self) -> &'static str {
+        "shared-class-member-array"
+    }
+
+    fn transform_root(
+        &mut self,
+        context: &mut TransformationContext,
+        root: TransformRoot,
+    ) -> Result<TransformRoot, TransformError> {
+        let source = match root {
+            TransformRoot::SourceFile(source) => source,
+            other => return Ok(other),
+        };
+        let root_node = context.arena().root(source)?;
+        let NodeData::SourceFile(mut root_data) = context.arena().node(root_node)?.data.clone()
+        else {
+            unreachable!("source-file transform root owns SourceFileData")
+        };
+        let statement_array = root_data
+            .statements
+            .and_then(|statements| context.arena().node_array_ref(source, statements))
+            .expect("source file has parsed statements");
+        let statements = context.arena().node_array(statement_array)?.nodes.clone();
+        let [first_id, second_id] = statements.as_slice() else {
+            panic!("shared-member probe requires exactly two classes")
+        };
+        let first = context
+            .arena()
+            .node_ref(source, *first_id)
+            .expect("first class belongs to the transform source");
+        let second = context
+            .arena()
+            .node_ref(source, *second_id)
+            .expect("second class belongs to the transform source");
+        let shared_members = match &context.arena().node(first)?.data {
+            NodeData::ClassDeclaration(data) => data.members.expect("first class members"),
+            _ => panic!("first statement must be a class declaration"),
+        };
+        let NodeData::ClassDeclaration(mut second_data) =
+            context.arena().node(second)?.data.clone()
+        else {
+            panic!("second statement must be a class declaration")
+        };
+        second_data.members = Some(shared_members);
+        let second_flags = context.arena().transform_flags(second);
+        let updated_second = context.factory()?.update_node(
+            second,
+            NodeData::ClassDeclaration(second_data),
+            second_flags,
+        )?;
+        let updated_statements = context
+            .factory()?
+            .update_node_array(statement_array, vec![first, updated_second])?;
+        root_data.statements = Some(updated_statements.array());
+        let root_flags = context.arena().transform_flags(root_node);
+        let updated_root = context.factory()?.update_node(
+            root_node,
+            NodeData::SourceFile(root_data),
+            root_flags,
+        )?;
+        context.arena_mut()?.replace_root(source, updated_root)?;
+        Ok(TransformRoot::SourceFile(source))
+    }
+}
+
+#[test]
+fn shared_class_member_array_fails_closed_across_contextual_parent_owners() {
+    let parsed = parse_source_file(
+        "shared-class-members.ts",
+        concat!(
+            "export default class<T> { accessor constructor() { } }\n",
+            "export default class<U> { accessor constructor() { } }\n",
+        ),
+        ParseOptions {
+            script_target: ScriptTarget::ES_NEXT,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES_NEXT.bits()),
+        module: Some(ModuleKind::PRESERVE.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let resolver = UnavailableEmitResolver;
+    let mut transformers =
+        get_script_transformers(&options, &resolver).expect("create script transformers");
+    transformers.insert(0, Box::new(SharedClassMemberArrayTransformer));
+
+    let error = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        transformers,
+        false,
+    )
+    .err()
+    .expect("a contextual class-member array cannot have two parent owners");
+
+    assert!(
+        matches!(
+            &error,
+            TransformError::ContextualNodeArrayOwnerConflict {
+                context: "transformTypeScript class members",
+                existing_parent,
+                attempted_parent,
+                ..
+            } if existing_parent != attempted_parent
+        ),
+        "{error:?}"
+    );
 }
 
 #[test]
