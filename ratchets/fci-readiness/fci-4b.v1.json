@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-4b",
+  "status": "ready",
+  "trustedBase": "b69d7fc5851073b7f5fc0c051b825c92bcef1661",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-4b-inventory.md",
+    "sha256": "3a81e473662515b648b90cf3346288ff6a2a09836a08c478e840c4432d06c728"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-4a.3",
+      "receiptSha256": "d15817579a9cced26ff9bd29c2706efd83c8b8025be8bdc44b8c09de8c94565a"
+    }
+  ],
+  "allowedPaths": [
+    "crates/ci-core/src/lib.rs",
+    "crates/ci-core/src/inventory.rs",
+    "crates/ci-core/tests/inventory.rs",
+    "docs/design/greenfield/slices/fci-4b-inventory.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-4b.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/ci-runner",
+    "crates/ci-testkit",
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    "crates/oracle",
+    "crates/ci-adapter",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g",
+    "ratchets/h2"
+  ],
+  "proof": {
+    "commands": [
+      "cargo xtask test ci-core",
+      "cargo test -p tsc-rs-ci-core --test inventory",
+      "node .github/ci/slice-readiness.mjs --check fci-4b"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-4b.v1.json"
+  }
+}

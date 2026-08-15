@@ -16,6 +16,7 @@ mod hash;
 mod identity;
 mod ids;
 mod input;
+mod inventory;
 mod membership;
 mod model;
 mod registry;
@@ -59,6 +60,11 @@ pub use ids::{
     NamespaceError, NamespaceLineageV1, ProtocolDomainTagV1, ProtocolDomainV1, SchemaIdV1,
 };
 pub use input::CanonicalInputRefV1;
+pub use inventory::{
+    BuildSystemOwnershipV1, CollisionKindV1, GeneratedOwnershipV1, GlobalDispositionV1,
+    InventoryEntryV1, InventoryError, NegativeLookupV1, NormalizedPathV1, PathCollisionV1,
+    UnknownInputPolicyV1, WorkspaceInventorySpecV1,
+};
 pub use membership::{
     complete_adapter_input, complete_composite_input, CompleteAdapterInput, CompleteCompositeInput,
     MembershipError,

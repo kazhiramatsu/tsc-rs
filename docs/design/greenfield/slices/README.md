@@ -32,7 +32,9 @@ invitation to fill in the answer during implementation.
 | [FCI-4a.1 graph schema/rendering](fci-4a.1-graph-schema.md) | Ready; shadow implementation in progress | Generic ordered graph/profile records and canonical rendering only. No closure, registry, membership, or adapter dispatch. |
 | [FCI-4a.2 graph/model structural validation](fci-4a.2-graph-validation.md) | Ready; shadow implementation in progress | Generic edge/cycle/closure/global-id validation and stable plan only; no adapter dispatch or complete membership. |
 | [FCI-4a.3 sealed registry/membership/testkit](fci-4a.3-sealed-registry-membership.md) | Ready; shadow implementation in progress | Consuming exact registry seal, private monomorphized decode/re-encode, typed verdicts, pending-to-complete membership, and dev-only testkit. No outcome/CAS/live runner. |
-| FCI-4b-d inventory/impact/explanations | Blocked on FCI-4a.3 and separate ready packets | No production edits. |
+| [FCI-4b inventory](fci-4b-inventory.md) | Ready; shadow implementation in progress | Pure normalized-path, disposition, negative-lookup, generated/build ownership, collision, and unknown-policy values. No snapshot provider or impact calculation. |
+| FCI-4c paired impact and protected transition | Blocked on FCI-4b and a separate ready packet | No production edits. |
+| FCI-4d pure explanations and planning budgets | Blocked on FCI-4c and a separate ready packet | No production edits. |
 | [FCI-5a-b tsc-rs protocol/control/harness](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-4d and their own ready packets | Protocol/control extraction and the miss-only harness remain separate; framework projections wait for FCI-6c. |
 | FCI-5c.1 H2.5g inventory profile shadow | Blocked on FCI-5b and the final profile packet | Shadow only: exact 9,027-case membership and two-repetition observations; legacy H2.5g remains authoritative. |
 | FCI-5c.2 complete H2 shadow | Blocked on H2.5g final validation, close/merge lineage, and packet rebind | Complete the remaining H2 adapter before FCI-6; no authority may be minted by the shadow. |
