@@ -1969,28 +1969,7 @@ impl<'context> TargetVisitor<'context> {
         binding: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let identifier = self.create_identifier(binding.provisional_name())?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(identifier)
-            .set_generated_binding_id(binding.id());
-        if let Some(base) = binding.numbered_base() {
-            self.context
-                .arena_mut()?
-                .metadata_mut(identifier)
-                .set_generated_binding_base(base);
-        }
-        if let Some(base) = binding.preferred_base() {
-            self.context
-                .arena_mut()?
-                .metadata_mut(identifier)
-                .set_generated_binding_preferred_base(base);
-        }
-        if binding.reserve_in_nested_scopes() {
-            self.context
-                .arena_mut()?
-                .metadata_mut(identifier)
-                .reserve_generated_binding_in_nested_scopes();
-        }
+        binding.write_generated_metadata(self.context.arena_mut()?, identifier);
         Ok(identifier)
     }
 

@@ -144,6 +144,20 @@ impl GeneratedBindingScopes {
         }
     }
 
+    /// Reconciles an eagerly planned ordinary temp with bindings introduced
+    /// by later transforms. Preserve the planned spelling when it remains
+    /// available; otherwise resume the scope-local temp sequence.
+    pub(super) fn allocate_planned_temp_with_policy(
+        &mut self,
+        planned: String,
+        reserve_in_nested_scopes: bool,
+    ) -> String {
+        if self.reserve_in_current(planned.clone(), true, reserve_in_nested_scopes) {
+            return planned;
+        }
+        self.allocate_temp_with_policy(reserve_in_nested_scopes)
+    }
+
     pub(super) fn allocate_local_temp(&mut self) -> String {
         loop {
             let ordinal = self.scopes[self.current.0].next_temp_ordinal;
@@ -352,6 +366,30 @@ impl GeneratedBindingScopes {
             }
             suffix += 1;
         }
+    }
+
+    /// Commits a file-level optimistic name that was planned from the parsed
+    /// source identifier snapshot.
+    ///
+    /// TypeScript's `FileLevel` predicate intentionally ignores generated
+    /// peers, so this operation must not call `reserve_in_current`: two
+    /// distinct generated binding identities are allowed to carry the same
+    /// spelling. The spelling is still recorded in the current scope (and,
+    /// when requested, its descendants), ensuring ordinary generated names
+    /// allocated afterwards avoid it just as `ReservedInNestedScopes` does in
+    /// the TypeScript printer.
+    pub(super) fn reserve_planned_file_level_optimistic_with_policy(
+        &mut self,
+        planned: String,
+        reserve_in_nested_scopes: bool,
+    ) -> String {
+        let current = &mut self.scopes[self.current.0];
+        current.names.push(planned.clone());
+        if reserve_in_nested_scopes {
+            current.names_reserved_in_descendants.push(planned.clone());
+        }
+        current.bindings.push(planned.clone());
+        planned
     }
 
     pub(super) fn allocate_planned_preferred_with_role_suffix_with_policy(

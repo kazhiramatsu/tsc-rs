@@ -1,5 +1,5 @@
 use std::cell::Cell;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use serde_json::Value;
@@ -7,9 +7,10 @@ use tsc_emitter::{
     create_printer, get_script_transformers, get_script_transformers_for_source, transform_nodes,
     transform_type_script, DisabledSourceMapRecorder, EmitConstantValue, EmitEnumMemberValue,
     EmitExportContainerMode, EmitFlags, EmitHost, EmitResolver, EmitResolverError,
-    EmitResolverNode, EmitSource, EmitTypeReferenceSerializationKind, JavaScriptNumber,
-    JavaScriptString, NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode,
-    TransformArena, TransformNode, TransformRoot, TransformSourceId, UnavailableEmitResolver,
+    EmitResolverNode, EmitSource, EmitTypeReferenceSerializationKind, InternalEmitFlags,
+    JavaScriptNumber, JavaScriptString, NewLineKind, PrintRequest, PrinterOptions,
+    SourceFileTextMode, SourceRange, TransformArena, TransformNode, TransformRoot,
+    TransformSourceId, UnavailableEmitResolver,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -395,6 +396,969 @@ fn transform_and_print_module(
         .expect("print module transform")
         .text()
         .to_owned()
+}
+
+struct UsingCommonJsSourceIdentityResolver {
+    source_file: NodeId,
+    declarations_by_reference: BTreeMap<NodeId, NodeId>,
+    direct_export_references: BTreeSet<NodeId>,
+    unmatched_value_queries: Cell<usize>,
+}
+
+impl UsingCommonJsSourceIdentityResolver {
+    fn new(source: &tsc_syntax::SourceFile) -> Self {
+        let NodeData::SourceFile(source_file) = &source.arena.node(source.root).data else {
+            unreachable!("parsed root remains a source file")
+        };
+        let statements = source_file
+            .statements
+            .map(|statements| source.arena.node_array(statements).nodes.as_slice())
+            .unwrap_or_default();
+        let mut declarations_by_name = BTreeMap::<String, (NodeId, NodeId)>::new();
+        let mut declarations_by_reference = BTreeMap::new();
+        let mut direct_export_references = BTreeSet::new();
+
+        for statement in statements {
+            match &source.arena.node(*statement).data {
+                NodeData::VariableStatement(data) => {
+                    let directly_exported = data.modifiers.is_some_and(|modifiers| {
+                        source
+                            .arena
+                            .node_array(modifiers)
+                            .nodes
+                            .iter()
+                            .any(|modifier| {
+                                source.arena.node(*modifier).kind == SyntaxKind::ExportKeyword
+                            })
+                    });
+                    let Some(list) = data.declaration_list else {
+                        continue;
+                    };
+                    let NodeData::VariableDeclarationList(list) = &source.arena.node(list).data
+                    else {
+                        continue;
+                    };
+                    let Some(declarations) = list.declarations else {
+                        continue;
+                    };
+                    for declaration in &source.arena.node_array(declarations).nodes {
+                        let NodeData::VariableDeclaration(data) =
+                            &source.arena.node(*declaration).data
+                        else {
+                            continue;
+                        };
+                        let Some(name) = data.name else {
+                            continue;
+                        };
+                        let NodeData::Identifier(identifier) = &source.arena.node(name).data else {
+                            continue;
+                        };
+                        declarations_by_name.insert(identifier.text.clone(), (*declaration, name));
+                        declarations_by_reference.insert(name, *declaration);
+                        if directly_exported {
+                            direct_export_references.insert(name);
+                        }
+                    }
+                }
+                NodeData::ClassDeclaration(data) => {
+                    let Some(name) = data.name else {
+                        continue;
+                    };
+                    let NodeData::Identifier(identifier) = &source.arena.node(name).data else {
+                        continue;
+                    };
+                    declarations_by_name.insert(identifier.text.clone(), (*statement, name));
+                    declarations_by_reference.insert(name, *statement);
+                }
+                _ => {}
+            }
+        }
+
+        for statement in statements {
+            let NodeData::ExportDeclaration(data) = &source.arena.node(*statement).data else {
+                continue;
+            };
+            if data.module_specifier.is_some() {
+                continue;
+            }
+            let Some(clause) = data.export_clause else {
+                continue;
+            };
+            let NodeData::NamedExports(named) = &source.arena.node(clause).data else {
+                continue;
+            };
+            let Some(elements) = named.elements else {
+                continue;
+            };
+            for specifier in &source.arena.node_array(elements).nodes {
+                let NodeData::ExportSpecifier(specifier) = &source.arena.node(*specifier).data
+                else {
+                    continue;
+                };
+                let Some(local) = specifier.property_name.or(specifier.name) else {
+                    continue;
+                };
+                let NodeData::Identifier(identifier) = &source.arena.node(local).data else {
+                    continue;
+                };
+                if let Some((declaration, _)) = declarations_by_name.get(&identifier.text) {
+                    declarations_by_reference.insert(local, *declaration);
+                }
+            }
+        }
+
+        Self {
+            source_file: source.root,
+            declarations_by_reference,
+            direct_export_references,
+            unmatched_value_queries: Cell::new(0),
+        }
+    }
+
+    fn declaration(&self, node: EmitResolverNode) -> Option<EmitResolverNode> {
+        self.declarations_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|declaration| EmitResolverNode::new(node.source(), declaration))
+    }
+}
+
+impl EmitResolver for UsingCommonJsSourceIdentityResolver {
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .direct_export_references
+            .contains(&node.node())
+            .then(|| EmitResolverNode::new(node.source(), self.source_file)))
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_import_declaration_at_location(
+        &self,
+        _node: EmitResolverNode,
+        _location: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        let declaration = self.declaration(node);
+        if declaration.is_none() {
+            self.unmatched_value_queries
+                .set(self.unmatched_value_queries.get() + 1);
+        }
+        Ok(declaration)
+    }
+
+    fn get_referenced_value_declarations(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitResolverNode>, EmitResolverError> {
+        let declaration = self.declaration(node);
+        if declaration.is_none() {
+            self.unmatched_value_queries
+                .set(self.unmatched_value_queries.get() + 1);
+        }
+        Ok(declaration.into_iter().collect())
+    }
+
+    fn get_type_reference_serialization_kind(
+        &self,
+        _node: EmitResolverNode,
+        _location: EmitResolverNode,
+    ) -> Result<EmitTypeReferenceSerializationKind, EmitResolverError> {
+        Ok(EmitTypeReferenceSerializationKind::Unknown)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        _node: EmitResolverNode,
+        _flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+}
+
+fn observe_using_es_next_identifier_roles(
+    source_text: &str,
+    observed_name: &str,
+) -> Vec<InternalEmitFlags> {
+    let parsed = parse_source_file("using-common-js.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source_id = SourceFileId::from_raw(0);
+    let source = arena.add_source(&parsed, Some(source_id));
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.module = Some(ModuleKind::COMMON_JS.bits());
+    options.always_strict = Some(false);
+    let host = TransformContractHost {
+        options: &options,
+        syntax: &parsed,
+        source_ids: [source_id],
+    };
+    let resolver = UsingCommonJsSourceIdentityResolver::new(&parsed);
+    let mut transformers =
+        get_script_transformers_for_source(&options, &resolver, &host, source_id).unwrap();
+    assert!(
+        transformers.len() >= 2,
+        "TypeScript and ESNext transformers must lead the target pipeline",
+    );
+    transformers.truncate(2);
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        transformers,
+        false,
+    )
+    .expect("ES2022 transform through the ESNext using-hoist pass");
+
+    let arena = result.arena();
+    let root = arena.root(source).expect("transformed source root");
+    let syntax = arena.source(source).expect("transform source").syntax();
+    let mut pending = vec![root];
+    let mut roles = Vec::new();
+    while let Some(node) = pending.pop() {
+        let record = arena.node(node).expect("transformed node");
+        if matches!(
+            &record.data,
+            NodeData::Identifier(identifier) if identifier.text == observed_name
+        ) {
+            roles.push(
+                arena
+                    .metadata(node)
+                    .map_or(InternalEmitFlags::NONE, |metadata| {
+                        metadata.internal_flags()
+                    }),
+            );
+        }
+        for_each_child(&syntax.arena, record, |child| {
+            if let Some(child) = arena.node_ref(source, child) {
+                pending.push(child);
+            }
+            false
+        });
+    }
+    roles
+}
+
+fn transform_and_print_using_common_js(source_text: &str) -> (String, usize) {
+    let parsed = parse_source_file("using-common-js.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source_id = SourceFileId::from_raw(0);
+    let source = arena.add_source(&parsed, Some(source_id));
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.module = Some(ModuleKind::COMMON_JS.bits());
+    options.always_strict = Some(false);
+    let host = TransformContractHost {
+        options: &options,
+        syntax: &parsed,
+        source_ids: [source_id],
+    };
+    let resolver = UsingCommonJsSourceIdentityResolver::new(&parsed);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers_for_source(&options, &resolver, &host, source_id).unwrap(),
+        false,
+    )
+    .expect("ES2022 CommonJS using-hoist transform");
+    let unmatched_value_queries = resolver.unmatched_value_queries.get();
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("print ES2022 CommonJS using-hoist transform")
+    .text()
+    .to_owned();
+    (output, unmatched_value_queries)
+}
+
+fn assert_using_common_js_tail(source_text: &str, expected_tail: &str) {
+    let (output, unmatched_value_queries) = transform_and_print_using_common_js(source_text);
+    assert_eq!(
+        unmatched_value_queries, 0,
+        "generated binding identities must not fall through to parsed resolver lookup:\n{output}",
+    );
+    let tail_start = output
+        .find("var resource")
+        .unwrap_or_else(|| panic!("missing using-hoist declaration:\n{output}"));
+    assert_eq!(&output[tail_start..], expected_tail);
+}
+
+#[test]
+fn common_js_using_hoist_substitutes_exported_variable_initializer() {
+    let source = concat!(
+        "declare function acquire(): Disposable;\n",
+        "using resource = acquire();\n",
+        "export const after = 2;\n",
+    );
+    let expected_tail = concat!(
+        "var resource;\n",
+        "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+        "try {\n",
+        "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+        "    exports.after = 2;\n",
+        "}\n",
+        "catch (e_1) {\n",
+        "    env_1.error = e_1;\n",
+        "    env_1.hasError = true;\n",
+        "}\n",
+        "finally {\n",
+        "    __disposeResources(env_1);\n",
+        "}\n",
+    );
+
+    let roles = observe_using_es_next_identifier_roles(source, "after");
+    let (output, unmatched_value_queries) = transform_and_print_using_common_js(source);
+    assert_eq!(unmatched_value_queries, 0, "{output}");
+    let tail_start = output
+        .find("var resource")
+        .unwrap_or_else(|| panic!("missing using-hoist declaration:\n{output}"));
+    assert_eq!(&output[tail_start..], expected_tail);
+    assert_eq!(
+        roles
+            .iter()
+            .filter(|role| role.contains(InternalEmitFlags::DECLARATION_NAME_REFERENCE))
+            .count(),
+        1,
+        "only the runtime assignment clone is a declaration-name reference: {roles:?}\n{output}",
+    );
+}
+
+#[test]
+fn common_js_using_hoist_keeps_local_variable_initializer_local() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "const local = 2;\n",
+        ),
+        concat!(
+            "var resource, local;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    local = 2;\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_hoist_preserves_export_alias_assignment_order() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "const after = 2;\n",
+            "export { after as renamed };\n",
+        ),
+        concat!(
+            "var resource, after;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    exports.renamed = after = 2;\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_hoist_chains_direct_and_aliased_exports() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "export const after = 2;\n",
+            "export { after as renamed };\n",
+        ),
+        concat!(
+            "var resource;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    exports.renamed = exports.after = 2;\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_hoist_preserves_multiple_alias_source_order() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "export const after = 2;\n",
+            "export { after as first, after as second };\n",
+        ),
+        concat!(
+            "var resource;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    exports.second = exports.first = exports.after = 2;\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_hoist_substitutes_named_export_class_once() {
+    let source = concat!(
+        "declare function acquire(): Disposable;\n",
+        "using resource = acquire();\n",
+        "export class C {}\n",
+    );
+    let expected_tail = concat!(
+        "var resource, C;\n",
+        "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+        "try {\n",
+        "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+        "    exports.C = C = class C {\n",
+        "    };\n",
+        "}\n",
+        "catch (e_1) {\n",
+        "    env_1.error = e_1;\n",
+        "    env_1.hasError = true;\n",
+        "}\n",
+        "finally {\n",
+        "    __disposeResources(env_1);\n",
+        "}\n",
+    );
+
+    let roles = observe_using_es_next_identifier_roles(source, "C");
+    let (output, unmatched_value_queries) = transform_and_print_using_common_js(source);
+    assert_eq!(unmatched_value_queries, 0, "{output}");
+    let tail_start = output
+        .find("var resource")
+        .unwrap_or_else(|| panic!("missing using-hoist declaration:\n{output}"));
+    assert_eq!(&output[tail_start..], expected_tail);
+    assert!(
+        roles
+            .iter()
+            .all(|role| !role.contains(InternalEmitFlags::DECLARATION_NAME_REFERENCE)),
+        "class projections must not masquerade as variable initializer clones: {roles:?}\n{output}",
+    );
+    assert_eq!(
+        output.matches("exports.C = C = class C").count(),
+        1,
+        "{output}"
+    );
+}
+
+#[test]
+fn common_js_using_hoist_chains_named_default_class_bindings() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "export default class C {}\n",
+        ),
+        concat!(
+            "var resource, C, _default;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    exports.default = _default = C = class C {\n",
+            "    };\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_hoist_chains_anonymous_default_class_binding() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "export default class {}\n",
+        ),
+        concat!(
+            "var resource, _default;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    exports.default = _default = class {\n",
+            "        static { __setFunctionName(this, \"default\"); }\n",
+            "    };\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_hoist_renames_default_binding_around_a_source_collision() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "const _default = 0;\n",
+            "using resource = acquire();\n",
+            "export default class {}\n",
+        ),
+        concat!(
+            "var resource, _default_1;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    exports.default = _default_1 = class {\n",
+            "        static { __setFunctionName(this, \"default\"); }\n",
+            "    };\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_hoist_keeps_generated_default_publication_before_export_equals() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "export default class {}\n",
+            "export = resource;\n",
+        ),
+        concat!(
+            "var resource, _default, _default;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    exports.default = _default = class {\n",
+            "        static { __setFunctionName(this, \"default\"); }\n",
+            "    };\n",
+            "    _default = resource;\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+            "module.exports = _default;\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_hoist_keeps_generated_default_publication_after_export_equals() {
+    assert_using_common_js_tail(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "export = resource;\n",
+            "export default class {}\n",
+        ),
+        concat!(
+            "var resource, _default, _default;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    _default = resource;\n",
+            "    exports.default = _default = class {\n",
+            "        static { __setFunctionName(this, \"default\"); }\n",
+            "    };\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+            "module.exports = _default;\n",
+        ),
+    );
+}
+
+#[test]
+fn common_js_using_file_level_defaults_respect_erased_source_identifiers() {
+    let expected_tail = concat!(
+        "var resource, _default_1, _default_1;\n",
+        "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+        "try {\n",
+        "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+        "    exports.default = _default_1 = class {\n",
+        "        static { __setFunctionName(this, \"default\"); }\n",
+        "    };\n",
+        "    _default_1 = resource;\n",
+        "}\n",
+        "catch (e_1) {\n",
+        "    env_1.error = e_1;\n",
+        "    env_1.hasError = true;\n",
+        "}\n",
+        "finally {\n",
+        "    __disposeResources(env_1);\n",
+        "}\n",
+        "module.exports = _default_1;\n",
+    );
+    for erased_identifier in [
+        "type _default = number;\n",
+        "interface _default {}\n",
+        "declare const _default: number;\n",
+    ] {
+        let source = format!(
+            "declare function acquire(): Disposable;\n{erased_identifier}using resource = acquire();\nexport default class {{}}\nexport = resource;\n"
+        );
+        assert_using_common_js_tail(&source, expected_tail);
+    }
+}
+
+#[test]
+fn common_js_using_generated_decorator_binding_map_miss_stays_out_of_the_resolver() {
+    let (output, unmatched_value_queries) = transform_and_print_using_common_js(concat!(
+        "declare function acquire(): Disposable;\n",
+        "declare const dec: any;\n",
+        "using resource = acquire();\n",
+        "export default class { @dec m() {} }\n",
+    ));
+    assert_eq!(
+        unmatched_value_queries, 0,
+        "generated default_1 must not fall through to parsed resolution:\n{output}",
+    );
+    let tail_start = output
+        .find("var resource")
+        .unwrap_or_else(|| panic!("missing using-hoist declaration:\n{output}"));
+    assert_eq!(
+        &output[tail_start..],
+        concat!(
+            "var resource, default_1, _default;\n",
+            "const env_1 = { stack: [], error: void 0, hasError: false };\n",
+            "try {\n",
+            "    resource = __addDisposableResource(env_1, acquire(), false);\n",
+            "    exports.default = _default = default_1 = (() => {\n",
+            "        let _instanceExtraInitializers = [];\n",
+            "        let _m_decorators;\n",
+            "        return class default_1 {\n",
+            "            static {\n",
+            "                const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n",
+            "                _m_decorators = [dec];\n",
+            "                __esDecorate(this, null, _m_decorators, { kind: \"method\", name: \"m\", static: false, private: false, access: { has: obj => \"m\" in obj, get: obj => obj.m }, metadata: _metadata }, null, _instanceExtraInitializers);\n",
+            "                if (_metadata) Object.defineProperty(this, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n",
+            "            }\n",
+            "            m() { }\n",
+            "            constructor() {\n",
+            "                __runInitializers(this, _instanceExtraInitializers);\n",
+            "            }\n",
+            "        };\n",
+            "    })();\n",
+            "}\n",
+            "catch (e_1) {\n",
+            "    env_1.error = e_1;\n",
+            "    env_1.hasError = true;\n",
+            "}\n",
+            "finally {\n",
+            "    __disposeResources(env_1);\n",
+            "}\n",
+        ),
+    );
+    assert_eq!(output.matches("exports.default =").count(), 2, "{output}");
+}
+
+fn using_standard_default_iife(output: &str) -> &str {
+    let tail = output
+        .find("var resource")
+        .unwrap_or_else(|| panic!("missing using-hoist declarations:\n{output}"));
+    let start = tail
+        + output[tail..]
+            .find("(() => {\n")
+            .unwrap_or_else(|| panic!("missing decorated-class IIFE:\n{output}"));
+    let closing = "\n    })()";
+    let end = start
+        + output[start..]
+            .find(closing)
+            .unwrap_or_else(|| panic!("missing decorated-class IIFE close:\n{output}"))
+        + closing.len();
+    &output[start..end]
+}
+
+fn expected_using_standard_default_iife(
+    target: ScriptTarget,
+    with_member_decorator: bool,
+) -> String {
+    let mut expected = String::from(concat!(
+        "(() => {\n",
+        "        let _classDecorators = [cls];\n",
+        "        let _classDescriptor;\n",
+        "        let _classExtraInitializers = [];\n",
+        "        let _classThis;\n",
+    ));
+    if with_member_decorator {
+        expected.push_str(concat!(
+            "        let _instanceExtraInitializers = [];\n",
+            "        let _m_decorators;\n",
+        ));
+    }
+    if target == ScriptTarget::ES2022 {
+        expected.push_str(concat!(
+            "        var default_1 = class {\n",
+            "            static { _classThis = this; }\n",
+        ));
+        if !with_member_decorator {
+            expected
+                .push_str("            static { __setFunctionName(_classThis, \"default\"); }\n");
+        }
+        expected.push_str(concat!(
+            "            static {\n",
+            "                const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n",
+        ));
+        if with_member_decorator {
+            expected.push_str(concat!(
+                "                _m_decorators = [dec];\n",
+                "                __esDecorate(this, null, _m_decorators, { kind: \"method\", name: \"m\", static: false, private: false, access: { has: obj => \"m\" in obj, get: obj => obj.m }, metadata: _metadata }, null, _instanceExtraInitializers);\n",
+            ));
+        }
+        expected.push_str(concat!(
+            "                __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n",
+            "                default_1 = _classThis = _classDescriptor.value;\n",
+            "                if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n",
+            "                __runInitializers(_classThis, _classExtraInitializers);\n",
+            "            }\n",
+        ));
+        if with_member_decorator {
+            expected.push_str(concat!(
+                "            m() { }\n",
+                "            constructor() {\n",
+                "                __runInitializers(this, _instanceExtraInitializers);\n",
+                "            }\n",
+            ));
+        }
+        expected.push_str(concat!(
+            "        };\n",
+            "        return default_1 = _classThis;\n",
+            "    })()",
+        ));
+        return expected;
+    }
+
+    expected.push_str("        var default_1 = _classThis = class {\n");
+    if with_member_decorator {
+        expected.push_str(concat!(
+            "            m() { }\n",
+            "            constructor() {\n",
+            "                __runInitializers(this, _instanceExtraInitializers);\n",
+            "            }\n",
+        ));
+    }
+    expected.push_str(concat!(
+        "        };\n",
+        "        __setFunctionName(_classThis, \"default\");\n",
+        "        (() => {\n",
+        "            const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n",
+    ));
+    if with_member_decorator {
+        expected.push_str(concat!(
+            "            _m_decorators = [dec];\n",
+            "            __esDecorate(_classThis, null, _m_decorators, { kind: \"method\", name: \"m\", static: false, private: false, access: { has: obj => \"m\" in obj, get: obj => obj.m }, metadata: _metadata }, null, _instanceExtraInitializers);\n",
+        ));
+    }
+    expected.push_str(concat!(
+        "            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n",
+        "            default_1 = _classThis = _classDescriptor.value;\n",
+        "            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n",
+        "            __runInitializers(_classThis, _classExtraInitializers);\n",
+        "        })();\n",
+        "        return default_1 = _classThis;\n",
+        "    })()",
+    ));
+    expected
+}
+
+#[test]
+fn using_standard_anonymous_default_keeps_tsc_owner_family_across_targets_and_modules() {
+    for (case, class_body, with_member_decorator) in [
+        ("class decorator", "{}", false),
+        ("class and member decorators", "{ @dec m() {} }", true),
+    ] {
+        let source = format!(
+            concat!(
+                "declare function acquire(): Disposable;\n",
+                "declare const cls: any;\n",
+                "declare const dec: any;\n",
+                "using resource = acquire();\n",
+                "@cls export default class {class_body}\n",
+            ),
+            class_body = class_body,
+        );
+        for target in [ScriptTarget::ES2022, ScriptTarget::ES2016] {
+            let expected_iife = expected_using_standard_default_iife(target, with_member_decorator);
+            for module in [ModuleKind::ES_NEXT, ModuleKind::COMMON_JS] {
+                let output = transform_and_print_module(&source, target, module);
+                let hoist = if with_member_decorator {
+                    "var resource, default_1, _default;\n"
+                } else {
+                    "var resource, _default;\n"
+                };
+                let tail = &output[output.find("var resource").unwrap_or_else(|| {
+                    panic!("missing using hoist ({case}, {target:?}, {module:?}):\n{output}")
+                })..];
+                assert!(
+                    tail.starts_with(hoist),
+                    "{case}, {target:?}, {module:?}:\n{output}"
+                );
+                let generated_chain = if with_member_decorator {
+                    "_default = default_1"
+                } else {
+                    "_default"
+                };
+                let assignment = if module == ModuleKind::COMMON_JS {
+                    format!("    exports.default = {generated_chain} = (() => {{\n")
+                } else {
+                    format!("    {generated_chain} = (() => {{\n")
+                };
+                assert!(
+                    tail.contains(&assignment),
+                    "{case}, {target:?}, {module:?}:\n{output}"
+                );
+                assert_eq!(
+                    using_standard_default_iife(&output),
+                    expected_iife,
+                    "{case}, {target:?}, {module:?}",
+                );
+                assert!(
+                    !tail.contains("class_1"),
+                    "{case}, {target:?}, {module:?}:\n{output}"
+                );
+                assert_eq!(
+                    output.matches("default_1").count(),
+                    if with_member_decorator { 5 } else { 3 },
+                    "{case}, {target:?}, {module:?}:\n{output}",
+                );
+                if module == ModuleKind::COMMON_JS {
+                    assert_eq!(output.matches("exports.default =").count(), 2, "{output}");
+                    assert_eq!(output.matches("_default").count(), 2, "{output}");
+                } else {
+                    assert_eq!(
+                        output.matches("export { _default as default };").count(),
+                        1,
+                        "{output}",
+                    );
+                    assert_eq!(output.matches("_default").count(), 3, "{output}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn es2016_common_js_using_default_families_reconcile_collisions_independently() {
+    let output = transform_and_print_module(
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "declare const cls: any;\n",
+            "declare const dec: any;\n",
+            "const _default = 0, default_1 = 0;\n",
+            "using resource = acquire();\n",
+            "@cls export default class { @dec m() {} }\n",
+        ),
+        ScriptTarget::ES2016,
+        ModuleKind::COMMON_JS,
+    );
+    let tail = &output[output
+        .find("var resource")
+        .unwrap_or_else(|| panic!("missing collision hoist:\n{output}"))..];
+    assert!(
+        tail.starts_with("var resource, default_2, _default_1;\n"),
+        "{output}",
+    );
+    assert!(
+        tail.contains("    exports.default = _default_1 = default_2 = (() => {\n"),
+        "{output}",
+    );
+    assert_eq!(
+        using_standard_default_iife(&output),
+        expected_using_standard_default_iife(ScriptTarget::ES2016, true)
+            .replace("default_1", "default_2"),
+    );
 }
 
 fn transform_and_print_system_module(source_text: &str, target: ScriptTarget) -> String {
@@ -2232,6 +3196,169 @@ impl EmitResolver for SystemContractResolver {
         _flag: u32,
     ) -> Result<bool, EmitResolverError> {
         Ok(false)
+    }
+}
+
+struct DecoratedClassNamespaceMergeResolver {
+    class_declaration: NodeId,
+    class_name: NodeId,
+    namespace_declaration: NodeId,
+    namespace_name: NodeId,
+    class_name_value_queries: Cell<usize>,
+    namespace_merge_queries: Cell<usize>,
+}
+
+impl DecoratedClassNamespaceMergeResolver {
+    fn new(source: &tsc_syntax::SourceFile, expected_name: &str) -> Self {
+        let mut class = None;
+        let mut namespace = None;
+        let mut pending = vec![source.root];
+        while let Some(node) = pending.pop() {
+            let record = source.arena.node(node);
+            match &record.data {
+                NodeData::ClassDeclaration(data) => {
+                    if let Some(name) = data.name.filter(|name| {
+                        matches!(
+                            &source.arena.node(*name).data,
+                            NodeData::Identifier(data) if data.text == expected_name
+                        )
+                    }) {
+                        class = Some((node, name));
+                    }
+                }
+                NodeData::ModuleDeclaration(data) => {
+                    if let Some(name) = data.name.filter(|name| {
+                        matches!(
+                            &source.arena.node(*name).data,
+                            NodeData::Identifier(data) if data.text == expected_name
+                        )
+                    }) {
+                        namespace = Some((node, name));
+                    }
+                }
+                _ => {}
+            }
+            for_each_child(&source.arena, record, |child| {
+                pending.push(child);
+                false
+            });
+        }
+        let (class_declaration, class_name) = class.expect("merged class declaration");
+        let (namespace_declaration, namespace_name) =
+            namespace.expect("merged namespace declaration");
+        Self {
+            class_declaration,
+            class_name,
+            namespace_declaration,
+            namespace_name,
+            class_name_value_queries: Cell::new(0),
+            namespace_merge_queries: Cell::new(0),
+        }
+    }
+}
+
+impl EmitResolver for DecoratedClassNamespaceMergeResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_enum_member_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitEnumMemberValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        _node: EmitResolverNode,
+        _mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_import_declaration_at_location(
+        &self,
+        _node: EmitResolverNode,
+        _location: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        if node.node() != self.class_name {
+            return Ok(None);
+        }
+        self.class_name_value_queries
+            .set(self.class_name_value_queries.get() + 1);
+        Ok(Some(EmitResolverNode::new(
+            node.source(),
+            self.class_declaration,
+        )))
+    }
+
+    fn get_referenced_value_declarations(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitResolverNode>, EmitResolverError> {
+        if node.node() != self.namespace_name && node.node() != self.class_name {
+            return Ok(Vec::new());
+        }
+        if node.node() == self.namespace_name {
+            self.namespace_merge_queries
+                .set(self.namespace_merge_queries.get() + 1);
+        }
+        Ok(vec![
+            EmitResolverNode::new(node.source(), self.class_declaration),
+            EmitResolverNode::new(node.source(), self.namespace_declaration),
+        ])
+    }
+
+    fn get_type_reference_serialization_kind(
+        &self,
+        _node: EmitResolverNode,
+        _location: EmitResolverNode,
+    ) -> Result<EmitTypeReferenceSerializationKind, EmitResolverError> {
+        Ok(EmitTypeReferenceSerializationKind::Unknown)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        _node: EmitResolverNode,
+        _flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+
+    fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Ok(node.node() == self.namespace_declaration)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(true)
     }
 }
 
@@ -5085,6 +6212,20 @@ fn transform_and_print_legacy_decorator_metadata(source_text: &str, module: i32)
     transform_parsed_legacy_decorator_metadata(&parsed, module, &SystemContractResolver)
 }
 
+fn transform_and_print_legacy_decorator_metadata_at_target(
+    source_text: &str,
+    module: i32,
+    target: ScriptTarget,
+) -> String {
+    let parsed = parse_source_file("legacy-metadata.ts", source_text, Default::default(), None);
+    transform_parsed_legacy_decorator_metadata_at_target(
+        &parsed,
+        module,
+        target,
+        &SystemContractResolver,
+    )
+}
+
 fn transform_and_print_decorators_at_target(
     source_text: &str,
     target: ScriptTarget,
@@ -5132,16 +6273,791 @@ fn transform_and_print_decorators_at_target(
         .to_owned()
 }
 
+fn transform_and_print_legacy_decorator_recovery_at_target(
+    source_text: &str,
+    target: ScriptTarget,
+    emit_decorator_metadata: bool,
+) -> String {
+    let mut parsed = parse_source_file(
+        "legacy-decorator-recovery.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    parsed.parse_diagnostics.clear();
+    let mut arena = TransformArena::new();
+    let source_id = SourceFileId::from_raw(0);
+    let source = arena.add_source(&parsed, Some(source_id));
+    let options = CompilerOptions {
+        target: Some(target.bits()),
+        module: Some(ModuleKind::PRESERVE.bits()),
+        experimental_decorators: true,
+        emit_decorator_metadata: Some(emit_decorator_metadata),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let host = TransformContractHost {
+        options: &options,
+        syntax: &parsed,
+        source_ids: [source_id],
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers_for_source(&options, &SystemContractResolver, &host, source_id)
+            .unwrap(),
+        false,
+    )
+    .expect("legacy decorator recovery transform");
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print legacy decorator recovery transform")
+        .text()
+        .to_owned()
+}
+
+fn transform_and_print_standard_decorated_class_namespace_merge(
+    source_text: &str,
+) -> (String, usize, usize) {
+    let parsed = parse_source_file(
+        "standard-decorator-namespace-merge.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = DecoratedClassNamespaceMergeResolver::new(&parsed, "E");
+    let mut arena = TransformArena::new();
+    let source_id = SourceFileId::from_raw(0);
+    let source = arena.add_source(&parsed, Some(source_id));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2022.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        experimental_decorators: false,
+        emit_decorator_metadata: Some(false),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let host = TransformContractHost {
+        options: &options,
+        syntax: &parsed,
+        source_ids: [source_id],
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers_for_source(&options, &resolver, &host, source_id).unwrap(),
+        false,
+    )
+    .expect("CommonJS standard-decorator class/namespace merge transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("print CommonJS standard-decorator class/namespace merge")
+    .text()
+    .to_owned();
+    (
+        output,
+        resolver.class_name_value_queries.get(),
+        resolver.namespace_merge_queries.get(),
+    )
+}
+
+fn assert_standard_decorated_class_namespace_merge(
+    output: &str,
+    class_name_value_queries: usize,
+    namespace_merge_queries: usize,
+) {
+    assert!(
+        class_name_value_queries > 0,
+        "the synthetic export specifier must resolve through the parsed class-name identity:\n{output}",
+    );
+    assert!(
+        namespace_merge_queries > 0,
+        "the namespace initializer must resolve the merged symbol by its parsed name:\n{output}",
+    );
+    assert!(
+        output.contains("})(E || (exports.E = E = {}));"),
+        "the namespace initializer must publish the merged class binding:\n{output}",
+    );
+    let iife = output
+        .split_once("let E = (() => {")
+        .and_then(|(_, tail)| tail.split_once("})();"))
+        .map(|(body, _)| body)
+        .unwrap_or_else(|| panic!("missing decorated-class IIFE:\n{output}"));
+    assert!(
+        !iife.contains("exports.E"),
+        "the decorated-class IIFE must keep its local binding role:\n{output}",
+    );
+}
+
+#[test]
+fn standard_class_decorator_common_js_namespace_merge_uses_exported_binding_identity() {
+    let (output, class_queries, namespace_queries) =
+        transform_and_print_standard_decorated_class_namespace_merge(concat!(
+            "declare const dec: any;\n",
+            "@dec export class E {}\n",
+            "export namespace E { export const x = 0; }\n",
+        ));
+
+    assert_standard_decorated_class_namespace_merge(&output, class_queries, namespace_queries);
+    assert!(
+        output.contains("return E = _classThis;"),
+        "the class-decorator IIFE must retain its local return assignment:\n{output}",
+    );
+}
+
+#[test]
+fn standard_member_decorator_common_js_namespace_merge_uses_exported_binding_identity() {
+    let (output, class_queries, namespace_queries) =
+        transform_and_print_standard_decorated_class_namespace_merge(concat!(
+            "declare const dec: any;\n",
+            "export class E { @dec method() {} }\n",
+            "export namespace E { export const x = 0; }\n",
+        ));
+
+    assert_standard_decorated_class_namespace_merge(&output, class_queries, namespace_queries);
+}
+
+#[derive(Debug)]
+struct StandardDecoratedClassNameObservation {
+    text: String,
+    original: NodeId,
+    range: (u32, u32),
+    flags: EmitFlags,
+}
+
+#[derive(Debug)]
+struct StandardDecoratedClassNameProjectionObservation {
+    parsed_name: Option<(NodeId, (u32, u32))>,
+    outer_local: StandardDecoratedClassNameObservation,
+    inner_class: StandardDecoratedClassNameObservation,
+    exported: StandardDecoratedClassNameObservation,
+    output: String,
+}
+
+fn observe_standard_decorated_class_name(
+    arena: &TransformArena,
+    name: TransformNode,
+) -> StandardDecoratedClassNameObservation {
+    let record = arena.node(name).expect("decorated-class name");
+    let NodeData::Identifier(identifier) = &record.data else {
+        panic!("decorated-class name must be an identifier");
+    };
+    StandardDecoratedClassNameObservation {
+        text: identifier.text.clone(),
+        original: arena.get_original_node(name).node(),
+        range: (record.pos, record.end),
+        flags: arena
+            .metadata(name)
+            .map_or(EmitFlags::NONE, |metadata| metadata.flags()),
+    }
+}
+
+fn is_standard_decorator_iife(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    initializer: NodeId,
+) -> bool {
+    let Some(initializer) = arena.node_ref(source, initializer) else {
+        return false;
+    };
+    let Ok(initializer) = arena.node(initializer) else {
+        return false;
+    };
+    let NodeData::CallExpression(call) = &initializer.data else {
+        return false;
+    };
+    let Some(callee) = call
+        .expression
+        .and_then(|callee| arena.node_ref(source, callee))
+    else {
+        return false;
+    };
+    let Ok(callee) = arena.node(callee) else {
+        return false;
+    };
+    let NodeData::ParenthesizedExpression(parenthesized) = &callee.data else {
+        return false;
+    };
+    parenthesized
+        .expression
+        .and_then(|arrow| arena.node_ref(source, arrow))
+        .and_then(|arrow| arena.node(arrow).ok())
+        .is_some_and(|arrow| arrow.kind == SyntaxKind::ArrowFunction)
+}
+
+fn observe_standard_decorated_class_name_projections(
+    source_text: &str,
+    default_export: bool,
+) -> StandardDecoratedClassNameProjectionObservation {
+    let parsed = parse_source_file(
+        "standard-decorator-name-projection.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let NodeData::SourceFile(parsed_source) = &parsed.arena.node(parsed.root).data else {
+        panic!("parsed source-file root");
+    };
+    let parsed_class = parsed
+        .arena
+        .node_array(parsed_source.statements.expect("parsed statements"))
+        .nodes
+        .iter()
+        .copied()
+        .find(|statement| parsed.arena.node(*statement).kind == SyntaxKind::ClassDeclaration)
+        .expect("parsed decorated class declaration");
+    let NodeData::ClassDeclaration(parsed_class) = &parsed.arena.node(parsed_class).data else {
+        unreachable!("parsed class declaration kind");
+    };
+    let parsed_name = parsed_class.name.map(|name| {
+        let record = parsed.arena.node(name);
+        (name, (record.pos, record.end))
+    });
+
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &NoConstantValueResolver).unwrap(),
+        false,
+    )
+    .expect("standard-decorator name-projection transform");
+
+    let (outer_local, inner_class, exported) = {
+        let arena = result.arena();
+        let root = arena.root(source).expect("transformed source root");
+        let syntax = arena.source(source).expect("transform source").syntax();
+        let mut pending = vec![root];
+        let mut outer_names = Vec::new();
+        let mut inner_names = Vec::new();
+        let mut named_exports = Vec::new();
+        let mut default_exports = Vec::new();
+        while let Some(node) = pending.pop() {
+            let record = arena.node(node).expect("transformed node");
+            match &record.data {
+                NodeData::VariableDeclaration(data)
+                    if data.initializer.is_some_and(|initializer| {
+                        is_standard_decorator_iife(arena, source, initializer)
+                    }) =>
+                {
+                    outer_names.extend(data.name.and_then(|name| arena.node_ref(source, name)));
+                }
+                NodeData::ClassExpression(data) => {
+                    inner_names.extend(data.name.and_then(|name| arena.node_ref(source, name)));
+                }
+                NodeData::ExportSpecifier(data) => {
+                    named_exports.extend(data.name.and_then(|name| arena.node_ref(source, name)));
+                }
+                NodeData::ExportAssignment(data) => {
+                    default_exports.extend(
+                        data.expression
+                            .and_then(|name| arena.node_ref(source, name)),
+                    );
+                }
+                _ => {}
+            }
+            for_each_child(&syntax.arena, record, |child| {
+                if let Some(child) = arena.node_ref(source, child) {
+                    pending.push(child);
+                }
+                false
+            });
+        }
+        assert_eq!(outer_names.len(), 1, "one decorated-class outer binding");
+        assert_eq!(inner_names.len(), 1, "one decorated inner class name");
+        let exported_names = if default_export {
+            &default_exports
+        } else {
+            &named_exports
+        };
+        assert_eq!(exported_names.len(), 1, "one decorated-class export name");
+        (
+            observe_standard_decorated_class_name(arena, outer_names[0]),
+            observe_standard_decorated_class_name(arena, inner_names[0]),
+            observe_standard_decorated_class_name(arena, exported_names[0]),
+        )
+    };
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("print standard-decorator name projections")
+    .text()
+    .to_owned();
+
+    StandardDecoratedClassNameProjectionObservation {
+        parsed_name,
+        outer_local,
+        inner_class,
+        exported,
+        output,
+    }
+}
+
+#[test]
+fn standard_decorator_named_export_projects_the_parsed_class_name() {
+    let observation = observe_standard_decorated_class_name_projections(
+        "export class E { @dec m() {} }\n",
+        false,
+    );
+    let (parsed_name, parsed_range) = observation.parsed_name.expect("parsed class name");
+    let required = EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS;
+    for (label, projection) in [
+        ("outer local", &observation.outer_local),
+        ("named export", &observation.exported),
+    ] {
+        assert_eq!(projection.text, "E", "{label}");
+        assert_eq!(projection.original, parsed_name, "{label} original");
+        assert_eq!(projection.range, parsed_range, "{label} source range");
+        assert!(
+            projection.flags.contains(required),
+            "{label}: {projection:?}"
+        );
+        assert!(
+            !projection.flags.intersects(EmitFlags::NO_SOURCE_MAP),
+            "{label}: {projection:?}"
+        );
+    }
+}
+
+#[test]
+fn standard_decorator_named_default_projects_mapped_and_unmapped_roles() {
+    let observation = observe_standard_decorated_class_name_projections(
+        "export default class E { @dec m() {} }\n",
+        true,
+    );
+    let (parsed_name, parsed_range) = observation.parsed_name.expect("parsed class name");
+    for (label, projection) in [
+        ("outer local", &observation.outer_local),
+        ("default export", &observation.exported),
+    ] {
+        assert_eq!(projection.text, "E", "{label}");
+        assert_eq!(projection.original, parsed_name, "{label} original");
+        assert_eq!(projection.range, parsed_range, "{label} source range");
+        assert!(
+            projection
+                .flags
+                .contains(EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP),
+            "{label}: {projection:?}"
+        );
+    }
+    assert!(
+        observation
+            .outer_local
+            .flags
+            .contains(EmitFlags::LOCAL_NAME),
+        "outer local: {:?}",
+        observation.outer_local
+    );
+    assert!(
+        !observation.exported.flags.contains(EmitFlags::LOCAL_NAME),
+        "default export: {:?}",
+        observation.exported
+    );
+}
+
+#[test]
+fn standard_decorator_generated_default_shares_one_collision_safe_binding() {
+    let observation = observe_standard_decorated_class_name_projections(
+        concat!(
+            "const default_1 = 0;\n",
+            "export default class { @dec m() {} }\n",
+        ),
+        true,
+    );
+    assert!(observation.parsed_name.is_none());
+    let projection_flags =
+        EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP;
+    for (label, projection) in [
+        ("outer local", &observation.outer_local),
+        ("inner class", &observation.inner_class),
+        ("default export", &observation.exported),
+    ] {
+        assert_eq!(
+            projection.range,
+            (u32::MAX, u32::MAX),
+            "{label} must be synthetic: {projection:?}"
+        );
+        assert!(
+            !projection.flags.intersects(projection_flags),
+            "{label} must not inherit a parsed-name projection: {projection:?}"
+        );
+    }
+    assert_eq!(
+        observation.outer_local.text, observation.inner_class.text,
+        "synthetic AST projections"
+    );
+    assert_eq!(
+        observation.outer_local.text, observation.exported.text,
+        "synthetic AST projections"
+    );
+
+    let binding = observation
+        .output
+        .lines()
+        .find_map(|line| {
+            let line = line.trim_start();
+            (line.starts_with("let default_") && line.contains(" = (() => {")).then(|| {
+                line.split_ascii_whitespace()
+                    .nth(1)
+                    .expect("generated default binding")
+            })
+        })
+        .unwrap_or_else(|| panic!("missing generated default binding:\n{}", observation.output));
+    assert_ne!(
+        binding, "default_1",
+        "generated name must avoid the source collision"
+    );
+    assert!(
+        observation
+            .output
+            .contains(&format!("return class {binding} {{")),
+        "inner class must share the finalized binding:\n{}",
+        observation.output
+    );
+    assert!(
+        observation
+            .output
+            .contains(&format!("export default {binding};")),
+        "default export must share the finalized binding:\n{}",
+        observation.output
+    );
+}
+
+fn standard_decorated_class_expression_tail(source: &str, target: ScriptTarget) -> String {
+    let output = transform_and_print_module(source, target, ModuleKind::ES_NEXT);
+    let start = output
+        .find("consume(")
+        .unwrap_or_else(|| panic!("missing decorated class-expression call:\n{output}"));
+    output[start..].to_owned()
+}
+
+#[test]
+fn unassigned_standard_class_decorator_installs_the_empty_runtime_name() {
+    let source = "consume(@cls class {});\n";
+    for (target, expected) in [
+        (
+            ScriptTarget::ES2022,
+            concat!(
+                "consume((() => {\n",
+                "    let _classDecorators = [cls];\n",
+                "    let _classDescriptor;\n",
+                "    let _classExtraInitializers = [];\n",
+                "    let _classThis;\n",
+                "    var class_1 = class {\n",
+                "        static { _classThis = this; }\n",
+                "        static { __setFunctionName(_classThis, \"\"); }\n",
+                "        static {\n",
+                "            const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n",
+                "            __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n",
+                "            class_1 = _classThis = _classDescriptor.value;\n",
+                "            if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n",
+                "            __runInitializers(_classThis, _classExtraInitializers);\n",
+                "        }\n",
+                "    };\n",
+                "    return class_1 = _classThis;\n",
+                "})());\n",
+            ),
+        ),
+        (
+            ScriptTarget::ES2016,
+            concat!(
+                "consume((() => {\n",
+                "    let _classDecorators = [cls];\n",
+                "    let _classDescriptor;\n",
+                "    let _classExtraInitializers = [];\n",
+                "    let _classThis;\n",
+                "    var class_1 = _classThis = class {\n",
+                "    };\n",
+                "    __setFunctionName(_classThis, \"\");\n",
+                "    (() => {\n",
+                "        const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n",
+                "        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n",
+                "        class_1 = _classThis = _classDescriptor.value;\n",
+                "        if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n",
+                "        __runInitializers(_classThis, _classExtraInitializers);\n",
+                "    })();\n",
+                "    return class_1 = _classThis;\n",
+                "})());\n",
+            ),
+        ),
+    ] {
+        assert_eq!(
+            standard_decorated_class_expression_tail(source, target),
+            expected,
+            "target {target:?}",
+        );
+    }
+}
+
+#[test]
+fn unassigned_member_only_standard_decorator_does_not_install_a_runtime_name() {
+    let source = "consume(class { @dec m() {} });\n";
+    for target in [ScriptTarget::ES2022, ScriptTarget::ES2016] {
+        let tail = standard_decorated_class_expression_tail(source, target);
+        assert!(
+            !tail.contains("__setFunctionName"),
+            "target {target:?}:\n{tail}"
+        );
+        assert!(tail.contains("class {"), "target {target:?}:\n{tail}");
+    }
+}
+
+fn expected_es2016_standard_decorated_default_tail(
+    binding: &str,
+    export_statement: &str,
+) -> String {
+    concat!(
+        "let $B = (() => {\n",
+        "    let _classDecorators = [cls];\n",
+        "    let _classDescriptor;\n",
+        "    let _classExtraInitializers = [];\n",
+        "    let _classThis;\n",
+        "    let _instanceExtraInitializers = [];\n",
+        "    let _m_decorators;\n",
+        "    var $B = _classThis = class {\n",
+        "        m() { }\n",
+        "        constructor() {\n",
+        "            __runInitializers(this, _instanceExtraInitializers);\n",
+        "        }\n",
+        "    };\n",
+        "    __setFunctionName(_classThis, \"default\");\n",
+        "    (() => {\n",
+        "        const _metadata = typeof Symbol === \"function\" && Symbol.metadata ? Object.create(null) : void 0;\n",
+        "        _m_decorators = [dec];\n",
+        "        __esDecorate(_classThis, null, _m_decorators, { kind: \"method\", name: \"m\", static: false, private: false, access: { has: obj => \"m\" in obj, get: obj => obj.m }, metadata: _metadata }, null, _instanceExtraInitializers);\n",
+        "        __esDecorate(null, _classDescriptor = { value: _classThis }, _classDecorators, { kind: \"class\", name: _classThis.name, metadata: _metadata }, null, _classExtraInitializers);\n",
+        "        $B = _classThis = _classDescriptor.value;\n",
+        "        if (_metadata) Object.defineProperty(_classThis, Symbol.metadata, { enumerable: true, configurable: true, writable: true, value: _metadata });\n",
+        "        __runInitializers(_classThis, _classExtraInitializers);\n",
+        "    })();\n",
+        "    return $B = _classThis;\n",
+        "})();\n",
+        "$EXPORT\n",
+    )
+    .replace("$B", binding)
+    .replace("$EXPORT", export_statement)
+}
+
+#[test]
+fn es2016_standard_class_and_member_decorators_share_the_generated_default_binding() {
+    for (case, prefix, binding) in [
+        ("without collision", "", "default_1"),
+        ("with collision", "const default_1 = 0;\n", "default_2"),
+    ] {
+        let source = format!("{prefix}@cls export default class {{ @dec m() {{}} }}\n");
+        for (module, export_statement) in [
+            (ModuleKind::ES_NEXT, format!("export default {binding};")),
+            (
+                ModuleKind::COMMON_JS,
+                format!("exports.default = {binding};"),
+            ),
+        ] {
+            let output = transform_and_print_module(&source, ScriptTarget::ES2016, module);
+            let marker = format!("let {binding} = (() => {{");
+            let start = output
+                .find(&marker)
+                .unwrap_or_else(|| panic!("missing {case} decorated-class binding:\n{output}"));
+            let tail = &output[start..];
+            assert_eq!(
+                tail,
+                expected_es2016_standard_decorated_default_tail(binding, &export_statement),
+                "{case}, module {module:?}",
+            );
+            assert_eq!(
+                tail.matches(binding).count(),
+                5,
+                "outer, inner declaration, replacement, return, and export must share one binding ({case}, module {module:?}):\n{output}",
+            );
+            assert!(
+                tail.contains("__setFunctionName(_classThis, \"default\");"),
+                "the source runtime name is independent of {binding} ({case}, module {module:?}):\n{output}",
+            );
+        }
+    }
+}
+
+#[test]
+fn standard_class_decorator_anonymous_default_has_no_name_projection() {
+    let output =
+        transform_and_print_at_target("@dec export default class {}\n", ScriptTarget::ES2022);
+
+    assert!(!output.contains("let default_"), "{output}");
+    assert!(!output.contains("class default_"), "{output}");
+    assert!(!output.contains("export default default_"), "{output}");
+}
+
+// tsc-port: getClassFacts/visitClassDeclaration @6.0.3
+// tsc-hash: b90ead8de3baead6ee4a25796e773bfd8dbeb157bec140a4128bb45a87176f91
+// tsc-span: _tsc.js:94410-94466
+// tsc-port: nodeCanBeDecorated/nodeIsDecorated/childIsDecorated @6.0.3
+// tsc-hash: c4ea3855faefd80ff6734156bfadc82b2a3a8a9d106c3c585fe9c9b66beaff35
+// tsc-span: _tsc.js:14651-14695
+#[test]
+fn typescript_class_facts_standard_member_decorator_names_anonymous_default() {
+    let output = transform_and_print_decorators_at_target(
+        "export default class { @dec method() {} }\n",
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+
+    assert_eq!(
+        output,
+        concat!(
+            "export default class default_1 {\n",
+            "    @dec\n",
+            "    method() { }\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn typescript_class_facts_standard_parameter_decorator_does_not_name_anonymous_default() {
+    let output = transform_and_print_decorators_at_target(
+        "export default class { method(@dec value: number) {} }\n",
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+
+    assert_eq!(
+        output,
+        concat!(
+            "export default class {\n",
+            "    method(\n",
+            "    @dec\n",
+            "    value) { }\n",
+            "}\n",
+        ),
+    );
+}
+
+#[test]
+fn typescript_class_facts_standard_ambient_properties_do_not_name_anonymous_default() {
+    for (label, source) in [
+        (
+            "declare property",
+            "export default class { @dec declare value: number; }\n",
+        ),
+        (
+            "abstract property",
+            "export default abstract class { @dec abstract value: number; }\n",
+        ),
+    ] {
+        let output = transform_and_print_decorators_at_target(source, ScriptTarget::ES_NEXT, false);
+        assert_eq!(output, "export default class {\n}\n", "{label}");
+    }
+}
+
+#[test]
+fn typescript_class_facts_legacy_runtime_parameter_decorator_names_anonymous_default() {
+    let output = transform_and_print_decorators_at_target(
+        "export default class { method(@dec value: number) {} }\n",
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+    let class = output
+        .find("export default class")
+        .map(|start| &output[start..])
+        .expect("legacy decorated anonymous class output");
+
+    assert_eq!(
+        class,
+        concat!(
+            "export default class default_1 {\n",
+            "    method(value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    __param(0, dec)\n",
+            "], default_1.prototype, \"method\", null);\n",
+        ),
+    );
+}
+
+#[test]
+fn typescript_class_facts_legacy_private_member_does_not_name_anonymous_default() {
+    let output = transform_and_print_decorators_at_target(
+        "export default class { @dec #method() {} }\n",
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert_eq!(
+        output,
+        concat!("export default class {\n", "    #method() { }\n", "}\n",),
+    );
+}
+
+#[test]
+fn typescript_class_facts_legacy_private_method_parameter_admits_recovery_emit() {
+    let output = transform_and_print_decorators_at_target(
+        "export default class { @outer #method(@dec value: number) {} }\n",
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+    let class = output
+        .find("export default class")
+        .map(|start| &output[start..])
+        .expect("legacy decorated private method output");
+
+    assert_eq!(
+        class,
+        concat!(
+            "export default class default_1 {\n",
+            "    #method(value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    outer,\n",
+            "    __param(0, dec)\n",
+            "], default_1.prototype, , null);\n",
+        ),
+    );
+}
+
 fn transform_parsed_legacy_decorator_metadata(
     parsed: &tsc_syntax::SourceFile,
     module: i32,
+    resolver: &dyn EmitResolver,
+) -> String {
+    transform_parsed_legacy_decorator_metadata_at_target(
+        parsed,
+        module,
+        ScriptTarget::ES2015,
+        resolver,
+    )
+}
+
+fn transform_parsed_legacy_decorator_metadata_at_target(
+    parsed: &tsc_syntax::SourceFile,
+    module: i32,
+    target: ScriptTarget,
     resolver: &dyn EmitResolver,
 ) -> String {
     let mut arena = TransformArena::new();
     let source_id = SourceFileId::from_raw(0);
     let source = arena.add_source(parsed, Some(source_id));
     let options = CompilerOptions {
-        target: Some(ScriptTarget::ES2015.bits()),
+        target: Some(target.bits()),
         module: Some(module),
         experimental_decorators: true,
         emit_decorator_metadata: Some(true),
@@ -5161,7 +7077,7 @@ fn transform_parsed_legacy_decorator_metadata(
         false,
     )
     .expect("legacy decorator metadata transform");
-    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015))
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
         .print(
             &mut result,
             PrintRequest::SourceFile(source),
@@ -5344,12 +7260,44 @@ fn runtime_legacy_decorator_computed_names_keep_one_shared_binding() {
             "class Foo { @decorator [b]: number; }\n",
         ),
         ScriptTarget::ES_NEXT,
-        true,
+        false,
     );
 
     assert!(output.contains("var _a;"), "{output}");
     assert!(output.contains("[_a = b]"), "{output}");
     assert!(output.contains("Foo.prototype, _a, void 0"), "{output}");
+}
+
+#[test]
+fn legacy_parameter_only_computed_decorator_does_not_prepare_shared_binding() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare function dec(...args: any[]): any;\n",
+            "declare function key(): string;\n",
+            "export default class { [key()](@dec value: number) {} }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(!output.contains("var _a;"), "{output}");
+    assert!(!output.contains("[_a = key()]"), "{output}");
+    assert!(output.contains("[key()](value) { }"), "{output}");
+    assert!(output.contains("default_1.prototype, _a, null"), "{output}");
+}
+
+#[test]
+fn legacy_computed_decorator_separates_erased_key_from_helper_identity() {
+    let output = transform_and_print_decorators_at_target(
+        "class C { @dec [\"x\" as string]() {} }\n",
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(!output.contains("var _a;"), "{output}");
+    assert!(!output.contains("[_a = \"x\"]"), "{output}");
+    assert!(output.contains("[\"x\"]() { }"), "{output}");
+    assert!(output.contains("C.prototype, _a, null"), "{output}");
 }
 
 #[test]
@@ -6566,6 +8514,456 @@ fn legacy_metadata_unknown_conditional_branches_do_not_hoist_fallback_temps() {
         output.contains("__metadata(\"design:type\", Object)"),
         "{output}",
     );
+}
+
+#[test]
+fn legacy_metadata_temporaries_precede_computed_key_binding_for_the_same_member() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "declare function key(): string;\n",
+            "class C { @dec [key()]: Missing.Deep.Type; }\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b, _c;\n")
+        .unwrap_or_else(|| panic!("missing source-ordered metadata/key bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b, _c;\n",
+            "class C {\n",
+            "    [_c = key()];\n",
+            "}\n",
+            "__decorate([\n",
+            "    dec,\n",
+            "    __metadata(\"design:type\", typeof (_b = typeof Missing !== \"undefined\" && (_a = Missing.Deep) !== void 0 && _a.Type) === \"function\" ? _b : Object)\n",
+            "], C.prototype, _c, void 0);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_class_elements_finish_nested_temp_work_before_the_next_members_metadata() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "declare function key(): string;\n",
+            "class Outer {\n",
+            "    @dec a: Missing.Deep.Type;\n",
+            "    field = class { @dec [key()]() {} };\n",
+            "    @dec b: Missing.Deep.Type;\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b, _c, _d, _e;\n")
+        .unwrap_or_else(|| panic!("missing interleaved class-element bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b, _c, _d, _e;\n",
+            "class Outer {\n",
+            "    a;\n",
+            "    field = class {\n",
+            "        [_c = key()]() { }\n",
+            "    };\n",
+            "    b;\n",
+            "}\n",
+            "__decorate([\n",
+            "    dec,\n",
+            "    __metadata(\"design:type\", typeof (_b = typeof Missing !== \"undefined\" && (_a = Missing.Deep) !== void 0 && _a.Type) === \"function\" ? _b : Object)\n",
+            "], Outer.prototype, \"a\", void 0);\n",
+            "__decorate([\n",
+            "    dec,\n",
+            "    __metadata(\"design:type\", typeof (_e = typeof Missing !== \"undefined\" && (_d = Missing.Deep) !== void 0 && _d.Type) === \"function\" ? _e : Object)\n",
+            "], Outer.prototype, \"b\", void 0);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_member_decorator_expression_is_visited_before_its_metadata() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any, inner: any;\n",
+            "declare function key(): string;\n",
+            "class Outer {\n",
+            "    @dec(class { @inner [key()]() {} })\n",
+            "    prop: Missing.Deep.Type;\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b, _c;\n")
+        .unwrap_or_else(|| panic!("missing decorator-expression bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b, _c;\n",
+            "class Outer {\n",
+            "    prop;\n",
+            "}\n",
+            "__decorate([\n",
+            "    dec(class {\n",
+            "        [_a = key()]() { }\n",
+            "    }),\n",
+            "    __metadata(\"design:type\", typeof (_c = typeof Missing !== \"undefined\" && (_b = Missing.Deep) !== void 0 && _b.Type) === \"function\" ? _c : Object)\n",
+            "], Outer.prototype, \"prop\", void 0);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_member_decorator_expression_is_consumed_once_from_the_visited_handoff() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "declare function effect(): any;\n",
+            "class C { @dec(effect()) prop: number; }\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let class_start = output
+        .find("class C")
+        .unwrap_or_else(|| panic!("missing decorator-expression control class:\n{output}"));
+
+    assert_eq!(
+        &output[class_start..],
+        concat!(
+            "class C {\n",
+            "    prop;\n",
+            "}\n",
+            "__decorate([\n",
+            "    dec(effect()),\n",
+            "    __metadata(\"design:type\", Number)\n",
+            "], C.prototype, \"prop\", void 0);\n",
+        ),
+    );
+    assert_eq!(output.matches("effect()").count(), 1, "{output}");
+}
+
+#[test]
+fn legacy_dynamic_accessor_names_own_independent_decorations_in_source_order() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const first: any, second: any, key: unique symbol;\n",
+            "class C {\n",
+            "    @first get [key](): Missing.Deep.Type { throw 0; }\n",
+            "    @second set [key](value: Missing.Deep.Type) {}\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b, _c, _d, _e, _f, _g, _h;\n")
+        .unwrap_or_else(|| panic!("missing accessor metadata bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b, _c, _d, _e, _f, _g, _h;\n",
+            "class C {\n",
+            "    get [_c = key]() { throw 0; }\n",
+            "    set [_h = key](value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    first,\n",
+            "    __metadata(\"design:type\", typeof (_b = typeof Missing !== \"undefined\" && (_a = Missing.Deep) !== void 0 && _a.Type) === \"function\" ? _b : Object),\n",
+            "    __metadata(\"design:paramtypes\", [])\n",
+            "], C.prototype, _c, null);\n",
+            "__decorate([\n",
+            "    second,\n",
+            "    __metadata(\"design:type\", typeof (_e = typeof Missing !== \"undefined\" && (_d = Missing.Deep) !== void 0 && _d.Type) === \"function\" ? _e : Object),\n",
+            "    __metadata(\"design:paramtypes\", [typeof (_g = typeof Missing !== \"undefined\" && (_f = Missing.Deep) !== void 0 && _f.Type) === \"function\" ? _g : Object])\n",
+            "], C.prototype, _h, null);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_static_accessor_runtime_group_includes_setter_parameter_decorators() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const first: any, parameter: any;\n",
+            "class C {\n",
+            "    @first get x(): Missing.Deep.Type { throw 0; }\n",
+            "    set x(@parameter value: Missing.Deep.Type) {}\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b, _c, _d;\n")
+        .unwrap_or_else(|| panic!("missing static accessor metadata bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b, _c, _d;\n",
+            "class C {\n",
+            "    get x() { throw 0; }\n",
+            "    set x(value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    first,\n",
+            "    __param(0, parameter),\n",
+            "    __metadata(\"design:type\", typeof (_b = typeof Missing !== \"undefined\" && (_a = Missing.Deep) !== void 0 && _a.Type) === \"function\" ? _b : Object),\n",
+            "    __metadata(\"design:paramtypes\", [typeof (_d = typeof Missing !== \"undefined\" && (_c = Missing.Deep) !== void 0 && _c.Type) === \"function\" ? _d : Object])\n",
+            "], C.prototype, \"x\", null);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_literal_computed_accessors_share_one_decoration_owner() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const first: any, second: any;\n",
+            "class C {\n",
+            "    @first get [\"key\"](): Missing.Deep.Type { throw 0; }\n",
+            "    @second set [\"key\"](value: Missing.Deep.Type) {}\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b, _c, _d;\n")
+        .unwrap_or_else(|| panic!("missing accessor metadata bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b, _c, _d;\n",
+            "class C {\n",
+            "    get [\"key\"]() { throw 0; }\n",
+            "    set [\"key\"](value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    first,\n",
+            "    __metadata(\"design:type\", typeof (_b = typeof Missing !== \"undefined\" && (_a = Missing.Deep) !== void 0 && _a.Type) === \"function\" ? _b : Object),\n",
+            "    __metadata(\"design:paramtypes\", [typeof (_d = typeof Missing !== \"undefined\" && (_c = Missing.Deep) !== void 0 && _c.Type) === \"function\" ? _d : Object])\n",
+            "], C.prototype, \"key\", null);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_signed_numeric_accessors_split_after_metadata_grouping() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const first: any, second: any;\n",
+            "class C {\n",
+            "    @first get [-1](): Missing.Deep.Type { throw 0; }\n",
+            "    @second set [-1](value: Missing.Deep.Type) {}\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b, _c, _d, _e, _f;\n")
+        .unwrap_or_else(|| panic!("missing signed accessor bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b, _c, _d, _e, _f;\n",
+            "class C {\n",
+            "    get [_e = -1]() { throw 0; }\n",
+            "    set [_f = -1](value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    first,\n",
+            "    __metadata(\"design:type\", typeof (_b = typeof Missing !== \"undefined\" && (_a = Missing.Deep) !== void 0 && _a.Type) === \"function\" ? _b : Object),\n",
+            "    __metadata(\"design:paramtypes\", [typeof (_d = typeof Missing !== \"undefined\" && (_c = Missing.Deep) !== void 0 && _c.Type) === \"function\" ? _d : Object])\n",
+            "], C.prototype, _e, null);\n",
+            "__decorate([\n",
+            "    second\n",
+            "], C.prototype, _f, null);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_signed_accessor_split_drops_runtime_setter_parameter_decoration_only() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const first: any, parameter: any;\n",
+            "class C {\n",
+            "    @first get [-1](): Missing.Deep.Type { throw 0; }\n",
+            "    set [-1](@parameter value: Missing.Deep.Type) {}\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b, _c, _d, _e;\n")
+        .unwrap_or_else(|| panic!("missing signed accessor metadata bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b, _c, _d, _e;\n",
+            "class C {\n",
+            "    get [_e = -1]() { throw 0; }\n",
+            "    set [-1](value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    first,\n",
+            "    __metadata(\"design:type\", typeof (_b = typeof Missing !== \"undefined\" && (_a = Missing.Deep) !== void 0 && _a.Type) === \"function\" ? _b : Object),\n",
+            "    __metadata(\"design:paramtypes\", [typeof (_d = typeof Missing !== \"undefined\" && (_c = Missing.Deep) !== void 0 && _c.Type) === \"function\" ? _d : Object])\n",
+            "], C.prototype, _e, null);\n",
+        ),
+    );
+    assert!(!output.contains("__param("), "{output}");
+}
+
+#[test]
+fn legacy_computed_bigint_accessors_own_independent_decorations() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const first: any, second: any;\n",
+            "class C {\n",
+            "    @first get [1n](): bigint { return 1n; }\n",
+            "    @second set [1n](value: bigint) {}\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b;\n")
+        .unwrap_or_else(|| panic!("missing bigint accessor bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b;\n",
+            "class C {\n",
+            "    get [_a = 1n]() { return 1n; }\n",
+            "    set [_b = 1n](value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    first,\n",
+            "    __metadata(\"design:type\", BigInt),\n",
+            "    __metadata(\"design:paramtypes\", [])\n",
+            "], C.prototype, _a, null);\n",
+            "__decorate([\n",
+            "    second,\n",
+            "    __metadata(\"design:type\", BigInt),\n",
+            "    __metadata(\"design:paramtypes\", [BigInt])\n",
+            "], C.prototype, _b, null);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_noncomputed_bigint_accessor_clones_the_helper_key() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "class C { @dec get 1n(): bigint { return 1n; } }\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let class_start = output
+        .find("class C")
+        .unwrap_or_else(|| panic!("missing bigint accessor class:\n{output}"));
+
+    assert_eq!(
+        &output[class_start..],
+        concat!(
+            "class C {\n",
+            "    get 1n() { return 1n; }\n",
+            "}\n",
+            "__decorate([\n",
+            "    dec,\n",
+            "    __metadata(\"design:type\", BigInt),\n",
+            "    __metadata(\"design:paramtypes\", [])\n",
+            "], C.prototype, 1n, null);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_setter_metadata_falls_back_to_the_getter_return_type() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "class C {\n",
+            "    get x(): Missing.Deep.Type { throw 0; }\n",
+            "    @dec set x(value) {}\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let temp_start = output
+        .find("var _a, _b;\n")
+        .unwrap_or_else(|| panic!("missing getter fallback bindings:\n{output}"));
+
+    assert_eq!(
+        &output[temp_start..],
+        concat!(
+            "var _a, _b;\n",
+            "class C {\n",
+            "    get x() { throw 0; }\n",
+            "    set x(value) { }\n",
+            "}\n",
+            "__decorate([\n",
+            "    dec,\n",
+            "    __metadata(\"design:type\", typeof (_b = typeof Missing !== \"undefined\" && (_a = Missing.Deep) !== void 0 && _a.Type) === \"function\" ? _b : Object),\n",
+            "    __metadata(\"design:paramtypes\", [Object])\n",
+            "], C.prototype, \"x\", null);\n",
+        ),
+    );
+}
+
+#[test]
+fn legacy_accessor_recovery_limits_ownership_to_the_first_two_declarations() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "class C {\n",
+            "    get x(): number { return 0; }\n",
+            "    set x(value: number) {}\n",
+            "    @dec get x(): number { return 1; }\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    let class_start = output
+        .find("class C")
+        .unwrap_or_else(|| panic!("missing recovery accessor class:\n{output}"));
+
+    assert_eq!(
+        &output[class_start..],
+        concat!(
+            "class C {\n",
+            "    get x() { return 0; }\n",
+            "    set x(value) { }\n",
+            "    get x() { return 1; }\n",
+            "}\n",
+        ),
+    );
+    assert!(!output.contains("__decorate"), "{output}");
 }
 
 #[test]
@@ -9169,6 +11567,272 @@ fn detached_source_prefix_stays_before_standard_decorator_helpers() {
 }
 
 #[test]
+fn standard_decorator_named_declaration_has_one_outer_leading_comment_owner() {
+    const ISSUE_COMMENT: &str = "// https://github.com/microsoft/TypeScript/issues/53752";
+    let parsed = parse_source_file(
+        "standard-decorator-owner.ts",
+        concat!(
+            "// https://github.com/microsoft/TypeScript/issues/53752\n",
+            "\n",
+            "class A {\n",
+            "    // uses class reference\n",
+            "    @dec static accessor x = A;\n",
+            "    // uses 'this'\n",
+            "    @dec accessor y = this;\n",
+            "}\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = NoConstantValueResolver;
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2022.bits());
+    options.always_strict = Some(false);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("ES2022 standard decorator comment-owner transform");
+
+    {
+        let arena = result.arena();
+        let root = arena.root(source).expect("source root");
+        let NodeData::SourceFile(source_file) = &arena.node(root).expect("source node").data else {
+            unreachable!("source root kind")
+        };
+        let statements = arena
+            .node_array_ref(source, source_file.statements.expect("source statements"))
+            .and_then(|statements| arena.node_array(statements).ok())
+            .expect("transformed source statements");
+        let outer = statements
+            .nodes
+            .iter()
+            .filter_map(|statement| arena.node_ref(source, *statement))
+            .find(|statement| {
+                arena
+                    .node(*statement)
+                    .is_ok_and(|node| node.kind == SyntaxKind::VariableStatement)
+            })
+            .expect("outer standard-decorator variable statement");
+        let outer_record = arena.node(outer).expect("outer variable statement");
+        assert_eq!((outer_record.pos, outer_record.end), (u32::MAX, u32::MAX));
+        assert!(matches!(
+            arena
+                .metadata(outer)
+                .and_then(|metadata| metadata.comment_range())
+                .map(|range| range.range()),
+            Some(SourceRange::Original(_))
+        ));
+
+        let NodeData::VariableStatement(variable_statement) = &outer_record.data else {
+            unreachable!("outer statement kind")
+        };
+        let declaration_list = arena
+            .node_ref(
+                source,
+                variable_statement
+                    .declaration_list
+                    .expect("outer declaration list"),
+            )
+            .expect("outer declaration-list node");
+        let NodeData::VariableDeclarationList(declaration_list_data) =
+            &arena.node(declaration_list).expect("declaration list").data
+        else {
+            unreachable!("declaration-list kind")
+        };
+        let declarations = arena
+            .node_array_ref(
+                source,
+                declaration_list_data
+                    .declarations
+                    .expect("outer declarations"),
+            )
+            .and_then(|declarations| arena.node_array(declarations).ok())
+            .expect("outer declaration array");
+        let declaration = arena
+            .node_ref(source, declarations.nodes[0])
+            .expect("outer declaration");
+        let NodeData::VariableDeclaration(declaration_data) =
+            &arena.node(declaration).expect("variable declaration").data
+        else {
+            unreachable!("variable-declaration kind")
+        };
+        let iife = arena
+            .node_ref(
+                source,
+                declaration_data.initializer.expect("decorator IIFE"),
+            )
+            .expect("decorator IIFE node");
+        let NodeData::CallExpression(call) = &arena.node(iife).expect("IIFE call").data else {
+            unreachable!("IIFE call kind")
+        };
+        let parenthesized_arrow = arena
+            .node_ref(source, call.expression.expect("IIFE callee"))
+            .expect("parenthesized IIFE arrow");
+        let NodeData::ParenthesizedExpression(parenthesized) = &arena
+            .node(parenthesized_arrow)
+            .expect("parenthesized IIFE callee")
+            .data
+        else {
+            unreachable!("parenthesized IIFE kind")
+        };
+        let arrow = arena
+            .node_ref(source, parenthesized.expression.expect("IIFE arrow"))
+            .expect("IIFE arrow node");
+        let NodeData::ArrowFunction(arrow_data) = &arena.node(arrow).expect("IIFE arrow").data
+        else {
+            unreachable!("IIFE arrow kind")
+        };
+        let body = arena
+            .node_ref(source, arrow_data.body.expect("IIFE body"))
+            .expect("IIFE body node");
+        let NodeData::Block(block) = &arena.node(body).expect("IIFE block").data else {
+            unreachable!("IIFE block kind")
+        };
+        let definitions = arena
+            .node_array_ref(source, block.statements.expect("IIFE definitions"))
+            .and_then(|definitions| arena.node_array(definitions).ok())
+            .expect("IIFE definition array");
+        let return_statement = definitions
+            .nodes
+            .iter()
+            .filter_map(|statement| arena.node_ref(source, *statement))
+            .find(|statement| {
+                arena
+                    .node(*statement)
+                    .is_ok_and(|node| node.kind == SyntaxKind::ReturnStatement)
+            })
+            .expect("IIFE return statement");
+        let NodeData::ReturnStatement(return_data) = &arena
+            .node(return_statement)
+            .expect("IIFE return statement")
+            .data
+        else {
+            unreachable!("return-statement kind")
+        };
+        let inner_class = arena
+            .node_ref(
+                source,
+                return_data.expression.expect("returned class expression"),
+            )
+            .expect("returned class expression");
+        assert_eq!(
+            arena.node(inner_class).expect("inner class").kind,
+            SyntaxKind::ClassExpression,
+        );
+
+        for (label, node) in [
+            ("IIFE", iife),
+            ("return statement", return_statement),
+            ("inner class", inner_class),
+        ] {
+            let record = arena
+                .node(node)
+                .unwrap_or_else(|_| panic!("missing {label}"));
+            assert_eq!(
+                (record.pos, record.end),
+                (u32::MAX, u32::MAX),
+                "{label} must retain a synthetic text/comment range",
+            );
+            assert!(
+                arena
+                    .metadata(node)
+                    .and_then(|metadata| metadata.comment_range())
+                    .is_none(),
+                "{label} must not receive the source class's comment range",
+            );
+        }
+    }
+
+    let text = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("print standard decorator comment-owner transform")
+    .text()
+    .to_owned();
+
+    assert_eq!(text.matches(ISSUE_COMMENT).count(), 1, "{text}");
+    assert!(
+        text.find(ISSUE_COMMENT).unwrap() < text.find("let A =").unwrap(),
+        "the source leading comment belongs before the outer declaration:\n{text}",
+    );
+    assert!(text.contains("return class A {"), "{text}");
+    assert!(!text.contains(&format!("return {ISSUE_COMMENT}")), "{text}");
+    assert_eq!(text.matches("// uses class reference").count(), 1, "{text}");
+    assert_eq!(text.matches("// uses 'this'").count(), 1, "{text}");
+}
+
+#[test]
+fn standard_decorator_default_export_statement_owns_adjacent_leading_comment() {
+    for (label, source_text, comment, binding, export) in [
+        (
+            "named",
+            concat!(
+                "// named default owner\n",
+                "export default class Named { @dec accessor x = 1; }\n",
+            ),
+            "// named default owner",
+            "let Named =",
+            "export default Named;",
+        ),
+        (
+            "anonymous",
+            concat!(
+                "// anonymous default owner\n",
+                "export default class { @dec accessor x = 1; }\n",
+            ),
+            "// anonymous default owner",
+            "let default_1 =",
+            "export default default_1;",
+        ),
+    ] {
+        let text = transform_and_print_at_target(source_text, ScriptTarget::ES2022);
+        assert_eq!(text.matches(comment).count(), 1, "{label}:\n{text}");
+        let binding = text
+            .find(binding)
+            .unwrap_or_else(|| panic!("{label}: missing default binding:\n{text}"));
+        let comment = text
+            .find(comment)
+            .unwrap_or_else(|| panic!("{label}: missing source comment:\n{text}"));
+        let export = text
+            .find(export)
+            .unwrap_or_else(|| panic!("{label}: missing default export:\n{text}"));
+        assert!(
+            binding < comment && comment < export,
+            "{label}: the export statement, not its preceding let, must own the comment:\n{text}",
+        );
+    }
+}
+
+#[test]
+fn standard_decorator_class_expression_keeps_inline_comment_outside_iife() {
+    const COMMENT: &str = "/* inline class owner */";
+    let text = transform_and_print_at_target(
+        "const C = /* inline class owner */ class Named { @dec accessor x = 1; };\n",
+        ScriptTarget::ES2022,
+    );
+
+    assert_eq!(text.matches(COMMENT).count(), 1, "{text}");
+    let binding = text.find("const C =").expect("class-expression binding");
+    let comment = text.find(COMMENT).expect("inline class-expression comment");
+    let iife = text.find("(() => {").expect("standard-decorator IIFE");
+    assert!(
+        binding < comment && comment < iife,
+        "the original expression edge must own the comment outside the IIFE:\n{text}",
+    );
+    assert!(text.contains("return class Named {"), "{text}");
+}
+
+#[test]
 fn remove_comments_keeps_only_the_top_detached_pinned_group() {
     let output = transform_and_print_canonical_without_comments_at_target(
         concat!(
@@ -10560,5 +13224,687 @@ fn es2017_hoists_for_await_names_derived_from_a_simple_async_parameter() {
     assert!(
         !output.contains("for (var _a = true"),
         "a generated name derived from parameter c collides semantically and cannot stay local",
+    );
+}
+
+#[test]
+fn legacy_computed_name_hoists_are_owned_by_sibling_function_bodies() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "declare function key(): string;\n",
+            "function f() { return class { @dec [key()]() {} }; }\n",
+            "function g() { return class { @dec [key()]() {} }; }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(
+        output.contains("function f() { var _a; return class"),
+        "{output}",
+    );
+    assert!(
+        output.contains("function g() { var _a; return class"),
+        "{output}",
+    );
+    assert_eq!(output.matches("var _a;").count(), 2, "{output}");
+    assert!(!output.contains("var _b;"), "{output}");
+}
+
+#[test]
+fn legacy_parameter_decorator_nested_temps_belong_to_method_and_constructor_bodies() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare const dec: any, param: any;\n",
+            "declare function key(): string;\n",
+            "class C {\n",
+            "    constructor(@param(class { @dec [key()]() {} }) value: any) {}\n",
+            "    method(@param(class { @dec [key()]() {} }) value: any) {}\n",
+            "}\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(
+        output.contains("constructor(value) { var _a; }"),
+        "{output}"
+    );
+    assert!(output.contains("method(value) { var _a; }"), "{output}");
+    assert_eq!(output.matches("var _a;").count(), 2, "{output}");
+    assert!(!output.contains("var _b;"), "{output}");
+}
+
+#[test]
+fn legacy_concise_arrow_only_expands_when_its_body_owns_a_hoist() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "declare function key(): string;\n",
+            "const f = () => class { @dec [key()]() {} };\n",
+            "const g = () => 1;\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(
+        output.contains("const f = () => { var _a; return class"),
+        "{output}",
+    );
+    assert!(output.contains("const g = () => 1;"), "{output}");
+}
+
+#[test]
+fn legacy_binding_kinds_control_descendant_shadowing() {
+    let metadata_shadow = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "declare function key(): string;\n",
+            "class Outer { @dec prop: Missing.Deep.Type; }\n",
+            "function f() { return class { @dec [key()]() {} }; }\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    assert!(metadata_shadow.contains("var _a, _b;"), "{metadata_shadow}");
+    assert!(
+        metadata_shadow.contains("function f() { var _a; return class"),
+        "{metadata_shadow}",
+    );
+
+    let computed_reservation = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "declare function key(): string;\n",
+            "class Outer { @dec [key()]() {} }\n",
+            "function f() { class Inner { @dec prop: Missing.Deep.Type; } }\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+    assert!(
+        computed_reservation.contains("var _a;"),
+        "{computed_reservation}"
+    );
+    assert!(
+        computed_reservation.contains("function f() { var _b, _c; class Inner"),
+        "{computed_reservation}",
+    );
+}
+
+#[test]
+fn legacy_nested_class_alias_declaration_uses_its_function_frame() {
+    let parsed = parse_source_file(
+        "nested-legacy-class-alias.ts",
+        concat!(
+            "declare const dec: any;\n",
+            "function f() {\n",
+            "    @dec class C { static value = C; }\n",
+            "    return C;\n",
+            "}\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let resolver = DecoratedClassReferenceResolver::new(&parsed, "C");
+    let output = transform_parsed_class_declaration_correlation(&parsed, true, &resolver);
+
+    let function_body = output
+        .find("function f()")
+        .map(|start| &output[start..])
+        .expect("nested function");
+    assert_text_markers_in_order(
+        function_body,
+        &["function f()", "var C_1;", "let C =", "C_1 = class C"],
+    );
+    assert!(output.contains("C.value = C_1;"), "{output}");
+    let function = output.find("function f()").expect("nested function");
+    let alias = output.find("var C_1;").expect("nested class alias");
+    assert!(function < alias, "{output}");
+}
+
+fn assert_text_markers_in_order(text: &str, markers: &[&str]) {
+    let mut cursor = 0;
+    for marker in markers {
+        let offset = text[cursor..]
+            .find(marker)
+            .unwrap_or_else(|| panic!("missing ordered marker {marker:?}:\n{text}"));
+        cursor += offset + marker.len();
+    }
+}
+
+#[test]
+fn legacy_class_transaction_visits_modifiers_metadata_heritage_then_members() {
+    let output = transform_and_print_legacy_decorator_metadata_at_target(
+        concat!(
+            "declare const outer: any, d: any, param: any;\n",
+            "declare function decoratorKey(): string;\n",
+            "declare function heritageKey(): string;\n",
+            "declare function parameterKey(): string;\n",
+            "declare function initializerKey(): string;\n",
+            "declare function memberKey(): string;\n",
+            "declare function base(value: any): any;\n",
+            "@outer(class { @d [decoratorKey()]() {} })\n",
+            "class C extends base(class { @d [heritageKey()]() {} }) {\n",
+            "    constructor(\n",
+            "        @param(class { @d [parameterKey()]() {} })\n",
+            "        value: Missing.Deep.Type = class { @d [initializerKey()]() {} }\n",
+            "    ) {}\n",
+            "    field = class { @d [memberKey()]() {} };\n",
+            "}\n",
+        ),
+        ModuleKind::PRESERVE.bits(),
+        ScriptTarget::ES_NEXT,
+    );
+
+    assert!(output.contains("var _a, _b, _c, _d, _e;"), "{output}");
+    assert!(output.contains("_a = decoratorKey()"), "{output}");
+    assert!(output.contains("_d = heritageKey()"), "{output}");
+    assert!(output.contains("_e = memberKey()"), "{output}");
+    assert_text_markers_in_order(
+        &output,
+        &[
+            "constructor(value = class",
+            "_c = initializerKey()",
+            "}) { var _b, _c;",
+        ],
+    );
+    assert!(output.contains("_b = parameterKey()"), "{output}");
+    assert!(output.contains("_c = initializerKey()"), "{output}");
+
+    let class_helper = output
+        .rfind("__decorate([")
+        .map(|start| &output[start..])
+        .expect("class decorator helper");
+    assert_text_markers_in_order(
+        class_helper,
+        &[
+            "outer(class",
+            "__param(0",
+            "__metadata(\"design:paramtypes\"",
+        ],
+    );
+}
+
+#[test]
+fn legacy_parameter_transactions_interleave_decorator_name_and_initializer() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare const p: any, d: any;\n",
+            "declare function decoratorOne(): string;\n",
+            "declare function nameOne(): string;\n",
+            "declare function initializerOne(): string;\n",
+            "declare function decoratorTwo(): string;\n",
+            "declare function nameTwo(): string;\n",
+            "declare function initializerTwo(): string;\n",
+            "class C {\n",
+            "    method(\n",
+            "        @p(class { @d [decoratorOne()]() {} })\n",
+            "        { [class { @d [nameOne()]() {} } as any]: first } =\n",
+            "            class { @d [initializerOne()]() {} },\n",
+            "        @p(class { @d [decoratorTwo()]() {} })\n",
+            "        { [class { @d [nameTwo()]() {} } as any]: second } =\n",
+            "            class { @d [initializerTwo()]() {} }\n",
+            "    ) {}\n",
+            "}\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(output.contains("var _a, _b, _c, _d, _e, _f;"), "{output}",);
+    for (binding, producer) in [
+        ("_a", "decoratorOne"),
+        ("_b", "nameOne"),
+        ("_c", "initializerOne"),
+        ("_d", "decoratorTwo"),
+        ("_e", "nameTwo"),
+        ("_f", "initializerTwo"),
+    ] {
+        assert!(
+            output.contains(&format!("{binding} = {producer}()")),
+            "{binding} must belong to {producer}:\n{output}",
+        );
+    }
+}
+
+#[test]
+fn legacy_class_expression_decorator_is_visitation_only_before_heritage_and_members() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare const outer: any, inner: any;\n",
+            "declare function first(): string;\n",
+            "declare function second(): string;\n",
+            "declare function third(): string;\n",
+            "declare function base(value: any): any;\n",
+            "const C =\n",
+            "    @outer(class { @inner [first()]() {} })\n",
+            "    class extends base(class { @inner [second()]() {} }) {\n",
+            "        field = class { @inner [third()]() {} };\n",
+            "    };\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(output.contains("var _a, _b, _c;"), "{output}");
+    assert!(!output.contains("first()"), "{output}");
+    assert!(!output.contains("outer("), "{output}");
+    assert!(output.contains("_b = second()"), "{output}");
+    assert!(output.contains("_c = third()"), "{output}");
+    assert!(!output.contains("__decorate(["), "{output}");
+}
+
+#[test]
+fn legacy_explicit_this_rules_keep_admission_serialization_and_runtime_distinct() {
+    let output = transform_and_print_legacy_decorator_recovery_at_target(
+        concat!(
+            "declare const member: any, p: any;\n",
+            "class Setter { @member set value(this: Setter, value: string) {} }\n",
+            "class Method { @member m(x: number, @p this: Method) {} }\n",
+            "class NoDirect { m(x: number, @p this: NoDirect) {} }\n",
+            "class Constructor { constructor(x: number, @p this: Constructor) {} }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(
+        output.contains("__metadata(\"design:type\", String)"),
+        "{output}"
+    );
+    assert!(
+        output.contains("__metadata(\"design:paramtypes\", [String])"),
+        "{output}",
+    );
+    assert!(
+        output.contains("typeof Method !== \"undefined\" && Method"),
+        "{output}",
+    );
+    assert!(
+        output.contains("typeof Constructor !== \"undefined\" && Constructor"),
+        "{output}",
+    );
+    assert!(!output.contains("NoDirect.prototype"), "{output}");
+    assert!(!output.contains("var __param ="), "{output}");
+}
+
+#[test]
+fn legacy_private_expression_flag_is_scanned_before_runtime_admission() {
+    let property_access = transform_and_print_legacy_decorator_recovery_at_target(
+        concat!(
+            "declare const bad: any, good: any;\n",
+            "class Placement {\n",
+            "    #x = 1;\n",
+            "    @bad(this.#x) #hidden() {}\n",
+            "    @good method() {}\n",
+            "}\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+    assert!(property_access.contains("static {"), "{property_access}");
+    assert!(
+        property_access.contains("Placement.prototype, \"method\", null"),
+        "{property_access}",
+    );
+    assert!(!property_access.contains("\"hidden\""), "{property_access}");
+
+    let private_declaration = transform_and_print_legacy_decorator_recovery_at_target(
+        "declare const good: any; class Nested { @good(class { #x; }) method() {} }\n",
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+    assert!(
+        !private_declaration.contains("static {"),
+        "{private_declaration}"
+    );
+    assert_text_markers_in_order(&private_declaration, &["class Nested", "}\n__decorate(["]);
+
+    let erased_nested_private_access = transform_and_print_legacy_decorator_recovery_at_target(
+        concat!(
+            "declare const outer: any, inner: any;\n",
+            "class Outer {\n",
+            "    #x = 1;\n",
+            "    @outer(class Inner { @inner(this.#x) method() {} }) method() {}\n",
+            "}\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+    assert!(
+        erased_nested_private_access.contains("static {"),
+        "{erased_nested_private_access}",
+    );
+
+    let private_in = transform_and_print_legacy_decorator_recovery_at_target(
+        "declare const good: any; class InExpr { #x; @good(#x in this) method() {} }\n",
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+    assert!(private_in.contains("static {"), "{private_in}");
+
+    let element_access = transform_and_print_legacy_decorator_recovery_at_target(
+        "declare const good: any; class Element { #x; @good(this[#x]) method() {} }\n",
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+    assert!(!element_access.contains("static {"), "{element_access}");
+    assert_text_markers_in_order(&element_access, &["class Element", "}\n__decorate(["]);
+
+    let accessor_recovery = transform_and_print_legacy_decorator_recovery_at_target(
+        concat!(
+            "declare const bad: any, p: any;\n",
+            "class Accessor {\n",
+            "    @bad get #x() { return 1; }\n",
+            "    set #x(@p value: number) {}\n",
+            "    get plain() { return 1; }\n",
+            "    set plain(@p value: number) {}\n",
+            "}\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+    assert!(
+        !accessor_recovery.contains("__decorate(["),
+        "{accessor_recovery}"
+    );
+}
+
+#[test]
+fn legacy_bodyless_setter_recovery_keeps_parameter_temp_in_synthesized_body() {
+    let output = transform_and_print_legacy_decorator_recovery_at_target(
+        concat!(
+            "declare const p: any, inner: any;\n",
+            "declare function key(): string;\n",
+            "class C { set x(@p(class { @inner [key()]() {} }) value: number); }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+
+    assert!(output.contains("set x(value) { var _a; }"), "{output}");
+    assert!(!output.contains("__decorate(["), "{output}");
+}
+
+#[test]
+fn legacy_bodyless_accessor_direct_admission_uses_the_current_tree() {
+    let output = transform_and_print_legacy_decorator_recovery_at_target(
+        concat!(
+            "declare const d: any, p: any;\n",
+            "class DirectOnly { @d set x(value: number); }\n",
+            "class ParameterOnly { set x(@p value: number); }\n",
+            "class DirectAndParameter { @d set x(@p value: number); }\n",
+            "class PrivateAndParameter { @d set #x(@p value: number); }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(
+        output.contains("DirectOnly.prototype, \"x\", null"),
+        "{output}"
+    );
+    assert!(!output.contains("ParameterOnly.prototype"), "{output}");
+    let combined = output
+        .find("DirectAndParameter.prototype")
+        .map(|target| &output[..target])
+        .and_then(|prefix| prefix.rfind("__decorate([").map(|start| &prefix[start..]))
+        .expect("direct-and-parameter accessor helper");
+    assert_text_markers_in_order(combined, &["d", "__param(0, p)"]);
+    let private_combined = output
+        .find("PrivateAndParameter.prototype")
+        .map(|target| &output[..target])
+        .and_then(|prefix| prefix.rfind("__decorate([").map(|start| &prefix[start..]))
+        .expect("private direct-and-parameter accessor helper");
+    assert_text_markers_in_order(private_combined, &["d", "__param(0, p)"]);
+    assert!(!output.contains("__metadata("), "{output}");
+}
+
+struct NestedDecoratedClassReferenceResolver {
+    declarations: BTreeSet<NodeId>,
+    declaration_by_reference: BTreeMap<NodeId, NodeId>,
+}
+
+impl NestedDecoratedClassReferenceResolver {
+    fn new(source: &tsc_syntax::SourceFile, class_name: &str) -> Self {
+        fn collect(
+            source: &tsc_syntax::SourceFile,
+            node: NodeId,
+            class_name: &str,
+            enclosing: Option<NodeId>,
+            declarations: &mut BTreeSet<NodeId>,
+            declaration_by_reference: &mut BTreeMap<NodeId, NodeId>,
+        ) {
+            let record = source.arena.node(node);
+            let mut enclosing = enclosing;
+            let declaration_name = match &record.data {
+                NodeData::ClassDeclaration(data)
+                    if data.name.is_some_and(|name| {
+                        matches!(
+                            &source.arena.node(name).data,
+                            NodeData::Identifier(data) if data.text == class_name
+                        )
+                    }) =>
+                {
+                    declarations.insert(node);
+                    enclosing = Some(node);
+                    data.name
+                }
+                _ => None,
+            };
+            if declaration_name != Some(node)
+                && matches!(
+                    &record.data,
+                    NodeData::Identifier(data) if data.text == class_name
+                )
+            {
+                if let Some(declaration) = enclosing {
+                    declaration_by_reference.insert(node, declaration);
+                }
+            }
+            for_each_child(&source.arena, record, |child| {
+                if Some(child) != declaration_name {
+                    collect(
+                        source,
+                        child,
+                        class_name,
+                        enclosing,
+                        declarations,
+                        declaration_by_reference,
+                    );
+                }
+                false
+            });
+        }
+
+        let mut declarations = BTreeSet::new();
+        let mut declaration_by_reference = BTreeMap::new();
+        collect(
+            source,
+            source.root,
+            class_name,
+            None,
+            &mut declarations,
+            &mut declaration_by_reference,
+        );
+        Self {
+            declarations,
+            declaration_by_reference,
+        }
+    }
+}
+
+impl EmitResolver for NestedDecoratedClassReferenceResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(self
+            .declaration_by_reference
+            .get(&node.node())
+            .copied()
+            .map(|declaration| EmitResolverNode::new(node.source(), declaration)))
+    }
+
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(
+            flag == NodeCheckFlags::CONTAINS_CONSTRUCTOR_REFERENCE.bits() as u32
+                && self.declarations.contains(&node.node())
+                || flag == NodeCheckFlags::CONSTRUCTOR_REFERENCE.bits() as u32
+                    && self.declaration_by_reference.contains_key(&node.node()),
+        )
+    }
+}
+
+fn transform_nested_legacy_class_aliases(source_text: &str, class_name: &str) -> String {
+    let parsed = parse_source_file(
+        "nested-legacy-class-aliases.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = NestedDecoratedClassReferenceResolver::new(&parsed, class_name);
+    transform_parsed_class_declaration_correlation_at_target_with_mode(
+        &parsed,
+        true,
+        &resolver,
+        ScriptTarget::ES_NEXT,
+        true,
+    )
+}
+
+#[test]
+fn legacy_class_alias_ordinals_follow_output_ast_order_at_esnext() {
+    let output = transform_nested_legacy_class_aliases(
+        concat!(
+            "declare const dec: any;\n",
+            "function before() { @dec class C { static self = C; } }\n",
+            "@dec class C { static self = C; }\n",
+        ),
+        "C",
+    );
+
+    assert_text_markers_in_order(
+        &output,
+        &[
+            "var C_1;",
+            "function before()",
+            "var C_2;",
+            "let C = class C",
+            "static { C_2 = this; }",
+            "C = C_2 = __decorate",
+            "let C = class C",
+            "static { C_1 = this; }",
+            "C = C_1 = __decorate",
+        ],
+    );
+    assert!(output.contains("static self = C_1;"), "{output}");
+}
+
+#[test]
+fn legacy_static_blocks_are_sibling_temp_scopes_with_source_wide_aliases() {
+    let output = transform_nested_legacy_class_aliases(
+        concat!(
+            "declare const dec: any, member: any;\n",
+            "declare function key(): string;\n",
+            "class Host {\n",
+            "    static { @dec class Inner { @member [key()]() {} static self = Inner; } }\n",
+            "    static { @dec class Inner { @member [key()]() {} static self = Inner; } }\n",
+            "}\n",
+        ),
+        "Inner",
+    );
+
+    assert_text_markers_in_order(
+        &output,
+        &[
+            "static {",
+            "var Inner_1;",
+            "var _a;",
+            "let Inner = class Inner",
+            "static { Inner_1 = this; }",
+            "Inner = Inner_1 = __decorate",
+            "static {",
+            "var Inner_2;",
+            "var _a;",
+            "let Inner = class Inner",
+            "static { Inner_2 = this; }",
+            "Inner = Inner_2 = __decorate",
+        ],
+    );
+    assert_eq!(output.matches("var _a;").count(), 2, "{output}");
+    assert!(!output.contains("var _b;"), "{output}");
+}
+
+#[test]
+fn legacy_alias_and_producer_temp_hoists_keep_two_epochs_in_every_scope() {
+    let source = transform_nested_legacy_class_aliases(
+        concat!(
+            "declare const dec: any, member: any;\n",
+            "declare function key(): string;\n",
+            "@dec class Source { @member [key()]() {} static self = Source; }\n",
+        ),
+        "Source",
+    );
+    assert!(source.contains("var Source_1;\nvar _a;"), "{source}");
+
+    let function = transform_nested_legacy_class_aliases(
+        concat!(
+            "declare const dec: any, member: any;\n",
+            "declare function key(): string;\n",
+            "function f() {\n",
+            "    @dec class Local { @member [key()]() {} static self = Local; }\n",
+            "}\n",
+        ),
+        "Local",
+    );
+    assert_text_markers_in_order(
+        &function,
+        &[
+            "function f()",
+            "var Local_1;",
+            "var _a;",
+            "let Local = class Local",
+            "static { Local_1 = this; }",
+            "Local = Local_1 = __decorate",
+        ],
+    );
+
+    let static_block = transform_nested_legacy_class_aliases(
+        concat!(
+            "declare const dec: any, member: any;\n",
+            "declare function key(): string;\n",
+            "class Host {\n",
+            "    static {\n",
+            "        @dec class Inner { @member [key()]() {} static self = Inner; }\n",
+            "    }\n",
+            "}\n",
+        ),
+        "Inner",
+    );
+    assert_text_markers_in_order(
+        &static_block,
+        &[
+            "static {",
+            "var Inner_1;",
+            "var _a;",
+            "let Inner = class Inner",
+            "static { Inner_1 = this; }",
+            "Inner = Inner_1 = __decorate",
+        ],
     );
 }

@@ -10,18 +10,20 @@ use super::{
     constructor_prologue,
     es2017::transform_es2017,
     es2021::{transform_es2016, transform_es2020},
-    get_script_transformers,
+    es_next::transform_es_next,
+    get_script_transformers, initialize_transform_flags,
     jsx::transform_jsx,
     legacy_decorators::transform_legacy_decorators,
     standard_decorators::transform_standard_decorators,
     system::transform_system_module,
     transform_class_fields, transform_module, transform_type_script,
+    CommonJsFileLevelGeneratedBindingExports,
 };
 use crate::{
     create_printer, transform_nodes, DisabledSourceMapRecorder, EmitConstantValue,
     EmitEnumMemberValue, EmitExportContainerMode, EmitFlags, EmitResolver, EmitResolverError,
     EmitResolverNode, JavaScriptNumber, NewLineKind, PrintRequest, PrinterOptions, TransformArena,
-    TransformRoot,
+    TransformFlags, TransformRoot,
 };
 
 struct EnumBindingResolver {
@@ -67,6 +69,97 @@ struct ConstructorReferenceResolver {
 
 struct AmbientFunctionExportResolver {
     declaration_by_reference: BTreeMap<NodeId, NodeId>,
+}
+
+#[test]
+fn parsed_private_expression_flags_exclude_declaration_names() {
+    let parsed = parse_source_file(
+        "private-expression-flags.ts",
+        concat!(
+            "declare const dec: any, receiver: any;\n",
+            "class C {\n",
+            "    static #field = 1;\n",
+            "    @dec(receiver.#field) first() {}\n",
+            "    @dec(#field in receiver) second() {}\n",
+            "    @dec(class { #nested; }) third() {}\n",
+            "    @dec(receiver[#field]) fourth() {}\n",
+            "}\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    initialize_transform_flags(&mut arena, source).expect("initialize private expression flags");
+
+    let mut declaration = None;
+    let mut property_access = None;
+    let mut private_in = None;
+    let mut decorators = Vec::new();
+    let mut stack = vec![parsed.root];
+    while let Some(id) = stack.pop() {
+        let record = parsed.arena.node(id);
+        match &record.data {
+            NodeData::PropertyDeclaration(data)
+                if data.name.is_some_and(|name| {
+                    parsed.arena.node(name).kind == tsc_syntax::SyntaxKind::PrivateIdentifier
+                }) =>
+            {
+                declaration = arena.node_ref(source, id);
+            }
+            NodeData::PropertyAccessExpression(data)
+                if data.name.is_some_and(|name| {
+                    parsed.arena.node(name).kind == tsc_syntax::SyntaxKind::PrivateIdentifier
+                }) =>
+            {
+                property_access = arena.node_ref(source, id);
+            }
+            NodeData::BinaryExpression(data)
+                if data.left.is_some_and(|left| {
+                    parsed.arena.node(left).kind == tsc_syntax::SyntaxKind::PrivateIdentifier
+                }) && data.operator_token.is_some_and(|operator| {
+                    parsed.arena.node(operator).kind == tsc_syntax::SyntaxKind::InKeyword
+                }) =>
+            {
+                private_in = arena.node_ref(source, id);
+            }
+            NodeData::Decorator(_) => decorators.push(
+                arena
+                    .node_ref(source, id)
+                    .expect("mounted parsed decorator"),
+            ),
+            _ => {}
+        }
+        for_each_child(&parsed.arena, record, |child| {
+            stack.push(child);
+            false
+        });
+    }
+
+    let private_expression = TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION;
+    assert!(
+        !arena
+            .transform_flags(declaration.expect("private declaration"))
+            .contains(private_expression),
+        "a private declaration name must not acquire the expression-only flag"
+    );
+    assert!(arena
+        .transform_flags(property_access.expect("private property access"))
+        .contains(private_expression));
+    assert!(arena
+        .transform_flags(private_in.expect("private in expression"))
+        .contains(private_expression));
+    assert_eq!(decorators.len(), 4);
+    assert_eq!(
+        decorators
+            .into_iter()
+            .filter(|decorator| arena
+                .transform_flags(*decorator)
+                .contains(private_expression))
+            .count(),
+        2,
+        "only tsc's property-access and private-in producers should flag decorators"
+    );
 }
 
 #[test]
@@ -2669,6 +2762,103 @@ fn amd_import_equals_call_keeps_its_local_parameter_receiver_free() {
 }
 
 #[test]
+fn common_js_file_level_generated_export_map_rejects_ordinary_generated_ids() {
+    let parsed = parse_source_file(
+        "using-file-level-defaults.ts",
+        concat!(
+            "declare function acquire(): Disposable;\n",
+            "using resource = acquire();\n",
+            "export default class {}\n",
+            "export = resource;\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let resolver = EnumBindingResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2022.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_es_next(&options),
+        ],
+        false,
+    )
+    .expect("ESNext using-hoist transform");
+
+    let arena = result.arena();
+    let root = arena.root(source).expect("transformed source root");
+    let syntax = arena.source(source).expect("transform source").syntax();
+    let mut pending = vec![root];
+    let mut identities = BTreeSet::new();
+    let mut printable_texts = BTreeSet::new();
+    let mut file_level_identifier = None;
+    let mut non_file_generated_identifier = None;
+    while let Some(node) = pending.pop() {
+        let record = arena.node(node).expect("transformed node");
+        if let Some(metadata) = arena.metadata(node) {
+            if metadata.generated_binding_is_file_level_optimistic() {
+                file_level_identifier.get_or_insert(node);
+                identities.insert(
+                    metadata
+                        .generated_binding_id()
+                        .expect("file-level name owns generated identity"),
+                );
+                let NodeData::Identifier(identifier) = &record.data else {
+                    panic!("file-level generated binding must be an identifier");
+                };
+                printable_texts.insert(identifier.text.clone());
+            } else if metadata.generated_binding_id().is_some() {
+                non_file_generated_identifier.get_or_insert(node);
+            }
+        }
+        for_each_child(&syntax.arena, record, |child| {
+            if let Some(child) = arena.node_ref(source, child) {
+                pending.push(child);
+            }
+            false
+        });
+    }
+
+    assert_eq!(identities.len(), 2, "default export and export= identities");
+    assert_eq!(
+        printable_texts,
+        BTreeSet::from(["_default".to_owned()]),
+        "independent FileLevel names deliberately share printable text",
+    );
+
+    let mut exports = CommonJsFileLevelGeneratedBindingExports::default();
+    let non_file_generated_identifier =
+        non_file_generated_identifier.expect("using environment owns an ordinary generated ID");
+    assert!(
+        !exports.add_for_identifier(arena, non_file_generated_identifier, "bad"),
+        "a GeneratedBindingId without FileLevelOptimistic metadata is rejected",
+    );
+    assert!(
+        exports
+            .get_for_identifier(arena, non_file_generated_identifier)
+            .is_none(),
+        "a non-file generated ID cannot enter the CommonJS export map",
+    );
+
+    let file_level_identifier = file_level_identifier.expect("default owns a FileLevel ID");
+    assert!(exports.add_for_identifier(arena, file_level_identifier, "default"));
+    assert_eq!(
+        exports.get_for_identifier(arena, file_level_identifier),
+        Some(&[Box::<str>::from("default")][..]),
+    );
+}
+
+#[test]
 fn common_js_export_equals_suppresses_appended_class_export() {
     let source_text = concat!(
         "export = exports;\n",
@@ -3644,6 +3834,279 @@ fn common_js_publishes_the_standard_decorator_synthetic_named_export() {
     );
     assert_eq!(output.matches("exports.C = C;").count(), 1, "{output}");
     assert!(output.ends_with("exports.C = C;\n"), "{output}");
+}
+
+#[test]
+fn standard_decorator_class_references_preserve_parsed_and_generated_identity() {
+    let parsed = parse_source_file(
+        "standard-decorator-class-references.ts",
+        concat!("@cls export class E {}\n", "consume(@cls class {});\n",),
+        Default::default(),
+        None,
+    );
+    let NodeData::SourceFile(parsed_source) = &parsed.arena.node(parsed.root).data else {
+        panic!("parsed source-file root");
+    };
+    let mut parsed_name = None;
+    let mut parsed_expression = None;
+    let mut pending = parsed
+        .arena
+        .node_array(parsed_source.statements.expect("parsed statements"))
+        .nodes
+        .clone();
+    while let Some(node) = pending.pop() {
+        let record = parsed.arena.node(node);
+        match &record.data {
+            NodeData::ClassDeclaration(data) => parsed_name = data.name,
+            NodeData::ClassExpression(_) => parsed_expression = Some(node),
+            _ => {}
+        }
+        for_each_child(&parsed.arena, record, |child| {
+            pending.push(child);
+            false
+        });
+    }
+    let parsed_name = parsed_name.expect("parsed class-declaration name");
+    let parsed_name_record = parsed.arena.node(parsed_name);
+    let parsed_name_range = (parsed_name_record.pos, parsed_name_record.end);
+    let parsed_expression = parsed_expression.expect("parsed anonymous class expression");
+
+    let resolver = LegacyScriptJsxResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2022.bits()),
+        module: Some(ModuleKind::ES_NEXT.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_es_next(&options),
+            transform_standard_decorators(&options),
+            transform_class_fields(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("standard-decorator class-reference transform");
+
+    let arena = result.arena();
+    let root = arena.root(source).expect("transformed source root");
+    let syntax = arena.source(source).expect("transform source").syntax();
+    let required_parsed_flags =
+        EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP;
+    let mut parsed_references = 0usize;
+    let mut generated_references = 0usize;
+    let mut generated_identities = BTreeSet::new();
+    let mut pending = vec![root];
+    while let Some(node) = pending.pop() {
+        let record = arena.node(node).expect("transformed node");
+        if let NodeData::Identifier(identifier) = &record.data {
+            let metadata = arena.metadata(node);
+            if identifier.text == "E"
+                && metadata.is_some_and(|metadata| metadata.flags().contains(required_parsed_flags))
+            {
+                parsed_references += 1;
+                assert_eq!(arena.get_original_node(node).node(), parsed_name);
+                assert_eq!((record.pos, record.end), parsed_name_range);
+            }
+            if metadata.is_some_and(|metadata| metadata.generated_binding_base() == Some("class")) {
+                generated_references += 1;
+                let metadata = metadata.expect("generated class-reference metadata");
+                generated_identities.insert(
+                    metadata
+                        .generated_binding_id()
+                        .expect("generated class reference owns a binding identity"),
+                );
+                assert_eq!(arena.get_original_node(node).node(), parsed_expression);
+                assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX));
+            }
+        }
+        for_each_child(&syntax.arena, record, |child| {
+            if let Some(child) = arena.node_ref(source, child) {
+                pending.push(child);
+            }
+            false
+        });
+    }
+
+    assert_eq!(
+        parsed_references, 3,
+        "IIFE declaration, decoration assignment, and return assignment",
+    );
+    assert_eq!(
+        generated_references, 3,
+        "anonymous IIFE references must be separately materialized",
+    );
+    assert_eq!(
+        generated_identities.len(),
+        1,
+        "all anonymous IIFE references must share one TargetBinding",
+    );
+}
+
+#[test]
+fn using_anonymous_default_decorator_handoff_keeps_owner_and_binding_domains() {
+    for (case, class_body, expected_default_projections) in [
+        ("class decorator", "{}", 3usize),
+        ("class and member decorators", "{ @dec m() {} }", 5usize),
+    ] {
+        let source_text = format!(
+            concat!(
+                "declare function acquire(): Disposable;\n",
+                "declare const cls: any;\n",
+                "declare const dec: any;\n",
+                "using resource = acquire();\n",
+                "@cls export default class {class_body}\n",
+            ),
+            class_body = class_body,
+        );
+        let parsed = parse_source_file(
+            "using-standard-default-handoff.ts",
+            &source_text,
+            Default::default(),
+            None,
+        );
+        let NodeData::SourceFile(parsed_source) = &parsed.arena.node(parsed.root).data else {
+            panic!("parsed source-file root");
+        };
+        let parsed_class = parsed
+            .arena
+            .node_array(parsed_source.statements.expect("parsed statements"))
+            .nodes
+            .iter()
+            .copied()
+            .find(|statement| {
+                parsed.arena.node(*statement).kind == tsc_syntax::SyntaxKind::ClassDeclaration
+            })
+            .expect("parsed anonymous default class");
+
+        let resolver = LegacyScriptJsxResolver;
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+        let options = CompilerOptions {
+            target: Some(ScriptTarget::ES2022.bits()),
+            module: Some(ModuleKind::ES_NEXT.bits()),
+            use_define_for_class_fields: Some(true),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        };
+        let result = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(source)],
+            vec![
+                transform_type_script(&options, &resolver),
+                transform_es_next(&options),
+                transform_standard_decorators(&options),
+                transform_class_fields(&options, &resolver),
+            ],
+            false,
+        )
+        .unwrap_or_else(|error| panic!("{case} transform failed: {error}"));
+
+        let arena = result.arena();
+        let root = arena.root(source).expect("transformed source root");
+        let syntax = arena.source(source).expect("transform source").syntax();
+        let mut pending = vec![root];
+        let mut default_ids = BTreeSet::new();
+        let mut file_level_ids = BTreeSet::new();
+        let mut default_projections = 0usize;
+        let mut default_identifier = None;
+        let mut file_level_identifier = None;
+        while let Some(node) = pending.pop() {
+            let record = arena.node(node).expect("transformed node");
+            if let NodeData::Identifier(identifier) = &record.data {
+                if let Some(metadata) = arena.metadata(node) {
+                    if metadata.generated_binding_base() == Some("default") {
+                        default_identifier.get_or_insert(node);
+                        default_projections += 1;
+                        default_ids.insert(
+                            metadata
+                                .generated_binding_id()
+                                .expect("ordinary default projection owns an ID"),
+                        );
+                        assert_eq!(identifier.text, "default_1", "{case}");
+                        assert_eq!((record.pos, record.end), (u32::MAX, u32::MAX), "{case}");
+                        assert_eq!(arena.get_original_node(node).node(), parsed_class, "{case}");
+                        assert!(
+                            !metadata.flags().intersects(
+                                EmitFlags::LOCAL_NAME
+                                    | EmitFlags::NO_COMMENTS
+                                    | EmitFlags::NO_SOURCE_MAP
+                            ),
+                            "generated projections must bypass parsed-name flags ({case})",
+                        );
+                        assert!(
+                            !metadata.generated_binding_is_file_level_optimistic(),
+                            "ordinary default_N must not enter the FileLevel domain ({case})",
+                        );
+                    }
+                    if metadata.generated_binding_is_file_level_optimistic() {
+                        file_level_identifier.get_or_insert(node);
+                        assert_eq!(identifier.text, "_default", "{case}");
+                        assert_eq!(
+                            metadata.generated_binding_preferred_base(),
+                            Some("_default"),
+                            "{case}",
+                        );
+                        assert!(
+                            metadata.generated_binding_reserved_in_nested_scopes(),
+                            "FileLevel _default remains reserved below the source scope ({case})",
+                        );
+                        file_level_ids.insert(
+                            metadata
+                                .generated_binding_id()
+                                .expect("FileLevel projection owns an ID"),
+                        );
+                    }
+                }
+            }
+            for_each_child(&syntax.arena, record, |child| {
+                if let Some(child) = arena.node_ref(source, child) {
+                    pending.push(child);
+                }
+                false
+            });
+        }
+
+        assert_eq!(default_projections, expected_default_projections, "{case}");
+        assert_eq!(
+            default_ids.len(),
+            1,
+            "one ordinary default_N identity ({case})"
+        );
+        assert_eq!(
+            file_level_ids.len(),
+            1,
+            "one FileLevel _default identity ({case})"
+        );
+        assert!(
+            default_ids.is_disjoint(&file_level_ids),
+            "ordinary default_N and FileLevel _default must remain separate domains ({case})",
+        );
+        let mut exports = CommonJsFileLevelGeneratedBindingExports::default();
+        let file_level_identifier =
+            file_level_identifier.expect("FileLevel representative identifier");
+        let default_identifier = default_identifier.expect("ordinary default representative");
+        assert!(
+            exports.add_for_identifier(arena, file_level_identifier, "default"),
+            "FileLevel _default enters the CommonJS identity map ({case})",
+        );
+        assert!(
+            !exports.add_for_identifier(arena, default_identifier, "bad"),
+            "ordinary default_N must be rejected by the CommonJS identity map ({case})",
+        );
+        assert!(
+            exports
+                .get_for_identifier(arena, default_identifier)
+                .is_none(),
+            "ordinary default_N cannot resolve through the FileLevel map ({case})",
+        );
+    }
 }
 
 #[test]

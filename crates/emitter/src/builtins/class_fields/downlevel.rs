@@ -106,20 +106,7 @@ impl ClassBinding {
         let Self::Generated(binding) = self else {
             return;
         };
-        let metadata = arena.metadata_mut(identifier);
-        metadata.set_generated_binding_id(binding.id());
-        if let Some(base) = binding.numbered_base() {
-            metadata.set_generated_binding_base(base);
-        }
-        if let Some(base) = binding.preferred_base() {
-            metadata.set_generated_binding_preferred_base(base);
-        }
-        if let Some(suffix) = binding.preferred_role_suffix() {
-            metadata.set_generated_binding_role_suffix(suffix);
-        }
-        if binding.reserve_in_nested_scopes() {
-            metadata.reserve_generated_binding_in_nested_scopes();
-        }
+        binding.write_generated_metadata(arena, identifier);
     }
 }
 

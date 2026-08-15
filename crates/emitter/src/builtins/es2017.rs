@@ -819,6 +819,8 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
                 .generated_binding_preferred_base()
                 .map(str::to_owned),
             metadata.generated_binding_role_suffix().map(str::to_owned),
+            metadata.generated_binding_is_file_level_optimistic(),
+            metadata.generated_binding_planned_name_is_authoritative(),
             metadata.generated_binding_reserved_in_nested_scopes(),
         ))
     }
@@ -2325,17 +2327,7 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
         binding: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let identifier = self.create_identifier(binding.provisional_name())?;
-        let metadata = self.context.arena_mut()?.metadata_mut(identifier);
-        metadata.set_generated_binding_id(binding.id());
-        if let Some(base) = binding.numbered_base() {
-            metadata.set_generated_binding_base(base);
-        }
-        if let Some(base) = binding.preferred_base() {
-            metadata.set_generated_binding_preferred_base(base);
-        }
-        if binding.reserve_in_nested_scopes() {
-            metadata.reserve_generated_binding_in_nested_scopes();
-        }
+        binding.write_generated_metadata(self.context.arena_mut()?, identifier);
         Ok(identifier)
     }
 

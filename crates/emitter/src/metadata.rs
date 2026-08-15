@@ -408,6 +408,16 @@ pub struct EmitMetadata {
     /// collision ordinal precedes this suffix (`name_1_get`), so it cannot be
     /// folded into `generated_binding_preferred_base` without losing order.
     pub(crate) generated_binding_role_suffix: Option<Box<str>>,
+    /// Whether this preferred binding uses TypeScript's file-level optimistic
+    /// collision domain. Such a name is checked only against parsed source and
+    /// global identifiers, so distinct generated binding identities may share
+    /// its printable spelling.
+    pub(crate) generated_binding_file_level_optimistic: bool,
+    /// Whether an ordinary target-generated temp carries a semantic planned
+    /// spelling that must survive final output-tree name reconciliation when
+    /// collision-free. The default ordinary-temp policy allocates from the
+    /// final lexical scope's traversal-order cursor instead.
+    pub(crate) generated_binding_planned_name_authoritative: bool,
     /// Whether this generated binding's printable name must remain reserved
     /// in descendant function scopes. Async-generator forwarding parameters
     /// use this to keep the outer alias distinct from the inner generator's
@@ -504,6 +514,14 @@ impl EmitMetadata {
 
     pub(crate) fn generated_binding_role_suffix(&self) -> Option<&str> {
         self.generated_binding_role_suffix.as_deref()
+    }
+
+    pub(crate) const fn generated_binding_is_file_level_optimistic(&self) -> bool {
+        self.generated_binding_file_level_optimistic
+    }
+
+    pub(crate) const fn generated_binding_planned_name_is_authoritative(&self) -> bool {
+        self.generated_binding_planned_name_authoritative
     }
 
     pub(crate) const fn generated_binding_reserved_in_nested_scopes(&self) -> bool {
@@ -603,6 +621,14 @@ impl EmitMetadata {
         self.generated_binding_role_suffix = Some(value.into());
     }
 
+    pub(crate) fn mark_generated_binding_file_level_optimistic(&mut self) {
+        self.generated_binding_file_level_optimistic = true;
+    }
+
+    pub(crate) fn mark_generated_binding_planned_name_authoritative(&mut self) {
+        self.generated_binding_planned_name_authoritative = true;
+    }
+
     pub(crate) fn reserve_generated_binding_in_nested_scopes(&mut self) {
         self.generated_binding_reserved_in_nested_scopes = true;
     }
@@ -689,6 +715,10 @@ impl EmitMetadata {
         if source.generated_binding_role_suffix.is_some() {
             self.generated_binding_role_suffix = source.generated_binding_role_suffix.clone();
         }
+        self.generated_binding_file_level_optimistic |=
+            source.generated_binding_file_level_optimistic;
+        self.generated_binding_planned_name_authoritative |=
+            source.generated_binding_planned_name_authoritative;
         self.generated_binding_reserved_in_nested_scopes |=
             source.generated_binding_reserved_in_nested_scopes;
         if source.javascript_string_value.is_some() {

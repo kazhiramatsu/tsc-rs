@@ -7,14 +7,15 @@ use tsc_syntax::{
 };
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
+use crate::transform::GeneratedBindingId;
 use crate::{
-    factory::EmitHelperName, EmitConstantValue, EmitExportContainerMode, EmitFlags, EmitHint,
-    EmitHost, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
-    H2ActivityCanary, H2RuntimeSlice, InternalEmitFlags, LexicalEnvironment,
-    LexicalEnvironmentFlags, SourceMapRange, SourceRange, SyntheticComment, SyntheticCommentKind,
-    TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformRoot, TransformSourceId, TransformationContext, Transformer,
-    UnsupportedTransformFeature,
+    factory::{private_identifier_expression_flags, EmitHelperName},
+    EmitConstantValue, EmitExportContainerMode, EmitFlags, EmitHint, EmitHost, EmitResolver,
+    EmitResolverError, EmitResolverMethod, EmitResolverNode, H2ActivityCanary, H2RuntimeSlice,
+    InternalEmitFlags, LexicalEnvironment, LexicalEnvironmentFlags, SourceMapRange, SourceRange,
+    SyntheticComment, SyntheticCommentKind, TransformArena, TransformError, TransformFlags,
+    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
+    Transformer, UnsupportedTransformFeature,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -2254,6 +2255,67 @@ impl CommonJsDirectVariablePlan {
     }
 }
 
+/// Typed identity admitted by CommonJS's file-level generated-export path.
+///
+/// This is the Rust boundary for tsc's
+/// `isFileLevelReservedGeneratedIdentifier`: a generated binding ID alone is
+/// insufficient because ordinary temps and scoped optimistic names must never
+/// acquire export-specifier semantics.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct CommonJsFileLevelGeneratedBindingId(GeneratedBindingId);
+
+impl CommonJsFileLevelGeneratedBindingId {
+    fn from_identifier(arena: &TransformArena, identifier: TransformNode) -> Option<Self> {
+        let metadata = arena.metadata(identifier)?;
+        if !metadata.generated_binding_is_file_level_optimistic()
+            || !metadata.generated_binding_reserved_in_nested_scopes()
+        {
+            return None;
+        }
+        metadata.generated_binding_id().map(Self)
+    }
+}
+
+/// Export names attached only to file-level optimistic generated bindings.
+///
+/// Those identifiers deliberately have no checker-owned declaration to
+/// resolve. The target transform instead projects one typed generated identity
+/// onto both the synthetic local export specifier and every later assignment
+/// target. Admission and lookup both re-read node metadata so a non-file-level
+/// `GeneratedBindingId` is rejected in release builds as well as debug builds.
+#[derive(Debug, Default)]
+struct CommonJsFileLevelGeneratedBindingExports {
+    by_binding: BTreeMap<CommonJsFileLevelGeneratedBindingId, Vec<Box<str>>>,
+}
+
+impl CommonJsFileLevelGeneratedBindingExports {
+    fn add_for_identifier(
+        &mut self,
+        arena: &TransformArena,
+        identifier: TransformNode,
+        export: &str,
+    ) -> bool {
+        let Some(binding) = CommonJsFileLevelGeneratedBindingId::from_identifier(arena, identifier)
+        else {
+            return false;
+        };
+        let exports = self.by_binding.entry(binding).or_default();
+        if !exports.iter().any(|existing| existing.as_ref() == export) {
+            exports.push(export.into());
+        }
+        true
+    }
+
+    fn get_for_identifier(
+        &self,
+        arena: &TransformArena,
+        identifier: TransformNode,
+    ) -> Option<&[Box<str>]> {
+        let binding = CommonJsFileLevelGeneratedBindingId::from_identifier(arena, identifier)?;
+        self.by_binding.get(&binding).map(Vec::as_slice)
+    }
+}
+
 #[derive(Debug)]
 struct CommonJsModuleInfo {
     is_external: bool,
@@ -2282,6 +2344,7 @@ struct CommonJsModuleInfo {
     /// former after their runtime binding is initialized.
     export_specifiers_by_local: BTreeMap<Box<str>, Vec<Box<str>>>,
     exports_by_local: BTreeMap<Box<str>, Vec<Box<str>>>,
+    file_level_generated_binding_exports: CommonJsFileLevelGeneratedBindingExports,
     exported_bindings: BTreeMap<NodeId, Vec<Box<str>>>,
     export_specifier_locations: BTreeMap<(Box<str>, Box<str>), NodeId>,
     exported_names: Vec<Box<str>>,
@@ -2385,6 +2448,8 @@ impl CommonJsModuleInfo {
             import_bindings: BTreeMap::new(),
             export_specifiers_by_local: BTreeMap::new(),
             exports_by_local: BTreeMap::new(),
+            file_level_generated_binding_exports: CommonJsFileLevelGeneratedBindingExports::default(
+            ),
             exported_bindings: BTreeMap::new(),
             export_specifier_locations: BTreeMap::new(),
             exported_names: Vec::new(),
@@ -2921,6 +2986,9 @@ impl CommonJsModuleInfo {
                         } else {
                             unique_exports.insert(export.clone().into_boxed_str());
                             info.add_export_specifier(&local, &export, location);
+                            let _ = info
+                                .file_level_generated_binding_exports
+                                .add_for_identifier(arena, local_name, &export);
                             if let Some(declaration) = declaration {
                                 info.add_exported_binding(declaration.node(), &export);
                             }
@@ -6669,6 +6737,24 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         if self.is_local_name(identifier) {
             return Ok(None);
         }
+        if let Some(metadata) = self.context.arena().metadata(identifier) {
+            if metadata.generated_binding_id().is_some() {
+                if !metadata.generated_binding_is_file_level_optimistic()
+                    || !metadata.generated_binding_reserved_in_nested_scopes()
+                {
+                    return Ok(None);
+                }
+                return Ok(self
+                    .info
+                    .file_level_generated_binding_exports
+                    .get_for_identifier(self.context.arena(), identifier)
+                    .map(|exports| ExportAssignmentPlan {
+                        local_name: data.text.clone(),
+                        exports: exports.to_vec(),
+                        direct_export_storage: false,
+                    }));
+            }
+        }
         let original = self.context.arena().get_original_node(identifier);
         if self.context.arena().node(original)?.pos == u32::MAX {
             return Ok(None);
@@ -8968,6 +9054,43 @@ struct TypeScriptVisitor<'context, 'resolver> {
     temp_ordinal: usize,
 }
 
+/// Semantic decorator mode consumed by `transformTypeScript` class facts.
+///
+/// Legacy decorators admit parameter decorators and reject private identifiers
+/// (`#name`); standard decorators do the inverse. Keeping that distinction
+/// typed avoids treating the parser's shared `Decorator` syntax as one uniform
+/// feature.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TypeScriptDecoratorMode {
+    Legacy,
+    Standard,
+}
+
+impl TypeScriptDecoratorMode {
+    const fn from_legacy(legacy: bool) -> Self {
+        if legacy {
+            Self::Legacy
+        } else {
+            Self::Standard
+        }
+    }
+}
+
+/// The subset of `getClassFacts` that establishes declaration identity before
+/// later decorator and class-field passes split an anonymous class into
+/// generated statements.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct TypeScriptClassFacts {
+    has_static_initialized_properties: bool,
+    has_member_decorators: bool,
+}
+
+impl TypeScriptClassFacts {
+    const fn needs_declaration_name(self) -> bool {
+        self.has_static_initialized_properties || self.has_member_decorators
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ClassMemberArrayVisit {
     Visiting { parent: NodeId },
@@ -9343,13 +9466,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                                 .generated_declaration_names
                                 .get(&id)
                                 .map(ToString::to_string);
-                            // transformTypeScript's HasStaticInitializedProperties
-                            // fact gives an anonymous declaration a stable
-                            // declaration identity before later class-field
-                            // and module passes split it into statements.
-                            if generated_name.is_none()
-                                && self.class_has_initialized_static_property(data.members)?
-                            {
+                            // transformTypeScript's class facts give an
+                            // anonymous declaration a stable identity before
+                            // later decorator, class-field, and module passes
+                            // split it into statements.
+                            let facts = self.typescript_class_facts(data.members)?;
+                            if generated_name.is_none() && facts.needs_declaration_name() {
                                 generated_name =
                                     Some(self.ensure_generated_declaration_name(id, "default"));
                             }
@@ -12579,28 +12701,131 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             }))
     }
 
-    fn class_has_initialized_static_property(
+    /// tsc-port: getClassFacts @6.0.3
+    /// tsc-hash: 96527ff84ba078ef8ea3d635bffc120f5ccf13c9441ff83640e65831989f4261
+    /// tsc-span: _tsc.js:94410-94426
+    fn typescript_class_facts(
         &self,
         members: Option<NodeArrayId>,
-    ) -> Result<bool, TransformError> {
+    ) -> Result<TypeScriptClassFacts, TransformError> {
+        let mut facts = TypeScriptClassFacts::default();
         let Some(members) = members else {
-            return Ok(false);
+            return Ok(facts);
         };
         for member in &self.context.arena().node_array(self.array(members))?.nodes {
             let Some(member) = self.context.arena().node_ref(self.source, *member) else {
                 continue;
             };
-            let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data
-            else {
+            if let NodeData::PropertyDeclaration(data) = &self.context.arena().node(member)?.data {
+                if data.initializer.is_some()
+                    && self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
+                {
+                    facts.has_static_initialized_properties = true;
+                }
+            }
+            if !facts.has_member_decorators
+                && self.class_member_or_child_is_decorated(
+                    member,
+                    TypeScriptDecoratorMode::from_legacy(self.legacy_decorators),
+                )?
+            {
+                facts.has_member_decorators = true;
+            }
+        }
+        Ok(facts)
+    }
+
+    /// tsc-port: nodeCanBeDecorated/nodeIsDecorated/childIsDecorated @6.0.3
+    /// tsc-hash: c4ea3855faefd80ff6734156bfadc82b2a3a8a9d106c3c585fe9c9b66beaff35
+    /// tsc-span: _tsc.js:14651-14695
+    fn class_member_or_child_is_decorated(
+        &self,
+        member: TransformNode,
+        mode: TypeScriptDecoratorMode,
+    ) -> Result<bool, TransformError> {
+        if self.class_member_is_decorated(member, mode)? {
+            return Ok(true);
+        }
+        if mode == TypeScriptDecoratorMode::Standard {
+            return Ok(false);
+        }
+        let parameters = match &self.context.arena().node(member)?.data {
+            NodeData::MethodDeclaration(data) if data.body.is_some() => data.parameters,
+            NodeData::SetAccessor(data) if data.body.is_some() => data.parameters,
+            NodeData::Constructor(data) if data.body.is_some() => data.parameters,
+            _ => None,
+        };
+        self.legacy_parameter_list_is_decorated(parameters)
+    }
+
+    fn class_member_is_decorated(
+        &self,
+        member: TransformNode,
+        mode: TypeScriptDecoratorMode,
+    ) -> Result<bool, TransformError> {
+        let record = self.context.arena().node(member)?;
+        let (modifiers, name, eligible) = match &record.data {
+            NodeData::PropertyDeclaration(data) => {
+                let standard_ambient = mode == TypeScriptDecoratorMode::Standard
+                    && (self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?
+                        || self.has_modifier(data.modifiers, SyntaxKind::AbstractKeyword)?);
+                (data.modifiers, data.name, !standard_ambient)
+            }
+            NodeData::MethodDeclaration(data) => (data.modifiers, data.name, data.body.is_some()),
+            NodeData::GetAccessor(data) => (data.modifiers, data.name, data.body.is_some()),
+            NodeData::SetAccessor(data) => (data.modifiers, data.name, data.body.is_some()),
+            _ => (None, None, false),
+        };
+        if !eligible || !self.has_modifier(modifiers, SyntaxKind::Decorator)? {
+            return Ok(false);
+        }
+        Ok(mode == TypeScriptDecoratorMode::Standard || !self.name_is_private(name)?)
+    }
+
+    fn legacy_parameter_list_is_decorated(
+        &self,
+        parameters: Option<NodeArrayId>,
+    ) -> Result<bool, TransformError> {
+        let Some(parameters) = parameters else {
+            return Ok(false);
+        };
+        for (index, parameter) in self
+            .context
+            .arena()
+            .node_array(self.array(parameters))?
+            .nodes
+            .iter()
+            .enumerate()
+        {
+            let Some(parameter) = self.context.arena().node_ref(self.source, *parameter) else {
                 continue;
             };
-            if data.initializer.is_some()
-                && self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)?
+            let NodeData::Parameter(data) = &self.context.arena().node(parameter)?.data else {
+                continue;
+            };
+            let is_this_parameter = index == 0
+                && parameter_emit_role(self.context.arena(), self.source, data)?
+                    == ParameterEmitRole::ExplicitThis;
+            if !is_this_parameter
+                && !self.name_is_private(data.name)?
+                && self.has_modifier(data.modifiers, SyntaxKind::Decorator)?
             {
                 return Ok(true);
             }
         }
         Ok(false)
+    }
+
+    fn name_is_private(&self, name: Option<NodeId>) -> Result<bool, TransformError> {
+        let Some(name) = name else {
+            return Ok(false);
+        };
+        Ok(self
+            .context
+            .arena()
+            .node_ref(self.source, name)
+            .and_then(|name| self.context.arena().node(name).ok())
+            .is_some_and(|name| name.kind == SyntaxKind::PrivateIdentifier))
     }
 
     /// Once a class itself is admitted to `transformTypeScript`, tsc uses a
@@ -13096,7 +13321,8 @@ fn flags_after_update(
         | TransformFlags::CONTAINS_ES_2020
         | TransformFlags::CONTAINS_ES_2019
         | TransformFlags::CONTAINS_ES_2018
-        | TransformFlags::CONTAINS_ES_2016;
+        | TransformFlags::CONTAINS_ES_2016
+        | TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION;
     let mut flags = old & !recomputed;
     flags |= local_transform_flags(&probe)
         | local_contextual_target_flags(arena, original.source(), &probe)?;
@@ -13712,6 +13938,7 @@ fn local_contextual_target_flags(
                     }
                 }
             }
+            flags |= private_identifier_expression_flags(arena, source, &node.data)?;
             Ok(flags)
         }
         NodeData::ObjectBindingPattern(data) => {
@@ -13741,10 +13968,12 @@ fn local_contextual_target_flags(
             })
         }
         NodeData::PropertyAccessExpression(data) => {
-            super_access_target_flags(arena, source, data.expression)
+            Ok(super_access_target_flags(arena, source, data.expression)?
+                | private_identifier_expression_flags(arena, source, &node.data)?)
         }
         NodeData::ElementAccessExpression(data) => {
-            super_access_target_flags(arena, source, data.expression)
+            Ok(super_access_target_flags(arena, source, data.expression)?
+                | private_identifier_expression_flags(arena, source, &node.data)?)
         }
         _ => Ok(TransformFlags::NONE),
     }

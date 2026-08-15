@@ -13,12 +13,16 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName, EmitFlags, EmitHelper, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer,
+    factory::EmitHelperName, EmitFlags, EmitHelper, InternalEmitFlags, TransformArena,
+    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer,
 };
 
-use super::{flags_after_update, system::collect_identifier_texts, target_bindings::TargetBinding};
+use super::{
+    flags_after_update,
+    system::collect_identifier_texts,
+    target_bindings::{ParsedSourceIdentifierNames, TargetBinding},
+};
 
 const ADD_DISPOSABLE_RESOURCE_HELPER_TEXT: &str = r#"var __addDisposableResource = (this && this.__addDisposableResource) || function (env, value, async) {
     if (value !== null && value !== void 0) {
@@ -119,7 +123,7 @@ impl Transformer for EsNextTransformer {
             return Ok(root);
         }
         let current_root = context.arena().root(source)?;
-        let mut visitor = EsNextVisitor::new(context, source, self.moves_class_initializers);
+        let mut visitor = EsNextVisitor::new(context, source, self.moves_class_initializers)?;
         visitor.plan_disposal_scopes(current_root)?;
         let transformed =
             visitor
@@ -173,7 +177,70 @@ struct TopLevelPlan {
     export_specifiers: Vec<TransformNode>,
     exported_variables: Vec<TransformNode>,
     export_equals: Option<TransformNode>,
-    default_export_name: Option<String>,
+    default_export_binding: Option<TargetBinding>,
+}
+
+/// The ownership retained by a binding moved out of a disposal scope.
+///
+/// Parsed names must be cloned rather than reconstructed from their spelling:
+/// the clone's original chain is how later module transforms reach the
+/// checker-owned declaration. Generated names have no parsed binding identity,
+/// so keeping them in a separate variant makes it impossible to accidentally
+/// manufacture one from source text; existing generated nodes retain their
+/// generated-binding metadata while newly allocated names receive one stable
+/// target-ladder identity shared by every projection.
+#[derive(Clone, Debug)]
+enum HoistedBindingName {
+    Parsed {
+        name: TransformNode,
+        declaration: TransformNode,
+        projection: ParsedBindingProjection,
+    },
+    Generated {
+        name: GeneratedBindingName,
+        original: Option<TransformNode>,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ParsedBindingProjection {
+    Declaration,
+    Local,
+}
+
+#[derive(Clone, Debug)]
+enum GeneratedBindingName {
+    Existing {
+        name: TransformNode,
+        binding: TargetBinding,
+    },
+    Allocated(TargetBinding),
+}
+
+/// Assignment targets whose source identity has different module semantics.
+///
+/// A variable initializer is a cloned declaration name reparented into an
+/// expression by tsc. A class target comes from `getDeclarationName` and must
+/// remain available for the module transform's assignment wrapper instead of
+/// being substituted as a standalone identifier first.
+enum RuntimeAssignmentTarget<'binding> {
+    VariableInitializerClone(TransformNode),
+    ClassDeclarationName(&'binding HoistedBindingName),
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ParsedAssignmentProjection {
+    VariableInitializerClone,
+    ClassDeclarationName,
+}
+
+impl HoistedBindingName {
+    const fn original(&self) -> Option<TransformNode> {
+        match self {
+            Self::Parsed { declaration, .. } => Some(*declaration),
+            Self::Generated { original, .. } => *original,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -204,6 +271,7 @@ struct EsNextVisitor<'context> {
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     used_names: BTreeSet<String>,
+    parsed_source_identifier_names: ParsedSourceIdentifierNames,
     generated_ordinals: BTreeMap<String, usize>,
     disposal_scopes: BTreeMap<NodeId, DisposalScope>,
     function_body_blocks: BTreeSet<NodeId>,
@@ -221,9 +289,13 @@ impl<'context> EsNextVisitor<'context> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         moves_class_initializers: bool,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
             used_names: collect_identifier_texts(context.arena(), source),
+            parsed_source_identifier_names: ParsedSourceIdentifierNames::collect(
+                context.arena(),
+                source,
+            )?,
             context,
             source,
             nodes: BTreeMap::new(),
@@ -232,7 +304,7 @@ impl<'context> EsNextVisitor<'context> {
             disposal_scopes: BTreeMap::new(),
             function_body_blocks: BTreeSet::new(),
             moves_class_initializers,
-        }
+        })
     }
 
     /// TypeScript assigns generated names when printing a name-generation
@@ -983,9 +1055,11 @@ impl<'context> EsNextVisitor<'context> {
                 continue;
             };
             if let Some(name) = data.name {
-                self.hoist_binding_pattern(self.node(name), exported, plan)?;
+                self.hoist_binding_pattern(self.node(name), declaration, exported, plan)?;
                 if let Some(initializer) = data.initializer {
-                    let target = self.clone_binding_target(self.node(name))?;
+                    let target = self.create_runtime_assignment_target(
+                        RuntimeAssignmentTarget::VariableInitializerClone(self.node(name)),
+                    )?;
                     let assignment = self.create_assignment(target, self.node(initializer))?;
                     self.set_original_and_range(assignment, declaration)?;
                     assignments.push(assignment);
@@ -1009,18 +1083,44 @@ impl<'context> EsNextVisitor<'context> {
     ) -> Result<Option<TransformNode>, TransformError> {
         let exported = self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?;
         let default = self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?;
-        let binding = if let Some(name) = data.name {
-            self.identifier_text(self.node(name))
-                .map(str::to_owned)
-                .unwrap_or_else(|| self.allocate_generated_name("class"))
-        } else if let Some(existing) = &plan.default_export_name {
-            existing.clone()
+        if data.name.is_none() && plan.default_export_binding.is_some() {
+            return Ok(Some(original));
+        }
+
+        let class_binding = if let Some(name) = data.name {
+            let name = self.node(name);
+            let binding = if matches!(
+                self.context.arena().node(name)?.data,
+                NodeData::Identifier(_)
+            ) {
+                if self.is_generated_binding_name(name)? {
+                    let binding = self.promote_existing_generated_class_binding(name, original)?;
+                    HoistedBindingName::Generated {
+                        name: GeneratedBindingName::Existing { name, binding },
+                        original: Some(original),
+                    }
+                } else {
+                    HoistedBindingName::Parsed {
+                        name,
+                        declaration: original,
+                        projection: ParsedBindingProjection::Local,
+                    }
+                }
+            } else {
+                HoistedBindingName::Generated {
+                    name: GeneratedBindingName::Allocated(
+                        self.allocate_generated_binding("class")?,
+                    ),
+                    original: Some(original),
+                }
+            };
+            Some(binding)
         } else {
-            let name = self.allocate_generated_name("default");
-            plan.default_export_name = Some(name.clone());
-            name
+            None
         };
-        self.hoist_binding_name(&binding, exported, default.then_some("default"), plan)?;
+        if let Some(binding) = &class_binding {
+            self.hoist_binding_identifier(binding, exported && !default, None, plan)?;
+        }
         let class_name = data.name;
         let modifiers = self.filter_modifiers(
             data.modifiers,
@@ -1039,10 +1139,37 @@ impl<'context> EsNextVisitor<'context> {
             transform_flags,
         )?;
         self.set_original_and_range(class, original)?;
-        let target = self.create_identifier(&binding)?;
-        let assignment = self.create_assignment(target, class)?;
-        self.set_original_and_range(assignment, original)?;
-        let statement = self.create_expression_statement(assignment)?;
+        let class = if class_binding.is_none() && default {
+            self.apply_named_evaluation(class, "default")?.expression
+        } else {
+            class
+        };
+        let mut expression = if let Some(binding) = &class_binding {
+            let target = self.create_runtime_assignment_target(
+                RuntimeAssignmentTarget::ClassDeclarationName(binding),
+            )?;
+            let assignment = self.create_assignment(target, class)?;
+            self.set_original_and_range(assignment, original)?
+        } else {
+            class
+        };
+
+        if default && plan.default_export_binding.is_none() {
+            let binding = self.allocate_default_export_binding()?;
+            plan.default_export_binding = Some(binding.clone());
+            let default_binding = HoistedBindingName::Generated {
+                name: GeneratedBindingName::Allocated(binding),
+                original: Some(original),
+            };
+            self.hoist_binding_identifier(&default_binding, true, Some("default"), plan)?;
+            let target = self.create_runtime_assignment_target(
+                RuntimeAssignmentTarget::ClassDeclarationName(&default_binding),
+            )?;
+            expression = self.create_assignment(target, expression)?;
+            self.set_original_and_range(expression, original)?;
+        }
+
+        let statement = self.create_expression_statement(expression)?;
         self.set_original_and_range(statement, original)?;
         Ok(Some(statement))
     }
@@ -1059,17 +1186,21 @@ impl<'context> EsNextVisitor<'context> {
                 parent: SyntaxKind::ExportAssignment,
                 field: "expression",
             })?;
-        let name = self.allocate_generated_name("default");
         if data.is_export_equals == Some(true) {
-            let binding_identifier = self.create_identifier(&name)?;
-            let binding = self.create_variable_declaration(binding_identifier, None)?;
-            plan.hoisted_bindings.push(binding);
-            let target = self.create_identifier(&name)?;
+            if plan.export_equals.is_some() {
+                plan.body.push(original);
+                return Ok(());
+            }
+            let export_equals_binding = self.allocate_default_export_binding()?;
+            let binding_identifier = self.create_generated_identifier(&export_equals_binding)?;
+            let declaration = self.create_variable_declaration(binding_identifier, None)?;
+            plan.hoisted_bindings.push(declaration);
+            let target = self.create_generated_identifier(&export_equals_binding)?;
             let assignment_expression = self.create_assignment(target, self.node(expression))?;
             let assignment = self.create_expression_statement(assignment_expression)?;
             self.set_original_and_range(assignment, original)?;
             plan.body.push(assignment);
-            let export_identifier = self.create_identifier(&name)?;
+            let export_identifier = self.create_generated_identifier(&export_equals_binding)?;
             let export = self.context.factory()?.create_node(
                 self.source,
                 NodeData::ExportAssignment(tsc_syntax::nodes::ExportAssignmentData {
@@ -1081,13 +1212,24 @@ impl<'context> EsNextVisitor<'context> {
             )?;
             plan.export_equals = Some(export);
         } else {
-            self.hoist_binding_name(&name, true, Some("default"), plan)?;
-            let target = self.create_identifier(&name)?;
+            if plan.default_export_binding.is_some() {
+                plan.body.push(original);
+                return Ok(());
+            }
+            let default_binding = self.allocate_default_export_binding()?;
+            let hoisted_binding = HoistedBindingName::Generated {
+                name: GeneratedBindingName::Allocated(default_binding.clone()),
+                original: Some(original),
+            };
+            self.hoist_binding_identifier(&hoisted_binding, true, Some("default"), plan)?;
+            let target = self.create_runtime_assignment_target(
+                RuntimeAssignmentTarget::ClassDeclarationName(&hoisted_binding),
+            )?;
             let assignment_expression = self.create_assignment(target, self.node(expression))?;
             let assignment = self.create_expression_statement(assignment_expression)?;
             self.set_original_and_range(assignment, original)?;
             plan.body.push(assignment);
-            plan.default_export_name = Some(name);
+            plan.default_export_binding = Some(default_binding);
         }
         Ok(())
     }
@@ -1095,18 +1237,33 @@ impl<'context> EsNextVisitor<'context> {
     fn hoist_binding_pattern(
         &mut self,
         name: TransformNode,
+        declaration: TransformNode,
         exported: bool,
         plan: &mut TopLevelPlan,
     ) -> Result<(), TransformError> {
         match self.context.arena().node(name)?.data.clone() {
-            NodeData::Identifier(data) => self.hoist_binding_name(&data.text, exported, None, plan),
+            NodeData::Identifier(_) => self.hoist_binding_identifier(
+                &HoistedBindingName::Parsed {
+                    name,
+                    declaration,
+                    projection: ParsedBindingProjection::Declaration,
+                },
+                exported,
+                None,
+                plan,
+            ),
             NodeData::ObjectBindingPattern(data) => {
                 for element in self.array_nodes(data.elements)? {
                     if let NodeData::BindingElement(data) =
                         self.context.arena().node(element)?.data.clone()
                     {
                         if let Some(name) = data.name {
-                            self.hoist_binding_pattern(self.node(name), exported, plan)?;
+                            self.hoist_binding_pattern(
+                                self.node(name),
+                                declaration,
+                                exported,
+                                plan,
+                            )?;
                         }
                     }
                 }
@@ -1118,7 +1275,12 @@ impl<'context> EsNextVisitor<'context> {
                         self.context.arena().node(element)?.data.clone()
                     {
                         if let Some(name) = data.name {
-                            self.hoist_binding_pattern(self.node(name), exported, plan)?;
+                            self.hoist_binding_pattern(
+                                self.node(name),
+                                declaration,
+                                exported,
+                                plan,
+                            )?;
                         }
                     }
                 }
@@ -1128,28 +1290,202 @@ impl<'context> EsNextVisitor<'context> {
         }
     }
 
-    fn hoist_binding_name(
+    /// Rust ownership equivalent of tsc's `hoistBindingIdentifier`.
+    fn hoist_binding_identifier(
         &mut self,
-        name: &str,
+        binding: &HoistedBindingName,
         exported: bool,
         export_alias: Option<&str>,
         plan: &mut TopLevelPlan,
     ) -> Result<(), TransformError> {
-        let identifier = self.create_identifier(name)?;
         if exported {
-            if let Some(alias) = export_alias {
-                let local = self.create_identifier(name)?;
-                let exported = self.create_identifier(alias)?;
-                plan.export_specifiers
-                    .push(self.create_export_specifier(Some(local), exported)?);
-            } else {
-                let declaration = self.create_variable_declaration(identifier, None)?;
+            let name = self.materialize_hoisted_binding_name(binding)?;
+            let is_local_name = self
+                .context
+                .arena()
+                .metadata(name)
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::LOCAL_NAME));
+            if export_alias.is_none() && !is_local_name {
+                let declaration = self.create_variable_declaration(name, None)?;
+                self.set_hoisted_binding_original(declaration, binding)?;
                 plan.exported_variables.push(declaration);
                 return Ok(());
             }
+
+            let (local, exported) = if let Some(alias) = export_alias {
+                let exported = self.create_identifier(alias)?;
+                (Some(name), exported)
+            } else {
+                (None, name)
+            };
+            let specifier = self.create_export_specifier(local, exported)?;
+            self.set_hoisted_binding_original(specifier, binding)?;
+            plan.export_specifiers.push(specifier);
         }
-        plan.hoisted_bindings
-            .push(self.create_variable_declaration(identifier, None)?);
+
+        let name = self.materialize_hoisted_binding_name(binding)?;
+        let declaration = self.create_variable_declaration(name, None)?;
+        self.set_hoisted_binding_original(declaration, binding)?;
+        plan.hoisted_bindings.push(declaration);
+        Ok(())
+    }
+
+    fn materialize_hoisted_binding_name(
+        &mut self,
+        binding: &HoistedBindingName,
+    ) -> Result<TransformNode, TransformError> {
+        match binding {
+            HoistedBindingName::Parsed {
+                name, projection, ..
+            } => {
+                let clone = self.context.factory()?.clone_node(*name)?;
+                if *projection == ParsedBindingProjection::Local {
+                    self.context.factory()?.set_text_range(clone, *name)?;
+                    self.context.arena_mut()?.metadata_mut(clone).add_flags(
+                        EmitFlags::LOCAL_NAME | EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS,
+                    );
+                }
+                Ok(clone)
+            }
+            HoistedBindingName::Generated { name, .. } => match name {
+                GeneratedBindingName::Existing { name, binding } => {
+                    let clone = self.context.factory()?.clone_node(*name)?;
+                    binding.write_generated_metadata(self.context.arena_mut()?, clone);
+                    Ok(clone)
+                }
+                GeneratedBindingName::Allocated(binding) => {
+                    self.create_generated_identifier(binding)
+                }
+            },
+        }
+    }
+
+    fn create_runtime_assignment_target(
+        &mut self,
+        target: RuntimeAssignmentTarget<'_>,
+    ) -> Result<TransformNode, TransformError> {
+        match target {
+            RuntimeAssignmentTarget::VariableInitializerClone(name) => {
+                self.clone_binding_target(name)
+            }
+            RuntimeAssignmentTarget::ClassDeclarationName(binding) => match binding {
+                HoistedBindingName::Parsed { name, .. } => {
+                    let clone = self.context.factory()?.clone_node(*name)?;
+                    self.context.factory()?.set_text_range(clone, *name)?;
+                    self.project_parsed_assignment_target(
+                        clone,
+                        ParsedAssignmentProjection::ClassDeclarationName,
+                    )?;
+                    Ok(clone)
+                }
+                HoistedBindingName::Generated { name, .. } => match name {
+                    GeneratedBindingName::Existing { name, binding } => {
+                        let clone = self.context.factory()?.clone_node(*name)?;
+                        binding.write_generated_metadata(self.context.arena_mut()?, clone);
+                        Ok(clone)
+                    }
+                    GeneratedBindingName::Allocated(binding) => {
+                        self.create_generated_identifier(binding)
+                    }
+                },
+            },
+        }
+    }
+
+    /// Upgrades transformTypeScript's synthesized declaration name into the
+    /// target ladder's typed generated-binding identity before the using
+    /// hoist projects it onto declarations and assignment targets.
+    ///
+    /// `convertToClassExpression` retains the original class declaration as
+    /// the generated-name owner. That distinction is observable later:
+    /// transformESDecorators must keep the `default_N` family even though the
+    /// surface node has become a `ClassExpression`.
+    fn promote_existing_generated_class_binding(
+        &mut self,
+        name: TransformNode,
+        declaration: TransformNode,
+    ) -> Result<TargetBinding, TransformError> {
+        let declaration_owner = self.context.arena().get_original_node(declaration);
+        let family = match self.context.arena().node(declaration_owner)?.kind {
+            SyntaxKind::ClassDeclaration => "default",
+            SyntaxKind::ClassExpression => "class",
+            kind => {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: kind,
+                    field: "generated class-name declaration owner",
+                });
+            }
+        };
+        let binding = if let Some(binding) = self.generated_binding_for_identifier(name) {
+            binding
+        } else {
+            let text = self
+                .identifier_text(name)
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ClassDeclaration,
+                    field: "generated class declaration name",
+                })?
+                .to_owned();
+            TargetBinding::allocate_numbered(self.context, family.to_owned(), text)?
+        };
+        binding.write_generated_metadata(self.context.arena_mut()?, name);
+        self.context
+            .arena_mut()?
+            .set_original_node(name, Some(declaration_owner))?;
+        Ok(binding)
+    }
+
+    fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
+        let metadata = self.context.arena().metadata(name)?;
+        let id = metadata.generated_binding_id()?;
+        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+            return None;
+        };
+        Some(TargetBinding::from_existing(
+            id,
+            identifier.text.clone(),
+            metadata.generated_binding_base().map(str::to_owned),
+            metadata
+                .generated_binding_preferred_base()
+                .map(str::to_owned),
+            metadata.generated_binding_role_suffix().map(str::to_owned),
+            metadata.generated_binding_is_file_level_optimistic(),
+            metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_reserved_in_nested_scopes(),
+        ))
+    }
+
+    fn is_generated_binding_name(&self, name: TransformNode) -> Result<bool, TransformError> {
+        if self
+            .context
+            .arena()
+            .metadata(name)
+            .and_then(|metadata| metadata.generated_binding_id())
+            .is_some()
+        {
+            return Ok(true);
+        }
+
+        if let Some(parsed) = self.context.arena().parse_tree_node(name)? {
+            return Ok(!matches!(
+                self.context.arena().node(parsed)?.data,
+                NodeData::Identifier(_)
+            ));
+        }
+        Ok(NodeFlags::from_bits(self.context.arena().node(name)?.flags)
+            .contains(NodeFlags::SYNTHESIZED))
+    }
+
+    fn set_hoisted_binding_original(
+        &mut self,
+        node: TransformNode,
+        binding: &HoistedBindingName,
+    ) -> Result<(), TransformError> {
+        if let Some(original) = binding.original() {
+            self.context
+                .arena_mut()?
+                .set_original_node(node, Some(original))?;
+        }
         Ok(())
     }
 
@@ -1379,6 +1715,22 @@ impl<'context> EsNextVisitor<'context> {
         TargetBinding::allocate_numbered(self.context, base.to_owned(), provisional_name)
     }
 
+    fn allocate_default_export_binding(&mut self) -> Result<TargetBinding, TransformError> {
+        let provisional_name = self
+            .parsed_source_identifier_names
+            .optimistic_candidate("_default");
+        // A peer FileLevel binding deliberately ignores this reservation and
+        // consults the immutable parsed-source snapshot again. Ordinary eager
+        // generated names still avoid the spelling, matching
+        // ReservedInNestedScopes in TypeScript's printer.
+        self.used_names.insert(provisional_name.clone());
+        TargetBinding::allocate_file_level_optimistic_reserved_in_nested_scopes(
+            self.context,
+            "_default".to_owned(),
+            provisional_name,
+        )
+    }
+
     fn create_add_disposable_resource_call(
         &mut self,
         environment: TransformNode,
@@ -1434,17 +1786,7 @@ impl<'context> EsNextVisitor<'context> {
         binding: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
         let identifier = self.create_identifier(binding.provisional_name())?;
-        let metadata = self.context.arena_mut()?.metadata_mut(identifier);
-        metadata.set_generated_binding_id(binding.id());
-        if let Some(base) = binding.numbered_base() {
-            metadata.set_generated_binding_base(base);
-        }
-        if let Some(base) = binding.preferred_base() {
-            metadata.set_generated_binding_preferred_base(base);
-        }
-        if binding.reserve_in_nested_scopes() {
-            metadata.reserve_generated_binding_in_nested_scopes();
-        }
+        binding.write_generated_metadata(self.context.arena_mut()?, identifier);
         Ok(identifier)
     }
 
@@ -1839,7 +2181,45 @@ impl<'context> EsNextVisitor<'context> {
         &mut self,
         target: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.clone_node(target)
+        let clone = self.context.factory()?.clone_node(target)?;
+        self.project_parsed_assignment_target(
+            clone,
+            ParsedAssignmentProjection::VariableInitializerClone,
+        )?;
+        Ok(clone)
+    }
+
+    fn project_parsed_assignment_target(
+        &mut self,
+        target: TransformNode,
+        projection: ParsedAssignmentProjection,
+    ) -> Result<(), TransformError> {
+        if matches!(
+            self.context.arena().node(target)?.data,
+            NodeData::Identifier(_)
+        ) {
+            let metadata = self.context.arena_mut()?.metadata_mut(target);
+            let cleared_roles = EmitFlags::LOCAL_NAME.bits()
+                | EmitFlags::EXPORT_NAME.bits()
+                | EmitFlags::INTERNAL_NAME.bits();
+            metadata.set_flags(EmitFlags::from_bits(
+                metadata.flags().bits() & !cleared_roles,
+            ));
+            if projection == ParsedAssignmentProjection::ClassDeclarationName {
+                metadata.add_flags(EmitFlags::NO_SOURCE_MAP | EmitFlags::NO_COMMENTS);
+            }
+            let reference = InternalEmitFlags::DECLARATION_NAME_REFERENCE.bits();
+            let internal_flags = match projection {
+                ParsedAssignmentProjection::VariableInitializerClone => {
+                    metadata.internal_flags().bits() | reference
+                }
+                ParsedAssignmentProjection::ClassDeclarationName => {
+                    metadata.internal_flags().bits() & !reference
+                }
+            };
+            metadata.set_internal_flags(InternalEmitFlags::from_bits(internal_flags));
+        }
+        Ok(())
     }
 
     fn update_generic(

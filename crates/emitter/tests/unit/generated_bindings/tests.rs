@@ -3,6 +3,51 @@ use std::collections::BTreeSet;
 use super::{AncestorBindingPolicy, GeneratedBindingOwner, GeneratedBindingScopes};
 
 #[test]
+fn planned_temp_is_retained_when_available() {
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+
+    assert_eq!(
+        scopes.allocate_planned_temp_with_policy("_c".into(), false),
+        "_c",
+    );
+}
+
+#[test]
+fn duplicate_planned_temp_in_same_scope_falls_back_to_temp_sequence() {
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+
+    assert_eq!(
+        scopes.allocate_planned_temp_with_policy("_a".into(), false),
+        "_a",
+    );
+    assert_eq!(
+        scopes.allocate_planned_temp_with_policy("_a".into(), false),
+        "_b",
+    );
+}
+
+#[test]
+fn planned_temp_can_be_reused_in_sibling_scopes() {
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+    let (source, first) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(
+        scopes.allocate_planned_temp_with_policy("_a".into(), false),
+        "_a",
+    );
+    let _ = scopes.exit(source, first);
+
+    let (source, sibling) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(
+        scopes.allocate_planned_temp_with_policy("_a".into(), false),
+        "_a",
+    );
+    let _ = scopes.exit(source, sibling);
+}
+
+#[test]
 fn descendant_reserved_preferred_bindings_still_reuse_in_siblings() {
     let mut scopes =
         GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
@@ -39,6 +84,34 @@ fn preferred_reconciliation_advances_from_the_planned_suffix() {
         "_super_2",
     );
     let _ = scopes.exit(source, function);
+}
+
+#[test]
+fn file_level_optimistic_peers_share_text_but_reserve_descendants() {
+    let mut scopes =
+        GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::AllowShadow);
+    assert_eq!(
+        scopes.reserve_planned_file_level_optimistic_with_policy("_default".into(), true),
+        "_default",
+    );
+    assert_eq!(
+        scopes.reserve_planned_file_level_optimistic_with_policy("_default".into(), true),
+        "_default",
+    );
+
+    let (source, first) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(
+        scopes.allocate_planned_preferred_with_policy("_default", "_default".into(), true),
+        "_default_1",
+    );
+    let _ = scopes.exit(source, first);
+
+    let (source, sibling) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(
+        scopes.allocate_planned_preferred_with_policy("_default", "_default".into(), true),
+        "_default_1",
+    );
+    let _ = scopes.exit(source, sibling);
 }
 
 #[test]

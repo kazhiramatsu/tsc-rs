@@ -538,6 +538,46 @@ const fn is_property_name(kind: SyntaxKind) -> bool {
     )
 }
 
+/// Local transform flag produced by expression forms that use a private name
+/// at runtime. A `PrivateIdentifier` is deliberately not flagged by itself:
+/// the same syntax node also names private declarations, and those names do
+/// not require the legacy-decorator helper to remain in the class body.
+/// `ElementAccessExpression` deliberately does not participate: tsc produces
+/// this fact only for private property access and the `#name in value` form.
+///
+/// tsc-port: createBasePropertyAccessExpression/createBinaryExpression @6.0.3
+/// tsc-span: _tsc.js:22464-22470,22785-22808
+pub(crate) fn private_identifier_expression_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    data: &NodeData,
+) -> Result<TransformFlags, TransformError> {
+    let kind_of = |id: Option<NodeId>| -> Result<Option<SyntaxKind>, TransformError> {
+        let Some(id) = id else {
+            return Ok(None);
+        };
+        let node = arena
+            .node_ref(source, id)
+            .ok_or_else(|| TransformError::UnknownNode(TransformNode::new(source, id)))?;
+        Ok(Some(arena.node(node)?.kind))
+    };
+    let contains_private = match data {
+        NodeData::PropertyAccessExpression(data) => {
+            kind_of(data.name)? == Some(SyntaxKind::PrivateIdentifier)
+        }
+        NodeData::BinaryExpression(data) => {
+            kind_of(data.operator_token)? == Some(SyntaxKind::InKeyword)
+                && kind_of(data.left)? == Some(SyntaxKind::PrivateIdentifier)
+        }
+        _ => false,
+    };
+    Ok(if contains_private {
+        TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION
+    } else {
+        TransformFlags::NONE
+    })
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Associativity {
     Left,
@@ -571,13 +611,14 @@ impl<'arena> NodeFactory<'arena> {
         &mut self,
         source: TransformSourceId,
         mut data: NodeData,
-        transform_flags: TransformFlags,
+        mut transform_flags: TransformFlags,
     ) -> Result<TransformNode, TransformError> {
         if matches!(data, NodeData::Token) {
             return Err(TransformError::FactoryTokenDataRequiresTokenConstructor);
         }
         self.normalize_embedded_statements(source, &mut data)?;
         self.apply_parenthesizer_rules(source, &mut data)?;
+        transform_flags |= private_identifier_expression_flags(self.arena, source, &data)?;
         let syntax = &mut self.arena.source_mut(source)?.source;
         let id = syntax.arena.alloc_node(
             data,
@@ -767,7 +808,7 @@ impl<'arena> NodeFactory<'arena> {
         &mut self,
         original: TransformNode,
         mut data: NodeData,
-        transform_flags: TransformFlags,
+        mut transform_flags: TransformFlags,
     ) -> Result<TransformNode, TransformError> {
         let record = self.arena.node(original)?.clone();
         self.normalize_embedded_statements(original.source, &mut data)?;
@@ -793,6 +834,7 @@ impl<'arena> NodeFactory<'arena> {
                 actual: kind,
             });
         }
+        transform_flags |= private_identifier_expression_flags(self.arena, original.source, &data)?;
         if record.data == data && self.arena.transform_flags(original) == transform_flags {
             return Ok(original);
         }

@@ -15,6 +15,7 @@ use crate::{
 use super::{
     constructor_prologue, initialize_transform_flags,
     is_prologue_statement as is_prologue_statement_node, system::collect_identifier_texts,
+    target_bindings::finalize_generated_binding_names,
 };
 
 mod downlevel;
@@ -64,6 +65,10 @@ impl Transformer for ClassFieldsTransformer<'_> {
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
         if self.target == ScriptTarget::ES_NEXT && self.use_define_for_class_fields {
+            if let TransformRoot::SourceFile(source) = root {
+                let transformed = context.arena().root(source)?;
+                finalize_generated_binding_names(context, source, transformed)?;
+            }
             return Ok(root);
         }
         let TransformRoot::SourceFile(source) = root else {
@@ -104,6 +109,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
                     field: "root",
                 })?;
         let transformed = visitor.prepend_hoisted_declarations(visitor.node(transformed))?;
+        finalize_generated_binding_names(visitor.context, source, transformed)?;
         visitor
             .context
             .arena_mut()?

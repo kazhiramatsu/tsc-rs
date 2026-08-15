@@ -8,13 +8,15 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName, EmitFlags, EmitHelper, InternalEmitFlags, TransformError,
-    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
-    TransformationContext, Transformer, UnsupportedTransformFeature,
+    factory::EmitHelperName, CommentRange, EmitFlags, EmitHelper, InternalEmitFlags,
+    SourceMapRange, SourceRange, TransformError, TransformFlags, TransformNode, TransformNodeArray,
+    TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    UnsupportedTransformFeature,
 };
 
 use super::{
-    constructor_prologue, flags_after_update, system::collect_identifier_texts, ConstructorPrologue,
+    constructor_prologue, flags_after_update, system::collect_identifier_texts,
+    target_bindings::TargetBinding, ConstructorPrologue,
 };
 
 const ES_DECORATE_HELPER_TEXT: &str = r#"var __esDecorate = (this && this.__esDecorate) || function (ctor, descriptorIn, decorators, contextIn, initializers, extraInitializers) {
@@ -155,8 +157,156 @@ struct ClassDecorationPlan {
     descriptor_name: String,
     extra_initializers_name: String,
     class_this_name: String,
-    reference_name: String,
+    reference: DecoratedClassReferenceBinding,
     has_static_initializers: bool,
+}
+
+/// The identity behind the independently materialized names of a decorated
+/// class declaration.
+///
+/// Parsed names clone the declaration identifier and retain its source
+/// metadata. A name inserted by `transformTypeScript` instead belongs to the
+/// anonymous source class. Its projections therefore share a generated
+/// binding rather than pretending that the synthetic identifier was parsed.
+#[derive(Clone)]
+enum DecoratedClassDeclarationName {
+    Parsed {
+        text: String,
+        declaration_identity: TransformNode,
+    },
+    TypeScriptGeneratedAnonymousDefault {
+        binding: TargetBinding,
+        declaration_owner: TransformNode,
+    },
+}
+
+impl DecoratedClassDeclarationName {
+    fn runtime_name(&self) -> DecoratedClassRuntimeName {
+        match self {
+            Self::Parsed { text, .. } => DecoratedClassRuntimeName::Declared(text.clone()),
+            Self::TypeScriptGeneratedAnonymousDefault { .. } => {
+                DecoratedClassRuntimeName::AnonymousDefaultDeclaration
+            }
+        }
+    }
+
+    fn class_reference(&self) -> DecoratedClassReferenceBinding {
+        match self {
+            Self::Parsed {
+                text,
+                declaration_identity,
+            } => DecoratedClassReferenceBinding::Parsed {
+                text: text.clone(),
+                declaration_identity: *declaration_identity,
+            },
+            Self::TypeScriptGeneratedAnonymousDefault {
+                binding,
+                declaration_owner,
+            } => DecoratedClassReferenceBinding::Generated {
+                binding: binding.clone(),
+                declaration_owner: *declaration_owner,
+            },
+        }
+    }
+}
+
+/// The source-language name installed on a decorated class is independent of
+/// the binding used to publish and reference it. In particular,
+/// `transformTypeScript` names an anonymous default declaration `default_N`,
+/// while downlevel named evaluation must still install the runtime name
+/// `"default"`; an unassigned decorated class expression instead installs
+/// the empty string required by `transformESDecorators`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum DecoratedClassRuntimeName {
+    Declared(String),
+    Assigned(String),
+    AnonymousDefaultDeclaration,
+    UnassignedDecoratedExpression,
+}
+
+impl DecoratedClassRuntimeName {
+    fn text(&self) -> &str {
+        match self {
+            Self::Declared(text) | Self::Assigned(text) => text,
+            Self::AnonymousDefaultDeclaration => "default",
+            Self::UnassignedDecoratedExpression => "",
+        }
+    }
+}
+
+/// The `getLocalName(..., ignoreAssignedName = true)` projection used inside a
+/// class-decorator IIFE.
+///
+/// Parsed names remain checker-addressable local projections. Anonymous
+/// declarations and expressions instead share a generated binding across the
+/// IIFE declaration, decoration assignment, and return assignment.
+#[derive(Clone)]
+enum DecoratedClassReferenceBinding {
+    Parsed {
+        text: String,
+        declaration_identity: TransformNode,
+    },
+    Generated {
+        binding: TargetBinding,
+        declaration_owner: TransformNode,
+    },
+}
+
+impl DecoratedClassReferenceBinding {
+    fn planned_text(&self) -> &str {
+        match self {
+            Self::Parsed { text, .. } => text,
+            Self::Generated { binding, .. } => binding.provisional_name(),
+        }
+    }
+}
+
+/// The three `NodeFactory.getName` projections used by
+/// `transformESDecorators.visitClassDeclaration`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DecoratedClassNameProjection {
+    LocalMapped,
+    LocalUnmapped,
+    DeclarationUnmapped,
+}
+
+impl DecoratedClassNameProjection {
+    fn emit_flags(self) -> EmitFlags {
+        match self {
+            Self::LocalMapped => EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS,
+            Self::LocalUnmapped => {
+                EmitFlags::LOCAL_NAME | EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP
+            }
+            Self::DeclarationUnmapped => EmitFlags::NO_COMMENTS | EmitFlags::NO_SOURCE_MAP,
+        }
+    }
+}
+
+/// Entry ownership for `transformClassLike`.
+///
+/// The generated class expression is semantically linked to the source
+/// class-like node in both routes, but the enclosing IIFE is linked only for a
+/// source class expression. A class declaration donates its comments to an
+/// outer statement selected by `visit_class_declaration` instead.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DecoratedClassRoute {
+    Declaration(TransformNode),
+    Expression(TransformNode),
+}
+
+impl DecoratedClassRoute {
+    const fn original(self) -> TransformNode {
+        match self {
+            Self::Declaration(original) | Self::Expression(original) => original,
+        }
+    }
+
+    const fn iife_original(self) -> Option<TransformNode> {
+        match self {
+            Self::Declaration(_) => None,
+            Self::Expression(original) => Some(original),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -383,6 +533,18 @@ struct DecoratorLexicalThisRewriter<'visitor, 'context> {
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
 }
 
+/// Substitutes the semantic class-definition identity into an existing named
+/// evaluation helper block. Earlier transforms spell that helper against
+/// lexical `this`; once a class decorator allocates `_classThis`, tsc's class
+/// element visitor projects every lexical `this` in the helper through that
+/// generated identity instead.
+struct DecoratorClassThisRewriter<'visitor, 'context> {
+    visitor: &'visitor mut StandardDecoratorVisitor<'context>,
+    class_this: TransformNode,
+    nodes: BTreeMap<NodeId, NodeId>,
+    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+}
+
 struct StandardDecoratorVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
@@ -431,7 +593,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
             NodeData::ClassExpression(data)
                 if self.class_is_decorated_like(data.modifiers, data.members)? =>
             {
-                Some(self.transform_class_expression(original, data)?.node())
+                Some(
+                    self.transform_class_like(
+                        DecoratedClassRoute::Expression(original),
+                        None,
+                        data,
+                    )?
+                    .node(),
+                )
             }
             NodeData::MethodDeclaration(mut data) => {
                 data.modifiers = self.strip_decorators(data.modifiers)?;
@@ -506,58 +675,65 @@ impl<'context> StandardDecoratorVisitor<'context> {
 
         let is_export = self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?;
         let is_default = self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?;
-        let explicit_name = data
-            .name
-            .and_then(|name| self.identifier_text(self.node(name)).ok().flatten())
-            .map(str::to_owned);
-        if explicit_name.is_none() && !(is_export && is_default) {
+        let declaration_name = self.decorated_class_declaration_name(original, data.name)?;
+        if declaration_name.is_none() && !(is_export && is_default) {
             return Err(TransformError::RequiredChildRemoved {
                 parent: SyntaxKind::ClassDeclaration,
                 field: "name",
             });
         }
+        let original_modifiers = data.modifiers;
         data.modifiers = self.filter_modifiers(data.modifiers, |kind| {
             !matches!(kind, SyntaxKind::ExportKeyword | SyntaxKind::DefaultKeyword)
         })?;
-        let transform_flags = self.context.arena().transform_flags(original);
-        let expression = self.context.factory()?.create_node(
-            self.source,
-            NodeData::ClassExpression(tsc_syntax::nodes::ClassExpressionData {
+        let transformed = self.transform_class_like(
+            DecoratedClassRoute::Declaration(original),
+            declaration_name.as_ref(),
+            tsc_syntax::nodes::ClassExpressionData {
                 name: data.name,
                 type_parameters: None,
                 heritage_clauses: data.heritage_clauses,
                 members: data.members,
                 modifiers: data.modifiers,
-            }),
-            transform_flags,
+            },
         )?;
-        self.set_original_and_range(expression, original)?;
-        if explicit_name.is_none() {
-            self.inferred_class_names
-                .insert(expression.node(), "default".to_owned());
-        }
-        let NodeData::ClassExpression(expression_data) =
-            self.context.arena().node(expression)?.data.clone()
-        else {
-            unreachable!("created class expression")
-        };
-        let transformed = self.transform_class_expression(expression, expression_data)?;
         let mut statements = Vec::new();
-        if let Some(name) = explicit_name.as_deref() {
-            let declaration = self.create_variable_declaration(name, Some(transformed))?;
+        if let Some(name) = declaration_name.as_ref() {
+            let local_projection = if is_export && is_default {
+                DecoratedClassNameProjection::LocalUnmapped
+            } else {
+                DecoratedClassNameProjection::LocalMapped
+            };
+            let local_name = self.materialize_decorated_declaration_name(name, local_projection)?;
+            let declaration =
+                self.create_variable_declaration_with_name(local_name, Some(transformed))?;
+            self.set_original_only(declaration, original)?;
             let statement = self
                 .create_variable_statement_from_declarations(vec![declaration], NodeFlags::LET)?;
-            self.set_original_and_range(statement, original)?;
-            statements.push(statement);
-            if is_export {
-                statements.push(if is_default {
-                    self.create_export_default(name)?
-                } else {
-                    self.create_named_export(name)?
-                });
+            if is_export && is_default {
+                statements.push(statement);
+                let declaration_name = self.materialize_decorated_declaration_name(
+                    name,
+                    DecoratedClassNameProjection::DeclarationUnmapped,
+                )?;
+                let export = self.create_export_default_expression(declaration_name)?;
+                self.set_declaration_comment_owner(export, original)?;
+                self.set_source_map_range_past_decorators(export, original, original_modifiers)?;
+                statements.push(export);
+            } else {
+                self.set_declaration_comment_owner(statement, original)?;
+                statements.push(statement);
+                if is_export {
+                    let export = self.create_named_export(name)?;
+                    self.set_original_only(export, original)?;
+                    statements.push(export);
+                }
             }
         } else {
-            statements.push(self.create_export_default_expression(transformed)?);
+            let export = self.create_export_default_expression(transformed)?;
+            self.set_declaration_comment_owner(export, original)?;
+            self.set_source_map_range_past_decorators(export, original, original_modifiers)?;
+            statements.push(export);
         }
 
         self.nodes.insert(id, None);
@@ -674,11 +850,16 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
-    fn transform_class_expression(
+    fn transform_class_like(
         &mut self,
-        original: TransformNode,
+        route: DecoratedClassRoute,
+        declaration_name: Option<&DecoratedClassDeclarationName>,
         mut data: tsc_syntax::nodes::ClassExpressionData,
     ) -> Result<TransformNode, TransformError> {
+        let original = route.original();
+        debug_assert!(
+            matches!(route, DecoratedClassRoute::Declaration(_)) || declaration_name.is_none()
+        );
         let class_scope_names = self.used_names.clone();
         let enclosing_temp_ordinal = self.computed_temp_ordinal;
         self.computed_temp_ordinal = 0;
@@ -693,9 +874,22 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let assigned_class_name = explicitly_assigned_name
             .clone()
             .or_else(|| self.inferred_class_names.get(&original.node()).cloned());
-        let class_name = explicit_class_name
+        let class_evaluation_binding_name = explicit_class_name
             .clone()
             .or_else(|| assigned_class_name.clone());
+        let runtime_class_name = match route {
+            DecoratedClassRoute::Declaration(_) => Some(declaration_name.map_or(
+                DecoratedClassRuntimeName::AnonymousDefaultDeclaration,
+                DecoratedClassDeclarationName::runtime_name,
+            )),
+            DecoratedClassRoute::Expression(_) => self.class_expression_runtime_name(
+                original,
+                explicit_class_name_node,
+                explicit_class_name.as_deref(),
+                assigned_class_name.as_deref(),
+                !class_decorators.is_empty(),
+            )?,
+        };
         // A decorated named class still receives its name from the direct
         // variable initializer while native static blocks survive. Below
         // ES2022, class-field lowering extracts the `_classThis = this`
@@ -703,30 +897,55 @@ impl<'context> StandardDecoratorVisitor<'context> {
         // assignment, so that named-evaluation position no longer survives.
         let emitted_binding_infers_name = explicit_class_name.is_some()
             && (class_decorators.is_empty() || self.target >= ScriptTarget::ES2022);
-        let needs_set_function_name = !emitted_binding_infers_name && class_name.is_some();
+        let needs_set_function_name = !emitted_binding_infers_name && runtime_class_name.is_some();
         let mut class_decoration = if class_decorators.is_empty() {
             None
         } else {
-            let assigned_name = needs_set_function_name.then(|| {
-                assigned_class_name
-                    .clone()
-                    .unwrap_or_else(|| "default".to_owned())
-            });
-            let reference_name = explicit_class_name.clone().unwrap_or_else(|| {
-                let base = if assigned_name.as_deref() == Some("default") {
-                    "default"
+            let reference = if let Some(declaration_name) = declaration_name {
+                declaration_name.class_reference()
+            } else if let Some(declaration_identity) = explicit_class_name_node {
+                if self.is_generated_binding_name(declaration_identity)? {
+                    let declaration_owner = self.generated_class_reference_owner(original)?;
+                    let family = self.generated_class_reference_family(declaration_owner)?;
+                    DecoratedClassReferenceBinding::Generated {
+                        binding: self.ensure_generated_class_reference_binding(
+                            declaration_identity,
+                            declaration_owner,
+                            family,
+                        )?,
+                        declaration_owner,
+                    }
                 } else {
-                    "class"
-                };
-                self.allocate_generated_reference_name(base)
-            });
+                    DecoratedClassReferenceBinding::Parsed {
+                        text: explicit_class_name.clone().ok_or(
+                            TransformError::RequiredChildRemoved {
+                                parent: SyntaxKind::ClassExpression,
+                                field: "class reference identifier text",
+                            },
+                        )?,
+                        declaration_identity,
+                    }
+                }
+            } else {
+                let declaration_owner = self.generated_class_reference_owner(original)?;
+                let base = self.generated_class_reference_family(declaration_owner)?;
+                let provisional_name = self.allocate_generated_reference_name(base);
+                DecoratedClassReferenceBinding::Generated {
+                    binding: TargetBinding::allocate_numbered(
+                        self.context,
+                        base.to_owned(),
+                        provisional_name,
+                    )?,
+                    declaration_owner,
+                }
+            };
             Some(ClassDecorationPlan {
                 decorators: class_decorators,
                 decorators_name: self.allocate_name("_classDecorators"),
                 descriptor_name: self.allocate_name("_classDescriptor"),
                 extra_initializers_name: self.allocate_name("_classExtraInitializers"),
                 class_this_name: self.allocate_name("_classThis"),
-                reference_name,
+                reference,
                 has_static_initializers: self.class_has_static_initializers(data.members)?,
             })
         };
@@ -942,27 +1161,45 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .is_some()
         });
         let mut transformed_members = Vec::new();
-        if let Some(class_plan) = class_decoration.as_ref() {
-            transformed_members
-                .push(self.create_class_this_assignment_block(&class_plan.class_this_name)?);
-        }
-        if let Some(class_name) = class_name
-            .as_deref()
+        let class_this_identity = if let Some(class_plan) = class_decoration.as_ref() {
+            let assignment =
+                self.create_class_this_assignment_block(&class_plan.class_this_name)?;
+            let class_this = self
+                .context
+                .arena()
+                .metadata(assignment)
+                .and_then(|metadata| metadata.class_this)
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ClassStaticBlockDeclaration,
+                    field: "decorated class-this identity",
+                })?;
+            transformed_members.push(assignment);
+            Some(class_this)
+        } else {
+            None
+        };
+        if let Some(runtime_class_name) = runtime_class_name
+            .as_ref()
             .filter(|_| needs_set_function_name && explicitly_assigned_name.is_none())
         {
             let target = class_decoration
                 .as_ref()
                 .map(|plan| plan.class_this_name.as_str());
-            transformed_members.push(self.create_set_function_name_block(class_name, target)?);
+            transformed_members
+                .push(self.create_set_function_name_block(runtime_class_name.text(), target)?);
         }
         if let Some(member) = named_evaluation_member {
-            let visited =
+            let visited = if let Some(class_this) = class_this_identity {
+                self.retarget_named_evaluation_class_this(member, class_this)?
+            } else {
                 self.visit(member.node())?
+                    .map(|visited| self.node(visited))
                     .ok_or(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::ClassExpression,
                         field: "named-evaluation helper block",
-                    })?;
-            transformed_members.push(self.node(visited));
+                    })?
+            };
+            transformed_members.push(visited);
         }
         if let Some(block) = computed_name_block {
             transformed_members.push(block);
@@ -1072,7 +1309,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                                     class_owner: original,
                                 })
                             } else {
-                                class_name.as_ref().map(|name| {
+                                class_evaluation_binding_name.as_ref().map(|name| {
                                     StaticAccessorReceiver::GeneratedBinding(name.clone())
                                 })
                             }
@@ -1222,11 +1459,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             original,
             &NodeData::ClassExpression(data.clone()),
         )?;
-        let class = self.context.factory()?.update_node(
-            original,
+        let class = self.context.factory()?.create_node(
+            self.source,
             NodeData::ClassExpression(data),
             flags,
         )?;
+        self.set_original_only(class, original)?;
         if let Some(class_this) = class_this_metadata {
             self.context.arena_mut()?.metadata_mut(class).class_this = Some(class_this);
         }
@@ -1234,15 +1472,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.context.arena_mut()?.metadata_mut(class).assigned_name = Some(assigned_name);
         }
         if let Some(class_plan) = class_decoration.as_ref() {
-            let declaration =
-                self.create_variable_declaration(&class_plan.reference_name, Some(class))?;
+            let reference = self.materialize_decorated_class_reference(&class_plan.reference)?;
+            let declaration = self.create_variable_declaration_with_name(reference, Some(class))?;
             definitions.push(
                 self.create_variable_statement_from_declarations(
                     vec![declaration],
                     NodeFlags::NONE,
                 )?,
             );
-            let reference = self.create_identifier(&class_plan.reference_name)?;
+            let reference = self.materialize_decorated_class_reference(&class_plan.reference)?;
             let class_this = self.create_identifier(&class_plan.class_this_name)?;
             let assignment = self.create_assignment(reference, class_this)?;
             definitions.push(self.create_return_statement(assignment)?);
@@ -1253,10 +1491,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let arrow = self.create_arrow(Vec::new(), body)?;
         let arrow = self.create_parenthesized(arrow)?;
         let call = self.create_call(arrow, Vec::new())?;
-        let result = self.set_original_and_range(call, original)?;
+        if let Some(original) = route.iife_original() {
+            self.set_original_only(call, original)?;
+        }
         self.used_names = class_scope_names;
         self.computed_temp_ordinal = enclosing_temp_ordinal;
-        Ok(result)
+        Ok(call)
     }
 
     fn create_decoration_block(
@@ -2223,7 +2463,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let value = self.create_property_access(descriptor, "value")?;
         let class_this = self.create_identifier(&plan.class_this_name)?;
         let class_this_assignment = self.create_assignment(class_this, value)?;
-        let reference = self.create_identifier(&plan.reference_name)?;
+        let reference = self.materialize_decorated_class_reference(&plan.reference)?;
         let assignment = self.create_assignment(reference, class_this_assignment)?;
         self.create_expression_statement(assignment)
     }
@@ -2764,6 +3004,47 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(block)
     }
 
+    /// Retarget a named-evaluation helper injected by an earlier transform to
+    /// the semantic constructor identity allocated for class decoration.
+    ///
+    /// The helper's assigned-name expression remains owned by the existing
+    /// block. Only its lexical `this` projection changes, matching
+    /// `transformESDecorators.visitThisExpression` while a class element is
+    /// visited. The replacement is cloned from the identity transported by
+    /// the class-this assignment block, rather than recovered from printable
+    /// identifier text.
+    fn retarget_named_evaluation_class_this(
+        &mut self,
+        block: TransformNode,
+        class_this: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let (assigned_name, flags, internal_flags) = self
+            .context
+            .arena()
+            .metadata(block)
+            .map(|metadata| {
+                (
+                    metadata.assigned_name,
+                    metadata.flags(),
+                    metadata.internal_flags(),
+                )
+            })
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ClassStaticBlockDeclaration,
+                field: "named-evaluation metadata",
+            })?;
+        let assigned_name = assigned_name.ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::ClassStaticBlockDeclaration,
+            field: "named-evaluation assigned name",
+        })?;
+        let rewritten = DecoratorClassThisRewriter::new(self, class_this).rewrite(block)?;
+        let metadata = self.context.arena_mut()?.metadata_mut(rewritten);
+        metadata.assigned_name = Some(assigned_name);
+        metadata.set_flags(flags);
+        metadata.set_internal_flags(internal_flags);
+        Ok(rewritten)
+    }
+
     fn create_set_function_name_block(
         &mut self,
         class_name: &str,
@@ -3199,6 +3480,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         initializer: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let name = self.create_identifier(name)?;
+        self.create_variable_declaration_with_name(name, initializer)
+    }
+
+    fn create_variable_declaration_with_name(
+        &mut self,
+        name: TransformNode,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
@@ -3637,8 +3926,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )
     }
 
-    fn create_named_export(&mut self, name: &str) -> Result<TransformNode, TransformError> {
-        let name = self.create_identifier(name)?;
+    fn create_named_export(
+        &mut self,
+        declaration_name: &DecoratedClassDeclarationName,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.materialize_decorated_declaration_name(
+            declaration_name,
+            DecoratedClassNameProjection::LocalMapped,
+        )?;
         let specifier = self.context.factory()?.create_node(
             self.source,
             NodeData::ExportSpecifier(tsc_syntax::nodes::ExportSpecifierData {
@@ -3672,9 +3967,271 @@ impl<'context> StandardDecoratorVisitor<'context> {
         )
     }
 
-    fn create_export_default(&mut self, name: &str) -> Result<TransformNode, TransformError> {
-        let expression = self.create_identifier(name)?;
-        self.create_export_default_expression(expression)
+    fn decorated_class_declaration_name(
+        &mut self,
+        declaration: TransformNode,
+        name: Option<NodeId>,
+    ) -> Result<Option<DecoratedClassDeclarationName>, TransformError> {
+        let Some(name) = name.map(|name| self.node(name)) else {
+            return Ok(None);
+        };
+        let Some(text) = self.identifier_text(name)?.map(str::to_owned) else {
+            return Ok(None);
+        };
+
+        let source_declaration = self.context.arena().get_original_node(declaration);
+        let source_has_name = match &self.context.arena().node(source_declaration)?.data {
+            NodeData::ClassDeclaration(data) => data.name.is_some(),
+            _ => {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ClassDeclaration,
+                    field: "original class declaration",
+                });
+            }
+        };
+        if source_has_name {
+            return Ok(Some(DecoratedClassDeclarationName::Parsed {
+                text,
+                declaration_identity: name,
+            }));
+        }
+
+        let binding = if let Some(binding) = self.generated_binding_for_identifier(name) {
+            binding
+        } else {
+            TargetBinding::allocate_numbered(self.context, "default".to_owned(), text)?
+        };
+        binding.write_generated_metadata(self.context.arena_mut()?, name);
+        self.context
+            .arena_mut()?
+            .set_original_node(name, Some(source_declaration))?;
+        Ok(Some(
+            DecoratedClassDeclarationName::TypeScriptGeneratedAnonymousDefault {
+                binding,
+                declaration_owner: declaration,
+            },
+        ))
+    }
+
+    fn generated_binding_for_identifier(&self, name: TransformNode) -> Option<TargetBinding> {
+        let metadata = self.context.arena().metadata(name)?;
+        let id = metadata.generated_binding_id()?;
+        let NodeData::Identifier(identifier) = &self.context.arena().node(name).ok()?.data else {
+            return None;
+        };
+        Some(TargetBinding::from_existing(
+            id,
+            identifier.text.clone(),
+            metadata.generated_binding_base().map(str::to_owned),
+            metadata
+                .generated_binding_preferred_base()
+                .map(str::to_owned),
+            metadata.generated_binding_role_suffix().map(str::to_owned),
+            metadata.generated_binding_is_file_level_optimistic(),
+            metadata.generated_binding_planned_name_is_authoritative(),
+            metadata.generated_binding_reserved_in_nested_scopes(),
+        ))
+    }
+
+    /// Mirrors `getNodeForGeneratedName` for class references. An ESNext
+    /// using-hoist changes the surface syntax from a declaration to an
+    /// expression, but the generated-name family continues to belong to the
+    /// ultimate source class-like node.
+    fn generated_class_reference_owner(
+        &self,
+        class_like: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let owner = self.context.arena().get_original_node(class_like);
+        match self.context.arena().node(owner)?.kind {
+            SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression => Ok(owner),
+            kind => Err(TransformError::RequiredChildRemoved {
+                parent: kind,
+                field: "generated class-reference owner",
+            }),
+        }
+    }
+
+    fn generated_class_reference_family(
+        &self,
+        owner: TransformNode,
+    ) -> Result<&'static str, TransformError> {
+        match self.context.arena().node(owner)?.kind {
+            SyntaxKind::ClassDeclaration => Ok("default"),
+            SyntaxKind::ClassExpression => Ok("class"),
+            kind => Err(TransformError::RequiredChildRemoved {
+                parent: kind,
+                field: "generated class-reference family",
+            }),
+        }
+    }
+
+    /// Class-expression surface syntax is not sufficient to recover named
+    /// evaluation semantics after an earlier transform has converted an
+    /// anonymous default declaration into an expression. The ultimate source
+    /// owner decides the declaration case; only a genuine source class
+    /// expression may derive its runtime name from a parsed explicit name or
+    /// from its assignment context.
+    fn class_expression_runtime_name(
+        &self,
+        class_like: TransformNode,
+        explicit_name_node: Option<TransformNode>,
+        explicit_name: Option<&str>,
+        assigned_name: Option<&str>,
+        has_class_decorators: bool,
+    ) -> Result<Option<DecoratedClassRuntimeName>, TransformError> {
+        let owner = self.generated_class_reference_owner(class_like)?;
+        match self.context.arena().node(owner)?.kind {
+            SyntaxKind::ClassDeclaration => {
+                Ok(Some(DecoratedClassRuntimeName::AnonymousDefaultDeclaration))
+            }
+            SyntaxKind::ClassExpression => {
+                if let Some(explicit_name_node) = explicit_name_node {
+                    if !self.is_generated_binding_name(explicit_name_node)? {
+                        return Ok(explicit_name
+                            .map(|name| DecoratedClassRuntimeName::Declared(name.to_owned())));
+                    }
+                }
+                Ok(assigned_name
+                    .map(|name| DecoratedClassRuntimeName::Assigned(name.to_owned()))
+                    // tsc injects a named-evaluation helper with the empty
+                    // string only when the otherwise anonymous expression
+                    // has a class decorator. A member-only decorated
+                    // expression remains anonymous.
+                    .or_else(|| {
+                        has_class_decorators
+                            .then_some(DecoratedClassRuntimeName::UnassignedDecoratedExpression)
+                    }))
+            }
+            kind => Err(TransformError::RequiredChildRemoved {
+                parent: kind,
+                field: "decorated class runtime-name owner",
+            }),
+        }
+    }
+
+    fn is_generated_binding_name(&self, name: TransformNode) -> Result<bool, TransformError> {
+        if self
+            .context
+            .arena()
+            .metadata(name)
+            .and_then(|metadata| metadata.generated_binding_id())
+            .is_some()
+        {
+            return Ok(true);
+        }
+        if let Some(parsed) = self.context.arena().parse_tree_node(name)? {
+            return Ok(!matches!(
+                self.context.arena().node(parsed)?.data,
+                NodeData::Identifier(_)
+            ));
+        }
+        Ok(NodeFlags::from_bits(self.context.arena().node(name)?.flags)
+            .contains(NodeFlags::SYNTHESIZED))
+    }
+
+    fn ensure_generated_class_reference_binding(
+        &mut self,
+        name: TransformNode,
+        declaration_owner: TransformNode,
+        family: &str,
+    ) -> Result<TargetBinding, TransformError> {
+        let binding = if let Some(binding) = self.generated_binding_for_identifier(name) {
+            binding
+        } else {
+            let text = self
+                .identifier_text(name)?
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ClassExpression,
+                    field: "generated class reference identifier",
+                })?
+                .to_owned();
+            TargetBinding::allocate_numbered(self.context, family.to_owned(), text)?
+        };
+        binding.write_generated_metadata(self.context.arena_mut()?, name);
+        self.context
+            .arena_mut()?
+            .set_original_node(name, Some(declaration_owner))?;
+        Ok(binding)
+    }
+
+    /// Materialize one of the three declaration-name projections used by the
+    /// standard-decorator transform.
+    ///
+    /// Parsed projections clone the declaration-name provenance and emit
+    /// flags. `getName` bypasses those projection flags for a generated name:
+    /// its separately owned AST nodes have no parsed text range and instead
+    /// share one target binding with the name inserted by
+    /// `transformTypeScript`.
+    fn materialize_decorated_declaration_name(
+        &mut self,
+        declaration_name: &DecoratedClassDeclarationName,
+        projection: DecoratedClassNameProjection,
+    ) -> Result<TransformNode, TransformError> {
+        match declaration_name {
+            DecoratedClassDeclarationName::Parsed {
+                text,
+                declaration_identity,
+            } => {
+                let source_flags = self
+                    .context
+                    .arena()
+                    .metadata(*declaration_identity)
+                    .map_or(EmitFlags::NONE, |metadata| metadata.flags());
+                let identifier = self.create_identifier(text)?;
+                self.set_original_and_range(identifier, *declaration_identity)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(identifier)
+                    .add_flags(source_flags | projection.emit_flags());
+                Ok(identifier)
+            }
+            DecoratedClassDeclarationName::TypeScriptGeneratedAnonymousDefault {
+                binding,
+                declaration_owner,
+            } => {
+                let identifier = self.create_identifier(binding.provisional_name())?;
+                binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+                self.set_original_only(identifier, *declaration_owner)?;
+                Ok(identifier)
+            }
+        }
+    }
+
+    fn materialize_decorated_class_reference(
+        &mut self,
+        reference: &DecoratedClassReferenceBinding,
+    ) -> Result<TransformNode, TransformError> {
+        let identifier = self.create_identifier(reference.planned_text())?;
+        match reference {
+            DecoratedClassReferenceBinding::Parsed {
+                declaration_identity,
+                ..
+            } => {
+                let source_flags = self
+                    .context
+                    .arena()
+                    .metadata(*declaration_identity)
+                    .map_or(EmitFlags::NONE, |metadata| metadata.flags());
+                self.set_original_and_range(identifier, *declaration_identity)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(identifier)
+                    .add_flags(
+                        source_flags
+                            | EmitFlags::LOCAL_NAME
+                            | EmitFlags::NO_COMMENTS
+                            | EmitFlags::NO_SOURCE_MAP,
+                    );
+            }
+            DecoratedClassReferenceBinding::Generated {
+                binding,
+                declaration_owner,
+            } => {
+                binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+                self.set_original_only(identifier, *declaration_owner)?;
+            }
+        }
+        Ok(identifier)
     }
 
     fn create_export_default_expression(
@@ -4023,6 +4580,89 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .collect()
     }
 
+    fn set_original_only(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .arena_mut()?
+            .set_original_node(node, Some(original))?;
+        Ok(node)
+    }
+
+    fn effective_comment_range(&self, node: TransformNode) -> Result<CommentRange, TransformError> {
+        if let Some(range) = self
+            .context
+            .arena()
+            .metadata(node)
+            .and_then(crate::EmitMetadata::comment_range)
+        {
+            return Ok(range);
+        }
+        let source = self.context.arena().source(node.source())?.syntax();
+        let record = self.context.arena().node(node)?;
+        let range = SourceRange::from_raw(record.pos, record.end, source.positions())
+            .map_err(|error| TransformError::InvalidSourceRange { node, error })?;
+        Ok(CommentRange::new(node.source(), range))
+    }
+
+    fn set_declaration_comment_owner(
+        &mut self,
+        node: TransformNode,
+        declaration: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let comment_range = self.effective_comment_range(declaration)?;
+        self.set_original_only(node, declaration)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_comment_range(comment_range);
+        Ok(node)
+    }
+
+    /// tsc-port: moveRangePastDecorators @6.0.3
+    /// tsc-hash: 27d3b9fba1576ed2d7269a9fe1b694ac1e16e977da92c9935f13359611222a93
+    /// tsc-span: _tsc.js:17307-17310
+    fn set_source_map_range_past_decorators(
+        &mut self,
+        node: TransformNode,
+        declaration: TransformNode,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<TransformNode, TransformError> {
+        let declaration_record = self.context.arena().node(declaration)?.clone();
+        let last_decorator = self
+            .array_nodes(modifiers)?
+            .into_iter()
+            .rev()
+            .find(|modifier| {
+                self.context
+                    .arena()
+                    .node(*modifier)
+                    .is_ok_and(|record| record.kind == SyntaxKind::Decorator)
+            });
+        let start = last_decorator
+            .and_then(|decorator| self.context.arena().node(decorator).ok())
+            .map_or(declaration_record.pos, |decorator| {
+                if decorator.end == u32::MAX {
+                    declaration_record.pos
+                } else {
+                    decorator.end
+                }
+            });
+        let source = self.context.arena().source(declaration.source())?.syntax();
+        let range = SourceRange::from_raw(start, declaration_record.end, source.positions())
+            .map_err(|error| TransformError::InvalidSourceRange {
+                node: declaration,
+                error,
+            })?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_source_map_range(SourceMapRange::new(declaration.source(), range));
+        Ok(node)
+    }
+
     fn set_original_and_range(
         &mut self,
         node: TransformNode,
@@ -4144,6 +4784,116 @@ impl<'visitor, 'context> DecoratorLexicalThisRewriter<'visitor, 'context> {
     }
 }
 
+impl<'visitor, 'context> DecoratorClassThisRewriter<'visitor, 'context> {
+    fn new(
+        visitor: &'visitor mut StandardDecoratorVisitor<'context>,
+        class_this: TransformNode,
+    ) -> Self {
+        Self {
+            visitor,
+            class_this,
+            nodes: BTreeMap::new(),
+            arrays: BTreeMap::new(),
+        }
+    }
+
+    fn rewrite(mut self, block: TransformNode) -> Result<TransformNode, TransformError> {
+        let rewritten =
+            self.rewrite_node(block.node())?
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ClassStaticBlockDeclaration,
+                    field: "named-evaluation class-this substitution",
+                })?;
+        Ok(self.visitor.node(rewritten))
+    }
+
+    fn rewrite_node(&mut self, id: NodeId) -> Result<Option<NodeId>, TransformError> {
+        if let Some(rewritten) = self.nodes.get(&id) {
+            return Ok(Some(*rewritten));
+        }
+        let original = self.visitor.node(id);
+        let record = self.visitor.context.arena().node(original)?.clone();
+        let rewritten = if record.kind == SyntaxKind::ThisKeyword {
+            let flags = self
+                .visitor
+                .context
+                .arena()
+                .metadata(self.class_this)
+                .map_or(EmitFlags::NONE, |metadata| metadata.flags());
+            let internal_flags = self
+                .visitor
+                .context
+                .arena()
+                .metadata(self.class_this)
+                .map_or(InternalEmitFlags::NONE, |metadata| {
+                    metadata.internal_flags()
+                });
+            let replacement = self
+                .visitor
+                .context
+                .factory()?
+                .clone_node(self.class_this)?;
+            let metadata = self.visitor.context.arena_mut()?.metadata_mut(replacement);
+            metadata.set_flags(flags);
+            metadata.set_internal_flags(internal_flags);
+            replacement.node()
+        } else if matches!(&record.data, NodeData::Token)
+            || matches!(
+                record.kind,
+                SyntaxKind::ClassDeclaration
+                    | SyntaxKind::ClassExpression
+                    | SyntaxKind::Constructor
+                    | SyntaxKind::FunctionDeclaration
+                    | SyntaxKind::FunctionExpression
+                    | SyntaxKind::GetAccessor
+                    | SyntaxKind::MethodDeclaration
+                    | SyntaxKind::SetAccessor
+            )
+        {
+            original.node()
+        } else {
+            let mut data = record.data;
+            try_visit_each_child(&mut data, self)?;
+            let flags = flags_after_update(self.visitor.context.arena(), original, &data)?;
+            self.visitor
+                .context
+                .factory()?
+                .update_node(original, data, flags)?
+                .node()
+        };
+        self.nodes.insert(id, rewritten);
+        Ok(Some(rewritten))
+    }
+
+    fn rewrite_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, TransformError> {
+        if let Some(rewritten) = self.arrays.get(&id) {
+            return Ok(Some(*rewritten));
+        }
+        let original = self.visitor.array(id);
+        let nodes = self
+            .visitor
+            .context
+            .arena()
+            .node_array(original)?
+            .nodes
+            .clone();
+        let mut rewritten_nodes = Vec::with_capacity(nodes.len());
+        for node in nodes {
+            if let Some(rewritten) = self.rewrite_node(node)? {
+                rewritten_nodes.push(self.visitor.node(rewritten));
+            }
+        }
+        let rewritten = self
+            .visitor
+            .context
+            .factory()?
+            .update_node_array(original, rewritten_nodes)?
+            .array();
+        self.arrays.insert(id, rewritten);
+        Ok(Some(rewritten))
+    }
+}
+
 impl NodeDataChildVisitor for DecoratorLexicalThisRewriter<'_, '_> {
     type Error = TransformError;
 
@@ -4153,6 +4903,31 @@ impl NodeDataChildVisitor for DecoratorLexicalThisRewriter<'_, '_> {
             .arena()
             .node(self.visitor.node(id))
             .expect("decorator expression child belongs to the current transform source")
+            .kind
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        self.rewrite_node(id)
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        self.rewrite_nodes(id)
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
+impl NodeDataChildVisitor for DecoratorClassThisRewriter<'_, '_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.visitor
+            .context
+            .arena()
+            .node(self.visitor.node(id))
+            .expect("named-evaluation child belongs to the current transform source")
             .kind
     }
 
