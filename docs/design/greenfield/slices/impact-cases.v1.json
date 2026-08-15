@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "availability": "synthetic-only",
+  "cases": [
+    {
+      "id": "narrative-no-impact",
+      "change": "node-changed",
+      "changed": ["note"],
+      "impacted": ["note"],
+      "execute": []
+    },
+    {
+      "id": "shared-owner",
+      "change": "shared-dependency-changed",
+      "changed": ["shared"],
+      "impacted": ["consumer-a", "consumer-b", "shared"],
+      "execute": ["consumer-a", "consumer-b"]
+    },
+    {
+      "id": "edge-add-remove",
+      "change": "dependency-changed",
+      "changed": ["consumer"],
+      "impacted": ["consumer", "dependency"],
+      "execute": ["consumer"]
+    },
+    {
+      "id": "approved-narrowing",
+      "change": "owner-narrowing",
+      "approval": "protected",
+      "decision": "approved"
+    },
+    {
+      "id": "unapproved-narrowing",
+      "change": "owner-narrowing",
+      "approval": "absent",
+      "decision": "conservative-superset"
+    },
+    {
+      "id": "candidate-self-approval",
+      "change": "owner-narrowing",
+      "approval": "candidate",
+      "decision": "rejected"
+    }
+  ]
+}

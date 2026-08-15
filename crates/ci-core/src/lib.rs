@@ -15,6 +15,7 @@ mod graph_validation;
 mod hash;
 mod identity;
 mod ids;
+mod impact;
 mod input;
 mod inventory;
 mod membership;
@@ -58,6 +59,11 @@ pub use identity::{
 pub use ids::{
     validate_namespace_lineage, validate_rename, ApplicationNamespaceV1, ImplementationIdV1,
     NamespaceError, NamespaceLineageV1, ProtocolDomainTagV1, ProtocolDomainV1, SchemaIdV1,
+};
+pub use impact::{
+    compare_graphs, digest_graph, validate_graph_transition, GraphTransitionV1, ImpactError,
+    ImpactPlan, TransitionApprovalV1, TransitionChangeV1, TransitionDecisionV1, TransitionError,
+    TrustBindingV1, TrustRootError, TrustRootV1,
 };
 pub use input::CanonicalInputRefV1;
 pub use inventory::{
