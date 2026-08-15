@@ -11,6 +11,7 @@ mod canonical;
 mod digest;
 mod graph;
 mod hash;
+mod identity;
 mod ids;
 mod input;
 
@@ -34,6 +35,13 @@ pub use hash::{
     hash_action_key, hash_adapter_registry, hash_application_namespace, hash_authority_receipt,
     hash_build_artifact, hash_conflict_registry, hash_graph, hash_input, hash_object, hash_outcome,
     hash_publication_event,
+};
+pub use identity::{
+    BuildComponentSetV1, BuildComponentV1, DisclosureEntryV1, DisclosureError, DisclosureHistoryV1,
+    EvidenceAudienceV1, ExecutionPlatformV1, FilesystemAccessV1, IdentityError, InvocationIdV1,
+    InvocationIdentityV1, NetworkAccessV1, PlatformTokenV1, ProcessObservationStatusV1,
+    ProcessObservationV1, PublicEnvironmentEntryV1, ReuseScopeV1, SandboxCapabilitiesV1,
+    SecretFreeEnvironmentV1, ToolIdV1, ToolRefV1, ToolRoleV1, ToolchainSetV1,
 };
 pub use ids::{
     validate_namespace_lineage, validate_rename, ApplicationNamespaceV1, ImplementationIdV1,
