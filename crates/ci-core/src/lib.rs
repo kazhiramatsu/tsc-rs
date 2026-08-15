@@ -11,6 +11,7 @@ mod canonical;
 mod digest;
 mod graph;
 mod graph_schema;
+mod graph_validation;
 mod hash;
 mod identity;
 mod ids;
@@ -33,6 +34,11 @@ pub use graph::{
     NodeClass, NodeRecord, PendingMembership, RootRecord,
 };
 pub use graph_schema::{ActionGraph, GraphSchemaError};
+pub use graph_validation::{
+    validate_declared_closures, validate_global_id_sets, validate_graph, ActionProposal,
+    ClosureRecord, DerivedProposal, EvaluationPlan, ExecutionProposal, GraphValidationError,
+    RootProposal, ValidatedGraph,
+};
 pub use hash::{
     hash_action_key, hash_adapter_registry, hash_application_namespace, hash_authority_receipt,
     hash_build_artifact, hash_conflict_registry, hash_graph, hash_input, hash_object, hash_outcome,
