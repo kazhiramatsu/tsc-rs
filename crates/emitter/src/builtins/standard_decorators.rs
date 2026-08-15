@@ -2819,7 +2819,19 @@ impl<'context> StandardDecoratorVisitor<'context> {
         initializer: TransformNode,
         static_receiver: Option<&StaticAccessorReceiver>,
     ) -> Result<Vec<TransformNode>, TransformError> {
+        let name = plan.data.name.ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::PropertyDeclaration,
+            field: "name",
+        })?;
         let backing = self.create_private_identifier(backing_name)?;
+        // The backing name is synthetic, but its resolver identity is the
+        // parsed auto-accessor name. Class-field lowering queries resolver
+        // facts on this child, so preserve the original-name chain used by
+        // `create_generated_private_identifier`.
+        let original_name = self.node(name);
+        self.context
+            .arena_mut()?
+            .set_original_node(backing, Some(original_name))?;
         let modifiers = self.filter_modifiers(plan.data.modifiers, |kind| {
             !matches!(kind, SyntaxKind::Decorator | SyntaxKind::AccessorKeyword)
         })?;
@@ -2849,10 +2861,6 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .metadata_mut(field)
                 .class_field_initializer_comment_source = Some(plan.original);
         }
-        let name = plan.data.name.ok_or(TransformError::RequiredChildRemoved {
-            parent: SyntaxKind::PropertyDeclaration,
-            field: "name",
-        })?;
         let setter_name = if let Some(temporary) = plan.computed_temp_name.as_deref() {
             let temporary = self.create_identifier(temporary)?;
             self.create_computed_property_name(temporary)?.node()
@@ -2874,6 +2882,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             static_receiver,
         )?;
         self.set_original_and_range(getter, plan.original)?;
+        self.set_original_and_range(setter, plan.original)?;
         self.context
             .arena_mut()?
             .metadata_mut(setter)
