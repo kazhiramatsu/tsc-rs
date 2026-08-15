@@ -10,6 +10,7 @@ mod adapter;
 mod canonical;
 mod digest;
 mod graph;
+mod graph_schema;
 mod hash;
 mod identity;
 mod ids;
@@ -31,6 +32,7 @@ pub use graph::{
     ActionRecord, AdapterInstanceRefV1, CompleteMembership, CompositeProfileV1, InstanceIdV1,
     NodeClass, NodeRecord, PendingMembership, RootRecord,
 };
+pub use graph_schema::{ActionGraph, GraphSchemaError};
 pub use hash::{
     hash_action_key, hash_adapter_registry, hash_application_namespace, hash_authority_receipt,
     hash_build_artifact, hash_conflict_registry, hash_graph, hash_input, hash_object, hash_outcome,

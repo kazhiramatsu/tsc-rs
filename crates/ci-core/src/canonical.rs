@@ -117,7 +117,7 @@ impl CanonicalSink for BoundedBytesSink {
 
 /// A value with exactly the JSON subset permitted by the v1 wire protocol.
 /// Floating-point values intentionally have no variant.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum CanonicalValue {
     Null,
     Bool(bool),

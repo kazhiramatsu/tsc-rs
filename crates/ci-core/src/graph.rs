@@ -10,7 +10,7 @@ pub enum NodeClass {
     Aggregate,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct NodeRecord<I, K, S> {
     id: I,
     class: NodeClass,
@@ -159,6 +159,19 @@ impl CompositeProfileV1 {
 
     pub fn instances(&self) -> &[AdapterInstanceRefV1] {
         &self.instances
+    }
+
+    pub fn try_from_sorted(
+        instances: Vec<AdapterInstanceRefV1>,
+    ) -> Result<Self, crate::graph_schema::GraphSchemaError> {
+        if instances.windows(2).any(|pair| pair[0] >= pair[1]) {
+            let index = instances
+                .windows(2)
+                .position(|pair| pair[0] >= pair[1])
+                .map_or(0, |index| index + 1);
+            return Err(crate::graph_schema::GraphSchemaError::Unsorted { index });
+        }
+        Ok(Self::new(instances))
     }
 }
 
