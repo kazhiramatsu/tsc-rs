@@ -33,7 +33,7 @@ fn bounded_queue_is_fifo_and_refuses_overflow() {
 
 #[test]
 fn runner_effect_surface_has_no_async_or_live_cache_entry() {
-    let source = include_str!("../src/lib.rs");
+    let source = include_str!("../../src/lib.rs");
     assert!(!source.contains("async"));
     assert!(!source.contains("Runner::evaluate"));
     assert!(!source.contains("CasBackend"));

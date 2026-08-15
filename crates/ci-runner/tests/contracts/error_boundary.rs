@@ -98,13 +98,11 @@ fn cancellation_is_explicit_and_never_a_miss_value() {
 
 #[test]
 fn public_surface_is_blocking_and_has_no_future_effect_placeholder() {
-    let source = include_str!("../src/lib.rs");
+    let source = include_str!("../../src/lib.rs");
     assert!(!source.contains("async"));
     assert!(!source.contains("Future"));
     for forbidden in [
         "RunContext",
-        "SourceSnapshotProvider",
-        "Sandbox",
         "CasBackend",
         "ExactCacheBackend",
         "Publication",

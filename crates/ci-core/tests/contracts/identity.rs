@@ -165,7 +165,7 @@ fn invocation_identity_binds_platform_toolchain_and_capture_versions() {
 
 #[test]
 fn generic_identity_source_contains_no_repository_tool_literals() {
-    let source = include_str!("../src/identity.rs");
+    let source = include_str!("../../src/identity.rs");
     for forbidden in ["tsc-rs", "TypeScript", "Cargo", "H2", "compiler"] {
         assert!(
             !source.contains(forbidden),

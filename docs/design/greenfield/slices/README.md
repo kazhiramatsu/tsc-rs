@@ -37,7 +37,8 @@ invitation to fill in the answer during implementation.
 | [FCI-4d pure explanations and planning budgets](fci-4d-explanations-budget.md) | Ready; shadow implementation in progress | Deterministic affected/reason-path/why-miss values and hard planning ceilings. No live cache, snapshot command, or semantic subprocess. |
 | [FCI-5a protocol/control/plan](fci-5a-protocol-control-plan.md) | Ready; shadow implementation in progress | Typed invocation/observation/root evidence, protected fixed-plan validation, and the exact H2 source binding. No action registration or harness. |
 | [FCI-5b miss-only candidate harness](fci-5b-candidate-harness.md) | Ready; shadow implementation in progress | Candidate process boundary only; no H2 action registration, cache, root, or authority. |
-| FCI-5c.1 H2.5g inventory profile shadow | Blocked on FCI-5b and the final profile packet | Shadow only: exact 9,027-case membership and two-repetition observations; legacy H2.5g remains authoritative. |
+| [FCI-5c.1 H2.5g membership shadow](fci-5c.1-h2-5g-membership.md) | Ready; non-authoritative | Pure exact 9,027-case membership/disposition/shard report. No source read, candidate execution, observation, cache, or authority. |
+| FCI-5c.1b H2.5g observation shadow | Blocked on source-snapshot and runner packets | Add the two isolated observations only after the candidate receives an immutable typed input; legacy H2.5g remains authoritative. |
 | FCI-5c.2 complete H2 shadow | Blocked on H2.5g final validation, close/merge lineage, and packet rebind | Complete the remaining H2 adapter before FCI-6; no authority may be minted by the shadow. |
 | [FCI-6a-e CAS/outcomes/capabilities/rollover/GC](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-5c; each letter requires its own ready packet | No production edits. |
 | [FCI-7a-b, 7c.1-c.2 demand-driven local/composite shadow and framework qualification](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-6e; every lettered/numeric boundary requires its own ready packet | No production edits; the second real adapter precedes the API/conformance freeze. |
@@ -53,9 +54,10 @@ post-H2.5g roadmap review rebinds FCI-5c.2 and later packets to the final
 validation/merge lineage before they can become ready.
 Completed packet prose remains as history, while its status and immutable
 evidence move to the owning profile/ratchet. The hard order is bootstrap,
-FCI-1a through FCI-5b, FCI-5c.1 shadow, H2.5g final validation/close/merge,
-FCI-5c.2 through FCI-8 complete shadow, FCI-9a local-full activation, FCI-9b
-hosted ts-tests-only activation, FCI-10 cleanup, then H2.5h-a. Read-only work
+FCI-1a through FCI-5b, FCI-5c.1 membership shadow, H2.5g final
+validation/close/merge, source-snapshot/runner packets, FCI-5c.1b observation
+shadow, FCI-5c.2 through FCI-8 complete shadow, FCI-9a local-full activation,
+FCI-9b hosted ts-tests-only activation, FCI-10 cleanup, then H2.5h-a. Read-only work
 may overlap only under an indexed packet; no stage-table row authorizes
 production code.
 

@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-5c.1",
+  "status": "ready",
+  "trustedBase": "202229f2c58cc2f1914e3c4d53fbb8f07649bfe3",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-5c.1-h2-5g-membership.md",
+    "sha256": "a15d0f2608c1f413501c516a9a91fa1af42cd5a7069c31b6238ebf634d89073f"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-5b",
+      "receiptSha256": "566b073aaea7adbebb5cad6d3a34eae83b7a2543e0cb79aa52ef01d2b809226e"
+    }
+  ],
+  "allowedPaths": [
+    ".github/ci/fci-h2-5g-membership.mjs",
+    ".github/ci/fci-h2-5g-membership.test.mjs",
+    ".github/ci/plans/h2-5g.v1.json",
+    "ratchets/h2-5g-qualification.v1.json",
+    "docs/design/greenfield/slices/fci-5c.1-h2-5g-membership.md",
+    "docs/design/greenfield/slices/README.md",
+    "docs/design/greenfield/functional-ci-evidence.md",
+    "docs/design/greenfield/post-h1-completion-slices.md",
+    "docs/design/greenfield/slices/h2-5h-a.md",
+    "ratchets/fci-readiness/fci-5c.1.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/compiler",
+    "crates/checker",
+    "crates/emitter",
+    "crates/harness",
+    "crates/oracle",
+    "crates/xtask",
+    "crates/ci-harness-tsc-rs",
+    "crates/ci-runner",
+    ".github/workflows",
+    "ratchets/h2-5g-owner-controls.v1.json",
+    "ratchets/h2-5g-profile.v1.json"
+  ],
+  "proof": {
+    "commands": [
+      "node --test .github/ci/fci-h2-5g-membership.test.mjs",
+      "node .github/ci/fci-h2-5g-membership.mjs --repeat-check",
+      "node .github/ci/slice-readiness.mjs --check fci-5c.1"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-5c.1.v1.json"
+  }
+}

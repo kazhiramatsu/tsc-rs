@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
+autotests = false
 
 [package.metadata.tsc-rs]
 role = "ci-runner"
@@ -15,3 +16,7 @@ path = "src/lib.rs"
 [dependencies]
 libc.workspace = true
 tsc-ci-core.workspace = true
+
+[[test]]
+name = "contracts"
+path = "tests/contracts.rs"

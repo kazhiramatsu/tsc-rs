@@ -10,8 +10,8 @@ The Functional-CI architecture originally placed every implementation packet
 after H2.5g closure. The current development cost of repeatedly rebuilding a
 large H2 corpus requires an earlier, still fail-closed shadow path. This
 bootstrap changes only the scheduling boundary: it permits the dependency
-ordered FCI-1a through FCI-5b packets and the narrow FCI-5c.1 H2.5g inventory
-profile to be prepared before closure. It never changes the legacy H2.5g
+ordered FCI-1a through FCI-5b packets and the narrow FCI-5c.1 H2.5g
+membership shadow to be prepared before closure. It never changes the legacy H2.5g
 commands, denominator, disposition counts, hosted scope, owner-control scope,
 or acceptance authority.
 
@@ -22,7 +22,7 @@ The bootstrap may authorize only the following transitions:
 ```text
 design -> ready (packet-control schema/checker and tests)
 design -> ready (FCI-1a ... FCI-5b, one packet at a time)
-design -> ready (FCI-5c.1, only after FCI-5b closes)
+design -> ready (FCI-5c.1 membership shadow, only after FCI-5b closes)
 ```
 
 It may not authorize FCI-5c.2, FCI-6 or later, any workflow/hosted/provider

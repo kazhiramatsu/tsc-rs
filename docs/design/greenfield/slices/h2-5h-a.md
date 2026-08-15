@@ -12,8 +12,9 @@ isolation.
 
 The block is intentional and mechanically fail-closed: the packet-control
 bootstrap now freezes the shared checker/schema and may authorize only the
-pre-closure FCI-1a through FCI-5c.1 shadow packets. H2.5g must still close and
-merge before FCI-5c.2 and every later FCI packet; subsequent short-lived packet
+pre-closure FCI-1a through FCI-5c.1 membership shadow packet. H2.5g must still
+close and merge before the source-snapshot/runner observation packet, FCI-5c.2,
+and every later FCI packet; subsequent short-lived packet
 branches must advance the interlock one authorized packet at a time through
 FCI-10. Only then may the required final H2.5g/FCI architecture lineage,
 complete owner/local-gap inventories, Rust mapping, and frozen H2.5h witnesses

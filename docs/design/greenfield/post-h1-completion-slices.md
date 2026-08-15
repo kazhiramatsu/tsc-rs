@@ -276,8 +276,9 @@ and the pre-closure shadow gate:
 ```text
 packet-control bootstrap + versioned packet freeze
   -> FCI-1a through FCI-5b
-  -> FCI-5c.1 H2.5g inventory profile shadow
+  -> FCI-5c.1 H2.5g membership shadow
   -> H2.5g final validation reference + close/merge lineage
+  -> source-snapshot/runner boundary + FCI-5c.1b observation shadow
   -> FCI-5c.2
   -> FCI-6 through FCI-8 complete shadow
   -> FCI-9a local-full activation
@@ -289,7 +290,9 @@ packet-control bootstrap + versioned packet freeze
 Within a stage, lettered packets run in lexical order and numeric subpackets
 run in numeric order unless a packet records an earlier dependency explicitly.
 The required subdivisions are FCI-1a-c, FCI-2a-b, FCI-4a.1-a.3, FCI-5a-b,
-FCI-5c.1-c.2, and FCI-7c.1-c.2; they refine but do not reorder the hard gate.
+FCI-5c.1/5c.1b/5c.2, and FCI-7c.1-c.2; they refine but do not reorder the
+hard gate. FCI-5c.1 is membership-only; FCI-5c.1b cannot execute until a
+typed source snapshot and runner entry exist.
 A stage closes only when all of its packets and immutable proofs close. FCI-8 begins only
 after the FCI-7c.2 framework qualification/API freeze. FCI-8b is read-only
 protected-host/bootstrap research and FCI-8c is read-only hosted-provider

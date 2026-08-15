@@ -9,7 +9,7 @@ impl ChunkSource for FakeSource {
         match self.chunks.pop() {
             Some(bytes) => BoundedChunk::try_new(bytes, limit)
                 .map(Some)
-                .map_or_else(EffectResult::Failed, |chunk| EffectResult::Complete(chunk)),
+                .map_or_else(EffectResult::Failed, EffectResult::Complete),
             None => EffectResult::Complete(None),
         }
     }

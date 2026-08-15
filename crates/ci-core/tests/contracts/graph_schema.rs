@@ -102,7 +102,7 @@ fn composite_profile_is_strictly_ordered_and_canonical() {
 
 #[test]
 fn generic_graph_source_has_no_repository_literals_or_callbacks() {
-    let source = include_str!("../src/graph_schema.rs");
+    let source = include_str!("../../src/graph_schema.rs");
     for forbidden in ["tsc-rs", "H2", "Cargo", "compiler", "Callback"] {
         assert!(!source.contains(forbidden), "generic literal: {forbidden}");
     }

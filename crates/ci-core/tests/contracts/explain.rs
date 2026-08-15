@@ -110,7 +110,8 @@ fn budgets_reject_zero_and_over_limit_observations() {
 
 #[test]
 fn explanation_fixture_and_source_are_pure() {
-    let fixture = include_str!("../../../docs/design/greenfield/slices/explanation-cases.v1.json");
+    let fixture =
+        include_str!("../../../../docs/design/greenfield/slices/explanation-cases.v1.json");
     for forbidden in [
         "tsc-rs",
         "Cargo",
@@ -124,7 +125,7 @@ fn explanation_fixture_and_source_are_pure() {
             "synthetic fixture literal: {forbidden}"
         );
     }
-    let source = include_str!("../src/explain.rs");
+    let source = include_str!("../../src/explain.rs");
     for forbidden in [
         "std::process",
         "SystemTime",

@@ -643,16 +643,16 @@ fn load_program_worker(
         )?)
     };
 
-    let mut graph = StagedGraph::new(
+    let mut graph = StagedGraph::new(StagedGraphConfig {
         host,
-        &compiler_options,
-        &program_options,
+        compiler_options: &compiler_options,
+        program_options: &program_options,
         library_catalog,
         library_directory,
         limits,
-        &mut resolver,
-        library_resolver.as_mut(),
-    );
+        resolver: &mut resolver,
+        library_resolver: library_resolver.as_mut(),
+    });
     for (index, root_name) in root_names.iter().enumerate() {
         let root_spelling = root_name.clone();
         let root = normalize_root(root_name, &path_context)?;
@@ -1004,15 +1004,29 @@ impl DiscoveryReason {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SourceClass {
     Ordinary,
-    Library { priority: usize },
+    Library { priority: usize, replacement: bool },
 }
 
 impl SourceClass {
     const fn library_priority(self) -> Option<usize> {
         match self {
             Self::Ordinary => None,
-            Self::Library { priority } => Some(priority),
+            Self::Library { priority, .. } => Some(priority),
         }
+    }
+
+    const fn is_library(self) -> bool {
+        self.library_priority().is_some()
+    }
+
+    const fn is_replacement(self) -> bool {
+        matches!(
+            self,
+            Self::Library {
+                replacement: true,
+                ..
+            }
+        )
     }
 }
 
@@ -1030,6 +1044,7 @@ struct StagedSource {
     /// source first entered the graph. A replacement declaration may already
     /// be an explicit root when a later lib lookup selects the same identity.
     library_priority: Option<usize>,
+    library_replacement: bool,
     path_references: Vec<PlannedPathReference>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
@@ -1044,7 +1059,10 @@ struct StagedSource {
 impl StagedSource {
     const fn source_class(&self) -> SourceClass {
         match self.library_priority {
-            Some(priority) => SourceClass::Library { priority },
+            Some(priority) => SourceClass::Library {
+                priority,
+                replacement: self.library_replacement,
+            },
             None => SourceClass::Ordinary,
         }
     }
@@ -1135,26 +1153,31 @@ struct StagedGraph<'host, 'options, 'resolver> {
     total_source_bytes: usize,
 }
 
+/// Immutable and borrowed inputs for one staged graph. Keeping this boundary
+/// typed avoids a positional constructor with unrelated resolver, option, and
+/// resource arguments while preserving the loader's separate lifetimes.
+struct StagedGraphConfig<'host, 'options, 'resolver> {
+    host: &'host dyn CompilerHost,
+    compiler_options: &'options CompilerOptions,
+    program_options: &'options ProgramOptions,
+    library_catalog: Option<&'options LibraryCatalog>,
+    library_directory: Option<ProgramPath>,
+    limits: ProgramLoadLimits,
+    resolver: &'resolver mut ModuleResolver<'host>,
+    library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
+}
+
 impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
-    fn new(
-        host: &'host dyn CompilerHost,
-        compiler_options: &'options CompilerOptions,
-        program_options: &'options ProgramOptions,
-        library_catalog: Option<&'options LibraryCatalog>,
-        library_directory: Option<ProgramPath>,
-        limits: ProgramLoadLimits,
-        resolver: &'resolver mut ModuleResolver<'host>,
-        library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
-    ) -> Self {
+    fn new(config: StagedGraphConfig<'host, 'options, 'resolver>) -> Self {
         Self {
-            host,
-            compiler_options,
-            program_options,
-            library_catalog,
-            library_directory,
-            limits,
-            resolver,
-            library_resolver,
+            host: config.host,
+            compiler_options: config.compiler_options,
+            program_options: config.program_options,
+            library_catalog: config.library_catalog,
+            library_directory: config.library_directory,
+            limits: config.limits,
+            resolver: config.resolver,
+            library_resolver: config.library_resolver,
             resolved_library_paths: BTreeMap::new(),
             states: BTreeMap::new(),
             package_id_to_source: BTreeMap::new(),
@@ -1584,6 +1607,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
         };
         for (file_name, reason) in selected {
+            let catalog_path = self.catalog_library_path(file_name)?;
             let path = self.resolved_library_path(file_name)?;
             if self
                 .visit_source(
@@ -1593,6 +1617,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     DiscoveryReason::dependency(SourceInclusionReason::Library),
                     SourceClass::Library {
                         priority: catalog.file_name_priority(file_name),
+                        replacement: path.canonical() != catalog_path.canonical(),
                     },
                 )?
                 .is_none()
@@ -1886,6 +1911,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             alternate_inclusion_reasons: Vec::new(),
             has_non_external_reason: reason.seeds_non_external_reachability,
             library_priority: class.library_priority(),
+            library_replacement: class.is_replacement(),
             path_references,
             type_reference_directives,
             lib_reference_directives,
@@ -1970,6 +1996,20 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .alternate_inclusion_reasons
                 .push((path.display().to_path_buf(), reason.inclusion.clone()));
         }
+        let existing_class = self.sources[source].source_class();
+        if existing_class.is_library() != class.is_library()
+            && !existing_class.is_replacement()
+            && !class.is_replacement()
+        {
+            return Err(ProgramLoadError::unsupported(
+                ProgramLoadOperation::ReadSource,
+                Some(path.display().to_path_buf()),
+                "library-source-classification-collision",
+                format!(
+                    "the source was first discovered as {existing_class:?} and later requested as {class:?}"
+                ),
+            ));
+        }
         if let Some(priority) = class.library_priority() {
             if self.sources[source].library_priority.is_none()
                 && !self.sources[source].path_references.is_empty()
@@ -1986,6 +2026,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     .library_priority
                     .map_or(priority, |existing| existing.min(priority)),
             );
+            self.sources[source].library_replacement |= class.is_replacement();
         }
         let reprocess = {
             let staged = &mut self.sources[source];
@@ -2249,6 +2290,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             };
             let target = self.resolved_library_path(file_name)?;
+            let catalog_path = self.catalog_library_path(file_name)?;
             match self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
@@ -2256,6 +2298,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 DiscoveryReason::dependency(SourceInclusionReason::Library),
                 SourceClass::Library {
                     priority: catalog.file_name_priority(file_name),
+                    replacement: target.canonical() != catalog_path.canonical(),
                 },
             )? {
                 Some(target_source) if target_source == source => {

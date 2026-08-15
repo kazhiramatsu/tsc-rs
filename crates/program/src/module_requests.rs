@@ -377,16 +377,16 @@ fn plan_module_requests_worker(
     let mut dynamic_occurrences = Vec::new();
     let mut augmentation_occurrences = Vec::new();
     let mut unpreprocessed_module_requests = BTreeSet::new();
-    collect_static_module_references(
-        &parsed,
+    collect_static_module_references(StaticModuleReferenceContext {
+        parsed: &parsed,
         source,
         expanded,
         static_mode,
         import_syntax_affects_resolution,
-        &mut static_occurrences,
-        &mut augmentation_occurrences,
-        &mut unpreprocessed_module_requests,
-    )?;
+        static_occurrences: &mut static_occurrences,
+        augmentation_occurrences: &mut augmentation_occurrences,
+        unpreprocessed_module_requests: &mut unpreprocessed_module_requests,
+    })?;
 
     // `forEachDynamicImportOrRequireCall` is a separate whole-file walk in
     // tsc. In particular, module-declaration boundaries affect the static
@@ -721,6 +721,17 @@ struct ModuleRequestOccurrence {
     key: ResolutionKey,
 }
 
+struct StaticModuleReferenceContext<'a> {
+    parsed: &'a SourceFile,
+    source: &'a PreparedSourceFile,
+    expanded: bool,
+    static_mode: ResolutionMode,
+    import_syntax_affects_resolution: bool,
+    static_occurrences: &'a mut Vec<ModuleRequestOccurrence>,
+    augmentation_occurrences: &'a mut Vec<ModuleRequestOccurrence>,
+    unpreprocessed_module_requests: &'a mut BTreeSet<ResolutionKey>,
+}
+
 /// `collectExternalModuleReferences`' statement-only static collector.
 ///
 /// Unlike a generic syntax walk, this enters only a top-level ambient module
@@ -728,15 +739,18 @@ struct ModuleRequestOccurrence {
 /// declarations are terminal module-augmentation entries. Their bodies are
 /// retained separately as checker-visible, host-unpreprocessed requests.
 fn collect_static_module_references(
-    parsed: &SourceFile,
-    source: &PreparedSourceFile,
-    expanded: bool,
-    static_mode: ResolutionMode,
-    import_syntax_affects_resolution: bool,
-    static_occurrences: &mut Vec<ModuleRequestOccurrence>,
-    augmentation_occurrences: &mut Vec<ModuleRequestOccurrence>,
-    unpreprocessed_module_requests: &mut BTreeSet<ResolutionKey>,
+    context: StaticModuleReferenceContext<'_>,
 ) -> Result<(), ResolutionError> {
+    let StaticModuleReferenceContext {
+        parsed,
+        source,
+        expanded,
+        static_mode,
+        import_syntax_affects_resolution,
+        static_occurrences,
+        augmentation_occurrences,
+        unpreprocessed_module_requests,
+    } = context;
     let NodeData::SourceFile(root) = &parsed.arena.node(parsed.root).data else {
         return Err(unsupported(source, "the parsed root is not a source file"));
     };

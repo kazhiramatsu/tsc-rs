@@ -172,7 +172,7 @@ fn genesis_and_transition_canonical_bytes_are_stable() {
 
 #[test]
 fn impact_fixture_is_synthetic_and_source_has_no_repository_branch() {
-    let fixture = include_str!("../../../docs/design/greenfield/slices/impact-cases.v1.json");
+    let fixture = include_str!("../../../../docs/design/greenfield/slices/impact-cases.v1.json");
     for forbidden in [
         "tsc-rs",
         "Cargo",
@@ -186,7 +186,7 @@ fn impact_fixture_is_synthetic_and_source_has_no_repository_branch() {
             "synthetic fixture literal: {forbidden}"
         );
     }
-    let source = include_str!("../src/impact.rs");
+    let source = include_str!("../../src/impact.rs");
     for forbidden in [
         "tsc-rs",
         "Cargo",

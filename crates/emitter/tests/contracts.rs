@@ -14,7 +14,7 @@ mod printer_foundation_contract;
 mod printer_oracle_contract;
 #[path = "integration/token_cursor_contract.rs"]
 mod token_cursor_contract;
-#[path = "tsx_type_argument_transform_contract.rs"]
+#[path = "integration/tsx_type_argument_transform_contract.rs"]
 mod tsx_type_argument_transform_contract;
 #[path = "integration/writer_position_contract.rs"]
 mod writer_position_contract;

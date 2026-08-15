@@ -129,8 +129,8 @@ fn membership_transitions_only_after_exact_ordered_values() {
 #[test]
 fn generic_registry_and_membership_source_has_no_repository_branch() {
     for source in [
-        include_str!("../src/registry.rs"),
-        include_str!("../src/membership.rs"),
+        include_str!("../../src/registry.rs"),
+        include_str!("../../src/membership.rs"),
     ] {
         for forbidden in ["tsc-rs", "H2", "Cargo", "compiler", "downcast", "Any"] {
             assert!(!source.contains(forbidden), "generic literal: {forbidden}");

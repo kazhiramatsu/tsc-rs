@@ -147,7 +147,7 @@ fn unknown_policy_and_opaque_build_ownership_are_explicit() {
 
 #[test]
 fn inventory_source_has_no_repository_or_tool_specific_branch() {
-    let source = include_str!("../src/inventory.rs");
+    let source = include_str!("../../src/inventory.rs");
     for forbidden in ["tsc-rs", "Cargo", "TypeScript", "compiler", "Git", "H2"] {
         assert!(
             !source.contains(forbidden),
