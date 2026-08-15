@@ -46,6 +46,7 @@ tsc-oracle = { package = "tsc-rs-oracle", path = "crates/oracle" }
 tsc-program = { package = "tsc-rs-program", path = "crates/program" }
 tsc-syntax = { package = "tsc-rs-syntax", path = "crates/syntax" }
 tsc-types = { package = "tsc-rs-types", path = "crates/types" }
+sha2 = "0.10"
 
 # Test failures retain Rust backtraces and assertion context without embedding
 # full DWARF/PDB data in every large integration binary. This materially

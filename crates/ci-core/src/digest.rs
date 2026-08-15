@@ -28,3 +28,12 @@ macro_rules! fixed_digest {
 
 fixed_digest!(ObjectDigestV1);
 fixed_digest!(InputDigestV1);
+fixed_digest!(ApplicationNamespaceDigestV1);
+fixed_digest!(ActionKeyV1);
+fixed_digest!(GraphDigestV1);
+fixed_digest!(BuildArtifactIdV1);
+fixed_digest!(OutcomeDigestV1);
+fixed_digest!(AdapterRegistryDigestV1);
+fixed_digest!(ConflictRegistryDigestV1);
+fixed_digest!(AuthorityReceiptDigestV1);
+fixed_digest!(PublicationEventDigestV1);

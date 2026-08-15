@@ -13,3 +13,4 @@ name = "tsc_ci_core"
 path = "src/lib.rs"
 
 [dependencies]
+sha2.workspace = true
