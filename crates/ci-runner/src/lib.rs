@@ -6,6 +6,8 @@
 
 #![forbid(unsafe_code)]
 
+mod bounded;
 mod error;
 
+pub use bounded::{BoundedChunk, ByteLimit, ChunkSource, EffectResult};
 pub use error::{EffectPhase, InfraError, InfraErrorFamily, IoKind, RunCancellation};
