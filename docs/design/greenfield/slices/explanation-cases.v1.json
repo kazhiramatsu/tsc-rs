@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "availability": "synthetic-only",
+  "paths": [
+    {"target": "consumer-a", "path": ["source", "consumer-a"]},
+    {"target": "consumer-b", "path": ["source", "consumer-b"]}
+  ],
+  "missFields": [
+    {"action": "leaf", "firstDifference": "input"},
+    {"action": "derived", "firstDifference": "verifier"},
+    {"action": "projection", "firstDifference": "availability"}
+  ],
+  "budget": {
+    "controlCpuMillis": 1000,
+    "residentBytes": 1048576,
+    "graphBytes": 1048576,
+    "inventoryBytes": 1048576,
+    "hashedBytes": 1048576,
+    "decodedBytes": 1048576,
+    "explanationBytes": 1048576,
+    "concurrency": 1
+  }
+}

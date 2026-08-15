@@ -9,6 +9,7 @@
 mod adapter;
 mod canonical;
 mod digest;
+mod explain;
 mod graph;
 mod graph_schema;
 mod graph_validation;
@@ -33,6 +34,11 @@ pub use digest::{
     ActionKeyV1, AdapterRegistryDigestV1, ApplicationNamespaceDigestV1, AuthorityReceiptDigestV1,
     BuildArtifactIdV1, ConflictRegistryDigestV1, GraphDigestV1, InputDigestV1, ObjectDigestV1,
     OutcomeDigestV1, PublicationEventDigestV1,
+};
+pub use explain::{
+    shortest_reason_paths, validate_budget, BudgetError, BudgetFieldV1, ExplanationError,
+    MissDifferenceV1, MissFieldV1, PlanSets, PlanningBudgetV1, PlanningObservationV1, ReasonPath,
+    WhyMiss,
 };
 pub use graph::{
     ActionRecord, AdapterInstanceRefV1, CompleteMembership, CompositeProfileV1, InstanceIdV1,
