@@ -94,5 +94,6 @@ node .github/ci/slice-readiness.mjs --check fci-4b
 Fixtures cover exact global dispositions and ownership, path traversal and
 collision rejection, strict ordering, explicit unknown/opaque policy, and a
 source-literal audit proving that the generic inventory core has no
-repository/tool branch. Later FCI-5c.1 adds the H2 provider/profile fixture;
-this packet does not claim H2 membership or authority.
+repository/tool branch. The separate FCI-5c.1 packet consumes this seam for
+the H2 membership shadow; this packet itself does not claim H2 membership or
+authority.
