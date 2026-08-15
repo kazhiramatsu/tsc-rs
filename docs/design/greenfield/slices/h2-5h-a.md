@@ -10,13 +10,14 @@ Its readiness and active-slice status are owned by the
 [post-H1 schedule](../post-h1-completion-slices.md), not by this draft in
 isolation.
 
-The block is intentional and mechanically fail-closed: H2.5g must first close
-and merge; the post-merge review must freeze the shared checker/schema and the
-first exact ready FCI packet; subsequent short-lived packet branches must
-advance the interlock one authorized packet at a time through FCI-10; and only
-then may the required final H2.5g/FCI architecture lineage, versioned slice-readiness
-manifest/schema/checker, complete owner/local-gap inventories, Rust mapping,
-and frozen H2.5h witnesses authorize this slice.
+The block is intentional and mechanically fail-closed: the packet-control
+bootstrap now freezes the shared checker/schema and may authorize only the
+pre-closure FCI-1a through FCI-5c.1 shadow packets. H2.5g must still close and
+merge before FCI-5c.2 and every later FCI packet; subsequent short-lived packet
+branches must advance the interlock one authorized packet at a time through
+FCI-10. Only then may the required final H2.5g/FCI architecture lineage,
+complete owner/local-gap inventories, Rust mapping, and frozen H2.5h witnesses
+authorize this slice.
 
 For the future packet, vendored TypeScript 6.0.3 owns semantics. The current
 code and tests plus freshly revalidated rows in
@@ -26,10 +27,10 @@ or history only; they are not implementation instructions.
 
 ## Prerequisite transition
 
-The post-H2.5g roadmap-review branch creates the shared packet checker/schema
-and freezes the first exact ready FCI packet. Separate short-lived packet
-branches then advance the Functional-CI interlock one indexed packet at a time
-through FCI-10 exactly as owned by the schedule/index. H2.5h-a research may
+The packet-control bootstrap creates the shared packet checker/schema and
+freezes the first exact ready FCI packet. Separate short-lived packet branches
+then advance the Functional-CI interlock one indexed packet at a time through
+FCI-10 exactly as owned by the schedule/index. H2.5h-a research may
 overlap only when a separate indexed research packet explicitly authorizes its
 read-only files and commands; an early inventory is never readiness or
 production authority. After FCI-10 closes, a new H2.5h-a design branch performs
@@ -75,12 +76,12 @@ complete local gate. Updating a pin without the corresponding reviewed
 source/entry, protected promotion, complete-membership, and shadow transition
 is not evidence.
 
-The readiness checker command and expected counts/hashes are deliberately not
-invented here: they are outputs of the versioned post-merge research/design
-slice. Their present absence is itself the blocking condition. An agent that
-encounters this page before that transition performs no inventory unless an
-indexed research packet authorizes it, and never creates ES2015 or Generator
-runtime code.
+The readiness checker command and expected counts/hashes are owned by the
+versioned packet-control bootstrap and the active packet, not by this handoff.
+This page remains blocked until FCI-10 and the separate H2.5h-a packet replaces
+it. An agent that encounters this page performs no inventory unless an indexed
+research packet authorizes it, and never creates ES2015 or Generator runtime
+code.
 
 ## Mandatory architecture inputs
 

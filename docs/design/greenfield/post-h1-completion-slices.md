@@ -262,21 +262,24 @@ required application of the full implementation-ready design gate is the
 post-H2.5g roadmap review; every remaining H2 slice must be rewritten to that
 format before its implementation phase begins.
 
-### 1.3 Functional-CI interlock after H2.5g
+### 1.3 Functional-CI pre-closure shadow and post-merge interlock
 
-The post-merge review does not proceed directly to H2.5h-a. FCI-0a and FCI-0b
-are documentation-only boundary/API-manifest records and never become runtime
-authorization. The review freezes the shared packet checker/schema and the
-first exact ready Functional-CI implementation packet, FCI-1a;
-subsequent short-lived packet branches then advance one indexed packet at a
-time through
+The packet-control bootstrap is now the first interlock. FCI-0a and FCI-0b
+remain documentation-only boundary/API-manifest records and never become
+runtime authorization. The bootstrap freezes the shared packet checker/schema
+and the first exact ready Functional-CI implementation packet, FCI-1a;
+subsequent short-lived packet branches advance one indexed packet at a time
+through
 [the architecture's stage table](functional-ci-evidence.md#14-migration-stages-and-packets)
-and this hard gate:
+and the pre-closure shadow gate:
 
 ```text
-H2.5g close
-  -> post-merge roadmap review + versioned packet freeze
-  -> FCI-1 through FCI-8 complete shadow
+packet-control bootstrap + versioned packet freeze
+  -> FCI-1a through FCI-5b
+  -> FCI-5c.1 H2.5g inventory profile shadow
+  -> H2.5g final validation reference + close/merge lineage
+  -> FCI-5c.2
+  -> FCI-6 through FCI-8 complete shadow
   -> FCI-9a local-full activation
   -> FCI-9b hosted ts-tests-only activation
   -> FCI-10 cleanup
@@ -285,9 +288,9 @@ H2.5g close
 
 Within a stage, lettered packets run in lexical order and numeric subpackets
 run in numeric order unless a packet records an earlier dependency explicitly.
-The required subdivisions are FCI-1a-c, FCI-2a-b, FCI-4a.1-a.3, FCI-5a-c,
-and FCI-7c.1-c.2; they refine but do not reorder the hard gate. A stage closes
-only when all of its packets and immutable proofs close. FCI-8 begins only
+The required subdivisions are FCI-1a-c, FCI-2a-b, FCI-4a.1-a.3, FCI-5a-b,
+FCI-5c.1-c.2, and FCI-7c.1-c.2; they refine but do not reorder the hard gate.
+A stage closes only when all of its packets and immutable proofs close. FCI-8 begins only
 after the FCI-7c.2 framework qualification/API freeze. FCI-8b is read-only
 protected-host/bootstrap research and FCI-8c is read-only hosted-provider
 research; bootstrap/provider code is forbidden until its respective packet
@@ -302,8 +305,10 @@ Read-only architecture work, graph/inventory capture, fixtures, and provider
 research may overlap when indexed packets give them disjoint files and inputs.
 A stage row is not production authorization: the exact packet must be linked
 from the slice-packet index, contain no unresolved implementation choice, and
-be machine-checked `ready` before its production files change. H2.5h-a remains
-blocked through FCI-10 even if its own inventory or design research runs early.
+be machine-checked `ready` before its production files change. The bootstrap
+is the only pre-closure exception and cannot authorize FCI-6+, workflow,
+provider, or H2.5g authority changes. H2.5h-a remains blocked through FCI-10
+even if its own inventory or design research runs early.
 
 ## 2. Additional contracts required after H1
 

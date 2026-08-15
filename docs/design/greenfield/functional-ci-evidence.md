@@ -1,7 +1,8 @@
 # Functional CI framework and evidence architecture
 
-Status: **normative architecture for the post-H2.5g reusable functional-CI
-framework migration**. It is not an H2.5g closure amendment.
+Status: **normative architecture for the reusable functional-CI framework and
+its pre-closure shadow migration**. It does not replace or amend the
+authoritative H2.5g closure contract.
 
 This document owns the future reusable framework protocol and runner, their
 extension API, adapter-owned deterministic plans and optional bundle interiors
@@ -18,16 +19,24 @@ The current H2.5g qualification, inventory, owner-control, acceptance, hosted,
 and local-CI commands remain exactly as recorded in the slice-packet index.
 Nothing in this document changes an H2.5g count, permits a replacement command,
 turns a cache into current H2.5g evidence, or declares H2.5g qualified. FCI-0a
-and FCI-0b record this architecture only. Executable framework work starts with
-an indexed ready implementation packet for FCI-1a only after H2.5g closes and
-the post-merge roadmap review authorizes that packet.
+and FCI-0b record this architecture only. A one-time packet-control bootstrap
+may authorize the dependency-ordered FCI-1a through FCI-5b packets before
+H2.5g closes, followed by the explicitly narrow FCI-5c.1 H2.5g inventory
+profile shadow. These packets may produce only non-authoritative shadow
+evidence; they cannot mint an H2.5g qualification, acceptance result, root,
+capability, or hosted cache authority. The final H2.5g validation reference,
+closure, and merge lineage remain a barrier before FCI-5c.2 and every later
+FCI stage.
 
 The hard gate is:
 
 ```text
-H2.5g close
-  -> post-merge roadmap review + versioned packet freeze
-  -> FCI-1 through FCI-8 complete shadow
+packet-control bootstrap + versioned packet freeze
+  -> FCI-1a through FCI-5b
+  -> FCI-5c.1 H2.5g inventory complete-profile shadow
+  -> H2.5g final validation reference + close/merge lineage
+  -> FCI-5c.2 complete-H2 shadow
+  -> FCI-6 through FCI-8 complete shadow
   -> FCI-9a local-full activation
   -> FCI-9b hosted ts-tests-only activation
   -> FCI-10 cleanup
@@ -35,9 +44,11 @@ H2.5g close
 ```
 
 Read-only design, inventory, and provider-capability research may overlap when
-an indexed research packet permits it. No production code starts before the
-specific implementation packet is frozen and marked `ready`; a stage heading
-or this architecture document alone is not authorization.
+an indexed research packet permits it. Pre-closure shadow production code may
+start only after the bootstrap checker has accepted the specific packet and
+marked it `ready`; a stage heading or this architecture document alone is not
+authorization. Authoritative H2.5g commands and their evidence remain the only
+closure authority until the later activation packets explicitly say otherwise.
 
 ## 1. Required result
 
@@ -2830,7 +2841,10 @@ not permission to implement a whole table row. The authorization unit is one
 versioned packet linked from the slice-packet index with machine-checked state
 `ready`. No production file may change merely because its stage appears below.
 Read-only design, upstream/provider research, and inventory may run early only
-inside a packet whose allowed paths and commands say so.
+inside a packet whose allowed paths and commands say so. The packet-control
+bootstrap is the sole pre-closure exception: it can mark only the explicitly
+listed FCI-1a through FCI-5c.1 shadow packets ready, and it cannot authorize an
+H2.5g authority or any FCI-6+ effect/publication surface.
 
 Every packet freezes, without `TBD` or an implementer-selected alternative:
 
@@ -2857,7 +2871,7 @@ authoritative automation route.
 | --- | --- | --- |
 | FCI-0a framework boundary record | Documentation only: freeze the framework charter, v1 non-goals, qualification ladder, package/dependency/trust map, tsc-rs reference-adapter role, and unchanged hard gate in this canonical document. | Diff review proves no production/workflow/profile/evidence file changed and every current H2.5g command, count, hosted scope, and status is unchanged. This row is never a runtime-ready packet. |
 | FCI-0b extension API-manifest record | Documentation only: freeze the public/sealed ownership table, final conceptual API, blocking/threading/cancellation/panic contract, error ownership, registry seal, `PreparedExecutionV1`, and sole runner-entry ownership. It declares no Rust item or placeholder. | Cross-section review maps every conceptual symbol to exactly one later owning packet with no unresolved owner or implementation-selected alternative. This row is never a runtime-ready packet. |
-| FCI-1a core identifiers and dependency boundary | After H2.5g closure, post-merge review, and its own ready packet, add private `crates/ci-core`, generic protocol/application/schema identifiers, digest/input skeletons, tests tree, and the negative-dependency/domain-literal audit. Do not add canonical encode/decode behavior, graph types, adapter registration, outcome, aggregate, or effect behavior. | `cargo xtask test ci-core`; identifier ordering/type separation and negative dependency/literal tests pass with no production dependency or repository noun. |
+| FCI-1a core identifiers and dependency boundary | After packet-control bootstrap and its own ready packet, add private `crates/ci-core`, generic protocol/application/schema identifiers, digest/input skeletons, tests tree, and the negative-dependency/domain-literal audit. This is pre-closure shadow infrastructure only. Do not add canonical encode/decode behavior, graph types, adapter registration, outcome, aggregate, or effect behavior. | `cargo xtask test ci-core`; identifier ordering/type separation and negative dependency/literal tests pass with no production dependency or repository noun. |
 | FCI-1b inert adapter descriptors | Add `AdapterDescriptorV1`, typed adapter ids/schema references, and checked inert descriptor records only. Do not declare `ActionModel`, `AdapterCodec`, `AdapterRegistration`, a monomorphized function, registry builder, decode, prepare, dispatch, or executable callback. | Duplicate/opaque descriptor/id shapes fail their checked record constructors; no trait bound references a future canonical decoder/model type and no candidate/runtime registration API exists. |
 | FCI-1c graph/profile/typestate record seam | Add `NodeClass`, generic node/action/root record shapes, composite references, and pending/complete membership record declarations without adapter traits or constructors that can claim completeness. Do not add graph evaluation, codec, verification, aggregation, outcome, or effects. | Pending records cannot satisfy complete record APIs; case-shaped and flat fake data compile through the same generic records without downcast/id branch; every future typed constructor remains unavailable. |
 | FCI-2a blocking runner and error boundary | Add private `crates/ci-runner`, the closed `InfraError`/effect-phase taxonomy, explicit `RunCancellation` vocabulary, blocking/no-async public-SPI contract, panic ownership, dependency tests, and no other effect interface. Do not add `RunContext`, worker, snapshot, invocation, sandbox, resource, staging, publication, CAS/cache, or H2 placeholders. | `cargo xtask test ci-runner`; error-family conversion and panic/cancellation tests prove infrastructure failure cannot become model data, rejection, success, or miss, and crate dependency direction is enforced. |
@@ -2873,7 +2887,8 @@ authoritative automation route.
 | FCI-4d pure explanations and planning budgets | Add deterministic affected/reason-path/why-miss pure values over explicit synthetic evidence; freeze versioned cold/warm graph, inventory, hashing, decode, explanation CPU/RSS/byte/concurrency baselines and ceilings. No live cache or snapshot command. | Text/JSON replay is byte-identical, tie-breaking is exact, warm no-impact planning stays within the frozen control-plane envelope, and no semantic subprocess is available to the pure test harness. |
 | FCI-5a tsc-rs protocol/control packages and fixed plan | Add `ci-adapter-tsc-rs-protocol` and `ci-adapter-tsc-rs-control`; move/refactor H2 invocation/observation/root schemas, protected graph/plan/verification inputs, and checked-in plan from the indexed legacy forwarding owner. Control links no production/compiler crate. Do not register an incomplete H2 `ActionModel`/`AdapterCodec`, add a candidate harness executable, generic outcomes, or CAS; FCI-5c owns the first complete H2 registration. | Protocol golden fixtures and `verify-plan` pass over typed plan values; old/new totals and union membership agree; dependency audit proves protocol/control have no production link, no placeholder adapter callback exists, and `xtask` is only composition/legacy forwarding. |
 | FCI-5b tsc-rs miss-only candidate harness | Add `ci-harness-tsc-rs` as the sole candidate-side executable for `ActionInvocationV1`; connect it to the protocol and production/compiler crates across the process boundary. It owns no verifier, graph, cache, registry, root, or authority API. | Control-to-production negative dependency and process-boundary tests pass; a warm synthetic lookup cannot build/spawn the harness; malformed invocation/output, nonzero/signal/timeout, sandbox escape, and over-limit cases fail in their frozen error family. |
-| FCI-5c complete H2 registration and verifier/aggregate shadow | Implement and register the complete H2 `ActionModel`/`AdapterCodec`, strict observation decoder/verifier, pure adapter derived/aggregate verdicts over the already complete typed input, fixed two-isolated-repetition policy, and the observation shadow connection through `VerifiedAdapterRegistry`/`PreparedExecutionV1`. User-facing summary comparison remains an adapter-local test oracle; do not add `VerifiedOutcomeView`, the framework `Projection` trait, an outcome manifest, or CAS. | Every fresh H2 case has exactly two isolated repetitions; old/new adapter verdicts, summary oracle, and dispositions match; union/partition/adjacent-negative controls pass; no H2 semantic implementation remains authored in `xtask` and no future outcome/projection type is referenced. |
+| FCI-5c.1 H2.5g inventory complete-profile shadow | Before H2.5g closes, bind the reviewed 9,027-case H2.5g inventory plan as a deliberately narrow complete profile through the FCI-5a/5b seams. Keep the legacy qualification/profile/acceptance commands authoritative; this packet may emit only shadow observations and mismatch evidence. It owns no CAS, cache, outcome manifest, projection, capability, or live scheduler. | Exact denominator `9027`, dispositions `8511 admitted / 6 h2_8a_deferred / 510 h2_9_deferred`, strict membership, two isolated observations per admitted case, deterministic bytes, and old-summary comparison all pass. A mismatch blocks the successor but cannot mint H2.5g authority. |
+| FCI-5c.2 complete H2 registration and verifier/aggregate shadow | After the final H2.5g validation reference, close/merge lineage, and packet rebind, complete the remaining H2 `ActionModel`/`AdapterCodec`, strict observation decoder/verifier, pure adapter derived/aggregate verdicts over the already complete typed input, fixed two-isolated-repetition policy, and the observation shadow connection through `VerifiedAdapterRegistry`/`PreparedExecutionV1`. User-facing summary comparison remains an adapter-local test oracle; do not add `VerifiedOutcomeView`, the framework `Projection` trait, an outcome manifest, or CAS. | Every fresh H2 case has exactly two isolated repetitions; old/new adapter verdicts, summary oracle, and dispositions match; union/partition/adjacent-negative controls pass; no H2 semantic implementation remains authored in `xtask` and no future outcome/projection type is referenced. |
 | FCI-6a immutable local CAS and local issuer | Add immutable objects, the `CasBackend` bounded/no-replace object interface, the initially empty local authority-generation envelope with mandatory conflict/disclosure heads, strict `LocalProducerReceiptV1`, issuer/anti-rollback state, `index-head/current.json`, exclusive lock, exact atomic durability protocol, bounded verification, and recovery. Do not add candidate or authority-publication interfaces. | Every publication/crash boundary yields exactly old/new state; restart receipt/prior-generation/disclosure validation, history-shrink, rollback/replay, permissions, loose files, no-replace, tamper/truncate/swap, and unsupported authority capability fail closed. |
 | FCI-6b candidate generations and durable conflicts | Add the local/remote-neutral `PublicationEventV1` schema, `CandidateRef`/`VerifiedCandidate`, bounded candidate sets, sealed generations, `ExactCacheBackend`, same-key uniqueness, monotonic conflict witnesses/tombstones/registry, `LocalConflictPublisher` and its conflict delta/guard, unchanged-head retry, read-only exact-restore and `RolloverPlanV1` validation, and `verify-cache`; remote remains absent. The plan requires unchanged semantic action keys plus exact predecessor conflict/disclosure roots and cannot apply a rollover. | Cached/fresh/repetition conflicts, acyclic prior-generation/receipt/event/replacement-generation construction, later candidate counts, commit races, registry corruption/capacity/deletion/readdition, exact-restore planning, refusal to plan from an unverifiable conflict set, membership-preserving capacity compaction, duplicate-same-object receipts, and no-winner behavior pass. No lease, barrier, capability, or rollover-apply API exists yet. |
 | FCI-6c complete typed outcomes, projections, and Merkle assembly | Consume the FCI-4a.3 complete inputs/verdicts; add core sealing of adapter payloads, complete composite outcome collection, lease-bound `VerifiedOutcomeView`, typed `Projection` registration, the tsc-rs user-facing projections, passed/rejected manifests, interiors, reconstruction, `LocalOutcomePublisher` plus its outcome delta/guard, and `verify-outcome`. | Compile-fail/runtime tests reject unverified outcome/projection inputs and pending/missing/duplicate/unexpected/wrong-key observations/adapters; every derived/aggregate slot evaluates once in stable order, rejection never omits siblings, raw/tree/mixed/rejected/projection proofs pass, and only an unchanged generation returns the outcome guard. |
