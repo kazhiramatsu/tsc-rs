@@ -14,6 +14,7 @@ members = [
     "crates/conformance",
     "crates/ci-core",
     "crates/ci-runner",
+    "crates/ci-testkit",
     "crates/fuzz",
     "crates/xtask",
 ]
@@ -35,6 +36,7 @@ tsc-binder = { package = "tsc-rs-binder", path = "crates/binder" }
 tsc-checker = { package = "tsc-rs-checker", path = "crates/checker" }
 tsc-ci-core = { package = "tsc-rs-ci-core", path = "crates/ci-core" }
 tsc-ci-runner = { package = "tsc-rs-ci-runner", path = "crates/ci-runner" }
+tsc-ci-testkit = { package = "tsc-rs-ci-testkit", path = "crates/ci-testkit" }
 tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }
 tsc-conformance = { package = "tsc-rs-conformance", path = "crates/conformance" }
 tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" }

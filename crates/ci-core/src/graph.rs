@@ -196,11 +196,20 @@ impl<I, V> PendingMembership<I, V> {
 
 /// A complete membership value is declared here so later APIs can name it,
 /// but its sealed construction belongs to FCI-4a.3.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct CompleteMembership<I, V> {
     _sealed: SealedMembership,
     marker: PhantomData<fn() -> (I, V)>,
 }
 
-#[derive(Debug)]
+impl<I, V> CompleteMembership<I, V> {
+    pub(crate) const fn sealed() -> Self {
+        Self {
+            _sealed: SealedMembership,
+            marker: PhantomData,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 struct SealedMembership;

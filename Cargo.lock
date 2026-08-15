@@ -349,6 +349,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-ci-testkit"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-ci-core",
+ "tsc-rs-ci-runner",
+]
+
+[[package]]
 name = "tsc-rs-compiler"
 version = "0.1.0"
 dependencies = [

@@ -16,6 +16,9 @@ mod hash;
 mod identity;
 mod ids;
 mod input;
+mod membership;
+mod model;
+mod registry;
 
 pub use adapter::{
     AdapterDescriptorError, AdapterDescriptorSetV1, AdapterDescriptorV1, AdapterIdV1,
@@ -56,3 +59,15 @@ pub use ids::{
     NamespaceError, NamespaceLineageV1, ProtocolDomainTagV1, ProtocolDomainV1, SchemaIdV1,
 };
 pub use input::CanonicalInputRefV1;
+pub use membership::{
+    complete_adapter_input, complete_composite_input, CompleteAdapterInput, CompleteCompositeInput,
+    MembershipError,
+};
+pub use model::{
+    ActionModel, AdapterInvariantError, AdapterVerdict, CandidateVerificationError, DerivedVerdict,
+    LeafVerdict, ModelError, VerdictCode,
+};
+pub use registry::{
+    AdapterCodec, AdapterDecodeError, AdapterRegistration, AdapterRegistryBuilder, RegistryError,
+    VerifiedAdapterRegistry,
+};
