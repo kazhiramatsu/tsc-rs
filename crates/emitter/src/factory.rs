@@ -491,6 +491,34 @@ impl TransformArena {
         Ok(())
     }
 
+    /// Attach only the parse-tree semantic provenance used to project later
+    /// resolver queries back into the checker-owned tree.
+    ///
+    /// Unlike [`Self::set_original_node`], this Rust-specific bridge does not
+    /// merge emit metadata and does not change the node's raw text range. It
+    /// therefore transfers no comment, synthetic-comment, or source-map range
+    /// ownership from `original`; the generated node remains lexically
+    /// synthetic.
+    pub(crate) fn set_semantic_original_node(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<(), TransformError> {
+        self.node(node)?;
+        self.node(original)?;
+        if node.source != original.source {
+            return Err(TransformError::CrossSourceNode {
+                expected: node.source,
+                actual: original.source,
+            });
+        }
+        if self.metadata.get(&node).and_then(EmitMetadata::original) == Some(original) {
+            return Ok(());
+        }
+        self.metadata.entry(node).or_default().original = Some(original);
+        Ok(())
+    }
+
     /// tsc-port: propagateChildFlags @6.0.3
     /// tsc-hash: 8ddb64c96b023e53f3d136865d331f4ff32cc68182cf51faa166e2023be5abb0
     /// tsc-span: _tsc.js:25110-25114
@@ -1675,6 +1703,45 @@ impl<'arena> NodeFactory<'arena> {
         }
         let location_record = self.arena.node(location)?;
         let (pos, end) = (location_record.pos, location_record.end);
+        let record = self
+            .arena
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node);
+        record.pos = pos;
+        record.end = end;
+        Ok(node)
+    }
+
+    /// Assign a typed text range without using another syntax node as a
+    /// carrier. The source identity is checked independently and original
+    /// byte boundaries are revalidated against that source before the raw
+    /// node range is updated.
+    pub fn set_text_range_from_source_range(
+        &mut self,
+        node: TransformNode,
+        source: TransformSourceId,
+        range: SourceRange,
+    ) -> Result<TransformNode, TransformError> {
+        if node.source != source {
+            return Err(TransformError::CrossSourceNode {
+                expected: node.source,
+                actual: source,
+            });
+        }
+        self.arena.node(node)?;
+        let (pos, end) = match range {
+            SourceRange::Original(range) => {
+                let pos = range.start().value();
+                let end = range.end().value();
+                let syntax = self.arena.source(source)?.syntax();
+                SourceRange::from_raw(pos, end, syntax.positions())
+                    .map_err(|error| TransformError::InvalidSourceRange { node, error })?;
+                (pos, end)
+            }
+            SourceRange::Synthesized => (u32::MAX, u32::MAX),
+        };
         let record = self
             .arena
             .source_mut(node.source)?

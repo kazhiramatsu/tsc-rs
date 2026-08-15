@@ -547,7 +547,6 @@ enum StaticOperation {
 
 #[derive(Clone)]
 struct PrivateDefinition {
-    original: TransformNode,
     name: ClassBinding,
     function: TransformNode,
 }
@@ -5050,7 +5049,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     operations
                         .pending
                         .append_private_definition(PrivateDefinition {
-                            original: member,
                             name: method_name.clone(),
                             function,
                         });
@@ -5091,7 +5089,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     operations
                         .pending
                         .append_private_definition(PrivateDefinition {
-                            original: member,
                             name: function_name.clone(),
                             function,
                         });
@@ -5132,7 +5129,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     operations
                         .pending
                         .append_private_definition(PrivateDefinition {
-                            original: member,
                             name: function_name.clone(),
                             function,
                         });
@@ -5663,7 +5659,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             }),
             TransformFlags::NONE,
         )?;
-        self.set_original_and_range(function, original)
+        // Later Rust transforms project resolver queries back into the
+        // checker-owned parse tree. Keep that semantic provenance without
+        // copying the erased member's text/comment range onto this synthetic
+        // function shell.
+        self.context
+            .arena_mut()?
+            .set_semantic_original_node(function, original)?;
+        Ok(function)
     }
 
     fn visit_function_modifiers(
@@ -5857,8 +5860,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }
                 ClassPendingEntry::PrivateDefinition(definition) => {
                     let name = self.create_binding_identifier(&definition.name)?;
-                    let assignment = self.create_assignment(name, definition.function)?;
-                    self.set_original_and_range(assignment, definition.original)?
+                    // tsc leaves both this assignment and its generated
+                    // FunctionExpression synthetic. The visited children keep
+                    // their provenance, but the erased member's boundary
+                    // comments are not relocated to the private definition.
+                    self.create_assignment(name, definition.function)?
                 }
                 ClassPendingEntry::PublicFieldKeyOperand(evaluation) => evaluation,
             };

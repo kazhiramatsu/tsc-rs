@@ -8,10 +8,11 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
-    factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, EmitFlags, EmitHelper,
-    EmitResolver, EmitResolverError, EmitResolverNode, EmitTypeReferenceSerializationKind,
-    InternalEmitFlags, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformRoot, TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
+    factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, CommentRange, EmitFlags,
+    EmitHelper, EmitResolver, EmitResolverError, EmitResolverNode,
+    EmitTypeReferenceSerializationKind, InternalEmitFlags, SourceRange, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
+    TransformationContext, Transformer, UnsupportedEmitFeature,
 };
 
 use super::{
@@ -122,6 +123,15 @@ struct LegacyDecoratorVisitor<'context, 'resolver> {
     preentered_function_scopes: BTreeSet<NodeId>,
     class_aliases: BTreeMap<NodeId, TargetBinding>,
     computed_names: BTreeMap<NodeId, TargetBinding>,
+}
+
+/// The source interval that begins after a declaration's modifiers while
+/// retaining the declaration end. It is a text-range location rather than
+/// semantic or comment provenance.
+#[derive(Clone, Copy, Debug)]
+struct RangePastModifiers {
+    source: TransformSourceId,
+    range: SourceRange,
 }
 
 #[derive(Debug, Default)]
@@ -770,6 +780,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         expression_name: Option<NodeId>,
         class_alias: Option<&TargetBinding>,
     ) -> Result<Vec<TransformNode>, TransformError> {
+        let location = self.move_range_past_modifiers(original, data.modifiers)?;
+        let declaration_comment_range = self.raw_comment_range(original)?;
         // tsc keeps the alias assignment in the variable initializer below
         // ES2022.  Only native static fields/blocks need the class-this
         // transport block; class-field lowering otherwise owns the ordered
@@ -820,7 +832,12 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             }),
             transform_flags,
         )?;
-        self.set_original_and_range(class_expression, original)?;
+        self.set_original_only(class_expression, original)?;
+        self.context.factory()?.set_text_range_from_source_range(
+            class_expression,
+            location.source,
+            location.range,
+        )?;
         self.context
             .arena_mut()?
             .metadata_mut(class_expression)
@@ -849,11 +866,16 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .arena_mut()?
             .set_original_node(declaration, Some(original))?;
         let statement = self.create_variable_statement(vec![declaration], NodeFlags::LET)?;
-        self.set_original_and_range(statement, original)?;
+        self.set_original_only(statement, original)?;
+        self.context.factory()?.set_text_range_from_source_range(
+            statement,
+            location.source,
+            location.range,
+        )?;
         self.context
             .arena_mut()?
             .metadata_mut(statement)
-            .add_flags(EmitFlags::NO_TRAILING_COMMENTS);
+            .set_comment_range(declaration_comment_range);
         Ok(vec![statement])
     }
 
@@ -4085,6 +4107,60 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .factory()?
             .update_node(original, data, flags)?
             .node())
+    }
+
+    fn set_original_only(
+        &mut self,
+        node: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .arena_mut()?
+            .set_original_node(node, Some(original))?;
+        Ok(node)
+    }
+
+    fn raw_comment_range(&self, node: TransformNode) -> Result<CommentRange, TransformError> {
+        let source = self.context.arena().source(node.source())?.syntax();
+        let record = self.context.arena().node(node)?;
+        let range = SourceRange::from_raw(record.pos, record.end, source.positions())
+            .map_err(|error| TransformError::InvalidSourceRange { node, error })?;
+        Ok(CommentRange::new(node.source(), range))
+    }
+
+    /// Typed class-declaration branch of tsc's `moveRangePastModifiers`.
+    ///
+    /// tsc-port: moveRangePastModifiers @6.0.3
+    /// tsc-span: _tsc.js:17311-17318
+    fn move_range_past_modifiers(
+        &self,
+        declaration: TransformNode,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<RangePastModifiers, TransformError> {
+        let declaration_record = self.context.arena().node(declaration)?.clone();
+        let mut last_modifier_end = None;
+        let mut last_decorator_end = None;
+        for modifier in self.array_nodes(modifiers)? {
+            let record = self.context.arena().node(modifier)?;
+            last_modifier_end = Some(record.end);
+            if record.kind == SyntaxKind::Decorator {
+                last_decorator_end = Some(record.end);
+            }
+        }
+        let start = last_modifier_end
+            .filter(|end| *end != u32::MAX)
+            .or_else(|| last_decorator_end.filter(|end| *end != u32::MAX))
+            .unwrap_or(declaration_record.pos);
+        let source = self.context.arena().source(declaration.source())?.syntax();
+        let range = SourceRange::from_raw(start, declaration_record.end, source.positions())
+            .map_err(|error| TransformError::InvalidSourceRange {
+                node: declaration,
+                error,
+            })?;
+        Ok(RangePastModifiers {
+            source: declaration.source(),
+            range,
+        })
     }
 
     fn set_original_and_range(

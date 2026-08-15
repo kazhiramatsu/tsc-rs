@@ -7260,7 +7260,7 @@ fn runtime_legacy_decorator_computed_names_keep_one_shared_binding() {
             "class Foo { @decorator [b]: number; }\n",
         ),
         ScriptTarget::ES_NEXT,
-        false,
+        true,
     );
 
     assert!(output.contains("var _a;"), "{output}");
@@ -7698,6 +7698,115 @@ fn class_fields_keep_legacy_decorated_declarations_statement_expandable() {
     assert!(class < first_field && first_field < second_field && second_field < decorate);
     assert!(!output.contains("let B = ("), "{output}");
     assert!(!output.contains("(() =>"), "{output}");
+}
+
+#[test]
+fn legacy_decorated_class_comments_have_one_deliberate_owner() {
+    const LEADING: &str = "// LEGACY_CLASS_LEADING";
+    const TRAILING: &str = "// LEGACY_CLASS_TRAILING";
+    const BODY: &str = "/* LEGACY_CLASS_BODY */";
+    let parsed = parse_source_file(
+        "legacy-decorated-class-comments.ts",
+        concat!(
+            "declare const dec: any;\n",
+            "class A {}\n",
+            "// LEGACY_CLASS_LEADING\n",
+            "@dec\n",
+            "class B extends A {\n",
+            "    static x = 1;\n",
+            "    method() { /* LEGACY_CLASS_BODY */ return B.x; }\n",
+            "} // LEGACY_CLASS_TRAILING\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let resolver = DecoratedClassReferenceResolver::new(&parsed, "B");
+    let output = transform_parsed_class_declaration_correlation(&parsed, true, &resolver);
+
+    assert_eq!(output.matches(LEADING).count(), 1, "{output}");
+    assert_eq!(output.matches(TRAILING).count(), 1, "{output}");
+    assert_eq!(output.matches(BODY).count(), 1, "{output}");
+
+    let leading = output.find(LEADING).expect("leading class comment");
+    let initializer = output
+        .find("let B = B_1 =")
+        .expect("decorated class initializer");
+    let class_expression = output[initializer..]
+        .find("class B extends A")
+        .map(|offset| initializer + offset)
+        .expect("decorated class expression");
+    let body = output.find(BODY).expect("class body comment");
+    let trailing = output.find(TRAILING).expect("trailing class comment");
+    let static_field = output.find("B.x = 1;").expect("lowered static field");
+
+    assert!(leading < initializer, "{output}");
+    assert!(
+        !output[initializer..class_expression].contains(LEADING),
+        "the nested class expression must not reacquire the declaration's leading comment:\n{output}",
+    );
+    assert!(
+        class_expression < body && body < trailing && trailing < static_field,
+        "the nested body must retain its comment while the outer declaration statement owns the trailing comment:\n{output}",
+    );
+}
+
+#[test]
+fn aliasless_legacy_decorated_class_keeps_post_decorator_comment_owners() {
+    const BETWEEN: &str = "// BETWEEN_DECORATOR_AND_CLASS";
+    const OUTER: &str = "// LEGACY_CLASS_OUTER_TRAILING";
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare const dec: any;\n",
+            "@dec\n",
+            "// BETWEEN_DECORATOR_AND_CLASS\n",
+            "class C {} // LEGACY_CLASS_OUTER_TRAILING\n",
+        ),
+        ScriptTarget::ES2015,
+        true,
+    );
+
+    assert_eq!(output.matches(BETWEEN).count(), 2, "{output}");
+    assert_eq!(output.matches(OUTER).count(), 1, "{output}");
+    assert!(!output.contains("var C_1;"), "{output}");
+    assert!(!output.contains("C_1 = class C"), "{output}");
+
+    let initializer = output.find("let C =").expect("legacy class binding");
+    let class_expression = output[initializer..]
+        .find("class C {")
+        .map(|offset| initializer + offset)
+        .expect("aliasless legacy class expression");
+    let class_comment = output[initializer..class_expression]
+        .find(BETWEEN)
+        .map(|offset| initializer + offset)
+        .expect("comment immediately before the class expression");
+    assert_eq!(
+        output[initializer..class_expression]
+            .matches(BETWEEN)
+            .count(),
+        1,
+        "the class-definition interval has one post-decorator owner:\n{output}",
+    );
+    assert!(
+        output[class_comment + BETWEEN.len()..class_expression]
+            .trim()
+            .is_empty(),
+        "the retained comment must remain immediately before the class expression:\n{output}",
+    );
+
+    let outer = output.find(OUTER).expect("outer trailing class comment");
+    let decorate = output
+        .find("C = __decorate([")
+        .expect("legacy decoration assignment");
+    let decorate_end = output[decorate..]
+        .find("], C);")
+        .map(|offset| decorate + offset)
+        .expect("legacy decorator-list end");
+    assert!(class_expression < outer && outer < decorate, "{output}");
+    assert_eq!(
+        output[decorate..decorate_end].matches(BETWEEN).count(),
+        1,
+        "the decorator-list interval has the second tsc-owned copy:\n{output}",
+    );
 }
 
 #[test]
@@ -12490,6 +12599,255 @@ fn private_method_updates_preserve_tsc_value_and_comment_boundaries() {
     );
     assert_eq!(text.matches("// assignment tail").count(), 1, "{text}");
     assert_eq!(text.matches("// update tail").count(), 1, "{text}");
+}
+
+#[test]
+fn private_member_definition_comments_follow_tsc_ownership() {
+    const FIELD_LEADING: &str = "// PRIVATE_FIELD_LEADING";
+    const FIELD_TRAILING: &str = "// PRIVATE_FIELD_TRAILING";
+    const METHOD_LEADING: &str = "// PRIVATE_METHOD_LEADING";
+    const METHOD_TRAILING: &str = "// PRIVATE_METHOD_TRAILING";
+    const GETTER_LEADING: &str = "// PRIVATE_GETTER_LEADING";
+    const GETTER_TRAILING: &str = "// PRIVATE_GETTER_TRAILING";
+    const SETTER_LEADING: &str = "// PRIVATE_SETTER_LEADING";
+    const SETTER_TRAILING: &str = "// PRIVATE_SETTER_TRAILING";
+    const METHOD_BODY: &str = "/* PRIVATE_METHOD_BODY */";
+    let text = transform_and_print_at_target(
+        concat!(
+            "class A {\n",
+            "    // PRIVATE_FIELD_LEADING\n",
+            "    #field = 1; // PRIVATE_FIELD_TRAILING\n",
+            "\n",
+            "    // PRIVATE_METHOD_LEADING\n",
+            "    #method() { /* PRIVATE_METHOD_BODY */ return 2; } // PRIVATE_METHOD_TRAILING\n",
+            "\n",
+            "    // PRIVATE_GETTER_LEADING\n",
+            "    get #read() { return 3; } // PRIVATE_GETTER_TRAILING\n",
+            "\n",
+            "    // PRIVATE_SETTER_LEADING\n",
+            "    set #write(value: number) {} // PRIVATE_SETTER_TRAILING\n",
+            "}\n",
+        ),
+        ScriptTarget::ES2015,
+    );
+
+    assert_eq!(text.matches(FIELD_LEADING).count(), 1, "{text}");
+    assert_eq!(text.matches(FIELD_TRAILING).count(), 1, "{text}");
+    for marker in [
+        METHOD_LEADING,
+        METHOD_TRAILING,
+        GETTER_LEADING,
+        GETTER_TRAILING,
+        SETTER_LEADING,
+        SETTER_TRAILING,
+    ] {
+        assert_eq!(
+            text.matches(marker).count(),
+            0,
+            "synthetic private method/accessor definitions must not own {marker}:\n{text}",
+        );
+    }
+    assert_eq!(text.matches(METHOD_BODY).count(), 1, "{text}");
+
+    let field_leading = text.find(FIELD_LEADING).expect("field leading comment");
+    let field_initializer = text
+        .find("_A_field.set(this, 1);")
+        .expect("private field initializer");
+    let field_trailing = text.find(FIELD_TRAILING).expect("field trailing comment");
+    assert!(field_leading < field_initializer && field_initializer < field_trailing);
+    let method = text
+        .find("_A_method = function _A_method()")
+        .expect("private method definition");
+    let method_body = text.find(METHOD_BODY).expect("private method body comment");
+    let getter = text
+        .find("_A_read_get = function _A_read_get()")
+        .expect("private getter definition");
+    assert!(method < method_body && method_body < getter, "{text}");
+    assert!(
+        text.contains("_A_write_set = function _A_write_set(value)"),
+        "{text}",
+    );
+}
+
+#[test]
+fn compact_private_function_body_emits_inter_statement_comment_once() {
+    const BETWEEN: &str = "/* PRIVATE_BODY_BETWEEN */";
+    const OUTER: &str = "// PRIVATE_MEMBER_OUTER_TRAILING";
+    let text = transform_and_print_at_target(
+        concat!(
+            "class A {\n",
+            "    #method() { first(); /* PRIVATE_BODY_BETWEEN */ second(); } ",
+            "// PRIVATE_MEMBER_OUTER_TRAILING\n",
+            "}\n",
+        ),
+        ScriptTarget::ES2015,
+    );
+
+    assert_eq!(text.matches(BETWEEN).count(), 1, "{text}");
+    assert_eq!(text.matches(OUTER).count(), 0, "{text}");
+    let function = text
+        .find("_A_method = function _A_method()")
+        .expect("private method definition");
+    let first = text[function..]
+        .find("first();")
+        .map(|offset| function + offset)
+        .expect("first compact statement");
+    let between = text.find(BETWEEN).expect("inter-statement comment");
+    let second = text[between..]
+        .find("second();")
+        .map(|offset| between + offset)
+        .expect("second compact statement");
+    assert!(
+        function < first && first < between && between < second,
+        "{text}"
+    );
+}
+
+struct AsyncPrivateMethodProjectionResolver {
+    expected_method: NodeId,
+    async_queries: Cell<usize>,
+    unexpected_queries: Cell<usize>,
+}
+
+impl EmitResolver for AsyncPrivateMethodProjectionResolver {
+    fn get_constant_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        Ok(None)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        let async_flag = flag
+            == NodeCheckFlags::METHOD_WITH_SUPER_PROPERTY_ASSIGNMENT_IN_ASYNC.bits() as u32
+            || flag == NodeCheckFlags::METHOD_WITH_SUPER_PROPERTY_ACCESS_IN_ASYNC.bits() as u32
+            || flag == NodeCheckFlags::CAPTURE_ARGUMENTS.bits() as u32;
+        if async_flag {
+            self.async_queries.set(self.async_queries.get() + 1);
+            if node.node() != self.expected_method {
+                self.unexpected_queries
+                    .set(self.unexpected_queries.get() + 1);
+            }
+        }
+        Ok(false)
+    }
+}
+
+#[test]
+fn es2017_queries_async_private_function_through_parsed_member() {
+    let parsed = parse_source_file(
+        "async-private-method-projection.ts",
+        concat!(
+            "declare function work(): Promise<void>;\n",
+            "class A {\n",
+            "    async #method() { await work(); }\n",
+            "}\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut pending = vec![parsed.root];
+    let mut parsed_method = None;
+    while let Some(node) = pending.pop() {
+        let record = parsed.arena.node(node);
+        if record.kind == SyntaxKind::MethodDeclaration {
+            parsed_method = Some(node);
+            break;
+        }
+        for_each_child(&parsed.arena, record, |child| {
+            pending.push(child);
+            false
+        });
+    }
+    let parsed_method = parsed_method.expect("parsed async private method");
+    let resolver = AsyncPrivateMethodProjectionResolver {
+        expected_method: parsed_method,
+        async_queries: Cell::new(0),
+        unexpected_queries: Cell::new(0),
+    };
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let mut options = bootstrap_options();
+    options.target = Some(ScriptTarget::ES2015.bits());
+    options.always_strict = Some(false);
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers(&options, &resolver).unwrap(),
+        false,
+    )
+    .expect("class-fields followed by ES2017 async transform");
+
+    assert!(
+        resolver.async_queries.get() >= 3,
+        "the ES2017 pass must query async function facts",
+    );
+    assert_eq!(
+        resolver.unexpected_queries.get(),
+        0,
+        "every async resolver query must project to the parsed private member",
+    );
+
+    let arena = result.arena();
+    let root = arena.root(source).expect("transformed source root");
+    let syntax = arena.source(source).expect("transform source").syntax();
+    let mut pending = vec![root];
+    let mut projected_functions = Vec::new();
+    let mut assignments = Vec::new();
+    while let Some(node) = pending.pop() {
+        let record = arena.node(node).expect("transformed node");
+        if record.kind == SyntaxKind::FunctionExpression
+            && arena.get_original_node(node).node() == parsed_method
+        {
+            projected_functions.push(node);
+        }
+        if record.kind == SyntaxKind::BinaryExpression {
+            assignments.push(node);
+        }
+        for_each_child(&syntax.arena, record, |child| {
+            if let Some(child) = arena.node_ref(source, child) {
+                pending.push(child);
+            }
+            false
+        });
+    }
+    assert_eq!(
+        projected_functions.len(),
+        1,
+        "one generated function must retain semantic private-member provenance",
+    );
+    let function = projected_functions[0];
+    let assignment = assignments
+        .into_iter()
+        .find(|assignment| {
+            matches!(
+                &arena.node(*assignment).expect("assignment node").data,
+                NodeData::BinaryExpression(data) if data.right == Some(function.node())
+            )
+        })
+        .expect("private definition assignment");
+
+    for (label, node) in [("function", function), ("assignment", assignment)] {
+        let record = arena
+            .node(node)
+            .unwrap_or_else(|_| panic!("missing generated {label}"));
+        assert_eq!(
+            (record.pos, record.end),
+            (u32::MAX, u32::MAX),
+            "generated {label} must retain a synthetic raw range",
+        );
+        assert!(
+            arena
+                .metadata(node)
+                .and_then(|metadata| metadata.comment_range())
+                .is_none(),
+            "generated {label} must not receive an explicit member comment range",
+        );
+    }
 }
 
 #[test]

@@ -2532,6 +2532,15 @@ impl Printer {
                 Ok(())
             }
             NodeData::VariableStatement(data) => {
+                // tsc keeps the statement's `containerEnd` active while its
+                // synthetic declaration shells and initializer are emitted.
+                // Thread that ownership explicitly so a ranged initializer
+                // cannot claim the statement's trailing boundary first.
+                let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
+                let comment_container = Self::comment_phase_established_container(owner)
+                    .or(expression_context.comment_container);
+                let declaration_context =
+                    expression_context.with_comment_container(comment_container);
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
                 }
@@ -2540,12 +2549,13 @@ impl Printer {
                         .arena()
                         .node_ref(node.source(), declaration_list)
                 });
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.declaration_list,
                     SyntaxKind::VariableStatement,
                     "declaration_list",
+                    declaration_context,
                     writer,
                 )?;
                 if let Some(declaration_list) = declaration_list {
@@ -2553,6 +2563,7 @@ impl Printer {
                         transformation,
                         node,
                         declaration_list,
+                        declaration_context.comment_container,
                         writer,
                     )?;
                 }
@@ -2560,6 +2571,13 @@ impl Printer {
                 Ok(())
             }
             NodeData::VariableDeclarationList(data) => {
+                // A parsed list replaces the inherited container; a
+                // synthesized list keeps the statement container alive.
+                let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
+                let comment_container = Self::comment_phase_established_container(owner)
+                    .or(expression_context.comment_container);
+                let declaration_context =
+                    expression_context.with_comment_container(comment_container);
                 let flags = NodeFlags::from_bits(record.flags);
                 if flags.contains(NodeFlags::AWAIT_USING) {
                     writer.write_keyword("await");
@@ -2598,16 +2616,24 @@ impl Printer {
                     // a token-cursor anchor. The list item therefore owns the
                     // intervening comment boundary (including same-line
                     // comments immediately after the head or a comma).
-                    self.emit_leading_comments_for_delimited_list_start(
+                    self.emit_leading_comments_for_delimited_list_start_in_container(
                         transformation,
                         declaration,
+                        declaration_context.comment_container,
                         writer,
                     )?;
-                    self.emit_node_id(transformation, node.source(), declaration.node(), writer)?;
-                    if self.child_trailing_comments_escape_parent_container(
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        declaration.node(),
+                        declaration_context,
+                        writer,
+                    )?;
+                    if self.child_trailing_comments_escape_active_container(
                         transformation,
                         node,
                         declaration,
+                        declaration_context.comment_container,
                     )? {
                         self.emit_trailing_comments_for_node(transformation, declaration, writer)?;
                     }
@@ -2615,6 +2641,13 @@ impl Printer {
                 Ok(())
             }
             NodeData::VariableDeclaration(data) => {
+                // As above, only a declaration with its own source range
+                // replaces the ambient variable-statement container.
+                let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
+                let comment_container = Self::comment_phase_established_container(owner)
+                    .or(expression_context.comment_container);
+                let initializer_context =
+                    expression_context.with_comment_container(comment_container);
                 let name = data
                     .name
                     .and_then(|name| transformation.arena().node_ref(node.source(), name))
@@ -2658,29 +2691,12 @@ impl Printer {
                         .arena()
                         .node_ref(node.source(), initializer)
                         .ok_or(PrinterError::UnknownStatement(initializer.0))?;
-                    if self.variable_initializer_matches_original_declaration(
+                    self.emit_child_after_token_with_context(
                         transformation,
                         node,
+                        equals,
                         initializer_node,
-                    )? {
-                        let skipped_prefix_bytes = self.token_owned_child_prefix(
-                            transformation,
-                            equals,
-                            Some(initializer_node),
-                        )?;
-                        self.emit_leading_comments_for_node_worker(
-                            transformation,
-                            initializer_node,
-                            LeadingCommentContext::Normal,
-                            skipped_prefix_bytes,
-                            writer,
-                        )?;
-                    }
-                    self.emit_node_id_with_context(
-                        transformation,
-                        node.source(),
-                        initializer,
-                        expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
+                        initializer_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
                         writer,
                     )?;
                 }
@@ -5202,6 +5218,21 @@ impl Printer {
                         } else if index != 0 {
                             writer.write_space(" ");
                         }
+                        // tsc's `SingleLineFunctionBodyStatements` list phase
+                        // owns the boundary immediately after the opening
+                        // brace. Later same-line boundaries are already owned
+                        // by the preceding statement's trailing phase; asking
+                        // both phases to visit them would duplicate a comment.
+                        // The synthetic function shell must not replace the
+                        // first retained statement's source provenance, but
+                        // it must supply this one missing list phase.
+                        if function_body && index == 0 {
+                            self.emit_leading_comments_for_delimited_list_start(
+                                transformation,
+                                statement_node,
+                                writer,
+                            )?;
+                        }
                         self.emit_node_id(transformation, node.source(), statement, writer)?;
                         self.emit_trailing_comments_for_node(
                             transformation,
@@ -5565,6 +5596,7 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         parent: TransformNode,
         child: TransformNode,
+        active_container: Option<CommentRange>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         // `NoTrailingComments` still establishes tsc's `containerEnd`, but
@@ -5585,7 +5617,12 @@ impl Printer {
         {
             return Ok(());
         }
-        if !self.child_trailing_comments_escape_parent_container(transformation, parent, child)? {
+        if !self.child_trailing_comments_escape_active_container(
+            transformation,
+            parent,
+            child,
+            active_container,
+        )? {
             return Ok(());
         }
         self.emit_comments_at_cursor(
@@ -5605,53 +5642,16 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         parent: TransformNode,
         child: TransformNode,
+        active_container: Option<CommentRange>,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_child_boundary_comments_before_parent_end(transformation, parent, child, writer)
-    }
-
-    /// Source comments before an initializer belong to a variable
-    /// declaration only while the transformed child still represents that
-    /// parsed declaration's initializer field. Synthetic decorator/class
-    /// declarations can intentionally point at an expression whose original
-    /// is a source class; treating that as a parsed variable child would make
-    /// the class's detached prefix reappear on every generated binding.
-    fn variable_initializer_matches_original_declaration(
-        &self,
-        transformation: &TransformationResult<'_>,
-        declaration: TransformNode,
-        initializer: TransformNode,
-    ) -> Result<bool, PrinterError> {
-        let original_declaration = transformation.arena().get_original_node(declaration);
-        let source = transformation
-            .arena()
-            .source(original_declaration.source())?
-            .syntax();
-        let declaration_record = transformation.arena().node(original_declaration)?;
-        if !matches!(
-            SourceRange::from_raw(
-                declaration_record.pos,
-                declaration_record.end,
-                source.positions(),
-            )?,
-            SourceRange::Original(_)
-        ) {
-            return Ok(false);
-        }
-        let NodeData::VariableDeclaration(data) = &declaration_record.data else {
-            return Ok(false);
-        };
-        let Some(original_initializer) = data.initializer.and_then(|initializer| {
-            transformation
-                .arena()
-                .node_ref(original_declaration.source(), initializer)
-        }) else {
-            return Ok(false);
-        };
-        Ok(transformation.arena().get_original_node(initializer)
-            == transformation
-                .arena()
-                .get_original_node(original_initializer))
+        self.emit_child_boundary_comments_before_parent_end(
+            transformation,
+            parent,
+            child,
+            active_container,
+            writer,
+        )
     }
 
     fn source_node_range_is_on_single_line(
@@ -8787,9 +8787,10 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_leading_comments_for_delimited_list_start_with_space(
+        self.emit_leading_comments_for_delimited_list_start_in_container_with_space(
             transformation,
             node,
+            None,
             TokenLeadingSpace::None,
             writer,
         )
@@ -8802,18 +8803,62 @@ impl Printer {
         leading_space: TokenLeadingSpace,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        let resume = self.emit_intervening_comments_before_node_with_policy(
+        self.emit_leading_comments_for_delimited_list_start_in_container_with_space(
+            transformation,
+            node,
+            None,
+            leading_space,
+            writer,
+        )
+    }
+
+    fn emit_leading_comments_for_delimited_list_start_in_container(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        active_container: Option<CommentRange>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_leading_comments_for_delimited_list_start_in_container_with_space(
+            transformation,
+            node,
+            active_container,
+            TokenLeadingSpace::None,
+            writer,
+        )
+    }
+
+    fn emit_leading_comments_for_delimited_list_start_in_container_with_space(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        active_container: Option<CommentRange>,
+        leading_space: TokenLeadingSpace,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let list_owned = self.emit_intervening_comments_before_node_with_policy(
             transformation,
             node,
             false,
             leading_space,
             writer,
         )?;
+        let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
+        let container_owned = active_container
+            .map(|container| {
+                self.parent_comment_container_owned_prefix_for_owner(
+                    transformation,
+                    container,
+                    owner,
+                )
+            })
+            .transpose()?
+            .flatten();
         self.emit_leading_comments_for_node_worker(
             transformation,
             node,
             LeadingCommentContext::DelimitedListStart,
-            resume,
+            Self::furthest_comment_resume(list_owned, container_owned)?,
             writer,
         )
     }
@@ -8836,21 +8881,11 @@ impl Printer {
         // is observable in recovery exponentiation lowered to `Math.pow`,
         // where the same source comment is intentionally printed at both the
         // parent boundary and the synthesized argument-list boundary.
-        let list_owned = self.emit_intervening_comments_before_node_with_policy(
+        let active_container = self.comment_range_for_node(transformation, parent)?;
+        self.emit_leading_comments_for_delimited_list_start_in_container(
             transformation,
             node,
-            false,
-            TokenLeadingSpace::None,
-            writer,
-        )?;
-        let container_owned =
-            self.parent_comment_container_owned_prefix(transformation, parent, node)?;
-        let resume = Self::furthest_comment_resume(list_owned, container_owned)?;
-        self.emit_leading_comments_for_node_worker(
-            transformation,
-            node,
-            LeadingCommentContext::DelimitedListStart,
-            resume,
+            Some(active_container),
             writer,
         )
     }
@@ -9171,29 +9206,8 @@ impl Printer {
         child: TransformNode,
     ) -> Result<Option<CommentResume>, PrinterError> {
         let parent_range = self.comment_range_for_node(transformation, parent)?;
-        let child_range = self.comment_range_for_node(transformation, child)?;
-        if parent_range.source() != child_range.source() {
-            return Ok(None);
-        }
-        let range_source = parent_range.source();
-        let (SourceRange::Original(parent_range), SourceRange::Original(child_range)) =
-            (parent_range.range(), child_range.range())
-        else {
-            return Ok(None);
-        };
-        if parent_range.start() != child_range.start() || parent_range.start() == parent_range.end()
-        {
-            return Ok(None);
-        }
-        let source = transformation.arena().source(range_source)?.syntax();
-        let position = child_range
-            .without_leading_trivia(source.text(), source.positions())?
-            .start();
-        let owner_start = CommentCursor::new(range_source, child_range.start());
-        let next = CommentCursor::new(range_source, position);
-        Ok(Some(
-            CommentResume::new(owner_start, next).map_err(Self::comment_resume_error)?,
-        ))
+        let owner = self.expression_comment_phase_owner_for_node(transformation, child)?;
+        self.parent_comment_container_owned_prefix_for_owner(transformation, parent_range, owner)
     }
 
     fn furthest_comment_resume(
