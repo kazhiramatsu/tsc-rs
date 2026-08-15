@@ -977,6 +977,12 @@ pub enum TransformError {
         parent: SyntaxKind,
         field: &'static str,
     },
+    MissingTransformHandoff {
+        producer: &'static str,
+        consumer: &'static str,
+        node: TransformNode,
+        handoff: &'static str,
+    },
     UnexpectedChildKind {
         parent: SyntaxKind,
         field: &'static str,
@@ -1096,6 +1102,17 @@ impl fmt::Display for TransformError {
             Self::RequiredChildRemoved { parent, field } => write!(
                 formatter,
                 "transform removed required child {field} from {parent:?}"
+            ),
+            Self::MissingTransformHandoff {
+                producer,
+                consumer,
+                node,
+                handoff,
+            } => write!(
+                formatter,
+                "{consumer} requires {producer} {handoff} for transform node {}:{}",
+                node.source().raw(),
+                node.node().0
             ),
             Self::UnexpectedChildKind {
                 parent,

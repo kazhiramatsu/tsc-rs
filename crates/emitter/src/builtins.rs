@@ -338,6 +338,7 @@ pub fn transform_type_script<'resolver>(
 ) -> Box<dyn Transformer + 'resolver> {
     Box::new(TypeScriptTransformer {
         resolver,
+        legacy_decorators: options.experimental_decorators,
         always_strict: options.always_strict_effective(),
         downlevels_es2018: options.emit_script_target() < ScriptTarget::ES2018,
         downlevel_iteration: options.downlevel_iteration == Some(true),
@@ -406,6 +407,10 @@ fn transform_implied_node_format_dependent_module<'dependencies>(
 
 struct TypeScriptTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
+    /// Selects the transformTypeScript -> transformLegacyDecorators handoff.
+    /// This is semantic mode, unlike `allow_legacy_decorators`, which only
+    /// records that decorator syntax is supported by the complete pipeline.
+    legacy_decorators: bool,
     always_strict: bool,
     downlevels_es2018: bool,
     downlevel_iteration: bool,
@@ -475,6 +480,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             context,
             source,
             self.resolver,
+            self.legacy_decorators,
             self.preserve_const_enums,
             self.project_parameter_properties_for_class_fields,
             self.downlevel_iteration,
@@ -8943,6 +8949,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
+    legacy_decorators: bool,
     preserve_const_enums: bool,
     project_parameter_properties_for_class_fields: bool,
     downlevel_iteration: bool,
@@ -9017,6 +9024,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
+        legacy_decorators: bool,
         preserve_const_enums: bool,
         project_parameter_properties_for_class_fields: bool,
         downlevel_iteration: bool,
@@ -9026,6 +9034,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             context,
             source,
             resolver,
+            legacy_decorators,
             preserve_const_enums,
             project_parameter_properties_for_class_fields,
             downlevel_iteration,
@@ -9357,10 +9366,19 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     Some(self.update_class_expression(original, id, data)?)
                 }
                 NodeData::PropertyDeclaration(mut data) => {
-                    if self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?
-                        || self.has_modifier(data.modifiers, SyntaxKind::AbstractKeyword)?
-                    {
-                        None
+                    let is_ambient =
+                        NodeFlags::from_bits(self.context.arena().node(original)?.flags)
+                            .contains(NodeFlags::AMBIENT)
+                            || self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?
+                            || self.has_modifier(data.modifiers, SyntaxKind::AbstractKeyword)?;
+                    if is_ambient {
+                        if self.legacy_decorators
+                            && self.has_modifier(data.modifiers, SyntaxKind::Decorator)?
+                        {
+                            Some(self.update_ambient_property_declaration(original, data)?)
+                        } else {
+                            None
+                        }
                     } else {
                         data.question_token = None;
                         data.exclamation_token = None;
@@ -11880,6 +11898,76 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         let flags = flags_after_update(self.context.arena(), original, &data)?;
         let updated = self.context.factory()?.update_node(original, data, flags)?;
         Ok(updated.node())
+    }
+
+    /// Preserve a decorated ambient property as the handoff record consumed
+    /// by `transformLegacyDecorators`. The record has no runtime field shape:
+    /// only visited decorators, the visited property name, and a synthesized
+    /// `declare` marker survive. The later legacy pass uses that marker to
+    /// keep a computed name at the decoration call instead of evaluating it
+    /// in the class body.
+    ///
+    /// tsc-port: transformTypeScript/visitPropertyDeclaration @6.0.3
+    /// tsc-hash: 599b3e2dee89e237fde844c97c77a0e4ea82b11aaaa5bacdccafc4d76db0508f
+    /// tsc-span: _tsc.js:94763-94792
+    fn update_ambient_property_declaration(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::PropertyDeclarationData,
+    ) -> Result<NodeId, TransformError> {
+        data.modifiers = Some(self.visit_ambient_property_modifiers(data.modifiers)?);
+        data.name = self.visit_optional_child(data.name)?;
+        data.question_token = None;
+        data.exclamation_token = None;
+        data.r#type = None;
+        data.initializer = None;
+        let data = NodeData::PropertyDeclaration(data);
+        let flags = flags_after_update(self.context.arena(), original, &data)?;
+        Ok(self
+            .context
+            .factory()?
+            .update_node(original, data, flags)?
+            .node())
+    }
+
+    fn visit_ambient_property_modifiers(
+        &mut self,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<NodeArrayId, TransformError> {
+        // This is a property-owned contextual projection, not the ordinary
+        // modifier-array visit: all source modifiers are erased while
+        // decorators are visited and one synthetic `declare` is appended.
+        // Do not publish that contextual result through `self.arrays`, where
+        // a separately owned use of a synthetic shared array could observe it.
+        let mut retained = Vec::new();
+        let original = modifiers
+            .and_then(|modifiers| self.context.arena().node_array_ref(self.source, modifiers));
+        if let Some(original) = original {
+            let input = self.context.arena().node_array(original)?.nodes.clone();
+            for modifier in input {
+                let modifier_node = self.node(modifier);
+                if self.context.arena().node(modifier_node)?.kind == SyntaxKind::Decorator {
+                    if let Some(modifier) = self.visit(modifier)? {
+                        retained.push(self.node(modifier));
+                    }
+                }
+            }
+        }
+        retained.push(self.context.factory()?.create_token(
+            self.source,
+            SyntaxKind::DeclareKeyword,
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )?);
+        let modifiers = if let Some(original) = original {
+            self.context
+                .factory()?
+                .update_node_array(original, retained)?
+        } else {
+            self.context
+                .factory()?
+                .create_node_array(self.source, retained)?
+        };
+        Ok(modifiers.array())
     }
 
     /// Setter return types and type parameters are parser-recovery fields,

@@ -181,6 +181,27 @@ impl DecoratorOwner {
     }
 }
 
+/// Whether a decorated computed member name has a runtime class evaluation
+/// that can own tsc's shared generated binding. `transformTypeScript` retains
+/// ambient/abstract properties only as synthesized `declare` anchors for the
+/// later legacy-decorator pass; evaluating their names inside the class would
+/// add runtime work that the source declaration does not have.
+///
+/// tsc-port: getExpressionForPropertyName(...,
+/// !hasSyntacticModifier(member, ModifierFlags.Ambient)) @6.0.3
+/// tsc-span: _tsc.js:98805-98809
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DecoratorComputedNamePlan {
+    AmbientExpression,
+    SharedRuntimeBinding,
+}
+
+impl DecoratorComputedNamePlan {
+    const fn uses_shared_runtime_binding(self) -> bool {
+        matches!(self, Self::SharedRuntimeBinding)
+    }
+}
+
 impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     fn new(
         context: &'context mut TransformationContext,
@@ -257,9 +278,16 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 Some(self.update_generic(original, NodeData::SetAccessor(data))?)
             }
             NodeData::PropertyDeclaration(mut data) => {
-                data.name = self.rewrite_computed_member_name(original, data.name)?;
-                data.modifiers = self.strip_decorators(data.modifiers)?;
-                Some(self.update_generic(original, NodeData::PropertyDeclaration(data))?)
+                if NodeFlags::from_bits(self.context.arena().node(original)?.flags)
+                    .contains(NodeFlags::AMBIENT)
+                    || self.has_modifier(data.modifiers, SyntaxKind::DeclareKeyword)?
+                {
+                    None
+                } else {
+                    data.name = self.rewrite_computed_member_name(original, data.name)?;
+                    data.modifiers = self.strip_decorators(data.modifiers)?;
+                    Some(self.update_generic(original, NodeData::PropertyDeclaration(data))?)
+                }
             }
             NodeData::Parameter(mut data) => {
                 data.modifiers = self.strip_decorators(data.modifiers)?;
@@ -580,10 +608,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 continue;
             };
             let owner_member = owner.member();
-            let source_member = by_original
-                .get(&owner_member.node())
-                .copied()
-                .unwrap_or(owner_member);
+            let source_member = by_original.get(&owner_member.node()).copied().ok_or(
+                TransformError::MissingTransformHandoff {
+                    producer: "transformTypeScript",
+                    consumer: "transformLegacyDecorators",
+                    node: owner_member,
+                    handoff: "decorated class-element anchor",
+                },
+            )?;
             if self.member_name_is_private(source_member)? {
                 continue;
             }
@@ -595,7 +627,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 serialization_context,
             )?;
             private_decoration |= self.member_decorators_contain_private(source_member)?;
-            if self.has_static_modifier(owner_member)? {
+            if self.has_static_modifier(source_member)? {
                 static_.push(statement);
             } else {
                 instance.push(statement);
@@ -620,6 +652,12 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         members: Option<NodeArrayId>,
     ) -> Result<(), TransformError> {
         for member in self.array_nodes(members)? {
+            if !self
+                .decorator_computed_name_plan(member)?
+                .uses_shared_runtime_binding()
+            {
+                continue;
+            }
             let Some(owner) = self.decorator_owner(member)? else {
                 continue;
             };
@@ -727,7 +765,8 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             parent: record.kind,
             field: "name",
         })?;
-        let member_name = self.property_name_expression(member, name)?;
+        let computed_name_plan = self.decorator_computed_name_plan(member)?;
+        let member_name = self.property_name_expression(member, name, computed_name_plan)?;
         let descriptor =
             if is_property && !self.has_modifier(modifiers, SyntaxKind::AccessorKeyword)? {
                 self.create_void_zero()?
@@ -1861,10 +1900,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         &mut self,
         member: TransformNode,
         name: NodeId,
+        plan: DecoratorComputedNamePlan,
     ) -> Result<TransformNode, TransformError> {
         let original_member = self.context.arena().get_original_node(member).node();
-        if let Some(generated) = self.computed_names.get(&original_member).cloned() {
-            return self.create_generated_identifier(&generated);
+        if plan.uses_shared_runtime_binding() {
+            if let Some(generated) = self.computed_names.get(&original_member).cloned() {
+                return self.create_generated_identifier(&generated);
+            }
         }
         let name = self.node(name);
         match self.context.arena().node(name)?.data.clone() {
@@ -1880,7 +1922,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                         parent: SyntaxKind::ComputedPropertyName,
                         field: "expression",
                     })?;
-                if self.is_simple_inlineable_expression(expression)? {
+                if self.is_simple_inlineable_expression(expression)?
+                    || !plan.uses_shared_runtime_binding()
+                {
                     Ok(expression)
                 } else {
                     let generated = self.allocate_temp_name()?;
@@ -1894,6 +1938,26 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 parent: SyntaxKind::PropertyDeclaration,
                 field: "property name",
             }),
+        }
+    }
+
+    fn decorator_computed_name_plan(
+        &self,
+        member: TransformNode,
+    ) -> Result<DecoratorComputedNamePlan, TransformError> {
+        let record = self.context.arena().node(member)?;
+        let ambient = NodeFlags::from_bits(record.flags).contains(NodeFlags::AMBIENT);
+        let modifiers = match &record.data {
+            NodeData::PropertyDeclaration(data) => data.modifiers,
+            NodeData::MethodDeclaration(data) => data.modifiers,
+            NodeData::GetAccessor(data) => data.modifiers,
+            NodeData::SetAccessor(data) => data.modifiers,
+            _ => None,
+        };
+        if ambient || self.has_modifier(modifiers, SyntaxKind::DeclareKeyword)? {
+            Ok(DecoratorComputedNamePlan::AmbientExpression)
+        } else {
+            Ok(DecoratorComputedNamePlan::SharedRuntimeBinding)
         }
     }
 

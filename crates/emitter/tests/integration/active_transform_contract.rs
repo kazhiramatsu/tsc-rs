@@ -5,11 +5,11 @@ use std::path::Path;
 use serde_json::Value;
 use tsc_emitter::{
     create_printer, get_script_transformers, get_script_transformers_for_source, transform_nodes,
-    DisabledSourceMapRecorder, EmitConstantValue, EmitEnumMemberValue, EmitExportContainerMode,
-    EmitFlags, EmitHost, EmitResolver, EmitResolverError, EmitResolverNode, EmitSource,
-    EmitTypeReferenceSerializationKind, JavaScriptNumber, JavaScriptString, NewLineKind,
-    PrintRequest, PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot,
-    UnavailableEmitResolver,
+    transform_type_script, DisabledSourceMapRecorder, EmitConstantValue, EmitEnumMemberValue,
+    EmitExportContainerMode, EmitFlags, EmitHost, EmitResolver, EmitResolverError,
+    EmitResolverNode, EmitSource, EmitTypeReferenceSerializationKind, JavaScriptNumber,
+    JavaScriptString, NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode,
+    TransformArena, TransformNode, TransformRoot, TransformSourceId, UnavailableEmitResolver,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -73,6 +73,47 @@ fn bootstrap_options() -> CompilerOptions {
         always_strict: Some(false),
         ..CompilerOptions::default()
     }
+}
+
+fn transformed_class_members(
+    arena: &TransformArena,
+    source: TransformSourceId,
+) -> Vec<TransformNode> {
+    let root = arena.root(source).expect("source root");
+    let NodeData::SourceFile(source_file) = &arena.node(root).expect("source node").data else {
+        panic!("source-file root");
+    };
+    let statements = arena
+        .node_array_ref(source, source_file.statements.expect("source statements"))
+        .expect("source statement array");
+    let class = arena
+        .node_array(statements)
+        .expect("source statement nodes")
+        .nodes
+        .iter()
+        .filter_map(|statement| arena.node_ref(source, *statement))
+        .find(|statement| {
+            arena
+                .node(*statement)
+                .is_ok_and(|statement| statement.kind == SyntaxKind::ClassDeclaration)
+        })
+        .expect("class declaration");
+    let NodeData::ClassDeclaration(class) = &arena.node(class).expect("class node").data else {
+        unreachable!("class kind owns class data");
+    };
+    let Some(members) = class
+        .members
+        .and_then(|members| arena.node_array_ref(source, members))
+    else {
+        return Vec::new();
+    };
+    arena
+        .node_array(members)
+        .expect("class member nodes")
+        .nodes
+        .iter()
+        .filter_map(|member| arena.node_ref(source, *member))
+        .collect()
 }
 
 struct TransformContractHost<'a> {
@@ -5044,6 +5085,53 @@ fn transform_and_print_legacy_decorator_metadata(source_text: &str, module: i32)
     transform_parsed_legacy_decorator_metadata(&parsed, module, &SystemContractResolver)
 }
 
+fn transform_and_print_decorators_at_target(
+    source_text: &str,
+    target: ScriptTarget,
+    experimental_decorators: bool,
+) -> String {
+    let parsed = parse_source_file(
+        "legacy-decorators.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source_id = SourceFileId::from_raw(0);
+    let source = arena.add_source(&parsed, Some(source_id));
+    let options = CompilerOptions {
+        target: Some(target.bits()),
+        module: Some(ModuleKind::PRESERVE.bits()),
+        experimental_decorators,
+        emit_decorator_metadata: Some(false),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let host = TransformContractHost {
+        options: &options,
+        syntax: &parsed,
+        source_ids: [source_id],
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        get_script_transformers_for_source(&options, &SystemContractResolver, &host, source_id)
+            .unwrap(),
+        false,
+    )
+    .expect("legacy decorator transform");
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print legacy decorator transform")
+        .text()
+        .to_owned()
+}
+
 fn transform_parsed_legacy_decorator_metadata(
     parsed: &tsc_syntax::SourceFile,
     module: i32,
@@ -5082,6 +5170,315 @@ fn transform_parsed_legacy_decorator_metadata(
         .expect("print legacy decorator metadata transform")
         .text()
         .to_owned()
+}
+
+#[test]
+fn typescript_and_legacy_passes_exchange_one_ambient_property_anchor() {
+    let source_text = concat!(
+        "declare function decorator(target: any, key: any): any;\n",
+        "const b = Symbol('b');\n",
+        "class Foo {\n",
+        "    @decorator declare a: number;\n",
+        "    @decorator declare [b]: number;\n",
+        "}\n",
+    );
+    let parsed = parse_source_file(
+        "ambient-decorator-handoff.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let NodeData::SourceFile(parsed_source) = &parsed.arena.node(parsed.root).data else {
+        panic!("parsed source-file root");
+    };
+    let parsed_statements = parsed
+        .arena
+        .node_array(parsed_source.statements.expect("parsed statements"));
+    let parsed_class = parsed_statements
+        .nodes
+        .iter()
+        .copied()
+        .find(|statement| parsed.arena.node(*statement).kind == SyntaxKind::ClassDeclaration)
+        .expect("parsed class");
+    let NodeData::ClassDeclaration(parsed_class) = &parsed.arena.node(parsed_class).data else {
+        unreachable!("class kind owns class data");
+    };
+    let parsed_members = parsed
+        .arena
+        .node_array(parsed_class.members.expect("parsed class members"))
+        .nodes
+        .clone();
+
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES_NEXT.bits()),
+        module: Some(ModuleKind::PRESERVE.bits()),
+        experimental_decorators: true,
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut typescript_arena = TransformArena::new();
+    let typescript_source = typescript_arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let typescript = transform_nodes(
+        typescript_arena,
+        vec![TransformRoot::SourceFile(typescript_source)],
+        vec![transform_type_script(&options, &SystemContractResolver)],
+        false,
+    )
+    .expect("TypeScript ambient-anchor transform");
+    let anchors = transformed_class_members(typescript.arena(), typescript_source);
+    assert_eq!(anchors.len(), 2);
+    for (anchor, parsed_member) in anchors.iter().zip(&parsed_members) {
+        assert_eq!(
+            typescript.arena().get_original_node(*anchor).node(),
+            *parsed_member,
+            "anchor must retain its parse-tree property identity"
+        );
+        let NodeData::PropertyDeclaration(property) =
+            &typescript.arena().node(*anchor).expect("anchor node").data
+        else {
+            panic!("anchor must remain a property declaration");
+        };
+        let modifiers = typescript
+            .arena()
+            .node_array_ref(
+                typescript_source,
+                property.modifiers.expect("anchor modifiers"),
+            )
+            .expect("anchor modifier array");
+        let modifier_kinds = typescript
+            .arena()
+            .node_array(modifiers)
+            .expect("anchor modifiers")
+            .nodes
+            .iter()
+            .map(|modifier| {
+                typescript
+                    .arena()
+                    .node_ref(typescript_source, *modifier)
+                    .and_then(|modifier| typescript.arena().node(modifier).ok())
+                    .map(|modifier| modifier.kind)
+                    .expect("anchor modifier node")
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            modifier_kinds,
+            vec![SyntaxKind::Decorator, SyntaxKind::DeclareKeyword]
+        );
+        assert!(property.question_token.is_none());
+        assert!(property.exclamation_token.is_none());
+        assert!(property.r#type.is_none());
+        assert!(property.initializer.is_none());
+    }
+
+    let mut legacy_arena = TransformArena::new();
+    let legacy_source = legacy_arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let mut transformers =
+        get_script_transformers(&options, &SystemContractResolver).expect("script transformers");
+    assert_eq!(transformers[0].name(), "transformTypeScript");
+    assert_eq!(transformers[1].name(), "transformLegacyDecorators");
+    transformers.truncate(2);
+    let mut legacy = transform_nodes(
+        legacy_arena,
+        vec![TransformRoot::SourceFile(legacy_source)],
+        transformers,
+        false,
+    )
+    .expect("legacy ambient-anchor consumer transform");
+    assert!(transformed_class_members(legacy.arena(), legacy_source).is_empty());
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES_NEXT),
+    )
+    .print(
+        &mut legacy,
+        PrintRequest::SourceFile(legacy_source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("print legacy ambient-anchor handoff")
+    .text()
+    .to_owned();
+    assert!(output.contains("class Foo {\n}"), "{output}");
+    assert!(!output.contains("var _a;"), "{output}");
+    let named = output
+        .find("Foo.prototype, \"a\", void 0")
+        .unwrap_or_else(|| panic!("missing named decoration:\n{output}"));
+    let computed = output
+        .find("Foo.prototype, b, void 0")
+        .unwrap_or_else(|| panic!("missing computed decoration:\n{output}"));
+    assert!(named < computed, "{output}");
+    assert_eq!(output.matches("__decorate([").count(), 2, "{output}");
+}
+
+#[test]
+fn ambient_legacy_decorator_computed_names_remain_direct_expressions() {
+    for (label, declaration) in [
+        ("declare", "class Foo { @decorator declare [b]: number; }"),
+        (
+            "abstract",
+            "abstract class Foo { @decorator abstract [b]: number; }",
+        ),
+    ] {
+        let output = transform_and_print_decorators_at_target(
+            &format!(
+                "declare function decorator(target: any, key: any): any;\nconst b = Symbol('b');\n{declaration}\n"
+            ),
+            ScriptTarget::ES_NEXT,
+            true,
+        );
+
+        assert!(!output.contains("var _a;"), "{label}:\n{output}");
+        assert!(!output.contains("[_a = b]"), "{label}:\n{output}");
+        assert!(
+            output.contains("Foo.prototype, b, void 0"),
+            "{label}:\n{output}"
+        );
+    }
+}
+
+#[test]
+fn runtime_legacy_decorator_computed_names_keep_one_shared_binding() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare function decorator(target: any, key: any): any;\n",
+            "const b = Symbol('b');\n",
+            "class Foo { @decorator [b]: number; }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(output.contains("var _a;"), "{output}");
+    assert!(output.contains("[_a = b]"), "{output}");
+    assert!(output.contains("Foo.prototype, _a, void 0"), "{output}");
+}
+
+#[test]
+fn runtime_legacy_decorator_call_names_evaluate_once_in_the_class() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare function decorator(target: any, key: any): any;\n",
+            "declare function key(): string;\n",
+            "class Foo { @decorator [key()]: number; }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(output.contains("var _a;"), "{output}");
+    assert!(output.contains("[_a = key()]"), "{output}");
+    assert!(output.contains("Foo.prototype, _a, void 0"), "{output}");
+    assert_eq!(output.matches("key()").count(), 1, "{output}");
+}
+
+#[test]
+fn ambient_legacy_decorator_call_names_evaluate_once_at_decoration_site() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare function decorator(target: any, key: any): any;\n",
+            "declare function key(): string;\n",
+            "class Foo { @decorator declare [key()]: number; }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(!output.contains("var _a;"), "{output}");
+    assert!(!output.contains("_a = key()"), "{output}");
+    assert!(output.contains("Foo.prototype, key(), void 0"), "{output}");
+    assert_eq!(output.matches("key()").count(), 1, "{output}");
+}
+
+#[test]
+fn ambient_legacy_decorator_anchor_visits_decorator_and_name_expressions() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare function decorator(target: any, key: any): any;\n",
+            "const b = Symbol('b');\n",
+            "class Foo { @(decorator as any) declare [(b as symbol)]: number; }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(!output.contains(" as "), "{output}");
+    assert!(!output.contains("var _a;"), "{output}");
+    assert!(output.contains("Foo.prototype, b, void 0"), "{output}");
+}
+
+#[test]
+fn ambient_legacy_decorator_anchor_owns_static_bucket_classification() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare function decorator(target: any, key: any): any;\n",
+            "class Foo {\n",
+            "    @decorator static runtimeStatic() {}\n",
+            "    @decorator declare static ambientStatic: number;\n",
+            "    @decorator runtimeInstance() {}\n",
+            "}\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    let ambient = output
+        .find("Foo.prototype, \"ambientStatic\"")
+        .unwrap_or_else(|| panic!("missing ambient instance decoration:\n{output}"));
+    let instance = output
+        .find("Foo.prototype, \"runtimeInstance\"")
+        .unwrap_or_else(|| panic!("missing runtime instance decoration:\n{output}"));
+    let static_ = output
+        .find("Foo, \"runtimeStatic\"")
+        .unwrap_or_else(|| panic!("missing runtime static decoration:\n{output}"));
+    assert!(ambient < instance && instance < static_, "{output}");
+}
+
+#[test]
+fn ambient_and_runtime_legacy_computed_names_share_order_but_not_storage() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare function decorator(target: any, key: any): any;\n",
+            "declare function ambientKey(): string;\n",
+            "declare function runtimeKey(): string;\n",
+            "class Foo {\n",
+            "    @decorator declare [ambientKey()]: number;\n",
+            "    @decorator [runtimeKey()]: number;\n",
+            "}\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        true,
+    );
+
+    assert!(output.contains("var _a;"), "{output}");
+    assert!(!output.contains("_b"), "{output}");
+    assert!(output.contains("[_a = runtimeKey()]"), "{output}");
+    let ambient = output
+        .find("Foo.prototype, ambientKey(), void 0")
+        .unwrap_or_else(|| panic!("missing ambient decoration:\n{output}"));
+    let runtime = output
+        .find("Foo.prototype, _a, void 0")
+        .unwrap_or_else(|| panic!("missing runtime decoration:\n{output}"));
+    assert!(ambient < runtime, "{output}");
+    assert_eq!(output.matches("ambientKey()").count(), 1, "{output}");
+    assert_eq!(output.matches("runtimeKey()").count(), 1, "{output}");
+    assert_eq!(output.matches("__decorate([").count(), 2, "{output}");
+}
+
+#[test]
+fn standard_decorator_mode_does_not_retain_an_ambient_legacy_anchor() {
+    let output = transform_and_print_decorators_at_target(
+        concat!(
+            "declare function decorator(target: any, key: any): any;\n",
+            "declare function key(): string;\n",
+            "class Foo { @decorator declare [key()]: number; }\n",
+        ),
+        ScriptTarget::ES_NEXT,
+        false,
+    );
+
+    assert!(!output.contains("__decorate"), "{output}");
+    assert!(!output.contains("__esDecorate"), "{output}");
+    assert!(!output.contains("key()"), "{output}");
+    assert!(output.contains("class Foo {\n}"), "{output}");
 }
 
 fn transform_parsed_class_declaration_correlation(
