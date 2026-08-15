@@ -1,0 +1,16 @@
+{
+  "case_id_source": "ratchets/h2-5g-qualification.v1.json",
+  "case_id_source_sha256": "cc8f39605bc09bc28a2a3c7af8b562a11328ff6aafb01d27e7c19dfe0af319ec",
+  "denominator": 9027,
+  "membership_digest": "71929a845db200173c63c99b8adc9654e8e902179e91b3ea88bfe76ee4e1d395",
+  "policy_ids": ["h2-5g-hosted", "h2-5g-local"],
+  "profile": "h2-5g-es2016",
+  "schema_version": 1,
+  "shards": [
+    {"case_ids_digest": "1d3823b53f8feff4d08f41c4a7b75d49d65259a5b2c4e635d2982653eb03036a", "end": 2256, "id": "h2-5g-00", "start": 0},
+    {"case_ids_digest": "1e2fc05989d580f666734dfb1f77c51c5671a194944dc82096326bcdc5a46d2c", "end": 4513, "id": "h2-5g-01", "start": 2256},
+    {"case_ids_digest": "f3dffb1c18f7e8863030d3b589d17fef1030c09fd883cd0657e0046511721e00", "end": 6770, "id": "h2-5g-02", "start": 4513},
+    {"case_ids_digest": "3d5b96791c98369182191bd692054e38db52c41979241959fc1daa0980e6b24f", "end": 9027, "id": "h2-5g-03", "start": 6770}
+  ],
+  "suite": "h2"
+}

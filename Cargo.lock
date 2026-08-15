@@ -334,6 +334,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "tsc-rs-ci-adapter-control"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-ci-adapter-protocol",
+ "tsc-rs-ci-core",
+]
+
+[[package]]
+name = "tsc-rs-ci-adapter-protocol"
+version = "0.1.0"
+dependencies = [
+ "tsc-rs-ci-core",
+]
+
+[[package]]
 name = "tsc-rs-ci-core"
 version = "0.1.0"
 dependencies = [
