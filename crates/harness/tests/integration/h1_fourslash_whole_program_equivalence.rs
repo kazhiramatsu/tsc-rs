@@ -17,9 +17,9 @@ const PROJECTION: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../vendor/typescript-6.0.3/fourslash-emit-projection.v1.json"
 ));
-const MANIFEST_SHA256: &str = "3960e1beefe159ff9d609d7ff66d979b0f30198edcb0bf7f82efdfc1e9b0ff4b";
+const MANIFEST_SHA256: &str = "3174f859789d6d8494f00f6ae7286b821245c42e75c3683011390358234c6a55";
 const GENERATOR_PATH: &str = "crates/oracle/h1-fourslash-equivalence.mjs";
-const GENERATOR_SHA256: &str = "442e56a13a02d5df2f8bc146976103673c841080c904b6b345db561cb3fd91fd";
+const GENERATOR_SHA256: &str = "0a2a9a3458dc321610c30ff48577079e992d705b4f5dc0bde68c0f16f0b5f6b5";
 const CONTRACT_PATH: &str = ".github/ci/contracts/h1-fourslash-equivalence.schema.json";
 const CONTRACT_SHA256: &str = "17f545e8244b11d2ead9e2e387c32c11d6a71d6c8d025e8bd50c82a78b452522";
 const SUITE_PIN_PATH: &str = "vendor/typescript-6.0.3/test-suites-pin.v3.json";
@@ -27,7 +27,7 @@ const SUITE_PIN_SHA256: &str = "5f7aee7d434066017c5cd115fb2195ff4959e5203eddc7ed
 const PROJECTION_PATH: &str = "vendor/typescript-6.0.3/fourslash-emit-projection.v1.json";
 const PROJECTION_SHA256: &str = "d652d0e0ad1a6195cb3d74e97cb241f3da6a55b6811bd4770fb1ec56a2843c46";
 const PROFILE_PATH: &str = "ratchets/h1-emit-profile.v1.json";
-const PROFILE_SHA256: &str = "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991";
+const PROFILE_SHA256: &str = "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db";
 const TYPESCRIPT_BUNDLE_PATH: &str = "vendor/typescript-6.0.3/lib/typescript.js";
 const TYPESCRIPT_BUNDLE_SHA256: &str =
     "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39";

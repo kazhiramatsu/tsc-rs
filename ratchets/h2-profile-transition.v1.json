@@ -8,7 +8,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "4cfee6be340ee1cb8d6452b52376fa46f81143943d002290cdcad86b9dce7c2f"
+    "sha256": "c8ecebdcbd6c1ba5ec49c41be06458c70bf9643bdb62401c4f1311f28e55a3c9"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-profile-transition.schema.json",
@@ -17,7 +17,7 @@
   "h1_frozen_inputs": [
     {
       "path": "ratchets/h1-emit-profile.v1.json",
-      "sha256": "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991"
+      "sha256": "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db"
     },
     {
       "path": "ratchets/h1-owner-inventory.v1.json",
@@ -25,25 +25,25 @@
     },
     {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "9191624d90673877c5c60baf4e5934c40e8cf31a1a3505dba6301ca625a61ea0"
+      "sha256": "2dac0e4a30faa950d438e0685acec6a933bb976c366bdfa6782c53497d5459eb"
     },
     {
       "path": "ratchets/h1-emit-oracle.v1.json",
-      "sha256": "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793"
+      "sha256": "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d"
     },
     {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "4a9a36b3b35acd9c22bf22fc88ba2c463bc6a16a18f61d2ee38c528d4aaa42ef"
+      "sha256": "9b76aede402540c56689fb65813af4e731a1df9442735ec54fafb1ea0301526b"
     }
   ],
   "h2_inputs": {
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+      "sha256": "430dc7d6e43b2cb46d6aa31a11f250d0b21cbb8bc511cbbf08d914d83422c0e1"
     },
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+      "sha256": "3c05f378e811b238ded17a51c1c948f46c31be17dcdae82e3b69f11490cfd3ab"
     }
   },
   "oracle_contracts": {
@@ -596,5 +596,5 @@
     "planned_rows": 36,
     "runtime_admissions": 0
   },
-  "profile_fingerprint_sha256": "9e3c122472e1080987794d2b7456810ce06fb6c20d082c3013edd06e0fee5452"
+  "profile_fingerprint_sha256": "e07dfb5dc0fa68e62040e4ee344a15b9859db1e4473b16def104f4fbe8c7c302"
 }
