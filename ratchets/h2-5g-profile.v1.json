@@ -67,7 +67,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-5g-qualification.v1.json",
-    "sha256": "90934193e0b33642aea3705bdc6c0686a54780ba69feaa58ef6435867e5a7a19"
+    "sha256": "489f1b3915fdd57ff5f6cc929355280980d1b5c77c87e222a3f68152b130b638"
   },
   "current_exact_promotions": [
     {
@@ -1270,5 +1270,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "2634087b61b240faa03f83fc3fdb4473c3927fd34a04a64cd8ff3ddfbcdea010"
+  "profile_fingerprint_sha256": "1f3e63c4c32fbccb59b8c5aacc24cf7dd9ff35ec055cacbe64c695ea0738bb02"
 }
