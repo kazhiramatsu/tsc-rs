@@ -25,7 +25,7 @@
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
-      "sha256": "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991"
+      "sha256": "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db"
     },
     "owner_inventory": {
       "path": "ratchets/h1-owner-inventory.v1.json",
@@ -1155,5 +1155,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "2f61639c6310550bccc359286f636f34052425c83ad051377ddefc95edb0fb4f"
+  "inventory_fingerprint_sha256": "f21f263a0910e68d01cdd9814c6f0763b5b4bf4aabceb7f9b17f64e6c437630f"
 }
