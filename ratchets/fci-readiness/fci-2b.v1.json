@@ -5,12 +5,12 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-2b-bounded-effects.md",
-    "sha256": "db32cee23009a301fb5b50a0f70d1254ef46a5f2e27d619f4ab509614a5f9ccf"
+    "sha256": "787603c58c066c7be8d2664ad28e69dc80033eb3f0e474b4ff0a391c44078368"
   },
   "predecessors": [
     {
       "packetId": "fci-2a",
-      "receiptSha256": "23188efe3f5a5ccafa296640ffa07d41f33ae4fd7335fa4e373aa3876d6344f7"
+      "receiptSha256": "d308c27c8a8a0d80580f9f51f9f8ef9e053df22ed390cd713eb4bd6c1dc1024e"
     }
   ],
   "allowedPaths": [
@@ -35,7 +35,7 @@
   ],
   "proof": {
     "commands": [
-      "cargo test -p tsc-rs-ci-runner --test bounded_effect",
+      "cargo test -p tsc-rs-ci-runner --test contracts bounded_effect",
       "cargo test -p tsc-rs-ci-runner --lib",
       "node .github/ci/slice-readiness.mjs --check fci-2b"
     ],

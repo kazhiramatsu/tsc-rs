@@ -5,12 +5,12 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-4d-explanations-budget.md",
-    "sha256": "302ffc593b3e6866a9fc7250340207658c2f8cff30c65a4aad41cce6859350dc"
+    "sha256": "8a81b17afa0cf85447cad3f1f9abf93b5660c35eb63595367badf765ff19fbaa"
   },
   "predecessors": [
     {
       "packetId": "fci-4c",
-      "receiptSha256": "f48472de333442bc842db3146a330f3af7aa7602f5793288a350c29a17f797a8"
+      "receiptSha256": "c2d9d46847aa32e2a46dc520fa3af650868ea2c4e43e6d456995ae64c380d522"
     }
   ],
   "allowedPaths": [
@@ -37,7 +37,7 @@
   "proof": {
     "commands": [
       "cargo xtask test ci-core",
-      "cargo test -p tsc-rs-ci-core --test explain",
+      "cargo test -p tsc-rs-ci-core --test contracts explain",
       "node .github/ci/slice-readiness.mjs --check fci-4d"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-4d.v1.json"

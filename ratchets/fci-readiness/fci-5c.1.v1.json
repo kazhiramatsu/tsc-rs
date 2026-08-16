@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-5b",
-      "receiptSha256": "66cd4940eca99d5f20d0749eca5683d7b6e1da7d90cfcd7db7d0bdad7effe629"
+      "receiptSha256": "a44fd341129c0c759cfde62322aa725a5c1c1c59a232fb3f6fd14e4ec5e313c8"
     }
   ],
   "allowedPaths": [

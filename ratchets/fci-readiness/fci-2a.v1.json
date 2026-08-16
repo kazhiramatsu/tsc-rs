@@ -5,12 +5,12 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-2a-runner-errors.md",
-    "sha256": "0e3f3f11afcb71e8899ce77da64540835f2ac8d4a16666b62031d91fffc3d073"
+    "sha256": "d9e621878e8ddbc41bf596417a70599876b68aab51ead09fa7d253d92f79afe7"
   },
   "predecessors": [
     {
       "packetId": "fci-1c",
-      "receiptSha256": "c639dcf042d30234ae2c612e26d641359f423b36bd4205799877386208a25905"
+      "receiptSha256": "9d90c6b08697c519142861cef4dbcde5f2da3c7195963744e55c2bd06c81bc90"
     }
   ],
   "allowedPaths": [
@@ -37,7 +37,7 @@
   ],
   "proof": {
     "commands": [
-      "cargo test -p tsc-rs-ci-runner --test error_boundary",
+      "cargo test -p tsc-rs-ci-runner --test contracts error_boundary",
       "cargo tree -p tsc-rs-ci-runner --edges normal,build,dev",
       "node .github/ci/slice-readiness.mjs --check fci-2a"
     ],

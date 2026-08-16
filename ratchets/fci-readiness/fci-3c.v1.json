@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "packetId": "fci-3c",
-  "status": "ready",
+  "status": "closed",
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-3c-source-sandbox-resource.md",
-    "sha256": "c27d027e48a2ffc2ff42955615425b8ddba01502459d252d13e63265f12748b3"
+    "sha256": "0039ce61650e3954b5ac0f37e1e21c7024e6e266306c5345993166b6d8136145"
   },
   "predecessors": [
     {
       "packetId": "fci-3b",
-      "receiptSha256": "7cc51f7b7d88124e8622e00cf14af939238708a401f869fa0e21bcce8917d097"
+      "receiptSha256": "42e133cd7c755f9398d0fc25b4a5cb71f1c44129a6abae815d179e6e9e386b0b"
     }
   ],
   "allowedPaths": [
@@ -20,7 +20,8 @@
     "crates/ci-runner/src/lib.rs",
     "crates/ci-runner/src/resource.rs",
     "crates/ci-runner/src/snapshot.rs",
-    "crates/ci-runner/tests/snapshot_resource.rs",
+    "crates/ci-runner/tests/contracts/snapshot_resource.rs",
+    "crates/ci-runner/tests/unit/snapshot_tests.rs",
     "docs/design/greenfield/slices/fci-3c-source-sandbox-resource.md",
     "docs/design/greenfield/slices/README.md",
     "ratchets/fci-readiness/fci-3c.v1.json"
@@ -39,9 +40,9 @@
   "proof": {
     "commands": [
       "cargo check -p tsc-rs-ci-runner --lib",
-      "cargo test -p tsc-rs-ci-runner --test snapshot_resource",
+      "cargo test -p tsc-rs-ci-runner --test contracts snapshot_resource",
       "cargo test -p tsc-rs-ci-runner --lib",
-      "node .github/ci/slice-readiness.mjs --check fci-3c"
+      "node .github/ci/slice-readiness.mjs --schema-check"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-3c.v1.json"
   }

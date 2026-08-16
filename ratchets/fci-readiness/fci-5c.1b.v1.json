@@ -5,19 +5,47 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-5c.1b-h2-5g-observation.md",
-    "sha256": "c9c8bf3cd8a29000880c96f60f130250e9c3e247214148399087deb7c63e82e0"
+    "sha256": "7d45155d13049ac37d935b439deb01d36962b272d177b9e961f516a86baa1f6e"
   },
   "predecessors": [
     {
       "packetId": "fci-5c.1",
-      "receiptSha256": "5dcca88dac4fe32d608c585aacd4f22bf2a6316dd0de4d76eadf226cbf211f1c"
+      "receiptSha256": "e94701c8fa59c928348acd019fddec5beaea6d57de30e9e1c3ed5ec4ec2f258e"
+    },
+    {
+      "packetId": "fci-3c",
+      "receiptSha256": "f83bfef5e5af64da521dee51cc7afd9094c4ba69a9173bf3092245055ba10f3e"
+    },
+    {
+      "packetId": "fci-5b",
+      "receiptSha256": "a44fd341129c0c759cfde62322aa725a5c1c1c59a232fb3f6fd14e4ec5e313c8"
     }
   ],
   "allowedPaths": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/ci-runner/src/lib.rs",
+    "crates/ci-runner/src/snapshot.rs",
+    "crates/ci-runner/src/sandbox.rs",
+    "crates/ci-runner/tests/contracts.rs",
+    "crates/ci-runner/tests/contracts/sandbox_process.rs",
+    "crates/ci-runner/tests/contracts/snapshot_resource.rs",
+    "crates/ci-runner/tests/unit/snapshot_tests.rs",
+    "crates/ci-adapter-tsc-rs-protocol/src/lib.rs",
+    "crates/ci-adapter-tsc-rs-protocol/tests/protocol.rs",
+    "crates/ci-adapter-tsc-rs-control/src/lib.rs",
+    "crates/ci-adapter-tsc-rs-control/tests/plan.rs",
+    "crates/ci-adapter-tsc-rs-control/tests/observation.rs",
+    "crates/ci-adapter-tsc-rs-control/tests/fixtures",
+    "crates/ci-harness-tsc-rs/src/main.rs",
+    "crates/ci-harness-tsc-rs/tests/process.rs",
+    "crates/ci-harness-tsc-rs/tests/unit/main_tests.rs",
+    "crates/xtask/src/main.rs",
+    "crates/xtask/src/fci_observation_shadow.rs",
     "docs/design/greenfield/slices/fci-5c.1b-h2-5g-observation.md",
     "docs/design/greenfield/slices/README.md",
     "docs/design/greenfield/functional-ci-evidence.md",
-    "docs/design/greenfield/post-h1-completion-slices.md",
+    "ratchets/fci-5c1b-observation.v1.json",
     "ratchets/fci-readiness/fci-5c.1b.v1.json"
   ],
   "forbiddenPrefixes": [
@@ -26,15 +54,21 @@
     "crates/emitter",
     "crates/harness",
     "crates/oracle",
-    "crates/xtask",
-    "crates/ci-harness-tsc-rs",
-    "crates/ci-runner",
+    "crates/ci-core",
+    "crates/ci-testkit",
     ".github/workflows",
+    ".github/ci/contracts/h2-5g",
     "ratchets/h2"
   ],
   "proof": {
     "commands": [
-      "node .github/ci/slice-readiness.mjs --schema-check"
+      "cargo xtask test ci-runner",
+      "cargo xtask test ci-adapter-tsc-rs-protocol",
+      "cargo xtask test ci-adapter-tsc-rs-control",
+      "cargo xtask test ci-harness-tsc-rs",
+      "cargo xtask fci-h2-observation-shadow --fixture",
+      "cargo xtask fci-h2-observation-shadow --full",
+      "node .github/ci/slice-readiness.mjs --check fci-5c.1b"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-5c.1b.v1.json"
   }

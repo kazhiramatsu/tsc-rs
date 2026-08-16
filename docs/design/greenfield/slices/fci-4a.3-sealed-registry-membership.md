@@ -98,7 +98,7 @@ normal runtime packages must not depend on it.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-core --test registry_membership
+cargo test -p tsc-rs-ci-core --test contracts registry_membership
 cargo test -p tsc-rs-ci-testkit
 cargo tree -p tsc-rs-ci-testkit --edges normal,build,dev
 node .github/ci/slice-readiness.mjs --check fci-4a.3

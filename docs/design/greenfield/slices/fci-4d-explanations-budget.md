@@ -75,7 +75,7 @@ semantic action or claim a performance result for H2.
 
 ```text
 cargo xtask test ci-core
-cargo test -p tsc-rs-ci-core --test explain
+cargo test -p tsc-rs-ci-core --test contracts explain
 node .github/ci/slice-readiness.mjs --check fci-4d
 ```
 

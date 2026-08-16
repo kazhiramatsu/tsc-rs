@@ -5,12 +5,12 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-4a.1-graph-schema.md",
-    "sha256": "250889025db5f88e73c3606b1a9b97b0a70e9819b1c4180fe413b50ec75d3dcf"
+    "sha256": "b906b6a407ea6b5eb8184bbe1eeb260cb3c0ac0a2d731aeb04da2c6a2ead0b20"
   },
   "predecessors": [
     {
       "packetId": "fci-3c",
-      "receiptSha256": "e1f91a9a3774f938adf222092deab98da3952a80108a30f8ad3e2ab064046390"
+      "receiptSha256": "f83bfef5e5af64da521dee51cc7afd9094c4ba69a9173bf3092245055ba10f3e"
     }
   ],
   "allowedPaths": [
@@ -36,7 +36,7 @@
   ],
   "proof": {
     "commands": [
-      "cargo test -p tsc-rs-ci-core --test graph_schema",
+      "cargo test -p tsc-rs-ci-core --test contracts graph_schema",
       "node .github/ci/slice-readiness.mjs --check fci-4a.1"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-4a.1.v1.json"

@@ -5,12 +5,12 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-4a.3-sealed-registry-membership.md",
-    "sha256": "dc33f2f45d5e4939273dd7a15d95ffa8d153aa6412b05daf4589e44c951faf5b"
+    "sha256": "95adb7778b6f4c590c2b183dca23302a2d4ded8c055ea95efc67bcb51c6a3353"
   },
   "predecessors": [
     {
       "packetId": "fci-4a.2",
-      "receiptSha256": "0cd446220a48fe05475dc96fce44abb812cd87b5a219a4e7d3ed8ea6371ac67c"
+      "receiptSha256": "c49a0a862e298568ceb9f36853039fab9c6f0d9f2168de71a8a72a9b19842e90"
     }
   ],
   "allowedPaths": [
@@ -41,7 +41,7 @@
   ],
   "proof": {
     "commands": [
-      "cargo test -p tsc-rs-ci-core --test registry_membership",
+      "cargo test -p tsc-rs-ci-core --test contracts registry_membership",
       "cargo test -p tsc-rs-ci-testkit",
       "cargo tree -p tsc-rs-ci-testkit --edges normal,build,dev",
       "node .github/ci/slice-readiness.mjs --check fci-4a.3"

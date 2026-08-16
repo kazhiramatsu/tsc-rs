@@ -1,6 +1,10 @@
 # FCI-5b: miss-only candidate harness
 
-Status: **ready (FCI-5b v1; non-authoritative shadow)**.
+Status: **closed (FCI-5b v1; non-authoritative shadow; proof green 2026-08-16)**.
+The process contract below is implemented by `crates/ci-harness-tsc-rs` with
+the strict decoders in `crates/ci-adapter-tsc-rs-protocol`; every recorded
+proof command is green and the readiness envelope records the closure. The
+prose below remains as packet history.
 
 This packet adds the process boundary for one candidate action. The harness is
 an untrusted, miss-only executable: it receives one canonical
@@ -79,8 +83,12 @@ cargo xtask test ci-harness-tsc-rs
 cargo xtask test ci-adapter-tsc-rs-control
 cargo tree -p tsc-rs-ci-harness --edges normal,build,dev
 cargo tree -p tsc-rs-ci-adapter-control --edges normal,build,dev
-node .github/ci/slice-readiness.mjs --check fci-5b
+node .github/ci/slice-readiness.mjs --schema-check
 ```
+
+While the packet was `ready` its readiness check was
+`node .github/ci/slice-readiness.mjs --check fci-5b`; the closed envelope
+retains only the still-runnable schema check.
 
 Fixtures cover canonical replay, malformed and truncated frames, exact output
 limits, trailing input, non-zero child failure, and changing the ambient

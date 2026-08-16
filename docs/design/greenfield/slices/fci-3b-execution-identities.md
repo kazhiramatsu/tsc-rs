@@ -86,7 +86,7 @@ authority in this packet.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-core --test identity
+cargo test -p tsc-rs-ci-core --test contracts identity
 node .github/ci/slice-readiness.mjs --check fci-3b
 ```
 
