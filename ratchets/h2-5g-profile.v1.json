@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "1525294555d27ba2981b575f3acf1c1612fce0fe42fb32ccffdfc0d7824a5b5a"
+    "sha256": "d555cce4e264d9c53de92de748403ab2b8f6ac5ac9a3aa33f1e6a8acdc3be84b"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
@@ -340,7 +340,7 @@
     },
     {
       "path": "crates/xtask/src/main.rs",
-      "sha256": "95306c05e97c9caa58a5b058ce328714c54ffeaa5884b1d7695e9d5716e97381"
+      "sha256": "481204492d6f7dd6f86cd61043b1e4bffd31810e10b68c865aedd0d1ff309655"
     },
     {
       "path": "crates/xtask/tests/unit/h2_1d_acceptance/tests.rs",
@@ -1270,5 +1270,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "587d609721a2b6bb7bcbab11b97f95f0fee128f0da09c24bf00868998f40a9ee"
+  "profile_fingerprint_sha256": "de22f2710233e9d1ad99f111550b0287ab6048048848e372be5eb5151695d7c1"
 }

@@ -70,6 +70,14 @@ exact-key hosted cache consumption. It preserves the hosted ts-tests-only scope
 and owner-control exclusion. It does not change any command, count, or
 acceptance requirement in the H2.5g legacy closure route below.
 
+The first non-authoritative impact/restart shadow is available through
+cargo xtask acceptance-plan and cargo xtask acceptance-slice. It is
+conservative and fail-closed: shared or unknown inputs select all slices,
+disconnected documentation/framework inputs select none, and every slice
+failure records the environment/semantic restart class. These commands are
+local evidence only; the hosted workflow remains the fixed unsplit command
+until FCI-9b proves and activates the complete graph.
+
 The H2.5g exception is limited to the legacy closing route in this document.
 The packet-control bootstrap adds only the explicitly bounded FCI shadow
 exception; it never changes the H2.5g authority and expires as a pre-closure

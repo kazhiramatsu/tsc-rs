@@ -1740,6 +1740,7 @@ export function validatePolicy(policy) {
     "qualification-result",
     "merge-receipt",
     "failure-artifact",
+    "acceptance-failure.v1",
     "h1-emit-profile",
     "h1-emit-observation",
     "h1-emit-performance",

@@ -75,6 +75,7 @@ const ROOTLESS_CASE_ID =
   "typescript-6.0.3/compiler/jsFileCompilationWithoutJsExtensions.ts#default";
 
 const HOSTED_MODULE_PATHS = [
+  "crates/xtask/src/bounded_pipeline.rs",
   "crates/xtask/src/h1_emit_acceptance.rs",
   "crates/xtask/src/h2_1a_acceptance.rs",
   "crates/xtask/src/h2_1b_acceptance.rs",
@@ -131,7 +132,7 @@ function rustOwnerBoundaryFixture() {
       : `    ${callee}(workspace)?;`,
   ).join("\n");
   const hostedStatements = [
-    ...HOSTED_MODULE_PATHS.map((modulePath) =>
+    ...HOSTED_MODULE_PATHS.filter((modulePath) => !modulePath.endsWith("/bounded_pipeline.rs")).map((modulePath) =>
       `${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)}::run(&workspace)?;`,
     ),
     "h2_2c_acceptance::run_h2_4a(&workspace)?;",
@@ -702,7 +703,7 @@ test("policy and every qualification schema boundary are valid", () => {
   assert.equal(policy.hosted_acceptance.only_acceptance_tests, true);
   assert.equal(
     Object.keys(policy.hosted_acceptance.rust_source_sha256).length,
-    15,
+    16,
   );
   assert.match(
     policy.hosted_acceptance.rust_source_sha256["crates/xtask/src/main.rs"],

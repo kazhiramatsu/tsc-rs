@@ -249,6 +249,16 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/program/tests/unit/option_validation_tests.rs",
 ]);
 
+// These files implement the non-authoritative acceptance impact/restart
+// shadow. They are not read by the fixed H2.5g acceptance command and must
+// not silently become H2 runtime evidence inputs.
+const NON_RUNTIME_SHADOW_INPUTS = new Set([
+  "crates/xtask/src/acceptance_plan.rs",
+  "crates/xtask/src/acceptance_slices.rs",
+  "crates/xtask/tests/unit/acceptance_plan/tests.rs",
+  "crates/xtask/tests/unit/acceptance_slices/tests.rs",
+]);
+
 function fail(message) {
   throw new Error(message);
 }
@@ -313,6 +323,7 @@ function changedRuntimeInputPaths() {
     ]),
   ]
     .filter((relativePath) => !relativePath.startsWith("crates/oracle/"))
+    .filter((relativePath) => !NON_RUNTIME_SHADOW_INPUTS.has(relativePath))
     .filter((relativePath, index, paths) => paths.indexOf(relativePath) === index)
     .sort();
 }

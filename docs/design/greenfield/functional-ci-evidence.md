@@ -53,6 +53,30 @@ marked it `ready`; a stage heading or this architecture document alone is not
 authorization. Authoritative H2.5g commands and their evidence remain the only
 closure authority until the later activation packets explicitly say otherwise.
 
+### 0.1 Current impact/restart shadow
+
+The repository now contains a small, non-authoritative projection of the
+future demand-driven plan:
+
+    cargo xtask acceptance-plan --paths-file <newline-delimited changed paths>
+    cargo xtask acceptance-slice <slice-id>
+
+The planner owns a conservative path-to-slice table. A shared compiler,
+fixture, oracle, manifest, workflow, or unknown input selects every current
+acceptance slice; only explicitly disconnected documentation/framework inputs
+select none. The individual runner writes a bounded
+target/ci/acceptance-failures/<slice>.json artifact. Its class is either
+environment (the same slice may be retried) or semantic (the expected and
+actual result must be investigated before rerun). An unrecognized error is
+classified as semantic, so the restart policy cannot hide a test failure.
+
+This shadow is useful for local diagnosis and for proving the slice/restart
+contract, but it is not a hosted acceptance result and does not mint cache or
+root authority. GitHub Actions remains on the fixed unsplit command until the
+FCI-9b activation packet has proved the complete hosted graph and separately
+approved the matrix/reuse boundary. The H2.5g closure route therefore remains
+unchanged.
+
 ## 1. Required result
 
 For a versioned functional-CI profile, the semantic engine implements one

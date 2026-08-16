@@ -16,6 +16,8 @@ use sha2::{Digest, Sha256};
 use tsc_checker::{CompilerOptions, InputFile};
 use tsc_diagnostics::DiagnosticList;
 
+mod acceptance_plan;
+mod acceptance_slices;
 mod bounded_pipeline;
 mod ci_conformance_receipt;
 mod completion;
@@ -72,6 +74,8 @@ fn main() {
         Some("oracle-refresh") => run_or_exit(oracle_refresh(args)),
         Some("goldens-diff") => run_or_exit(goldens_diff(args)),
         Some("acceptance") => run_or_exit(acceptance(args)),
+        Some("acceptance-plan") => run_or_exit(acceptance_plan_command(args)),
+        Some("acceptance-slice") => run_or_exit(acceptance_slice_command(args)),
         Some("h2-5a-acceptance") => run_or_exit(h2_5a_acceptance(args)),
         Some("h2-5a-owner-controls") => run_or_exit(h2_5a_owner_controls(args)),
         Some("h2-5b-acceptance") => run_or_exit(h2_5b_acceptance(args)),
@@ -4289,9 +4293,60 @@ fn goldens_diff(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>
     Ok(())
 }
 
-/// Fixed GitHub Actions entrypoint for acceptance tests sourced from
-/// `ts-tests`. Internal phase tests and evidence producers belong to the
-/// complete local `ci` command, not this hosted boundary.
+/// Produce a conservative, non-authoritative impact plan for individually
+/// rerunnable acceptance slices. The fixed acceptance command below remains
+/// the H2 closure authority and intentionally does not accept this selector.
+fn acceptance_plan_command(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut paths_file = None;
+    let mut all = false;
+    while let Some(argument) = args.next() {
+        match argument.as_str() {
+            "--paths-file" => {
+                if paths_file.is_some() {
+                    return Err("duplicate acceptance-plan --paths-file".into());
+                }
+                paths_file = Some(PathBuf::from(
+                    args.next()
+                        .ok_or("missing value after acceptance-plan --paths-file")?,
+                ));
+            }
+            "--all" => {
+                if all {
+                    return Err("duplicate acceptance-plan --all".into());
+                }
+                all = true;
+            }
+            _ => return Err(format!("unexpected acceptance-plan argument: {argument}").into()),
+        }
+    }
+    if all && paths_file.is_some() {
+        return Err("acceptance-plan --all cannot be combined with --paths-file".into());
+    }
+    let plan = if all {
+        acceptance_plan::full_plan()
+    } else {
+        let path = paths_file
+            .ok_or("acceptance-plan requires --paths-file <newline-delimited paths> or --all")?;
+        acceptance_plan::plan_from_file(&path)?
+    };
+    print!("{}", plan.json()?);
+    Ok(())
+}
+
+/// Execute one non-authoritative acceptance projection and retain a bounded
+/// classification artifact if it fails. This is the unit of future matrix
+/// reruns; it is not the current H2 closure command.
+fn acceptance_slice_command(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let slice = args.next().ok_or("acceptance-slice requires a slice id")?;
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected acceptance-slice argument: {argument}").into());
+    }
+    acceptance_slices::run(&slice, &find_workspace_root()?)
+}
+
+/// Fixed GitHub Actions entrypoint for acceptance tests sourced from the
+/// TypeScript test corpus. Internal phase tests and evidence producers belong
+/// to the complete local command, not this hosted boundary.
 fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     if let Some(argument) = args.next() {
         return Err(format!("unexpected acceptance argument: {argument}").into());
