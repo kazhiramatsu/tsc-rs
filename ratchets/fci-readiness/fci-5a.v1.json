@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-5a",
   "status": "ready",
-  "trustedBase": "b8a0fbcacd87e9dd555d132f012102ad6ea8a439",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-5a-protocol-control-plan.md",
     "sha256": "135c57ecca825e083ac789a0f364f58d51acc1dfe2e75af71ab6d02a12cbe335"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-4d",
-      "receiptSha256": "4a7c3872522c8f194d2b8530a5f9f6f4cbb17f7816e817393d3c35e11a0a07c3"
+      "receiptSha256": "19db091d25667216e123a29c512385e60a2267630635794408616da8a869e748"
     }
   ],
   "allowedPaths": [

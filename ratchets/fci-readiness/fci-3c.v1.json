@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-3c",
   "status": "ready",
-  "trustedBase": "2e23d479a45014849997eb640924ff4ff84f22f3",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-3c-source-sandbox-resource.md",
     "sha256": "c27d027e48a2ffc2ff42955615425b8ddba01502459d252d13e63265f12748b3"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-3b",
-      "receiptSha256": "f356153a1502d9118659331a77fb178999cf67ab0438b74f7cadb62370dee8b7"
+      "receiptSha256": "7cc51f7b7d88124e8622e00cf14af939238708a401f869fa0e21bcce8917d097"
     }
   ],
   "allowedPaths": [

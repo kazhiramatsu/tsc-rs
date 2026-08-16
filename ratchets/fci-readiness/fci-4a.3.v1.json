@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-4a.3",
   "status": "ready",
-  "trustedBase": "9ee8948a880b57201ad38d5c416fc47aac12b4b3",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-4a.3-sealed-registry-membership.md",
     "sha256": "dc33f2f45d5e4939273dd7a15d95ffa8d153aa6412b05daf4589e44c951faf5b"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-4a.2",
-      "receiptSha256": "c3abd033dc3d9214f7753a62235b5e9aa5fa3d67d36dd68d0ae7b3c5a37630a6"
+      "receiptSha256": "0cd446220a48fe05475dc96fce44abb812cd87b5a219a4e7d3ed8ea6371ac67c"
     }
   ],
   "allowedPaths": [

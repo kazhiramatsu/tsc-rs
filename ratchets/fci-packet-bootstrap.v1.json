@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "packet-control-bootstrap",
   "status": "ready",
-  "trustedBase": "315746b775eda9efe1b2ae77a3a7dc58a3f348cb",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "schemaPath": ".github/ci/contracts/slice-readiness.v1.schema.json",
   "schemaSha256": "712a0c64982e06bcf32f433bced3f96b6ac731f15d9ad4594d9e069e5d32eedd",
   "checkerPath": ".github/ci/slice-readiness.mjs",
