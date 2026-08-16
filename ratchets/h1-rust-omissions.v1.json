@@ -8,7 +8,7 @@
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "ef16d51ecc12d34aa1a20a3ee82ae9545ff722727572f22e5d6452bfbe884acb"
+    "sha256": "b7a8ba8fb2984ade6ae36845612d548940385fdbdb88c0f6b8bcf7140f02c290"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
@@ -17,11 +17,11 @@
   "authorities": {
     "compatibility_residual": {
       "path": "docs/design/greenfield/compiler-compatibility-residual.md",
-      "sha256": "7d8b2ada13ef919a03b3fd28dcd9fbc0080c7f502f0f341ce834657fe58c90d4"
+      "sha256": "1607ca201fdc4d94a4bcc2e7224997e5825ffe02ebcfe9fc1d54ba7ab66d0014"
     },
     "h1_execution": {
       "path": "docs/design/greenfield/h1-emit.md",
-      "sha256": "250c35515b336cf938c837dfa73ae0ce6c3192a56bb015acbac1fe07f33feccc"
+      "sha256": "9d8e88ccd617d1f784e897fc1e340242d21338d5f00802e2f306faaf6e72d9a3"
     },
     "emit_profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
@@ -39,17 +39,17 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 226,
-    "rust_source_files": 211,
-    "cargo_manifests": 15,
-    "bytes": 14736894,
-    "tree_sha256": "384c46720ca7759666d6284f9737ee57e773e09479726538dd8d7af9ab6c34b4"
+    "file_count": 263,
+    "rust_source_files": 242,
+    "cargo_manifests": 21,
+    "bytes": 16268503,
+    "tree_sha256": "6ef3fc115dbadc6f57ef337c0bc41b91951ebe2b63da4c5245273a34ebec80a4"
   },
   "summary": {
     "production_boundary_omissions": 0,
     "absence_proofs": 1,
     "option_projection_omissions": 0,
-    "explicit_checker_emit_elisions": 24,
+    "explicit_checker_emit_elisions": 22,
     "existing_prerequisites": 14
   },
   "existing_prerequisites": [
@@ -214,18 +214,6 @@
       "closure": "profile-control"
     },
     {
-      "id": "computed-property-loop-capture",
-      "anchor": "computed-property-loop-capture-elided",
-      "disposition": "inactive-at-ESNext",
-      "closure": "profile-control"
-    },
-    {
-      "id": "private-scope-loop-capture",
-      "anchor": "private-scope-loop-capture-elided",
-      "disposition": "adjacent-class-field",
-      "closure": "profile-control"
-    },
-    {
       "id": "constructor-capture-lexical-this",
       "anchor": "constructor-capture-this-elided",
       "disposition": "adjacent-class-field",
@@ -361,7 +349,7 @@
         "column": 1,
         "text": "    \"crates/program\",\n    \"crates/emitter\",\n    \"crates/compiler\",",
         "text_sha256": "11d80371dad721c0702ded12bc7d6c64eaf97b4b14135a85a3fddb11f67ed08b",
-        "file_sha256": "d6ed0524bea8604aaf2abb9dba057e90e1e27473526ce432f31d5880705eab80"
+        "file_sha256": "5bca15a9a5a153019c3ee2de4603f2b3cf6fbdb7b2ea7691c259bf0869fa7039"
       },
       {
         "id": "emitter-manifest-owner",
@@ -388,7 +376,7 @@
         "column": 1,
         "text": "pub struct EmitOutputPaths {\n    javascript: Option<PathBuf>,\n    javascript_map: Option<PathBuf>,\n    declaration: Option<PathBuf>,\n    declaration_map: Option<PathBuf>,\n    build_info: Option<PathBuf>,\n}",
         "text_sha256": "7b9332f2f24bd1e1ac1a7a6c7379f51b9b5161b02ba290af1eb9fd8b98d86f70",
-        "file_sha256": "3ae9ff46faf3289f765ada85b17726df23ce00ce17217999c165211ce484ee20"
+        "file_sha256": "dda6079d9039c119d06dbcf2b9e2fa735dbbfca59faf7dee1a29dbc9b12b6b9a"
       },
       {
         "id": "emitter-output-sink-protocol",
@@ -438,20 +426,20 @@
       {
         "id": "emitter-transform-arena",
         "path": "crates/emitter/src/factory.rs",
-        "line": 83,
+        "line": 152,
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "b79aa1a9cc47a9047b31b3a97ffc6985a188226c0d60bdb304099d9234863779"
+        "file_sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
       },
       {
         "id": "emitter-node-factory",
         "path": "crates/emitter/src/factory.rs",
-        "line": 360,
+        "line": 633,
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "b79aa1a9cc47a9047b31b3a97ffc6985a188226c0d60bdb304099d9234863779"
+        "file_sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
       },
       {
         "id": "emitter-transform-flags",
@@ -460,16 +448,16 @@
         "column": 1,
         "text": "pub struct TransformFlags(i32);",
         "text_sha256": "7c653a426ba14a23c6ac44c6c084daceaab7fd4dd8e74b8b181e04bb2a0fa9f6",
-        "file_sha256": "a36a726a3ae124803fb332139ab9c9fa55cffc5739a303128fe608fe7e120a89"
+        "file_sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
       },
       {
         "id": "emitter-emit-metadata",
         "path": "crates/emitter/src/metadata.rs",
-        "line": 252,
+        "line": 333,
         "column": 1,
         "text": "pub struct EmitMetadata {",
         "text_sha256": "8ef23fa666dcb24593e950f34243354d67421355e90ba282ceead155eff4bf82",
-        "file_sha256": "d074b3c9e47bdce14dabe88c04dc0f4c3da871c6e1b7078454b28450777abc01"
+        "file_sha256": "bb6448b10dbcb11b3baf59a4b92a1e698b29a3e83e11b6fc831d9fa041b06831"
       },
       {
         "id": "emitter-transformation-context",
@@ -478,16 +466,16 @@
         "column": 1,
         "text": "pub struct TransformationContext {",
         "text_sha256": "a5d206c9a41608a94d45968e79501af02c879c7e8679fe82d310c007ef891c32",
-        "file_sha256": "a36a726a3ae124803fb332139ab9c9fa55cffc5739a303128fe608fe7e120a89"
+        "file_sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
       },
       {
         "id": "emitter-transform-nodes",
         "path": "crates/emitter/src/transform.rs",
-        "line": 858,
+        "line": 894,
         "column": 1,
         "text": "pub fn transform_nodes<'transformers>(\n    arena: TransformArena,",
         "text_sha256": "ee73c8006515252e70d72539adf77b69e552e86480b442b60a9aece45010ca0a",
-        "file_sha256": "a36a726a3ae124803fb332139ab9c9fa55cffc5739a303128fe608fe7e120a89"
+        "file_sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
       },
       {
         "id": "emitter-text-writer",
@@ -496,124 +484,124 @@
         "column": 1,
         "text": "pub struct TextWriter {",
         "text_sha256": "7b734811755d47e0c85b6139208b95d862f5d7db46da45c9459aaecb6e63286f",
-        "file_sha256": "26037baa960644ad971c33c1ce2774a4801c142a781c45950baeb76e7e3aee14"
+        "file_sha256": "6d6dcda1c678d6835e795cdb9b5523d826a9e6373ce866760f5c77f4488bc5ac"
       },
       {
         "id": "emitter-printer-factory",
         "path": "crates/emitter/src/printer.rs",
-        "line": 280,
+        "line": 766,
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "6f732365f79aa97b77e1e1a051dd6df4fecaeec7b5a74ffec05d19593cbddbbe"
+        "file_sha256": "ece1dc03ed594ecc64c87607cb3e8bc37d25fb2fef7032986307cc5aee791b16"
       },
       {
         "id": "emitter-position-domains",
         "path": "crates/emitter/src/position.rs",
-        "line": 69,
+        "line": 96,
         "column": 1,
         "text": "pub enum SourceRange {",
         "text_sha256": "c000e2e0be185e253b9d0b9e3e2ac3b14ebb42854abc480b7c8ce866c00f428f",
-        "file_sha256": "7ebf0bb8faa88a79ffe06886f6d2096416f63c23fd2e19967822841141b94688"
+        "file_sha256": "f70397ff2bb756810d2fd6edf912a62cfe938b50ae491337dc9d5676899cb243"
       },
       {
         "id": "emitter-source-map-recorder",
         "path": "crates/emitter/src/printer.rs",
-        "line": 243,
+        "line": 729,
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "6f732365f79aa97b77e1e1a051dd6df4fecaeec7b5a74ffec05d19593cbddbbe"
+        "file_sha256": "ece1dc03ed594ecc64c87607cb3e8bc37d25fb2fef7032986307cc5aee791b16"
       },
       {
         "id": "emitter-resolver-protocol",
         "path": "crates/emitter/src/resolver.rs",
-        "line": 181,
+        "line": 210,
         "column": 1,
         "text": "pub trait EmitResolver {",
         "text_sha256": "ae109ea619b5241506500e367bb7aae9e5f56333941a673b9fbaf5c412e8f0fd",
-        "file_sha256": "48e7d2cc49295efa9b9a3bb4fc96553b4c02c5ef73ac61d7238cb5758418396f"
+        "file_sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
       },
       {
         "id": "emitter-script-transformer-selection",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 92,
+        "line": 100,
         "column": 1,
         "text": "pub fn get_script_transformers<'resolver>(",
         "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
-        "file_sha256": "0047ea29f67524feb41c38ec3e0cfd03092e04d3fb1483933ecfd65799e10470"
+        "file_sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
       },
       {
         "id": "emitter-transform-typescript",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 299,
+        "line": 336,
         "column": 1,
         "text": "pub fn transform_type_script<'resolver>(",
         "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
-        "file_sha256": "0047ea29f67524feb41c38ec3e0cfd03092e04d3fb1483933ecfd65799e10470"
+        "file_sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
       },
       {
         "id": "emitter-transform-class-fields",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 324,
+        "line": 369,
         "column": 1,
         "text": "pub fn transform_class_fields<'resolver>(",
         "text_sha256": "6725dc3040c7b665e642b0595eb187992791ad9331c370100c1dfd03cbd38159",
-        "file_sha256": "0047ea29f67524feb41c38ec3e0cfd03092e04d3fb1483933ecfd65799e10470"
+        "file_sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
       },
       {
         "id": "emitter-transform-ecmascript-module",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 334,
+        "line": 379,
         "column": 1,
         "text": "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
         "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
-        "file_sha256": "0047ea29f67524feb41c38ec3e0cfd03092e04d3fb1483933ecfd65799e10470"
+        "file_sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
       },
       {
         "id": "emitter-changed-import-printer",
         "path": "crates/emitter/src/printer.rs",
-        "line": 1386,
+        "line": 2029,
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "6f732365f79aa97b77e1e1a051dd6df4fecaeec7b5a74ffec05d19593cbddbbe"
+        "file_sha256": "ece1dc03ed594ecc64c87607cb3e8bc37d25fb2fef7032986307cc5aee791b16"
       },
       {
         "id": "checker-scoped-emit-session",
         "path": "crates/checker/src/emit.rs",
-        "line": 18,
+        "line": 19,
         "column": 1,
         "text": "pub struct CheckerSession<'program> {",
         "text_sha256": "c116253f653dd9a956605df77c212d4cdf2f1de1f490f223842fce7f005920ca",
-        "file_sha256": "735824f83b731c975085c20fa2a63a1af7adcd9fc2455a3a69e0bc8774bb3689"
+        "file_sha256": "7f9d25f8b398d65a76f6f017ca3f9338e9500f9cfca907a25fa8797a5872dbc0"
       },
       {
         "id": "checker-emit-resolver-adapter",
         "path": "crates/checker/src/emit.rs",
-        "line": 78,
+        "line": 102,
         "column": 1,
         "text": "impl EmitResolver for CheckerSession<'_> {",
         "text_sha256": "a3574a190846d6bbe3db3311fedd3678739660afbe2f1b146111edcceccbb1cd",
-        "file_sha256": "735824f83b731c975085c20fa2a63a1af7adcd9fc2455a3a69e0bc8774bb3689"
+        "file_sha256": "7f9d25f8b398d65a76f6f017ca3f9338e9500f9cfca907a25fa8797a5872dbc0"
       },
       {
         "id": "checker-value-alias-producer",
         "path": "crates/checker/src/modules.rs",
-        "line": 465,
+        "line": 636,
         "column": 5,
         "text": "pub(crate) fn emit_is_value_alias_declaration(",
         "text_sha256": "df1c2306bb3ade145585e2643e6444cdefa71cb6fa5e7607eaafbc121c57f4c9",
-        "file_sha256": "0f390f0901f39143045e093a1499c98f957fa620a71662cc55589bdd808d0eb7"
+        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
       },
       {
         "id": "checker-referenced-alias-producer",
         "path": "crates/checker/src/modules.rs",
-        "line": 595,
+        "line": 766,
         "column": 5,
         "text": "pub(crate) fn emit_is_referenced_alias_declaration(",
         "text_sha256": "13ff591fc4def3e7f9b8c6325ea63baf7939970e1cdeac1f9f3efa84aa3d6fb8",
-        "file_sha256": "0f390f0901f39143045e093a1499c98f957fa620a71662cc55589bdd808d0eb7"
+        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
       },
       {
         "id": "active-transform-oracle",
@@ -627,47 +615,47 @@
       {
         "id": "prepared-program-emitting-builder",
         "path": "crates/program/src/prepared.rs",
-        "line": 1069,
+        "line": 1278,
         "column": 5,
         "text": "pub fn emitting_builder(\n        path_context: PathContext,\n        compiler_options: CompilerOptions,\n    ) -> PreparedProgramBuilder {",
         "text_sha256": "deac2532e1f03c9f92934b1c3b401a65c77cb1e75d0b9c8e96ed353bbc7e6c16",
-        "file_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac"
+        "file_sha256": "a73cd9f27a67185d36b4c5676087537301b4641909b3db9410f427e3b6f8cb78"
       },
       {
         "id": "program-session-owner",
         "path": "crates/compiler/src/lib.rs",
-        "line": 62,
+        "line": 66,
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "212f92b3a2101ddf2528be5179fda9616048161f1a17bcacc348a11a776999da"
+        "file_sha256": "fce92b10f1a9323a76053a822ab314e22953c1152783447a8cbe1465ab618788"
       },
       {
         "id": "program-session-run",
         "path": "crates/compiler/src/lib.rs",
-        "line": 648,
+        "line": 690,
         "column": 5,
         "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
         "text_sha256": "86127c4bedf713e3a340c844b3a95f20427c4d559f0762c433c114252388fc90",
-        "file_sha256": "212f92b3a2101ddf2528be5179fda9616048161f1a17bcacc348a11a776999da"
+        "file_sha256": "fce92b10f1a9323a76053a822ab314e22953c1152783447a8cbe1465ab618788"
       },
       {
         "id": "program-session-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 655,
+        "line": 711,
         "column": 5,
         "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "212f92b3a2101ddf2528be5179fda9616048161f1a17bcacc348a11a776999da"
+        "file_sha256": "fce92b10f1a9323a76053a822ab314e22953c1152783447a8cbe1465ab618788"
       },
       {
         "id": "program-session-memory-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 696,
+        "line": 766,
         "column": 9,
         "text": "let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
         "text_sha256": "1523dcd4656d6ced2296771c8c2485ca7bae7b4ece4ae479d17f923938690fd9",
-        "file_sha256": "212f92b3a2101ddf2528be5179fda9616048161f1a17bcacc348a11a776999da"
+        "file_sha256": "fce92b10f1a9323a76053a822ab314e22953c1152783447a8cbe1465ab618788"
       },
       {
         "id": "emitter-host-protocol",
@@ -685,25 +673,25 @@
         "column": 1,
         "text": "pub fn preflight_emit(",
         "text_sha256": "cadeaacab2c6b8cff7f06e8ac04d677e927e8404ce878894cec000b93eb46be0",
-        "file_sha256": "3ae9ff46faf3289f765ada85b17726df23ce00ce17217999c165211ce484ee20"
+        "file_sha256": "dda6079d9039c119d06dbcf2b9e2fa735dbbfca59faf7dee1a29dbc9b12b6b9a"
       },
       {
         "id": "emitter-emit-files",
         "path": "crates/emitter/src/execute.rs",
-        "line": 283,
+        "line": 263,
         "column": 1,
         "text": "pub fn emit_files(",
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "42eb585b61ad92103e4a019dbfb3647b401f2bedde4a0e81c4213fd8c8a920ec"
+        "file_sha256": "54d2dfa62b0ac5a57239e4e5c5f1939ff4e2702261da4572ed20f35124a715db"
       },
       {
         "id": "checker-live-emit-callback",
         "path": "crates/checker/src/lib.rs",
-        "line": 1220,
+        "line": 1292,
         "column": 1,
         "text": "pub fn check_program_with_authoritative_modules_at_for_emit(",
         "text_sha256": "9a6778daa37b4dbd06c9aea5c03e49a2d7cf3cc17acd8bf568158f3f81e7a154",
-        "file_sha256": "dceff2b9df932fadd72e7276207920151f5fea618dd2df7a0a3d5e951d430eea"
+        "file_sha256": "e0764e90b9133dca4413fb402626fd9e3ac26862cae54bd0fd663089ea99bd6f"
       },
       {
         "id": "h1-no-emit-canary",
@@ -717,20 +705,20 @@
       {
         "id": "checker-session-local-state",
         "path": "crates/checker/src/lib.rs",
-        "line": 1673,
+        "line": 1799,
         "column": 9,
         "text": "let mut state = state::CheckerState::from_snapshot(&snapshot, options);",
         "text_sha256": "66431a38f7144074bc77255200f22293db4d3cec0c2a25e8f9803518da8f1b6a",
-        "file_sha256": "dceff2b9df932fadd72e7276207920151f5fea618dd2df7a0a3d5e951d430eea"
+        "file_sha256": "e0764e90b9133dca4413fb402626fd9e3ac26862cae54bd0fd663089ea99bd6f"
       },
       {
         "id": "checker-state-collapse",
         "path": "crates/checker/src/lib.rs",
-        "line": 1863,
+        "line": 1971,
         "column": 9,
         "text": "partial_checks = state.partial_check_records.clone();\n        authoritative_failure = state.take_authoritative_module_failure();",
         "text_sha256": "8c4b08d85fa65cffc07ed4b19a65542608d4991af99d50672f5fe53d65d75885",
-        "file_sha256": "dceff2b9df932fadd72e7276207920151f5fea618dd2df7a0a3d5e951d430eea"
+        "file_sha256": "e0764e90b9133dca4413fb402626fd9e3ac26862cae54bd0fd663089ea99bd6f"
       },
       {
         "id": "display-clone-not-emitter",
@@ -753,11 +741,11 @@
       {
         "id": "prepared-program-current-shape",
         "path": "crates/program/src/prepared.rs",
-        "line": 1042,
+        "line": 1251,
         "column": 1,
         "text": "pub struct PreparedProgram {\n    mode: PreparedProgramMode,\n    path_context: PathContext,\n    compiler_options: CompilerOptions,\n    program_options: ProgramOptions,",
         "text_sha256": "7154a3ed2670d5958b7d02d684d1bd43295530a7de7f26ad0a1b6540d9c2a706",
-        "file_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac"
+        "file_sha256": "a73cd9f27a67185d36b4c5676087537301b4641909b3db9410f427e3b6f8cb78"
       },
       {
         "id": "prepared-source-emit-facts",
@@ -766,16 +754,16 @@
         "column": 5,
         "text": "may_be_emitted: bool,\n    implied_node_format: Option<ResolutionMode>,\n    implied_node_format_for_emit: Option<ResolutionMode>,",
         "text_sha256": "1aba6224a8c27a73e287ac96e80f1a36afde25124d316b52a7acff589ad67538",
-        "file_sha256": "387ba069235066fcec609f323fc7c28387ebf642a6bbf0a681ae5790cdb7a5ac"
+        "file_sha256": "a73cd9f27a67185d36b4c5676087537301b4641909b3db9410f427e3b6f8cb78"
       },
       {
         "id": "checker-authoritative-emit-facts",
         "path": "crates/checker/src/lib.rs",
-        "line": 133,
+        "line": 134,
         "column": 5,
         "text": "pub may_be_emitted: bool,\n    /// Raw `SourceFile.impliedNodeFormat`",
         "text_sha256": "3d4ae97d2c33a29370c93a0ac34ff42c614ac8cac2f3d8cf8a1291f4bfa10444",
-        "file_sha256": "dceff2b9df932fadd72e7276207920151f5fea618dd2df7a0a3d5e951d430eea"
+        "file_sha256": "e0764e90b9133dca4413fb402626fd9e3ac26862cae54bd0fd663089ea99bd6f"
       },
       {
         "id": "compiler-options-current-shape",
@@ -784,7 +772,7 @@
         "column": 1,
         "text": "pub struct CompilerOptions {",
         "text_sha256": "26ecd93b5a351f3bfc7897c600ee93f422303b72187b8f49fa50bb10e97dbaed",
-        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
+        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
       },
       {
         "id": "compiler-options-bootstrap-scalars",
@@ -793,7 +781,7 @@
         "column": 5,
         "text": "pub target: Option<i32>,\n    /// tsc ModuleKind value; None when the option is absent.",
         "text_sha256": "72849bd6c27037777c9a8702e8a896ed5180945b9a3c6e6399e6d7ac28c4df17",
-        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
+        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
       },
       {
         "id": "compiler-options-class-fields",
@@ -802,52 +790,52 @@
         "column": 5,
         "text": "pub use_define_for_class_fields: Option<bool>,",
         "text_sha256": "4a2e57ffc561b38f20b1d02ff112ac6299bac6498a0583cfc1bdb3bbaff78474",
-        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
+        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
       },
       {
         "id": "compiler-options-no-emit",
         "path": "crates/types/src/options.rs",
-        "line": 197,
+        "line": 202,
         "column": 5,
         "text": "pub no_emit: Option<bool>,",
         "text_sha256": "bfa25442fb2488d03706d502b88b76e651350f20e40f4051056cf1b99d2d9ce0",
-        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
+        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
       },
       {
         "id": "compiler-options-new-line",
         "path": "crates/types/src/options.rs",
-        "line": 254,
+        "line": 267,
         "column": 5,
         "text": "pub new_line: Option<i32>,",
         "text_sha256": "93f0e2e3378c1b520fdcf5beb6390f647adcf4e008f4877e6176b54dc6cb388a",
-        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
+        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
       },
       {
         "id": "compiler-options-remove-comments",
         "path": "crates/types/src/options.rs",
-        "line": 257,
+        "line": 270,
         "column": 5,
         "text": "pub remove_comments: Option<bool>,",
         "text_sha256": "76a9e83ac783b8d2ca87042b54bbcea595186a03e3fc5886e8753e9a18f72286",
-        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
+        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
       },
       {
         "id": "compiler-options-no-implicit-use-strict",
         "path": "crates/types/src/options.rs",
-        "line": 260,
+        "line": 273,
         "column": 5,
         "text": "pub no_implicit_use_strict: Option<bool>,",
         "text_sha256": "696627f9b67f69259d63411a930db1d5a04984b92bb8b64e989a1386db4d2808",
-        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
+        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
       },
       {
         "id": "compiler-options-no-emit-helpers",
         "path": "crates/types/src/options.rs",
-        "line": 263,
+        "line": 276,
         "column": 5,
         "text": "pub no_emit_helpers: Option<bool>,",
         "text_sha256": "8f5ef00bd1995716ebc5e58ccc51b9d5609091f1a7b173058bbcf8df3f83cc28",
-        "file_sha256": "c279c07b186b378a1089c416043085d1abe56d655c7b91d145bebd08d23162fe"
+        "file_sha256": "fc512d66157a55b52986bc30e9384b71430e49a55d948ce9e12ea345d012b5ee"
       },
       {
         "id": "binder-source-aggregate-emit-flags",
@@ -861,74 +849,74 @@
       {
         "id": "loader-no-emit-gate",
         "path": "crates/program/src/loader.rs",
-        "line": 681,
+        "line": 706,
         "column": 9,
         "text": "PreparedProgramMode::NoEmit if compiler_options.no_emit != Some(true) => {\n            return Err(reject_input(\n                \"compilerOptions.noEmit must be explicitly true\",\n            ));\n        }",
         "text_sha256": "ea56a5c792b675777b5e1504ab6d537ba08735cd18d681b5dde6fc83d6e62858",
-        "file_sha256": "ba00eb5bcf179c4ac8f84bba49dd66bf5e3163f082f5b6bcd904f232609d7f7a"
+        "file_sha256": "ae8de652835379ae56bf26e7c296536f7a5a2b48d047ae48deaa29b7772a7c18"
       },
       {
         "id": "loader-emitting-entry",
         "path": "crates/program/src/loader.rs",
-        "line": 491,
+        "line": 493,
         "column": 1,
         "text": "pub fn load_emitting_program(\n    host: &dyn CompilerHost,",
         "text_sha256": "847811760d5f9d4a072ca20e85e75e66fd13772d36606ca8e6e71925e3c86120",
-        "file_sha256": "ba00eb5bcf179c4ac8f84bba49dd66bf5e3163f082f5b6bcd904f232609d7f7a"
+        "file_sha256": "ae8de652835379ae56bf26e7c296536f7a5a2b48d047ae48deaa29b7772a7c18"
       },
       {
         "id": "config-emitting-entry",
         "path": "crates/program/src/config.rs",
-        "line": 1287,
+        "line": 1293,
         "column": 1,
         "text": "pub fn load_emitting_config_program_with_overrides(\n    host: &dyn CompilerHost,",
         "text_sha256": "63acf5cb745e1348e9ab12605e59631e792b10440cd3fd2a84110e3c58017cbd",
-        "file_sha256": "480f5fd37dde8e9ec4e459837892d09f08d8821dadbc6c1933651a966ce264b5"
+        "file_sha256": "231fc3623742065c1398975a2323dd2edb257749526efdc4801c3c9432a511cd"
       },
       {
         "id": "config-no-emit-gate",
         "path": "crates/program/src/config.rs",
-        "line": 1225,
+        "line": 1231,
         "column": 5,
         "text": "A config without an explicit\n/// `noEmit: true` is rejected before `load_program`",
         "text_sha256": "161a551a4d1b128d9d948b1d08261a98bd294a5e7bb6fecdfc5aa1dfb3ff004d",
-        "file_sha256": "480f5fd37dde8e9ec4e459837892d09f08d8821dadbc6c1933651a966ce264b5"
+        "file_sha256": "231fc3623742065c1398975a2323dd2edb257749526efdc4801c3c9432a511cd"
       },
       {
         "id": "cli-mode-dispatch",
         "path": "crates/compiler/src/cli.rs",
-        "line": 889,
+        "line": 890,
         "column": 5,
         "text": "if prepared.mode() == PreparedProgramMode::Emit {\n        return execute_emitting_prepared(",
         "text_sha256": "c84948081c61402e6e74bbd46486e07254a1b1cd3f66fcd6ff31d153a2664dfb",
-        "file_sha256": "1324e66607dfc7cec884a22392d9f755b6c6c11a2a0d5c7bbe95179b2cf8d905"
+        "file_sha256": "4bb276cd55d1c64eaf5a2ad30145d46bebf85c8614e2378100ca023113eaaec1"
       },
       {
         "id": "cli-filesystem-sink-dispatch",
         "path": "crates/compiler/src/cli.rs",
-        "line": 934,
+        "line": 935,
         "column": 5,
         "text": "let mut sink = FsOutputSink::new(route.output_filesystem);",
         "text_sha256": "177c3cf353fa6ee63c49c02a3b33a2794c580d44f8ee5e861ef87c64a994aa8b",
-        "file_sha256": "1324e66607dfc7cec884a22392d9f755b6c6c11a2a0d5c7bbe95179b2cf8d905"
+        "file_sha256": "4bb276cd55d1c64eaf5a2ad30145d46bebf85c8614e2378100ca023113eaaec1"
       },
       {
         "id": "config-transient-output-discovery",
         "path": "crates/program/src/config.rs",
-        "line": 832,
+        "line": 838,
         "column": 5,
         "text": "out_dir: Option<String>,\n    declaration_dir: Option<String>,",
         "text_sha256": "a8617177e430f042fb859063fe81c6befc627994db9f901f674fb6b6c436373d",
-        "file_sha256": "480f5fd37dde8e9ec4e459837892d09f08d8821dadbc6c1933651a966ce264b5"
+        "file_sha256": "231fc3623742065c1398975a2323dd2edb257749526efdc4801c3c9432a511cd"
       },
       {
         "id": "program-snapshot-owner",
         "path": "crates/checker/src/program.rs",
-        "line": 654,
+        "line": 714,
         "column": 1,
         "text": "pub struct ProgramSnapshot {",
         "text_sha256": "fb951bcb22124d9299bd8c6db9cbecab03b8f7fa17ce5ed47c9a5a0c19f39422",
-        "file_sha256": "5f647ba3c40df889f639aef4afbb61e724b2c21e3063992d4242a3c850c7a700"
+        "file_sha256": "0367bd0712a0d1e53315b8399806ba93cc108729871253f5311305e8aa2b48da"
       },
       {
         "id": "captured-block-scope-bindings-elided",
@@ -937,88 +925,70 @@
         "column": 32,
         "text": "links.capturedBlockScopeBindings pushIfUnique",
         "text_sha256": "8c2536d77577cef4abf5c3766059493d48b998360e215d32ab95452f087ff2c7",
-        "file_sha256": "2fb68cec9b0ed4699dc6b833459da787ed1f833556eab0a377b1ae5f3767efdc"
-      },
-      {
-        "id": "computed-property-loop-capture-elided",
-        "path": "crates/checker/src/literals.rs",
-        "line": 431,
-        "column": 22,
-        "text": "class-expression-property loop-capture side-effect",
-        "text_sha256": "7306fb3ac41fd46857418598ee7212151c47d2bf82e3fc5734b33561b43ba8fc",
-        "file_sha256": "1e506242357b3e8f5d8d2870807b37073cdde7b2591beee3017bdda9a0ee3df0"
-      },
-      {
-        "id": "private-scope-loop-capture-elided",
-        "path": "crates/checker/src/functions.rs",
-        "line": 2838,
-        "column": 9,
-        "text": "The class-expression-in-iteration arm sets emit-only flags",
-        "text_sha256": "068555ddb73a1d68ba21ec0edbcc216ca2db70088e16ee062d36e812301b69eb",
-        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+        "file_sha256": "ef34a46c7dd2ee2a7ec22d14c62ba1df3e31cce3ece67fd90e510015c86b8561"
       },
       {
         "id": "constructor-capture-this-elided",
         "path": "crates/checker/src/functions.rs",
-        "line": 2889,
+        "line": 2935,
         "column": 9,
         "text": "captureLexicalThis is emit-only (no-op)",
         "text_sha256": "a5afdcaea9009dcbe6110f8e5c425c2b95c80c101b40a974145aea8d8c3a5d23",
-        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+        "file_sha256": "7b9cf802203165ba2a7280a5d2735b38ece5e6295634b73c8e8142f999fd243a"
       },
       {
         "id": "async-linked-references-elided",
         "path": "crates/checker/src/functions.rs",
-        "line": 2199,
+        "line": 2226,
         "column": 28,
         "text": "`markLinkedReferences` is emit-only.",
         "text_sha256": "75a1a3c197f04e688ff2785c06a229889434ebc3db6c17e4e3d57db7df9c98cc",
-        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+        "file_sha256": "7b9cf802203165ba2a7280a5d2735b38ece5e6295634b73c8e8142f999fd243a"
       },
       {
         "id": "decorator-linked-references-elided",
         "path": "crates/checker/src/calls.rs",
-        "line": 150,
+        "line": 151,
         "column": 9,
         "text": "markLinkedReferences is declaration-emit bookkeeping",
         "text_sha256": "e8150228ea991d60766c6ebf7021b01797a4147e5e888edf89b02885304e7518",
-        "file_sha256": "eb0b82e43368d51ae47db183ac31d9043477748d34a3d55938012b140e7269d5"
+        "file_sha256": "7af9e1e9f1c9f379a0ceea093e5aa74c789a9a486fc62b137ee035ab2e92b1ee"
       },
       {
         "id": "import-equals-linked-references-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 8785,
-        "column": 37,
-        "text": "markLinkedReferences' declaration-emit\n    /// traversal remains outside this checker slice",
-        "text_sha256": "f29a07c6d655ccc82756d03676617e4d38bd025f1ae0d1f572fa68db0c07d25f",
-        "file_sha256": "0f390f0901f39143045e093a1499c98f957fa620a71662cc55589bdd808d0eb7"
+        "line": 9001,
+        "column": 52,
+        "text": "markLinkedReferences'\n    /// declaration-emit traversal remains outside this checker slice",
+        "text_sha256": "79b39f17b3cc5cfa26c699e287d8bbb1fed82b3cab81b0d321f6d0234fe88d06",
+        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
       },
       {
         "id": "export-linked-aliases-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 9004,
+        "line": 9232,
         "column": 9,
         "text": "collectLinkedAliases remains declaration-emit bookkeeping",
         "text_sha256": "cb431b3f060205621a432fa23e1325d3e9708de7e5a7771977711ddfe20b9c07",
-        "file_sha256": "0f390f0901f39143045e093a1499c98f957fa620a71662cc55589bdd808d0eb7"
+        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
       },
       {
         "id": "property-access-linked-references-elided",
         "path": "crates/checker/src/access.rs",
-        "line": 1952,
+        "line": 1958,
         "column": 11,
         "text": "markLinkedReferences' non-alias bookkeeping",
         "text_sha256": "3efb7dc8370504d1a849885324fc1d5353c79da322996324626f1db46db1d879",
-        "file_sha256": "f884cde41d2989df223f0da3d2d0cce7d17dc688d220f06a75cd60d4727b50cf"
+        "file_sha256": "317fb130f96c1a5f2d55d00de119b5cb719494edda8ca9c8d6ba5aa5070bfd5e"
       },
       {
         "id": "inaccessible-this-elided",
         "path": "crates/checker/src/check.rs",
-        "line": 5923,
+        "line": 5991,
         "column": 16,
         "text": "inaccessible-this tracking is declaration-emit band",
         "text_sha256": "16bfbe4a19081974e7847b1b3bb1e3749c92e0d792d02f9370b5becbf731c972",
-        "file_sha256": "ecd1cee157b429b5d2e3bf9808007182c0e6c334396f639cecf1f20f74bf9b96"
+        "file_sha256": "95f8714c6bb58ee14c4292115a8d65dcf789b4af259537e36a8b7d380b22f366"
       },
       {
         "id": "binding-object-rest-helper-elided",
@@ -1027,7 +997,7 @@
         "column": 17,
         "text": "Object-rest emit-helper probe elided",
         "text_sha256": "42a70c07fffaf36dd3c3ba48cb67b038da64059eedb77415ccc77cc955518cfd",
-        "file_sha256": "016ef7af8d475e900be0023fde2bf9988f432354f5de5c899f60e47a3a1cf35e"
+        "file_sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
       },
       {
         "id": "binding-array-helper-elided",
@@ -1036,43 +1006,43 @@
         "column": 12,
         "text": "downlevelIteration emit-helper probe is elided",
         "text_sha256": "747920ad8a12ab86165c7e42ffec4988937e008324baabe436c209bc6161707e",
-        "file_sha256": "016ef7af8d475e900be0023fde2bf9988f432354f5de5c899f60e47a3a1cf35e"
+        "file_sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
       },
       {
         "id": "for-await-helper-elided",
         "path": "crates/checker/src/statements.rs",
-        "line": 2049,
+        "line": 2046,
         "column": 27,
         "text": "ForAwaitOf emit-helper probe — elided",
         "text_sha256": "146d22250a56eae1acd985846dc96db6f0ea07d219a434fa2d495cbc6639aea4",
-        "file_sha256": "016ef7af8d475e900be0023fde2bf9988f432354f5de5c899f60e47a3a1cf35e"
+        "file_sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
       },
       {
         "id": "for-of-helper-elided",
         "path": "crates/checker/src/statements.rs",
-        "line": 2051,
+        "line": 2048,
         "column": 13,
         "text": "downlevelIteration ForOf emit-helper probe — elided",
         "text_sha256": "907e5bd8ed066c6e704bfeb9af310c69e929dec2806999802901e87259a1ddfe",
-        "file_sha256": "016ef7af8d475e900be0023fde2bf9988f432354f5de5c899f60e47a3a1cf35e"
+        "file_sha256": "58618d9fbe59c0eb87eb03e25d346f6b7e9ad6b54873e952f1201011180e6399"
       },
       {
         "id": "signature-helper-probes-elided",
         "path": "crates/checker/src/functions.rs",
-        "line": 2003,
+        "line": 2030,
         "column": 9,
         "text": "Emit-helper probes are importHelpers-gated (no-op)",
         "text_sha256": "9c5de72689a22c8e0799402f36e66fe8f0eec13c37cff814da77dcaa0d6f0393",
-        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+        "file_sha256": "7b9cf802203165ba2a7280a5d2735b38ece5e6295634b73c8e8142f999fd243a"
       },
       {
         "id": "yield-helper-probes-elided",
         "path": "crates/checker/src/functions.rs",
-        "line": 1688,
+        "line": 1707,
         "column": 9,
         "text": "Grammar closure runs eager (the 5.4 addLazyDiagnostic\n    /// decision), as does the noImplicitAny 7057 closure. Emit-helper\n    /// probes are importHelpers-gated (no-op)",
         "text_sha256": "bcb6ffe779b4ebaa2e9df2c10203b9b75cf8cc9a1effdce3d237d3af3ca5913d",
-        "file_sha256": "e1345b7dca81e4507882702502033b8f730e8970dfa4e485cf3a7b01b82be2c6"
+        "file_sha256": "7b9cf802203165ba2a7280a5d2735b38ece5e6295634b73c8e8142f999fd243a"
       },
       {
         "id": "class-extends-helper-elided",
@@ -1090,7 +1060,7 @@
         "column": 21,
         "text": "ClassPrivateFieldIn emit-helper rows are",
         "text_sha256": "c6d829a07734b2b4a430901ce369faa37a42b3d117f36926f0c650d86a395700",
-        "file_sha256": "d65ccd5662de73efb045d3e102af0a7ac082acf6a64ba0f2f22a31feebddf38f"
+        "file_sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
       },
       {
         "id": "object-rest-helper-elided",
@@ -1099,7 +1069,7 @@
         "column": 13,
         "text": "ObjectSpreadRest emit-helper row is importHelpers-gated",
         "text_sha256": "6648786413c0c11ceb9e34c26050d93b7c8cdb56b56432876af5eee10e5632b3",
-        "file_sha256": "d65ccd5662de73efb045d3e102af0a7ac082acf6a64ba0f2f22a31feebddf38f"
+        "file_sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
       },
       {
         "id": "destructuring-helper-elided",
@@ -1108,7 +1078,7 @@
         "column": 13,
         "text": "DestructuringAssignment emit-helper row is",
         "text_sha256": "c5660a02f51abf708bf8a2aea9da1ae488400c02e79b492f8eaf0b0249033ca7",
-        "file_sha256": "d65ccd5662de73efb045d3e102af0a7ac082acf6a64ba0f2f22a31feebddf38f"
+        "file_sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
       },
       {
         "id": "private-field-set-helper-elided",
@@ -1117,61 +1087,61 @@
         "column": 13,
         "text": "ClassPrivateFieldSet emit-helper row is importHelpers-gated",
         "text_sha256": "cba827eeafce9c37fb699863568cc72102e7ff49d4a26801dfd5b224642f8c9d",
-        "file_sha256": "d65ccd5662de73efb045d3e102af0a7ac082acf6a64ba0f2f22a31feebddf38f"
+        "file_sha256": "35fabcce556582afe8df6bd5db14c0ea93ab6d216d2d0fd6ed576e6fae1c7002"
       },
       {
         "id": "object-assign-helper-inactive",
         "path": "crates/checker/src/literals.rs",
-        "line": 901,
+        "line": 927,
         "column": 9,
         "text": "languageVersion ObjectAssign emit-helper gate is dead at",
         "text_sha256": "24e19960db18b8d9cec2364b3256206c513a0f2d7db64e451167b397cb44495f",
-        "file_sha256": "1e506242357b3e8f5d8d2870807b37073cdde7b2591beee3017bdda9a0ee3df0"
+        "file_sha256": "3beafa9eada2152a19ebfa69d4d2894c5169b5489d723cbf67f3a0a55e1e2271"
       },
       {
         "id": "template-helper-inactive",
         "path": "crates/checker/src/calls.rs",
-        "line": 6281,
+        "line": 6271,
         "column": 13,
         "text": "MakeTemplateObject emit-helper check is dead at ES2025",
         "text_sha256": "087a603f871a4885b303e2dbb727b4eb24404b2edc544dbcd0fd98a28a8b5d3f",
-        "file_sha256": "eb0b82e43368d51ae47db183ac31d9043477748d34a3d55938012b140e7269d5"
+        "file_sha256": "7af9e1e9f1c9f379a0ceea093e5aa74c789a9a486fc62b137ee035ab2e92b1ee"
       },
       {
         "id": "export-assignment-linked-aliases-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 9082,
+        "line": 9310,
         "column": 9,
-        "text": "erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc",
-        "text_sha256": "cc4dd50e43884202d07a86cd80ca77696185e6febb386d95556809d479592f8e",
-        "file_sha256": "0f390f0901f39143045e093a1499c98f957fa620a71662cc55589bdd808d0eb7"
+        "text": "collectLinkedAliases (emit) and the JSDoc type-annotation arm remain",
+        "text_sha256": "f83ee48bb2d7a1d1eb3cfbc3f2c2e6941fb2703524638c4c0a5ff6d1114fd0b6",
+        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
       },
       {
         "id": "standard-class-fields-option-check",
         "path": "crates/checker/src/resolve.rs",
-        "line": 1015,
+        "line": 1034,
         "column": 10,
         "text": "useDefineForClassFields=false` at ESNext, so this must use the exact\n    /// computed emitStandardClassFields predicate rather than target alone",
         "text_sha256": "4234e9b10494a7707e8f1ad710ea60cc83737657453a226cfbc4f3809ea86b79",
-        "file_sha256": "84eab812fcfca363349a8080248c7aad109e6e1c2b333356acf36d4a4d3a1a4a"
+        "file_sha256": "351e00140de6d00d4950e54d35082ee79a33a0027ad08ecdf3d0b91a058cd066"
       },
       {
         "id": "external-helper-producer-present",
         "path": "crates/checker/src/modules.rs",
-        "line": 5395,
+        "line": 5609,
         "column": 5,
         "text": "pub(crate) fn check_external_emit_helpers(",
         "text_sha256": "e127a45e63e86b553a6030b1b4e9a7c4f9a4388a49143d7aa0267cf5b6df8884",
-        "file_sha256": "0f390f0901f39143045e093a1499c98f957fa620a71662cc55589bdd808d0eb7"
+        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
       },
       {
         "id": "jsx-alias-producer-present",
         "path": "crates/checker/src/jsx.rs",
-        "line": 930,
+        "line": 934,
         "column": 5,
         "text": "fn mark_jsx_alias_referenced(&mut self, node: NodeId) -> CheckResult<()> {",
         "text_sha256": "917d92a0f0662bd0cbcda4260a8721fb7800a6f7587734654abf2cb4557260e5",
-        "file_sha256": "da3eefd50e9d52459f606518f6f433fd31b00ce8499b88f82f5d077955f9e422"
+        "file_sha256": "5e657bbe6e28fe578e35ceb842fe12af39b27c43a5c3bc4453e7d4fc80f0dace"
       }
     ],
     "absence_proofs": [
@@ -1185,5 +1155,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "350b491b3f6b263b5acb6178a6a45d6e13cb36932bfdd4e0544dd139f6f49dd4"
+  "inventory_fingerprint_sha256": "2f61639c6310550bccc359286f636f34052425c83ad051377ddefc95edb0fb4f"
 }
