@@ -152,7 +152,7 @@
     },
     {
       "path": "crates/checker/src/lib.rs",
-      "sha256": "e0764e90b9133dca4413fb402626fd9e3ac26862cae54bd0fd663089ea99bd6f"
+      "sha256": "ea0ef6c22ef5384430515643ae03ccbaa9401d512fc45ea585fe26137bc77ad4"
     },
     {
       "path": "crates/checker/src/modules.rs",
@@ -396,7 +396,7 @@
     },
     {
       "path": "crates/emitter/src/builtins/legacy_decorators.rs",
-      "sha256": "7fa146ca74947cc08600b89400231e052725a1773b555ddc34bf98f21f296ecf"
+      "sha256": "10109f233cabed00e937126f8c2f29ff729e0a1028a70ede67c313872061245e"
     },
     {
       "path": "crates/checker/src/engine.rs",
@@ -1270,5 +1270,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "a0bef029a1a97120fb7e482f72b09f004f02d8869484781867e6036ce6324f5e"
+  "profile_fingerprint_sha256": "4b0517c6b7a8e56f481ff28bbcc82a00e72f4b8583be22083163d9afa2595bf8"
 }

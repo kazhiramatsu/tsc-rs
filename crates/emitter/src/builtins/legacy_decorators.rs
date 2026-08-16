@@ -4140,7 +4140,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
     /// Typed class-declaration branch of tsc's `moveRangePastModifiers`.
     ///
     /// tsc-port: moveRangePastModifiers @6.0.3
-    /// tsc-hash: b0df0c59ffe7c4af307850c527a3bc0b05173114f39b040e05a509dd4c918aef
+    /// tsc-hash: 73817b5909d5365c19c1e4a239cd76eb22760d3d4e3670127916de190d11df7a
     /// tsc-span: _tsc.js:17311-17318
     fn move_range_past_modifiers(
         &self,

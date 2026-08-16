@@ -40,7 +40,7 @@
     },
     {
       "path": "crates/checker/src/lib.rs",
-      "sha256": "e0764e90b9133dca4413fb402626fd9e3ac26862cae54bd0fd663089ea99bd6f"
+      "sha256": "ea0ef6c22ef5384430515643ae03ccbaa9401d512fc45ea585fe26137bc77ad4"
     },
     {
       "path": "crates/diagnostics/src/lib.rs",
