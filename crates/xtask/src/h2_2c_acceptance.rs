@@ -707,19 +707,39 @@ fn normalize_diagnostics(actual: &[Diagnostic]) -> Vec<Value> {
     actual.iter().map(normalize_diagnostic).collect()
 }
 
+fn canonicalize_diagnostic_paths(rows: &[Value]) -> Vec<Value> {
+    rows.iter()
+        .map(|row| {
+            let Some(path) = row["file"].as_str() else {
+                return row.clone();
+            };
+            let Some(index) = path.find("/vendor/typescript-6.0.3/") else {
+                return row.clone();
+            };
+            let mut canonical = row.clone();
+            canonical["file"] = Value::String(format!("<workspace>{}", &path[index..]));
+            canonical
+        })
+        .collect()
+}
+
 fn assert_reported_diagnostics(
     case_id: &str,
     expected: &[Value],
     actual: &[Diagnostic],
 ) -> Result<(), Box<dyn Error>> {
-    let actual = normalize_diagnostics(actual);
+    // Vendored library diagnostics contain the host's absolute workspace
+    // prefix. Keep the exact library-relative identity while making the
+    // acceptance artifact portable across local and hosted runners.
+    let expected = canonicalize_diagnostic_paths(expected);
+    let actual = canonicalize_diagnostic_paths(&normalize_diagnostics(actual));
     if actual != expected {
-        let expected_sha256 = sha256(serde_json::to_vec(expected)?);
+        let expected_sha256 = sha256(serde_json::to_vec(&expected)?);
         let actual_sha256 = sha256(serde_json::to_vec(&actual)?);
         let detail = if expected.len().max(actual.len()) <= 20 {
             format!(
                 "\nexpected={}\nactual={}",
-                serde_json::to_string_pretty(expected)?,
+                serde_json::to_string_pretty(&expected)?,
                 serde_json::to_string_pretty(&actual)?,
             )
         } else {
