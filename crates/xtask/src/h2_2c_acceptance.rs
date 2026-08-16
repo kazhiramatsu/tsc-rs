@@ -811,13 +811,25 @@ fn execute_slice_observed_with_inputs(
     } else {
         None
     };
+    let first_session = ProgramSession::new(first_program);
+    let harness_lib_bundle = if matches!(accepted_slice, AcceptanceSlice::H2_5g) {
+        first_session.prepare_harness_lib_bundle()?
+    } else {
+        None
+    };
     let mut first_sink = MemoryOutputSink::new();
-    let (first, first_reported) = ProgramSession::new(first_program)
-        .emit_with_reported_diagnostics_for_harness(&mut first_sink)
+    let (first, first_reported) = first_session
+        .emit_with_reported_diagnostics_for_harness_with_lib_bundle(
+            &mut first_sink,
+            harness_lib_bundle.as_ref(),
+        )
         .map_err(|error| failure(format!("{case_id}: first Rust emit failed: {error}")))?;
     let mut second_sink = MemoryOutputSink::new();
     let (second, second_reported) = ProgramSession::new(second_program)
-        .emit_with_reported_diagnostics_for_harness(&mut second_sink)
+        .emit_with_reported_diagnostics_for_harness_with_lib_bundle(
+            &mut second_sink,
+            harness_lib_bundle.as_ref(),
+        )
         .map_err(|error| failure(format!("{case_id}: second Rust emit failed: {error}")))?;
     if first != second || first_sink != second_sink || first_reported != second_reported {
         return Err(failure(format!(

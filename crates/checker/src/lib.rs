@@ -1031,6 +1031,30 @@ pub fn prepare_harness_lib_bundle(
     })
 }
 
+/// Prepare an owned authoritative library prefix for a bounded harness scope.
+///
+/// The fixture-name filter mirrors `createProgram`: a root that shadows a
+/// library name removes that library from the effective prefix. Callers may
+/// reuse the returned bundle for isolated sessions over the same inputs; it is
+/// intentionally not inserted into the process-lifetime cache.
+#[doc(hidden)]
+pub fn prepare_authoritative_harness_lib_bundle(
+    libs: &[InputFile],
+    files: &[InputFile],
+    options: &CompilerOptions,
+) -> Option<OwnedHarnessLibBundle> {
+    if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
+        return None;
+    }
+    let fixture_names: std::collections::HashSet<&str> =
+        files.iter().map(|file| file.name.as_str()).collect();
+    let effective_libs = libs
+        .iter()
+        .filter(|lib| !fixture_names.contains(lib.name.as_str()))
+        .collect::<Vec<_>>();
+    (!effective_libs.is_empty()).then(|| build_owned_lib_bundle(&effective_libs, options))
+}
+
 /// tsrs-native: return the opaque parser/binder option projection used by prepared harness
 /// bundles. Harnesses may use this as a small cache key without learning or
 /// duplicating the projection's fields.
@@ -1256,6 +1280,7 @@ pub fn check_program_with_authoritative_modules_at(
         provider,
         false,
         None,
+        None,
     )
 }
 
@@ -1284,6 +1309,38 @@ pub fn check_program_with_authoritative_modules_at_for_emit(
         provider,
         false,
         Some(&mut operation),
+        None,
+    )
+}
+
+/// Run one authoritative harness emit over a caller-owned immutable library
+/// prefix. The bundle is scoped by the caller (normally one repeated case),
+/// so this path avoids both per-repetition parsing and process-lifetime
+/// retention of every distinct `ts-tests` library set.
+#[doc(hidden)]
+#[allow(clippy::too_many_arguments)]
+pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle(
+    libs: &[InputFile],
+    files: &[InputFile],
+    lib_metadata: &[AuthoritativeSourceMetadata],
+    file_metadata: &[AuthoritativeSourceMetadata],
+    options: &CompilerOptions,
+    current_directory: &str,
+    provider: &dyn AuthoritativeModuleProvider,
+    bundle: &OwnedHarnessLibBundle,
+    mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>, &CheckResult),
+) -> Result<CheckResult, AuthoritativeModuleFailure> {
+    check_program_with_authoritative_modules_at_cache_mode(
+        libs,
+        files,
+        lib_metadata,
+        file_metadata,
+        options,
+        current_directory,
+        provider,
+        true,
+        Some(&mut operation),
+        Some(bundle),
     )
 }
 
@@ -1317,6 +1374,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached(
         provider,
         cache_enabled,
         None,
+        None,
     )
 }
 
@@ -1331,6 +1389,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
     provider: &dyn AuthoritativeModuleProvider,
     cache_enabled: bool,
     emit_operation: Option<&mut CheckedEmitOperation<'_>>,
+    prepared_owned_bundle: Option<&OwnedHarnessLibBundle>,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
@@ -1363,27 +1422,45 @@ fn check_program_with_authoritative_modules_at_cache_mode(
     };
     let mut observe_phase = |_| {};
     let execution = if cache_enabled {
-        let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
-        let lib_documents: &[Arc<BoundDocument>] = match bundle {
-            Some(bundle) => bundle.documents,
-            None => &[],
-        };
-        let identity_domain = bundle
-            .map(|bundle| bundle.identity_domain.clone())
-            .unwrap_or_else(IdentityDomain::ephemeral);
-        check_program_with_prebound_libs_at_observed(
-            libs,
-            files,
-            options,
-            current_directory,
-            lib_documents,
-            &identity_domain,
-            CheckWorkCounters::default(),
-            true,
-            &mut observe_phase,
-            Some(&run),
-            emit_operation,
-        )
+        let prepared = prepared_owned_bundle
+            .filter(|bundle| bundle.exactly_matches(&effective_libs, &lib_bundle_options(options)));
+        if let Some(bundle) = prepared {
+            check_program_with_prebound_libs_at_observed(
+                libs,
+                files,
+                options,
+                current_directory,
+                &bundle.documents,
+                &bundle.identity_domain,
+                CheckWorkCounters::default(),
+                true,
+                &mut observe_phase,
+                Some(&run),
+                emit_operation,
+            )
+        } else {
+            let bundle = (!effective_libs.is_empty()).then(|| lib_bundle(&effective_libs, options));
+            let lib_documents: &[Arc<BoundDocument>] = match bundle {
+                Some(bundle) => bundle.documents,
+                None => &[],
+            };
+            let identity_domain = bundle
+                .map(|bundle| bundle.identity_domain.clone())
+                .unwrap_or_else(IdentityDomain::ephemeral);
+            check_program_with_prebound_libs_at_observed(
+                libs,
+                files,
+                options,
+                current_directory,
+                lib_documents,
+                &identity_domain,
+                CheckWorkCounters::default(),
+                true,
+                &mut observe_phase,
+                Some(&run),
+                emit_operation,
+            )
+        }
     } else {
         let bundle_options = lib_bundle_options(options);
         let identity_domain = IdentityDomain::ephemeral();
@@ -2082,6 +2159,31 @@ struct LibBundle {
     identity_domain: IdentityDomain,
 }
 
+/// A scoped parsed+bound library prefix for one or more harness sessions.
+///
+/// Unlike [`LibBundle`], this value is owned by the caller and is dropped with
+/// the acceptance case. It exists for deterministic repeated observations:
+/// the two isolated emit sessions can share the immutable library AST without
+/// retaining every distinct `ts-tests` lib/options combination for the whole
+/// process. The production checker never constructs this type.
+#[doc(hidden)]
+pub struct OwnedHarnessLibBundle {
+    options: CompilerOptions,
+    documents: Vec<Arc<BoundDocument>>,
+    identity_domain: IdentityDomain,
+}
+
+impl OwnedHarnessLibBundle {
+    fn exactly_matches(&self, libs: &[&InputFile], options: &CompilerOptions) -> bool {
+        &self.options == options
+            && self.documents.len() == libs.len()
+            && self.documents.iter().zip(libs).all(|(document, lib)| {
+                let source = document.source();
+                source.file_name == lib.name && Arc::ptr_eq(source.snapshot(), lib.snapshot())
+            })
+    }
+}
+
 /// Opaque exact-match hint returned by [`prepare_harness_lib_bundle`].
 ///
 /// Keeping the bundle private prevents callers from bypassing the validation
@@ -2242,6 +2344,21 @@ fn build_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> &'static 
         documents,
         identity_domain,
     }))
+}
+
+fn build_owned_lib_bundle(libs: &[&InputFile], options: &CompilerOptions) -> OwnedHarnessLibBundle {
+    let options = lib_bundle_options(options);
+    let identity_domain = IdentityDomain::reclaiming();
+    let sources = parse_lib_sources(libs, &options, &identity_domain);
+    let binders = bind_lib_sources(&sources, &options, &identity_domain);
+    let data = binders_into_data(binders);
+    let sources = sources.into_iter().map(Arc::new).collect::<Vec<_>>();
+    let documents = publish_bound_documents_from_handles(sources, data);
+    OwnedHarnessLibBundle {
+        options,
+        documents,
+        identity_domain,
+    }
 }
 
 fn parse_lib_sources(

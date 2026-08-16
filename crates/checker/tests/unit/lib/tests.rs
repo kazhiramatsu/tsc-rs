@@ -1196,6 +1196,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
             provider,
             cache_enabled,
             None,
+            None,
         )
     };
 
@@ -1268,6 +1269,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
         "/",
         &Provider,
         false,
+        None,
         None,
     )
     .expect("authoritative alternate-result miss");

@@ -16,16 +16,19 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use tsc_checker::emit::CheckerSession;
 use tsc_checker::{
     check_program_with_authoritative_modules_at,
     check_program_with_authoritative_modules_at_for_emit,
-    check_program_with_authoritative_modules_at_harness_cached, AuthoritativeModuleFailure,
+    check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle,
+    check_program_with_authoritative_modules_at_harness_cached,
+    prepare_authoritative_harness_lib_bundle, AuthoritativeModuleFailure,
     AuthoritativeModuleLookupFailure, AuthoritativeModuleProvider, AuthoritativeModuleRequest,
     AuthoritativeModuleResolution, AuthoritativeModuleResolutionDiagnostic,
     AuthoritativeNotFoundModule, AuthoritativePackageId, AuthoritativeResolutionDiagnosticModule,
     AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
-    AuthoritativeSourceToken, AuthoritativeUntypedModule, CheckResult, InputFile, ProgramSnapshot,
-    UnsupportedAuthoritativeResolution,
+    AuthoritativeSourceToken, AuthoritativeUntypedModule, CheckResult, InputFile,
+    OwnedHarnessLibBundle, ProgramSnapshot, UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_emitter::{
@@ -690,9 +693,23 @@ impl ProgramSession {
         self.run_with_no_emit_canary(false, &mut no_emit_canary)
     }
 
+    /// Prepare a bounded, exact-match library prefix for harness repetitions.
+    /// The returned value is owned by the caller and is never inserted into a
+    /// process-lifetime cache.
+    #[doc(hidden)]
+    pub fn prepare_harness_lib_bundle(&self) -> Result<Option<OwnedHarnessLibBundle>, DriverError> {
+        self.require_mode(PreparedProgramMode::Emit)?;
+        let inputs = project_checker_inputs(&self.prepared)?;
+        Ok(prepare_authoritative_harness_lib_bundle(
+            &inputs.libs,
+            &inputs.files,
+            self.prepared.compiler_options(),
+        ))
+    }
+
     /// Consume the prepared program through the separately typed emit path.
     pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {
-        self.emit_with_command_outcome(sink)
+        self.emit_with_command_outcome(sink, None)
             .map(|outcome| outcome.emit)
     }
 
@@ -707,7 +724,20 @@ impl ProgramSession {
         self,
         sink: &mut dyn OutputSink,
     ) -> Result<(EmitOutcome, DiagnosticList), DriverError> {
-        self.emit_with_command_outcome(sink).map(|outcome| {
+        self.emit_with_command_outcome(sink, None).map(|outcome| {
+            let (emit, diagnostics, _) = outcome.into_reported(&[]);
+            (emit, diagnostics)
+        })
+    }
+
+    /// Emit through the harness-only bounded library-prefix scope.
+    #[doc(hidden)]
+    pub fn emit_with_reported_diagnostics_for_harness_with_lib_bundle(
+        self,
+        sink: &mut dyn OutputSink,
+        bundle: Option<&OwnedHarnessLibBundle>,
+    ) -> Result<(EmitOutcome, DiagnosticList), DriverError> {
+        self.emit_with_command_outcome(sink, bundle).map(|outcome| {
             let (emit, diagnostics, _) = outcome.into_reported(&[]);
             (emit, diagnostics)
         })
@@ -717,12 +747,13 @@ impl ProgramSession {
         self,
         sink: &mut dyn OutputSink,
     ) -> Result<CliEmitSessionOutcome, DriverError> {
-        self.emit_with_command_outcome(sink)
+        self.emit_with_command_outcome(sink, None)
     }
 
     fn emit_with_command_outcome(
         self,
         sink: &mut dyn OutputSink,
+        harness_lib_bundle: Option<&OwnedHarnessLibBundle>,
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
@@ -741,15 +772,8 @@ impl ProgramSession {
         };
         let mut pending_preflight = Some(preflight);
         let mut emit_result: Option<Result<CliEmitSessionOutcome, DriverError>> = None;
-        let checked = check_program_with_authoritative_modules_at_for_emit(
-            &inputs.libs,
-            &inputs.files,
-            &inputs.lib_metadata,
-            &inputs.file_metadata,
-            prepared.compiler_options(),
-            &inputs.current_directory,
-            &provider,
-            |snapshot, checker, checked| {
+        let mut operation =
+            |snapshot: &ProgramSnapshot, checker: &CheckerSession<'_>, checked: &CheckResult| {
                 if emit_result.is_some() {
                     return;
                 }
@@ -788,8 +812,31 @@ impl ProgramSession {
                     .map(|emit| diagnostics.with_emit(&preflight_diagnostics, emit, work_counters))
                     .map_err(DriverError::Emit)
                 }));
-            },
-        )
+            };
+        let checked = if let Some(bundle) = harness_lib_bundle {
+            check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                prepared.compiler_options(),
+                &inputs.current_directory,
+                &provider,
+                bundle,
+                &mut operation,
+            )
+        } else {
+            check_program_with_authoritative_modules_at_for_emit(
+                &inputs.libs,
+                &inputs.files,
+                &inputs.lib_metadata,
+                &inputs.file_metadata,
+                prepared.compiler_options(),
+                &inputs.current_directory,
+                &provider,
+                &mut operation,
+            )
+        }
         .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
 
         if let Some(result) = emit_result {
