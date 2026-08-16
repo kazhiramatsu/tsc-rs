@@ -28,7 +28,7 @@ const H1_FROZEN: [(&str, &str); 5] = [
     ),
     (
         "ratchets/h1-emit-qualification.v1.json",
-        "9b76aede402540c56689fb65813af4e731a1df9442735ec54fafb1ea0301526b",
+        "d31623d05f0e34ebe797d5d34dae11abd3ea91dff17fcb8196559106498f671e",
     ),
 ];
 

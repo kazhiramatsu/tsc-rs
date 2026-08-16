@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "e863537ea31415a5a52cf53f1181917beb4896e9828446da5808a7b2bf977d82"
+    "sha256": "e375ce33552d8a277f3490b7d37a3ca42167512504bc32e1252ff30b402e8817"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
@@ -67,7 +67,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-5g-qualification.v1.json",
-    "sha256": "cc8f39605bc09bc28a2a3c7af8b562a11328ff6aafb01d27e7c19dfe0af319ec"
+    "sha256": "90934193e0b33642aea3705bdc6c0686a54780ba69feaa58ef6435867e5a7a19"
   },
   "current_exact_promotions": [
     {
@@ -1245,7 +1245,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "eff3669fce660ba41f0b2132d8ecfce6af9d3836da0977b38eefb54ad3035cd2"
+      "sha256": "d31623d05f0e34ebe797d5d34dae11abd3ea91dff17fcb8196559106498f671e"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -1270,5 +1270,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "2c6176db96a318acb56afb963adf51f2b859924aef45d8b72b535bdf63ae83bf"
+  "profile_fingerprint_sha256": "053433fa14e3b42b226cfc47ad8c81347ac2eef17f5611f02158607cf48ad8a9"
 }

@@ -259,6 +259,12 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/xtask/tests/unit/acceptance_slices/tests.rs",
   "crates/xtask/src/local_ci_resume.rs",
   "crates/xtask/tests/unit/local_ci_resume/tests.rs",
+  "crates/harness/tests/integration/h1_compiler_profile_classification.rs",
+  "crates/harness/tests/integration/h1_conformance_profile_classification.rs",
+  "crates/harness/tests/integration/h1_fourslash_whole_program_equivalence.rs",
+  "crates/harness/tests/integration/h1_project_profile_classification.rs",
+  "crates/harness/tests/integration/h2_transition.rs",
+  "crates/harness/tests/integration/transpile_suite_inventory.rs",
 ]);
 
 function fail(message) {
