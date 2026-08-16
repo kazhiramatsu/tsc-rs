@@ -21,7 +21,7 @@
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "f5bf3846c0a8a9bd205d4c82d8e530c2bc86f981c284c9a21fd0b91914c45e05"
+    "sha256": "4f5ef82a18e1ab246cf4936f38ded4a34a6a47d5afab19ef532cf978ad833960"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -1270,5 +1270,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "f193bc1c6cd6a0a035142ef370a548d65e13d14e941bc60611b820f2ff457837"
+  "profile_fingerprint_sha256": "a0bef029a1a97120fb7e482f72b09f004f02d8869484781867e6036ce6324f5e"
 }
