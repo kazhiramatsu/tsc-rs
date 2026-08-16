@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-5c.1",
   "status": "ready",
-  "trustedBase": "202229f2c58cc2f1914e3c4d53fbb8f07649bfe3",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-5c.1-h2-5g-membership.md",
     "sha256": "a15d0f2608c1f413501c516a9a91fa1af42cd5a7069c31b6238ebf634d89073f"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-5b",
-      "receiptSha256": "566b073aaea7adbebb5cad6d3a34eae83b7a2543e0cb79aa52ef01d2b809226e"
+      "receiptSha256": "66cd4940eca99d5f20d0749eca5683d7b6e1da7d90cfcd7db7d0bdad7effe629"
     }
   ],
   "allowedPaths": [

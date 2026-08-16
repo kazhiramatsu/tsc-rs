@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-5b",
   "status": "ready",
-  "trustedBase": "695d2bd55db02ce2a7a46b51ba5fc2367f2a8497",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-5b-candidate-harness.md",
     "sha256": "cff382c32df73396f1e2dd83a1833f4ec6b7250ebd716ef8aeb6a61be3c2e738"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-5a",
-      "receiptSha256": "9a9f55e88e1d720b2255c2b187ea228ef4b6d146e5c8a23862133c4ff6bb4160"
+      "receiptSha256": "f4a37edbfbc5020447df037d05f9520ce206eeb78f5b16d4c3136e880191948a"
     }
   ],
   "allowedPaths": [

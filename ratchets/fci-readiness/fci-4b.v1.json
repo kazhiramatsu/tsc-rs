@@ -2,15 +2,15 @@
   "schemaVersion": 1,
   "packetId": "fci-4b",
   "status": "ready",
-  "trustedBase": "b69d7fc5851073b7f5fc0c051b825c92bcef1661",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-4b-inventory.md",
-    "sha256": "3a81e473662515b648b90cf3346288ff6a2a09836a08c478e840c4432d06c728"
+    "sha256": "792a11c659c5bccac8740e0f2dae5137a017aa3dc4fd93fbdaccaa877bea0ac4"
   },
   "predecessors": [
     {
       "packetId": "fci-4a.3",
-      "receiptSha256": "d15817579a9cced26ff9bd29c2706efd83c8b8025be8bdc44b8c09de8c94565a"
+      "receiptSha256": "6d5bcff01aea6fa77a0eb3734291fbfbfb2c583d4996c09eb957c116030eaf07"
     }
   ],
   "allowedPaths": [

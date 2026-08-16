@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-2a",
   "status": "ready",
-  "trustedBase": "8c71022cbe89a28d56618e5ee710301b1cd715b7",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-2a-runner-errors.md",
     "sha256": "0e3f3f11afcb71e8899ce77da64540835f2ac8d4a16666b62031d91fffc3d073"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-1c",
-      "receiptSha256": "45e363b93c29ab351847538edb4e24ffaa4a2affdbe983ae3e6f561abad0c418"
+      "receiptSha256": "c639dcf042d30234ae2c612e26d641359f423b36bd4205799877386208a25905"
     }
   ],
   "allowedPaths": [

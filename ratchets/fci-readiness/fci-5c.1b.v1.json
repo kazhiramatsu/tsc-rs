@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-5c.1b",
   "status": "design",
-  "trustedBase": "fa762252749706d0991a8bd0fb9102ae9c7b544f",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-5c.1b-h2-5g-observation.md",
     "sha256": "c9c8bf3cd8a29000880c96f60f130250e9c3e247214148399087deb7c63e82e0"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-5c.1",
-      "receiptSha256": "c1b689f38ff4a315f429d95cdba7d02d4d505d10c8c22faf225ee5594be051d7"
+      "receiptSha256": "5dcca88dac4fe32d608c585aacd4f22bf2a6316dd0de4d76eadf226cbf211f1c"
     }
   ],
   "allowedPaths": [

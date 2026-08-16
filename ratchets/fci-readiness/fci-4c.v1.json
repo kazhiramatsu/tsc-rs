@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-4c",
   "status": "ready",
-  "trustedBase": "e91674a9ff59f736cbdcf78029ebee2e6daf1e0d",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-4c-impact-transition.md",
     "sha256": "d6450b4b4e2c007cc4dd74d25740718703a9ef2934590a01cd7c4186ccd12b60"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-4b",
-      "receiptSha256": "200f0920e4b73ef53c3f3a56fcd0c0569217d12699795433c9018127e52bcdb9"
+      "receiptSha256": "55ed052b0ca1e44b4587e5a877b24ed9da12cd3048b30bef129fa6fc89bbe0ae"
     }
   ],
   "allowedPaths": [

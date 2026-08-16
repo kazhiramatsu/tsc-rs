@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-1b",
   "status": "ready",
-  "trustedBase": "458416f2230c06caf28eee884f0d705dd7631473",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-1b-adapter-descriptors.md",
     "sha256": "52fa7f3d4743e11f3f4a7f3c75c2455bfe1856953612e0a41f155904850eb494"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-1a",
-      "receiptSha256": "dd6d5f26cff537e5ef3476a60fd45baff6414e63d3bd3d32aa3a73c2631aa21f"
+      "receiptSha256": "2926aa0c7254647ea60473be7f4fdf43a0552dcf9e8e6ffc3fe77737596f5018"
     }
   ],
   "allowedPaths": [

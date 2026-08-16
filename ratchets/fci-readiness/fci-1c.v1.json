@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-1c",
   "status": "ready",
-  "trustedBase": "a37a12f2257a504382295e81176650675afe8da4",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-1c-graph-profile-records.md",
     "sha256": "eec950d81de7cdc1610dbc8e932d379a56403306c6a013d36db5ab6a3921e5a3"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-1b",
-      "receiptSha256": "b71dcfcb19e72fa5553aa6c78aefdc73575932e9d861a4489dccff3a38ec0ec8"
+      "receiptSha256": "ba0814eb0b99d2d0d2ff1ee95290d052d0157f5f5585a632d5c74e486ce4686f"
     }
   ],
   "allowedPaths": [

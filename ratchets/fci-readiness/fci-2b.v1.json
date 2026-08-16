@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-2b",
   "status": "ready",
-  "trustedBase": "ebbeab80c981f891539405330723ca45adb7fc28",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-2b-bounded-effects.md",
     "sha256": "db32cee23009a301fb5b50a0f70d1254ef46a5f2e27d619f4ab509614a5f9ccf"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-2a",
-      "receiptSha256": "798010da04c5f5b59bcba127dc129ae7def427a2009e200a7e953e911a3b069f"
+      "receiptSha256": "23188efe3f5a5ccafa296640ffa07d41f33ae4fd7335fa4e373aa3876d6344f7"
     }
   ],
   "allowedPaths": [

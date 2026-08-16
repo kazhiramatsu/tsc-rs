@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "packetId": "fci-3a",
   "status": "ready",
-  "trustedBase": "ee02939da83283fabe257e2e18dede705765e812",
+  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-3a-canonical-hash.md",
     "sha256": "ed640024846c280caa13b10961f36be3b1cad91cdfffff78e0e090aa28b96b84"
@@ -10,7 +10,7 @@
   "predecessors": [
     {
       "packetId": "fci-2b",
-      "receiptSha256": "d741953505ac8b508bd2b554e55b42740ed63bf356a5c9945ff42d610fff2b37"
+      "receiptSha256": "07f519b5b2833d0d70640e4081d962ade5248c55f428c717bcc3a010eddb988c"
     }
   ],
   "allowedPaths": [
