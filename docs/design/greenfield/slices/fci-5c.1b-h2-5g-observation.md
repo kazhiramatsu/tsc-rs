@@ -1,11 +1,13 @@
 # FCI-5c.1b: H2.5g observation shadow
 
-Status: **ready (FCI-5c.1b v1; non-authoritative shadow)**. The unblock
-conditions named by the design revision are satisfied and recorded: the
-source-snapshot packet FCI-3c and the runner-boundary packet FCI-5b are
-`closed` with green proofs, and the post-H2.5g roadmap review in the
+Status: **design; PAUSED by the 2026-08-17 post-merge roadmap review
+(Option A, emitter-first)**. The former unblock conditions are satisfied
+and recorded — FCI-3c and FCI-5b are `closed` with green proofs and the
 [post-H1 schedule](../post-h1-completion-slices.md#12-h25g-legacy-closing-protocol)
-records the H2.5g validation/merge lineage. Legacy H2.5g qualification,
+records the H2.5g validation/merge lineage — but this packet is not
+`ready` and authorizes no production edit while the Functional-CI tail is
+paused; an explicit post-H2.9 framework review may resume it. The packet
+body below is retained verbatim for that review. Legacy H2.5g qualification,
 inventory, acceptance, owner-control, and hosted commands remain the only
 authority; this packet produces shadow evidence only and can mint no
 qualification, acceptance, cache, root, or capability.
