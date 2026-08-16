@@ -97,7 +97,7 @@
         "suite": "transpile",
         "classification": {
           "path": "vendor/typescript-6.0.3/transpile-suite-inventory.v1.json",
-          "sha256": "5762b9fbf86c0437ff3bfc2f1e1deab48e35effc8d9117299035d23d6c45f949"
+          "sha256": "c254834286cf54f23888ace6996d0e7729aec12313caa76d125772d9b58a79e0"
         },
         "cases": 37,
         "compatible_cases": 0,
