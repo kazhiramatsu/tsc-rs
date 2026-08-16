@@ -24,7 +24,13 @@ pub(crate) enum InputScope {
     WorkspaceAudit,
     /// Executable verification inputs. Markdown is covered by the cheap
     /// workspace/readme phases and is deliberately excluded from expensive
-    /// compiler, oracle, and corpus phases.
+    /// compiler, oracle, and corpus phases. The Functional-CI packet-control
+    /// envelopes under `ratchets/fci-` are likewise excluded: no resumable
+    /// phase reads them (the acceptance planner records the same reviewed
+    /// no-acceptance-impact disposition), their own validation is owned by
+    /// the per-packet slice-readiness proof commands, and the always-`All`
+    /// readme-status tail still executes on such a change. FCI-8a/9a rewire
+    /// these scopes when a functional phase first consumes those envelopes.
     Verification,
     /// Rust sources plus the formatter/toolchain configuration.
     RustFormat,
@@ -54,9 +60,12 @@ impl InputScope {
                     || relative.starts_with(".github/actions/")
                     || relative.starts_with("scripts/")
             }
-            Self::Verification => !relative
-                .rsplit_once('.')
-                .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("md")),
+            Self::Verification => {
+                !relative
+                    .rsplit_once('.')
+                    .is_some_and(|(_, extension)| extension.eq_ignore_ascii_case("md"))
+                    && !relative.starts_with("ratchets/fci-")
+            }
             Self::RustFormat => {
                 relative.ends_with(".rs")
                     || matches!(

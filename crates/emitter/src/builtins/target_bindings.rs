@@ -116,6 +116,7 @@ pub(super) struct TargetBinding {
 }
 
 impl TargetBinding {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn from_existing(
         id: GeneratedBindingId,
         provisional_name: String,

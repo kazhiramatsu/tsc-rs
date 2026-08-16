@@ -680,7 +680,7 @@ impl TypeScriptTransformer<'_> {
                             }),
                             TransformFlags::NONE,
                         )?
-                    } else if value == f64::INFINITY || value == f64::NEG_INFINITY {
+                    } else if value.is_infinite() {
                         let infinity = factory.create_node(
                             source,
                             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
@@ -2734,7 +2734,15 @@ impl CommonJsModuleInfo {
                             };
                             if admitted {
                                 info.add_export_mapping(&local, export);
-                                info.add_exported_binding(key, export);
+                                // collectModuleInfo's default arm records the
+                                // declaration name in exportedBindings
+                                // (_tsc.js:92906-92908); "default" stays only
+                                // in the export mapping, so a merged namespace
+                                // initializer substitutes `exports.<name>`.
+                                info.add_exported_binding(
+                                    key,
+                                    if is_default { local.as_ref() } else { export },
+                                );
                             }
                         }
                     }
@@ -2798,7 +2806,13 @@ impl CommonJsModuleInfo {
                                 info.add_exported_name(export);
                             }
                             if is_default || has_syntactic_name {
-                                info.add_exported_binding(key, export);
+                                // The default arm mirrors the function case:
+                                // exportedBindings receives the declaration
+                                // name (_tsc.js:92859-92861).
+                                info.add_exported_binding(
+                                    key,
+                                    if is_default { local.as_ref() } else { export },
+                                );
                             }
                         }
                     }
@@ -3001,13 +3015,13 @@ impl CommonJsModuleInfo {
 
         let functions_by_original = statements
             .iter()
-            .filter_map(|statement| {
+            .filter(|&statement| {
                 matches!(
                     arena.node(*statement),
                     Ok(record) if record.kind == SyntaxKind::FunctionDeclaration
                 )
-                .then(|| (arena.get_original_node(*statement).node(), *statement))
             })
+            .map(|statement| (arena.get_original_node(*statement).node(), *statement))
             .collect::<BTreeMap<_, _>>();
         for key in exported_functions {
             // An ambient function is replaced by a NotEmittedStatement in
@@ -4954,7 +4968,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .runtime_name
                     .as_deref()
                     .expect("an AMD export-star declaration owns a generated module binding");
-                self.create_identifier(&generated_name)?
+                self.create_identifier(generated_name)?
             } else {
                 self.create_require_call(module_specifier)?
             };
@@ -5055,7 +5069,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         .runtime_name
                         .as_deref()
                         .expect("an AMD namespace export owns a generated module binding");
-                    self.create_identifier(&generated_name)?
+                    self.create_identifier(generated_name)?
                 } else {
                     self.create_require_call(module_specifier)?
                 };
@@ -5151,11 +5165,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     } else {
                         CommonJsDirectVariableStorage::ExportObject
                     };
-                    let collector_targets = self
-                        .info
-                        .appends_declaration_exports()
-                        .then(|| exports.clone())
-                        .unwrap_or_default();
+                    let collector_targets = if self.info.appends_declaration_exports() {
+                        exports.clone()
+                    } else {
+                        Default::default()
+                    };
                     CommonJsDirectVariablePlan::new(local, storage, collector_targets)
                 })
             } else {
@@ -8062,13 +8076,16 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let parsed = self.context.arena().get_original_node(original);
             if self.context.arena().node(parsed)?.pos != u32::MAX {
                 let resolver_node = self.resolver_node(original)?;
-                let export_container_mode = self
+                let export_container_mode = if self
                     .context
                     .arena()
                     .metadata(original)
                     .is_some_and(|metadata| metadata.flags().contains(EmitFlags::EXPORT_NAME))
-                    .then_some(EmitExportContainerMode::ExportName)
-                    .unwrap_or(EmitExportContainerMode::Reference);
+                {
+                    EmitExportContainerMode::ExportName
+                } else {
+                    EmitExportContainerMode::Reference
+                };
                 let exported_from_source = self
                     .resolver
                     .get_referenced_export_container(resolver_node, export_container_mode)?

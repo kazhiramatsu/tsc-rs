@@ -375,6 +375,7 @@ enum StaticSuperPolicy {
 /// ordinary function introduces a hard boundary, while a nested class's own
 /// static initializer can install a new evaluation frame above that boundary.
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)]
 enum StaticBindingFrame {
     StaticEvaluation(Option<StaticBindings>),
     ClassBoundary,
@@ -525,6 +526,7 @@ struct PrivateFieldOperation {
 }
 
 #[derive(Clone)]
+#[allow(clippy::large_enum_variant)]
 enum InstanceOperation {
     PrivateBrand(ClassBinding),
     Public(FieldOperation),
@@ -3376,6 +3378,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
     /// Phase 4: private slot bindings are allocated only after the class
     /// constructor and real heritage-super identities have been reserved.
+    #[allow(clippy::too_many_arguments)]
     fn materialize_private_environment(
         &mut self,
         plan: PrivateEnvironmentPlan,

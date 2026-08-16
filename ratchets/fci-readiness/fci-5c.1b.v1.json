@@ -5,7 +5,7 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-5c.1b-h2-5g-observation.md",
-    "sha256": "7d45155d13049ac37d935b439deb01d36962b272d177b9e961f516a86baa1f6e"
+    "sha256": "a42f7c71e83a7a7a2fc154e6293cacddd720612535bdcdbf90ee956e5b0ceda8"
   },
   "predecessors": [
     {
@@ -46,7 +46,9 @@
     "docs/design/greenfield/slices/README.md",
     "docs/design/greenfield/functional-ci-evidence.md",
     "ratchets/fci-5c1b-observation.v1.json",
-    "ratchets/fci-readiness/fci-5c.1b.v1.json"
+    "ratchets/fci-readiness/fci-5c.1b.v1.json",
+    "ratchets/h2-5g-profile.v1.json",
+    ".github/ci/qualification-policy.v2.json"
   ],
   "forbiddenPrefixes": [
     "crates/compiler",
@@ -58,7 +60,8 @@
     "crates/ci-testkit",
     ".github/workflows",
     ".github/ci/contracts/h2-5g",
-    "ratchets/h2"
+    "ratchets/h2-5g-qualification.v1.json",
+    "ratchets/h2-5g-owner-controls.v1.json"
   ],
   "proof": {
     "commands": [

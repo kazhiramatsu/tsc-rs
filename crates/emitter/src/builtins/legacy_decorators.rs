@@ -1014,7 +1014,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         // direct member of the source class. They cannot own source metadata,
         // but retain the previous computed-name preparation contract.
         for current_member in current_members {
-            if !prepared_current_members.contains_key(&current_member.node()) {
+            if let std::collections::btree_map::Entry::Vacant(e) =
+                prepared_current_members.entry(current_member.node())
+            {
                 let member_decorators = self.visit_member_decorator_expressions(
                     *current_member,
                     ClassElementPreparationMode::Runtime,
@@ -1024,7 +1026,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     member_decorators,
                     ClassElementPreparationMode::Runtime,
                 )?;
-                prepared_current_members.insert(current_member.node(), prepared);
+                e.insert(prepared);
             }
         }
 

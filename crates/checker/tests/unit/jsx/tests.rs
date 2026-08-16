@@ -370,12 +370,19 @@ fn namespaced_jsx_attribute_suggestion_uses_symbol_to_string_face() {
             .iter()
             .find(|diagnostic| diagnostic.file_name.is_some() && diagnostic.code() == 2322)
             .expect("namespaced JSX attribute mismatch");
+        // The suggestion is the elaboration row of the 2322 head, so the
+        // assertion walks the complete message chain rather than the head
+        // text alone.
+        let mut flattened = Vec::new();
+        let mut stack = vec![&diagnostic.message];
+        while let Some(chain) = stack.pop() {
+            flattened.push(chain.text.as_str());
+            stack.extend(chain.next.iter());
+        }
+        let flattened = flattened.join("\n");
         assert!(
-            diagnostic
-                .message_text()
-                .contains("Did you mean '\"ns:attribute\"'?"),
-            "{}",
-            diagnostic.message_text()
+            flattened.contains("Did you mean '\"ns:attribute\"'?"),
+            "{flattened}"
         );
     });
 }

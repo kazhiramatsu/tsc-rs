@@ -98,6 +98,27 @@ fn scopes_invalidate_only_on_declared_inputs() {
         fingerprint(&original, InputScope::Verification),
         fingerprint(&ratchet_edit, InputScope::Verification)
     );
+
+    let fci_original = snapshot(&[
+        ("crates/checker/src/lib.rs", "rust-a"),
+        ("ratchets/fci-readiness/fci-3c.v1.json", "envelope-a"),
+        ("ratchets/fci-packet-bootstrap.v1.json", "bootstrap-a"),
+    ]);
+    let fci_envelope_edit = snapshot(&[
+        ("crates/checker/src/lib.rs", "rust-a"),
+        ("ratchets/fci-readiness/fci-3c.v1.json", "envelope-b"),
+        ("ratchets/fci-packet-bootstrap.v1.json", "bootstrap-b"),
+    ]);
+    // Packet-control envelopes are validated by their own slice-readiness
+    // proofs; no resumable verification phase reads them.
+    assert_eq!(
+        fingerprint(&fci_original, InputScope::Verification),
+        fingerprint(&fci_envelope_edit, InputScope::Verification)
+    );
+    assert_ne!(
+        fingerprint(&fci_original, InputScope::All),
+        fingerprint(&fci_envelope_edit, InputScope::All)
+    );
 }
 
 #[test]

@@ -202,6 +202,16 @@ It composes the membership report inputs, provider, sandbox, harness
 executable, and `verify_two`; it owns no semantics, changes no legacy
 command, and its `--full` run writes the summary ratchet below.
 
+Registering the subcommand edits `crates/xtask/src/main.rs`, whose raw bytes
+are content-addressed by both the hosted CI policy
+(`.github/ci/qualification-policy.v2.json`) and the H2.5g profile's
+runtime-input pins. This packet therefore performs that pin refresh as one
+explicit reviewed transition: update the policy's recorded source hash and
+re-mint `ratchets/h2-5g-profile.v1.json` with its checked-in generator on the
+approved profile host, exactly as the earlier in-branch profile refresh did.
+The immutable H2.5g qualification and owner-control artifacts are not
+regenerated, reinterpreted, or rewritten by this packet.
+
 ## Required controls
 
 - Run the same case twice in isolated child lifetimes; changing completion

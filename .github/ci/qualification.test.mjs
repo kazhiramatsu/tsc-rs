@@ -14,6 +14,7 @@ import {
   validateLaneSelection,
   validateMergeReceipt,
   validatePolicy,
+  validateFciReadinessChain,
   validateJsonSchemaSubset,
   validateQualificationResult,
   validateBoundReceipt,
@@ -217,6 +218,48 @@ test("H2.5g artifact-to-schema mapping is fixed and immutable", () => {
         "ratchets/h2-5g-profile.v1.json",
       ],
     ],
+  );
+});
+
+test("FCI readiness chain is valid and every ready packet passes the checker", () => {
+  const summary = validateFciReadinessChain();
+  assert.ok(summary.envelopes >= 18, "all packet envelopes are enumerated");
+  assert.ok(summary.ready >= 1, "at least one packet is machine-checked ready");
+  assert.ok(summary.ready <= summary.envelopes);
+});
+
+test("slice-readiness schema rejects malformed envelopes fail-closed", () => {
+  const schema = JSON.parse(
+    fs.readFileSync(new URL("./contracts/slice-readiness.v1.schema.json", import.meta.url), "utf8"),
+  );
+  const valid = {
+    schemaVersion: 1,
+    packetId: "fci-0x",
+    status: "design",
+    trustedBase: "a".repeat(40),
+    packet: { path: "docs/x.md", sha256: "b".repeat(64) },
+    predecessors: [],
+    allowedPaths: ["docs/x.md"],
+    forbiddenPrefixes: ["crates"],
+    proof: { commands: ["true"], evidencePath: "ratchets/x.json" },
+  };
+  assert.equal(validateJsonSchemaSubset(schema, valid, "fixture envelope"), valid);
+  assert.throws(
+    () => validateJsonSchemaSubset(schema, { ...valid, status: "shipped" }, "fixture envelope"),
+    /fixture envelope/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset(schema, { ...valid, blessed: true }, "fixture envelope"),
+    /fixture envelope/u,
+  );
+  assert.throws(
+    () =>
+      validateJsonSchemaSubset(
+        schema,
+        { ...valid, trustedBase: "not-a-commit" },
+        "fixture envelope",
+      ),
+    /fixture envelope/u,
   );
 });
 

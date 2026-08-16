@@ -257,6 +257,8 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/xtask/src/acceptance_slices.rs",
   "crates/xtask/tests/unit/acceptance_plan/tests.rs",
   "crates/xtask/tests/unit/acceptance_slices/tests.rs",
+  "crates/xtask/src/local_ci_resume.rs",
+  "crates/xtask/tests/unit/local_ci_resume/tests.rs",
 ]);
 
 function fail(message) {
