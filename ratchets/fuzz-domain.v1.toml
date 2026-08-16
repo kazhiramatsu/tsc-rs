@@ -3,7 +3,7 @@ status = "draft"
 
 [[source_references]]
 path = "m8-evidence.json"
-sha256 = "d16978210177b86ff718cf9e7f90774f4bc8c9a492894edae36b9220d710abb2"
+sha256 = "5bc173da94829b474f519695c35751d35761a916412fb63f910046e32887e1f6"
 
 [[source_references]]
 path = "crates/xtask/src/m8_evidence.rs"

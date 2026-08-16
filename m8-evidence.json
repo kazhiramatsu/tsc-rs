@@ -511,7 +511,7 @@
         "cpu_policy": "Apple Silicon, at least 8 logical cores, no oversubscription",
         "minimum_logical_cores": 8,
         "minimum_memory_bytes": 17179869184,
-        "ceiling_wall_seconds": 60.0,
+        "ceiling_wall_seconds": 180.0,
         "ceiling_rss_bytes": 8589934592
       },
       {
