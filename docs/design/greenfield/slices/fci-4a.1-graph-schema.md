@@ -66,7 +66,7 @@ belong to FCI-4a.2 and FCI-4a.3.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-core --test graph_schema
+cargo test -p tsc-rs-ci-core --test contracts graph_schema
 node .github/ci/slice-readiness.mjs --check fci-4a.1
 ```
 

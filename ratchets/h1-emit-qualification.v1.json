@@ -19,11 +19,11 @@
   "authorities": {
     "profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
-      "sha256": "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991"
+      "sha256": "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db"
     },
     "callback_oracle": {
       "path": "ratchets/h1-emit-oracle.v1.json",
-      "sha256": "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793"
+      "sha256": "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d"
     },
     "owner_inventory": {
       "path": "ratchets/h1-owner-inventory.v1.json",
@@ -31,7 +31,7 @@
     },
     "rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "61a87c4c949b07483d6f3a76fe5567ab2f143d4e9751e9f72dfb97ec0574493f"
+      "sha256": "61580f1ebdf89ee8825fa2f753af9d75f56fb30ca468cdebda4068adc9681971"
     },
     "suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -56,7 +56,7 @@
     "pending_rows": 0,
     "production_boundary_omissions": 0,
     "option_projection_omissions": 0,
-    "explicit_checker_emit_elisions": 24
+    "explicit_checker_emit_elisions": 22
   },
   "upstream_closure": {
     "suites": [
@@ -64,7 +64,7 @@
         "suite": "compiler",
         "classification": {
           "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
-          "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+          "sha256": "7158d2e4fac5b6d43ee9382d5dadac7d27e358c86bd532e07b4d1f9ff85ad5b0"
         },
         "cases": 7276,
         "compatible_cases": 1,
@@ -75,7 +75,7 @@
         "suite": "conformance",
         "classification": {
           "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
-          "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+          "sha256": "43c3e4d6f6273f2264e7eed96348795bf58caecf30d81b365c4c0dc8d630a990"
         },
         "cases": 7697,
         "compatible_cases": 0,
@@ -86,7 +86,7 @@
         "suite": "project",
         "classification": {
           "path": "vendor/typescript-6.0.3/project-profile-classification.v1.json",
-          "sha256": "4e984ab1847a551ecbe9f8736237aee74a8c42134403e7cb56a624a2fef78d87"
+          "sha256": "b89589c1372a2c2bb4d8415f8f5b3168605fd11cb43d5b9b55828d834f54342a"
         },
         "cases": 632,
         "compatible_cases": 0,
@@ -97,7 +97,7 @@
         "suite": "transpile",
         "classification": {
           "path": "vendor/typescript-6.0.3/transpile-suite-inventory.v1.json",
-          "sha256": "5762b9fbf86c0437ff3bfc2f1e1deab48e35effc8d9117299035d23d6c45f949"
+          "sha256": "c254834286cf54f23888ace6996d0e7729aec12313caa76d125772d9b58a79e0"
         },
         "cases": 37,
         "compatible_cases": 0,
@@ -108,7 +108,7 @@
         "suite": "fourslash",
         "classification": {
           "path": "vendor/typescript-6.0.3/fourslash-whole-program-equivalence.v1.json",
-          "sha256": "3960e1beefe159ff9d609d7ff66d979b0f30198edcb0bf7f82efdfc1e9b0ff4b"
+          "sha256": "3174f859789d6d8494f00f6ae7286b821245c42e75c3683011390358234c6a55"
         },
         "cases": 38,
         "compatible_cases": 0,

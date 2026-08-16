@@ -212,7 +212,7 @@ const inventory = {
         to: "ProgramConfigFile.snapshot",
         ...owner(
           "crates/program/src/config.rs",
-          "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()));",
+          "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()))",
         ),
       },
       {

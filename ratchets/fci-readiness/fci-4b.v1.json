@@ -5,12 +5,12 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-4b-inventory.md",
-    "sha256": "792a11c659c5bccac8740e0f2dae5137a017aa3dc4fd93fbdaccaa877bea0ac4"
+    "sha256": "bcba7d94db4e2ac007c91fd1ac7813529f068651cf45e38618d2d073aea956c2"
   },
   "predecessors": [
     {
       "packetId": "fci-4a.3",
-      "receiptSha256": "6d5bcff01aea6fa77a0eb3734291fbfbfb2c583d4996c09eb957c116030eaf07"
+      "receiptSha256": "6cfb895e223247f8ba5a82e693a4d4fad6982de81952347ad3acb81a88017efe"
     }
   ],
   "allowedPaths": [
@@ -36,7 +36,7 @@
   "proof": {
     "commands": [
       "cargo xtask test ci-core",
-      "cargo test -p tsc-rs-ci-core --test inventory",
+      "cargo test -p tsc-rs-ci-core --test contracts inventory",
       "node .github/ci/slice-readiness.mjs --check fci-4b"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-4b.v1.json"

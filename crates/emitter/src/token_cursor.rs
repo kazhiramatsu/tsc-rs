@@ -18,10 +18,10 @@ pub(crate) struct CursorWork {
 
 #[cfg(test)]
 std::thread_local! {
-    static CURSOR_WORK: Cell<CursorWork> = Cell::new(CursorWork {
+    static CURSOR_WORK: Cell<CursorWork> = const { Cell::new(CursorWork {
         emissions: 0,
         source_bytes: 0,
-    });
+    }) };
 }
 
 #[cfg(test)]

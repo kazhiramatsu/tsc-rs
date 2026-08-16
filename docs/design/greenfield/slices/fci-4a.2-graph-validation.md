@@ -75,7 +75,7 @@ membership-completion conversion.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-core --test graph_validation
+cargo test -p tsc-rs-ci-core --test contracts graph_validation
 node .github/ci/slice-readiness.mjs --check fci-4a.2
 ```
 

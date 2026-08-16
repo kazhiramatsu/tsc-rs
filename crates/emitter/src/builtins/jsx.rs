@@ -1156,6 +1156,7 @@ impl<'context> JsxVisitor<'context> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn create_element_call(
         &mut self,
         original: TransformNode,

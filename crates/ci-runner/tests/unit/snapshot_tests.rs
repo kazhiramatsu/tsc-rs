@@ -25,6 +25,33 @@ fn relative_paths_reject_traversal_and_symlink_reads_fail_closed() {
             phase: EffectPhase::Read
         }
     );
+
+    #[cfg(unix)]
+    {
+        let limit = ByteLimit::try_new(16).expect("positive limit");
+        std::os::unix::fs::symlink(root.join("plain"), root.join("leaf-link"))
+            .expect("final-component symlink");
+        let leaf = RelativePathV1::try_new(b"leaf-link".to_vec()).expect("valid relative path");
+        assert_eq!(
+            read_regular_file_bounded(&root, &leaf, limit).expect_err("symlink leaf read"),
+            InfraError::Guard {
+                phase: EffectPhase::Read
+            }
+        );
+
+        fs::create_dir(root.join("sub")).expect("regular directory");
+        fs::write(root.join("sub").join("inner"), b"ok").expect("nested regular file");
+        std::os::unix::fs::symlink(root.join("sub"), root.join("dir-link"))
+            .expect("intermediate directory symlink");
+        let nested =
+            RelativePathV1::try_new(b"dir-link/inner".to_vec()).expect("valid relative path");
+        assert_eq!(
+            read_regular_file_bounded(&root, &nested, limit).expect_err("symlink component read"),
+            InfraError::Guard {
+                phase: EffectPhase::Read
+            }
+        );
+    }
 }
 
 #[test]

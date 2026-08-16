@@ -1932,7 +1932,7 @@ fn es2015_nullish_expansion_is_parenthesized_as_a_conditional_condition() {
             ),
             ScriptTarget::ES2015,
         ),
-        concat!("const value = (a !== null && a !== void 0 ? a : 'fallback') ? 1 : 2;\n",),
+        "const value = (a !== null && a !== void 0 ? a : 'fallback') ? 1 : 2;\n",
     );
 }
 
@@ -1946,9 +1946,7 @@ fn conditional_separator_uses_its_source_anchor_after_a_synthetic_condition() {
             ),
             ScriptTarget::ES2015,
         ),
-        concat!(
-            "const value = (a !== null && a !== void 0 ? a : 'fallback' /*outer-condition*/) ? /*outer-question*/ 1 /*outer-true*/ : /*outer-colon*/ 2 /*outer-false*/;\n",
-        ),
+        "const value = (a !== null && a !== void 0 ? a : 'fallback' /*outer-condition*/) ? /*outer-question*/ 1 /*outer-true*/ : /*outer-colon*/ 2 /*outer-false*/;\n",
     );
 }
 
@@ -7885,7 +7883,7 @@ fn legacy_decorated_class_exports_follow_lowered_static_fields() {
     ] {
         let parsed = parse_source_file(
             "decorated-export-class-fields.ts",
-            &format!(
+            format!(
                 "declare const dec: any;\n@dec\n{declaration} {{ static x() {{ return C.y; }} static y = 1; }}\n"
             ),
             Default::default(),
@@ -8118,7 +8116,7 @@ fn legacy_decorated_named_evaluation_does_not_allocate_for_control_classes() {
     ] {
         let parsed = parse_source_file(
             "decorated-named-evaluation-control.ts",
-            &format!("declare const dec: any;\n@dec\n{declaration}\n"),
+            format!("declare const dec: any;\n@dec\n{declaration}\n"),
             Default::default(),
             None,
         );
@@ -8370,7 +8368,7 @@ fn decorated_static_private_and_auto_accessor_facts_supply_static_this_identity(
     ] {
         let parsed = parse_source_file(
             "decorated-static-private-this.ts",
-            &format!(
+            format!(
                 "declare const dec: any;\n@dec class C {{ {member} static identity = this; }}\n"
             ),
             Default::default(),
@@ -9094,7 +9092,7 @@ fn legacy_import_metadata_uses_the_class_name_scope_for_value_resolution() {
     for (label, import, kind, expected) in cases {
         let parsed = parse_source_file(
             "legacy-import-metadata.ts",
-            &format!(
+            format!(
                 "{import}declare const decorator: any;\n@decorator\nclass MyComponent {{ constructor(public Service: Service) {{}} }}\n"
             ),
             Default::default(),
@@ -10062,7 +10060,7 @@ fn standard_decorator_parameter_property_initializer_follows_parenthesized_super
     ] {
         let parsed = parse_source_file(
             "parenthesized-super-parameter-property-decorator.ts",
-            &format!(
+            format!(
                 concat!(
                     "declare const dec: any;\n",
                     "declare class Base {{}}\n",
@@ -11140,7 +11138,7 @@ fn decorated_class_pending_comma_keys_preserve_tsc_operand_boundaries() {
             "an uncached comma key must become adjacent individual pending statements:\n{assign}",
         );
         assert!(
-            !assign_lines.iter().any(|line| *line == "(a(), b());"),
+            !assign_lines.contains(&"(a(), b());"),
             "the statement owner must not recover a flattened key as one comma statement:\n{assign}",
         );
 
@@ -13057,9 +13055,7 @@ fn static_super_assignment_value_stays_grouped_in_a_define_property_initializer(
     );
 
     assert!(
-        output.contains(concat!(
-            "    value: (Reflect.set(_b, \"a\", _c = 0, _a), _c)\n",
-        )),
+        output.contains("    value: (Reflect.set(_b, \"a\", _c = 0, _a), _c)\n"),
         "a comma expression is one descriptor value, not an adjacent object property:\n{output}",
     );
 }
@@ -13084,7 +13080,7 @@ fn es2018_visits_a_synthetic_descriptor_that_contains_object_rest_in_its_value()
         "a synthesized descriptor inherits the object-rest subtree flag and follows tsc's one-chunk Object.assign path:\n{output}",
     );
     assert!(
-        output.contains(concat!("}).value = __rest(_a, []), _a) }));\n",)),
+        output.contains("}).value = __rest(_a, []), _a) }));\n"),
         "the lowered rest assignment must remain the descriptor's grouped value:\n{output}",
     );
 }

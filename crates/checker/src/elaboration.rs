@@ -381,9 +381,7 @@ impl<'a> CheckerState<'a> {
             .type_of(target_type)
             .symbol
             .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied());
-        let Some(declaration) = declaration else {
-            return None;
-        };
+        let declaration = declaration?;
         Some(self.related_info_for_node(
             declaration,
             &diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,

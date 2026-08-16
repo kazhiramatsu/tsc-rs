@@ -418,7 +418,7 @@ fn assert_exact_writes(
 /// the oracle's exact write provenance. A source can occur in more than one
 /// output (for example JavaScript plus a source map), so activity accounting
 /// is based on the unique source union rather than the write count.
-fn transform_source_paths<'a>(expected: &'a Value) -> Result<BTreeSet<&'a str>, Box<dyn Error>> {
+fn transform_source_paths(expected: &Value) -> Result<BTreeSet<&str>, Box<dyn Error>> {
     let mut paths = BTreeSet::new();
     for write in array(expected, "writes")? {
         for source in array(write, "source_files")? {
@@ -773,7 +773,7 @@ fn assert_reported_diagnostics(
     Ok(())
 }
 
-fn compact_typescript_observation<'a>(case: &'a Value) -> Result<&'a Value, Box<dyn Error>> {
+fn compact_typescript_observation(case: &Value) -> Result<&Value, Box<dyn Error>> {
     let case_id = string(case, "case_id")?;
     let fingerprints = array(case, "typescript_run_fingerprints")?;
     let observation = &case["typescript_observation"];
@@ -2206,7 +2206,7 @@ pub fn run_h2_5g_inventory(
             );
         }
         let processed = index - start + 1;
-        if processed % 256 == 0 && index + 1 != end {
+        if processed.is_multiple_of(256) && index + 1 != end {
             eprintln!(
                 "H2.5g inventory progress: range={start}..{end} processed={processed}/{} failing_cases={failing_cases}",
                 end - start,

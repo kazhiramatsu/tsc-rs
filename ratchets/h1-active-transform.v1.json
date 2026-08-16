@@ -15,11 +15,11 @@
     },
     "profile": {
       "path": "ratchets/h1-emit-profile.v1.json",
-      "sha256": "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991"
+      "sha256": "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db"
     },
     "emit_oracle": {
       "path": "ratchets/h1-emit-oracle.v1.json",
-      "sha256": "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793"
+      "sha256": "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d"
     }
   },
   "compiler_options": {

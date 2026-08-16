@@ -1,6 +1,9 @@
 # H2.5h-a — ES2015/Generators architecture and design packet
 
-Readiness: **blocked**
+Readiness: **unblocked design draft (2026-08-17)** — the H2.5g closure and
+the post-merge roadmap review are recorded and the paused Functional-CI
+tail is no longer a dependency; implementation still requires this packet
+to be completed and machine-checked `ready`.
 
 This is the concrete handoff for the first post-FCI emitter/H2 design-gated
 work. It is not an implementation specification yet and authorizes no

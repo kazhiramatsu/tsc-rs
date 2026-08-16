@@ -16,19 +16,19 @@ const H1_FROZEN: [(&str, &str); 5] = [
     ),
     (
         "ratchets/h1-rust-omissions.v1.json",
-        "9191624d90673877c5c60baf4e5934c40e8cf31a1a3505dba6301ca625a61ea0",
+        "61580f1ebdf89ee8825fa2f753af9d75f56fb30ca468cdebda4068adc9681971",
     ),
     (
         "ratchets/h1-emit-profile.v1.json",
-        "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991",
+        "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db",
     ),
     (
         "ratchets/h1-emit-oracle.v1.json",
-        "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793",
+        "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d",
     ),
     (
         "ratchets/h1-emit-qualification.v1.json",
-        "4a9a36b3b35acd9c22bf22fc88ba2c463bc6a16a18f61d2ee38c528d4aaa42ef",
+        "fa747c44dfd8b08ddbb1d2f7c796a69a85e58b73ca201b23d0d4b182451217e3",
     ),
 ];
 

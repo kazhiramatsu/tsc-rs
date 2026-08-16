@@ -462,16 +462,6 @@ const anchorSpecs = [
     "links.capturedBlockScopeBindings pushIfUnique",
   ],
   [
-    "computed-property-loop-capture-elided",
-    "crates/checker/src/literals.rs",
-    "class-expression-property loop-capture side-effect",
-  ],
-  [
-    "private-scope-loop-capture-elided",
-    "crates/checker/src/functions.rs",
-    "The class-expression-in-iteration arm sets emit-only flags",
-  ],
-  [
     "constructor-capture-this-elided",
     "crates/checker/src/functions.rs",
     "captureLexicalThis is emit-only (no-op)",
@@ -489,7 +479,7 @@ const anchorSpecs = [
   [
     "import-equals-linked-references-elided",
     "crates/checker/src/modules.rs",
-    "markLinkedReferences' declaration-emit\n    /// traversal remains outside this checker slice",
+    "markLinkedReferences'\n    /// declaration-emit traversal remains outside this checker slice",
   ],
   [
     "export-linked-aliases-elided",
@@ -574,7 +564,7 @@ const anchorSpecs = [
   [
     "export-assignment-linked-aliases-elided",
     "crates/checker/src/modules.rs",
-    "erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc",
+    "collectLinkedAliases (emit) and the JSDoc type-annotation arm remain",
   ],
   [
     "standard-class-fields-option-check",
@@ -741,8 +731,6 @@ const optionProjectionOmissions = [];
 
 const checkerElisionSpecs = [
   ["captured-block-scope-bindings", "captured-block-scope-bindings-elided", "inactive-at-ESNext", "profile-control"],
-  ["computed-property-loop-capture", "computed-property-loop-capture-elided", "inactive-at-ESNext", "profile-control"],
-  ["private-scope-loop-capture", "private-scope-loop-capture-elided", "adjacent-class-field", "profile-control"],
   ["constructor-capture-lexical-this", "constructor-capture-this-elided", "adjacent-class-field", "profile-control"],
   ["async-mark-linked-references", "async-linked-references-elided", "dormant-declaration", "typed-deferred"],
   ["decorator-mark-linked-references", "decorator-linked-references-elided", "dormant-declaration/decorator", "typed-deferred"],

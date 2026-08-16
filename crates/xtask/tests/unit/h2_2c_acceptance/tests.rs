@@ -395,7 +395,7 @@ fn probe_h2_5g_exact_range_locally() {
                 panic!("{absolute_index} {case_id}: unknown H2.5g disposition {disposition}")
             }
         }
-        if absolute_index % 100 == 0 {
+        if absolute_index.is_multiple_of(100) {
             eprintln!("H2.5g exact probe reached case {absolute_index}: {case_id}");
         }
     }
@@ -477,7 +477,7 @@ fn collect_h2_5g_exact_differences_locally() {
             writeln!(report).expect("terminate H2.5g difference row");
             differences += 1;
         }
-        if index % 100 == 0 {
+        if index.is_multiple_of(100) {
             eprintln!(
                 "H2.5g inventory reached case {index}: admitted={admitted} differences={differences}"
             );

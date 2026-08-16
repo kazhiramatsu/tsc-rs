@@ -66,7 +66,7 @@ until a later invocation packet defines them.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-runner --test bounded_effect
+cargo test -p tsc-rs-ci-runner --test contracts bounded_effect
 cargo test -p tsc-rs-ci-runner --lib
 node .github/ci/slice-readiness.mjs --check fci-2b
 ```

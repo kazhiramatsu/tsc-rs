@@ -17,7 +17,7 @@ invitation to fill in the answer during implementation.
 
 | Packet | Status | Authorized work |
 | --- | --- | --- |
-| [H2.5g legacy closure](#h25g-legacy-closure-route) | In progress; not yet qualified | Close the H2.5g dependency closure. Outside `transformES2016`, only repair a pre-existing composition difference directly exposed by a frozen witness; no new feature or H2.5h work. |
+| [H2.5g legacy closure](#h25g-legacy-closure-route) | **Closed and qualified** (final validation ref `0653e10d`; delivery merge `507a96ac`; recorded in the post-H1 schedule §1.2) | No further edits; the closure route below is retained as the immutable record of its commands and required results. |
 | [Packet-control bootstrap](packet-control-bootstrap.md) | In progress; one-time bootstrap | Add and verify the versioned readiness schema/checker and bootstrap ratchet. It may authorize only the explicitly listed pre-closure FCI shadow packets; it cannot authorize H2.5g authority, FCI-6+, workflow, or provider changes. |
 | [FCI-0a framework boundary record](../functional-ci-evidence.md#14-migration-stages-and-packets) | Documentation record only; never a runtime-ready packet | Maintain the charter, package/trust boundary, v1 non-goals, qualification ladder, and navigation without changing H2.5g commands, counts, scope, or authority. |
 | [FCI-0b extension API-manifest record](../functional-ci-evidence.md#31-workspace-public-api-manifest) | Documentation record only; never a runtime-ready packet | Maintain public/sealed ownership, blocking/cancellation/panic/error contracts, and later packet ownership without declaring a Rust item or authorizing production. |
@@ -28,7 +28,7 @@ invitation to fill in the answer during implementation.
 | [FCI-2b bounded effect-result seam](fci-2b-bounded-effects.md) | Ready; shadow implementation in progress | Add only bounded chunk/result values, a synchronous source trait, and private staging-abandon behavior. No scheduler, snapshot, sandbox, publication, or cache. |
 | [FCI-3a canonical bytes and hashes](fci-3a-canonical-hash.md) | Ready; shadow implementation in progress | Rust-owned bounded canonical encoding/strict decode and domain-separated digest types. FCI-3b/3c remain separate. |
 | [FCI-3b execution/tool/reuse identities](fci-3b-execution-identities.md) | Ready; shadow implementation in progress | Generic execution/platform/toolchain, secret-free environment, reuse/disclosure, and sandbox observation values only; no effect trait. |
-| [FCI-3c source/sandbox/resource primitives](fci-3c-source-sandbox-resource.md) | Ready; shadow implementation in progress | Synchronous snapshot/sandbox traits, no-follow bounded paths, no-replace staging, resource policy, and bounded queue only; no CAS/cache/publication. |
+| [FCI-3c source/sandbox/resource primitives](fci-3c-source-sandbox-resource.md) | Closed; proof green 2026-08-16 | No further edits; snapshot/sandbox traits, bounded no-follow reads, no-replace staging, resource policy, and bounded queue are landed history. |
 | [FCI-4a.1 graph schema/rendering](fci-4a.1-graph-schema.md) | Ready; shadow implementation in progress | Generic ordered graph/profile records and canonical rendering only. No closure, registry, membership, or adapter dispatch. |
 | [FCI-4a.2 graph/model structural validation](fci-4a.2-graph-validation.md) | Ready; shadow implementation in progress | Generic edge/cycle/closure/global-id validation and stable plan only; no adapter dispatch or complete membership. |
 | [FCI-4a.3 sealed registry/membership/testkit](fci-4a.3-sealed-registry-membership.md) | Ready; shadow implementation in progress | Consuming exact registry seal, private monomorphized decode/re-encode, typed verdicts, pending-to-complete membership, and dev-only testkit. No outcome/CAS/live runner. |
@@ -36,29 +36,31 @@ invitation to fill in the answer during implementation.
 | [FCI-4c paired impact and protected transition](fci-4c-impact-transition.md) | Ready; shadow implementation in progress | Pure prior/current graph comparison, reverse closures, trust root, and fail-closed transition decision. No source lookup, cache, or authority capability. |
 | [FCI-4d pure explanations and planning budgets](fci-4d-explanations-budget.md) | Ready; shadow implementation in progress | Deterministic affected/reason-path/why-miss values and hard planning ceilings. No live cache, snapshot command, or semantic subprocess. |
 | [FCI-5a protocol/control/plan](fci-5a-protocol-control-plan.md) | Ready; shadow implementation in progress | Typed invocation/observation/root evidence, protected fixed-plan validation, and the exact H2 source binding. No action registration or harness. |
-| [FCI-5b miss-only candidate harness](fci-5b-candidate-harness.md) | Ready; shadow implementation in progress | Candidate process boundary only; no H2 action registration, cache, root, or authority. |
+| [FCI-5b miss-only candidate harness](fci-5b-candidate-harness.md) | Closed; proof green 2026-08-16 | No further edits; the miss-only candidate process boundary is landed history with no H2 action registration, cache, root, or authority. |
 | [FCI-5c.1 H2.5g membership shadow](fci-5c.1-h2-5g-membership.md) | Ready; non-authoritative | Pure exact 9,027-case membership/disposition/shard report. No source read, candidate execution, observation, cache, or authority. |
-| [FCI-5c.1b H2.5g observation shadow](fci-5c.1b-h2-5g-observation.md) | Design; blocked on source-snapshot and runner packets | Add the two isolated observations only after the candidate receives an immutable typed input; legacy H2.5g remains authoritative. |
-| FCI-5c.2 complete H2 shadow | Blocked on H2.5g final validation, close/merge lineage, and packet rebind | Complete the remaining H2 adapter before FCI-6; no authority may be minted by the shadow. |
+| [FCI-5c.1b H2.5g observation shadow](fci-5c.1b-h2-5g-observation.md) | Design; **paused** by the 2026-08-17 roadmap review (Option A, emitter-first) | No production edits; the authored packet body is retained for the post-H2.9 framework review. |
+| FCI-5c.2 complete H2 shadow | **Paused** with the Functional-CI tail (2026-08-17 roadmap review) | No production edits until a post-H2.9 framework review re-derives the packet chain. |
 | [FCI-6a-e CAS/outcomes/capabilities/rollover/GC](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-5c; each letter requires its own ready packet | No production edits. |
 | [FCI-7a-b, 7c.1-c.2 demand-driven local/composite shadow and framework qualification](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-6e; every lettered/numeric boundary requires its own ready packet | No production edits; the second real adapter precedes the API/conformance freeze. |
 | [FCI-8a-f local shadow and hosted research/bootstrap/backend/shadow](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-7c.2; FCI-8b/8c are separate read-only protected-host/provider research and every letter requires its own ready packet | No production, bootstrap, workflow, or provider-backend edits; FCI-8a/8e append separately owned host/provider API partitions and FCI-8f freezes their exact union without reopening FCI-7c.2. |
 | [FCI-9a-b activation](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on all FCI-8 proofs and separate activation approvals | No activation or workflow edits. |
 | [FCI-10 cleanup](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on both FCI-9 activations and a missing ready packet | No cleanup edits. |
-| [H2.5h-a](h2-5h-a.md) | Blocked through FCI-10, including H2.5g freeze/merge lineage and every Functional-CI shadow/activation gate | No production edits; preserve this handoff only. |
+| [H2.5h-a](h2-5h-a.md) | **Next active slice** (H2.5g closure and the 2026-08-17 roadmap review recorded; the paused Functional-CI tail is no longer a dependency) | Author and ready-check its own packet before implementation; the handoff below remains the design entry. |
 
-The packet-control bootstrap adds the shared versioned packet schema/checker
-before changing FCI-1a or any later pre-closure shadow packet to `ready`. Each
-successor still requires its own exact packet and predecessor receipt; the
-post-H2.5g roadmap review rebinds FCI-5c.2 and later packets to the final
-validation/merge lineage before they can become ready.
-Completed packet prose remains as history, while its status and immutable
-evidence move to the owning profile/ratchet. The hard order is bootstrap,
-FCI-1a through FCI-5b, FCI-5c.1 membership shadow, H2.5g final
-validation/close/merge, source-snapshot/runner packets, FCI-5c.1b observation
-shadow, FCI-5c.2 through FCI-8 complete shadow, FCI-9a local-full activation,
-FCI-9b hosted ts-tests-only activation, FCI-10 cleanup, then H2.5h-a. Read-only work
-may overlap only under an indexed packet; no stage-table row authorizes
+The packet-control bootstrap added the shared versioned packet schema/checker
+and completed its pre-closure purpose: FCI-1a through FCI-5b and the FCI-5c.1
+membership shadow are landed non-authoritative assets (FCI-3c and FCI-5b are
+`closed` with green proofs), and the checker is wired into
+`node .github/ci/qualification.mjs check`. **The 2026-08-17 post-merge
+roadmap review (Option A, recorded in the post-H1 schedule §1.2) pauses the
+remaining Functional-CI tail** — FCI-5c.1b, FCI-5c.2, FCI-6 through FCI-8,
+the FCI-9a/9b activations, and FCI-10 — in favor of completing the emitter;
+their packets stay `design` with no production authorization and are
+resumable only by an explicit post-H2.9 framework review that re-derives the
+packet chain. Completed packet prose remains as history, while status and
+immutable evidence live in the owning profile/ratchet. H2.5h-a is the next
+active slice and requires its own machine-checked ready packet. Read-only
+work may overlap only under an indexed packet; no stage-table row authorizes
 production code.
 
 The [functional CI framework and evidence architecture](../functional-ci-evidence.md)
@@ -160,12 +162,13 @@ not be predicted or self-referenced; the post-merge roadmap review records it
 as delivery lineage, verifies that it contains the final validation ref, and
 checks that every profile-bound runtime/evidence input remains byte-identical.
 
-These checked-in files are candidate closure records while H2.5g remains in
-progress. Their presence, internal fields, and current counts do not declare
-the slice complete: the final checks must pass and the
-[post-H1 schedule](../post-h1-completion-slices.md) must record qualification
-before the profile becomes frozen evidence. No H2.5h-a foundation artifact is
-part of this closure route or an authority for H2.5g; the linked H2.5h-a file
-remains only a blocked post-merge handoff. This is the end of the sole legacy
-exception; all following production work requires a machine-checked ready
-packet.
+**Recorded outcome (2026-08-17):** every command and required result above is
+green at the final validation ref `0653e10d84351c33ebd34d9442198ffff754722b`
+(the `cargo xtask ci` row against trusted base `2df0b5be…`); the delivery
+merge `507a96ac` is an ancestor of that ref, and the
+[post-H1 schedule §1.2](../post-h1-completion-slices.md) records the
+qualification, the process deviation, the twenty-nine gate repairs, and the
+reviewed 180-second timed-conformance ceiling with its mandated performance
+follow-up. The H2.5g profile is frozen at the validation ref. This closes the
+sole legacy exception; all following production work requires a
+machine-checked ready packet, and H2.5h-a is the next active slice.

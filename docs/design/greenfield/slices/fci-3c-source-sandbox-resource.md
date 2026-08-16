@@ -1,6 +1,11 @@
 # FCI-3c: source, path, sandbox, and resource primitives
 
-Status: **ready (FCI-3c v1; non-authoritative shadow)**.
+Status: **closed (FCI-3c v1; non-authoritative shadow; proof green 2026-08-16)**.
+The frozen API below is implemented in `crates/ci-runner/src/{snapshot,resource}.rs`
+with fixtures in `crates/ci-runner/tests/unit/snapshot_tests.rs` and
+`crates/ci-runner/tests/contracts/snapshot_resource.rs`; the recorded proof
+commands are green and the readiness envelope records the closure. The prose
+below remains as packet history.
 
 This packet completes the first effect boundary without adding CAS, cache,
 publication, or live evaluation. It defines immutable snapshot descriptors,
@@ -91,10 +96,16 @@ as a quota infrastructure error; it is a primitive, not a scheduler.
 
 ```text
 cargo check -p tsc-rs-ci-runner --lib
-cargo test -p tsc-rs-ci-runner --test snapshot_resource
+cargo test -p tsc-rs-ci-runner --test contracts snapshot_resource
 cargo test -p tsc-rs-ci-runner --lib
-node .github/ci/slice-readiness.mjs --check fci-3c
+node .github/ci/slice-readiness.mjs --schema-check
 ```
+
+The runner keeps every integration contract in the one bounded `contracts`
+test target; the `snapshot_resource` filter above selects this packet's
+module. While the packet was `ready` its readiness check was
+`node .github/ci/slice-readiness.mjs --check fci-3c`; the closed envelope
+retains only the still-runnable schema check.
 
 Fixtures cover traversal/symlink rejection, bounded regular-file reads,
 no-replace staging, positive resource ceilings, claim admission, FIFO queue

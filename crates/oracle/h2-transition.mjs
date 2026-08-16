@@ -28,21 +28,21 @@ const INPUT_HASHES = Object.freeze({
   "ratchets/h1-owner-inventory.v1.json":
     "6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5",
   "ratchets/h1-rust-omissions.v1.json":
-    "9191624d90673877c5c60baf4e5934c40e8cf31a1a3505dba6301ca625a61ea0",
+    "61580f1ebdf89ee8825fa2f753af9d75f56fb30ca468cdebda4068adc9681971",
   "ratchets/h1-emit-profile.v1.json":
-    "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991",
+    "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db",
   "ratchets/h1-emit-oracle.v1.json":
-    "5586988b943028464a7a2c0e543ecb6de062b57d1408ff6ba12004d80b01c793",
+    "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d",
   "ratchets/h1-emit-qualification.v1.json":
-    "4a9a36b3b35acd9c22bf22fc88ba2c463bc6a16a18f61d2ee38c528d4aaa42ef",
+    "fa747c44dfd8b08ddbb1d2f7c796a69a85e58b73ca201b23d0d4b182451217e3",
   "vendor/typescript-6.0.3/compiler-profile-classification.v1.json":
-    "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603",
+    "7158d2e4fac5b6d43ee9382d5dadac7d27e358c86bd532e07b4d1f9ff85ad5b0",
   "vendor/typescript-6.0.3/conformance-profile-classification.v1.json":
-    "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb",
+    "43c3e4d6f6273f2264e7eed96348795bf58caecf30d81b365c4c0dc8d630a990",
   "vendor/typescript-6.0.3/project-profile-classification.v1.json":
-    "4e984ab1847a551ecbe9f8736237aee74a8c42134403e7cb56a624a2fef78d87",
+    "b89589c1372a2c2bb4d8415f8f5b3168605fd11cb43d5b9b55828d834f54342a",
   "vendor/typescript-6.0.3/transpile-suite-inventory.v1.json":
-    "5762b9fbf86c0437ff3bfc2f1e1deab48e35effc8d9117299035d23d6c45f949",
+    "c254834286cf54f23888ace6996d0e7729aec12313caa76d125772d9b58a79e0",
   "vendor/typescript-6.0.3/test-suite-expansion.v1.json":
     "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188",
   "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json":

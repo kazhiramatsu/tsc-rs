@@ -1,8 +1,12 @@
 # Functional CI framework and evidence architecture
 
-Status: **normative architecture for the reusable functional-CI framework and
-its pre-closure shadow migration**. It does not replace or amend the
-authoritative H2.5g closure contract.
+Status: **normative architecture for the reusable functional-CI framework;
+migration PAUSED at the landed pre-closure shadow by the 2026-08-17
+post-merge roadmap review (Option A, emitter-first)**. FCI-1a through
+FCI-5c.1 remain landed non-authoritative shadow assets; FCI-5c.1b through
+FCI-10 are paused in `design` state with no production authorization and
+are resumable only by an explicit post-H2.9 framework review. This document
+does not replace or amend the recorded H2.5g closure.
 
 This document owns the future reusable framework protocol and runner, their
 extension API, adapter-owned deterministic plans and optional bundle interiors

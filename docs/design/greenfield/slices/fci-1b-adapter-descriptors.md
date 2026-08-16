@@ -68,7 +68,7 @@ no serialization or hashing behavior until FCI-3a.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-core --test descriptors
+cargo test -p tsc-rs-ci-core --test contracts descriptors
 node .github/ci/slice-readiness.mjs --check fci-1b
 ```
 

@@ -29,7 +29,7 @@
   },
   "base_program_profile": {
     "path": "ratchets/h0-qualification.v1.json",
-    "sha256": "41ed8448322e7ea47070f508e53187794110c0a21a75158b843ce8e4e0987cb8",
+    "sha256": "be7314e6e3350489040c2ff171f811a17f6ca9455e6da126cc2fa6a87b8710b2",
     "retained_scope": "H0 single-project program/config/host/checker options unless narrowed below"
   },
   "owner_inventory": {
@@ -192,6 +192,7 @@
       "strictPropertyInitialization",
       "useUnknownInCatchVariables",
       "lib",
+      "libReplacement",
       "noResolve",
       "downlevelIteration",
       "strictBuiltinIteratorReturn",
@@ -208,6 +209,7 @@
       "noDtsResolution",
       "allowArbitraryExtensions",
       "skipLibCheck",
+      "skipDefaultLibCheck",
       "jsxFactory",
       "jsxFragmentFactory",
       "jsxImportSource",
@@ -289,5 +291,5 @@
       "mts-output-control"
     ]
   },
-  "profile_fingerprint_sha256": "1df712f48d9eac0a0d5ad36551c7d022262a2a88aa8db881da35686e3571f6a9"
+  "profile_fingerprint_sha256": "727a95c372c59634e0529b0023fb269bb799205ede08b0544f7e86823635f65d"
 }

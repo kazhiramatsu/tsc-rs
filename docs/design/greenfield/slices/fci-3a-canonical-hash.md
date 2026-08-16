@@ -114,9 +114,9 @@ Changing a display name therefore cannot alias or abandon a namespace.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-core --test canonical
-cargo test -p tsc-rs-ci-core --test hashes
-cargo test -p tsc-rs-ci-core --test identifiers
+cargo test -p tsc-rs-ci-core --test contracts canonical
+cargo test -p tsc-rs-ci-core --test contracts hashes
+cargo test -p tsc-rs-ci-core --test contracts identifiers
 node .github/ci/slice-readiness.mjs --check fci-3a
 ```
 

@@ -5895,35 +5895,33 @@ impl Printer {
                         child,
                         writer,
                     )?;
+                } else if synthesized_array {
+                    // A transformed expression list has no source delimiter
+                    // between its retained children. The next child's trivia
+                    // may therefore belong to an operator that the transform
+                    // replaced (for example `left ** /* comment */ right`).
+                    // When a retained source comma *does* exist, the
+                    // preceding item returns an explicit comment cursor
+                    // through the trivia it already emitted. Otherwise the
+                    // child retains its full comment range.
+                    let resume = self.delimited_comment_resume_for_node(
+                        transformation,
+                        child,
+                        pending_delimited_comment.take(),
+                    )?;
+                    self.emit_leading_comments_for_node_worker(
+                        transformation,
+                        child,
+                        LeadingCommentContext::DelimitedListStart,
+                        resume,
+                        writer,
+                    )?;
                 } else {
-                    if synthesized_array {
-                        // A transformed expression list has no source delimiter
-                        // between its retained children. The next child's trivia
-                        // may therefore belong to an operator that the transform
-                        // replaced (for example `left ** /* comment */ right`).
-                        // When a retained source comma *does* exist, the
-                        // preceding item returns an explicit comment cursor
-                        // through the trivia it already emitted. Otherwise the
-                        // child retains its full comment range.
-                        let resume = self.delimited_comment_resume_for_node(
-                            transformation,
-                            child,
-                            pending_delimited_comment.take(),
-                        )?;
-                        self.emit_leading_comments_for_node_worker(
-                            transformation,
-                            child,
-                            LeadingCommentContext::DelimitedListStart,
-                            resume,
-                            writer,
-                        )?;
-                    } else {
-                        self.emit_leading_comments_for_node_after_sibling(
-                            transformation,
-                            child,
-                            writer,
-                        )?;
-                    }
+                    self.emit_leading_comments_for_node_after_sibling(
+                        transformation,
+                        child,
+                        writer,
+                    )?;
                 }
                 self.emit_node_id_with_context(
                     transformation,
@@ -6006,27 +6004,25 @@ impl Printer {
                         child,
                         writer,
                     )?;
+                } else if synthesized_array {
+                    let resume = self.delimited_comment_resume_for_node(
+                        transformation,
+                        child,
+                        pending_delimited_comment.take(),
+                    )?;
+                    self.emit_leading_comments_for_node_worker(
+                        transformation,
+                        child,
+                        LeadingCommentContext::DelimitedListStart,
+                        resume,
+                        writer,
+                    )?;
                 } else {
-                    if synthesized_array {
-                        let resume = self.delimited_comment_resume_for_node(
-                            transformation,
-                            child,
-                            pending_delimited_comment.take(),
-                        )?;
-                        self.emit_leading_comments_for_node_worker(
-                            transformation,
-                            child,
-                            LeadingCommentContext::DelimitedListStart,
-                            resume,
-                            writer,
-                        )?;
-                    } else {
-                        self.emit_leading_comments_for_node_after_sibling(
-                            transformation,
-                            child,
-                            writer,
-                        )?;
-                    }
+                    self.emit_leading_comments_for_node_after_sibling(
+                        transformation,
+                        child,
+                        writer,
+                    )?;
                 }
                 self.emit_node_id_with_context(
                     transformation,
@@ -7696,6 +7692,7 @@ impl Printer {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn emit_call_arguments(
         &self,
         transformation: &mut TransformationResult<'_>,

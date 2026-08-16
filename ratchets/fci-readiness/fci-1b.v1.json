@@ -5,7 +5,7 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-1b-adapter-descriptors.md",
-    "sha256": "52fa7f3d4743e11f3f4a7f3c75c2455bfe1856953612e0a41f155904850eb494"
+    "sha256": "1f717b368ade433782a8badc34c16ab0a6ada2d0a86e3d049e6e5c7aa869bcac"
   },
   "predecessors": [
     {
@@ -32,7 +32,7 @@
   ],
   "proof": {
     "commands": [
-      "cargo test -p tsc-rs-ci-core --test descriptors",
+      "cargo test -p tsc-rs-ci-core --test contracts descriptors",
       "node .github/ci/slice-readiness.mjs --check fci-1b"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-1b.v1.json"

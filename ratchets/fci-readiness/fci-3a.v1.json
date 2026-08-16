@@ -5,12 +5,12 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-3a-canonical-hash.md",
-    "sha256": "ed640024846c280caa13b10961f36be3b1cad91cdfffff78e0e090aa28b96b84"
+    "sha256": "0ed50a592441fa85fe145f2fb4f847e315df1f023eaee4e370557e3b5c5c7920"
   },
   "predecessors": [
     {
       "packetId": "fci-2b",
-      "receiptSha256": "07f519b5b2833d0d70640e4081d962ade5248c55f428c717bcc3a010eddb988c"
+      "receiptSha256": "fec322595c52a41803f0d513aa7d8a273960ef43918b0a56b6a403a42193747a"
     }
   ],
   "allowedPaths": [
@@ -41,9 +41,9 @@
   ],
   "proof": {
     "commands": [
-      "cargo test -p tsc-rs-ci-core --test canonical",
-      "cargo test -p tsc-rs-ci-core --test hashes",
-      "cargo test -p tsc-rs-ci-core --test identifiers",
+      "cargo test -p tsc-rs-ci-core --test contracts canonical",
+      "cargo test -p tsc-rs-ci-core --test contracts hashes",
+      "cargo test -p tsc-rs-ci-core --test contracts identifiers",
       "node .github/ci/slice-readiness.mjs --check fci-3a"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-3a.v1.json"

@@ -1076,6 +1076,7 @@ fn arbitrary_declaration_membership_keeps_importer_specific_ts6263() {
         no_emit: Some(true),
         module: Some(1),
         module_resolution: Some(2),
+        ignore_deprecations: Some("6.0".to_owned()),
         resolve_json_module: Some(false),
         ..CompilerOptions::default()
     };

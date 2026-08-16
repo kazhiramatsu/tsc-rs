@@ -5,12 +5,12 @@
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-4c-impact-transition.md",
-    "sha256": "d6450b4b4e2c007cc4dd74d25740718703a9ef2934590a01cd7c4186ccd12b60"
+    "sha256": "4c58ae517a322853a09a66bd70f9e2f04e25020d3bff2f1f89da72f90986c66f"
   },
   "predecessors": [
     {
       "packetId": "fci-4b",
-      "receiptSha256": "55ed052b0ca1e44b4587e5a877b24ed9da12cd3048b30bef129fa6fc89bbe0ae"
+      "receiptSha256": "261222d89643a6783d92e1aeb3e58674dd3f44f3a98edb236a120edf7b3467d1"
     }
   ],
   "allowedPaths": [
@@ -37,7 +37,7 @@
   "proof": {
     "commands": [
       "cargo xtask test ci-core",
-      "cargo test -p tsc-rs-ci-core --test impact",
+      "cargo test -p tsc-rs-ci-core --test contracts impact",
       "node .github/ci/slice-readiness.mjs --check fci-4c"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-4c.v1.json"

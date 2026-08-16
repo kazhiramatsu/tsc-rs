@@ -1037,6 +1037,7 @@ pub fn prepare_harness_lib_bundle(
 /// library name removes that library from the effective prefix. Callers may
 /// reuse the returned bundle for isolated sessions over the same inputs; it is
 /// intentionally not inserted into the process-lifetime cache.
+/// tsrs-native: caller-owned harness library-prefix preparation seam.
 #[doc(hidden)]
 pub fn prepare_authoritative_harness_lib_bundle(
     libs: &[InputFile],
@@ -1317,6 +1318,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit(
 /// prefix. The bundle is scoped by the caller (normally one repeated case),
 /// so this path avoids both per-repetition parsing and process-lifetime
 /// retention of every distinct `ts-tests` library set.
+/// tsrs-native: bundle-scoped variant of the emit callback seam above.
 #[doc(hidden)]
 #[allow(clippy::too_many_arguments)]
 pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bundle(

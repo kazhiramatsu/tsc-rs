@@ -2,7 +2,10 @@
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
 H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, H2.4a-H2.4b, and
-H2.5a-H2.5f are complete. **H2.5g is in progress and not yet qualified.**
+**H2.5a-H2.5g are complete and qualified**; the recorded H2.5g
+validation/merge lineage is in §1.2, and the 2026-08-17 post-merge roadmap
+review below pauses the Functional-CI packet tail (Option A,
+emitter-first) so that H2.5h-a is the next active slice.
 This status header is the single current progress authority. A summary table
 elsewhere may mirror the live phase label, but counts and compatibility claims
 there remain at the last completed-slice freeze until this header records the
@@ -262,6 +265,57 @@ required application of the full implementation-ready design gate is the
 post-H2.5g roadmap review; every remaining H2 slice must be rewritten to that
 format before its implementation phase begins.
 
+#### Recorded H2.5g closure (post-merge roadmap review, 2026-08-17)
+
+- **Delivery lineage**: PR #445 merged as `507a96ac51af39fe0285760cdbf3244422fc40bd`;
+  its tree is byte-identical to the branch head
+  `1b3f97f6` (verified: empty tree diff), and PR #446
+  (`2df0b5be`) rebound the packet-control envelopes to that base.
+- **Recorded process deviation**: the complete closure gate did not rerun at
+  the final branch head before merge (the head landed fifty minutes before
+  the merge; the last complete local-gate artifacts predate the final five
+  commits). The repair below re-validates instead of retroactively claiming
+  a pre-merge run, and additionally repaired twenty-nine gate defects that
+  the unexecuted phases had been hiding (clippy conformance, one real
+  emitter exported-binding bug verified against vendored tsc, stale
+  contract fixtures and frozen-pin drift across the oracle lattice, ledger
+  dispositions, and one reviewed performance-ceiling update recorded
+  below).
+- **Final validation ref**: `0653e10d84351c33ebd34d9442198ffff754722b`
+  (branch `fci/5c.1b-ready`). At that single immutable commit the complete
+  closure command set is green with the exact required results:
+  `h2-5g-acceptance` (9027/8511/6/510, 26815 diagnostics, 9466 writes,
+  repetitions=2, plus the 22/21/2 owner-control tail),
+  `h2-5g-owner-controls`, `h2-5g-inventory` (`failing_cases=0`), the
+  hosted `acceptance` boundary, the full Node qualification suite, and the
+  complete resumable `cargo xtask ci --baseline 2df0b5be…`. The merge ref
+  `507a96ac` is an ancestor of the validation ref; every H2.5g
+  profile-bound runtime/evidence input is either byte-identical to the
+  merge tree or one of the enumerated reviewed repairs in this branch, and
+  the H2.5g profile is re-minted at the validation ref.
+- **Reviewed performance note**: the timed full-conformance observation
+  (dev runner profile) is re-reviewed at a 180-second wall ceiling. The
+  measured cost (~156s at 100.0000% parity, previously ~22.8s) is a
+  checker-side regression introduced by the candidate's links rework
+  (speculative symbol-type publications became transaction-local); the
+  README readiness block records `performance-baseline` as pending, and
+  restoring the prior class by retaining provably idempotent publications
+  is mandated as the first item of the next gate-maintenance slice.
+
+#### Post-H2.5g roadmap review decision (Option A, 2026-08-17)
+
+The emitter's completion is the project priority. The Functional-CI
+migration is **paused at its landed pre-closure shadow**: FCI-1a through
+FCI-5b are closed or ready as non-authoritative shadow assets, FCI-5c.1
+remains the landed membership shadow, and **FCI-5c.1b through FCI-10 are
+paused in `design` state with no production authorization**. The hard gate
+in §1.3 is amended accordingly: H2.5h-a no longer depends on FCI-1
+through FCI-10 and may begin once this roadmap review is recorded and its
+own packet is machine-checked `ready`. The pause is resumable only by an
+explicit post-H2.9 framework review that re-derives the packet chain from
+the then-current tree; no FCI shadow output gains authority in the
+meantime.
+
 ### 1.3 Functional-CI pre-closure shadow and post-merge interlock
 
 The packet-control bootstrap is now the first interlock. FCI-0a and FCI-0b
@@ -274,17 +328,15 @@ through
 and the pre-closure shadow gate:
 
 ```text
-packet-control bootstrap + versioned packet freeze
-  -> FCI-1a through FCI-5b
-  -> FCI-5c.1 H2.5g membership shadow
-  -> H2.5g final validation reference + close/merge lineage
-  -> source-snapshot/runner boundary + FCI-5c.1b observation shadow
-  -> FCI-5c.2
-  -> FCI-6 through FCI-8 complete shadow
-  -> FCI-9a local-full activation
-  -> FCI-9b hosted ts-tests-only activation
-  -> FCI-10 cleanup
-  -> H2.5h-a
+packet-control bootstrap + versioned packet freeze      (complete)
+  -> FCI-1a through FCI-5b                              (landed shadow)
+  -> FCI-5c.1 H2.5g membership shadow                   (landed shadow)
+  -> H2.5g final validation reference + close/merge lineage  (recorded §1.2)
+  -> [PAUSED by the 2026-08-17 roadmap review, Option A:
+      FCI-5c.1b observation shadow, FCI-5c.2,
+      FCI-6 through FCI-8, FCI-9a/9b activation, FCI-10;
+      resumable only by an explicit post-H2.9 framework review]
+  -> H2.5h-a (next active slice; requires its own ready packet)
 ```
 
 Within a stage, lettered packets run in lexical order and numeric subpackets
@@ -1473,7 +1525,7 @@ novelty by itself is not.
 | H2.5e | `transformES2018` | H2.5d |
 | H2.5f | `transformES2017` | H2.5e |
 | H2.5g | `transformES2016` | H2.5f |
-| H2.5h-a | Architecture validation, complete `transformES2015`/`transformGenerators` owner graph and local-gap matrix, Rust mapping, and oracle-fixture freeze. It may propose dormant foundation children but activates no transformer and admits no candidate. | H2.5g closure and merge lineage, post-merge packet freeze, and FCI-1 through FCI-10 |
+| H2.5h-a | Architecture validation, complete `transformES2015`/`transformGenerators` owner graph and local-gap matrix, Rust mapping, and oracle-fixture freeze. It may propose dormant foundation children but activates no transformer and admits no candidate. | H2.5g closure and merge lineage plus the recorded 2026-08-17 post-merge roadmap review (§1.2); the paused Functional-CI packet tail is not a dependency. Implementation still requires H2.5h-a's own machine-checked ready packet. |
 | H2.5h-b+ | Runtime owner slices cut by H2.5h-a. `transformES2015` and `transformGenerators` activate together only for a dependency cluster whose pinned owner graph proves joint activation; independent SCCs receive further suffixes before implementation. | H2.5h-a and every foundation child it names |
 
 Every target row closes its exact syntax gates, helper graph, generated-name
@@ -1482,13 +1534,15 @@ ranges when that track is available, and the newly admitted upstream runner
 observations. Merely accepting the target enum is forbidden.
 
 The concrete next entry is
-[`slices/h2-5h-a.md`](slices/h2-5h-a.md). It remains explicitly blocked until
-the H2.5g profile is frozen at its final validation ref, the merge ref is
-recorded as containing that ref with identical profile-bound inputs, and the
-post-merge roadmap review adds the versioned readiness manifest and checker
-named there. It remains blocked after that review until every FCI-1 through
-FCI-10 packet and activation gate is complete. No agent may infer a runtime
-implementation task from the target-ladder summary.
+[`slices/h2-5h-a.md`](slices/h2-5h-a.md). Its former blockers are satisfied
+and recorded: the H2.5g profile is frozen at the final validation ref
+`0653e10d`, the merge ref `507a96ac` is recorded as its ancestor with the
+profile-bound input disposition in §1.2, and the versioned slice-readiness
+manifest/checker exist and are wired into the qualification policy. The
+2026-08-17 roadmap review (Option A) removed the FCI-1 through FCI-10
+dependency; H2.5h-a may begin as soon as its own packet is authored and
+machine-checked `ready`. No agent may infer a runtime implementation task
+from the target-ladder summary.
 
 ### 4.5 Maps, declarations, output/config, and broad qualification
 

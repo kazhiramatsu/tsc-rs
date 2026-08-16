@@ -45,7 +45,7 @@ expansion or claim a transpile execution result.
 
 The runner-derived companion inventory is pinned at
 `vendor/typescript-6.0.3/transpile-suite-inventory.v1.json` (SHA-256
-`5762b9fbf86c0437ff3bfc2f1e1deab48e35effc8d9117299035d23d6c45f949`).
+`c254834286cf54f23888ace6996d0e7729aec12313caa76d125772d9b58a79e0`).
 It reconstructs the exact 22-fixture, 25-configuration `TranspileRunner`
 matrix as 42 fixture units, 37 cases, and 79 per-unit operations. All 37 cases
 retain execution state `not-run`: 14 are JavaScript transform/printer controls,

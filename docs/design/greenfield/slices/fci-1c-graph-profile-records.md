@@ -50,7 +50,7 @@ The profile/reference records have no adapter callback or string dispatch.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-core --test graph
+cargo test -p tsc-rs-ci-core --test contracts graph
 node .github/ci/slice-readiness.mjs --check fci-1c
 ```
 

@@ -748,6 +748,55 @@ export function validateH2_5gArtifacts() {
   return H2_5G_ARTIFACT_CONTRACTS;
 }
 
+const SLICE_READINESS_CHECKER = ".github/ci/slice-readiness.mjs";
+const SLICE_READINESS_SCHEMA = ".github/ci/contracts/slice-readiness.v1.schema.json";
+const FCI_READINESS_DIR = "ratchets/fci-readiness";
+
+function runSliceReadinessChecker(args, label) {
+  try {
+    execFileSync(process.execPath, [path.join(workspace, SLICE_READINESS_CHECKER), ...args], {
+      cwd: workspace,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch (error) {
+    const detail = `${error.stdout ?? ""}${error.stderr ?? ""}`.trim() || error.message;
+    throw new Error(`${label}: ${detail}`);
+  }
+}
+
+// The packet-control bootstrap names this policy entry point as the caller of
+// the slice-readiness checker. Envelope-only edits are additionally validated
+// by their packet's own recorded proof commands; this chain check makes every
+// policy run revalidate the bootstrap record, every envelope's schema and
+// identity, and the packet digest of every `ready` packet.
+export function validateFciReadinessChain() {
+  const schema = readWorkspaceJson(SLICE_READINESS_SCHEMA, "slice-readiness schema");
+  runSliceReadinessChecker(["--bootstrap-check"], "packet-control bootstrap record");
+  const names = fs
+    .readdirSync(path.join(workspace, FCI_READINESS_DIR))
+    .filter((name) => name.endsWith(".v1.json"))
+    .sort();
+  if (names.length === 0) {
+    throw new Error("fci readiness: no envelopes found under ratchets/fci-readiness");
+  }
+  const summary = { envelopes: 0, ready: 0 };
+  for (const name of names) {
+    const label = `fci readiness envelope ${name}`;
+    const envelope = readWorkspaceJson(`${FCI_READINESS_DIR}/${name}`, label);
+    validateJsonSchemaSubset(schema, envelope, label);
+    if (`${envelope.packetId}.v1.json` !== name) {
+      throw new Error(`${label}: packetId ${envelope.packetId} does not match its file name`);
+    }
+    summary.envelopes += 1;
+    if (envelope.status === "ready") {
+      runSliceReadinessChecker(["--check", envelope.packetId], label);
+      summary.ready += 1;
+    }
+  }
+  return summary;
+}
+
 function rustBoundaryError(label, message) {
   throw new Error(`${label}: ${message}`);
 }
@@ -2037,7 +2086,10 @@ function main() {
   if (command === "check") {
     validatePolicy(loadPolicy());
     validateH2_5gArtifacts();
-    process.stdout.write("CI qualification policy, schemas, and H2.5g artifacts are valid\n");
+    const readiness = validateFciReadinessChain();
+    process.stdout.write(
+      `CI qualification policy, schemas, H2.5g artifacts, and the FCI readiness chain (${readiness.envelopes} envelopes, ${readiness.ready} ready) are valid\n`,
+    );
     return;
   }
   if (command === "verify-selection") {

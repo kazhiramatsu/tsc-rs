@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "packetId": "fci-5b",
-  "status": "ready",
+  "status": "closed",
   "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
   "packet": {
     "path": "docs/design/greenfield/slices/fci-5b-candidate-harness.md",
-    "sha256": "cff382c32df73396f1e2dd83a1833f4ec6b7250ebd716ef8aeb6a61be3c2e738"
+    "sha256": "42fb5e59d358cf1a55944a6e106e2540b681031019b0a07691215885a6d45683"
   },
   "predecessors": [
     {
       "packetId": "fci-5a",
-      "receiptSha256": "f4a37edbfbc5020447df037d05f9520ce206eeb78f5b16d4c3136e880191948a"
+      "receiptSha256": "8e11f45f37fdaa82f7ad4a755bd1164fc149b1aba2010632f6c84f52c833aa2a"
     }
   ],
   "allowedPaths": [
@@ -45,7 +45,7 @@
       "cargo xtask test ci-adapter-tsc-rs-control",
       "cargo tree -p tsc-rs-ci-harness --edges normal,build,dev",
       "cargo tree -p tsc-rs-ci-adapter-control --edges normal,build,dev",
-      "node .github/ci/slice-readiness.mjs --check fci-5b"
+      "node .github/ci/slice-readiness.mjs --schema-check"
     ],
     "evidencePath": "ratchets/fci-readiness/fci-5b.v1.json"
   }

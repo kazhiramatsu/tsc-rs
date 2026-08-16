@@ -94,7 +94,7 @@ those safe points.
 ## Proof
 
 ```text
-cargo test -p tsc-rs-ci-runner --test error_boundary
+cargo test -p tsc-rs-ci-runner --test contracts error_boundary
 cargo tree -p tsc-rs-ci-runner --edges normal,build,dev
 node .github/ci/slice-readiness.mjs --check fci-2a
 ```

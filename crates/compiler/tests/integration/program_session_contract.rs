@@ -868,6 +868,7 @@ fn conformance_harness_lib_cache_preserves_authoritative_diagnostics() {
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
+                ignore_deprecations: Some("6.0".to_owned()),
                 ..CompilerOptions::default()
             },
             |builder, ids| {
@@ -993,6 +994,7 @@ fn authoritative_not_found_does_not_fall_through_to_a_relative_probe_hit() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -1035,6 +1037,7 @@ fn authoritative_resolution_selects_the_recorded_source_not_the_probe_candidate(
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             ..CompilerOptions::default()
         },
         |builder, ids| {
@@ -1205,6 +1208,7 @@ fn authoritative_ts_extension_fact_controls_non_relative_rewrite_diagnostic() {
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
+                ignore_deprecations: Some("6.0".to_owned()),
                 rewrite_relative_import_extensions: Some(true),
                 ..CompilerOptions::default()
             },
@@ -1397,6 +1401,7 @@ fn synthetic_tslib_uses_the_same_fail_closed_authoritative_table() {
             CompilerOptions {
                 module: Some(1),
                 module_resolution: Some(2),
+                ignore_deprecations: Some("6.0".to_owned()),
                 import_helpers: Some(true),
                 ..CompilerOptions::default()
             },
@@ -1990,6 +1995,7 @@ fn authoritative_not_found_preserves_node10_alternate_result_chain() {
         &[0],
         CompilerOptions {
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2223,6 +2229,7 @@ fn authoritative_untyped_module_augmentation_reports_2665() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2260,6 +2267,7 @@ fn authoritative_relative_untyped_module_ignores_inapplicable_package_details() 
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
         },
@@ -2303,6 +2311,7 @@ fn unloaded_jsx_with_an_active_jsx_mode_reports_7016() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             allow_js: true,
             no_implicit_any: Some(true),
             jsx: Some(1),
@@ -2338,6 +2347,7 @@ fn allow_js_unloaded_javascript_after_default_node_modules_depth_is_authoritativ
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             allow_js: true,
             no_implicit_any: Some(true),
             ..CompilerOptions::default()
@@ -2376,6 +2386,7 @@ fn unloaded_jsx_without_mode_reports_6142() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             allow_js: true,
             ..CompilerOptions::default()
         },
@@ -2412,6 +2423,7 @@ fn unloaded_arbitrary_declaration_reports_6263() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2449,6 +2461,7 @@ fn augmentation_only_arbitrary_declaration_still_reports_6263_first() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             ..CompilerOptions::default()
         },
         |builder, _| {
@@ -2517,6 +2530,7 @@ fn enabled_arbitrary_augmentation_uses_the_ordinary_missing_module_diagnostic() 
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             allow_arbitrary_extensions: Some(true),
             ..CompilerOptions::default()
         },
@@ -2555,6 +2569,7 @@ fn owned_jsx_without_mode_reports_6142_and_keeps_the_resolved_symbol() {
         CompilerOptions {
             module: Some(1),
             module_resolution: Some(2),
+            ignore_deprecations: Some("6.0".to_owned()),
             allow_js: true,
             ..CompilerOptions::default()
         },

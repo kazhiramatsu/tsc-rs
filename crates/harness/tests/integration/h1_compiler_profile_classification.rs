@@ -19,9 +19,9 @@ const EXPANSION: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../vendor/typescript-6.0.3/test-suite-expansion.v1.json"
 ));
-const MANIFEST_SHA256: &str = "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603";
+const MANIFEST_SHA256: &str = "7158d2e4fac5b6d43ee9382d5dadac7d27e358c86bd532e07b4d1f9ff85ad5b0";
 const GENERATOR_PATH: &str = "crates/oracle/h1-compiler-classification.mjs";
-const GENERATOR_SHA256: &str = "9da9b8da18f8ff4105dd46e4f1899b8ece6196331d72071fb6439db7d6fce04b";
+const GENERATOR_SHA256: &str = "9c694e6a7ca4cba9decfbf5ec2e6cb17936ff7f1bbdf7cfaf02fba4198bbbce0";
 const CONTRACT_PATH: &str = ".github/ci/contracts/h1-compiler-classification.schema.json";
 const CONTRACT_SHA256: &str = "ff70a6c653368f687e9282f008a71f65361c30f410671a07bfe2d77471e52b0c";
 const EXPANSION_PATH: &str = "vendor/typescript-6.0.3/test-suite-expansion.v1.json";
@@ -30,7 +30,7 @@ const CONFIG_PLANS_PATH: &str = "vendor/typescript-6.0.3/compiler-config-plans.v
 const CONFIG_PLANS_SHA256: &str =
     "d19356ed235fd32579f8688be44ee2f57dd7965cf45ccf172e7f01cd95050453";
 const PROFILE_PATH: &str = "ratchets/h1-emit-profile.v1.json";
-const PROFILE_SHA256: &str = "91e05db331a090e180e9cda7fc8eaa505d795b229a49d78d62d1e086c8602991";
+const PROFILE_SHA256: &str = "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db";
 const TYPESCRIPT_BUNDLE_PATH: &str = "vendor/typescript-6.0.3/lib/typescript.js";
 const TYPESCRIPT_BUNDLE_SHA256: &str =
     "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39";

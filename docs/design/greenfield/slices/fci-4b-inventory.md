@@ -87,7 +87,7 @@ values; this packet only describes the resulting inventory evidence.
 
 ```text
 cargo xtask test ci-core
-cargo test -p tsc-rs-ci-core --test inventory
+cargo test -p tsc-rs-ci-core --test contracts inventory
 node .github/ci/slice-readiness.mjs --check fci-4b
 ```
 

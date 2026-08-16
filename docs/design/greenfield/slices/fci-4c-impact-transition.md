@@ -94,7 +94,7 @@ outcome, cache candidate, or authority capability.
 
 ```text
 cargo xtask test ci-core
-cargo test -p tsc-rs-ci-core --test impact
+cargo test -p tsc-rs-ci-core --test contracts impact
 node .github/ci/slice-readiness.mjs --check fci-4c
 ```
 

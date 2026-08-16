@@ -3,7 +3,7 @@ status = "draft"
 
 [[source_references]]
 path = "m8-evidence.json"
-sha256 = "d16978210177b86ff718cf9e7f90774f4bc8c9a492894edae36b9220d710abb2"
+sha256 = "5bc173da94829b474f519695c35751d35761a916412fb63f910046e32887e1f6"
 
 [[source_references]]
 path = "crates/xtask/src/m8_evidence.rs"
@@ -11,7 +11,7 @@ sha256 = "eb6e421db46f7f2bc2bed70ad6192b18c1324ece6bb16360ab262e827f9efdc8"
 
 [[source_references]]
 path = "crates/harness/src/lib.rs"
-sha256 = "51c4c62be6913c953b1768ecf9246521a53dfee570cedc2f64e75712b7d9add1"
+sha256 = "8fdef35abefebbd5554f92aae33ba9b1de676feb8b5eaa3806c6538461a6efeb"
 
 [[source_references]]
 path = "ratchets/oracle-inputs.v1.json.zst"
