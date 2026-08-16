@@ -199,7 +199,7 @@ fn config_without_no_emit_emits_and_command_line_no_emit_keeps_the_h0_route() {
     assert_eq!(emitting.status.code(), Some(0));
     assert_eq!(
         fs::read(tree.path("main.js")).expect("read emitted JavaScript"),
-        b"const value = 1;\n"
+        b"\"use strict\";\nconst value = 1;\n"
     );
     assert!(emitting.stdout.is_empty());
     assert!(emitting.stderr.is_empty());
@@ -369,7 +369,7 @@ fn semantic_diagnostics_still_generate_output_and_exit_two() {
     );
     assert_eq!(
         fs::read(tree.path("error.js")).expect("diagnostic emit output"),
-        b"const value = 'wrong';\n"
+        b"\"use strict\";\nconst value = 'wrong';\n"
     );
     assert!(output.stderr.is_empty());
 }

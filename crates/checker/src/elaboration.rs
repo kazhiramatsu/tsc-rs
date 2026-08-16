@@ -6,9 +6,12 @@
 //! declined walk, while applicability captures the emitted diagnostics
 //! as overload-selection data.
 
-use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage};
+use tsc_diagnostics::{gen as diagnostics, Diagnostic, DiagnosticMessage, RelatedInfo};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{AccessFlags, CheckMode, TypeData, TypeFlags, TypeId, UnionReduction};
+use tsc_types::{
+    AccessFlags, CheckMode, IterationTypeKind, IterationUse, TypeData, TypeFlags, TypeId,
+    UnionReduction,
+};
 
 use crate::relate::RelationKind;
 use crate::state::{CheckResult, CheckerState, SignatureKind};
@@ -38,6 +41,84 @@ impl ElaborationOutcome {
             Self::Reported
         } else {
             Self::Declined
+        }
+    }
+}
+
+/// Explicit diagnostic ownership for one `elaborateError` frame.
+///
+/// tsc writes relation rows either to the program collection or to an
+/// `errorOutputContainer`. Keeping that choice in the frame prevents
+/// overload applicability from guessing ownership from a diagnostic's
+/// source span, and keeps lazily forced global diagnostics outside the
+/// container.
+pub(crate) struct ElaborationDiagnosticSink {
+    destination: ElaborationDiagnosticDestination,
+    reports: usize,
+}
+
+enum ElaborationDiagnosticDestination {
+    Program,
+    Captured(Vec<Diagnostic>),
+}
+
+impl ElaborationDiagnosticSink {
+    fn program() -> Self {
+        Self {
+            destination: ElaborationDiagnosticDestination::Program,
+            reports: 0,
+        }
+    }
+
+    fn captured() -> Self {
+        Self {
+            destination: ElaborationDiagnosticDestination::Captured(Vec::new()),
+            reports: 0,
+        }
+    }
+
+    /// tsrs-native: route one elaboration diagnostic to the typed program or
+    /// captured destination while advancing the frame-local report counter.
+    pub(crate) fn publish(&mut self, state: &mut CheckerState, diagnostic: Diagnostic) {
+        self.reports += 1;
+        match &mut self.destination {
+            ElaborationDiagnosticDestination::Program => {
+                state.push_error_diagnostic(diagnostic);
+            }
+            ElaborationDiagnosticDestination::Captured(diagnostics) => {
+                diagnostics.push(diagnostic);
+            }
+        }
+    }
+
+    /// tsc's JSX cardinality rows call `error()` and then also append
+    /// that diagnostic to a skip-logging output container.
+    fn publish_and_capture(&mut self, state: &mut CheckerState, diagnostic: Diagnostic) {
+        self.reports += 1;
+        state.push_error_diagnostic(diagnostic.clone());
+        if let ElaborationDiagnosticDestination::Captured(diagnostics) = &mut self.destination {
+            diagnostics.push(diagnostic);
+        }
+    }
+
+    /// tsrs-native: snapshot the typed elaboration sink's report counter for
+    /// nested elementwise-report detection.
+    pub(crate) fn mark(&self) -> usize {
+        self.reports
+    }
+
+    /// tsrs-native: compare a report-counter snapshot without inspecting or
+    /// borrowing the sink's owned diagnostic destination.
+    pub(crate) fn reported_since(&self, mark: usize) -> bool {
+        self.reports > mark
+    }
+
+    fn into_captured(self) -> Vec<Diagnostic> {
+        match self.destination {
+            ElaborationDiagnosticDestination::Program => {
+                unreachable!("captured elaboration wrapper owns a captured sink")
+            }
+            ElaborationDiagnosticDestination::Captured(diagnostics) => diagnostics,
         }
     }
 }
@@ -112,15 +193,16 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         head_message: &'static DiagnosticMessage,
+        sink: &mut ElaborationDiagnosticSink,
     ) -> CheckResult<ElaborationOutcome> {
         let Some(kind) =
             self.did_you_mean_signature_kind(source, target, RelationKind::Assignable)?
         else {
             return Ok(ElaborationOutcome::Declined);
         };
-        let before = self.diagnostics.len();
-        self.check_type_assignable_to(source, target, Some(node), head_message)?;
-        if self.diagnostics.len() > before {
+        let (_, mut diagnostic) =
+            self.capture_type_assignable_to_diagnostic(source, target, node, head_message)?;
+        if let Some(diagnostic) = &mut diagnostic {
             let related = self.related_info_for_node(
                 node,
                 if kind == SignatureKind::Construct {
@@ -130,11 +212,13 @@ impl<'a> CheckerState<'a> {
                 },
                 &[],
             );
-            if let Some(diagnostic) = self.diagnostics.last_mut() {
-                diagnostic.related.push(related);
-            }
+            diagnostic.related.push(related);
         }
-        Ok(ElaborationOutcome::Reported)
+        if let Some(diagnostic) = diagnostic {
+            sink.publish(self, diagnostic);
+            return Ok(ElaborationOutcome::Reported);
+        }
+        Ok(ElaborationOutcome::Declined)
     }
 
     /// tsc-port: getBestMatchIndexedAccessTypeOrUndefined @6.0.3
@@ -144,33 +228,42 @@ impl<'a> CheckerState<'a> {
         &mut self,
         source_type: TypeId,
         target_type: TypeId,
-        name_text: &str,
+        name_type: TypeId,
     ) -> CheckResult<Option<TypeId>> {
-        if let Some(property) = self.get_property_of_type_full(target_type, name_text)? {
-            return Ok(Some(self.get_type_of_symbol(property)?));
-        }
-        let apparent = self.get_apparent_type(target_type)?;
-        if let Some(info) = self.get_applicable_index_info_for_name_info(apparent, name_text)? {
-            return Ok(Some(info.value_type));
-        }
-        if self
-            .tables
-            .flags_of(target_type)
-            .intersects(TypeFlags::UNION)
+        let mut indexed = self.get_indexed_access_type_or_undefined(
+            target_type,
+            name_type,
+            AccessFlags::NONE,
+            None,
+            None,
+            None,
+        )?;
+        if indexed.is_none()
+            && self
+                .tables
+                .flags_of(target_type)
+                .intersects(TypeFlags::UNION)
         {
             if let Some(best) = self.get_best_matching_type(source_type, target_type)? {
-                if let Some(property) = self.get_property_of_type_full(best, name_text)? {
-                    return Ok(Some(self.get_type_of_symbol(property)?));
-                }
-                let apparent = self.get_apparent_type(best)?;
-                if let Some(info) =
-                    self.get_applicable_index_info_for_name_info(apparent, name_text)?
-                {
-                    return Ok(Some(info.value_type));
-                }
+                indexed = self.get_indexed_access_type_or_undefined(
+                    best,
+                    name_type,
+                    AccessFlags::NONE,
+                    None,
+                    None,
+                    None,
+                )?;
             }
         }
-        Ok(None)
+        // elaborateElementwise deliberately declines a still-deferred
+        // indexed access. Reporting the member in isolation would lose
+        // the outer object relation and choose the member's source span.
+        Ok(indexed.filter(|&ty| {
+            !self
+                .tables
+                .flags_of(ty)
+                .intersects(TypeFlags::INDEXED_ACCESS)
+        }))
     }
 
     /// tsc-port: elaborateElementwise @6.0.3 (the report-pair tail)
@@ -217,12 +310,11 @@ impl<'a> CheckerState<'a> {
     /// vendored lib as an ordinary root, so its `libFiles` set is
     /// empty: `host.isSourceFileDefaultLibrary` is false for every
     /// declaration in this program model.
-    pub(crate) fn attach_elementwise_elaboration_related(
+    pub(crate) fn elementwise_elaboration_related(
         &mut self,
-        diagnostic_index: usize,
         target_type: TypeId,
         name_type: TypeId,
-    ) -> CheckResult<()> {
+    ) -> CheckResult<Option<RelatedInfo>> {
         let property_name = self.property_name_from_type_usable(name_type);
         let target_property = match property_name.as_deref() {
             Some(property_name) => self.get_property_of_type_full(target_type, property_name)?,
@@ -234,15 +326,11 @@ impl<'a> CheckerState<'a> {
                 .get_applicable_index_info(target_type, name_type)?
                 .and_then(|info| info.declaration)
             {
-                let related = self.related_info_for_node(
+                return Ok(Some(self.related_info_for_node(
                     declaration,
                     &diagnostics::The_expected_type_comes_from_this_index_signature,
                     &[],
-                );
-                if let Some(diagnostic) = self.diagnostics.get_mut(diagnostic_index) {
-                    diagnostic.related.push(related);
-                }
-                return Ok(());
+                )));
             }
         }
 
@@ -255,7 +343,7 @@ impl<'a> CheckerState<'a> {
                     .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied())
             });
         let Some(target_node) = target_node else {
-            return Ok(());
+            return Ok(None);
         };
 
         let property_display = match property_name {
@@ -269,63 +357,312 @@ impl<'a> CheckerState<'a> {
             }
             _ => {
                 let Ok(display) = self.type_to_string_slice(name_type) else {
-                    return Ok(());
+                    return Ok(None);
                 };
                 display
             }
         };
         let Ok(target_text) = self.type_to_string_slice(target_type) else {
-            return Ok(());
+            return Ok(None);
         };
-        let related = self.related_info_for_node(
+        Ok(Some(self.related_info_for_node(
             target_node,
             &diagnostics::The_expected_type_comes_from_property_0_which_is_declared_here_on_type_1,
             &[&property_display, &target_text],
-        );
-        if let Some(diagnostic) = self.diagnostics.get_mut(diagnostic_index) {
-            diagnostic.related.push(related);
-        }
-        Ok(())
+        )))
     }
 
     /// tsc-port: elaborateArrowFunction @6.0.3
     /// tsc-hash: 592e789cf5d2404080e9d8b355099c7a7f0e7580287399e52d8b25a4950b9cd7
     /// tsc-span: _tsc.js:64024-64102
-    fn attach_arrow_return_elaboration_related(
-        &mut self,
-        diagnostic_index: usize,
-        target_type: TypeId,
-    ) {
+    fn arrow_return_elaboration_related(&mut self, target_type: TypeId) -> Option<RelatedInfo> {
         let declaration = self
             .tables
             .type_of(target_type)
             .symbol
             .and_then(|symbol| self.binder.symbol(symbol).declarations.first().copied());
         let Some(declaration) = declaration else {
-            return;
+            return None;
         };
-        let related = self.related_info_for_node(
+        Some(self.related_info_for_node(
             declaration,
             &diagnostics::The_expected_type_comes_from_the_return_type_of_this_signature,
             &[],
-        );
-        if let Some(diagnostic) = self.diagnostics.get_mut(diagnostic_index) {
-            diagnostic.related.push(related);
+        ))
+    }
+
+    /// filterType(childrenTargetType, predicate), specialized to the
+    /// array-like/non-array-like partition in elaborateJsxComponents.
+    fn partition_jsx_children_target(
+        &mut self,
+        children_target: TypeId,
+    ) -> CheckResult<(TypeId, TypeId)> {
+        let parts = match &self.tables.type_of(children_target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => vec![children_target],
+        };
+        let iterable = self.get_global_iterable_type(/*report_errors*/ false)?;
+        let any_iterable = if iterable == self.empty_generic_type {
+            None
+        } else {
+            Some(self.create_iterable_type(self.tables.intrinsics.any)?)
+        };
+        let mut array_like = Vec::new();
+        let mut non_array_like = Vec::new();
+        for part in parts {
+            let is_array_like = if let Some(any_iterable) = any_iterable {
+                self.is_type_assignable_to(part, any_iterable)?
+            } else {
+                self.is_array_like_type(part)? || self.is_tuple_like_type(part)?
+            };
+            if is_array_like {
+                array_like.push(part);
+            } else {
+                non_array_like.push(part);
+            }
+        }
+        let array_like = self.get_union_type_ex(&array_like, UnionReduction::Literal)?;
+        let non_array_like = self.get_union_type_ex(&non_array_like, UnionReduction::Literal)?;
+        Ok((array_like, non_array_like))
+    }
+
+    /// The report-pair body shared by elaborateElementwise and
+    /// elaborateIterableOrArrayLikeTargetElementwise for JSX children.
+    /// `inner_expression` deliberately differs from `error_node` for a
+    /// JsxExpression: nested elaboration enters the expression, while a
+    /// non-elaborated relation row remains anchored to the JSX child.
+    #[allow(clippy::too_many_arguments)]
+    fn elaborate_jsx_child_pair(
+        &mut self,
+        error_node: NodeId,
+        inner_expression: Option<NodeId>,
+        source_container: TypeId,
+        target_container: TypeId,
+        related_target: Option<TypeId>,
+        name_type: TypeId,
+        source_property_type: TypeId,
+        target_property_type: TypeId,
+        relation: RelationKind,
+        invalid_text: Option<(&str, &str, &str)>,
+        sink: &mut ElaborationDiagnosticSink,
+    ) -> CheckResult<bool> {
+        if self.check_type_related_to(source_property_type, target_property_type, relation)? {
+            return Ok(false);
+        }
+        if let Some(inner_expression) = inner_expression {
+            if self
+                .elaborate_assignment_relation(
+                    inner_expression,
+                    source_property_type,
+                    target_property_type,
+                    None,
+                    sink,
+                )?
+                .reported()
+            {
+                return Ok(true);
+            }
+        }
+
+        let specific_source = if let Some(inner_expression) = inner_expression {
+            self.push_contextual_type(
+                inner_expression,
+                Some(source_property_type),
+                /*is_cache*/ false,
+            );
+            let result = self.check_expression_for_mutable_location(
+                inner_expression,
+                CheckMode::CONTEXTUAL,
+                /*force_tuple*/ false,
+            );
+            self.pop_contextual_type();
+            result?
+        } else {
+            source_property_type
+        };
+        let name_text = self
+            .property_name_from_type_usable(name_type)
+            .unwrap_or_default();
+        let original_target = target_property_type;
+        let (source_property_type, target_property_type) = self.remove_missing_for_member_report(
+            source_container,
+            target_container,
+            &name_text,
+            source_property_type,
+            target_property_type,
+        )?;
+        let (specific_source, _) = self.remove_missing_for_member_report(
+            source_container,
+            target_container,
+            &name_text,
+            specific_source,
+            original_target,
+        )?;
+        let mut diagnostic = if let Some((tag_name, children_name, children_target)) = invalid_text
+        {
+            Some(self.create_error(
+                Some(error_node),
+                &diagnostics::_0_components_don_t_accept_text_as_child_elements_Text_in_JSX_has_the_type_string_but_the_expected_type_of_1_is_2,
+                &[tag_name, children_name, children_target],
+            ))
+        } else {
+            let (specific_related, mut diagnostic) = self.capture_type_assignable_to_diagnostic(
+                specific_source,
+                target_property_type,
+                error_node,
+                &diagnostics::Type_0_is_not_assignable_to_type_1,
+            )?;
+            if specific_related && specific_source != source_property_type {
+                let (_, fallback) = self.capture_type_assignable_to_diagnostic(
+                    source_property_type,
+                    target_property_type,
+                    error_node,
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                )?;
+                if fallback.is_some() {
+                    diagnostic = fallback;
+                }
+            }
+            diagnostic
+        };
+        if let (Some(diagnostic), Some(related_target)) = (&mut diagnostic, related_target) {
+            if let Some(related) =
+                self.elementwise_elaboration_related(related_target, name_type)?
+            {
+                diagnostic.related.push(related);
+            }
+        }
+        if let Some(diagnostic) = diagnostic {
+            sink.publish(self, diagnostic);
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    fn jsx_child_inner_expression(&self, child: NodeId) -> Option<NodeId> {
+        match self.data_of(child) {
+            NodeData::JsxExpression(data) => data.expression,
+            NodeData::JsxElement(_)
+            | NodeData::JsxSelfClosingElement(_)
+            | NodeData::JsxFragment(_) => Some(child),
+            NodeData::JsxText(_) => None,
+            _ => None,
         }
     }
 
-    /// tsrs-native: elaborateJsxComponents @6.0.3 children slice
-    /// (`_tsc.js` 64312-64378).
-    ///
-    /// Attribute checking has already synthesized the source's
-    /// `children` property. For multiple semantic children tsc builds
-    /// a fresh tuple from the individual child expressions and walks
-    /// the array-like target elementwise, so diagnostics stay on each
-    /// child rather than collapsing to the opening tag.
+    /// elaborateIterableOrArrayLikeTargetElementwise for the tuple
+    /// synthesized from multiple semantic JSX children.
+    #[allow(clippy::too_many_arguments)]
+    fn elaborate_multiple_jsx_children(
+        &mut self,
+        containing_element: NodeId,
+        semantic_children: &[NodeId],
+        array_like_target: TypeId,
+        children_name: &str,
+        children_target: TypeId,
+        tag_name_text: &str,
+        relation: RelationKind,
+        sink: &mut ElaborationDiagnosticSink,
+    ) -> CheckResult<bool> {
+        let child_types = self.check_jsx_children(containing_element, CheckMode::NORMAL)?;
+        let tuple_source =
+            self.create_tuple_type_forced(&child_types, None, /*readonly*/ false, None)?;
+
+        // Iterable targets need their yielded type in addition to the
+        // ordinary numeric indexed access supplied by arrays/tuples.
+        let target_parts = match &self.tables.type_of(array_like_target).data {
+            TypeData::Union { types, .. } => types.to_vec(),
+            _ => vec![array_like_target],
+        };
+        let mut tuple_or_array_parts = Vec::new();
+        let mut iterable_only_parts = Vec::new();
+        for part in target_parts {
+            if self.is_array_like_type(part)? || self.is_tuple_like_type(part)? {
+                tuple_or_array_parts.push(part);
+            } else {
+                iterable_only_parts.push(part);
+            }
+        }
+        let tuple_or_array_target =
+            self.get_union_type_ex(&tuple_or_array_parts, UnionReduction::Literal)?;
+        let iterable_only_target =
+            self.get_union_type_ex(&iterable_only_parts, UnionReduction::Literal)?;
+        let iteration_type = if iterable_only_target == self.tables.intrinsics.never {
+            None
+        } else {
+            self.get_iteration_type_of_iterable(
+                IterationUse::FOR_OF,
+                IterationTypeKind::YIELD,
+                iterable_only_target,
+                None,
+            )?
+        };
+
+        let children_target_text = self.type_to_string_slice(children_target)?;
+        let mut reported = false;
+        for (index, &child) in semantic_children.iter().enumerate() {
+            let name_type = self.tables.get_number_literal_type(index as f64);
+            let indexed_target = if tuple_or_array_target == self.tables.intrinsics.never {
+                None
+            } else {
+                self.member_elaboration_target_type(tuple_source, tuple_or_array_target, name_type)?
+            };
+            let target_property_type = match (iteration_type, indexed_target) {
+                (Some(iteration), Some(indexed)) => {
+                    Some(self.get_union_type_ex(&[iteration, indexed], UnionReduction::Literal)?)
+                }
+                (Some(iteration), None) => Some(iteration),
+                (None, Some(indexed)) => Some(indexed),
+                (None, None) => None,
+            };
+            let Some(target_property_type) = target_property_type else {
+                continue;
+            };
+            let Some(source_property_type) = self.get_indexed_access_type_or_undefined(
+                tuple_source,
+                name_type,
+                AccessFlags::NONE,
+                None,
+                None,
+                None,
+            )?
+            else {
+                continue;
+            };
+            let invalid_text = (self.kind_of(child) == SyntaxKind::JsxText).then_some((
+                tag_name_text,
+                children_name,
+                children_target_text.as_str(),
+            ));
+            if self.elaborate_jsx_child_pair(
+                child,
+                self.jsx_child_inner_expression(child),
+                tuple_source,
+                tuple_or_array_target,
+                None,
+                name_type,
+                source_property_type,
+                target_property_type,
+                relation,
+                invalid_text,
+                sink,
+            )? {
+                reported = true;
+            }
+        }
+        Ok(reported)
+    }
+
+    /// tsc-port: elaborateJsxComponents @6.0.3 children slice
+    /// tsc-hash: f9cd0f08f4fca00f4deaa1607244478608e6fe98975c19e5836677da74a11b08
+    /// tsc-span: _tsc.js:64310-64385
     fn elaborate_jsx_children(
         &mut self,
         attributes: NodeId,
+        source_type: TypeId,
         target_type: TypeId,
+        relation: RelationKind,
+        sink: &mut ElaborationDiagnosticSink,
     ) -> CheckResult<bool> {
         let Some(opening) = self.parent_of(attributes) else {
             return Ok(false);
@@ -336,11 +673,18 @@ impl<'a> CheckerState<'a> {
         let Some(containing_element) = self.parent_of(opening) else {
             return Ok(false);
         };
-        let children = match self.data_of(containing_element) {
+        let (children, tag_name) = match self.data_of(containing_element) {
             NodeData::JsxElement(data) if data.opening_element == Some(opening) => {
-                self.nodes_of(data.children)
+                let tag_name = match self.data_of(opening) {
+                    NodeData::JsxOpeningElement(opening) => opening.tag_name,
+                    _ => None,
+                };
+                (self.nodes_of(data.children), tag_name)
             }
             _ => return Ok(false),
+        };
+        let Some(tag_name) = tag_name else {
+            return Ok(false);
         };
         let semantic_children: Vec<NodeId> = children
             .into_iter()
@@ -350,78 +694,105 @@ impl<'a> CheckerState<'a> {
             return Ok(false);
         }
         let jsx_namespace = self.get_jsx_namespace_at(attributes)?;
-        let children_name = self
+        let escaped_children_name = self
             .get_jsx_element_children_property_name(jsx_namespace)?
             .unwrap_or_else(|| "children".to_owned());
+        let children_name =
+            tsc_binder::unescape_leading_underscores(&escaped_children_name).to_owned();
         let name_type = self.tables.get_string_literal_type(&children_name);
-        let Some(children_target) = self.get_indexed_access_type_or_undefined(
+        let children_target = self.get_indexed_access_type(
             target_type,
             name_type,
             AccessFlags::NONE,
             None,
             None,
             None,
-        )?
-        else {
-            return Ok(false);
-        };
-        let target_parts = match &self.tables.type_of(children_target).data {
-            TypeData::Union { types, .. } => types.to_vec(),
-            _ => vec![children_target],
-        };
-        let mut indexed_target_parts = Vec::new();
-        for target_part in target_parts {
-            if let Some(element) = self.get_element_type_of_array_type(target_part)? {
-                indexed_target_parts.push(element);
-            } else if self.is_tuple_like_type(target_part)? {
-                indexed_target_parts.extend(self.get_type_arguments(target_part)?);
-            }
-        }
-        let indexed_target = if indexed_target_parts.is_empty() {
-            None
-        } else {
-            Some(self.get_union_type_ex(&indexed_target_parts, UnionReduction::Literal)?)
-        };
-        let expected = if semantic_children.len() > 1 {
-            match indexed_target {
-                Some(expected) => expected,
-                None => return Ok(false),
-            }
-        } else {
-            // Single-child failures keep the enclosing JSX relation
-            // head in the currently supported corpus (the complete
-            // scalar/array 2745/2747 cardinality ladder remains owned
-            // by the source-level reporter below).
-            return Ok(false);
-        };
+        )?;
+        let (array_like_target, non_array_like_target) =
+            self.partition_jsx_children_target(children_target)?;
+        let source_children = self.get_indexed_access_type(
+            source_type,
+            name_type,
+            AccessFlags::NONE,
+            None,
+            None,
+            None,
+        )?;
+        let tag_name_text = self.text_of_node(tag_name)?;
+        let children_target_text = self.type_to_string_slice(children_target)?;
 
-        let mut reported = false;
-        for child in semantic_children {
-            let actual =
-                self.check_expression_for_mutable_location(child, CheckMode::NORMAL, false)?;
-            if self.is_type_assignable_to(actual, expected)? {
-                continue;
+        if semantic_children.len() > 1 {
+            if array_like_target != self.tables.intrinsics.never {
+                return self.elaborate_multiple_jsx_children(
+                    containing_element,
+                    &semantic_children,
+                    array_like_target,
+                    &children_name,
+                    children_target,
+                    &tag_name_text,
+                    relation,
+                    sink,
+                );
             }
-            if self
-                .elaborate_literal_assignment(
-                    child,
-                    expected,
-                    Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
-                )?
-                .reported()
-            {
-                reported = true;
-                continue;
+            if !self.check_type_related_to(source_children, children_target, relation)? {
+                let diagnostic = self.create_error(
+                    Some(tag_name),
+                    &diagnostics::This_JSX_tag_s_0_prop_expects_a_single_child_of_type_1_but_multiple_children_were_provided,
+                    &[&children_name, &children_target_text],
+                );
+                sink.publish_and_capture(self, diagnostic);
+                return Ok(true);
             }
-            self.check_type_assignable_to(
-                actual,
-                expected,
-                Some(child),
-                &diagnostics::Type_0_is_not_assignable_to_type_1,
-            )?;
-            reported = true;
+            return Ok(false);
         }
-        Ok(reported)
+
+        if non_array_like_target != self.tables.intrinsics.never {
+            let Some(target_property_type) =
+                self.member_elaboration_target_type(source_type, target_type, name_type)?
+            else {
+                return Ok(false);
+            };
+            let Some(source_property_type) = self.get_indexed_access_type_or_undefined(
+                source_type,
+                name_type,
+                AccessFlags::NONE,
+                None,
+                None,
+                None,
+            )?
+            else {
+                return Ok(false);
+            };
+            let child = semantic_children[0];
+            let invalid_text = (self.kind_of(child) == SyntaxKind::JsxText).then_some((
+                tag_name_text.as_str(),
+                children_name.as_str(),
+                children_target_text.as_str(),
+            ));
+            return self.elaborate_jsx_child_pair(
+                child,
+                self.jsx_child_inner_expression(child),
+                source_type,
+                target_type,
+                Some(target_type),
+                name_type,
+                source_property_type,
+                target_property_type,
+                relation,
+                invalid_text,
+                sink,
+            );
+        }
+        if !self.check_type_related_to(source_children, children_target, relation)? {
+            let diagnostic = self.create_error(
+                Some(tag_name),
+                &diagnostics::This_JSX_tag_s_0_prop_expects_type_1_which_requires_multiple_children_but_only_a_single_child_was_provided,
+                &[&children_name, &children_target_text],
+            );
+            sink.publish_and_capture(self, diagnostic);
+            return Ok(true);
+        }
+        Ok(false)
     }
 
     /// tsc-port: checkTypeAssignableToAndOptionallyElaborate @6.0.3
@@ -445,7 +816,7 @@ impl<'a> CheckerState<'a> {
         }
         if error_node.is_some()
             && self
-                .elaborate_assignment_relation(
+                .elaborate_literal_assignment_from_types(
                     expression,
                     source_type,
                     target_type,
@@ -467,7 +838,67 @@ impl<'a> CheckerState<'a> {
         probe_head: Option<&'static DiagnosticMessage>,
     ) -> CheckResult<ElaborationOutcome> {
         let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
-        self.elaborate_assignment_relation(expression, source_type, target_type, probe_head)
+        self.elaborate_literal_assignment_from_types(
+            expression,
+            source_type,
+            target_type,
+            probe_head,
+        )
+    }
+
+    /// tsrs-native: adapt elaborateError's assignment relation to an
+    /// explicitly borrowed Rust diagnostic sink.
+    pub(crate) fn elaborate_literal_assignment_into_sink(
+        &mut self,
+        expression: NodeId,
+        target_type: TypeId,
+        probe_head: Option<&'static DiagnosticMessage>,
+        sink: &mut ElaborationDiagnosticSink,
+    ) -> CheckResult<ElaborationOutcome> {
+        let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+        self.elaborate_assignment_relation(expression, source_type, target_type, probe_head, sink)
+    }
+
+    fn elaborate_literal_assignment_from_types(
+        &mut self,
+        expression: NodeId,
+        source_type: TypeId,
+        target_type: TypeId,
+        probe_head: Option<&'static DiagnosticMessage>,
+    ) -> CheckResult<ElaborationOutcome> {
+        let mut sink = ElaborationDiagnosticSink::program();
+        self.elaborate_assignment_relation(
+            expression,
+            source_type,
+            target_type,
+            probe_head,
+            &mut sink,
+        )
+    }
+
+    /// tsrs-native: own the diagnostics produced through tsc's
+    /// errorOutputContainer face for call and JSX applicability.
+    ///
+    /// The `errorOutputContainer` face consumed by call/JSX
+    /// applicability. Only diagnostics explicitly reported by the
+    /// elaboration frame are returned; lazy global diagnostics stay in
+    /// the program sink.
+    pub(crate) fn capture_literal_assignment_elaboration(
+        &mut self,
+        expression: NodeId,
+        target_type: TypeId,
+        probe_head: Option<&'static DiagnosticMessage>,
+    ) -> CheckResult<(ElaborationOutcome, Vec<Diagnostic>)> {
+        let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
+        let mut sink = ElaborationDiagnosticSink::captured();
+        let outcome = self.elaborate_assignment_relation(
+            expression,
+            source_type,
+            target_type,
+            probe_head,
+            &mut sink,
+        )?;
+        Ok((outcome, sink.into_captured()))
     }
 
     /// tsc-port: elaborateError @6.0.3
@@ -483,6 +914,7 @@ impl<'a> CheckerState<'a> {
         source_type: TypeId,
         target_type: TypeId,
         probe_head: Option<&'static DiagnosticMessage>,
+        sink: &mut ElaborationDiagnosticSink,
     ) -> CheckResult<ElaborationOutcome> {
         if self.is_or_has_generic_conditional(target_type) {
             return Ok(ElaborationOutcome::Declined);
@@ -496,6 +928,7 @@ impl<'a> CheckerState<'a> {
                     source_type,
                     target_type,
                     head_message,
+                    sink,
                 )?
                 .reported()
             {
@@ -514,6 +947,7 @@ impl<'a> CheckerState<'a> {
                         source_type,
                         target_type,
                         probe_head,
+                        sink,
                     );
                 }
             }
@@ -525,6 +959,7 @@ impl<'a> CheckerState<'a> {
                             source_type,
                             target_type,
                             probe_head,
+                            sink,
                         );
                     }
                 }
@@ -536,6 +971,7 @@ impl<'a> CheckerState<'a> {
                         source_type,
                         target_type,
                         probe_head,
+                        sink,
                     );
                 }
             }
@@ -550,46 +986,37 @@ impl<'a> CheckerState<'a> {
                             source_type,
                             target_type,
                             probe_head,
+                            sink,
                         );
                     }
                 }
             }
             _ => {}
         }
-        let before = self.diagnostics.len();
+        let report_mark = sink.mark();
         match self.data_of(expression) {
             NodeData::ArrowFunction(data) => {
                 let data = data.clone();
                 let Some(body) = data.body else {
-                    return Ok(ElaborationOutcome::from_reported(
-                        self.diagnostics.len() > before,
-                    ));
+                    return Ok(ElaborationOutcome::Declined);
                 };
                 if matches!(self.data_of(body), NodeData::Block(_)) {
-                    return Ok(ElaborationOutcome::from_reported(
-                        self.diagnostics.len() > before,
-                    ));
+                    return Ok(ElaborationOutcome::Declined);
                 }
                 let any_annotated = self.nodes_of(data.parameters).iter().any(|&parameter| {
                     matches!(self.data_of(parameter), NodeData::Parameter(data)
                         if data.r#type.is_some())
                 });
                 if any_annotated {
-                    return Ok(ElaborationOutcome::from_reported(
-                        self.diagnostics.len() > before,
-                    ));
+                    return Ok(ElaborationOutcome::Declined);
                 }
                 let Some(source_signature) = self.get_single_call_signature(source_type)? else {
-                    return Ok(ElaborationOutcome::from_reported(
-                        self.diagnostics.len() > before,
-                    ));
+                    return Ok(ElaborationOutcome::Declined);
                 };
                 let target_signatures =
                     self.get_signatures_of_type(target_type, SignatureKind::Call)?;
                 if target_signatures.is_empty() {
-                    return Ok(ElaborationOutcome::from_reported(
-                        self.diagnostics.len() > before,
-                    ));
+                    return Ok(ElaborationOutcome::Declined);
                 }
                 let source_return = self.get_return_type_of_signature(source_signature)?;
                 let mut target_returns = Vec::with_capacity(target_signatures.len());
@@ -599,9 +1026,7 @@ impl<'a> CheckerState<'a> {
                 let target_return =
                     self.get_union_type_ex(&target_returns, UnionReduction::Literal)?;
                 if self.is_type_assignable_to(source_return, target_return)? {
-                    return Ok(ElaborationOutcome::from_reported(
-                        self.diagnostics.len() > before,
-                    ));
+                    return Ok(ElaborationOutcome::Declined);
                 }
                 if self
                     .elaborate_assignment_relation(
@@ -609,23 +1034,28 @@ impl<'a> CheckerState<'a> {
                         source_return,
                         target_return,
                         Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                        sink,
                     )?
                     .reported()
                 {
                     return Ok(ElaborationOutcome::Reported);
                 }
-                let diagnostics_before_report = self.diagnostics.len();
-                self.check_type_assignable_to(
+                let (_, mut diagnostic) = self.capture_type_assignable_to_diagnostic(
                     source_return,
                     target_return,
-                    Some(body),
+                    body,
                     &diagnostics::Type_0_is_not_assignable_to_type_1,
                 )?;
-                if self.diagnostics.len() > diagnostics_before_report {
-                    let diagnostic_index = self.diagnostics.len() - 1;
-                    self.attach_arrow_return_elaboration_related(diagnostic_index, target_type);
+                if let Some(diagnostic) = &mut diagnostic {
+                    if let Some(related) = self.arrow_return_elaboration_related(target_type) {
+                        diagnostic.related.push(related);
+                    }
                 }
-                return Ok(ElaborationOutcome::Reported);
+                if let Some(diagnostic) = diagnostic {
+                    sink.publish(self, diagnostic);
+                    return Ok(ElaborationOutcome::Reported);
+                }
+                return Ok(ElaborationOutcome::Declined);
             }
             NodeData::ObjectLiteralExpression(data) => {
                 // elaborateObjectLiteral (64456): primitive and Never
@@ -671,7 +1101,7 @@ impl<'a> CheckerState<'a> {
                     let expected = match self.member_elaboration_target_type(
                         source_type,
                         target_type,
-                        &name_text,
+                        name_type,
                     )? {
                         Some(expected) => expected,
                         None => continue,
@@ -703,6 +1133,7 @@ impl<'a> CheckerState<'a> {
                                 source_property_type,
                                 expected,
                                 Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                                sink,
                             )?
                             .reported()
                         {
@@ -766,31 +1197,36 @@ impl<'a> CheckerState<'a> {
                         specific_source,
                         original_expected,
                     )?;
-                    let diagnostics_before_report = self.diagnostics.len();
-                    let specific_related = self.check_type_assignable_to(
-                        specific_source,
-                        expected,
-                        Some(name),
-                        message,
-                    )?;
+                    let (specific_related, mut diagnostic) = self
+                        .capture_type_assignable_to_diagnostic(
+                            specific_source,
+                            expected,
+                            name,
+                            message,
+                        )?;
                     // 64168-64170: if contextual rechecking made the
                     // syntax-specific source pass, report against the
                     // indexed source property that originally failed.
                     if specific_related && specific_source != source_property_type {
-                        self.check_type_assignable_to(
+                        let (_, fallback) = self.capture_type_assignable_to_diagnostic(
                             source_property_type,
                             expected,
-                            Some(name),
+                            name,
                             message,
                         )?;
+                        if fallback.is_some() {
+                            diagnostic = fallback;
+                        }
                     }
-                    if self.diagnostics.len() > diagnostics_before_report {
-                        let diagnostic_index = self.diagnostics.len() - 1;
-                        self.attach_elementwise_elaboration_related(
-                            diagnostic_index,
-                            target_type,
-                            name_type,
-                        )?;
+                    if let Some(diagnostic) = &mut diagnostic {
+                        if let Some(related) =
+                            self.elementwise_elaboration_related(target_type, name_type)?
+                        {
+                            diagnostic.related.push(related);
+                        }
+                    }
+                    if let Some(diagnostic) = diagnostic {
+                        sink.publish(self, diagnostic);
                     }
                 }
             }
@@ -840,6 +1276,7 @@ impl<'a> CheckerState<'a> {
                         continue;
                     }
                     let index_name = index.to_string();
+                    let name_type = self.tables.get_number_literal_type(index as f64);
                     let expected = if self.is_tuple_like_type(target_type)?
                         && self
                             .get_property_of_type_full(target_type, &index_name)?
@@ -850,13 +1287,12 @@ impl<'a> CheckerState<'a> {
                         match self.member_elaboration_target_type(
                             tupleized_source,
                             target_type,
-                            &index_name,
+                            name_type,
                         )? {
                             Some(expected) => expected,
                             None => continue,
                         }
                     };
-                    let name_type = self.tables.get_number_literal_type(index as f64);
                     let Some(actual) = self.get_indexed_access_type_or_undefined(
                         tupleized_source,
                         name_type,
@@ -878,6 +1314,7 @@ impl<'a> CheckerState<'a> {
                             actual,
                             expected,
                             Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                            sink,
                         )?
                         .reported()
                     {
@@ -917,47 +1354,59 @@ impl<'a> CheckerState<'a> {
                         specific_source,
                         original_expected,
                     )?;
-                    let diagnostics_before_report = self.diagnostics.len();
-                    let specific_related = self.check_type_assignable_to(
-                        specific_source,
-                        expected,
-                        Some(error_node),
-                        &diagnostics::Type_0_is_not_assignable_to_type_1,
-                    )?;
-                    if specific_related && specific_source != source_property_type {
-                        self.check_type_assignable_to(
-                            source_property_type,
+                    let (specific_related, mut diagnostic) = self
+                        .capture_type_assignable_to_diagnostic(
+                            specific_source,
                             expected,
-                            Some(error_node),
+                            error_node,
                             &diagnostics::Type_0_is_not_assignable_to_type_1,
                         )?;
-                    }
-                    if self.diagnostics.len() > diagnostics_before_report {
-                        let diagnostic_index = self.diagnostics.len() - 1;
-                        self.attach_elementwise_elaboration_related(
-                            diagnostic_index,
-                            target_type,
-                            name_type,
+                    if specific_related && specific_source != source_property_type {
+                        let (_, fallback) = self.capture_type_assignable_to_diagnostic(
+                            source_property_type,
+                            expected,
+                            error_node,
+                            &diagnostics::Type_0_is_not_assignable_to_type_1,
                         )?;
+                        if fallback.is_some() {
+                            diagnostic = fallback;
+                        }
+                    }
+                    if let Some(diagnostic) = &mut diagnostic {
+                        if let Some(related) =
+                            self.elementwise_elaboration_related(target_type, name_type)?
+                        {
+                            diagnostic.related.push(related);
+                        }
+                    }
+                    if let Some(diagnostic) = diagnostic {
+                        sink.publish(self, diagnostic);
                     }
                 }
             }
             NodeData::JsxAttributes(_) => {
-                let attributes_reported = self.elaborate_jsx_named_attributes(
+                let attributes_walk_reported = self.elaborate_jsx_named_attributes(
                     expression,
                     source_type,
                     target_type,
                     RelationKind::Assignable,
+                    sink,
                 )?;
-                let children_reported = self.elaborate_jsx_children(expression, target_type)?;
-                if attributes_reported || children_reported {
+                let children_walk_reported = self.elaborate_jsx_children(
+                    expression,
+                    source_type,
+                    target_type,
+                    RelationKind::Assignable,
+                    sink,
+                )?;
+                if attributes_walk_reported || children_walk_reported {
                     return Ok(ElaborationOutcome::Reported);
                 }
             }
             _ => {}
         }
         Ok(ElaborationOutcome::from_reported(
-            self.diagnostics.len() > before,
+            sink.reported_since(report_mark),
         ))
     }
 }

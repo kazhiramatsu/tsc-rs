@@ -1,0 +1,2374 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.5c-es2020-target",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-5c-qualification.mjs",
+    "sha256": "826405aa4962047e0c527ef238640321890e28cff340f166967f6851b64a58df"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5c-qualification.schema.json",
+    "sha256": "b6eede5fa4cd8eb98c182cce68f896bb8e32f8bdaa441fc785067be3cdac6fc2"
+  },
+  "origin": {
+    "h2_5b_merge": "564fcafebdc855ec09104c07f1f6622b9ffab60e",
+    "h2_5b_profile": {
+      "path": "ratchets/h2-5b-profile.v1.json",
+      "sha256": "8f887cc0aba33f55d7e6aebb8df5b9f4ee5cac3d4b174d93c1e6dbe2ecee47a8"
+    }
+  },
+  "selection_contract": {
+    "global_h2_5c_rows": 16,
+    "candidate_definition": "the 15 global H2.5c rows whose complete required-slice set is closed through H2.5c",
+    "global_candidate_denominator": 15,
+    "candidate_denominator": 15,
+    "future_deferred_rows": 1
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    },
+    "global_candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "every selected global row has a required-slice set closed through H2.5c; every emit-eligible source targets ES2019, has no parse diagnostics, has AST depth <= 256, and requires no later source/output owner; transformES2020 runs after the already-closed transformESNext/class-field pipeline and before the module transformer, and diagnostics and writes are exact; declaration/package/config inputs remain non-emitted controls",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "transform-es2020",
+      "declaration": {
+        "id": "h2:9b9b04289df8af1e958e0b8c674d29db4e6a3daf234c8e82b7b5ec37ace123a3",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformES2020",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformES2020@102943:1",
+        "source_range": {
+          "start": {
+            "offset": 4950559,
+            "line": 102943,
+            "character": 1
+          },
+          "end": {
+            "offset": 4960555,
+            "line": 103202,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "89444e00815d1908c9e512cc7e2025c5deae70434a8f21565a0c9a633b555b85",
+        "body_sha256": "493c2ca77685fd4bd7eea75b257aa551895390dae345b6cb9ba4a1b155676a3a",
+        "ledger_slice_sha256": "d4fd052da60bf3b0c5743c0994e4afe4ac556af672203c828734f67325124c7d"
+      },
+      "disposition_before_h2_5c": "deferred-h2"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/dynamicImportEvaluateSpecifier.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 2324,
+      "source": {
+        "path": "dynamicImportEvaluateSpecifier.ts",
+        "bytes": 390,
+        "sha256": "7afc55335db5c90ce722d1d335cb970256022fc53ad695d053d8ea9bb525040c",
+        "git_blob_sha1": "0acd8b118810ef94afb827102eac45840cb6a81d"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "CommonJS(1)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/dynamicImportEvaluateSpecifier.ts"
+        ],
+        "settings": [
+          {
+            "name": "lib",
+            "value": "es2019"
+          },
+          {
+            "name": "target",
+            "value": "es2019"
+          },
+          {
+            "name": "module",
+            "value": "commonjs"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/dynamicImportEvaluateSpecifier.ts",
+            "utf8_base64": "Ly8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy80ODI4NQpsZXQgaSA9IDA7CgppbXBvcnQoU3RyaW5nKGkrKykpOwppbXBvcnQoU3RyaW5nKGkrKykpOwoKY29uc3QgZ2V0UGF0aCA9IGFzeW5jICgpID0+IHsKCS8qIGluIHJlYWxpdHkgdGhpcyB3b3VsZCBkbyBzb21lIGFzeW5jIEZTIG9wZXJhdGlvbiwgb3IgYSB3ZWIgcmVxdWVzdCAqLwoJcmV0dXJuICIvcm9vdC9teS9jb29sL3BhdGgiOwp9OwoKY29uc3Qgc29tZUZ1bmN0aW9uID0gYXN5bmMgKCkgPT4gewoJY29uc3QgcmVzdWx0ID0gYXdhaXQgaW1wb3J0KGF3YWl0IGdldFBhdGgoKSk7Cn07Cg==",
+            "utf8_sha256": "d95593b763917aed6a981ed5609840b602e3c84278b631d44fdc1ab6abdfb019",
+            "utf8_bytes": 334
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/dynamicImportEvaluateSpecifier.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 1,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 14,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "d95593b763917aed6a981ed5609840b602e3c84278b631d44fdc1ab6abdfb019"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/dynamicImportEvaluateSpecifier.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KLy8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy80ODI4NQ0KbGV0IGkgPSAwOw0KUHJvbWlzZS5yZXNvbHZlKGAke1N0cmluZyhpKyspfWApLnRoZW4ocyA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZShzKSkpOw0KUHJvbWlzZS5yZXNvbHZlKGAke1N0cmluZyhpKyspfWApLnRoZW4ocyA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZShzKSkpOw0KY29uc3QgZ2V0UGF0aCA9IGFzeW5jICgpID0+IHsNCiAgICAvKiBpbiByZWFsaXR5IHRoaXMgd291bGQgZG8gc29tZSBhc3luYyBGUyBvcGVyYXRpb24sIG9yIGEgd2ViIHJlcXVlc3QgKi8NCiAgICByZXR1cm4gIi9yb290L215L2Nvb2wvcGF0aCI7DQp9Ow0KY29uc3Qgc29tZUZ1bmN0aW9uID0gYXN5bmMgKCkgPT4gew0KICAgIGNvbnN0IHJlc3VsdCA9IGF3YWl0IFByb21pc2UucmVzb2x2ZShgJHthd2FpdCBnZXRQYXRoKCl9YCkudGhlbihzID0+IF9faW1wb3J0U3RhcihyZXF1aXJlKHMpKSk7DQp9Ow0K",
+              "callback_utf8_sha256": "9308c6672fee91669fd1cc3d05155f60a02751e70e158a75a3a38155e3c11959",
+              "callback_utf8_bytes": 1908,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "9308c6672fee91669fd1cc3d05155f60a02751e70e158a75a3a38155e3c11959",
+              "materialized_utf8_bytes": 1908,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/dynamicImportEvaluateSpecifier.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "b92ae106304834f30e21306a1f2ae72896f65407421690e66fa71acf984c5b6f"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/dynamicImportEvaluateSpecifier.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgew0KICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7DQogICAgdmFyIGRlc2MgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKG0sIGspOw0KICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgew0KICAgICAgZGVzYyA9IHsgZW51bWVyYWJsZTogdHJ1ZSwgZ2V0OiBmdW5jdGlvbigpIHsgcmV0dXJuIG1ba107IH0gfTsNCiAgICB9DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsNCn0pIDogKGZ1bmN0aW9uKG8sIG0sIGssIGsyKSB7DQogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsNCiAgICBvW2syXSA9IG1ba107DQp9KSk7DQp2YXIgX19zZXRNb2R1bGVEZWZhdWx0ID0gKHRoaXMgJiYgdGhpcy5fX3NldE1vZHVsZURlZmF1bHQpIHx8IChPYmplY3QuY3JlYXRlID8gKGZ1bmN0aW9uKG8sIHYpIHsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkobywgImRlZmF1bHQiLCB7IGVudW1lcmFibGU6IHRydWUsIHZhbHVlOiB2IH0pOw0KfSkgOiBmdW5jdGlvbihvLCB2KSB7DQogICAgb1siZGVmYXVsdCJdID0gdjsNCn0pOw0KdmFyIF9faW1wb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19pbXBvcnRTdGFyKSB8fCAoZnVuY3Rpb24gKCkgew0KICAgIHZhciBvd25LZXlzID0gZnVuY3Rpb24obykgew0KICAgICAgICBvd25LZXlzID0gT2JqZWN0LmdldE93blByb3BlcnR5TmFtZXMgfHwgZnVuY3Rpb24gKG8pIHsNCiAgICAgICAgICAgIHZhciBhciA9IFtdOw0KICAgICAgICAgICAgZm9yICh2YXIgayBpbiBvKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKG8sIGspKSBhclthci5sZW5ndGhdID0gazsNCiAgICAgICAgICAgIHJldHVybiBhcjsNCiAgICAgICAgfTsNCiAgICAgICAgcmV0dXJuIG93bktleXMobyk7DQogICAgfTsNCiAgICByZXR1cm4gZnVuY3Rpb24gKG1vZCkgew0KICAgICAgICBpZiAobW9kICYmIG1vZC5fX2VzTW9kdWxlKSByZXR1cm4gbW9kOw0KICAgICAgICB2YXIgcmVzdWx0ID0ge307DQogICAgICAgIGlmIChtb2QgIT0gbnVsbCkgZm9yICh2YXIgayA9IG93bktleXMobW9kKSwgaSA9IDA7IGkgPCBrLmxlbmd0aDsgaSsrKSBpZiAoa1tpXSAhPT0gImRlZmF1bHQiKSBfX2NyZWF0ZUJpbmRpbmcocmVzdWx0LCBtb2QsIGtbaV0pOw0KICAgICAgICBfX3NldE1vZHVsZURlZmF1bHQocmVzdWx0LCBtb2QpOw0KICAgICAgICByZXR1cm4gcmVzdWx0Ow0KICAgIH07DQp9KSgpOw0KLy8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy80ODI4NQ0KbGV0IGkgPSAwOw0KUHJvbWlzZS5yZXNvbHZlKGAke1N0cmluZyhpKyspfWApLnRoZW4ocyA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZShzKSkpOw0KUHJvbWlzZS5yZXNvbHZlKGAke1N0cmluZyhpKyspfWApLnRoZW4ocyA9PiBfX2ltcG9ydFN0YXIocmVxdWlyZShzKSkpOw0KY29uc3QgZ2V0UGF0aCA9IGFzeW5jICgpID0+IHsNCiAgICAvKiBpbiByZWFsaXR5IHRoaXMgd291bGQgZG8gc29tZSBhc3luYyBGUyBvcGVyYXRpb24sIG9yIGEgd2ViIHJlcXVlc3QgKi8NCiAgICByZXR1cm4gIi9yb290L215L2Nvb2wvcGF0aCI7DQp9Ow0KY29uc3Qgc29tZUZ1bmN0aW9uID0gYXN5bmMgKCkgPT4gew0KICAgIGNvbnN0IHJlc3VsdCA9IGF3YWl0IFByb21pc2UucmVzb2x2ZShgJHthd2FpdCBnZXRQYXRoKCl9YCkudGhlbihzID0+IF9faW1wb3J0U3RhcihyZXF1aXJlKHMpKSk7DQp9Ow0K",
+              "callback_utf8_sha256": "9308c6672fee91669fd1cc3d05155f60a02751e70e158a75a3a38155e3c11959",
+              "callback_utf8_bytes": 1908,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "9308c6672fee91669fd1cc3d05155f60a02751e70e158a75a3a38155e3c11959",
+              "materialized_utf8_bytes": 1908,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/dynamicImportEvaluateSpecifier.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "b92ae106304834f30e21306a1f2ae72896f65407421690e66fa71acf984c5b6f"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "220e305be62b335c9fed6bef095c2b7436cc6b4c0e0aca3e7251a96c091736b5"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/numericUnderscoredSeparator.ts#target%3Des2019",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 5301,
+      "source": {
+        "path": "numericUnderscoredSeparator.ts",
+        "bytes": 132,
+        "sha256": "7b800af1e84225da517fe656639b06748fdfcc0b25fd57de690fc604b60ce4ab",
+        "git_blob_sha1": "78f39faeb95f9f6470a07faccb6e817656faa43d"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/numericUnderscoredSeparator.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/numericUnderscoredSeparator.ts",
+            "utf8_base64": "MV8wMDBfMDAwXzAwMF8wMDAKMGIxMDEwXzAwMDFfMTAwMF8wMTAxCjBiMTAxMF8wMDAxXzEwMDBfMDEwMQoweEEwX0IwX0MwCg==",
+            "utf8_sha256": "35d43849c15ac0022bde4fb591bc48ff369f82344456c395c9b252ef81294ed4",
+            "utf8_bytes": 73
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/numericUnderscoredSeparator.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "35d43849c15ac0022bde4fb591bc48ff369f82344456c395c9b252ef81294ed4"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/numericUnderscoredSeparator.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KMTAwMDAwMDAwMDAwMDsNCjQxMzQ5Ow0KNDEzNDk7DQoxMDUzMTAwODsNCg==",
+              "callback_utf8_sha256": "d56fc6c6e44a889d45cc34308553eb784c0e3f1e05473944d333a23ab395f966",
+              "callback_utf8_bytes": 58,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d56fc6c6e44a889d45cc34308553eb784c0e3f1e05473944d333a23ab395f966",
+              "materialized_utf8_bytes": 58,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/numericUnderscoredSeparator.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "502d8ae0b35d29794b4eaa3df1719de31466db3c271f770dd90f14b65f790195"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/numericUnderscoredSeparator.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KMTAwMDAwMDAwMDAwMDsNCjQxMzQ5Ow0KNDEzNDk7DQoxMDUzMTAwODsNCg==",
+              "callback_utf8_sha256": "d56fc6c6e44a889d45cc34308553eb784c0e3f1e05473944d333a23ab395f966",
+              "callback_utf8_bytes": 58,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d56fc6c6e44a889d45cc34308553eb784c0e3f1e05473944d333a23ab395f966",
+              "materialized_utf8_bytes": 58,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/numericUnderscoredSeparator.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "502d8ae0b35d29794b4eaa3df1719de31466db3c271f770dd90f14b65f790195"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "f518082bcda567f5c439a0fded80ee3a92d8da6e2915bfd48d8f920321f5bbce"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/objectFromEntries.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 5313,
+      "source": {
+        "path": "objectFromEntries.ts",
+        "bytes": 470,
+        "sha256": "fddde01c5653fed89c43baff49557fc965d3a512c37f0b23ee38adfe885eb0ba",
+        "git_blob_sha1": "9993edbf344ecafd0868c74921b0102829d711a9"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/objectFromEntries.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/objectFromEntries.ts",
+            "utf8_base64": "Y29uc3QgbyA9IE9iamVjdC5mcm9tRW50cmllcyhbWydhJywgMV0sIFsnYicsIDJdLCBbJ2MnLCAzXV0pOwpjb25zdCBvMiA9IE9iamVjdC5mcm9tRW50cmllcyhuZXcgVVJMU2VhcmNoUGFyYW1zKCkpOwpjb25zdCBvMyA9IE9iamVjdC5mcm9tRW50cmllcyhuZXcgTWFwKFtbU3ltYm9sKCJrZXkiKSwgInZhbHVlIl1dKSk7Cgpjb25zdCBmcm96ZW5BcnJheSA9IE9iamVjdC5mcmVlemUoW1snYScsIDFdLCBbJ2InLCAyXSwgWydjJywgM11dKTsKY29uc3QgbzQgPSBPYmplY3QuZnJvbUVudHJpZXMoZnJvemVuQXJyYXkpOwoKY29uc3QgZnJvemVuQXJyYXkyOiByZWFkb25seSBbc3RyaW5nLCBudW1iZXJdW10gPSBPYmplY3QuZnJlZXplKFtbJ2EnLCAxXSwgWydiJywgMl0sIFsnYycsIDNdXSk7CmNvbnN0IG81ID0gT2JqZWN0LmZyb21FbnRyaWVzKGZyb3plbkFycmF5Mik7Cg==",
+            "utf8_sha256": "7b4b6bd8c32d52c73e63c74de60d20ac0cc9d716dd78bd03478fc76c1fb15a7d",
+            "utf8_bytes": 439
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/objectFromEntries.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 10,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "7b4b6bd8c32d52c73e63c74de60d20ac0cc9d716dd78bd03478fc76c1fb15a7d"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/objectFromEntries.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbyA9IE9iamVjdC5mcm9tRW50cmllcyhbWydhJywgMV0sIFsnYicsIDJdLCBbJ2MnLCAzXV0pOw0KY29uc3QgbzIgPSBPYmplY3QuZnJvbUVudHJpZXMobmV3IFVSTFNlYXJjaFBhcmFtcygpKTsNCmNvbnN0IG8zID0gT2JqZWN0LmZyb21FbnRyaWVzKG5ldyBNYXAoW1tTeW1ib2woImtleSIpLCAidmFsdWUiXV0pKTsNCmNvbnN0IGZyb3plbkFycmF5ID0gT2JqZWN0LmZyZWV6ZShbWydhJywgMV0sIFsnYicsIDJdLCBbJ2MnLCAzXV0pOw0KY29uc3QgbzQgPSBPYmplY3QuZnJvbUVudHJpZXMoZnJvemVuQXJyYXkpOw0KY29uc3QgZnJvemVuQXJyYXkyID0gT2JqZWN0LmZyZWV6ZShbWydhJywgMV0sIFsnYicsIDJdLCBbJ2MnLCAzXV0pOw0KY29uc3QgbzUgPSBPYmplY3QuZnJvbUVudHJpZXMoZnJvemVuQXJyYXkyKTsNCg==",
+              "callback_utf8_sha256": "a3cbcf74bebfb0b7e8de2d09b151ab35e4a4a2c7089123f95a96489eb2289d3a",
+              "callback_utf8_bytes": 430,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "a3cbcf74bebfb0b7e8de2d09b151ab35e4a4a2c7089123f95a96489eb2289d3a",
+              "materialized_utf8_bytes": 430,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/objectFromEntries.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "0b34549358e44cde5f3732b14a13d5c611da4a27b1c033cd59e49ca0b59d707e"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/objectFromEntries.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgbyA9IE9iamVjdC5mcm9tRW50cmllcyhbWydhJywgMV0sIFsnYicsIDJdLCBbJ2MnLCAzXV0pOw0KY29uc3QgbzIgPSBPYmplY3QuZnJvbUVudHJpZXMobmV3IFVSTFNlYXJjaFBhcmFtcygpKTsNCmNvbnN0IG8zID0gT2JqZWN0LmZyb21FbnRyaWVzKG5ldyBNYXAoW1tTeW1ib2woImtleSIpLCAidmFsdWUiXV0pKTsNCmNvbnN0IGZyb3plbkFycmF5ID0gT2JqZWN0LmZyZWV6ZShbWydhJywgMV0sIFsnYicsIDJdLCBbJ2MnLCAzXV0pOw0KY29uc3QgbzQgPSBPYmplY3QuZnJvbUVudHJpZXMoZnJvemVuQXJyYXkpOw0KY29uc3QgZnJvemVuQXJyYXkyID0gT2JqZWN0LmZyZWV6ZShbWydhJywgMV0sIFsnYicsIDJdLCBbJ2MnLCAzXV0pOw0KY29uc3QgbzUgPSBPYmplY3QuZnJvbUVudHJpZXMoZnJvemVuQXJyYXkyKTsNCg==",
+              "callback_utf8_sha256": "a3cbcf74bebfb0b7e8de2d09b151ab35e4a4a2c7089123f95a96489eb2289d3a",
+              "callback_utf8_bytes": 430,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "a3cbcf74bebfb0b7e8de2d09b151ab35e4a4a2c7089123f95a96489eb2289d3a",
+              "materialized_utf8_bytes": 430,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/objectFromEntries.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "0b34549358e44cde5f3732b14a13d5c611da4a27b1c033cd59e49ca0b59d707e"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "9732bf8442f67ffcb3664f6280f143251a092239d1de307c1ae9797f0c320d96"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/optionalChainWithInstantiationExpression1.ts#target%3Des2019",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 5369,
+      "source": {
+        "path": "optionalChainWithInstantiationExpression1.ts",
+        "bytes": 229,
+        "sha256": "87dd23d4bcd13f9fa8f63aec9028346efca182ad071d5da97be4dba99b275138",
+        "git_blob_sha1": "6bc4c947195adf039197900aecc0eed7c9c99355"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionalChainWithInstantiationExpression1.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionalChainWithInstantiationExpression1.ts",
+            "utf8_base64": "ZGVjbGFyZSBuYW1lc3BhY2UgQSB7CiAgICBleHBvcnQgY2xhc3MgYjxUPiB7CiAgICAgICAgc3RhdGljIGQ6IG51bWJlcjsKICAgICAgICBjb25zdHJ1Y3Rvcih4OiBUKTsKICAgIH0KfQoKdHlwZSBjID0gdW5rbm93bjsKCmRlY2xhcmUgY29uc3QgYTogdHlwZW9mIEEgfCB1bmRlZmluZWQ7CgphPy5iPGM+LmQ7CgphPy5iLmQK",
+            "utf8_sha256": "9e83874ef6309b87c54327120c9a75d702b5b3984071a043a7b010490743705c",
+            "utf8_bytes": 186
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/optionalChainWithInstantiationExpression1.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [
+            1477
+          ],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "9e83874ef6309b87c54327120c9a75d702b5b3984071a043a7b010490743705c"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "deferred-to-slices",
+      "required_slices": [
+        "H2.9"
+      ],
+      "diagnostic_disposition": {
+        "state": "not-observed-source-deferred"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/optionalChainWithInstantiationExpression1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KKGEgPT09IG51bGwgfHwgYSA9PT0gdm9pZCAwID8gdm9pZCAwIDogYS5iKS5kOw0KYSA9PT0gbnVsbCB8fCBhID09PSB2b2lkIDAgPyB2b2lkIDAgOiBhLmIuZDsNCg==",
+              "callback_utf8_sha256": "1cea25a801e6a5be1b5ab34b664186b721e7cdf13cd4b1dcd54ad5cc75cb0c45",
+              "callback_utf8_bytes": 109,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1cea25a801e6a5be1b5ab34b664186b721e7cdf13cd4b1dcd54ad5cc75cb0c45",
+              "materialized_utf8_bytes": 109,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/optionalChainWithInstantiationExpression1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1477,
+              "category": "Error",
+              "file": "/.src/optionalChainWithInstantiationExpression1.ts",
+              "start": 171,
+              "length": 3,
+              "message": "An instantiation expression cannot be followed by a property access."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "ba179a7c2693606062afe8864351d5931589bd354cd097e7be56d76b3151f461"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/optionalChainWithInstantiationExpression1.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KKGEgPT09IG51bGwgfHwgYSA9PT0gdm9pZCAwID8gdm9pZCAwIDogYS5iKS5kOw0KYSA9PT0gbnVsbCB8fCBhID09PSB2b2lkIDAgPyB2b2lkIDAgOiBhLmIuZDsNCg==",
+              "callback_utf8_sha256": "1cea25a801e6a5be1b5ab34b664186b721e7cdf13cd4b1dcd54ad5cc75cb0c45",
+              "callback_utf8_bytes": 109,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "1cea25a801e6a5be1b5ab34b664186b721e7cdf13cd4b1dcd54ad5cc75cb0c45",
+              "materialized_utf8_bytes": 109,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/optionalChainWithInstantiationExpression1.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1477,
+              "category": "Error",
+              "file": "/.src/optionalChainWithInstantiationExpression1.ts",
+              "start": 171,
+              "length": 3,
+              "message": "An instantiation expression cannot be followed by a property access."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "ba179a7c2693606062afe8864351d5931589bd354cd097e7be56d76b3151f461"
+        }
+      ],
+      "rust_expectation": "typed-failure-before-first-sink-write",
+      "case_fingerprint_sha256": "73ef9b6c653643e30b740b2f62051b1270f256a939288c9a74ac00004c2bfa50"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/optionalChainWithInstantiationExpression2.ts#target%3Des2019",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 5371,
+      "source": {
+        "path": "optionalChainWithInstantiationExpression2.ts",
+        "bytes": 169,
+        "sha256": "f740e802b334156c08eaa29e1b65c4183e2f2f4e3d47b36b7bb091ff1763a0ca",
+        "git_blob_sha1": "6f719e434b6d1cdda7e571c38f6e67eed310a0c3"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionalChainWithInstantiationExpression2.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionalChainWithInstantiationExpression2.ts",
+            "utf8_base64": "ZGVjbGFyZSBpbnRlcmZhY2UgQSB7CiAgICBjOiBudW1iZXI7CiAgICA8VD4oKTogVDsKfQoKdHlwZSBiID0gJ2IgdHlwZSc7CgpkZWNsYXJlIGNvbnN0IGE6IEEgfCB1bmRlZmluZWQ7CgphPy48Yj4oKTsKCmE8Yj4/LigpOwo=",
+            "utf8_sha256": "71f0a50ad709542d4abd6c72d7efdab1d01616640a00ee5f6a75f9bd186ca368",
+            "utf8_bytes": 128
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/optionalChainWithInstantiationExpression2.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "71f0a50ad709542d4abd6c72d7efdab1d01616640a00ee5f6a75f9bd186ca368"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/optionalChainWithInstantiationExpression2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hOw0KYSA9PT0gbnVsbCB8fCBhID09PSB2b2lkIDAgPyB2b2lkIDAgOiBhKCk7DQooX2EgPSAoYSkpID09PSBudWxsIHx8IF9hID09PSB2b2lkIDAgPyB2b2lkIDAgOiBfYSgpOw0K",
+              "callback_utf8_sha256": "89e6bc5a11fa1538229c60cd81ba98b0bb3db8587802d57e1620be5c38c71200",
+              "callback_utf8_bytes": 123,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "89e6bc5a11fa1538229c60cd81ba98b0bb3db8587802d57e1620be5c38c71200",
+              "materialized_utf8_bytes": 123,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/optionalChainWithInstantiationExpression2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "55da2d45c3b38455c14abc24e53aa9ed4d01f48412f21ae4f70cb8df80df2a10"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/optionalChainWithInstantiationExpression2.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9hOw0KYSA9PT0gbnVsbCB8fCBhID09PSB2b2lkIDAgPyB2b2lkIDAgOiBhKCk7DQooX2EgPSAoYSkpID09PSBudWxsIHx8IF9hID09PSB2b2lkIDAgPyB2b2lkIDAgOiBfYSgpOw0K",
+              "callback_utf8_sha256": "89e6bc5a11fa1538229c60cd81ba98b0bb3db8587802d57e1620be5c38c71200",
+              "callback_utf8_bytes": 123,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "89e6bc5a11fa1538229c60cd81ba98b0bb3db8587802d57e1620be5c38c71200",
+              "materialized_utf8_bytes": 123,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/optionalChainWithInstantiationExpression2.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "55da2d45c3b38455c14abc24e53aa9ed4d01f48412f21ae4f70cb8df80df2a10"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "9c3cf9a30bfdd54bd14aac91e424ac9b1fb73d53674316c5cfd250ddfb3aa5be"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/stringTrim.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 6403,
+      "source": {
+        "path": "stringTrim.ts",
+        "bytes": 169,
+        "sha256": "60ff0de40435b99a58a1b1f3950204b2398cd7aad7e479c8f3f6a74fa8eb9220",
+        "git_blob_sha1": "d0329b87749ba873bbf4700b9292adbbd6bab831"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/stringTrim.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/stringTrim.ts",
+            "utf8_base64": "dmFyIHRyaW1tZWQ6IHN0cmluZzsKdHJpbW1lZCA9ICJhYmNkZSIudHJpbUVuZCgpOwp0cmltbWVkID0gImFiY2RlIi50cmltU3RhcnQoKTsKdHJpbW1lZCA9ICJhYmNkZSIudHJpbUxlZnQoKTsKdHJpbW1lZCA9ICJhYmNkZSIudHJpbVJpZ2h0KCk7Cg==",
+            "utf8_sha256": "a097f11cc5b806ad725a54fb9a988777d5f9021ef982b0806b3f99442777ef56",
+            "utf8_bytes": 142
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/stringTrim.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a097f11cc5b806ad725a54fb9a988777d5f9021ef982b0806b3f99442777ef56"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/stringTrim.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIHRyaW1tZWQ7DQp0cmltbWVkID0gImFiY2RlIi50cmltRW5kKCk7DQp0cmltbWVkID0gImFiY2RlIi50cmltU3RhcnQoKTsNCnRyaW1tZWQgPSAiYWJjZGUiLnRyaW1MZWZ0KCk7DQp0cmltbWVkID0gImFiY2RlIi50cmltUmlnaHQoKTsNCg==",
+              "callback_utf8_sha256": "0c0c075c7a05bd3be605c5a46d35c9926790df1500fe386507f3a6eada5d6d4c",
+              "callback_utf8_bytes": 154,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "0c0c075c7a05bd3be605c5a46d35c9926790df1500fe386507f3a6eada5d6d4c",
+              "materialized_utf8_bytes": 154,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/stringTrim.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "5f309fff6fb450ca3e9b1a12f6daa3f2616c433f5508a701ef034af2a0c35455"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/stringTrim.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIHRyaW1tZWQ7DQp0cmltbWVkID0gImFiY2RlIi50cmltRW5kKCk7DQp0cmltbWVkID0gImFiY2RlIi50cmltU3RhcnQoKTsNCnRyaW1tZWQgPSAiYWJjZGUiLnRyaW1MZWZ0KCk7DQp0cmltbWVkID0gImFiY2RlIi50cmltUmlnaHQoKTsNCg==",
+              "callback_utf8_sha256": "0c0c075c7a05bd3be605c5a46d35c9926790df1500fe386507f3a6eada5d6d4c",
+              "callback_utf8_bytes": 154,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "0c0c075c7a05bd3be605c5a46d35c9926790df1500fe386507f3a6eada5d6d4c",
+              "materialized_utf8_bytes": 154,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/stringTrim.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "5f309fff6fb450ca3e9b1a12f6daa3f2616c433f5508a701ef034af2a0c35455"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "f3cde74a0c4074b18105908bc6da541cec787ab879a2b4e064cab876f0815b9f"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/awaitAndYieldInProperty.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 296,
+      "source": {
+        "path": "classes/awaitAndYieldInProperty.ts",
+        "bytes": 417,
+        "sha256": "6011048847c226ceef11f8ea69986d4aab8b7ae1900bea9e96a08a90f3b23938",
+        "git_blob_sha1": "3e0d7a6b1579995baebaed75362cbb1c2c437882"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/awaitAndYieldInProperty.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "es2019"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/awaitAndYieldInProperty.ts",
+            "utf8_base64": "YXN5bmMgZnVuY3Rpb24qIHRlc3QoeDogUHJvbWlzZTxzdHJpbmc+KSB7CiAgICBjbGFzcyBDIHsKICAgICAgICBbYXdhaXQgeF0gPSBhd2FpdCB4OwogICAgICAgIHN0YXRpYyBbYXdhaXQgeF0gPSBhd2FpdCB4OwoKICAgICAgICBbeWllbGQgMV0gPSB5aWVsZCAyOwogICAgICAgIHN0YXRpYyBbeWllbGQgM10gPSB5aWVsZCA0OwogICAgfQoKICAgIHJldHVybiBjbGFzcyB7CiAgICAgICAgW2F3YWl0IHhdID0gYXdhaXQgeDsKICAgICAgICBzdGF0aWMgW2F3YWl0IHhdID0gYXdhaXQgeDsKCiAgICAgICAgW3lpZWxkIDFdID0geWllbGQgMjsKICAgICAgICBzdGF0aWMgW3lpZWxkIDNdID0geWllbGQgNDsKICAgIH0KfQ==",
+            "utf8_sha256": "43508438182f5cce56b56e64c3c244cb5cb04792dfca76a2110d460c76bada48",
+            "utf8_bytes": 352
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/awaitAndYieldInProperty.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "43508438182f5cce56b56e64c3c244cb5cb04792dfca76a2110d460c76bada48"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/awaitAndYieldInProperty.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24qIHRlc3QoeCkgew0KICAgIHZhciBfYSwgX2IsIF9jLCBfZCwgX2UsIF9mLCBfZywgX2gsIF9qOw0KICAgIGNsYXNzIEMgew0KICAgICAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgICAgIHRoaXNbX2FdID0gYXdhaXQgeDsNCiAgICAgICAgICAgIHRoaXNbX2NdID0geWllbGQgMjsNCiAgICAgICAgfQ0KICAgIH0NCiAgICBfYSA9IGF3YWl0IHgsIF9iID0gYXdhaXQgeCwgX2MgPSB5aWVsZCAxLCBfZCA9IHlpZWxkIDM7DQogICAgQ1tfYl0gPSBhd2FpdCB4Ow0KICAgIENbX2RdID0geWllbGQgNDsNCiAgICByZXR1cm4gX2ogPSBjbGFzcyB7DQogICAgICAgICAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgICAgICAgICB0aGlzW19lXSA9IGF3YWl0IHg7DQogICAgICAgICAgICAgICAgdGhpc1tfZ10gPSB5aWVsZCAyOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9LA0KICAgICAgICBfZSA9IGF3YWl0IHgsDQogICAgICAgIF9mID0gYXdhaXQgeCwNCiAgICAgICAgX2cgPSB5aWVsZCAxLA0KICAgICAgICBfaCA9IHlpZWxkIDMsDQogICAgICAgIF9qW19mXSA9IGF3YWl0IHgsDQogICAgICAgIF9qW19oXSA9IHlpZWxkIDQsDQogICAgICAgIF9qOw0KfQ0K",
+              "callback_utf8_sha256": "f4b0355268e18920b6e63d72209e982ade0a917ed3d57ea5e87a423d70909a01",
+              "callback_utf8_bytes": 633,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f4b0355268e18920b6e63d72209e982ade0a917ed3d57ea5e87a423d70909a01",
+              "materialized_utf8_bytes": 633,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/awaitAndYieldInProperty.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 65,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 77,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 101,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 113,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 131,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 143,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 167,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 179,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 222,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 234,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 258,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 270,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 288,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 300,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 324,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 336,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "e214445906e77ab97dde9446fe34aede0a4d4334243227cda526ce0982fe2dd7"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/awaitAndYieldInProperty.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24qIHRlc3QoeCkgew0KICAgIHZhciBfYSwgX2IsIF9jLCBfZCwgX2UsIF9mLCBfZywgX2gsIF9qOw0KICAgIGNsYXNzIEMgew0KICAgICAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgICAgIHRoaXNbX2FdID0gYXdhaXQgeDsNCiAgICAgICAgICAgIHRoaXNbX2NdID0geWllbGQgMjsNCiAgICAgICAgfQ0KICAgIH0NCiAgICBfYSA9IGF3YWl0IHgsIF9iID0gYXdhaXQgeCwgX2MgPSB5aWVsZCAxLCBfZCA9IHlpZWxkIDM7DQogICAgQ1tfYl0gPSBhd2FpdCB4Ow0KICAgIENbX2RdID0geWllbGQgNDsNCiAgICByZXR1cm4gX2ogPSBjbGFzcyB7DQogICAgICAgICAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgICAgICAgICB0aGlzW19lXSA9IGF3YWl0IHg7DQogICAgICAgICAgICAgICAgdGhpc1tfZ10gPSB5aWVsZCAyOw0KICAgICAgICAgICAgfQ0KICAgICAgICB9LA0KICAgICAgICBfZSA9IGF3YWl0IHgsDQogICAgICAgIF9mID0gYXdhaXQgeCwNCiAgICAgICAgX2cgPSB5aWVsZCAxLA0KICAgICAgICBfaCA9IHlpZWxkIDMsDQogICAgICAgIF9qW19mXSA9IGF3YWl0IHgsDQogICAgICAgIF9qW19oXSA9IHlpZWxkIDQsDQogICAgICAgIF9qOw0KfQ0K",
+              "callback_utf8_sha256": "f4b0355268e18920b6e63d72209e982ade0a917ed3d57ea5e87a423d70909a01",
+              "callback_utf8_bytes": 633,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f4b0355268e18920b6e63d72209e982ade0a917ed3d57ea5e87a423d70909a01",
+              "materialized_utf8_bytes": 633,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/awaitAndYieldInProperty.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 65,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 77,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 101,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 113,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 131,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 143,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 167,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 179,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 222,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 234,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 258,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 270,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 288,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 300,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            },
+            {
+              "code": 1166,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 324,
+              "length": 9,
+              "message": "A computed property name in a class property declaration must have a simple literal type or a 'unique symbol' type."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYieldInProperty.ts",
+              "start": 336,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "e214445906e77ab97dde9446fe34aede0a4d4334243227cda526ce0982fe2dd7"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "42db5af21a83d02715b18e6bc51487a4b8fa42012734886791100dbd544d3c2a"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/members/privateNames/privateNameMethodAsync.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 714,
+      "source": {
+        "path": "classes/members/privateNames/privateNameMethodAsync.ts",
+        "bytes": 379,
+        "sha256": "3a6d4ed628ee7eb965e97d3bbeed8c4a0b1d6fb8309f3bd69f9bda72aab4f38e",
+        "git_blob_sha1": "1b1cc59d99d4252577de15da495be5daeaca8bff"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/privateNameMethodAsync.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/privateNameMethodAsync.ts",
+            "utf8_base64": "Y29uc3QgQyA9IGNsYXNzIHsKICAgIGFzeW5jICNiYXIoKSB7IHJldHVybiBhd2FpdCBQcm9taXNlLnJlc29sdmUoNDIpOyB9CiAgICBhc3luYyBmb28oKSB7CiAgICAgICAgY29uc3QgYiA9IGF3YWl0IHRoaXMuI2JhcigpOwogICAgICAgIHJldHVybiBiICsgKHRoaXMuI2JheigpLm5leHQoKS52YWx1ZSB8fCAwKSArICgoYXdhaXQgdGhpcy4jcXV4KCkubmV4dCgpKS52YWx1ZSB8fCAwKTsKICAgIH0KICAgICojYmF6KCkgeyB5aWVsZCA0MjsgfQogICAgYXN5bmMgKiNxdXgoKSB7CiAgICAgICAgeWllbGQgKGF3YWl0IFByb21pc2UucmVzb2x2ZSg0MikpOwogICAgfQp9CgpuZXcgQygpLmZvbygpLnRoZW4oY29uc29sZS5sb2cpOwo=",
+            "utf8_sha256": "86d334a2a74f0f5eb637233ae76b97d5fafe301544961f18e2a454b2fa8dbd80",
+            "utf8_bytes": 359
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/privateNameMethodAsync.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 19,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "86d334a2a74f0f5eb637233ae76b97d5fafe301544961f18e2a454b2fa8dbd80"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/privateNameMethodAsync.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX0NfaW5zdGFuY2VzLCBfQ19iYXIsIF9DX2JheiwgX0NfcXV4LCBfYTsNCmNvbnN0IEMgPSAoX2EgPSBjbGFzcyB7DQogICAgICAgIGNvbnN0cnVjdG9yKCkgew0KICAgICAgICAgICAgX0NfaW5zdGFuY2VzLmFkZCh0aGlzKTsNCiAgICAgICAgfQ0KICAgICAgICBhc3luYyBmb28oKSB7DQogICAgICAgICAgICBjb25zdCBiID0gYXdhaXQgX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19pbnN0YW5jZXMsICJtIiwgX0NfYmFyKS5jYWxsKHRoaXMpOw0KICAgICAgICAgICAgcmV0dXJuIGIgKyAoX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19pbnN0YW5jZXMsICJtIiwgX0NfYmF6KS5jYWxsKHRoaXMpLm5leHQoKS52YWx1ZSB8fCAwKSArICgoYXdhaXQgX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19pbnN0YW5jZXMsICJtIiwgX0NfcXV4KS5jYWxsKHRoaXMpLm5leHQoKSkudmFsdWUgfHwgMCk7DQogICAgICAgIH0NCiAgICB9LA0KICAgIF9DX2luc3RhbmNlcyA9IG5ldyBXZWFrU2V0KCksDQogICAgX0NfYmFyID0gYXN5bmMgZnVuY3Rpb24gX0NfYmFyKCkgeyByZXR1cm4gYXdhaXQgUHJvbWlzZS5yZXNvbHZlKDQyKTsgfSwNCiAgICBfQ19iYXogPSBmdW5jdGlvbiogX0NfYmF6KCkgeyB5aWVsZCA0MjsgfSwNCiAgICBfQ19xdXggPSBhc3luYyBmdW5jdGlvbiogX0NfcXV4KCkgew0KICAgICAgICB5aWVsZCAoYXdhaXQgUHJvbWlzZS5yZXNvbHZlKDQyKSk7DQogICAgfSwNCiAgICBfYSk7DQpuZXcgQygpLmZvbygpLnRoZW4oY29uc29sZS5sb2cpOw0K",
+              "callback_utf8_sha256": "f7a7086bc478b9a705273e7d2f7ebf8a6a42433cea5dadd1fdac90fb33e2c15a",
+              "callback_utf8_bytes": 1302,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f7a7086bc478b9a705273e7d2f7ebf8a6a42433cea5dadd1fdac90fb33e2c15a",
+              "materialized_utf8_bytes": 1302,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/privateNameMethodAsync.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "2712f540d151d138779c4be208f1d444e488a28a163a74f3a179377bdfbd3b34"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/privateNameMethodAsync.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX0NfaW5zdGFuY2VzLCBfQ19iYXIsIF9DX2JheiwgX0NfcXV4LCBfYTsNCmNvbnN0IEMgPSAoX2EgPSBjbGFzcyB7DQogICAgICAgIGNvbnN0cnVjdG9yKCkgew0KICAgICAgICAgICAgX0NfaW5zdGFuY2VzLmFkZCh0aGlzKTsNCiAgICAgICAgfQ0KICAgICAgICBhc3luYyBmb28oKSB7DQogICAgICAgICAgICBjb25zdCBiID0gYXdhaXQgX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19pbnN0YW5jZXMsICJtIiwgX0NfYmFyKS5jYWxsKHRoaXMpOw0KICAgICAgICAgICAgcmV0dXJuIGIgKyAoX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19pbnN0YW5jZXMsICJtIiwgX0NfYmF6KS5jYWxsKHRoaXMpLm5leHQoKS52YWx1ZSB8fCAwKSArICgoYXdhaXQgX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfQ19pbnN0YW5jZXMsICJtIiwgX0NfcXV4KS5jYWxsKHRoaXMpLm5leHQoKSkudmFsdWUgfHwgMCk7DQogICAgICAgIH0NCiAgICB9LA0KICAgIF9DX2luc3RhbmNlcyA9IG5ldyBXZWFrU2V0KCksDQogICAgX0NfYmFyID0gYXN5bmMgZnVuY3Rpb24gX0NfYmFyKCkgeyByZXR1cm4gYXdhaXQgUHJvbWlzZS5yZXNvbHZlKDQyKTsgfSwNCiAgICBfQ19iYXogPSBmdW5jdGlvbiogX0NfYmF6KCkgeyB5aWVsZCA0MjsgfSwNCiAgICBfQ19xdXggPSBhc3luYyBmdW5jdGlvbiogX0NfcXV4KCkgew0KICAgICAgICB5aWVsZCAoYXdhaXQgUHJvbWlzZS5yZXNvbHZlKDQyKSk7DQogICAgfSwNCiAgICBfYSk7DQpuZXcgQygpLmZvbygpLnRoZW4oY29uc29sZS5sb2cpOw0K",
+              "callback_utf8_sha256": "f7a7086bc478b9a705273e7d2f7ebf8a6a42433cea5dadd1fdac90fb33e2c15a",
+              "callback_utf8_bytes": 1302,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f7a7086bc478b9a705273e7d2f7ebf8a6a42433cea5dadd1fdac90fb33e2c15a",
+              "materialized_utf8_bytes": 1302,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/privateNameMethodAsync.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "2712f540d151d138779c4be208f1d444e488a28a163a74f3a179377bdfbd3b34"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "7058fce4b45a21fd3f19eef8ae34e4ae718490dcac116febdbe20f72fdae520c"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/members/privateNames/privateNameSetterExprReturnValue.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 727,
+      "source": {
+        "path": "classes/members/privateNames/privateNameSetterExprReturnValue.ts",
+        "bytes": 161,
+        "sha256": "2fd6819c6a9c0e55ef82f509a8d23637dcc4ddce6e028d4bdeed47f196af810a",
+        "git_blob_sha1": "c9def078b29946f19c1b42ace92a78789fc5d8ed"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/privateNameSetterExprReturnValue.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/privateNameSetterExprReturnValue.ts",
+            "utf8_base64": "Y2xhc3MgQyB7CiAgICBzZXQgI2ZvbyhhOiBudW1iZXIpIHt9CiAgICBiYXIoKSB7CiAgICAgICAgbGV0IHggPSAodGhpcy4jZm9vID0gNDIgKiAyKTsKICAgICAgICBjb25zb2xlLmxvZyh4KTsgLy8gODQKICAgIH0KfQoKbmV3IEMoKS5iYXIoKTsK",
+            "utf8_sha256": "e6663dd6ba021fada34f88a361fa2826ce294fbf594a15fb490bb7c88f005f50",
+            "utf8_bytes": 141
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/privateNameSetterExprReturnValue.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 11,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e6663dd6ba021fada34f88a361fa2826ce294fbf594a15fb490bb7c88f005f50"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/privateNameSetterExprReturnValue.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRTZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRTZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIHZhbHVlLCBraW5kLCBmKSB7DQogICAgaWYgKGtpbmQgPT09ICJtIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiUHJpdmF0ZSBtZXRob2QgaXMgbm90IHdyaXRhYmxlIik7DQogICAgaWYgKGtpbmQgPT09ICJhIiAmJiAhZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiUHJpdmF0ZSBhY2Nlc3NvciB3YXMgZGVmaW5lZCB3aXRob3V0IGEgc2V0dGVyIik7DQogICAgaWYgKHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyICE9PSBzdGF0ZSB8fCAhZiA6ICFzdGF0ZS5oYXMocmVjZWl2ZXIpKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJDYW5ub3Qgd3JpdGUgcHJpdmF0ZSBtZW1iZXIgdG8gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiAoa2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyLCB2YWx1ZSkgOiBmID8gZi52YWx1ZSA9IHZhbHVlIDogc3RhdGUuc2V0KHJlY2VpdmVyLCB2YWx1ZSkpLCB2YWx1ZTsNCn07DQp2YXIgX0NfaW5zdGFuY2VzLCBfQ19mb29fc2V0Ow0KY2xhc3MgQyB7DQogICAgY29uc3RydWN0b3IoKSB7DQogICAgICAgIF9DX2luc3RhbmNlcy5hZGQodGhpcyk7DQogICAgfQ0KICAgIGJhcigpIHsNCiAgICAgICAgbGV0IHggPSAoX19jbGFzc1ByaXZhdGVGaWVsZFNldCh0aGlzLCBfQ19pbnN0YW5jZXMsIDQyICogMiwgImEiLCBfQ19mb29fc2V0KSk7DQogICAgICAgIGNvbnNvbGUubG9nKHgpOyAvLyA4NA0KICAgIH0NCn0NCl9DX2luc3RhbmNlcyA9IG5ldyBXZWFrU2V0KCksIF9DX2Zvb19zZXQgPSBmdW5jdGlvbiBfQ19mb29fc2V0KGEpIHsgfTsNCm5ldyBDKCkuYmFyKCk7DQo=",
+              "callback_utf8_sha256": "a5e8d88659a242631b8ab150ab633581b1c2a04e4a2f5b79685891c0a253b25c",
+              "callback_utf8_bytes": 941,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "a5e8d88659a242631b8ab150ab633581b1c2a04e4a2f5b79685891c0a253b25c",
+              "materialized_utf8_bytes": 941,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/privateNameSetterExprReturnValue.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "323980c208d50489391c61da5a24ad05e24519c8d0dbe26495bb37bd2bb58566"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/privateNameSetterExprReturnValue.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRTZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRTZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIHZhbHVlLCBraW5kLCBmKSB7DQogICAgaWYgKGtpbmQgPT09ICJtIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiUHJpdmF0ZSBtZXRob2QgaXMgbm90IHdyaXRhYmxlIik7DQogICAgaWYgKGtpbmQgPT09ICJhIiAmJiAhZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiUHJpdmF0ZSBhY2Nlc3NvciB3YXMgZGVmaW5lZCB3aXRob3V0IGEgc2V0dGVyIik7DQogICAgaWYgKHR5cGVvZiBzdGF0ZSA9PT0gImZ1bmN0aW9uIiA/IHJlY2VpdmVyICE9PSBzdGF0ZSB8fCAhZiA6ICFzdGF0ZS5oYXMocmVjZWl2ZXIpKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJDYW5ub3Qgd3JpdGUgcHJpdmF0ZSBtZW1iZXIgdG8gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiAoa2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyLCB2YWx1ZSkgOiBmID8gZi52YWx1ZSA9IHZhbHVlIDogc3RhdGUuc2V0KHJlY2VpdmVyLCB2YWx1ZSkpLCB2YWx1ZTsNCn07DQp2YXIgX0NfaW5zdGFuY2VzLCBfQ19mb29fc2V0Ow0KY2xhc3MgQyB7DQogICAgY29uc3RydWN0b3IoKSB7DQogICAgICAgIF9DX2luc3RhbmNlcy5hZGQodGhpcyk7DQogICAgfQ0KICAgIGJhcigpIHsNCiAgICAgICAgbGV0IHggPSAoX19jbGFzc1ByaXZhdGVGaWVsZFNldCh0aGlzLCBfQ19pbnN0YW5jZXMsIDQyICogMiwgImEiLCBfQ19mb29fc2V0KSk7DQogICAgICAgIGNvbnNvbGUubG9nKHgpOyAvLyA4NA0KICAgIH0NCn0NCl9DX2luc3RhbmNlcyA9IG5ldyBXZWFrU2V0KCksIF9DX2Zvb19zZXQgPSBmdW5jdGlvbiBfQ19mb29fc2V0KGEpIHsgfTsNCm5ldyBDKCkuYmFyKCk7DQo=",
+              "callback_utf8_sha256": "a5e8d88659a242631b8ab150ab633581b1c2a04e4a2f5b79685891c0a253b25c",
+              "callback_utf8_bytes": 941,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "a5e8d88659a242631b8ab150ab633581b1c2a04e4a2f5b79685891c0a253b25c",
+              "materialized_utf8_bytes": 941,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/privateNameSetterExprReturnValue.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "323980c208d50489391c61da5a24ad05e24519c8d0dbe26495bb37bd2bb58566"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "47242c7a250229f092e3b3be737d077a1445a8beb85f39c7eeeee4b87a7f14bf"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/members/privateNames/privateNameStaticMethodAsync.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 754,
+      "source": {
+        "path": "classes/members/privateNames/privateNameStaticMethodAsync.ts",
+        "bytes": 417,
+        "sha256": "390f8ee8b0b66bf2a5742531640b991636d68668029fe9761f1e9fc231ae77ef",
+        "git_blob_sha1": "cdfc422e362523f0008d7d8d489ad861cae86f29"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/privateNameStaticMethodAsync.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/privateNameStaticMethodAsync.ts",
+            "utf8_base64": "Y29uc3QgQyA9IGNsYXNzIHsKICAgIHN0YXRpYyBhc3luYyAjYmFyKCkgeyByZXR1cm4gYXdhaXQgUHJvbWlzZS5yZXNvbHZlKDQyKTsgfQogICAgc3RhdGljIGFzeW5jIGZvbygpIHsKICAgICAgICBjb25zdCBiID0gYXdhaXQgdGhpcy4jYmFyKCk7CiAgICAgICAgcmV0dXJuIGIgKyAodGhpcy4jYmF6KCkubmV4dCgpLnZhbHVlIHx8IDApICsgKChhd2FpdCB0aGlzLiNxdXgoKS5uZXh0KCkpLnZhbHVlIHx8IDApOwogICAgfQogICAgc3RhdGljICojYmF6KCkgeyB5aWVsZCA0MjsgfQogICAgc3RhdGljIGFzeW5jICojcXV4KCkgewogICAgICAgIHlpZWxkIChhd2FpdCBQcm9taXNlLnJlc29sdmUoNDIpKTsKICAgIH0KICAgIGFzeW5jIHN0YXRpYyAqI2JhekJhZCgpIHsgeWllbGQgNDI7IH0KfQoKCg==",
+            "utf8_sha256": "43b83be6144c47030c4ef9ed9a01ca83b36d4abf3ae1beac76d931e055d41510",
+            "utf8_bytes": 397
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/privateNameStaticMethodAsync.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 19,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "43b83be6144c47030c4ef9ed9a01ca83b36d4abf3ae1beac76d931e055d41510"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/privateNameStaticMethodAsync.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX2EsIF9DX2JhciwgX0NfYmF6LCBfQ19xdXgsIF9DX2JhekJhZDsNCmNvbnN0IEMgPSAoX2EgPSBjbGFzcyB7DQogICAgICAgIHN0YXRpYyBhc3luYyBmb28oKSB7DQogICAgICAgICAgICBjb25zdCBiID0gYXdhaXQgX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfYSwgIm0iLCBfQ19iYXIpLmNhbGwodGhpcyk7DQogICAgICAgICAgICByZXR1cm4gYiArIChfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0KHRoaXMsIF9hLCAibSIsIF9DX2JheikuY2FsbCh0aGlzKS5uZXh0KCkudmFsdWUgfHwgMCkgKyAoKGF3YWl0IF9fY2xhc3NQcml2YXRlRmllbGRHZXQodGhpcywgX2EsICJtIiwgX0NfcXV4KS5jYWxsKHRoaXMpLm5leHQoKSkudmFsdWUgfHwgMCk7DQogICAgICAgIH0NCiAgICB9LA0KICAgIF9DX2JhciA9IGFzeW5jIGZ1bmN0aW9uIF9DX2JhcigpIHsgcmV0dXJuIGF3YWl0IFByb21pc2UucmVzb2x2ZSg0Mik7IH0sDQogICAgX0NfYmF6ID0gZnVuY3Rpb24qIF9DX2JheigpIHsgeWllbGQgNDI7IH0sDQogICAgX0NfcXV4ID0gYXN5bmMgZnVuY3Rpb24qIF9DX3F1eCgpIHsNCiAgICAgICAgeWllbGQgKGF3YWl0IFByb21pc2UucmVzb2x2ZSg0MikpOw0KICAgIH0sDQogICAgX0NfYmF6QmFkID0gYXN5bmMgZnVuY3Rpb24qIF9DX2JhekJhZCgpIHsgeWllbGQgNDI7IH0sDQogICAgX2EpOw0K",
+              "callback_utf8_sha256": "4778b64766ffa823b588c455c459c0c20d8f9dda0442a96614bafe6e74408496",
+              "callback_utf8_bytes": 1194,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "4778b64766ffa823b588c455c459c0c20d8f9dda0442a96614bafe6e74408496",
+              "materialized_utf8_bytes": 1194,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/privateNameStaticMethodAsync.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/privateNameStaticMethodAsync.ts",
+              "start": 361,
+              "length": 6,
+              "message": "'static' modifier must precede 'async' modifier."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1cb44a272f33d9c83f24bf720e1b35c1aa164a005dfbd712aa562ae054d7aaae"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/privateNameStaticMethodAsync.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIF9fY2xhc3NQcml2YXRlRmllbGRHZXQgPSAodGhpcyAmJiB0aGlzLl9fY2xhc3NQcml2YXRlRmllbGRHZXQpIHx8IGZ1bmN0aW9uIChyZWNlaXZlciwgc3RhdGUsIGtpbmQsIGYpIHsNCiAgICBpZiAoa2luZCA9PT0gImEiICYmICFmKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJQcml2YXRlIGFjY2Vzc29yIHdhcyBkZWZpbmVkIHdpdGhvdXQgYSBnZXR0ZXIiKTsNCiAgICBpZiAodHlwZW9mIHN0YXRlID09PSAiZnVuY3Rpb24iID8gcmVjZWl2ZXIgIT09IHN0YXRlIHx8ICFmIDogIXN0YXRlLmhhcyhyZWNlaXZlcikpIHRocm93IG5ldyBUeXBlRXJyb3IoIkNhbm5vdCByZWFkIHByaXZhdGUgbWVtYmVyIGZyb20gYW4gb2JqZWN0IHdob3NlIGNsYXNzIGRpZCBub3QgZGVjbGFyZSBpdCIpOw0KICAgIHJldHVybiBraW5kID09PSAibSIgPyBmIDoga2luZCA9PT0gImEiID8gZi5jYWxsKHJlY2VpdmVyKSA6IGYgPyBmLnZhbHVlIDogc3RhdGUuZ2V0KHJlY2VpdmVyKTsNCn07DQp2YXIgX2EsIF9DX2JhciwgX0NfYmF6LCBfQ19xdXgsIF9DX2JhekJhZDsNCmNvbnN0IEMgPSAoX2EgPSBjbGFzcyB7DQogICAgICAgIHN0YXRpYyBhc3luYyBmb28oKSB7DQogICAgICAgICAgICBjb25zdCBiID0gYXdhaXQgX19jbGFzc1ByaXZhdGVGaWVsZEdldCh0aGlzLCBfYSwgIm0iLCBfQ19iYXIpLmNhbGwodGhpcyk7DQogICAgICAgICAgICByZXR1cm4gYiArIChfX2NsYXNzUHJpdmF0ZUZpZWxkR2V0KHRoaXMsIF9hLCAibSIsIF9DX2JheikuY2FsbCh0aGlzKS5uZXh0KCkudmFsdWUgfHwgMCkgKyAoKGF3YWl0IF9fY2xhc3NQcml2YXRlRmllbGRHZXQodGhpcywgX2EsICJtIiwgX0NfcXV4KS5jYWxsKHRoaXMpLm5leHQoKSkudmFsdWUgfHwgMCk7DQogICAgICAgIH0NCiAgICB9LA0KICAgIF9DX2JhciA9IGFzeW5jIGZ1bmN0aW9uIF9DX2JhcigpIHsgcmV0dXJuIGF3YWl0IFByb21pc2UucmVzb2x2ZSg0Mik7IH0sDQogICAgX0NfYmF6ID0gZnVuY3Rpb24qIF9DX2JheigpIHsgeWllbGQgNDI7IH0sDQogICAgX0NfcXV4ID0gYXN5bmMgZnVuY3Rpb24qIF9DX3F1eCgpIHsNCiAgICAgICAgeWllbGQgKGF3YWl0IFByb21pc2UucmVzb2x2ZSg0MikpOw0KICAgIH0sDQogICAgX0NfYmF6QmFkID0gYXN5bmMgZnVuY3Rpb24qIF9DX2JhekJhZCgpIHsgeWllbGQgNDI7IH0sDQogICAgX2EpOw0K",
+              "callback_utf8_sha256": "4778b64766ffa823b588c455c459c0c20d8f9dda0442a96614bafe6e74408496",
+              "callback_utf8_bytes": 1194,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "4778b64766ffa823b588c455c459c0c20d8f9dda0442a96614bafe6e74408496",
+              "materialized_utf8_bytes": 1194,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/privateNameStaticMethodAsync.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1029,
+              "category": "Error",
+              "file": "/.src/privateNameStaticMethodAsync.ts",
+              "start": 361,
+              "length": 6,
+              "message": "'static' modifier must precede 'async' modifier."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "1cb44a272f33d9c83f24bf720e1b35c1aa164a005dfbd712aa562ae054d7aaae"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "fc1cae275427f89b6fb210b419ba2b600c166c97ccf76d5b8885c78e22d70c46"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/accessorsOverrideProperty8.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 828,
+      "source": {
+        "path": "classes/propertyMemberDeclarations/accessorsOverrideProperty8.ts",
+        "bytes": 770,
+        "sha256": "45c0a2b9e6e4bdeaa679415443b9d49e7f0a1c15f144cf3a3e8efd878ce080e8",
+        "git_blob_sha1": "c8b02945cad08f8cd03ca192a414688054e8e03a"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/accessorsOverrideProperty8.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/accessorsOverrideProperty8.ts",
+            "utf8_base64": "dHlwZSBUeXBlcyA9ICdib29sZWFuJyB8ICd1bmtub3duJyB8ICdzdHJpbmcnOwoKdHlwZSBQcm9wZXJ0aWVzPFQgZXh0ZW5kcyB7IFtrZXk6IHN0cmluZ106IFR5cGVzIH0+ID0gewogICAgcmVhZG9ubHkgW2tleSBpbiBrZXlvZiBUXTogVFtrZXldIGV4dGVuZHMgJ2Jvb2xlYW4nID8gYm9vbGVhbiA6IFRba2V5XSBleHRlbmRzICdzdHJpbmcnID8gc3RyaW5nIDogdW5rbm93bgp9Cgp0eXBlIEFueUN0b3I8UCBleHRlbmRzIG9iamVjdD4gPSBuZXcgKC4uLmE6IGFueVtdKSA9PiBQCgpkZWNsYXJlIGZ1bmN0aW9uIGNsYXNzV2l0aFByb3BlcnRpZXM8VCBleHRlbmRzIHsgW2tleTogc3RyaW5nXTogVHlwZXMgfSwgUCBleHRlbmRzIG9iamVjdD4ocHJvcGVydGllczogVCwga2xhc3M6IEFueUN0b3I8UD4pOiB7CiAgICBuZXcoKTogUCAmIFByb3BlcnRpZXM8VD47CiAgICBwcm90b3R5cGU6IFAgJiBQcm9wZXJ0aWVzPFQ+Cn07Cgpjb25zdCBCYXNlID0gY2xhc3NXaXRoUHJvcGVydGllcyh7CiAgICBnZXQgeCgpIHsgcmV0dXJuICdib29sZWFuJyBhcyBjb25zdCB9LAogICAgeTogJ3N0cmluZycsCn0sIGNsYXNzIEJhc2Ugewp9KTsKCmNsYXNzIE15Q2xhc3MgZXh0ZW5kcyBCYXNlIHsKICAgIGdldCB4KCkgewogICAgICAgIHJldHVybiBmYWxzZTsKICAgIH0KICAgIGdldCB5KCkgewogICAgICAgIHJldHVybiAnaGknCiAgICB9Cn0KCmNvbnN0IG1pbmUgPSBuZXcgTXlDbGFzcygpOwpjb25zdCB2YWx1ZSA9IG1pbmUueDsKCg==",
+            "utf8_sha256": "84b3e73273023c526e22e15ad6bc5060041cdb1ce62b8cb6e1f2339c0f0ea3ef",
+            "utf8_bytes": 751
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/accessorsOverrideProperty8.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 12,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "84b3e73273023c526e22e15ad6bc5060041cdb1ce62b8cb6e1f2339c0f0ea3ef"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/accessorsOverrideProperty8.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgQmFzZSA9IGNsYXNzV2l0aFByb3BlcnRpZXMoew0KICAgIGdldCB4KCkgeyByZXR1cm4gJ2Jvb2xlYW4nOyB9LA0KICAgIHk6ICdzdHJpbmcnLA0KfSwgY2xhc3MgQmFzZSB7DQp9KTsNCmNsYXNzIE15Q2xhc3MgZXh0ZW5kcyBCYXNlIHsNCiAgICBnZXQgeCgpIHsNCiAgICAgICAgcmV0dXJuIGZhbHNlOw0KICAgIH0NCiAgICBnZXQgeSgpIHsNCiAgICAgICAgcmV0dXJuICdoaSc7DQogICAgfQ0KfQ0KY29uc3QgbWluZSA9IG5ldyBNeUNsYXNzKCk7DQpjb25zdCB2YWx1ZSA9IG1pbmUueDsNCg==",
+              "callback_utf8_sha256": "b74136d93e828e74dc3a2d924e5d59fcb4271f8f82c6f864cb5a97190e8814b2",
+              "callback_utf8_bytes": 301,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b74136d93e828e74dc3a2d924e5d59fcb4271f8f82c6f864cb5a97190e8814b2",
+              "materialized_utf8_bytes": 301,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/accessorsOverrideProperty8.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "f34821505ada97e6b5d39081192e5c2cdf52fc99fa351851b94989c195b9bfd4"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/accessorsOverrideProperty8.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgQmFzZSA9IGNsYXNzV2l0aFByb3BlcnRpZXMoew0KICAgIGdldCB4KCkgeyByZXR1cm4gJ2Jvb2xlYW4nOyB9LA0KICAgIHk6ICdzdHJpbmcnLA0KfSwgY2xhc3MgQmFzZSB7DQp9KTsNCmNsYXNzIE15Q2xhc3MgZXh0ZW5kcyBCYXNlIHsNCiAgICBnZXQgeCgpIHsNCiAgICAgICAgcmV0dXJuIGZhbHNlOw0KICAgIH0NCiAgICBnZXQgeSgpIHsNCiAgICAgICAgcmV0dXJuICdoaSc7DQogICAgfQ0KfQ0KY29uc3QgbWluZSA9IG5ldyBNeUNsYXNzKCk7DQpjb25zdCB2YWx1ZSA9IG1pbmUueDsNCg==",
+              "callback_utf8_sha256": "b74136d93e828e74dc3a2d924e5d59fcb4271f8f82c6f864cb5a97190e8814b2",
+              "callback_utf8_bytes": 301,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "b74136d93e828e74dc3a2d924e5d59fcb4271f8f82c6f864cb5a97190e8814b2",
+              "materialized_utf8_bytes": 301,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/accessorsOverrideProperty8.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "f34821505ada97e6b5d39081192e5c2cdf52fc99fa351851b94989c195b9bfd4"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "bc2fa808e54230949bf84552096c11a74347615f1b98c27dcc3827f2b6f7ab55"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/emitter/es2019/noCatchBinding/emitter.noCatchBinding.es2019.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 1279,
+      "source": {
+        "path": "emitter/es2019/noCatchBinding/emitter.noCatchBinding.es2019.ts",
+        "bytes": 145,
+        "sha256": "f73d778d033e150389d9e8dc1ed62d16d129815bbb861826d15a22a73a3be651",
+        "git_blob_sha1": "d9dfb1bcd9a89808d990aee1edbd8dd474fa2ef8"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/emitter.noCatchBinding.es2019.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/emitter.noCatchBinding.es2019.ts",
+            "utf8_base64": "ZnVuY3Rpb24gZigpIHsKICAgIHRyeSB7IH0gY2F0Y2ggeyB9CiAgICB0cnkgeyB9IGNhdGNoIHsgCiAgICAgICAgdHJ5IHsgfSBjYXRjaCB7IH0KICAgIH0KICAgIHRyeSB7IH0gY2F0Y2ggeyB9IGZpbmFsbHkgeyB9Cn0K",
+            "utf8_sha256": "3653d7659a60ad5196627b67b712ac117113a9e05ef114c9727c2765bcccf6c9",
+            "utf8_bytes": 126
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/emitter.noCatchBinding.es2019.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "3653d7659a60ad5196627b67b712ac117113a9e05ef114c9727c2765bcccf6c9"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/emitter.noCatchBinding.es2019.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZigpIHsNCiAgICB0cnkgeyB9DQogICAgY2F0Y2ggeyB9DQogICAgdHJ5IHsgfQ0KICAgIGNhdGNoIHsNCiAgICAgICAgdHJ5IHsgfQ0KICAgICAgICBjYXRjaCB7IH0NCiAgICB9DQogICAgdHJ5IHsgfQ0KICAgIGNhdGNoIHsgfQ0KICAgIGZpbmFsbHkgeyB9DQp9DQo=",
+              "callback_utf8_sha256": "e97c84d523d5a45ab77a508a540057aae87b8e11610d0d715d5aedb174bc91f6",
+              "callback_utf8_bytes": 176,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e97c84d523d5a45ab77a508a540057aae87b8e11610d0d715d5aedb174bc91f6",
+              "materialized_utf8_bytes": 176,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/emitter.noCatchBinding.es2019.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "084252fd46d7a544a8d3ac8ef71dcd7b61e9d4a7ae0f2fe8a9a8d395b7f1fbaa"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/emitter.noCatchBinding.es2019.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KZnVuY3Rpb24gZigpIHsNCiAgICB0cnkgeyB9DQogICAgY2F0Y2ggeyB9DQogICAgdHJ5IHsgfQ0KICAgIGNhdGNoIHsNCiAgICAgICAgdHJ5IHsgfQ0KICAgICAgICBjYXRjaCB7IH0NCiAgICB9DQogICAgdHJ5IHsgfQ0KICAgIGNhdGNoIHsgfQ0KICAgIGZpbmFsbHkgeyB9DQp9DQo=",
+              "callback_utf8_sha256": "e97c84d523d5a45ab77a508a540057aae87b8e11610d0d715d5aedb174bc91f6",
+              "callback_utf8_bytes": 176,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "e97c84d523d5a45ab77a508a540057aae87b8e11610d0d715d5aedb174bc91f6",
+              "materialized_utf8_bytes": 176,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/emitter.noCatchBinding.es2019.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "084252fd46d7a544a8d3ac8ef71dcd7b61e9d4a7ae0f2fe8a9a8d395b7f1fbaa"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "0660c701b9fd9ebd25d48833065758a61b51ec1482b219800fbdde8b32cff920"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/enums/awaitAndYield.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 1288,
+      "source": {
+        "path": "enums/awaitAndYield.ts",
+        "bytes": 174,
+        "sha256": "ce3c2729961c167e47362697132822453e7f98375c2ba0cee327297f952105f1",
+        "git_blob_sha1": "41d683b297343df6592f1b9ae9465327a98b25a4"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/awaitAndYield.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "ES2019"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/awaitAndYield.ts",
+            "utf8_base64": "YXN5bmMgZnVuY3Rpb24qIHRlc3QoeDogUHJvbWlzZTxudW1iZXI+KSB7CiAgICBlbnVtIEUgewogICAgICAgIGZvbyA9IGF3YWl0IHgsCiAgICAgICAgYmF6ID0geWllbGQgMSwKICAgIH0KfQ==",
+            "utf8_sha256": "a81b1273e38b000605295e29a4fcb848d781009ff2e8da1a11b9d1188cf5262b",
+            "utf8_bytes": 109
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/awaitAndYield.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [
+            {
+              "feature": "runtime-enums",
+              "start": 47,
+              "end": 107,
+              "kind": "EnumDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "a81b1273e38b000605295e29a4fcb848d781009ff2e8da1a11b9d1188cf5262b"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/awaitAndYield.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24qIHRlc3QoeCkgew0KICAgIGxldCBFOw0KICAgIChmdW5jdGlvbiAoRSkgew0KICAgICAgICBFW0VbImZvbyJdID0gYXdhaXQgeF0gPSAiZm9vIjsNCiAgICAgICAgRVtFWyJiYXoiXSA9IHlpZWxkIDFdID0gImJheiI7DQogICAgfSkoRSB8fCAoRSA9IHt9KSk7DQp9DQo=",
+              "callback_utf8_sha256": "3aac51427cec935dd5df0175c6fa06e6b613e4b6fc1b43fd01c8dd978a339c6a",
+              "callback_utf8_bytes": 182,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "3aac51427cec935dd5df0175c6fa06e6b613e4b6fc1b43fd01c8dd978a339c6a",
+              "materialized_utf8_bytes": 182,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/awaitAndYield.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYield.ts",
+              "start": 70,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYield.ts",
+              "start": 93,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "29979bd0f00d303cafa5765c1d17a8e8c8b5fd1fef5ec658a12464adb34347c6"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/awaitAndYield.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KYXN5bmMgZnVuY3Rpb24qIHRlc3QoeCkgew0KICAgIGxldCBFOw0KICAgIChmdW5jdGlvbiAoRSkgew0KICAgICAgICBFW0VbImZvbyJdID0gYXdhaXQgeF0gPSAiZm9vIjsNCiAgICAgICAgRVtFWyJiYXoiXSA9IHlpZWxkIDFdID0gImJheiI7DQogICAgfSkoRSB8fCAoRSA9IHt9KSk7DQp9DQo=",
+              "callback_utf8_sha256": "3aac51427cec935dd5df0175c6fa06e6b613e4b6fc1b43fd01c8dd978a339c6a",
+              "callback_utf8_bytes": 182,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "3aac51427cec935dd5df0175c6fa06e6b613e4b6fc1b43fd01c8dd978a339c6a",
+              "materialized_utf8_bytes": 182,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/awaitAndYield.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1308,
+              "category": "Error",
+              "file": "/.src/awaitAndYield.ts",
+              "start": 70,
+              "length": 5,
+              "message": "'await' expressions are only allowed within async functions and at the top levels of modules."
+            },
+            {
+              "code": 1163,
+              "category": "Error",
+              "file": "/.src/awaitAndYield.ts",
+              "start": 93,
+              "length": 5,
+              "message": "A 'yield' expression is only allowed in a generator body."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "29979bd0f00d303cafa5765c1d17a8e8c8b5fd1fef5ec658a12464adb34347c6"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "ef3a159b0865305ef6a997d5eb3fdd44131ef1dfe64017239f54e66fc5c6e2e3"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/es2020/bigintMissingES2019.ts#default",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 1351,
+      "source": {
+        "path": "es2020/bigintMissingES2019.ts",
+        "bytes": 216,
+        "sha256": "23eaeb7bc1c1c8bd3f4a8505d9ee16362f22d1ddc2164debacc191f6530030a9",
+        "git_blob_sha1": "eb43cef7986fb415d62edb3c5d7a8eda683f0e22"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/bigintMissingES2019.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          },
+          {
+            "name": "lib",
+            "value": "dom,es2019"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/bigintMissingES2019.ts",
+            "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0ZXN0PEEsIEIgZXh0ZW5kcyBBPigpOiB2b2lkOwoKdGVzdDx7dD86IHN0cmluZ30sIG9iamVjdD4oKTsKdGVzdDx7dD86IHN0cmluZ30sIGJpZ2ludD4oKTsKCi8vIG5vIGVycm9yIHdoZW4gYmlnaW50IGlzIHVzZWQgZXZlbiB3aGVuIEVTMjAyMCBsaWIgaXMgbm90IHByZXNlbnQK",
+            "utf8_sha256": "bf3b1d9861934f23dede8ed2489e4ba49ae814b4926888ade151887d3f6d2e1d",
+            "utf8_bytes": 177
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/bigintMissingES2019.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "bf3b1d9861934f23dede8ed2489e4ba49ae814b4926888ade151887d3f6d2e1d"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/bigintMissingES2019.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdGVzdCgpOw0KdGVzdCgpOw0KLy8gbm8gZXJyb3Igd2hlbiBiaWdpbnQgaXMgdXNlZCBldmVuIHdoZW4gRVMyMDIwIGxpYiBpcyBub3QgcHJlc2VudA0K",
+              "callback_utf8_sha256": "84e47160ee6159c6fda50f6f5600f0b7e1c5010ef02aa2100b974b812c4c60da",
+              "callback_utf8_bytes": 102,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "84e47160ee6159c6fda50f6f5600f0b7e1c5010ef02aa2100b974b812c4c60da",
+              "materialized_utf8_bytes": 102,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/bigintMissingES2019.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "81ff6f6f303f8b669c51d7f324e32df1a1c2ef655d2aba4718c2dda219469cce"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/bigintMissingES2019.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdGVzdCgpOw0KdGVzdCgpOw0KLy8gbm8gZXJyb3Igd2hlbiBiaWdpbnQgaXMgdXNlZCBldmVuIHdoZW4gRVMyMDIwIGxpYiBpcyBub3QgcHJlc2VudA0K",
+              "callback_utf8_sha256": "84e47160ee6159c6fda50f6f5600f0b7e1c5010ef02aa2100b974b812c4c60da",
+              "callback_utf8_bytes": 102,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "84e47160ee6159c6fda50f6f5600f0b7e1c5010ef02aa2100b974b812c4c60da",
+              "materialized_utf8_bytes": 102,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/bigintMissingES2019.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "81ff6f6f303f8b669c51d7f324e32df1a1c2ef655d2aba4718c2dda219469cce"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "7c2daee30a63bcfb0779fa49ee5aa8759ecfcb8a33d616292a95a7711511c588"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/callChain/callChainWithSuper.ts#target%3Des2019",
+      "selection_origin": "global-h2-5c-candidate",
+      "expansion_case": 3273,
+      "source": {
+        "path": "expressions/optionalChaining/callChain/callChainWithSuper.ts",
+        "bytes": 233,
+        "sha256": "4d21de7e142ba61b557f0ef5c29fb704e8dbecda605558756802efeb51d20a75",
+        "git_blob_sha1": "d66c71b1c3acda10667dce2fda6fa24d0132854a"
+      },
+      "target_state": "ES2019(6)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/callChainWithSuper.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2019"
+          },
+          {
+            "name": "strict",
+            "value": "true"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/callChainWithSuper.ts",
+            "utf8_base64": "Ly8gR0gjMzQ5NTIKY2xhc3MgQmFzZSB7IG1ldGhvZD8oKSB7fSB9CmNsYXNzIERlcml2ZWQgZXh0ZW5kcyBCYXNlIHsKICAgIG1ldGhvZDEoKSB7IHJldHVybiBzdXBlci5tZXRob2Q/LigpOyB9CiAgICBtZXRob2QyKCkgeyByZXR1cm4gc3VwZXJbIm1ldGhvZCJdPy4oKTsgfQp9",
+            "utf8_sha256": "ae3f43f79401dd15c9e02dec09e9fd9ebf19d95256cf9009d24ae84dbd7ca02e",
+            "utf8_bytes": 159
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/callChainWithSuper.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ae3f43f79401dd15c9e02dec09e9fd9ebf19d95256cf9009d24ae84dbd7ca02e"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2020"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/callChainWithSuper.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gR0gjMzQ5NTINCmNsYXNzIEJhc2Ugew0KICAgIG1ldGhvZCgpIHsgfQ0KfQ0KY2xhc3MgRGVyaXZlZCBleHRlbmRzIEJhc2Ugew0KICAgIG1ldGhvZDEoKSB7IHZhciBfYTsgcmV0dXJuIChfYSA9IHN1cGVyLm1ldGhvZCkgPT09IG51bGwgfHwgX2EgPT09IHZvaWQgMCA/IHZvaWQgMCA6IF9hLmNhbGwodGhpcyk7IH0NCiAgICBtZXRob2QyKCkgeyB2YXIgX2E7IHJldHVybiAoX2EgPSBzdXBlclsibWV0aG9kIl0pID09PSBudWxsIHx8IF9hID09PSB2b2lkIDAgPyB2b2lkIDAgOiBfYS5jYWxsKHRoaXMpOyB9DQp9DQo=",
+              "callback_utf8_sha256": "2d0432866bac5dc3393c4db46ac1fd9df7be6cce5a2a9c78e57a590f563db19d",
+              "callback_utf8_bytes": 311,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2d0432866bac5dc3393c4db46ac1fd9df7be6cce5a2a9c78e57a590f563db19d",
+              "materialized_utf8_bytes": 311,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/callChainWithSuper.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "2cc04d97da974af4f0e9b1d631a65363cc2e57e8f8d4866edaa30ad17e065cd5"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/callChainWithSuper.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gR0gjMzQ5NTINCmNsYXNzIEJhc2Ugew0KICAgIG1ldGhvZCgpIHsgfQ0KfQ0KY2xhc3MgRGVyaXZlZCBleHRlbmRzIEJhc2Ugew0KICAgIG1ldGhvZDEoKSB7IHZhciBfYTsgcmV0dXJuIChfYSA9IHN1cGVyLm1ldGhvZCkgPT09IG51bGwgfHwgX2EgPT09IHZvaWQgMCA/IHZvaWQgMCA6IF9hLmNhbGwodGhpcyk7IH0NCiAgICBtZXRob2QyKCkgeyB2YXIgX2E7IHJldHVybiAoX2EgPSBzdXBlclsibWV0aG9kIl0pID09PSBudWxsIHx8IF9hID09PSB2b2lkIDAgPyB2b2lkIDAgOiBfYS5jYWxsKHRoaXMpOyB9DQp9DQo=",
+              "callback_utf8_sha256": "2d0432866bac5dc3393c4db46ac1fd9df7be6cce5a2a9c78e57a590f563db19d",
+              "callback_utf8_bytes": 311,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2d0432866bac5dc3393c4db46ac1fd9df7be6cce5a2a9c78e57a590f563db19d",
+              "materialized_utf8_bytes": 311,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/callChainWithSuper.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "2cc04d97da974af4f0e9b1d631a65363cc2e57e8f8d4866edaa30ad17e065cd5"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "d4c977e9456a9950bb068b535083bf96535ec629136064cfbb636009b002d407"
+    }
+  ],
+  "summary": {
+    "candidates": 15,
+    "compiler_candidates": 6,
+    "conformance_candidates": 9,
+    "admitted_cases": 14,
+    "deferred_cases": 1,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 1,
+    "no_emit_control_cases": 0,
+    "target_states": [
+      {
+        "value": "ES2019(6)",
+        "cases": 15
+      }
+    ],
+    "module_states": [
+      {
+        "value": "absent",
+        "cases": 14
+      },
+      {
+        "value": "CommonJS(1)",
+        "cases": 1
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 14
+      },
+      {
+        "value": "deferred-to-slices",
+        "cases": 1
+      }
+    ],
+    "first_deferred_slices": [
+      {
+        "value": "H2.9",
+        "cases": 1
+      }
+    ],
+    "typescript_runs": 30,
+    "deterministic_typescript_cases": 15,
+    "admitted_typescript_writes": 14,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 19,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "d30b19e581eef0bf25021cf9e194359ffdd83cf141895241c1029cabf2029cf4"
+}

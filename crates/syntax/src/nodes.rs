@@ -961,6 +961,9 @@ pub struct NonNullExpressionData {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+pub struct NotEmittedStatementData {}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct NumericLiteralData {
     pub text: String,
 }
@@ -1452,6 +1455,7 @@ pub enum NodeData {
     NewExpression(NewExpressionData),
     NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData),
     NonNullExpression(NonNullExpressionData),
+    NotEmittedStatement(NotEmittedStatementData),
     NumericLiteral(NumericLiteralData),
     ObjectBindingPattern(ObjectBindingPatternData),
     ObjectLiteralExpression(ObjectLiteralExpressionData),
@@ -1654,6 +1658,7 @@ impl NodeData {
                 Some(SyntaxKind::NoSubstitutionTemplateLiteral)
             }
             Self::NonNullExpression(_) => Some(SyntaxKind::NonNullExpression),
+            Self::NotEmittedStatement(_) => Some(SyntaxKind::NotEmittedStatement),
             Self::NumericLiteral(_) => Some(SyntaxKind::NumericLiteral),
             Self::ObjectBindingPattern(_) => Some(SyntaxKind::ObjectBindingPattern),
             Self::ObjectLiteralExpression(_) => Some(SyntaxKind::ObjectLiteralExpression),
@@ -2348,6 +2353,9 @@ impl NodeData {
             }
             SyntaxKind::NonNullExpression => {
                 Self::NonNullExpression(NonNullExpressionData { expression: None })
+            }
+            SyntaxKind::NotEmittedStatement => {
+                Self::NotEmittedStatement(NotEmittedStatementData {})
             }
             SyntaxKind::NumericLiteral => Self::NumericLiteral(NumericLiteralData {
                 text: String::new(),
@@ -3558,6 +3566,13 @@ impl NodeData {
     pub fn as_non_null_expression(&self) -> Option<&NonNullExpressionData> {
         match self {
             Self::NonNullExpression(data) => Some(data),
+            _ => None,
+        }
+    }
+
+    pub fn as_not_emitted_statement(&self) -> Option<&NotEmittedStatementData> {
+        match self {
+            Self::NotEmittedStatement(data) => Some(data),
             _ => None,
         }
     }

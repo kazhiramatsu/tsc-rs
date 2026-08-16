@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tsc-rs.invalid/contracts/functional-ci-shard-plan.v1.schema.json",
+  "title": "Functional-CI fixed shard plan v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id_source",
+    "case_id_source_sha256",
+    "denominator",
+    "membership_digest",
+    "policy_ids",
+    "profile",
+    "schema_version",
+    "shards",
+    "suite"
+  ],
+  "properties": {
+    "case_id_source": {"type": "string", "pattern": "^[^/].*"},
+    "case_id_source_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "denominator": {"type": "integer", "minimum": 1},
+    "membership_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "policy_ids": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+    "profile": {"type": "string", "minLength": 1},
+    "schema_version": {"const": 1},
+    "shards": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["case_ids_digest", "end", "id", "start"],
+        "properties": {
+          "case_ids_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "end": {"type": "integer", "minimum": 1},
+          "id": {"type": "string", "minLength": 1},
+          "start": {"type": "integer", "minimum": 0}
+        }
+      }
+    },
+    "suite": {"type": "string", "minLength": 1}
+  }
+}

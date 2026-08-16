@@ -1,0 +1,22 @@
+[package]
+name = "tsc-rs-ci-runner"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+autotests = false
+
+[package.metadata.tsc-rs]
+role = "ci-runner"
+
+[lib]
+name = "tsc_ci_runner"
+path = "src/lib.rs"
+
+[dependencies]
+libc.workspace = true
+tsc-ci-core.workspace = true
+
+[[test]]
+name = "contracts"
+path = "tests/contracts.rs"

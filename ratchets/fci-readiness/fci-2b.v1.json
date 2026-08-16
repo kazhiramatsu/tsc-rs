@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-2b",
+  "status": "ready",
+  "trustedBase": "ebbeab80c981f891539405330723ca45adb7fc28",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-2b-bounded-effects.md",
+    "sha256": "db32cee23009a301fb5b50a0f70d1254ef46a5f2e27d619f4ab509614a5f9ccf"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-2a",
+      "receiptSha256": "798010da04c5f5b59bcba127dc129ae7def427a2009e200a7e953e911a3b069f"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.lock",
+    "crates/ci-runner/src/lib.rs",
+    "crates/ci-runner/src/bounded.rs",
+    "crates/ci-runner/tests/bounded_effect.rs",
+    "docs/design/greenfield/slices/fci-2b-bounded-effects.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-2b.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    "crates/oracle",
+    "crates/ci-core",
+    "crates/ci-testkit",
+    "crates/ci-adapter",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g"
+  ],
+  "proof": {
+    "commands": [
+      "cargo test -p tsc-rs-ci-runner --test bounded_effect",
+      "cargo test -p tsc-rs-ci-runner --lib",
+      "node .github/ci/slice-readiness.mjs --check fci-2b"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-2b.v1.json"
+  }
+}

@@ -190,6 +190,7 @@ fn compiler_option_kind(name: &str) -> Option<CompilerOptionKind> {
         | "allowsyntheticdefaultimports"
         | "preserveconstenums"
         | "isolatedmodules"
+        | "libreplacement"
         | "verbatimmodulesyntax"
         | "allowumdglobalaccess"
         | "resolvepackagejsonexports"
@@ -380,6 +381,11 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
             },
         ),
         preserve_value_imports: bool_option("preserveValueImports"),
+        keyof_strings_only: bool_option("keyofStringsOnly"),
+        suppress_excess_property_errors: bool_option("suppressExcessPropertyErrors"),
+        suppress_implicit_any_index_errors: bool_option("suppressImplicitAnyIndexErrors"),
+        no_strict_generic_checks: bool_option("noStrictGenericChecks"),
+        charset: projected_string_option(options, "charset"),
         emit_decorator_metadata: bool_option("emitDecoratorMetadata"),
         new_line,
         remove_comments: bool_option("removeComments"),
@@ -407,6 +413,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
         rewrite_relative_import_extensions: bool_option("rewriteRelativeImportExtensions"),
         resolve_json_module: bool_option("resolveJsonModule"),
         skip_lib_check: bool_option("skipLibCheck"),
+        skip_default_lib_check: bool_option("skipDefaultLibCheck"),
         jsx: enum_option("jsx", jsx_option_value),
         jsx_factory: projected_string_option(options, "jsxFactory"),
         jsx_fragment_factory: projected_string_option(options, "jsxFragmentFactory"),
@@ -414,6 +421,7 @@ fn project_compiler_options(options: &BTreeMap<String, OptionValue>) -> Compiler
         react_namespace: projected_string_option(options, "reactNamespace"),
         ignore_deprecations: projected_string_option(options, "ignoreDeprecations"),
         lib: projected_string_list_option(options, "lib", true),
+        lib_replacement: bool_option("libReplacement"),
     }
 }
 

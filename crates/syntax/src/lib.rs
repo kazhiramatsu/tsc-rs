@@ -44,9 +44,24 @@ pub use parser::{
 };
 pub use scanner::{
     is_js_whitespace, is_line_break, is_whitespace_like, js_trim_start, scan_big_int_string,
-    scan_token_kinds, scan_tokens, skip_trivia, template_text_utf16, BigIntStringScan,
-    CommentDirective, CommentDirectiveKind, LanguageVariant, TokenRecord,
+    scan_byte_tokens, scan_token_kinds, scan_tokens, skip_trivia, template_text_utf16,
+    BigIntStringScan, ByteTokenIter, ByteTokenRecord, CommentDirective, CommentDirectiveKind,
+    LanguageVariant, TokenRecord,
 };
+
+/// Return the keyword kind represented by an identifier's escaped text.
+///
+/// TypeScript retains keyword-shaped declaration names such as a function's
+/// explicit `this` parameter as `Identifier` nodes. Consumers that need the
+/// semantic keyword role should use this projection instead of duplicating
+/// spelling checks.
+///
+/// tsc-port: identifierToKeywordKind @6.0.3
+/// tsc-hash: 5b8e8a44db1923acc5abf70a8b0ae71e5599660f5dc3b14ef8f670b87eb52566
+/// tsc-span: _tsc.js:11448-11451
+pub fn identifier_to_keyword_kind(escaped_text: &str) -> Option<SyntaxKind> {
+    keywords::keyword_kind(escaped_text)
+}
 
 /// Resolution-mode override retained from a leading
 /// `/// <reference types="...">` directive.

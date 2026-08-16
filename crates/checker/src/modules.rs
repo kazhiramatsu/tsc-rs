@@ -16,11 +16,13 @@
 
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, DiagnosticMessage, MessageChain};
+use tsc_emitter::EmitExportContainerMode;
 use tsc_syntax::{
     escape_leading_underscores, unescape_leading_underscores, NodeData, NodeId, SyntaxKind,
 };
 use tsc_types::{
-    compiler_version_satisfies, CheckMode, InternalSymbolName, ObjectFlags, SymbolFlags, TypeFlags,
+    compiler_version_satisfies, CheckMode, InternalSymbolName, ModifierFlags, ObjectFlags,
+    SymbolFlags, TypeFlags,
 };
 
 use crate::expr::Ancestor;
@@ -104,8 +106,6 @@ enum HostModuleTarget {
 /// package_name is the resolved packageId.name face (and therefore
 /// remains absent for packages without name metadata); alternate_result
 /// is the declaration path found by the other resolver regime. The closed
-/// resolution-diagnostic field also carries unloaded JSX/arbitrary-extension
-/// diagnostics.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct UntypedModuleResolution {
     resolved_file_name: String,
@@ -147,6 +147,24 @@ enum ResolutionModeOverrideParse {
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsc-port: isArgumentsLocalBinding @6.0.3
+    /// tsc-hash: a4a009d67ec8efa73e0542bd8df80114b6fd459181e410f12afba35cec6b4056
+    /// tsc-span: _tsc.js:87858-87866
+    pub(crate) fn emit_is_arguments_local_binding(&mut self, node: NodeId) -> CheckResult<bool> {
+        if !matches!(self.data_of(node), NodeData::Identifier(_)) {
+            return Ok(false);
+        }
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(false);
+        };
+        let is_property_name = match self.data_of(parent) {
+            NodeData::PropertyAccessExpression(data) => data.name == Some(node),
+            NodeData::PropertyAssignment(data) => data.name == Some(node),
+            _ => false,
+        };
+        Ok(!is_property_name && self.get_resolved_symbol(node)? == Some(self.arguments_symbol))
+    }
+
     // ================================================================
     // §9 alias protocol (resolveAlias family)
     // ================================================================
@@ -157,17 +175,41 @@ impl<'a> CheckerState<'a> {
     ///
     /// H2.1d consumes the SourceFile result. H2.2a additionally consumes the
     /// nearest matching enum declaration; namespace declarations use the same
-    /// typed path when H2.2b admits their transform.
+    /// typed path when H2.2b admits their transform. `ExportName` is the typed
+    /// equivalent of tsc's `prefixLocals` argument. Namespace and enum IIFE
+    /// initializers use `Reference` because tsc creates them with
+    /// `getDeclarationName`; only nodes created with `getExportName` select the
+    /// other mode.
     pub(crate) fn emit_get_referenced_export_container(
         &mut self,
         node: NodeId,
+        mode: EmitExportContainerMode,
     ) -> CheckResult<Option<NodeId>> {
         if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(None);
         }
-        let Some(mut symbol) = self.get_resolved_symbol(node)? else {
+        let Some(symbol) = self.get_resolved_symbol(node)? else {
             return Ok(None);
         };
+        self.emit_get_referenced_export_container_for_symbol(
+            symbol,
+            node,
+            self.parent_of(node),
+            mode,
+        )
+    }
+
+    /// Apply `getReferencedExportContainer`'s symbol/container rules after a
+    /// caller has supplied the lexical lookup. Parsed identifiers and
+    /// classic-JSX factory roots differ only in how that first symbol and
+    /// ancestor are obtained.
+    fn emit_get_referenced_export_container_for_symbol(
+        &mut self,
+        mut symbol: SymbolId,
+        reference_location: NodeId,
+        mut ancestor: Option<NodeId>,
+        mode: EmitExportContainerMode,
+    ) -> CheckResult<Option<NodeId>> {
         if self
             .binder
             .symbol(symbol)
@@ -181,7 +223,8 @@ impl<'a> CheckerState<'a> {
                 .map(|symbol| self.get_merged_symbol(symbol))
                 .unwrap_or(symbol);
             let export_flags = self.binder.symbol(export_symbol).flags;
-            if export_flags.intersects(SymbolFlags::EXPORT_HAS_LOCAL)
+            if !mode.prefixes_locals()
+                && export_flags.intersects(SymbolFlags::EXPORT_HAS_LOCAL)
                 && !export_flags.intersects(SymbolFlags::VARIABLE)
             {
                 return Ok(None);
@@ -197,12 +240,11 @@ impl<'a> CheckerState<'a> {
             if let Some(container) = parent_data.value_declaration {
                 if self.kind_of(container) == SyntaxKind::SourceFile {
                     return Ok((self.binder.source_of_node(container).root
-                        == self.binder.source_of_node(node).root)
+                        == self.binder.source_of_node(reference_location).root)
                         .then_some(container));
                 }
             }
         }
-        let mut ancestor = self.parent_of(node);
         while let Some(current) = ancestor {
             let is_container = matches!(
                 self.kind_of(current),
@@ -229,12 +271,86 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(node) != SyntaxKind::Identifier {
             return Ok(None);
         }
-        let symbol = self.get_resolved_symbol(node)?;
+        let symbol = self.emit_get_referenced_value_or_alias_symbol(node)?;
+        self.emit_get_referenced_import_declaration_for_symbol(symbol)
+    }
+
+    /// tsrs-native: explicit-location emit-resolver bridge replacing tsc's
+    /// temporary AST-parent reassignment during entity-name serialization.
+    ///
+    /// Immutable counterpart of the temporary parent reassignment performed
+    /// by `serializeEntityNameAsExpression`. The entity spelling comes from
+    /// `node`, while lexical lookup starts at the emitted decorator's owning
+    /// class/name scope.
+    pub(crate) fn emit_get_referenced_import_declaration_at_location(
+        &mut self,
+        node: NodeId,
+        location: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        let root = match self.kind_of(node) {
+            SyntaxKind::Identifier => node,
+            SyntaxKind::QualifiedName => self.first_identifier(node),
+            _ => return Ok(None),
+        };
+        let Some(name) = self.identifier_text_of(root).map(str::to_owned) else {
+            return Ok(None);
+        };
+        let symbol = self.resolve_name(
+            Some(location),
+            &name,
+            SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE | SymbolFlags::ALIAS,
+            /*name_not_found_message*/ None,
+            /*is_use*/ true,
+            /*exclude_globals*/ false,
+        )?;
+        self.emit_get_referenced_import_declaration_for_symbol(symbol)
+    }
+
+    /// tsc-port: getReferencedValueOrAliasSymbol @6.0.3
+    /// tsc-hash: bcd7ce982947b371c0038c0a24388f853ffa54e3dc874a34b166ccfc18f882ac
+    /// tsc-span: _tsc.js:88421-88436
+    ///
+    /// Emit must retain the lexical alias itself rather than eagerly reducing
+    /// it to its value target. A checked node's non-unknown cache is already
+    /// authoritative; the fallback deliberately does not populate that cache.
+    fn emit_get_referenced_value_or_alias_symbol(
+        &mut self,
+        reference: NodeId,
+    ) -> CheckResult<Option<SymbolId>> {
+        if let Some(symbol) = self.links.node(reference).resolved_symbol.resolved() {
+            if symbol != self.unknown_symbol {
+                return Ok(Some(symbol));
+            }
+        }
+        let Some(name) = self.identifier_text_of(reference).map(str::to_owned) else {
+            return Ok(None);
+        };
+        self.resolve_name(
+            Some(reference),
+            &name,
+            SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE | SymbolFlags::ALIAS,
+            /*name_not_found_message*/ None,
+            /*is_use*/ true,
+            /*exclude_globals*/ false,
+        )
+    }
+
+    /// Shared value-side filter for parsed import references and synthetic
+    /// classic-JSX factory roots. `include = Value` is significant: a
+    /// type-only provenance that resolves only to a type does not erase a
+    /// distinct runtime declaration merged into the same exported name.
+    fn emit_get_referenced_import_declaration_for_symbol(
+        &mut self,
+        symbol: Option<SymbolId>,
+    ) -> CheckResult<Option<NodeId>> {
         if !self.is_non_local_alias(symbol, SymbolFlags::VALUE) {
             return Ok(None);
         }
         let symbol = symbol.expect("non-local alias is present");
-        if self.get_type_only_alias_declaration(symbol)?.is_some() {
+        if self
+            .get_type_only_alias_declaration_ex(symbol, Some(SymbolFlags::VALUE))?
+            .is_some()
+        {
             return Ok(None);
         }
         Ok(self.get_declaration_of_alias_symbol(symbol))
@@ -254,19 +370,41 @@ impl<'a> CheckerState<'a> {
         let symbol = self.resolve_name(
             Some(location),
             name,
-            SymbolFlags::VALUE,
+            SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE | SymbolFlags::ALIAS,
             /*name_not_found_message*/ None,
-            /*is_use*/ false,
+            /*is_use*/ true,
             /*exclude_globals*/ false,
         )?;
-        if !self.is_non_local_alias(symbol, SymbolFlags::VALUE) {
+        self.emit_get_referenced_import_declaration_for_symbol(symbol)
+    }
+
+    /// tsrs-native: projects the synthetic classic-JSX factory parent through
+    /// TypeScript's `getReferencedExportContainer` namespace/enum contract.
+    /// `createReactNamespace` makes its synthesized identifier a child of the
+    /// parsed JSX node; resolving the spelling there and starting the ancestor
+    /// walk at that node reproduces the same identity without mutable parents.
+    pub(crate) fn emit_get_jsx_factory_export_container(
+        &mut self,
+        location: NodeId,
+        name: &str,
+    ) -> CheckResult<Option<NodeId>> {
+        let Some(symbol) = self.resolve_name(
+            Some(location),
+            name,
+            SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE | SymbolFlags::ALIAS,
+            /*name_not_found_message*/ None,
+            /*is_use*/ true,
+            /*exclude_globals*/ false,
+        )?
+        else {
             return Ok(None);
-        }
-        let symbol = symbol.expect("non-local JSX factory alias is present");
-        if self.get_type_only_alias_declaration(symbol)?.is_some() {
-            return Ok(None);
-        }
-        Ok(self.get_declaration_of_alias_symbol(symbol))
+        };
+        self.emit_get_referenced_export_container_for_symbol(
+            symbol,
+            location,
+            Some(location),
+            EmitExportContainerMode::Reference,
+        )
     }
 
     /// tsc-port: getReferencedValueDeclaration @6.0.3
@@ -286,12 +424,59 @@ impl<'a> CheckerState<'a> {
         Ok(self.binder.symbol(symbol).value_declaration)
     }
 
+    /// tsc-port: getReferencedValueDeclarations @6.0.3
+    /// tsc-hash: b4a9df96c80035e9731607c4863cfe594496c4472289dfa129985e2da2677aee
+    /// tsc-span: _tsc.js:88461-88488
+    pub(crate) fn emit_get_referenced_value_declarations(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<Vec<NodeId>> {
+        if self.kind_of(node) != SyntaxKind::Identifier {
+            return Ok(Vec::new());
+        }
+        let Some(symbol) = self.get_resolved_symbol(node)? else {
+            return Ok(Vec::new());
+        };
+        let symbol = self.get_export_symbol_of_value_symbol_if_exported(symbol);
+        Ok(self
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .filter(|declaration| {
+                matches!(
+                    self.kind_of(*declaration),
+                    SyntaxKind::VariableDeclaration
+                        | SyntaxKind::Parameter
+                        | SyntaxKind::BindingElement
+                        | SyntaxKind::PropertyDeclaration
+                        | SyntaxKind::PropertyAssignment
+                        | SyntaxKind::ShorthandPropertyAssignment
+                        | SyntaxKind::EnumMember
+                        | SyntaxKind::ObjectLiteralExpression
+                        | SyntaxKind::FunctionDeclaration
+                        | SyntaxKind::FunctionExpression
+                        | SyntaxKind::ArrowFunction
+                        | SyntaxKind::ClassDeclaration
+                        | SyntaxKind::ClassExpression
+                        | SyntaxKind::EnumDeclaration
+                        | SyntaxKind::MethodDeclaration
+                        | SyntaxKind::GetAccessor
+                        | SyntaxKind::SetAccessor
+                        | SyntaxKind::ModuleDeclaration
+                )
+            })
+            .collect())
+    }
+
     /// tsc-port: getTypeReferenceSerializationKind @6.0.3
     /// tsc-hash: 3a0898fddcdc3e14c787750ae33d7c2893409a3ff3a08dbf600a8b417fc52a78
     /// tsc-span: _tsc.js:88271-88343
     pub(crate) fn emit_get_type_reference_serialization_kind(
         &mut self,
         type_name: NodeId,
+        location: NodeId,
     ) -> CheckResult<tsc_emitter::EmitTypeReferenceSerializationKind> {
         use tsc_emitter::EmitTypeReferenceSerializationKind as Kind;
 
@@ -299,7 +484,7 @@ impl<'a> CheckerState<'a> {
         if self.kind_of(type_name) == SyntaxKind::QualifiedName {
             let root = self.first_identifier(type_name);
             if let Some(root_symbol) =
-                self.resolve_entity_name_ex(root, SymbolFlags::VALUE, true, None, true)?
+                self.resolve_entity_name_ex(root, SymbolFlags::VALUE, true, Some(location), true)?
             {
                 let declarations = &self.binder.symbol(root_symbol).declarations;
                 is_type_only = !declarations.is_empty()
@@ -310,7 +495,7 @@ impl<'a> CheckerState<'a> {
         }
 
         let value_symbol =
-            self.resolve_entity_name_ex(type_name, SymbolFlags::VALUE, true, None, true)?;
+            self.resolve_entity_name_ex(type_name, SymbolFlags::VALUE, true, Some(location), true)?;
         let resolved_value_symbol = if let Some(symbol) = value_symbol {
             if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
                 Some(self.resolve_alias(symbol)?)
@@ -321,11 +506,13 @@ impl<'a> CheckerState<'a> {
             None
         };
         if let Some(symbol) = value_symbol {
-            is_type_only |= self.get_type_only_alias_declaration(symbol)?.is_some();
+            is_type_only |= self
+                .get_type_only_alias_declaration_ex(symbol, Some(SymbolFlags::VALUE))?
+                .is_some();
         }
 
         let type_symbol =
-            self.resolve_entity_name_ex(type_name, SymbolFlags::TYPE, true, None, true)?;
+            self.resolve_entity_name_ex(type_name, SymbolFlags::TYPE, true, Some(location), true)?;
         let resolved_type_symbol = if let Some(symbol) = type_symbol {
             if self.symbol_flags(symbol).intersects(SymbolFlags::ALIAS) {
                 Some(self.resolve_alias(symbol)?)
@@ -337,7 +524,9 @@ impl<'a> CheckerState<'a> {
         };
         if value_symbol.is_none() {
             if let Some(symbol) = type_symbol {
-                is_type_only |= self.get_type_only_alias_declaration(symbol)?.is_some();
+                is_type_only |= self
+                    .get_type_only_alias_declaration_ex(symbol, Some(SymbolFlags::TYPE))?
+                    .is_some();
             }
         }
 
@@ -432,7 +621,10 @@ impl<'a> CheckerState<'a> {
         false
     }
 
-    fn is_const_enum_or_const_enum_only_module_symbol(&self, symbol: SymbolId) -> bool {
+    /// tsc-port: isConstEnumOrConstEnumOnlyModule @6.0.3
+    /// tsc-hash: f3466b3d983aa63d7c7e0a12ff746e82e9984de653f32d7d5dc7441ae51ca1f0
+    /// tsc-span: _tsc.js:88034-88036
+    pub(crate) fn is_const_enum_or_const_enum_only_module_symbol(&self, symbol: SymbolId) -> bool {
         let symbol = self.binder.symbol(symbol);
         symbol.flags.intersects(SymbolFlags::CONST_ENUM)
             || symbol.const_enum_only_module == Some(true)
@@ -665,7 +857,7 @@ impl<'a> CheckerState<'a> {
                 };
                 if let Some(module_reference) = module_reference {
                     let first = self.first_identifier(module_reference);
-                    let _ = self.check_identifier(first, CheckMode::NORMAL)?;
+                    self.mark_identifier_alias_referenced(first)?;
                 }
             }
         }
@@ -821,6 +1013,18 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 4a0a82f7bec6c25bc28c40fceffea2c758445b4881b1de469dc5c6a826c59d26
     /// tsc-span: _tsc.js:71836-71840
     fn mark_import_equals_alias_referenced(&mut self, location: NodeId) -> CheckResult<()> {
+        // This helper is the collapsed `markLinkedReferences(location,
+        // ExportImportEquals)` front door. Preserve that front door's
+        // ambient-declaration guard before dispatching the hint: ambient
+        // imports participate in type resolution, but do not collect the
+        // value-side alias accessibility graph used by declaration emit.
+        if self
+            .binder
+            .flags_of(location)
+            .intersects(tsc_types::NodeFlags::AMBIENT)
+        {
+            return Ok(());
+        }
         if node_util::has_syntactic_modifier(
             self.binder.source_of_node(location),
             location,
@@ -2152,34 +2356,7 @@ impl<'a> CheckerState<'a> {
         node: NodeId,
         name: NodeId,
     ) -> CheckResult<()> {
-        // getFullyQualifiedName(moduleSymbol, node): at an
-        // import/export specifier the location-aware symbol builder
-        // selects the written module specifier rather than exposing
-        // the resolved source-file symbol name.
-        let merged_module_symbol = self.get_merged_symbol(module_symbol);
-        let is_pattern_ambient_module =
-            self.pattern_ambient_modules
-                .iter()
-                .any(|(_, _, pattern_symbol)| {
-                    self.get_merged_symbol(*pattern_symbol) == merged_module_symbol
-                });
-        let module_name = if is_pattern_ambient_module {
-            // A concrete written specifier such as "b.foo" resolves
-            // through the "*.foo" declaration. getFullyQualifiedName
-            // reports the declaration pattern in this case.
-            self.get_fully_qualified_name(module_symbol)
-        } else {
-            self.get_external_module_name_of(node)
-                .or_else(|| self.get_module_specifier_for_import_or_export(node))
-                .filter(|&specifier| self.kind_of(specifier) == SyntaxKind::StringLiteral)
-                .map(|specifier| {
-                    node_util::declaration_name_to_string(
-                        self.binder.source_of_node(specifier),
-                        Some(specifier),
-                    )
-                })
-                .unwrap_or_else(|| self.get_fully_qualified_name(module_symbol))
-        };
+        let module_name = self.fully_qualified_module_name_at(module_symbol, node)?;
         // declarationNameToString preserves arbitrary module export
         // names as written, including the quotes on string literals.
         let declaration_name =
@@ -2225,6 +2402,46 @@ impl<'a> CheckerState<'a> {
             self.report_non_exported_member(name, &declaration_name, module_symbol, &module_name)?;
         }
         Ok(())
+    }
+
+    /// `getFullyQualifiedName(moduleSymbol, containingLocation)`'s
+    /// external-module display face.
+    ///
+    /// At an import/export location tsc's node builder resolves the module
+    /// symbol back to the location's cooked specifier, creates a synthetic
+    /// StringLiteral, and lets the printer render it. That boundary always
+    /// uses double quotes and escapes the cooked value; copying the source
+    /// range would retain single quotes (and, for malformed ranges, can even
+    /// duplicate them). Pattern ambient modules are different: their symbol
+    /// denotes the declaration pattern, not the concrete importing spelling.
+    fn fully_qualified_module_name_at(
+        &self,
+        module_symbol: SymbolId,
+        containing_location: NodeId,
+    ) -> CheckResult<String> {
+        let merged_module_symbol = self.get_merged_symbol(module_symbol);
+        let is_pattern_ambient_module =
+            self.pattern_ambient_modules
+                .iter()
+                .any(|(_, _, pattern_symbol)| {
+                    self.get_merged_symbol(*pattern_symbol) == merged_module_symbol
+                });
+        if is_pattern_ambient_module {
+            // A concrete written specifier such as "b.foo" resolves
+            // through the "*.foo" declaration. getFullyQualifiedName
+            // reports the declaration pattern in this case.
+            return Ok(self.get_fully_qualified_name(module_symbol));
+        }
+
+        let specifier = self
+            .get_external_module_name_of(containing_location)
+            .or_else(|| self.get_module_specifier_for_import_or_export(containing_location));
+        if let Some(NodeData::StringLiteral(data)) =
+            specifier.map(|specifier| self.data_of(specifier))
+        {
+            return crate::check::string_literal_name_slice(&data.text, false);
+        }
+        Ok(self.get_fully_qualified_name(module_symbol))
     }
 
     /// tsc-port: reportNonExportedMember @6.0.3
@@ -3116,7 +3333,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getSymbolIfSameReference @6.0.3
     /// tsc-hash: 908084bf7d1f72b02a8256627f01987eb8cd0a6897b9c7027f0cac3f156f5d3d
     /// tsc-span: _tsc.js:50084-50088
-    fn get_symbol_if_same_reference(
+    pub(crate) fn get_symbol_if_same_reference(
         &mut self,
         s1: SymbolId,
         s2: SymbolId,
@@ -4015,11 +4232,19 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isExternalModuleNameRelative @6.0.3
     /// tsc-hash: e5546324dce58e277ab9df485e26bb2c9cafa5a7e7b154366be6fc45784ad14d
     /// tsc-span: _tsc.js:11234-11236
-    fn is_external_module_name_relative(module_name: &str) -> bool {
-        module_name.starts_with("./")
+    pub(crate) fn is_external_module_name_relative(module_name: &str) -> bool {
+        let path_is_relative = module_name.starts_with("./")
+            || module_name.starts_with(".\\")
             || module_name.starts_with("../")
+            || module_name.starts_with("..\\")
             || module_name == "."
-            || module_name == ".."
+            || module_name == "..";
+        let bytes = module_name.as_bytes();
+        let is_rooted_disk_path = matches!(bytes.first(), Some(b'/' | b'\\'))
+            || (bytes.first().is_some_and(u8::is_ascii_alphabetic)
+                && bytes.get(1) == Some(&b':')
+                && (bytes.len() == 2 || matches!(bytes.get(2), Some(b'/' | b'\\'))));
+        path_is_relative || is_rooted_disk_path
     }
 
     /// tsc-port: getCannotResolveModuleNameErrorForSpecificModule @6.0.3
@@ -4165,7 +4390,17 @@ impl<'a> CheckerState<'a> {
                     alternate_result: untyped.alternate_result,
                     types_package_exists: untyped.types_package_exists,
                     package_bundles_types: untyped.package_bundles_types,
-                    resolution_diagnostic: untyped.resolution_diagnostic,
+                    resolution_diagnostic: None,
+                })
+            }
+            Ok(crate::AuthoritativeModuleResolution::ResolutionDiagnostic(diagnostic)) => {
+                ProgramModuleResolution::Untyped(UntypedModuleResolution {
+                    resolved_file_name: diagnostic.resolved_file_name,
+                    package_name: None,
+                    alternate_result: None,
+                    types_package_exists: false,
+                    package_bundles_types: false,
+                    resolution_diagnostic: Some(diagnostic.diagnostic),
                 })
             }
             Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => {
@@ -5775,28 +6010,22 @@ impl<'a> CheckerState<'a> {
         None
     }
 
-    /// tsrs-native: path normalization for the resolver seam —
-    /// absolute-izes against `base_dir` (harness cwd is `/`), collapses
-    /// `.`/`..` segments.
+    /// Path normalization for the resolver seam. The shared program-layer
+    /// worker implements tsc's lexical POSIX, drive, UNC, and URL roots; this
+    /// checker adapter only supplies its historical absolute default base.
+    ///
+    /// tsc-port: getEncodedRootLength @6.0.3
+    /// tsc-hash: 538f15da938ce9f7bcd6aa26f945cffe1cadbc12095e8666dab9ca62320a13e2
+    /// tsc-span: _tsc.js:5349-5378
+    ///
+    /// tsc-port: getNormalizedAbsolutePath @6.0.3
+    /// tsc-hash: 984d55d901c0fcfbb442672de7c96b0bcfb4e8312c085993256e5b250837fe71
+    /// tsc-span: _tsc.js:5493-5548
     pub(crate) fn normalize_program_path(path: &str, base_dir: &str) -> String {
-        let path = path.replace('\\', "/");
-        let base_dir = base_dir.replace('\\', "/");
-        let joined = if path.starts_with('/') {
-            path
-        } else {
-            format!("{base_dir}/{path}")
-        };
-        let mut segments: Vec<&str> = Vec::new();
-        for segment in joined.split('/') {
-            match segment {
-                "" | "." => {}
-                ".." => {
-                    segments.pop();
-                }
-                other => segments.push(other),
-            }
-        }
-        format!("/{}", segments.join("/"))
+        let path = if path.is_empty() { "." } else { path };
+        let base_dir = if base_dir.is_empty() { "/" } else { base_dir };
+        tsc_program::normalize_absolute_path_lexical(std::path::Path::new(path), Some(base_dir))
+            .expect("checker program paths have a rooted lexical base")
     }
 
     /// tsrs-native: lexical getRelativePathFromFile over normalized
@@ -7268,9 +7497,9 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:85840-85924
     ///
     /// addLazyDiagnostic = eager identity (5.4). The
-    /// verbatimModuleSyntax/CommonJS row is live for instantiated
-    /// namespaces; erasableSyntaxOnly and the isolatedModules
-    /// global-script row remain outside this slice. A module body is
+    /// verbatimModuleSyntax/CommonJS and erasableSyntaxOnly rows are live for
+    /// instantiated namespaces; the isolatedModules global-script row remains
+    /// outside this slice. A module body is
     /// registered for deferred unused checking after its elements are
     /// checked; global augmentations are excluded.
     pub(crate) fn check_module_declaration(&mut self, node: NodeId) -> CheckResult<()> {
@@ -7347,8 +7576,15 @@ impl<'a> CheckerState<'a> {
             && !in_ambient_context
             && self.is_instantiated_module(node)
         {
-            // erasableSyntaxOnly / isolatedModules global-script rows:
-            // options unmodeled — dead.
+            if self.options.erasable_syntax_only == Some(true) {
+                self.error_at(
+                    Some(name),
+                    &diagnostics::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
+                    &[],
+                );
+            }
+            // The isolatedModules global-script row remains outside this
+            // slice.
             if self.binder.symbol(symbol).declarations.len() > 1 {
                 let first_non_ambient =
                     self.get_first_non_ambient_class_or_function_declaration(symbol);
@@ -8760,9 +8996,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 917a3ecc1c32fbf5aaef34a7341ab5a1f9ae58bd9a73123726ae69689ac60388
     /// tsc-span: _tsc.js:86268-86302
     ///
-    /// erasableSyntaxOnly is unmodeled-dead. The exported-alias
-    /// accessibility mark is live; markLinkedReferences' declaration-emit
-    /// traversal remains outside this checker slice.
+    /// Non-ambient import-equals declarations require runtime syntax and fail
+    /// erasableSyntaxOnly before internal/external reference checking. The
+    /// exported-alias accessibility mark is live; markLinkedReferences'
+    /// declaration-emit traversal remains outside this checker slice.
     pub(crate) fn check_import_equals_declaration(&mut self, node: NodeId) -> CheckResult<()> {
         if self.check_grammar_module_element_context(
             node,
@@ -8771,6 +9008,18 @@ impl<'a> CheckerState<'a> {
             return Ok(());
         }
         let _ = self.check_grammar_modifiers(node);
+        if self.options.erasable_syntax_only == Some(true)
+            && !self
+                .binder
+                .flags_of(node)
+                .intersects(tsc_types::NodeFlags::AMBIENT)
+        {
+            self.error_at(
+                Some(node),
+                &diagnostics::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
+                &[],
+            );
+        }
         let is_internal = self.is_internal_module_import_equals_declaration(node);
         if is_internal || self.check_external_import_or_export_declaration(node)? {
             self.check_import_binding(node)?;
@@ -9058,9 +9307,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2481cb70fb33663829bfdf493fafea233783acafbd6069e1e83a2f85c5cf1a19
     /// tsc-span: _tsc.js:86391-86501
     ///
-    /// erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc
-    /// type-annotation arm remain outside the modeled option/syntax
-    /// surface. The verbatimModuleSyntax and isolatedModules
+    /// collectLinkedAliases (emit) and the JSDoc type-annotation arm remain
+    /// outside the modeled option/syntax surface. erasableSyntaxOnly rejects
+    /// non-ambient export-equals before the declaration-container checks. The
+    /// verbatimModuleSyntax and isolatedModules
     /// type-only faces are live, including the CommonJS
     /// export-default diagnostic. The export= tail must use
     /// getImpliedNodeFormatForEmit: package.json `type` affects
@@ -9078,6 +9328,19 @@ impl<'a> CheckerState<'a> {
         };
         if self.check_grammar_module_element_context(node, illegal_context_message) {
             return Ok(());
+        }
+        if self.options.erasable_syntax_only == Some(true)
+            && is_export_equals
+            && !self
+                .binder
+                .flags_of(node)
+                .intersects(tsc_types::NodeFlags::AMBIENT)
+        {
+            self.error_at(
+                Some(node),
+                &diagnostics::This_syntax_is_not_allowed_when_erasableSyntaxOnly_is_enabled,
+                &[],
+            );
         }
         let container = match self.parent_of(node) {
             Some(parent) if self.kind_of(parent) == SyntaxKind::SourceFile => parent,
@@ -9105,7 +9368,16 @@ impl<'a> CheckerState<'a> {
             }
             return Ok(());
         }
-        let _ = self.check_grammar_modifiers(node);
+        let source = self.binder.source_of_node(node);
+        let has_effective_modifiers =
+            node_util::get_effective_modifier_flags(source, node) != ModifierFlags::NONE;
+        if !self.check_grammar_modifiers(node) && has_effective_modifiers {
+            self.grammar_error_on_first_token(
+                node,
+                &diagnostics::An_export_assignment_cannot_have_modifiers,
+                &[],
+            );
+        }
         let expression = match self.data_of(node) {
             NodeData::ExportAssignment(data) => data.expression,
             _ => None,

@@ -4,6 +4,7 @@ use tsc_types::{CompilerOptions, ObjectFlags, TypeData, TypeFlags, TypeId};
 use crate::relpin::find_probe_annotation;
 use crate::state::test_support::with_program_state;
 use crate::state::CheckerState;
+use crate::{check_program, InputFile};
 
 fn annotation_type(state: &mut CheckerState, name: &str) -> (NodeId, TypeId) {
     let annotation = find_probe_annotation(state.binder.source(0), name)
@@ -125,5 +126,40 @@ fn mapped_type_modifiers_participate_in_identity() {
                 .is_type_identical_to(plain, optional)
                 .expect("mapped modifiers participate in identity"));
         },
+    );
+}
+
+#[test]
+fn generic_mapped_types_are_not_valid_interface_bases() {
+    let text = concat!(
+        "type GenericMapped<K extends string> = { [P in K]: unknown };\n",
+        "type FixedMapped = { [P in 'fixed']: unknown };\n",
+        "type WithFixed<K extends string> = GenericMapped<K> & { fixed: unknown };\n",
+        "interface Direct<K extends string> extends GenericMapped<K> {}\n",
+        "interface ThroughConstraint<K extends string, T extends GenericMapped<K>> extends T {}\n",
+        "interface ThroughIntersection<K extends string> extends WithFixed<K> {}\n",
+        "interface Fixed extends FixedMapped {}\n",
+    );
+    let result = check_program(
+        &[InputFile::new("a.ts".to_owned(), text.to_owned())],
+        &CompilerOptions::default(),
+    );
+
+    let diagnostics = result
+        .diagnostics
+        .iter()
+        .map(|diagnostic| {
+            let start = diagnostic.start.expect("heritage diagnostic start") as usize;
+            let end = start + diagnostic.length.expect("heritage diagnostic length") as usize;
+            (diagnostic.code(), &text[start..end])
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        diagnostics,
+        [
+            (2312, "GenericMapped<K>"),
+            (2312, "T"),
+            (2312, "WithFixed<K>"),
+        ]
     );
 }

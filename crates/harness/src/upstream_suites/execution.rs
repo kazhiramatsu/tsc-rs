@@ -12,7 +12,7 @@
 //! order. This adapter is not the future general filesystem `matchFiles` host.
 
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -26,9 +26,9 @@ use tsc_host::{
 };
 use tsc_program::{
     load_emitting_program, load_program, parse_config_root_plan, CompilerOptionNumber,
-    CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation, ConfigParseHost,
-    ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog, ModuleSuffix, PreparedProgram,
-    ProgramLoadLimits, ProgramOptions, ProgramPath,
+    CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
+    ConfigOptionValueState, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
+    ModuleSuffix, PreparedProgram, ProgramLoadLimits, ProgramOptions, ProgramPath,
 };
 
 use super::compiler::{
@@ -119,6 +119,11 @@ pub fn load_qualified_compiler_emit(
             )));
         }
     }
+    for directory in
+        compiler_vfs_trailing_directory_aliases(unique_paths.iter().map(PathBuf::as_path))?
+    {
+        host_builder = host_builder.directory(directory);
+    }
     let fixture_host = host_builder.build().map_err(|host_error| {
         error(format!(
             "failed to build qualified compiler fixture host: {host_error}"
@@ -127,17 +132,22 @@ pub fn load_qualified_compiler_emit(
     let library_directory = workspace.join("vendor/typescript-6.0.3/lib");
     let host = CompilerSuiteHost::new(workspace, fixture_host, library_directory.clone(), true)?;
 
-    let mut compiler_options = CompilerOptions::default();
+    let mut compiler_options = CompilerOptions {
+        // H2's qualification host starts from this harness default before
+        // applying fixture settings. An explicit false must still win.
+        skip_default_lib_check: Some(true),
+        ..CompilerOptions::default()
+    };
     let mut program_options = ProgramOptions::default();
-    for (name, value) in settings {
-        apply_compiler_setting(
-            &mut compiler_options,
-            &mut program_options,
-            current_directory,
-            name,
-            value,
-        )?;
-    }
+    apply_compiler_settings(
+        &mut compiler_options,
+        &mut program_options,
+        current_directory,
+        settings
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_str())),
+        false,
+    )?;
     compiler_options.new_line.get_or_insert(0);
     compiler_options.no_error_truncation = Some(true);
     let catalog = LibraryCatalog::typescript_6_0_3(library_directory);
@@ -187,7 +197,7 @@ fn load_compiler_program(
             .units
             .get(unit_id.0 as usize)
             .ok_or_else(|| error("compiler VFS unit is out of bounds"))?;
-        let path = normalize_virtual_path(current_directory, unit.name.as_ref())?;
+        let path = normalize_compiler_fixture_path(current_directory, unit.name.as_ref())?;
         let Some(content) = unit.content.as_ref() else {
             continue;
         };
@@ -232,6 +242,11 @@ fn load_compiler_program(
     }
     for (link, target) in realpath_overrides {
         host_builder = host_builder.realpath(link, target);
+    }
+    for directory in compiler_vfs_trailing_directory_aliases(
+        source_paths.keys().map(|path| Path::new(path.as_str())),
+    )? {
+        host_builder = host_builder.directory(directory);
     }
     let fixture_host = host_builder.build().map_err(|host_error| {
         error(format!(
@@ -285,6 +300,30 @@ fn load_compiler_program(
             plan.fixture.source.relative_path, plan.variant.key
         ))
     })
+}
+
+/// The upstream compiler runner's virtual filesystem treats a directory path
+/// with or without its final separator as one directory. MemoryCompilerHost
+/// intentionally preserves exact host queries, so the adapter materializes
+/// the second spelling instead of weakening the host or resolver contracts.
+fn compiler_vfs_trailing_directory_aliases<'path>(
+    paths: impl IntoIterator<Item = &'path Path>,
+) -> HarnessResult<BTreeSet<PathBuf>> {
+    let mut aliases = BTreeSet::new();
+    for path in paths {
+        for directory in path.ancestors().skip(1) {
+            if directory == Path::new("/") {
+                continue;
+            }
+            let text = directory.to_str().ok_or_else(|| {
+                error(format!(
+                    "compiler VFS directory is not valid Unicode: {directory:?}"
+                ))
+            })?;
+            aliases.insert(PathBuf::from(format!("{text}/")));
+        }
+    }
+    Ok(aliases)
 }
 
 /// Compiler-runner VFS with the exact vendored library directory mounted
@@ -408,7 +447,7 @@ fn compiler_root_paths(plan: &CompilerExecutionPlan) -> HarnessResult<Vec<PathBu
                 .units
                 .get(id.0 as usize)
                 .ok_or_else(|| error("compiler root unit is out of bounds"))?;
-            normalize_virtual_path(plan.current_directory.as_ref(), unit.name.as_ref())
+            normalize_compiler_fixture_path(plan.current_directory.as_ref(), unit.name.as_ref())
                 .map(PathBuf::from)
         })
         .collect()
@@ -417,28 +456,130 @@ fn compiler_root_paths(plan: &CompilerExecutionPlan) -> HarnessResult<Vec<PathBu
 fn plan_compiler_options(
     plan: &CompilerExecutionPlan,
 ) -> HarnessResult<(CompilerOptions, ProgramOptions)> {
-    let (mut compiler_options, mut program_options) = plan
-        .fixture
+    let (compiler_options, mut program_options) = project_compiler_options(
+        &plan.fixture,
+        &plan.effective_settings,
+        plan.current_directory.as_ref(),
+    )?;
+
+    if plan.fixture.config_root_plan.is_some() {
+        // CompilerBaselineRunner passes the parsed config source through to
+        // createProgram after applying harness settings. The Program must
+        // therefore verify the effective values while retaining config syntax
+        // solely as diagnostic provenance.
+        program_options = program_options.with_program_owned_config_option_diagnostics();
+    }
+    Ok((compiler_options, program_options))
+}
+
+fn project_compiler_options(
+    fixture: &CompilerFixtureInput,
+    settings: &[OrderedSetting],
+    current_directory: &str,
+) -> HarnessResult<(CompilerOptions, ProgramOptions)> {
+    let (mut compiler_options, mut program_options, config_has_explicit_allow_js) = fixture
         .config_root_plan
         .as_ref()
         .map(|config| {
             (
                 config.compiler_options().clone(),
                 config.program_options().clone(),
+                matches!(
+                    config.options().typed_value_state("allowJs"),
+                    ConfigOptionValueState::Value(value) if value.is_boolean()
+                ),
             )
         })
-        .unwrap_or_else(|| (CompilerOptions::default(), ProgramOptions::default()));
+        .unwrap_or_else(|| (CompilerOptions::default(), ProgramOptions::default(), false));
 
-    for setting in plan.effective_settings.iter() {
+    // CompilerBaselineRunner's effective-options contract defaults this to
+    // true only when the config did not supply a value. Fixture settings are
+    // applied below and retain the final override.
+    compiler_options.skip_default_lib_check.get_or_insert(true);
+    apply_compiler_settings(
+        &mut compiler_options,
+        &mut program_options,
+        current_directory,
+        settings
+            .iter()
+            .map(|setting| (setting.name.as_str(), setting.value.as_str())),
+        config_has_explicit_allow_js,
+    )?;
+    Ok((compiler_options, program_options))
+}
+
+/// Apply an ordered compiler-runner setting layer, then materialize tsc's
+/// computed `allowJs` value once at the boundary. `CompilerOptions::allow_js`
+/// is the effective Rust value; retaining whether a lower layer explicitly
+/// supplied `allowJs` here prevents `checkJs` from overriding an explicit
+/// false while still giving an absent `allowJs` the tsc default.
+fn apply_compiler_settings<'setting>(
+    compiler_options: &mut CompilerOptions,
+    program_options: &mut ProgramOptions,
+    current_directory: &str,
+    settings: impl IntoIterator<Item = (&'setting str, &'setting str)>,
+    lower_layer_has_explicit_allow_js: bool,
+) -> HarnessResult<()> {
+    let mut has_explicit_allow_js = lower_layer_has_explicit_allow_js;
+    for (name, value) in settings {
+        let key = CompilerFixtureOptionKey::new(name);
+        has_explicit_allow_js |= key.as_str() == "allowjs";
         apply_compiler_setting(
-            &mut compiler_options,
-            &mut program_options,
-            plan.current_directory.as_ref(),
-            &setting.name,
-            &setting.value,
+            compiler_options,
+            program_options,
+            current_directory,
+            name,
+            value,
         )?;
     }
-    Ok((compiler_options, program_options))
+    if !has_explicit_allow_js {
+        compiler_options.allow_js = compiler_options.check_js.unwrap_or(false);
+    }
+    Ok(())
+}
+
+/// Canonical lookup key for a compiler-runner setting.
+///
+/// TypeScript's compiler test harness resolves option declarations without
+/// regard to ASCII case. Keeping that policy at this boundary avoids growing
+/// spelling aliases throughout the projection below and gives newly admitted
+/// canonical options the same lookup semantics automatically.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CompilerFixtureOptionKey(Box<str>);
+
+impl CompilerFixtureOptionKey {
+    fn new(raw_name: &str) -> Self {
+        Self(raw_name.to_ascii_lowercase().into_boxed_str())
+    }
+
+    fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Compiler-runner metadata that controls baseline comparison rather than a
+/// [`CompilerOptions`] or [`ProgramOptions`] value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum CompilerBaselineMetadata {
+    SuppressOutputPathCheck,
+}
+
+impl CompilerBaselineMetadata {
+    fn lookup(key: &CompilerFixtureOptionKey) -> Option<Self> {
+        match key.as_str() {
+            "suppressoutputpathcheck" => Some(Self::SuppressOutputPathCheck),
+            _ => None,
+        }
+    }
+
+    fn validate(self, raw_name: &str, value: &str) -> HarnessResult<()> {
+        match self {
+            Self::SuppressOutputPathCheck => {
+                parse_compiler_bool(raw_name, value)?;
+            }
+        }
+        Ok(())
+    }
 }
 
 fn apply_compiler_setting(
@@ -448,14 +589,18 @@ fn apply_compiler_setting(
     name: &str,
     value: &str,
 ) -> HarnessResult<()> {
+    let key = CompilerFixtureOptionKey::new(name);
+    if let Some(metadata) = CompilerBaselineMetadata::lookup(&key) {
+        return metadata.validate(name, value);
+    }
     let boolean = || parse_compiler_bool(name, value);
-    match name {
-        "allowJs" | "allowJS" | "allowjs" => compiler_options.allow_js = boolean()?,
-        "checkJs" | "checkjs" => compiler_options.check_js = Some(boolean()?),
-        "forceConsistentCasingInFileNames" => {
+    match key.as_str() {
+        "allowjs" => compiler_options.allow_js = boolean()?,
+        "checkjs" => compiler_options.check_js = Some(boolean()?),
+        "forceconsistentcasinginfilenames" => {
             compiler_options.force_consistent_casing_in_file_names = Some(boolean()?)
         }
-        "maxNodeModuleJsDepth" => {
+        "maxnodemodulejsdepth" => {
             compiler_options.max_node_module_js_depth = Some(CompilerOptionNumber::new(
                 value.parse::<f64>().map_err(|_| {
                     error(format!(
@@ -464,25 +609,22 @@ fn apply_compiler_setting(
                 })?,
             ))
         }
-        "experimentalDecorators" | "experimentaldecorators" => {
-            compiler_options.experimental_decorators = boolean()?
-        }
-        "emitDecoratorMetadata" | "emitdecoratormetadata" => {
-            compiler_options.emit_decorator_metadata = Some(boolean()?)
-        }
+        "experimentaldecorators" => compiler_options.experimental_decorators = boolean()?,
+        "emitdecoratormetadata" => compiler_options.emit_decorator_metadata = Some(boolean()?),
         "target" => compiler_options.target = Some(parse_target(value)?),
         "module" => compiler_options.module = Some(parse_module(value)?),
-        "moduleResolution" => {
+        "moduleresolution" => {
             compiler_options.module_resolution = Some(parse_module_resolution(value)?)
         }
-        "moduleDetection" => {
+        "moduledetection" => {
             compiler_options.module_detection = Some(parse_module_detection(value)?)
         }
         "jsx" => compiler_options.jsx = Some(parse_jsx(value)?),
-        "noEmit" | "noemit" => compiler_options.no_emit = Some(boolean()?),
-        "noResolve" | "noresolve" => compiler_options.no_resolve = Some(boolean()?),
-        "noLib" => *program_options = program_options.clone().with_no_lib(boolean()?),
-        "preserveSymlinks" => {
+        "noemit" => compiler_options.no_emit = Some(boolean()?),
+        "noresolve" => compiler_options.no_resolve = Some(boolean()?),
+        "erasablesyntaxonly" => compiler_options.erasable_syntax_only = Some(boolean()?),
+        "nolib" => *program_options = program_options.clone().with_no_lib(boolean()?),
+        "preservesymlinks" => {
             *program_options = program_options.clone().with_preserve_symlinks(boolean()?)
         }
         "lib" => {
@@ -495,6 +637,7 @@ fn apply_compiler_setting(
                     .collect(),
             )
         }
+        "libreplacement" => compiler_options.lib_replacement = Some(boolean()?),
         "types" => {
             *program_options = program_options.clone().with_types(
                 value
@@ -505,55 +648,79 @@ fn apply_compiler_setting(
                     .collect(),
             )
         }
-        "typeRoots" => {
+        "typeroots" => {
             *program_options = program_options
                 .clone()
                 .with_type_roots(parse_virtual_program_paths(current_directory, value, name)?)
         }
         "strict" => compiler_options.strict = Some(boolean()?),
-        "strictNullChecks" => compiler_options.strict_null_checks = Some(boolean()?),
-        "strictFunctionTypes" => compiler_options.strict_function_types = Some(boolean()?),
-        "noImplicitAny" | "noimplicitany" => compiler_options.no_implicit_any = Some(boolean()?),
-        "noImplicitThis" => compiler_options.no_implicit_this = Some(boolean()?),
-        "noImplicitOverride" => compiler_options.no_implicit_override = Some(boolean()?),
-        "strictBindCallApply" => compiler_options.strict_bind_call_apply = Some(boolean()?),
-        "exactOptionalPropertyTypes" => {
+        "strictnullchecks" => compiler_options.strict_null_checks = Some(boolean()?),
+        "strictfunctiontypes" => compiler_options.strict_function_types = Some(boolean()?),
+        "noimplicitany" => compiler_options.no_implicit_any = Some(boolean()?),
+        "noimplicitthis" => compiler_options.no_implicit_this = Some(boolean()?),
+        "noimplicitoverride" => compiler_options.no_implicit_override = Some(boolean()?),
+        "strictbindcallapply" => compiler_options.strict_bind_call_apply = Some(boolean()?),
+        "exactoptionalpropertytypes" => {
             compiler_options.exact_optional_property_types = Some(boolean()?)
         }
-        "noFallthroughCasesInSwitch" => {
+        "nofallthroughcasesinswitch" => {
             compiler_options.no_fallthrough_cases_in_switch = Some(boolean()?)
         }
-        "noImplicitReturns" => compiler_options.no_implicit_returns = Some(boolean()?),
-        "noUnusedLocals" => compiler_options.no_unused_locals = Some(boolean()?),
-        "noUnusedParameters" => compiler_options.no_unused_parameters = Some(boolean()?),
-        "allowUnreachableCode" => compiler_options.allow_unreachable_code = Some(boolean()?),
-        "allowUnusedLabels" => compiler_options.allow_unused_labels = Some(boolean()?),
-        "noUncheckedIndexedAccess" => {
+        "noimplicitreturns" => compiler_options.no_implicit_returns = Some(boolean()?),
+        "nounusedlocals" => compiler_options.no_unused_locals = Some(boolean()?),
+        "nounusedparameters" => compiler_options.no_unused_parameters = Some(boolean()?),
+        "allowunreachablecode" => compiler_options.allow_unreachable_code = Some(boolean()?),
+        "allowunusedlabels" => compiler_options.allow_unused_labels = Some(boolean()?),
+        "nouncheckedindexedaccess" => {
             compiler_options.no_unchecked_indexed_access = Some(boolean()?)
         }
-        "noPropertyAccessFromIndexSignature" => {
+        "nopropertyaccessfromindexsignature" => {
             compiler_options.no_property_access_from_index_signature = Some(boolean()?)
         }
-        "noUncheckedSideEffectImports" => {
+        "nouncheckedsideeffectimports" => {
             compiler_options.no_unchecked_side_effect_imports = Some(boolean()?)
         }
-        "strictPropertyInitialization" => {
+        "strictpropertyinitialization" => {
             compiler_options.strict_property_initialization = Some(boolean()?)
         }
-        "useDefineForClassFields" => {
+        "usedefineforclassfields" => {
             compiler_options.use_define_for_class_fields = Some(boolean()?)
         }
-        "useUnknownInCatchVariables" => {
+        "useunknownincatchvariables" => {
             compiler_options.use_unknown_in_catch_variables = Some(boolean()?)
         }
-        "alwaysStrict" => compiler_options.always_strict = Some(boolean()?),
-        "noErrorTruncation" => compiler_options.no_error_truncation = Some(boolean()?),
-        "importHelpers" => compiler_options.import_helpers = Some(boolean()?),
-        "downlevelIteration" => compiler_options.downlevel_iteration = Some(boolean()?),
-        "strictBuiltinIteratorReturn" => {
+        "alwaysstrict" => compiler_options.always_strict = Some(boolean()?),
+        "noimplicitusestrict" => compiler_options.no_implicit_use_strict = Some(boolean()?),
+        "keyofstringsonly" => compiler_options.keyof_strings_only = Some(boolean()?),
+        "suppressexcesspropertyerrors" => {
+            compiler_options.suppress_excess_property_errors = Some(boolean()?)
+        }
+        "suppressimplicitanyindexerrors" => {
+            compiler_options.suppress_implicit_any_index_errors = Some(boolean()?)
+        }
+        "nostrictgenericchecks" => compiler_options.no_strict_generic_checks = Some(boolean()?),
+        "preservevalueimports" => compiler_options.preserve_value_imports = Some(boolean()?),
+        "importsnotusedasvalues" => {
+            compiler_options.imports_not_used_as_values =
+                Some(match value.to_ascii_lowercase().as_str() {
+                    "remove" => 0,
+                    "preserve" => 1,
+                    "error" => 2,
+                    _ => value.parse::<i32>().map_err(|_| {
+                        error(format!(
+                            "compiler option importsNotUsedAsValues has invalid value {value:?}"
+                        ))
+                    })?,
+                })
+        }
+        "charset" => compiler_options.charset = Some(value.to_owned()),
+        "noerrortruncation" => compiler_options.no_error_truncation = Some(boolean()?),
+        "importhelpers" => compiler_options.import_helpers = Some(boolean()?),
+        "downleveliteration" => compiler_options.downlevel_iteration = Some(boolean()?),
+        "strictbuiltiniteratorreturn" => {
             compiler_options.strict_builtin_iterator_return = Some(boolean()?)
         }
-        "moduleSuffixes" => {
+        "modulesuffixes" => {
             compiler_options.module_suffixes = Some(
                 value
                     .split(',')
@@ -561,39 +728,50 @@ fn apply_compiler_setting(
                     .collect(),
             )
         }
-        "resolvePackageJsonExports" => {
+        "resolvepackagejsonexports" => {
             compiler_options.resolve_package_json_exports = Some(boolean()?)
         }
-        "resolvePackageJsonImports" => {
+        "resolvepackagejsonimports" => {
             compiler_options.resolve_package_json_imports = Some(boolean()?)
         }
-        "noDtsResolution" => compiler_options.no_dts_resolution = Some(boolean()?),
-        "allowArbitraryExtensions" => {
+        "customconditions" => {
+            compiler_options.custom_conditions = Some(
+                value
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|entry| !entry.is_empty())
+                    .map(str::to_owned)
+                    .collect(),
+            )
+        }
+        "nodtsresolution" => compiler_options.no_dts_resolution = Some(boolean()?),
+        "allowarbitraryextensions" => {
             compiler_options.allow_arbitrary_extensions = Some(boolean()?)
         }
-        "allowImportingTsExtensions" => {
+        "allowimportingtsextensions" => {
             compiler_options.allow_importing_ts_extensions = Some(boolean()?)
         }
-        "rewriteRelativeImportExtensions" => {
+        "rewriterelativeimportextensions" => {
             compiler_options.rewrite_relative_import_extensions = Some(boolean()?)
         }
-        "resolveJsonModule" => compiler_options.resolve_json_module = Some(boolean()?),
-        "skipLibCheck" => compiler_options.skip_lib_check = Some(boolean()?),
-        "esModuleInterop" => compiler_options.es_module_interop = Some(boolean()?),
-        "allowSyntheticDefaultImports" => {
+        "resolvejsonmodule" => compiler_options.resolve_json_module = Some(boolean()?),
+        "skiplibcheck" => compiler_options.skip_lib_check = Some(boolean()?),
+        "skipdefaultlibcheck" => compiler_options.skip_default_lib_check = Some(boolean()?),
+        "esmoduleinterop" => compiler_options.es_module_interop = Some(boolean()?),
+        "allowsyntheticdefaultimports" => {
             compiler_options.allow_synthetic_default_imports = Some(boolean()?)
         }
-        "preserveConstEnums" => compiler_options.preserve_const_enums = Some(boolean()?),
-        "isolatedModules" => compiler_options.isolated_modules = Some(boolean()?),
-        "verbatimModuleSyntax" => compiler_options.verbatim_module_syntax = Some(boolean()?),
-        "allowUmdGlobalAccess" => compiler_options.allow_umd_global_access = Some(boolean()?),
-        "baseUrl" => compiler_options.base_url = Some(value.to_owned()),
-        "jsxFactory" | "jsxfactory" => compiler_options.jsx_factory = Some(value.to_owned()),
-        "jsxFragmentFactory" => compiler_options.jsx_fragment_factory = Some(value.to_owned()),
-        "jsxImportSource" => compiler_options.jsx_import_source = Some(value.to_owned()),
-        "reactNamespace" => compiler_options.react_namespace = Some(value.to_owned()),
-        "ignoreDeprecations" => compiler_options.ignore_deprecations = Some(value.to_owned()),
-        "newLine" => {
+        "preserveconstenums" => compiler_options.preserve_const_enums = Some(boolean()?),
+        "isolatedmodules" => compiler_options.isolated_modules = Some(boolean()?),
+        "verbatimmodulesyntax" => compiler_options.verbatim_module_syntax = Some(boolean()?),
+        "allowumdglobalaccess" => compiler_options.allow_umd_global_access = Some(boolean()?),
+        "baseurl" => compiler_options.base_url = Some(value.to_owned()),
+        "jsxfactory" => compiler_options.jsx_factory = Some(value.to_owned()),
+        "jsxfragmentfactory" => compiler_options.jsx_fragment_factory = Some(value.to_owned()),
+        "jsximportsource" => compiler_options.jsx_import_source = Some(value.to_owned()),
+        "reactnamespace" => compiler_options.react_namespace = Some(value.to_owned()),
+        "ignoredeprecations" => compiler_options.ignore_deprecations = Some(value.to_owned()),
+        "newline" => {
             compiler_options.new_line = Some(match value.to_ascii_lowercase().as_str() {
                 "crlf" => 0,
                 "lf" => 1,
@@ -604,69 +782,45 @@ fn apply_compiler_setting(
                 }
             })
         }
-        "noEmitHelpers"
-        | "noEmitOnError"
-        | "declaration"
-        | "declarationMap"
-        | "emitDeclarationOnly"
-        | "sourceMap"
-        | "inlineSourceMap"
-        | "inlineSources"
-        | "emitBOM"
-        | "outDir"
-        | "declarationDir"
-        | "sourceRoot"
-        | "mapRoot"
-        | "removeComments"
-        | "composite"
-        | "incremental"
-        | "assumeChangesOnlyAffectDirectDependencies"
-        | "importsNotUsedAsValues"
-        | "isolatedDeclarations"
-        | "erasableSyntaxOnly"
-        | "libReplacement"
-        | "skipDefaultLibCheck"
-        | "stripInternal"
-        | "disableSizeLimit"
-        | "noImplicitUseStrict"
-        | "noStrictGenericChecks"
-        | "suppressExcessPropertyErrors"
-        | "suppressImplicitAnyIndexErrors"
-        | "preserveValueImports"
-        | "out"
-        | "outFile"
-        | "outdir"
-        | "outfile"
-        | "rootDir"
-        | "tsBuildInfoFile"
-        | "pretty"
-        | "traceResolution"
-        | "listFilesOnly"
-        | "captureSuggestions"
-        | "fullEmitPaths"
-        | "typeScriptVersion"
-        | "stableTypeOrdering"
-        | "noTypesAndSymbols"
-        | "noImplicitReferences"
-        | "noCheck"
-        | "keyofStringsOnly"
-        | "currentDirectory"
-        | "useCaseSensitiveFileNames"
-        | "useCaseSensitiveFilenames"
-        | "FileName"
-        | "Filename"
-        | "fileName"
-        | "filename"
-        | "link"
-        | "symlink"
-        | "newline"
+        "removecomments" => compiler_options.remove_comments = Some(boolean()?),
+        "declaration" => compiler_options.declaration = Some(boolean()?),
+        "composite" => compiler_options.composite = Some(boolean()?),
+        "isolateddeclarations" => compiler_options.isolated_declarations = Some(boolean()?),
+        "noemithelpers"
+        | "noemitonerror"
+        | "declarationmap"
+        | "emitdeclarationonly"
         | "sourcemap"
         | "inlinesourcemap"
         | "inlinesources"
+        | "emitbom"
+        | "outdir"
+        | "declarationdir"
         | "sourceroot"
         | "maproot"
-        | "noemithelpers"
-        | "noemitonerror" => {}
+        | "incremental"
+        | "assumechangesonlyaffectdirectdependencies"
+        | "stripinternal"
+        | "disablesizelimit"
+        | "out"
+        | "outfile"
+        | "rootdir"
+        | "tsbuildinfofile"
+        | "pretty"
+        | "traceresolution"
+        | "listfilesonly"
+        | "capturesuggestions"
+        | "fullemitpaths"
+        | "typescriptversion"
+        | "stabletypeordering"
+        | "notypesandsymbols"
+        | "noimplicitreferences"
+        | "nocheck"
+        | "currentdirectory"
+        | "usecasesensitivefilenames"
+        | "filename"
+        | "link"
+        | "symlink" => {}
         _ => {
             return Err(error(format!(
                 "unsupported compiler fixture option {name:?}"
@@ -696,14 +850,17 @@ fn parse_virtual_program_paths(
         .collect()
 }
 
-fn parse_compiler_bool(name: &str, value: &str) -> HarnessResult<bool> {
-    match value.to_ascii_lowercase().as_str() {
-        "true" => Ok(true),
-        "false" => Ok(false),
-        _ => Err(error(format!(
-            "compiler option {name:?} expects true or false, got {value:?}"
-        ))),
-    }
+/// Compiler-test directives retain their trimmed text through
+/// `TestCaseParser.makeUnitsFromTest`. The harness boolean converter then
+/// recognizes only the case-insensitive `true` lexeme; every other value is
+/// false. In particular, a historical directive such as `true;` is not
+/// normalized by removing the semicolon.
+///
+/// tsc-port: equateStringsCaseInsensitive @6.0.3 (harness boolean-arm comparison)
+/// tsc-hash: 1798be4a0411df11d02a3c1ab582f840d2c3d2bae6a48dc4803dabc1155e485c
+/// tsc-span: _tsc.js:905-907
+fn parse_compiler_bool(_name: &str, value: &str) -> HarnessResult<bool> {
+    Ok(value.eq_ignore_ascii_case("true"))
 }
 
 fn parse_target(value: &str) -> HarnessResult<i32> {
@@ -1374,11 +1531,11 @@ fn build_compiler_fixture(
                 phase: CompilerSymlinkPhase::Global,
                 raw_target: Arc::from(link.target.as_str()),
                 raw_link_path: Arc::from(link.link_path.as_str()),
-                normalized_target: Arc::from(normalize_virtual_path(
+                normalized_target: Arc::from(normalize_compiler_fixture_path(
                     anchor.as_ref(),
                     &link.target,
                 )?),
-                normalized_link_path: Arc::from(normalize_virtual_path(
+                normalized_link_path: Arc::from(normalize_compiler_fixture_path(
                     anchor.as_ref(),
                     &link.link_path,
                 )?),
@@ -1499,11 +1656,11 @@ fn build_compiler_unit(
                         phase: CompilerSymlinkPhase::Document,
                         raw_target: Arc::clone(&name),
                         raw_link_path: Arc::from(link_path),
-                        normalized_target: Arc::from(normalize_virtual_path(
+                        normalized_target: Arc::from(normalize_compiler_fixture_path(
                             current_directory,
                             name.as_ref(),
                         )?),
-                        normalized_link_path: Arc::from(normalize_virtual_path(
+                        normalized_link_path: Arc::from(normalize_compiler_fixture_path(
                             current_directory,
                             link_path,
                         )?),
@@ -1796,11 +1953,26 @@ fn join_config_path(directory: &str, name: &str) -> String {
 }
 
 fn normalize_compiler_unit_path(path: &str) -> HarnessResult<String> {
+    normalize_compiler_fixture_path(VIRTUAL_SOURCE_ROOT, path)
+}
+
+/// Resolve one compiler-runner fixture spelling with TypeScript's rooted-path
+/// policy. Unlike the project-suite virtual namespace, compiler fixtures may
+/// name files on a synthetic Windows drive even when their current directory
+/// is the POSIX `/.src` mount.
+///
+/// tsc-port: getNormalizedAbsolutePath @6.0.3
+/// tsc-hash: b61f74b787ba34aece216809c77bbf6f46565bc1f0a0af082110aacbe0bf9b0c
+/// tsc-span: _tsc.js:5493-5567
+/// tsc-port: simpleNormalizePath @6.0.3
+/// tsc-hash: 1b1c1e16f323aede30aef78eaa9ab10df07777d696b878d6bac40df2f7515ac7
+/// tsc-span: _tsc.js:5577-5592
+fn normalize_compiler_fixture_path(base: &str, path: &str) -> HarnessResult<String> {
     let path = path.replace('\\', "/");
-    let combined = if path.starts_with('/') || is_drive_rooted_path(&path) {
+    let combined = if compiler_fixture_root_parts(&path).is_some() {
         path
     } else {
-        format!("{}/{}", VIRTUAL_SOURCE_ROOT.trim_end_matches('/'), path)
+        join_config_path(base, &path)
     };
     normalize_compiler_rooted_path(&combined)
 }
@@ -1811,11 +1983,7 @@ fn normalize_compiler_rooted_path(path: &str) -> HarnessResult<String> {
             "compiler virtual path contains NUL: {path:?}"
         )));
     }
-    let (root, tail) = if let Some(tail) = path.strip_prefix('/') {
-        ("/".to_owned(), tail)
-    } else if is_drive_rooted_path(path) {
-        (path[..3].to_owned(), &path[3..])
-    } else {
+    let Some((root, tail)) = compiler_fixture_root_parts(path) else {
         return Err(error(format!(
             "compiler virtual path is not rooted: {path:?}"
         )));
@@ -1831,16 +1999,38 @@ fn normalize_compiler_rooted_path(path: &str) -> HarnessResult<String> {
         }
     }
     if components.is_empty() {
-        return Ok(root);
+        return Ok(root.to_owned());
     }
     Ok(format!("{root}{}", components.join("/")))
 }
 
-fn is_drive_rooted_path(path: &str) -> bool {
-    path.len() >= 3
-        && path.as_bytes()[0].is_ascii_alphabetic()
-        && path.as_bytes()[1] == b':'
-        && path.as_bytes()[2] == b'/'
+/// Split the roots admitted by TypeScript's `getEncodedRootLength` for the
+/// compiler-runner's disk-path namespace. Keeping this lexical avoids making
+/// a synthetic Windows drive or UNC share depend on the host OS running the
+/// Rust harness.
+fn compiler_fixture_root_parts(path: &str) -> Option<(&str, &str)> {
+    if let Some(server_and_tail) = path.strip_prefix("//") {
+        return match server_and_tail.find('/') {
+            Some(separator) => {
+                let root_end = 2 + separator + 1;
+                Some((&path[..root_end], &path[root_end..]))
+            }
+            None => Some((path, "")),
+        };
+    }
+    if let Some(tail) = path.strip_prefix('/') {
+        return Some(("/", tail));
+    }
+    let bytes = path.as_bytes();
+    if bytes.first().is_some_and(u8::is_ascii_alphabetic) && bytes.get(1) == Some(&b':') {
+        if bytes.get(2) == Some(&b'/') {
+            return Some((&path[..3], &path[3..]));
+        }
+        if bytes.len() == 2 {
+            return Some((path, ""));
+        }
+    }
+    None
 }
 
 fn file_extension_is_exact(path: &str, extension: &str) -> bool {
@@ -1866,7 +2056,7 @@ fn config_exclude_matches(base_directory: &str, pattern: &str, path: &str) -> bo
 
 fn absolute_config_pattern(base_directory: &str, pattern: &str) -> String {
     let pattern = pattern.replace('\\', "/");
-    if pattern.starts_with('/') || is_drive_rooted_path(&pattern) {
+    if compiler_fixture_root_parts(&pattern).is_some() {
         return normalize_compiler_rooted_path(&pattern).unwrap_or(pattern);
     }
     let combined = join_config_path(base_directory, &pattern);
@@ -1960,7 +2150,8 @@ fn build_compiler_plan(
     };
     let current_directory = compiler_current_directory(&effective_settings)?;
     let use_case_sensitive_file_names = compiler_case_sensitivity(&effective_settings);
-    let root_selection = compiler_root_selection(&fixture, &effective_settings)?;
+    let allow_js = compiler_root_allow_js(&fixture, &effective_settings)?;
+    let root_selection = compiler_root_selection(&fixture, &effective_settings, allow_js)?;
 
     Ok(CompilerExecutionPlan {
         fixture,
@@ -1981,6 +2172,7 @@ fn build_compiler_plan(
 fn compiler_root_selection(
     fixture: &CompilerFixtureInput,
     settings: &[OrderedSetting],
+    allow_js: bool,
 ) -> HarnessResult<CompilerRootSelection> {
     let candidates = fixture
         .units
@@ -2058,6 +2250,7 @@ fn compiler_root_selection(
             CompilerExplicitRootReason::LastUnitImplicitReferences,
             vec![last],
             other_units,
+            allow_js,
         ))
     } else {
         Ok(explicit_compiler_roots(
@@ -2065,6 +2258,7 @@ fn compiler_root_selection(
             CompilerExplicitRootReason::AllUnits,
             candidates,
             Vec::new(),
+            allow_js,
         ))
     }
 }
@@ -2074,13 +2268,14 @@ fn explicit_compiler_roots(
     reason: CompilerExplicitRootReason,
     root_units: Vec<CompilerUnitId>,
     other_units: Vec<CompilerUnitId>,
+    allow_js: bool,
 ) -> CompilerRootSelection {
     let vfs_write_order = root_units
         .iter()
         .chain(&other_units)
         .copied()
         .collect::<Vec<_>>();
-    let program_root_units = json_filtered_roots(fixture, &root_units);
+    let program_root_units = supported_compiler_roots(fixture, &root_units, allow_js);
     CompilerRootSelection::Explicit {
         reason,
         root_units: Arc::from(root_units),
@@ -2088,6 +2283,80 @@ fn explicit_compiler_roots(
         vfs_write_order: Arc::from(vfs_write_order),
         program_root_units: Arc::from(program_root_units),
     }
+}
+
+/// tsc `isSupportedSourceFileName` followed by CompilerBaselineRunner's
+/// explicit JSON-root exclusion. The comparison is deliberately
+/// case-sensitive, matching `fileExtensionIs`; host case sensitivity affects
+/// path identity, not recognized source-extension spelling.
+fn supported_compiler_roots(
+    fixture: &CompilerFixtureInput,
+    root_units: &[CompilerUnitId],
+    allow_js: bool,
+) -> Vec<CompilerUnitId> {
+    const TS_EXTENSIONS: [&str; 7] = [".ts", ".tsx", ".d.ts", ".cts", ".d.cts", ".mts", ".d.mts"];
+    const JS_EXTENSIONS: [&str; 4] = [".js", ".jsx", ".mjs", ".cjs"];
+
+    root_units
+        .iter()
+        .copied()
+        .filter(|id| {
+            fixture.units.get(id.0 as usize).is_some_and(|unit| {
+                let name = unit.name.as_ref();
+                !file_extension_is(name, ".json")
+                    && (TS_EXTENSIONS
+                        .iter()
+                        .any(|extension| file_extension_is(name, extension))
+                        || allow_js
+                            && JS_EXTENSIONS
+                                .iter()
+                                .any(|extension| file_extension_is(name, extension)))
+            })
+        })
+        .collect()
+}
+
+/// Compute only the option dependency needed during root selection without
+/// eagerly validating unrelated fixture options. This mirrors tsc's
+/// `_computedOptions.allowJs`: an explicit `allowJs` wins, otherwise `checkJs`
+/// supplies the value.
+fn compiler_root_allow_js(
+    fixture: &CompilerFixtureInput,
+    settings: &[OrderedSetting],
+) -> HarnessResult<bool> {
+    let (mut allow_js, mut check_js, mut has_explicit_allow_js) = fixture
+        .config_root_plan
+        .as_ref()
+        .map(|config| {
+            (
+                config.compiler_options().allow_js,
+                config.compiler_options().check_js,
+                matches!(
+                    config.options().typed_value_state("allowJs"),
+                    ConfigOptionValueState::Value(value) if value.is_boolean()
+                ),
+            )
+        })
+        .unwrap_or((false, None, false));
+    for setting in settings {
+        match CompilerFixtureOptionKey::new(&setting.name).as_str() {
+            "allowjs" => {
+                allow_js = parse_compiler_bool(&setting.name, &setting.value)?;
+                has_explicit_allow_js = true;
+            }
+            "checkjs" => check_js = Some(parse_compiler_bool(&setting.name, &setting.value)?),
+            _ => {}
+        }
+    }
+    Ok(if has_explicit_allow_js {
+        allow_js
+    } else {
+        check_js.unwrap_or(false)
+    })
+}
+
+fn file_extension_is(path: &str, extension: &str) -> bool {
+    path.len() > extension.len() && path.ends_with(extension)
 }
 
 fn json_filtered_roots(
@@ -2494,3 +2763,7 @@ fn join_posix(left: &str, right: &str) -> String {
         )
     }
 }
+
+#[cfg(test)]
+#[path = "../../tests/unit/upstream_suites/execution_tests.rs"]
+mod tests;

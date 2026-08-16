@@ -1,12 +1,22 @@
 # H1: filesystem-hosted JavaScript emit execution contract
 
+Document role: **frozen H1 compatibility contract and design history**. It is
+authoritative for the H1 profile, lineage, non-regression boundaries, and
+recorded evidence. It is not the current implementation map for the expanded
+H2 emitter. Use the
+[current emitter architecture](emitter-architecture.md) for validated Rust
+symbols and ownership, and the
+[post-H1 completion slices](post-h1-completion-slices.md) for current order and
+slice readiness. A later slice may rely on an H1 design statement only when
+its packet maps that statement to a current architecture row and current code.
+
 Status: H1.0a-H1.6 are complete and performance-qualified. H1.0a established
 the generated, report-only
 [`h1-owner-inventory.v1.json`](../../../ratchets/h1-owner-inventory.v1.json)
 owner-graph draft plus the frozen
 [`h1-emit-profile.v1.json`](../../../ratchets/h1-emit-profile.v1.json) and
 callback-level [`h1-emit-oracle.v1.json`](../../../ratchets/h1-emit-oracle.v1.json),
-and the current-Rust
+and the then-current Rust
 [`h1-rust-omissions.v1.json`](../../../ratchets/h1-rust-omissions.v1.json)
 baseline, and the complete 22-file upstream `transpile` source tree is now
 content-addressed in the additive suite pin v2. Its exact runner matrix is
@@ -84,6 +94,9 @@ transform-flag probe against vendored TypeScript. Runtime enum, namespace,
 parameter-property, import-equals, export-equals, JSX, decorator, class-field
 downlevel, and module-rewrite branches remain typed controls. Executable
 source/output planning and sink dispatch were still deferred at that slice.
+This three-transform order belongs only to the frozen H1 profile; use
+[section 5 of the current emitter architecture](emitter-architecture.md#5-current-pass-order)
+for the current H2 transformer order.
 H1.4 is now complete. A read-only `EmitHost` projects ordered source facts;
 executable `getSourceFilesToEmit`, `getOutputPathsFor`, `forEachEmittedFile`,
 and `emitFiles` ports perform case-aware collision preflight and deterministic
@@ -128,11 +141,13 @@ lifetimes before L0/L1 and the resulting H0 requalification are complete.
 This prerequisite does not add incremental behavior to the H1 compatibility
 claim.
 
-The audited implementation gap and the roadmap from bounded H1 through the
-broader TypeScript 6.0.3 compiler/tooling surfaces are maintained in
+The implementation gap audited before H1 and the historical rationale for the
+broader TypeScript 6.0.3 compiler/tooling route are recorded in
 [the compiler compatibility residual](compiler-compatibility-residual.md).
-That inventory is a companion to this execution contract, not an expansion
-of H1 scope.
+That inventory is not maintained as a current implementation map or roadmap;
+use the [current emitter architecture](emitter-architecture.md) and
+[post-H1 schedule](post-h1-completion-slices.md). It remains a companion to
+this frozen contract, not an expansion of H1 scope.
 
 Compatibility target: the vendored TypeScript 6.0.3 compiler only.
 
@@ -217,9 +232,9 @@ The following Rust representations may differ:
 Those substitutions are valid only while the oracle-visible result and the
 lifetime rules in this contract remain exact.
 
-## 3. Audited entry state
+## 3. H1 audited entry-state snapshot
 
-The pre-L0 workspace audit starts from the completed H0 profile:
+The pre-L0 workspace audit started from the completed H0 profile:
 
 - the production `CompilerHost` is read-only;
 - `PreparedProgram` owns ordered source, library, option, path, package, and
@@ -292,7 +307,12 @@ axes, but the JavaScript-only implementation must not choose an intermediate
 representation or callback contract that makes them require a replacement
 emitter later.
 
-## 5. Production API and lifetime boundaries
+## 5. Frozen H1 API and lifetime boundaries
+
+This section records H1's boundary and its audit-time type sketches. It is not
+a current symbol inventory; use the
+[`E-PROTOCOL` row in the current emitter architecture](emitter-architecture.md#3-current-pipeline-and-dependency-direction)
+before relying on a name, visibility, field layout, or owner below.
 
 ### 5.1 Preserve the H0 entry
 
@@ -718,11 +738,11 @@ retrofit locations after printing has already lost them.
 ### 7.1 Position domains are explicit
 
 The Rust and JavaScript representations use different position units. Parsed
-Rust node and array `pos`/`end` values are UTF-8 byte offsets, with the current
-all-ones synthetic sentinel. In the vendored compiler, source-map source
-positions and `TextWriter` output positions are JavaScript string offsets and
-therefore UTF-16 code-unit offsets. A raw `u32` must never cross that boundary
-without its position domain being known.
+Rust node and array `pos`/`end` values were UTF-8 byte offsets, with the
+H1-audited all-ones synthetic sentinel. In the vendored compiler, source-map
+source positions and `TextWriter` output positions are JavaScript string
+offsets and therefore UTF-16 code-unit offsets. A raw `u32` must never cross
+that boundary without its position domain being known.
 
 Keeping byte offsets in the parse tree is deliberate. Rust source slicing,
 scanner/parser movement, and trivia/comment rescanning require UTF-8 byte
@@ -774,8 +794,8 @@ those update APIs or claim their behavior as emit compatibility.
 Position units are not the only encoding boundary. A JavaScript string is a
 sequence of UTF-16 code units and can contain an unpaired surrogate produced
 by an escape such as `"\\uD800"`. Rust `String` cannot represent that value.
-The current scanner therefore exposes U+FFFD on its general token-value path;
-only template processing has a lossless `Vec<u16>` side channel reconstructed
+At the H1 audit, the scanner exposed U+FFFD on its general token-value path;
+only template processing had a lossless `Vec<u16>` side channel reconstructed
 from raw text.
 
 H1.0 must classify every active factory/transform/printer read of cooked
@@ -828,8 +848,8 @@ The H1 JavaScript profile must not accidentally require declaration-only
 resolver methods. Each unavailable method returns a typed unsupported error
 with a reachability canary; it never returns a fabricated conservative value.
 
-Emit-only checker producers currently elided by the no-emit implementation
-are restored only through this inventory. Each restoration has:
+Emit-only checker producers then elided by the no-emit implementation were to
+be restored only through this inventory. Each restoration required:
 
 - an exact tsc owner and dependency closure;
 - an emitting positive probe;
@@ -951,7 +971,7 @@ The printer may later serve LSP code actions, but H1 does not expose a public
 printer API or accept LSP requirements that are not reached by the H1 emit
 profile.
 
-### 10.4 Declaration and source-map seams required now
+### 10.4 Declaration and source-map seams required by the H1 design
 
 Declaration and source-map behavior remains outside H1 compatibility, but the
 following structure is fixed across H1.1 and H1.2:
@@ -1297,8 +1317,8 @@ Every slice carries:
 - a `--noEmit` constructor/write-zero canary; and
 - the no-emit performance result required by section 6.3.
 
-The upstream project suite's currently classified emit cases provide an
-initial inventory, not automatic acceptance. Each admitted case must execute
+The upstream project suite's emit cases classified during H1 provided an
+initial inventory, not automatic acceptance. Each admitted case had to execute
 through the production Rust host, checker, emitter, and in-memory sink and
 match its oracle outputs.
 
@@ -1331,9 +1351,9 @@ The shared invariants are:
 - serialized output/evidence uses paths and spans, never raw IDs; and
 - no unbounded process-global mutable cache is keyed by an internal ID.
 
-L1 turns the currently empty `SyntaxCursor` seam into real ordinary-parser
-reuse and proves the chosen arena strategy against fresh parses and a
-large-file edit budget before H1.1. H1 consumes only the resulting immutable
+L1 turned the then-empty `SyntaxCursor` seam into real ordinary-parser reuse and
+proved the chosen arena strategy against fresh parses and a large-file edit
+budget before H1.1. H1 consumes only the resulting immutable
 `ProgramSnapshot`; it neither invokes incremental update APIs during emit nor
 reuses transform nodes across source versions.
 
@@ -1355,22 +1375,22 @@ FourSlash `getEmitOutput` cases is only an architectural seam and evidence
 map. It does not expose per-file emit, construct a Language Service, or claim
 incremental/FourSlash compatibility in H1.
 
-## 14. Required landing order
+## 14. Historical H1 landing order and close record
 
-H1 and its workspace prerequisite execute in dependency order:
+H1 and its workspace prerequisite executed in dependency order:
 
-The H1.0a producers now regenerate the active-root closure, exact
+At close, the H1.0a producers regenerated the active-root closure, exact
 declaration/body/ledger hashes, exact symbol-resolved calls, conservative
 callback-nesting ownership, explicit reviewed call-site dispositions, complete
 structural-property review candidate sets, and dormant
 declaration/map/bundle/targeted/build-info anchors with
-`node crates/oracle/h1-owner-inventory.mjs --check`, and freeze the bootstrap
+`node crates/oracle/h1-owner-inventory.mjs --check`, and froze the bootstrap
 profile plus callback observations with
-`node crates/oracle/h1-emit-oracle.mjs --check`. The current production Rust
-scope is independently hashed and its 6 remaining production boundaries, 28
-effective option-projection omissions, and 25 explicit checker emit elision
-and control rows. The completed H1.1 spine and H1.2 foundation are recorded as
-existing prerequisites. These facts are frozen with
+`node crates/oracle/h1-emit-oracle.mjs --check`. The H1.0a audit-time production
+Rust scope was independently hashed, recording its 6 remaining production
+boundaries, 28 effective option-projection omissions, and 25 explicit checker
+emit elision and control rows. The completed H1.1 spine and H1.2 foundation
+are recorded as existing prerequisites. These facts are frozen with
 `node crates/oracle/h1-rust-omission-inventory.mjs --check`. The owner artifact
 deliberately remains `draft/report-only`. The complete transpile source tree is
 also pinned in the additive v2 source universe, and its companion inventory
@@ -1402,7 +1422,8 @@ runtime.
    reconstructed transpile matrix, and FourSlash emit
    projection/equivalence dispositions, freeze dormant
    declaration/map/bundle/targeted/build-info seams,
-   land the in-memory oracle, and record every current emit-only Rust omission.
+   land the in-memory oracle, and record every then-current emit-only Rust
+   omission.
    The inventory and design portion may proceed in parallel with the next item.
 2. **Complete — L0/L1 prerequisite, persistent source and parser proof:** land shared
    text/position snapshots, identity leases, owned parse/bind records,
@@ -1495,7 +1516,12 @@ H1 is complete only when:
 - declaration emit, maps, build/watch/incremental, LSP, plugins, and newer
   TypeScript versions remain explicitly unclaimed.
 
-## 16. Stop conditions
+## 16. Frozen H1 stop conditions
+
+These conditions protect the H1 contract. Current H2 work follows the
+[current architecture](emitter-architecture.md),
+[post-H1 stop conditions](post-h1-completion-slices.md#9-stop-and-re-slice-conditions),
+and its active slice packet.
 
 Stop and review the H1 design if:
 

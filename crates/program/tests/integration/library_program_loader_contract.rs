@@ -4,7 +4,7 @@ use tsc_host::{CompilerHost, HostError, HostErrorKind, HostOperation, MemoryComp
 use tsc_program::{
     load_program, plan_source_requests, CompilerOptions, LibraryCatalog, PreparedProgram,
     ProgramLoadError, ProgramLoadErrorKind, ProgramLoadLimit, ProgramLoadLimits,
-    ProgramLoadOperation, ProgramOptions, ResolutionOutcome,
+    ProgramLoadOperation, ProgramOptions, ProgramPath, ResolutionOutcome,
 };
 
 const LIBRARY_DIRECTORY: &str = "/typescript/lib";
@@ -335,6 +335,144 @@ fn host_default_library_override_is_validated_only_when_it_is_selected() {
     )
     .expect("an explicit lib selection makes the host default irrelevant");
     assert_library_prefix(&explicit, &["/typescript/lib/lib.es5.d.ts"]);
+}
+
+#[test]
+fn lib_replacement_promotes_an_existing_root_to_library_membership() {
+    let replacement = "/node_modules/@typescript/lib-dom/index.d.ts";
+    let host = MemoryCompilerHost::builder("/")
+        .file(replacement, b"interface ABC { abc: string }\n".to_vec())
+        .file(
+            "/src/index.ts",
+            b"/// <reference lib=\"dom\" />\nconst value: ABC = { abc: 'ok' };\n".to_vec(),
+        )
+        .file(
+            "/typescript/lib/lib.es6.d.ts",
+            b"/// <reference lib=\"dom\" />\n".to_vec(),
+        )
+        .build()
+        .expect("build root-collision lib-replacement host");
+    let options = CompilerOptions {
+        target: Some(2),
+        lib_replacement: Some(true),
+        ..compiler_options()
+    };
+
+    let program = load(
+        &host,
+        &[replacement, "/src/index.ts"],
+        options,
+        generous_limits(),
+    )
+    .expect("resolve the root-owned declaration as the selected DOM library");
+
+    assert_library_prefix(&program, &["/typescript/lib/lib.es6.d.ts", replacement]);
+    assert_eq!(
+        source_paths(&program),
+        ["/typescript/lib/lib.es6.d.ts", replacement, "/src/index.ts",]
+            .into_iter()
+            .map(Path::new)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        program.roots()[0].source().map(|source| source.index()),
+        Some(1)
+    );
+    assert!(program.diagnostics().program().is_empty());
+}
+
+#[test]
+fn lib_replacement_uses_the_config_directory_for_package_subpaths() {
+    let replacement = "/somepath/node_modules/@typescript/lib-dom/iterable.d.ts";
+    let host = MemoryCompilerHost::builder("/workspace")
+        .file(
+            "/somepath/index.ts",
+            b"/// <reference lib=\"dom.iterable\" />\nconst value: DOMIterable = {};\n".to_vec(),
+        )
+        .file(replacement, b"interface DOMIterable {}\n".to_vec())
+        .file(
+            "/somepath/node_modules/@typescript/lib-dom/index.d.ts",
+            b"// replacement DOM\n".to_vec(),
+        )
+        .file(
+            "/typescript/lib/lib.dom.iterable.d.ts",
+            b"interface CatalogDOMIterable { fallback: true }\n".to_vec(),
+        )
+        .file(
+            "/typescript/lib/lib.es6.d.ts",
+            concat!(
+                "/// <reference lib=\"dom\" />\n",
+                "/// <reference lib=\"dom.iterable\" />\n",
+            )
+            .as_bytes()
+            .to_vec(),
+        )
+        .build()
+        .expect("build config-anchored lib-replacement host");
+    let roots = [PathBuf::from("/somepath/index.ts")];
+    let options = CompilerOptions {
+        target: Some(2),
+        lib_replacement: Some(true),
+        ..compiler_options()
+    };
+    let config =
+        ProgramPath::from_trusted_parts("/somepath/tsconfig.json", "/somepath/tsconfig.json")
+            .expect("construct config path");
+
+    let program = load_program(
+        &host,
+        &roots,
+        options,
+        program_options().with_config_file_path(config),
+        &catalog(),
+        generous_limits(),
+    )
+    .expect("resolve the DOM iterable package subpath beside the config");
+
+    assert_library_prefix(
+        &program,
+        &[
+            "/typescript/lib/lib.es6.d.ts",
+            "/somepath/node_modules/@typescript/lib-dom/index.d.ts",
+            replacement,
+        ],
+    );
+    assert_eq!(
+        source_paths(&program),
+        [
+            "/typescript/lib/lib.es6.d.ts",
+            "/somepath/node_modules/@typescript/lib-dom/index.d.ts",
+            replacement,
+            "/somepath/index.ts",
+        ]
+        .into_iter()
+        .map(Path::new)
+        .collect::<Vec<_>>()
+    );
+    assert!(program.diagnostics().program().is_empty());
+}
+
+#[test]
+fn missing_lib_replacement_falls_back_to_the_catalog() {
+    let host = MemoryCompilerHost::builder("/work")
+        .file("/work/root.ts", b"export {};\n".to_vec())
+        .file(
+            "/typescript/lib/lib.es5.d.ts",
+            b"declare const es5: true;\n".to_vec(),
+        )
+        .build()
+        .expect("build missing lib-replacement host");
+    let options = CompilerOptions {
+        lib: Some(vec!["es5".to_owned()]),
+        lib_replacement: Some(true),
+        ..compiler_options()
+    };
+
+    let program = load(&host, &["/work/root.ts"], options, generous_limits())
+        .expect("fall back to the injected library catalog");
+
+    assert_library_prefix(&program, &["/typescript/lib/lib.es5.d.ts"]);
+    assert!(program.diagnostics().program().is_empty());
 }
 
 #[test]

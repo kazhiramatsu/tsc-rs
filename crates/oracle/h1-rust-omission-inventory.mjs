@@ -219,7 +219,7 @@ const anchorSpecs = [
   [
     "emitter-printer-factory",
     "crates/emitter/src/printer.rs",
-    "pub const fn create_printer(options: PrinterOptions) -> Printer {",
+    "pub fn create_printer(options: PrinterOptions) -> Printer {",
   ],
   [
     "emitter-position-domains",
@@ -249,7 +249,7 @@ const anchorSpecs = [
   [
     "emitter-transform-class-fields",
     "crates/emitter/src/builtins.rs",
-    "pub fn transform_class_fields(options: &CompilerOptions) -> Box<dyn Transformer> {",
+    "pub fn transform_class_fields<'resolver>(",
   ],
   [
     "emitter-transform-ecmascript-module",
@@ -577,9 +577,9 @@ const anchorSpecs = [
     "erasableSyntaxOnly, collectLinkedAliases (emit), and the JSDoc",
   ],
   [
-    "standard-class-fields-profile-check",
+    "standard-class-fields-option-check",
     "crates/checker/src/resolve.rs",
-    "useDefineForClassFields is true, so getEmitStandardClassFields reduces\n    /// exactly to target >= ES2022",
+    "useDefineForClassFields=false` at ESNext, so this must use the exact\n    /// computed emitStandardClassFields predicate rather than target alone",
   ],
   [
     "external-helper-producer-present",
@@ -807,7 +807,7 @@ const existingPrerequisites = [
       "emitter-transform-class-fields",
       "emitter-transform-ecmascript-module",
       "emitter-changed-import-printer",
-      "standard-class-fields-profile-check",
+      "standard-class-fields-option-check",
       "active-transform-oracle",
     ],
   },

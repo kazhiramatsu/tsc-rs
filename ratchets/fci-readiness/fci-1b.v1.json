@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-1b",
+  "status": "ready",
+  "trustedBase": "458416f2230c06caf28eee884f0d705dd7631473",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-1b-adapter-descriptors.md",
+    "sha256": "52fa7f3d4743e11f3f4a7f3c75c2455bfe1856953612e0a41f155904850eb494"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-1a",
+      "receiptSha256": "dd6d5f26cff537e5ef3476a60fd45baff6414e63d3bd3d32aa3a73c2631aa21f"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.toml",
+    "crates/ci-core/src/lib.rs",
+    "crates/ci-core/src/adapter.rs",
+    "crates/ci-core/tests/descriptors.rs",
+    "docs/design/greenfield/slices/fci-1b-adapter-descriptors.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-1b.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g",
+    "crates/ci-runner"
+  ],
+  "proof": {
+    "commands": [
+      "cargo test -p tsc-rs-ci-core --test descriptors",
+      "node .github/ci/slice-readiness.mjs --check fci-1b"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-1b.v1.json"
+  }
+}

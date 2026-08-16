@@ -6,14 +6,18 @@ use crate::{
     create_printer, transform_nodes, DisabledSourceMapRecorder, EmitArtifact,
     EmitContractViolation, EmitFailure, EmitHost, EmitOutcome, EmitPreflight, EmitResolver,
     EmitRoot, EmitSelection, EmitTextMetadata, EmitWriteDisposition, H2ActivityCanary,
-    H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest, PrinterOptions, TransformArena,
-    TransformRoot,
+    H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest, PrinterOptions, SourceFileTextMode,
+    TransformArena, TransformRoot,
 };
 
+const MODULE_NONE: i32 = 0;
 const MODULE_COMMON_JS: i32 = 1;
 const MODULE_AMD: i32 = 2;
 const MODULE_UMD: i32 = 3;
 const MODULE_SYSTEM: i32 = 4;
+const MODULE_ES2015: i32 = 5;
+const MODULE_ES2020: i32 = 6;
+const MODULE_ES2022: i32 = 7;
 const MODULE_ES_NEXT: i32 = 99;
 const MODULE_NODE16: i32 = 100;
 const MODULE_NODE18: i32 = 101;
@@ -65,26 +69,28 @@ impl EmitDiagnosticGate {
 /// Reject every effective option outside the frozen JavaScript-only bootstrap
 /// before output planning, checker-to-emitter borrowing, or sink dispatch.
 pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
-    if options.emit_script_target() != ScriptTarget::ES_NEXT {
+    let target = options.emit_script_target();
+    if target < ScriptTarget::ES2015 || target > ScriptTarget::ES_NEXT {
         return unsupported("target");
     }
     if !matches!(
         options.emit_module_kind(),
-        MODULE_PRESERVE
+        MODULE_NONE
+            | MODULE_PRESERVE
             | MODULE_ES_NEXT
             | MODULE_COMMON_JS
             | MODULE_AMD
             | MODULE_UMD
             | MODULE_SYSTEM
+            | MODULE_ES2015
+            | MODULE_ES2020
+            | MODULE_ES2022
             | MODULE_NODE16
             | MODULE_NODE18
             | MODULE_NODE20
             | MODULE_NODE_NEXT
     ) {
         return unsupported("module");
-    }
-    if options.use_define_for_class_fields == Some(false) {
-        return unsupported("useDefineForClassFields");
     }
     if !matches!(options.new_line, None | Some(0 | 1)) {
         return unsupported("newLine");
@@ -94,10 +100,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (options.no_emit == Some(true), "noEmit"),
         (options.import_helpers == Some(true), "importHelpers"),
         (options.no_check == Some(true), "noCheck"),
-        (
-            options.erasable_syntax_only == Some(true),
-            "erasableSyntaxOnly",
-        ),
         (options.isolated_modules == Some(true), "isolatedModules"),
         (
             options.verbatim_module_syntax == Some(true),
@@ -106,11 +108,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (
             options.allow_importing_ts_extensions == Some(true),
             "allowImportingTsExtensions",
-        ),
-        (options.remove_comments == Some(true), "removeComments"),
-        (
-            options.no_implicit_use_strict == Some(true),
-            "noImplicitUseStrict",
         ),
         (options.source_map == Some(true), "sourceMap"),
         (options.inline_source_map == Some(true), "inlineSourceMap"),
@@ -122,10 +119,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             "emitDeclarationOnly",
         ),
         (
-            options.isolated_declarations == Some(true),
-            "isolatedDeclarations",
-        ),
-        (
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
         ),
@@ -135,10 +128,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (
             options.assume_changes_only_affect_direct_dependencies == Some(true),
             "assumeChangesOnlyAffectDirectDependencies",
-        ),
-        (
-            options.preserve_value_imports == Some(true),
-            "preserveValueImports",
         ),
         (
             options.emit_decorator_metadata == Some(true) && !options.experimental_decorators,
@@ -158,12 +147,7 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         (options.map_root.is_some(), "mapRoot"),
         (options.declaration_dir.is_some(), "declarationDir"),
         (options.out_file.is_some(), "outFile"),
-        (options.out.is_some(), "out"),
         (options.ts_build_info_file.is_some(), "tsBuildInfoFile"),
-        (
-            options.imports_not_used_as_values.is_some(),
-            "importsNotUsedAsValues",
-        ),
     ] {
         if present {
             return unsupported(name);
@@ -284,7 +268,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_4a_profile();
+    let mut activity = H2ActivityCanary::h2_5g_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -343,11 +327,12 @@ pub fn emit_files_with_activity(
         Some(_) => return unsupported("newLine"),
     };
     activity.construct_printer();
-    let printer = create_printer(
+    let mut printer = create_printer(
         PrinterOptions::new(new_line)
             .with_remove_comments(options.remove_comments == Some(true))
-            .with_no_implicit_use_strict(options.no_implicit_use_strict == Some(true))
-            .with_no_emit_helpers(options.no_emit_helpers == Some(true)),
+            .with_no_emit_helpers(options.no_emit_helpers == Some(true))
+            .with_target(options.emit_script_target())
+            .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
 
     let mut artifacts = Vec::with_capacity(preflight.plan().units().len());

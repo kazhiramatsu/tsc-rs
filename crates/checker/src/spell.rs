@@ -9,7 +9,7 @@
 
 use tsc_binder::unescape_leading_underscores;
 use tsc_syntax::NodeId;
-use tsc_types::{SymbolFlags, SymbolId, TypeId};
+use tsc_types::{LiteralValue, SymbolFlags, SymbolId, TypeData, TypeFlags, TypeId};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -28,6 +28,40 @@ fn lowercase_unit(unit: u16) -> Vec<u16> {
             .collect(),
         None => vec![unit],
     }
+}
+
+/// Whole-string `toLowerCase` over a lossless JavaScript string. Valid
+/// surrogate pairs are lowercased as one scalar; unpaired surrogates remain
+/// unchanged, matching JavaScript string preservation.
+fn lowercase_units(units: &[u16]) -> Vec<u16> {
+    let mut lowered = Vec::with_capacity(units.len());
+    let mut index = 0;
+    while index < units.len() {
+        let first = units[index];
+        let scalar_and_width = if (0xD800..=0xDBFF).contains(&first) && index + 1 < units.len() {
+            let second = units[index + 1];
+            if (0xDC00..=0xDFFF).contains(&second) {
+                let value =
+                    0x10000 + ((u32::from(first) - 0xD800) << 10) + (u32::from(second) - 0xDC00);
+                char::from_u32(value).map(|scalar| (scalar, 2))
+            } else {
+                None
+            }
+        } else {
+            char::from_u32(u32::from(first)).map(|scalar| (scalar, 1))
+        };
+        if let Some((scalar, width)) = scalar_and_width {
+            index += width;
+            for character in scalar.to_lowercase() {
+                let mut buffer = [0u16; 2];
+                lowered.extend_from_slice(character.encode_utf16(&mut buffer));
+            }
+        } else {
+            lowered.push(first);
+            index += 1;
+        }
+    }
+    lowered
 }
 
 /// tsc-port: levenshteinWithMax @6.0.3
@@ -93,25 +127,40 @@ pub(crate) fn get_spelling_suggestion<C: Copy, S>(
     mut get_name: impl FnMut(&mut S, C) -> Option<String>,
 ) -> Option<C> {
     let name_units: Vec<u16> = name.encode_utf16().collect();
+    get_spelling_suggestion_utf16(state, &name_units, candidates, |state, candidate| {
+        get_name(state, candidate).map(|name| name.encode_utf16().collect())
+    })
+}
+
+/// Lossless JavaScript-string form of `getSpellingSuggestion`. This owns the
+/// arithmetic so string-literal type suggestions can retain unpaired UTF-16
+/// surrogates instead of converting through a Rust `String`.
+fn get_spelling_suggestion_utf16<C: Copy, S>(
+    state: &mut S,
+    name_units: &[u16],
+    candidates: &[C],
+    mut get_name: impl FnMut(&mut S, C) -> Option<Vec<u16>>,
+) -> Option<C> {
     let maximum_length_difference = 2.0_f64.max((name_units.len() as f64 * 0.34).floor());
     let mut best_distance = (name_units.len() as f64 * 0.4).floor() + 1.0;
     let mut best_candidate = None;
     for &candidate in candidates {
-        let Some(candidate_name) = get_name(state, candidate) else {
+        let Some(candidate_units) = get_name(state, candidate) else {
             continue;
         };
-        let candidate_units: Vec<u16> = candidate_name.encode_utf16().collect();
         if (candidate_units.len() as f64 - name_units.len() as f64).abs()
             <= maximum_length_difference
         {
-            if candidate_name == name {
+            if candidate_units == name_units {
                 continue;
             }
-            if candidate_units.len() < 3 && candidate_name.to_lowercase() != name.to_lowercase() {
+            if candidate_units.len() < 3
+                && lowercase_units(&candidate_units) != lowercase_units(name_units)
+            {
                 continue;
             }
             let Some(distance) =
-                levenshtein_with_max(&name_units, &candidate_units, best_distance - 0.1)
+                levenshtein_with_max(name_units, &candidate_units, best_distance - 0.1)
             else {
                 continue;
             };
@@ -124,6 +173,43 @@ pub(crate) fn get_spelling_suggestion<C: Copy, S>(
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsc-port: getSuggestedTypeForNonexistentStringLiteralType @6.0.3
+    /// tsc-hash: 2ad6be1fb3be0979ef276fe210332f42befe19220f171af8d82de63f503cb774
+    /// tsc-span: _tsc.js:75599-75602
+    pub(crate) fn get_suggested_type_for_nonexistent_string_literal_type(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+    ) -> Option<TypeId> {
+        let TypeData::Literal {
+            value: LiteralValue::String(source_value),
+        } = &self.tables.type_of(source).data
+        else {
+            return None;
+        };
+        let TypeData::Union { types, .. } = &self.tables.type_of(target).data else {
+            return None;
+        };
+        let candidates = types
+            .iter()
+            .copied()
+            .filter(|&candidate| {
+                self.tables
+                    .flags_of(candidate)
+                    .intersects(TypeFlags::STRING_LITERAL)
+            })
+            .collect::<Vec<_>>();
+        let source_units = source_value.units().to_vec();
+        get_spelling_suggestion_utf16(self, &source_units, &candidates, |state, candidate| {
+            match &state.tables.type_of(candidate).data {
+                TypeData::Literal {
+                    value: LiteralValue::String(value),
+                } => Some(value.units().to_vec()),
+                _ => None,
+            }
+        })
+    }
+
     /// tsc-port: getSpellingSuggestionForName @6.0.3
     /// tsc-hash: 5d18415ea6940193a787d4c21a9f08139c1dd6e1990bb3b8afa131811a617bc0
     /// tsc-span: _tsc.js:75579-75597
@@ -239,9 +325,7 @@ impl<'a> CheckerState<'a> {
     ) -> CheckResult<Option<String>> {
         let suggestion =
             self.get_suggested_symbol_for_nonexistent_property(name_node, name, containing_type)?;
-        Ok(suggestion.map(|symbol| {
-            unescape_leading_underscores(&self.binder.symbol(symbol).escaped_name).to_owned()
-        }))
+        Ok(suggestion.map(|symbol| self.symbol_name_as_written_slice(symbol)))
     }
 }
 
@@ -290,8 +374,8 @@ impl<'a> CheckerState<'a> {
             tsc_syntax::NodeData::ElementAccessExpression(data) => data.expression,
             _ => None,
         };
-        // tryGetPropertyAccessOrIdentifierToString: dotted entity text.
-        let base = receiver.and_then(|receiver| self.entity_name_to_string(receiver).ok());
+        let base =
+            receiver.and_then(|receiver| self.property_access_or_identifier_to_string(receiver));
         Ok(Some(match base {
             Some(base) => format!("{base}.{suggested_method}"),
             None => suggested_method.to_owned(),

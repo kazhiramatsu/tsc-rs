@@ -34,6 +34,329 @@ fn assert_one_cached_library_saved_work(
     assert_eq!(cached.full_text_bytes_copied(), 0);
 }
 
+fn focused_default_library(extra: &str) -> InputFile {
+    InputFile::new(
+        "/lib.d.ts",
+        format!(
+            concat!(
+                "interface IArguments {{}}\n",
+                "interface Array<T> {{}}\n",
+                "interface Object {{}}\n",
+                "interface Function {{}}\n",
+                "interface CallableFunction extends Function {{}}\n",
+                "interface NewableFunction extends Function {{}}\n",
+                "interface String {{}}\n",
+                "interface Number {{}}\n",
+                "interface Boolean {{}}\n",
+                "interface RegExp {{}}\n",
+                "{}",
+            ),
+            extra,
+        ),
+    )
+}
+
+fn diagnostic_owners(result: &CheckResult, code: u32) -> Vec<String> {
+    result
+        .diagnostics
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == code)
+        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .collect()
+}
+
+#[test]
+fn source_file_getter_does_not_publish_library_owned_strict_eval_duplicates() {
+    let libs = [focused_default_library(
+        "declare function eval(x: string): any;\n",
+    )];
+    let files = [InputFile::new("/main.ts", "\"use strict\";\nvar eval;\n")];
+    let options = CompilerOptions {
+        target: Some(tsc_types::ScriptTarget::ES2015.bits()),
+        ..CompilerOptions::default()
+    };
+
+    let cached = check_program_with_libs_at(&libs, &files, &options, "/");
+    let owned = check_program_with_owned_libs_at(&libs, &files, &options, "/");
+
+    assert_eq!(owned.diagnostics, cached.diagnostics);
+    assert_eq!(diagnostic_owners(&owned, 2300), ["/main.ts"]);
+    assert_eq!(diagnostic_owners(&owned, 1100), ["/main.ts"]);
+}
+
+#[test]
+fn whole_program_semantic_getter_reassembles_cross_file_diagnostic_owners() {
+    struct NeverProvider;
+
+    impl AuthoritativeModuleProvider for NeverProvider {
+        fn resolve_module(
+            &self,
+            _request: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("strict eval probe contains no module requests")
+        }
+    }
+
+    let libs = [focused_default_library(concat!(
+        "declare function eval(x: string): any;\n",
+        "interface MergeProbe { [x: number]: string; }\n",
+    ))];
+    let files = [InputFile::new(
+        "/main.ts",
+        concat!(
+            "\"use strict\";\n",
+            "var eval;\n",
+            "interface MergeProbe {\n",
+            "  [x: number]: string;\n",
+            "  [x: number]: string;\n",
+            "}\n",
+        ),
+    )];
+    let lib_metadata = [AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(0),
+        file_name: libs[0].name.clone(),
+        may_be_emitted: false,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+    }];
+    let file_metadata = [AuthoritativeSourceMetadata {
+        token: AuthoritativeSourceToken(1),
+        file_name: files[0].name.clone(),
+        may_be_emitted: true,
+        implied_node_format: None,
+        implied_node_format_for_emit: None,
+    }];
+    let run = |skip_default_lib_check| {
+        check_program_with_authoritative_modules_at(
+            &libs,
+            &files,
+            &lib_metadata,
+            &file_metadata,
+            &CompilerOptions {
+                target: Some(tsc_types::ScriptTarget::ES2015.bits()),
+                skip_default_lib_check,
+                ..CompilerOptions::default()
+            },
+            "/",
+            &NeverProvider,
+        )
+        .expect("authoritative strict eval check")
+    };
+
+    let checked = run(Some(false));
+    // The fixture getter remains the exact driver.mjs observation.
+    assert_eq!(diagnostic_owners(&checked, 2300), ["/main.ts"]);
+    assert!(diagnostic_owners(&checked, 2374).is_empty());
+    let mut duplicate_owners = checked
+        .program_semantic_diagnostics
+        .as_ref()
+        .expect("authoritative sessions publish the whole-Program getter")
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2300)
+        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .collect::<Vec<_>>();
+    duplicate_owners.sort();
+    assert_eq!(duplicate_owners, ["/lib.d.ts", "/main.ts"]);
+    let mut index_duplicate_owners = checked
+        .program_semantic_diagnostics
+        .as_ref()
+        .expect("authoritative sessions publish the whole-Program getter")
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2374)
+        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .collect::<Vec<_>>();
+    index_duplicate_owners.sort();
+    assert_eq!(
+        index_duplicate_owners,
+        ["/lib.d.ts", "/main.ts", "/main.ts"]
+    );
+
+    let skipped = run(Some(true));
+    let mut skipped_duplicate_owners = skipped
+        .program_semantic_diagnostics
+        .as_ref()
+        .expect("authoritative sessions publish the whole-Program getter")
+        .iter()
+        .filter(|diagnostic| diagnostic.code() == 2300)
+        .map(|diagnostic| diagnostic.file_name.clone().unwrap_or_default())
+        .collect::<Vec<_>>();
+    skipped_duplicate_owners.sort();
+    assert_eq!(skipped_duplicate_owners, ["/main.ts"]);
+    assert!(skipped
+        .program_semantic_diagnostics
+        .as_ref()
+        .expect("authoritative sessions publish the whole-Program getter")
+        .iter()
+        .all(|diagnostic| diagnostic.code() != 2374));
+}
+
+#[test]
+fn authoritative_empty_program_publishes_an_empty_whole_program_semantic_getter() {
+    struct NeverProvider;
+
+    impl AuthoritativeModuleProvider for NeverProvider {
+        fn resolve_module(
+            &self,
+            _request: AuthoritativeModuleRequest<'_>,
+        ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+            unreachable!("an empty Program cannot issue module requests")
+        }
+    }
+
+    let checked = check_program_with_authoritative_modules_at(
+        &[],
+        &[],
+        &[],
+        &[],
+        &CompilerOptions::default(),
+        "/",
+        &NeverProvider,
+    )
+    .expect("empty authoritative Program check");
+
+    assert_eq!(checked.program_semantic_diagnostics, Some(Vec::new()));
+}
+
+#[test]
+fn source_file_getter_does_not_force_library_owned_merged_duplicate_indexers() {
+    let result = check_program_with_owned_libs_at(
+        &[focused_default_library(
+            "interface MergeProbe { [x: number]: string; }\n",
+        )],
+        &[InputFile::new(
+            "/main.ts",
+            concat!(
+                "interface MergeProbe {\n",
+                "  [x: number]: string;\n",
+                "  [x: number]: string;\n",
+                "}\n",
+            ),
+        )],
+        &CompilerOptions::default(),
+        "/",
+    );
+
+    // TypeScript's per-source getter checks only `/main.ts`. The merged
+    // interface's canonical (first) declaration belongs to `/lib.d.ts`, so
+    // checkTypeForDuplicateIndexSignatures returns at the source declaration
+    // and the unqueried library producer publishes no rows.
+    assert!(diagnostic_owners(&result, 2374).is_empty());
+}
+
+#[test]
+fn source_file_getter_does_not_force_library_owned_index_constraints() {
+    let result = check_program_with_owned_libs_at(
+        &[focused_default_library(
+            "interface MergeProbe { fromLib: number; }\n",
+        )],
+        &[InputFile::new(
+            "/main.ts",
+            "interface MergeProbe { fromSource: number; [x: string]: string; }\n",
+        )],
+        &CompilerOptions::default(),
+        "/",
+    );
+
+    assert!(diagnostic_owners(&result, 2411).is_empty());
+}
+
+#[test]
+fn source_file_getter_omits_an_index_constraint_diagnostic_owned_by_the_library() {
+    let result = check_program_with_owned_libs_at(
+        &[focused_default_library(
+            "interface MergeProbe { fromLib: number; }\n",
+        )],
+        &[InputFile::new(
+            "/main.ts",
+            "interface MergeProbe { [x: string]: string; }\n",
+        )],
+        &CompilerOptions::default(),
+        "/",
+    );
+
+    assert!(diagnostic_owners(&result, 2411).is_empty());
+}
+
+#[test]
+fn skip_default_lib_check_and_skip_lib_check_use_distinct_program_roles() {
+    let duplicate_lib = focused_default_library("interface MergeProbe { [x: number]: string; }\n");
+    let source = InputFile::new(
+        "/main.ts",
+        "interface MergeProbe { [x: number]: string; [x: number]: string; }\n",
+    );
+    let checked = check_program_with_owned_libs_at(
+        std::slice::from_ref(&duplicate_lib),
+        std::slice::from_ref(&source),
+        &CompilerOptions::default(),
+        "/",
+    );
+    let default_library_skipped = check_program_with_owned_libs_at(
+        std::slice::from_ref(&duplicate_lib),
+        std::slice::from_ref(&source),
+        &CompilerOptions {
+            skip_default_lib_check: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/",
+    );
+    let all_declarations_skipped = check_program_with_owned_libs_at(
+        std::slice::from_ref(&duplicate_lib),
+        std::slice::from_ref(&source),
+        &CompilerOptions {
+            skip_lib_check: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/",
+    );
+
+    assert!(diagnostic_owners(&checked, 2374).is_empty());
+    assert!(diagnostic_owners(&default_library_skipped, 2374).is_empty());
+    assert!(diagnostic_owners(&all_declarations_skipped, 2374).is_empty());
+
+    let ordinary_declaration = InputFile::new(
+        "/ordinary.d.ts",
+        "interface Ordinary { [x: number]: string; [x: number]: string; }\n",
+    );
+    let default_only = check_program_with_owned_libs_at(
+        &[focused_default_library("")],
+        std::slice::from_ref(&ordinary_declaration),
+        &CompilerOptions {
+            skip_default_lib_check: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/",
+    );
+    let every_declaration = check_program_with_owned_libs_at(
+        &[focused_default_library("")],
+        std::slice::from_ref(&ordinary_declaration),
+        &CompilerOptions {
+            skip_lib_check: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/",
+    );
+    assert_eq!(diagnostic_owners(&default_only, 2374).len(), 2);
+    assert!(diagnostic_owners(&every_declaration, 2374).is_empty());
+}
+
+#[test]
+fn no_check_remains_stronger_than_a_per_file_ts_check_directive() {
+    let result = check_program(
+        &[InputFile::new(
+            "/main.js",
+            "// @ts-check\nlet duplicate;\nlet duplicate;\n",
+        )],
+        &CompilerOptions {
+            allow_js: true,
+            check_js: Some(false),
+            no_check: Some(true),
+            ..CompilerOptions::default()
+        },
+    );
+
+    assert!(result.semantic_diagnostics.is_empty());
+}
+
 #[test]
 fn empty_engine_returns_no_diagnostics() {
     let result = check_program(&[], &CompilerOptions::default());
@@ -328,6 +651,50 @@ fn existing_path_reference_is_loaded_without_a_missing_file_diagnostic() {
         "{:?}",
         result.diagnostics
     );
+}
+
+#[test]
+fn drive_rooted_path_reference_is_not_rebased_under_its_source_directory() {
+    let result = check_program_with_libs_at(
+        &[],
+        &[
+            InputFile::new("C:/a/b/c.ts", "const x = 5;\n"),
+            InputFile::new(
+                "C:/a/b/d.ts",
+                "/// <reference path=\"C:\\a\\b\\c.ts\" />\nconst y = x + 3;\n",
+            ),
+        ],
+        &CompilerOptions::default(),
+        "/.src",
+    );
+
+    assert!(
+        result
+            .diagnostics
+            .iter()
+            .all(|diagnostic| diagnostic.code() != 6053),
+        "{:?}",
+        result.diagnostics
+    );
+}
+
+#[test]
+fn program_path_normalization_preserves_all_tsc_root_families() {
+    for (path, expected) in [
+        (r"C:\sdk\src\..\lib.d.ts", "C:/sdk/lib.d.ts"),
+        ("//server/share/src/../lib.d.ts", "//server/share/lib.d.ts"),
+        (
+            "https://example.test/sdk/src/../lib.d.ts",
+            "https://example.test/sdk/lib.d.ts",
+        ),
+        ("file:///C:/sdk/src/../lib.d.ts", "file:///C:/sdk/lib.d.ts"),
+    ] {
+        assert_eq!(
+            state::CheckerState::normalize_program_path(path, "/.src"),
+            expected,
+            "{path}"
+        );
+    }
 }
 
 #[test]
@@ -829,6 +1196,7 @@ fn authoritative_owned_and_harness_cached_modes_are_exactly_equivalent() {
             provider,
             cache_enabled,
             None,
+            None,
         )
     };
 
@@ -901,6 +1269,7 @@ fn authoritative_not_found_facts_reach_the_node10_diagnostic_chain() {
         "/",
         &Provider,
         false,
+        None,
         None,
     )
     .expect("authoritative alternate-result miss");
@@ -3465,6 +3834,7 @@ fn condition_join_reports_use_before_assignment() {
         )],
         &CompilerOptions {
             strict: Some(true),
+            target: Some(tsc_types::ScriptTarget::ES2015.bits()),
             ..CompilerOptions::default()
         },
     );
@@ -4399,7 +4769,14 @@ fn checked_js_publishes_assignment_bearing_class_property_reads() {
                 diagnostic.length.unwrap_or(u32::MAX),
             ))
             .collect::<Vec<_>>(),
-        [(2339, source.rfind('q').expect("missing property") as u32, 1,)]
+        [
+            (
+                2353,
+                source.find("q: 2").expect("excess property") as u32,
+                1,
+            ),
+            (2339, source.rfind('q').expect("missing property") as u32, 1),
+        ]
     );
 }
 

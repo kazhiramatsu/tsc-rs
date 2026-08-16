@@ -164,26 +164,18 @@ impl<'a> CheckerState<'a> {
     ///
     /// A locationless resolveName collapses to the globals-table tail
     /// of the scope walk (the createNameResolver globals lookup): the
-    /// merged-symbol chase + meaning filter.
-    /// KNOWN-GAP since M4 (m4-review DR-F5): the Alias hop in
-    /// getSymbol (resolveAlias on an ALIAS-flagged hit) is still
-    /// missing — 5.1 never replaced this lookup (that promise
-    /// lapsed), so a global name bound via import-equals in a script
-    /// resolves to the alias symbol, not its target.
+    /// merged-symbol chase + meaning filter, including the target flags
+    /// of an alias-backed global.
     pub fn get_global_symbol(
         &mut self,
         name: &str,
         meaning: SymbolFlags,
         diagnostic: Option<&'static DiagnosticMessage>,
-    ) -> Option<SymbolId> {
-        let found = self.globals.get(name).copied().and_then(|symbol| {
-            let symbol = self.get_merged_symbol(symbol);
-            self.binder
-                .symbol(symbol)
-                .flags
-                .intersects(meaning)
-                .then_some(symbol)
-        });
+    ) -> CheckResult<Option<SymbolId>> {
+        let found = match self.globals.get(name).copied() {
+            Some(symbol) => self.get_symbol_with_meaning(symbol, meaning)?,
+            None => None,
+        };
         if found.is_none() {
             if let Some(message) = diagnostic {
                 // A resolveName WITH nameNotFoundMessage runs onFailed on
@@ -201,7 +193,27 @@ impl<'a> CheckerState<'a> {
                 self.suggestion_count += 1;
             }
         }
-        found
+        Ok(found)
+    }
+
+    /// The eager initializeTypeChecker probes run while `CheckerState` is
+    /// still being constructed, before the fallible checker boundary exists.
+    /// Their fixed built-in names are direct lib declarations, never user
+    /// aliases, so this pre-augmentation lookup intentionally needs only the
+    /// direct meaning filter. All demand-time lookups use `get_global_symbol`.
+    fn get_global_symbol_for_init_probe(
+        &mut self,
+        name: &str,
+        meaning: SymbolFlags,
+    ) -> Option<SymbolId> {
+        self.globals.get(name).copied().and_then(|symbol| {
+            let symbol = self.get_merged_symbol(symbol);
+            self.binder
+                .symbol(symbol)
+                .flags
+                .intersects(meaning)
+                .then_some(symbol)
+        })
     }
 
     /// tsc-port: initializeTypeChecker @6.0.3
@@ -228,7 +240,7 @@ impl<'a> CheckerState<'a> {
             // them), so the timing difference is unobservable, while
             // the COUNT must happen now (the name-side 2552/2304
             // selection reads it).
-            let symbol = self.get_global_symbol(name, SymbolFlags::TYPE, None);
+            let symbol = self.get_global_symbol_for_init_probe(name, SymbolFlags::TYPE);
             if symbol.is_none() {
                 self.suggestion_count += 1;
             }
@@ -236,18 +248,27 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsrs-native: bridge the lazy global getters into the owned program
-    /// session's eager global-diagnostics bucket.
+    /// tsc-port: initializeTypeChecker @6.0.3 (eager global-type block)
+    /// tsc-hash: bcff266f457a2a4ba7d151977d9089e566adb586c473e0d266f7d457ed11bb2f
+    /// tsc-span: _tsc.js:88779-88873
     ///
-    /// Materialize the file-less diagnostics that tsc publishes while
-    /// constructing the type checker. The conformance harness deliberately
-    /// observes per-file getters and leaves these rows deferred; the owned
-    /// no-emit entry calls this before checking any source so its separate
-    /// `getGlobalDiagnostics` bucket has the command-line timing.
+    /// Complete initializeTypeChecker's eager global-type block and publish
+    /// its file-less diagnostics for an owned program session.
+    ///
+    /// This is also a type-ordering boundary, not merely diagnostic plumbing.
+    /// With stableTypeOrdering disabled, tsc's unions are sorted by type id;
+    /// `anyArrayType`, `autoArrayType`, and `anyReadonlyArrayType` therefore
+    /// have to be allocated before any user-program type. Leaving those roots
+    /// lazy reverses narrowed unions such as
+    /// `any[] | Record<string, any>` even though their member set is correct.
+    ///
+    /// The driver calls this for every public checker run before checking the
+    /// first source. Whether the caller later requests global diagnostics is
+    /// an observation choice and must not change the type graph.
     pub(crate) fn materialize_init_global_diagnostics(&mut self) {
         let diagnostics_before = self.diagnostics.len();
-        // initializeTypeChecker's exact getter order. Calling the full
-        // getters (rather than replaying only their symbol probes) also
+        // initializeTypeChecker's exact getter/allocation order. Calling the
+        // full getters (rather than replaying only their symbol probes) also
         // preserves wrong-kind and generic-arity diagnostics.
         let _ = self.arguments_symbol_type();
         let _ = self.global_array_type();
@@ -259,6 +280,11 @@ impl<'a> CheckerState<'a> {
         let _ = self.global_number_type();
         let _ = self.global_boolean_type();
         let _ = self.global_regexp_type();
+        let _ = self.any_array_type();
+        let _ = self.auto_array_type();
+        let _ = self.global_readonly_array_type();
+        let _ = self.any_readonly_array_type();
+        let _ = self.global_this_type_alias();
         self.publish_visible_global_diagnostics_since(diagnostics_before);
     }
 
@@ -266,16 +292,19 @@ impl<'a> CheckerState<'a> {
     /// list already ran their (counted) probe at init; a memoized MISS
     /// emits its 2318 on first demand (error_at dedupes repeats)
     /// without re-consuming budget.
-    fn init_probed_global_type_symbol(&mut self, name: &'static str) -> Option<SymbolId> {
+    fn init_probed_global_type_symbol(
+        &mut self,
+        name: &'static str,
+    ) -> CheckResult<Option<SymbolId>> {
         match self.init_global_type_probes.get(name) {
-            Some(&Some(symbol)) => Some(symbol),
+            Some(&Some(symbol)) => Ok(Some(symbol)),
             Some(&None) => {
                 self.error_at(
                     None,
                     &diagnostics::Cannot_find_global_type_0,
                     &[tsc_binder::unescape_leading_underscores(name)],
                 );
-                None
+                Ok(None)
             }
             None => self.get_global_type_symbol(name, /*report_errors*/ true),
         }
@@ -284,7 +313,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getGlobalTypeSymbol @6.0.3
     /// tsc-hash: 79e4e32b89b69c291bc572e0b38a387ebf68f5e7eaa792e242abadeefc49b7bc
     /// tsc-span: _tsc.js:60635-60637
-    pub fn get_global_type_symbol(&mut self, name: &str, report_errors: bool) -> Option<SymbolId> {
+    pub fn get_global_type_symbol(
+        &mut self,
+        name: &str,
+        report_errors: bool,
+    ) -> CheckResult<Option<SymbolId>> {
         self.get_global_symbol(
             name,
             SymbolFlags::TYPE,
@@ -384,7 +417,7 @@ impl<'a> CheckerState<'a> {
         arity: usize,
         report_errors: bool,
     ) -> CheckResult<Option<TypeId>> {
-        let symbol = self.get_global_type_symbol(name, report_errors);
+        let symbol = self.get_global_type_symbol(name, report_errors)?;
         if symbol.is_some() || report_errors {
             Ok(Some(self.get_type_of_global_symbol(symbol, arity)?))
         } else {
@@ -400,7 +433,7 @@ impl<'a> CheckerState<'a> {
         name: &str,
         arity: usize,
     ) -> CheckResult<Option<TypeId>> {
-        let symbol = self.get_global_symbol(name, SymbolFlags::TYPE, None);
+        let symbol = self.get_global_symbol(name, SymbolFlags::TYPE, None)?;
         match symbol {
             Some(symbol) => Ok(Some(self.get_type_of_global_symbol(Some(symbol), arity)?)),
             None => Ok(None),
@@ -451,7 +484,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.array {
             return Ok(cached);
         }
-        let symbol = self.init_probed_global_type_symbol("Array");
+        let symbol = self.init_probed_global_type_symbol("Array")?;
         let resolved = self.get_type_of_global_symbol(symbol, 1)?;
         self.global_type_memos.array = Some(resolved);
         Ok(resolved)
@@ -465,7 +498,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.object {
             return Ok(cached);
         }
-        let symbol = self.init_probed_global_type_symbol("Object");
+        let symbol = self.init_probed_global_type_symbol("Object")?;
         let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.object = Some(resolved);
         Ok(resolved)
@@ -479,7 +512,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.function {
             return Ok(cached);
         }
-        let symbol = self.init_probed_global_type_symbol("Function");
+        let symbol = self.init_probed_global_type_symbol("Function")?;
         let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.function = Some(resolved);
         Ok(resolved)
@@ -503,7 +536,7 @@ impl<'a> CheckerState<'a> {
         // Function fallback fires only when strictBindCallApply is off.
         let resolved = if strict_bind_call_apply {
             {
-                let symbol = self.init_probed_global_type_symbol("CallableFunction");
+                let symbol = self.init_probed_global_type_symbol("CallableFunction")?;
                 self.get_type_of_global_symbol(symbol, 0)?
             }
         } else {
@@ -526,7 +559,7 @@ impl<'a> CheckerState<'a> {
             .strict_option_value(self.options.strict_bind_call_apply);
         let resolved = if strict_bind_call_apply {
             {
-                let symbol = self.init_probed_global_type_symbol("NewableFunction");
+                let symbol = self.init_probed_global_type_symbol("NewableFunction")?;
                 self.get_type_of_global_symbol(symbol, 0)?
             }
         } else {
@@ -544,7 +577,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.string {
             return Ok(cached);
         }
-        let symbol = self.init_probed_global_type_symbol("String");
+        let symbol = self.init_probed_global_type_symbol("String")?;
         let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.string = Some(resolved);
         Ok(resolved)
@@ -558,7 +591,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.number {
             return Ok(cached);
         }
-        let symbol = self.init_probed_global_type_symbol("Number");
+        let symbol = self.init_probed_global_type_symbol("Number")?;
         let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.number = Some(resolved);
         Ok(resolved)
@@ -572,7 +605,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.boolean {
             return Ok(cached);
         }
-        let symbol = self.init_probed_global_type_symbol("Boolean");
+        let symbol = self.init_probed_global_type_symbol("Boolean")?;
         let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.boolean = Some(resolved);
         Ok(resolved)
@@ -619,7 +652,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.regexp {
             return Ok(cached);
         }
-        let symbol = self.init_probed_global_type_symbol("RegExp");
+        let symbol = self.init_probed_global_type_symbol("RegExp")?;
         let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.regexp = Some(resolved);
         Ok(resolved)
@@ -698,7 +731,7 @@ impl<'a> CheckerState<'a> {
             name,
             SymbolFlags::TYPE,
             report_errors.then_some(&diagnostics::Cannot_find_global_type_0),
-        );
+        )?;
         let Some(symbol) = symbol else {
             return Ok(None);
         };
@@ -1296,7 +1329,7 @@ impl<'a> CheckerState<'a> {
         if let Some(cached) = self.global_type_memos.arguments_type {
             return Ok(cached);
         }
-        let symbol = self.init_probed_global_type_symbol("IArguments");
+        let symbol = self.init_probed_global_type_symbol("IArguments")?;
         let resolved = self.get_type_of_global_symbol(symbol, 0)?;
         self.global_type_memos.arguments_type = Some(resolved);
         Ok(resolved)

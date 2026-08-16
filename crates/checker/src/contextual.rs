@@ -3827,7 +3827,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isResolvingReturnTypeOfSignature @6.0.3
     /// tsc-hash: f78b4c461afdf8a424ff79b33e53c878d2498a8bf4e5e8006c5c0c25f15da54a
     /// tsc-span: _tsc.js:59872-59874
-    fn is_resolving_return_type_of_signature(&self, signature: SignatureId) -> bool {
+    pub(crate) fn is_resolving_return_type_of_signature(&self, signature: SignatureId) -> bool {
         let data = self.signature_of(signature);
         if let Some(composite) = &data.composite_signatures {
             if composite

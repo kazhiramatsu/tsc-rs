@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-4c",
+  "status": "ready",
+  "trustedBase": "e91674a9ff59f736cbdcf78029ebee2e6daf1e0d",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-4c-impact-transition.md",
+    "sha256": "d6450b4b4e2c007cc4dd74d25740718703a9ef2934590a01cd7c4186ccd12b60"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-4b",
+      "receiptSha256": "200f0920e4b73ef53c3f3a56fcd0c0569217d12699795433c9018127e52bcdb9"
+    }
+  ],
+  "allowedPaths": [
+    "crates/ci-core/src/lib.rs",
+    "crates/ci-core/src/impact.rs",
+    "crates/ci-core/tests/impact.rs",
+    "docs/design/greenfield/slices/impact-cases.v1.json",
+    "docs/design/greenfield/slices/fci-4c-impact-transition.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-4c.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/ci-runner",
+    "crates/ci-testkit",
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    "crates/oracle",
+    "crates/ci-adapter",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g",
+    "ratchets/h2"
+  ],
+  "proof": {
+    "commands": [
+      "cargo xtask test ci-core",
+      "cargo test -p tsc-rs-ci-core --test impact",
+      "node .github/ci/slice-readiness.mjs --check fci-4c"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-4c.v1.json"
+  }
+}

@@ -284,6 +284,20 @@ fn compiler_root_policies_preserve_occurrences_and_resolve_all_configs() {
     );
     assert_eq!(program_root_units.as_ref(), [CompilerUnitId(0)]);
 
+    let unsupported_javascript = compiler(plan(
+        "typescript-6.0.3/compiler/jsFileCompilationWithoutJsExtensions.ts#default",
+    ));
+    let CompilerRootSelection::Explicit {
+        root_units,
+        program_root_units,
+        ..
+    } = &unsupported_javascript.root_selection
+    else {
+        panic!("JavaScript root canary must have explicit roots");
+    };
+    assert_eq!(root_units.as_ref(), [CompilerUnitId(0)]);
+    assert!(program_root_units.is_empty());
+
     let config = compiler(plan(
         "typescript-6.0.3/compiler/allowJsCrossMonorepoPackage.ts#default",
     ));
@@ -959,6 +973,25 @@ fn compiler_no_emit_loader_handles_recorded_roots() {
         assert!(!prepared.source_files().is_empty(), "{case_id}");
         assert_eq!(prepared.compiler_options().no_emit, Some(true), "{case_id}");
     }
+}
+
+#[test]
+fn compiler_loader_preserves_drive_rooted_triple_slash_reference_paths() {
+    let workspace = workspace_root();
+    let case_id = "typescript-6.0.3/compiler/tripleSlashReferenceAbsoluteWindowsPath.ts#default";
+    let execution = compiler(plan(case_id));
+    let prepared = load_compiler_no_emit(&workspace, execution, focused_project_limits())
+        .unwrap_or_else(|error| panic!("compiler no-emit loader failed for {case_id}: {error}"));
+
+    let drive_sources = prepared
+        .source_files()
+        .iter()
+        .map(|source| source.path().display().to_string_lossy())
+        .filter(|path| path.starts_with("C:/"))
+        .map(|path| path.into_owned())
+        .collect::<Vec<_>>();
+    assert_eq!(drive_sources, ["C:/a/b/c.ts", "C:/a/b/d.ts"]);
+    assert!(prepared.diagnostics().program().is_empty());
 }
 
 fn focused_project_limits() -> ProgramLoadLimits {

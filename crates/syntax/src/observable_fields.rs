@@ -1307,6 +1307,7 @@ where
                 cb("expression", ObservableField::Node(value));
             }
         }
+        NodeData::NotEmittedStatement(_data) => {}
         NodeData::NumericLiteral(data) => {
             cb("text", ObservableField::String(&data.text));
         }

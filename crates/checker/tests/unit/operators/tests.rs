@@ -881,6 +881,28 @@ fn object_literal_assertion_mismatch_reports_2352_with_literal_faces() {
 }
 
 #[test]
+fn array_assertion_excess_property_keeps_nested_relation_location_and_detail() {
+    let text = "interface Array<T> { [index: number]: T; length: number; }\n\
+                <{ id: number; }[]>[{ foo: \"s\" }];\n";
+    with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
+        state.check_source_file(0);
+        let diagnostic = state
+            .diagnostics
+            .iter()
+            .find(|diagnostic| diagnostic.code() == 2352)
+            .expect("array assertion diagnostic");
+        assert_eq!(diagnostic.start, Some(text.find("foo").unwrap() as u32));
+        assert_eq!(diagnostic.length, Some(3));
+        assert_eq!(diagnostic.message.next.len(), 1);
+        assert_eq!(diagnostic.message.next[0].code, 2353);
+        assert_eq!(
+            diagnostic.message.next[0].text,
+            "Object literal may only specify known properties, and 'foo' does not exist in type '{ id: number; }'."
+        );
+    });
+}
+
+#[test]
 fn identifier_const_assertion_reports_1355() {
     assert_eq!(
         checked_rows("declare let v4: number;\nv4 as const;\n"),

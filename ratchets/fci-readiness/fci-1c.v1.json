@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-1c",
+  "status": "ready",
+  "trustedBase": "a37a12f2257a504382295e81176650675afe8da4",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-1c-graph-profile-records.md",
+    "sha256": "eec950d81de7cdc1610dbc8e932d379a56403306c6a013d36db5ab6a3921e5a3"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-1b",
+      "receiptSha256": "b71dcfcb19e72fa5553aa6c78aefdc73575932e9d861a4489dccff3a38ec0ec8"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.toml",
+    "crates/ci-core/src/lib.rs",
+    "crates/ci-core/src/graph.rs",
+    "crates/ci-core/tests/graph.rs",
+    "docs/design/greenfield/slices/fci-1c-graph-profile-records.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-1c.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g",
+    "crates/ci-runner",
+    "crates/ci-testkit"
+  ],
+  "proof": {
+    "commands": [
+      "cargo test -p tsc-rs-ci-core --test graph",
+      "node .github/ci/slice-readiness.mjs --check fci-1c"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-1c.v1.json"
+  }
+}

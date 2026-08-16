@@ -2,7 +2,10 @@ use std::collections::BTreeMap;
 
 use tsc_syntax::SyntaxKind;
 
-use crate::{SourceRange, TransformNode, TransformSourceId};
+use crate::{
+    transform::GeneratedBindingId, SourceRange, TransformNode, TransformNodeArray,
+    TransformSourceId,
+};
 
 /// Emitter-only node flags. They live in a sparse session table and never
 /// enlarge persistent parsed nodes.
@@ -86,6 +89,17 @@ impl InternalEmitFlags {
     pub const IGNORE_SOURCE_NEWLINES: Self = Self(4);
     pub const IMMUTABLE: Self = Self(8);
     pub const TRANSFORM_PRIVATE_STATIC_ELEMENTS: Self = Self(32);
+    /// The computed property name already carries the cache selected by an
+    /// earlier transformer (the local equivalent of tsc's generated-name link).
+    pub const GENERATED_COMPUTED_PROPERTY_NAME: Self = Self(64);
+    /// A clone of a declaration name is being used as an expression reference.
+    ///
+    /// TypeScript's mutable transform tree reparents the clone beneath that
+    /// expression. Our immutable parse-tree provenance still points at the
+    /// declaration, so module substitution needs this typed ownership bit to
+    /// distinguish `getDeclarationName(node)` in an IIFE argument from the
+    /// same spelling emitted as a binding declaration.
+    pub const DECLARATION_NAME_REFERENCE: Self = Self(128);
 
     pub const fn from_bits(bits: u32) -> Self {
         Self(bits)
@@ -106,6 +120,54 @@ impl InternalEmitFlags {
 pub struct SourceMapRange {
     source: TransformSourceId,
     range: SourceRange,
+}
+
+/// Source range used exclusively to decide ownership of parsed comments.
+///
+/// A transformed node may share semantic provenance with an original node
+/// while intentionally owning no source comments, and its source-map range
+/// may point somewhere else again. A distinct type keeps those three emitter
+/// relationships from being coupled accidentally.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CommentRange {
+    source: TransformSourceId,
+    range: SourceRange,
+}
+
+/// Original statement-list provenance retained by a synthetic block after
+/// its statements have been relocated into a module wrapper.
+///
+/// The outer SourceFile list keeps the parsed range and therefore owns its
+/// detached prefix. The synthetic inner list still needs the same boundary as
+/// a comment-resume seed so its first original statement cannot claim that
+/// prefix a second time.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub(crate) struct RelocatedStatementListComments {
+    original: TransformNodeArray,
+}
+
+impl RelocatedStatementListComments {
+    pub(crate) const fn owned_by_source_file(original: TransformNodeArray) -> Self {
+        Self { original }
+    }
+
+    pub(crate) const fn original(self) -> TransformNodeArray {
+        self.original
+    }
+}
+
+impl CommentRange {
+    pub const fn new(source: TransformSourceId, range: SourceRange) -> Self {
+        Self { source, range }
+    }
+
+    pub const fn source(self) -> TransformSourceId {
+        self.source
+    }
+
+    pub const fn range(self) -> SourceRange {
+        self.range
+    }
 }
 
 impl SourceMapRange {
@@ -227,6 +289,28 @@ pub struct EmitEnumMemberValue {
     is_syntactically_string: bool,
 }
 
+/// Declaration ownership carried by a class expression synthesized by an
+/// earlier transform pass.
+///
+/// A decorated class declaration is represented as a variable initialized by
+/// a class expression before class-field lowering runs.  The class expression
+/// is still statement-expandable: static initializers belong after that
+/// variable statement, rather than in an ordinary expression-local comma
+/// sequence.  Keeping that fact as typed emit metadata avoids inferring pass
+/// ownership from a mutable parent chain or from printable names.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ClassExpressionDeclarationOrigin {
+    LegacyDecorated { declaration: TransformNode },
+}
+
+/// A source expression whose same-line trailing trivia moved to a generated
+/// class-field operation. The operation (statement for declarations, comma
+/// expression for class expressions) is the sole owner of that boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum RelocatedTrailingCommentOwner {
+    ClassFieldOperation,
+}
+
 impl EmitEnumMemberValue {
     pub const fn new(value: Option<EmitConstantValue>, is_syntactically_string: bool) -> Self {
         Self {
@@ -252,7 +336,10 @@ pub struct EmitMetadata {
     pub(crate) internal_flags: InternalEmitFlags,
     pub(crate) leading_comments: Vec<SyntheticComment>,
     pub(crate) trailing_comments: Vec<SyntheticComment>,
-    pub(crate) comment_range: Option<SourceMapRange>,
+    pub(crate) comment_range: Option<CommentRange>,
+    /// Statement-list prefix already emitted by the outer SourceFile after a
+    /// transform relocated the original statements into this synthetic body.
+    pub(crate) relocated_statement_list_comments: Option<RelocatedStatementListComments>,
     pub(crate) source_map_range: Option<SourceMapRange>,
     pub(crate) token_source_map_ranges: BTreeMap<SyntaxKind, SourceMapRange>,
     pub(crate) constant_value: Option<EmitConstantValue>,
@@ -261,6 +348,21 @@ pub struct EmitMetadata {
     pub(crate) snippet_element: Option<Box<str>>,
     pub(crate) class_this: Option<TransformNode>,
     pub(crate) assigned_name: Option<TransformNode>,
+    pub(crate) class_expression_declaration_origin: Option<ClassExpressionDeclarationOrigin>,
+    pub(crate) relocated_trailing_comment_owner: Option<RelocatedTrailingCommentOwner>,
+    /// Erased TypeScript type annotation whose trailing source boundary still
+    /// belongs to this declaration name. The JavaScript printer uses it to
+    /// retain comments on either side of the removed annotation without
+    /// retaining type syntax in the transformed tree.
+    pub(crate) type_node: Option<TransformNode>,
+    /// Owning class for a synthesized identifier that semantically denotes
+    /// that class constructor. Later class lowering can resolve the reference
+    /// without guessing from its printable text.
+    pub(crate) class_constructor_reference: Option<TransformNode>,
+    /// Source node whose leading trivia is intentionally re-emitted by a
+    /// lowered class-field initializer. Decorated static auto-accessors own
+    /// this in addition to the generated getter's normal comment range.
+    pub(crate) class_field_initializer_comment_source: Option<TransformNode>,
     /// Lossless cooked text for parsed or synthetic nodes whose JavaScript
     /// value may contain an unpaired UTF-16 surrogate. Original raw source
     /// remains authoritative whenever the printer can copy it unchanged.
@@ -269,10 +371,58 @@ pub struct EmitMetadata {
     /// attribute lowering preserves the source delimiter after decoding
     /// entities, so the cooked value and quote choice must travel together.
     pub(crate) string_literal_single_quote: Option<bool>,
-    /// Parsed import declaration selected for the root of a synthesized
-    /// classic JSX factory expression. This is the Rust ownership analogue
-    /// of TypeScript parenting that expression at the JSX parse tree node.
+    /// Parsed string literal whose token spelling supplies a synthetic
+    /// string's emitted text. This is the source-string branch of tsc's
+    /// `StringLiteral.textSourceNode`; unlike `original`, it carries only
+    /// lexical spelling ownership and grants neither comments nor resolver
+    /// identity to the synthesized literal.
+    pub(crate) string_literal_text_source: Option<TransformNode>,
+    /// Import declaration selected for a synthesized reference. This includes
+    /// both classic JSX factory expressions and automatic-runtime helpers.
+    /// The declaration identity, rather than the printable local spelling,
+    /// drives later module substitution.
     pub(crate) referenced_import_declaration: Option<TransformNode>,
+    /// Namespace or enum declaration selected for a synthesized lexical
+    /// reference. Upstream gives classic-JSX factory roots a parse-tree
+    /// parent and resolves them during TypeScript substitution; this typed
+    /// identity carries the same ownership without a mutable parent chain.
+    pub(crate) referenced_export_container: Option<TransformNode>,
+    /// Whether the reference is TypeScript's generated-import identifier
+    /// (`setIdentifierGeneratedImportReference`). CommonJS explicitly permits
+    /// substitution for this generated-name class, while SystemJS leaves it
+    /// as the generated local binding.
+    pub(crate) generated_import_reference: bool,
+    /// Stable identity shared by every synthesized identifier that denotes one
+    /// generated lexical binding. The printable spelling is finalized after
+    /// target-pass composition has fixed declaration order.
+    pub(crate) generated_binding_id: Option<GeneratedBindingId>,
+    /// Source-derived base for generated names such as `env_1` or `e_2`.
+    /// Absence denotes the target ladder's ordinal temporary class (`_a`,
+    /// `_b`, ...).
+    pub(crate) generated_binding_base: Option<Box<str>>,
+    /// Function-scoped optimistic base for generated names such as `_super`.
+    /// Preferred names differ from source-derived numbered names because
+    /// sibling functions may reuse them.
+    pub(crate) generated_binding_preferred_base: Option<Box<str>>,
+    /// Semantic suffix of a source-derived optimistic generated name. The
+    /// collision ordinal precedes this suffix (`name_1_get`), so it cannot be
+    /// folded into `generated_binding_preferred_base` without losing order.
+    pub(crate) generated_binding_role_suffix: Option<Box<str>>,
+    /// Whether this preferred binding uses TypeScript's file-level optimistic
+    /// collision domain. Such a name is checked only against parsed source and
+    /// global identifiers, so distinct generated binding identities may share
+    /// its printable spelling.
+    pub(crate) generated_binding_file_level_optimistic: bool,
+    /// Whether an ordinary target-generated temp carries a semantic planned
+    /// spelling that must survive final output-tree name reconciliation when
+    /// collision-free. The default ordinary-temp policy allocates from the
+    /// final lexical scope's traversal-order cursor instead.
+    pub(crate) generated_binding_planned_name_authoritative: bool,
+    /// Whether this generated binding's printable name must remain reserved
+    /// in descendant function scopes. Async-generator forwarding parameters
+    /// use this to keep the outer alias distinct from the inner generator's
+    /// parameter aliases.
+    pub(crate) generated_binding_reserved_in_nested_scopes: bool,
 }
 
 impl EmitMetadata {
@@ -296,8 +446,14 @@ impl EmitMetadata {
         &self.trailing_comments
     }
 
-    pub const fn comment_range(&self) -> Option<SourceMapRange> {
+    pub const fn comment_range(&self) -> Option<CommentRange> {
         self.comment_range
+    }
+
+    pub(crate) const fn relocated_statement_list_comments(
+        &self,
+    ) -> Option<RelocatedStatementListComments> {
+        self.relocated_statement_list_comments
     }
 
     pub const fn source_map_range(&self) -> Option<SourceMapRange> {
@@ -306,6 +462,10 @@ impl EmitMetadata {
 
     pub fn token_source_map_ranges(&self) -> &BTreeMap<SyntaxKind, SourceMapRange> {
         &self.token_source_map_ranges
+    }
+
+    pub const fn constant_value(&self) -> Option<&EmitConstantValue> {
+        self.constant_value.as_ref()
     }
 
     pub const fn starts_on_new_line(&self) -> Option<bool> {
@@ -320,8 +480,52 @@ impl EmitMetadata {
         self.string_literal_single_quote
     }
 
+    pub(crate) const fn string_literal_text_source(&self) -> Option<TransformNode> {
+        self.string_literal_text_source
+    }
+
+    pub const fn type_node(&self) -> Option<TransformNode> {
+        self.type_node
+    }
+
     pub const fn referenced_import_declaration(&self) -> Option<TransformNode> {
         self.referenced_import_declaration
+    }
+
+    pub(crate) const fn referenced_export_container(&self) -> Option<TransformNode> {
+        self.referenced_export_container
+    }
+
+    pub const fn is_generated_import_reference(&self) -> bool {
+        self.generated_import_reference
+    }
+
+    pub(crate) const fn generated_binding_id(&self) -> Option<GeneratedBindingId> {
+        self.generated_binding_id
+    }
+
+    pub(crate) fn generated_binding_base(&self) -> Option<&str> {
+        self.generated_binding_base.as_deref()
+    }
+
+    pub(crate) fn generated_binding_preferred_base(&self) -> Option<&str> {
+        self.generated_binding_preferred_base.as_deref()
+    }
+
+    pub(crate) fn generated_binding_role_suffix(&self) -> Option<&str> {
+        self.generated_binding_role_suffix.as_deref()
+    }
+
+    pub(crate) const fn generated_binding_is_file_level_optimistic(&self) -> bool {
+        self.generated_binding_file_level_optimistic
+    }
+
+    pub(crate) const fn generated_binding_planned_name_is_authoritative(&self) -> bool {
+        self.generated_binding_planned_name_authoritative
+    }
+
+    pub(crate) const fn generated_binding_reserved_in_nested_scopes(&self) -> bool {
+        self.generated_binding_reserved_in_nested_scopes
     }
 
     pub fn set_flags(&mut self, flags: EmitFlags) {
@@ -344,8 +548,19 @@ impl EmitMetadata {
         self.token_source_map_ranges.insert(token, range);
     }
 
-    pub fn set_comment_range(&mut self, range: SourceMapRange) {
+    pub fn set_comment_range(&mut self, range: CommentRange) {
         self.comment_range = Some(range);
+    }
+
+    pub(crate) fn set_relocated_statement_list_comments(
+        &mut self,
+        comments: RelocatedStatementListComments,
+    ) {
+        self.relocated_statement_list_comments = Some(comments);
+    }
+
+    pub fn set_constant_value(&mut self, value: EmitConstantValue) {
+        self.constant_value = Some(value);
     }
 
     pub fn add_leading_comment(&mut self, comment: SyntheticComment) {
@@ -360,6 +575,10 @@ impl EmitMetadata {
         self.starts_on_new_line = Some(value);
     }
 
+    pub fn set_type_node(&mut self, value: TransformNode) {
+        self.type_node = Some(value);
+    }
+
     pub fn set_javascript_string_value(&mut self, value: JavaScriptString) {
         self.javascript_string_value = Some(value);
     }
@@ -368,8 +587,50 @@ impl EmitMetadata {
         self.string_literal_single_quote = Some(value);
     }
 
+    pub fn set_string_literal_text_source(&mut self, value: TransformNode) {
+        self.string_literal_text_source = Some(value);
+    }
+
     pub fn set_referenced_import_declaration(&mut self, value: TransformNode) {
         self.referenced_import_declaration = Some(value);
+        self.generated_import_reference = false;
+    }
+
+    pub(crate) fn set_referenced_export_container(&mut self, value: TransformNode) {
+        self.referenced_export_container = Some(value);
+    }
+
+    pub fn set_generated_import_reference(&mut self, value: TransformNode) {
+        self.referenced_import_declaration = Some(value);
+        self.generated_import_reference = true;
+    }
+
+    pub(crate) fn set_generated_binding_id(&mut self, value: GeneratedBindingId) {
+        self.generated_binding_id = Some(value);
+    }
+
+    pub(crate) fn set_generated_binding_base(&mut self, value: &str) {
+        self.generated_binding_base = Some(value.into());
+    }
+
+    pub(crate) fn set_generated_binding_preferred_base(&mut self, value: &str) {
+        self.generated_binding_preferred_base = Some(value.into());
+    }
+
+    pub(crate) fn set_generated_binding_role_suffix(&mut self, value: &str) {
+        self.generated_binding_role_suffix = Some(value.into());
+    }
+
+    pub(crate) fn mark_generated_binding_file_level_optimistic(&mut self) {
+        self.generated_binding_file_level_optimistic = true;
+    }
+
+    pub(crate) fn mark_generated_binding_planned_name_authoritative(&mut self) {
+        self.generated_binding_planned_name_authoritative = true;
+    }
+
+    pub(crate) fn reserve_generated_binding_in_nested_scopes(&mut self) {
+        self.generated_binding_reserved_in_nested_scopes = true;
     }
 
     /// tsc-port: mergeEmitNode @6.0.3
@@ -397,6 +658,9 @@ impl EmitMetadata {
         if source.comment_range.is_some() {
             self.comment_range = source.comment_range;
         }
+        if source.relocated_statement_list_comments.is_some() {
+            self.relocated_statement_list_comments = source.relocated_statement_list_comments;
+        }
         if source.source_map_range.is_some() {
             self.source_map_range = source.source_map_range;
         }
@@ -423,14 +687,55 @@ impl EmitMetadata {
         if source.assigned_name.is_some() {
             self.assigned_name = source.assigned_name;
         }
+        if source.class_expression_declaration_origin.is_some() {
+            self.class_expression_declaration_origin = source.class_expression_declaration_origin;
+        }
+        if source.relocated_trailing_comment_owner.is_some() {
+            self.relocated_trailing_comment_owner = source.relocated_trailing_comment_owner;
+        }
+        if source.type_node.is_some() {
+            self.type_node = source.type_node;
+        }
+        if source.class_constructor_reference.is_some() {
+            self.class_constructor_reference = source.class_constructor_reference;
+        }
+        if source.class_field_initializer_comment_source.is_some() {
+            self.class_field_initializer_comment_source =
+                source.class_field_initializer_comment_source;
+        }
+        if source.generated_binding_id.is_some() {
+            self.generated_binding_id = source.generated_binding_id;
+        }
+        if source.generated_binding_base.is_some() {
+            self.generated_binding_base = source.generated_binding_base.clone();
+        }
+        if source.generated_binding_preferred_base.is_some() {
+            self.generated_binding_preferred_base = source.generated_binding_preferred_base.clone();
+        }
+        if source.generated_binding_role_suffix.is_some() {
+            self.generated_binding_role_suffix = source.generated_binding_role_suffix.clone();
+        }
+        self.generated_binding_file_level_optimistic |=
+            source.generated_binding_file_level_optimistic;
+        self.generated_binding_planned_name_authoritative |=
+            source.generated_binding_planned_name_authoritative;
+        self.generated_binding_reserved_in_nested_scopes |=
+            source.generated_binding_reserved_in_nested_scopes;
         if source.javascript_string_value.is_some() {
             self.javascript_string_value = source.javascript_string_value.clone();
         }
         if source.string_literal_single_quote.is_some() {
             self.string_literal_single_quote = source.string_literal_single_quote;
         }
+        if source.string_literal_text_source.is_some() {
+            self.string_literal_text_source = source.string_literal_text_source;
+        }
         if source.referenced_import_declaration.is_some() {
             self.referenced_import_declaration = source.referenced_import_declaration;
+            self.generated_import_reference = source.generated_import_reference;
+        }
+        if source.referenced_export_container.is_some() {
+            self.referenced_export_container = source.referenced_export_container;
         }
     }
 }

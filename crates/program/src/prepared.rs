@@ -543,6 +543,101 @@ impl PathMapping {
     }
 }
 
+/// Exact config-source location retained by a late `paths` option
+/// validation. The diagnostic spelling is intentionally independent from the
+/// normalized [`ProgramPath`] used to identify the config as an auxiliary
+/// file.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PathsOptionDiagnosticLocation {
+    file_name: String,
+    span: ProgramConfigSpan,
+}
+
+impl PathsOptionDiagnosticLocation {
+    pub(crate) fn new(file_name: impl Into<String>, span: ProgramConfigSpan) -> Self {
+        Self {
+            file_name: file_name.into(),
+            span,
+        }
+    }
+
+    pub(crate) fn file_name(&self) -> &str {
+        &self.file_name
+    }
+
+    pub(crate) const fn span(&self) -> ProgramConfigSpan {
+        self.span
+    }
+}
+
+/// Raw-sensitive `paths` failures which cannot be reconstructed from the
+/// resolver's string-only substitution projection.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum PathsOptionViolationKind {
+    PatternHasMultipleAsterisks {
+        pattern: String,
+    },
+    SubstitutionsNotArray {
+        pattern: String,
+    },
+    EmptySubstitutions {
+        pattern: String,
+    },
+    SubstitutionHasMultipleAsterisks {
+        pattern: String,
+        substitution: String,
+    },
+    SubstitutionHasIncorrectType {
+        pattern: String,
+        substitution: String,
+        actual_type: String,
+    },
+    /// Emission remains conditional until the final effective `baseUrl` is
+    /// known. `pathsBasePath` anchors resolution but does not suppress TS5090.
+    NonRelativeSubstitutionWithoutBaseUrl,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct PathsOptionViolation {
+    kind: PathsOptionViolationKind,
+    location: Option<PathsOptionDiagnosticLocation>,
+}
+
+impl PathsOptionViolation {
+    pub(crate) fn new(
+        kind: PathsOptionViolationKind,
+        location: Option<PathsOptionDiagnosticLocation>,
+    ) -> Self {
+        Self { kind, location }
+    }
+
+    pub(crate) fn kind(&self) -> &PathsOptionViolationKind {
+        &self.kind
+    }
+
+    pub(crate) fn location(&self) -> Option<&PathsOptionDiagnosticLocation> {
+        self.location.as_ref()
+    }
+}
+
+/// Immutable late-validation sidecar paired atomically with one paths map.
+/// Replacing the map therefore cannot leave stale raw-shape diagnostics
+/// behind.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct PathsOptionValidationPlan {
+    violations: Vec<PathsOptionViolation>,
+}
+
+impl PathsOptionValidationPlan {
+    pub(crate) fn new(violations: Vec<PathsOptionViolation>) -> Self {
+        Self { violations }
+    }
+
+    pub(crate) fn violations(&self) -> &[PathsOptionViolation] {
+        &self.violations
+    }
+}
+
 /// Immutable `paths` entries and the config directory that declared them.
 ///
 /// Keeping these values behind one shared owner prevents an inherited mapping
@@ -557,6 +652,7 @@ pub(crate) struct ProgramPathMappings {
     exact_mapping_indices: Box<[usize]>,
     wildcard_patterns: Box<[(usize, usize)]>,
     config_base_path: Option<String>,
+    option_validation: PathsOptionValidationPlan,
     validation_error: Option<ResolutionError>,
 }
 
@@ -568,6 +664,16 @@ impl ProgramPathMappings {
     /// tsc-hash: acf73d9f935712f2442e047a8b74f826af12a66bc1fc9880d2e064861b9f0bb6
     /// tsc-span: _tsc.js:18784-18809
     fn new(entries: Vec<PathMapping>, config_base_path: Option<String>) -> Self {
+        let option_validation =
+            crate::option_validation::paths_validation_plan_for_typed_mappings(&entries);
+        Self::new_with_validation(entries, config_base_path, option_validation)
+    }
+
+    fn new_with_validation(
+        entries: Vec<PathMapping>,
+        config_base_path: Option<String>,
+        option_validation: PathsOptionValidationPlan,
+    ) -> Self {
         let mut exact_mapping_indices = Vec::new();
         let mut wildcard_patterns = Vec::new();
         for (index, mapping) in entries.iter().enumerate() {
@@ -591,6 +697,7 @@ impl ProgramPathMappings {
             exact_mapping_indices: exact_mapping_indices.into_boxed_slice(),
             wildcard_patterns: wildcard_patterns.into_boxed_slice(),
             config_base_path,
+            option_validation,
             validation_error,
         }
     }
@@ -619,6 +726,10 @@ impl ProgramPathMappings {
 
     pub(crate) fn validation_error(&self) -> Option<&ResolutionError> {
         self.validation_error.as_ref()
+    }
+
+    pub(crate) fn option_validation(&self) -> &PathsOptionValidationPlan {
+        &self.option_validation
     }
 }
 
@@ -686,8 +797,12 @@ impl ProgramConfigSpan {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProgramConfigFile {
     path: ProgramPath,
+    diagnostic_file_name: String,
     snapshot: Arc<TextSnapshot>,
     automatic_type_directive_locations: BTreeMap<String, ProgramConfigSpan>,
+    compiler_options_location: Option<ProgramConfigSpan>,
+    compiler_option_name_locations: BTreeMap<String, Vec<ProgramConfigSpan>>,
+    compiler_option_value_locations: BTreeMap<String, Vec<ProgramConfigSpan>>,
     compiler_option_string_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
     root_option_array_locations: BTreeMap<String, BTreeMap<String, ProgramConfigSpan>>,
 }
@@ -701,13 +816,25 @@ impl ProgramConfigFile {
     }
 
     pub fn from_snapshot(path: ProgramPath, snapshot: Arc<TextSnapshot>) -> Self {
+        let diagnostic_file_name = path.display().to_string_lossy().into_owned();
         Self {
             path,
+            diagnostic_file_name,
             snapshot,
             automatic_type_directive_locations: BTreeMap::new(),
+            compiler_options_location: None,
+            compiler_option_name_locations: BTreeMap::new(),
+            compiler_option_value_locations: BTreeMap::new(),
             compiler_option_string_locations: BTreeMap::new(),
             root_option_array_locations: BTreeMap::new(),
         }
+    }
+
+    /// Override only the diagnostic spelling. Auxiliary-file identity and
+    /// lookup continue to use [`Self::path`].
+    pub fn with_diagnostic_file_name(mut self, file_name: impl Into<String>) -> Self {
+        self.diagnostic_file_name = file_name.into();
+        self
     }
 
     pub fn with_automatic_type_directive_location(
@@ -718,6 +845,35 @@ impl ProgramConfigFile {
         self.automatic_type_directive_locations
             .entry(name.into())
             .or_insert(location);
+        self
+    }
+
+    /// Retain the first root `compilerOptions` property name as TypeScript's
+    /// fallback owner when an effective option came from an embedding layer
+    /// rather than from syntax in the config itself.
+    pub fn with_compiler_options_location(mut self, location: ProgramConfigSpan) -> Self {
+        self.compiler_options_location.get_or_insert(location);
+        self
+    }
+
+    /// Retain every root compiler-option occurrence. The effective value may
+    /// be replaced after config conversion, but `createOptionDiagnostic` still
+    /// attaches a row to each matching syntax occurrence.
+    pub fn with_compiler_option_location(
+        mut self,
+        name: impl Into<String>,
+        name_location: ProgramConfigSpan,
+        value_location: ProgramConfigSpan,
+    ) -> Self {
+        let name = name.into();
+        self.compiler_option_name_locations
+            .entry(name.clone())
+            .or_default()
+            .push(name_location);
+        self.compiler_option_value_locations
+            .entry(name)
+            .or_default()
+            .push(value_location);
         self
     }
 
@@ -753,6 +909,10 @@ impl ProgramConfigFile {
         &self.path
     }
 
+    pub fn diagnostic_file_name(&self) -> &str {
+        &self.diagnostic_file_name
+    }
+
     pub fn text(&self) -> &str {
         self.snapshot.text()
     }
@@ -763,6 +923,24 @@ impl ProgramConfigFile {
 
     pub fn automatic_type_directive_location(&self, name: &str) -> Option<ProgramConfigSpan> {
         self.automatic_type_directive_locations.get(name).copied()
+    }
+
+    pub const fn compiler_options_location(&self) -> Option<ProgramConfigSpan> {
+        self.compiler_options_location
+    }
+
+    pub fn compiler_option_name_locations(&self, name: &str) -> &[ProgramConfigSpan] {
+        self.compiler_option_name_locations
+            .get(name)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    }
+
+    pub fn compiler_option_value_locations(&self, name: &str) -> &[ProgramConfigSpan] {
+        self.compiler_option_value_locations
+            .get(name)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
     }
 
     pub fn compiler_option_string_location(
@@ -861,6 +1039,14 @@ impl ProgramOptions {
         self
     }
 
+    /// Transfer config-option diagnostic ownership to the Program after an
+    /// embedding runner has overlaid effective compiler options while
+    /// retaining the original config syntax as location provenance.
+    pub fn with_program_owned_config_option_diagnostics(mut self) -> Self {
+        self.external_config_option_diagnostics = false;
+        self
+    }
+
     /// Override the basename selected for an absent `compilerOptions.lib`.
     /// Explicit `lib` entries continue to win in the loader.
     pub fn with_default_library_file_name(mut self, value: impl Into<String>) -> Self {
@@ -893,6 +1079,23 @@ impl ProgramOptions {
         self.paths = Some(Arc::new(ProgramPathMappings::new(
             value,
             Some(paths_base_path.into()),
+        )));
+        self
+    }
+
+    /// Config conversion retains raw-sensitive validation facts beside the
+    /// resolver's valid string projection. This stays crate-private so an
+    /// embedding cannot attach diagnostics to a different paths map.
+    pub(crate) fn with_config_paths_validation(
+        mut self,
+        value: Vec<PathMapping>,
+        paths_base_path: Option<String>,
+        validation: PathsOptionValidationPlan,
+    ) -> Self {
+        self.paths = Some(Arc::new(ProgramPathMappings::new_with_validation(
+            value,
+            paths_base_path,
+            validation,
         )));
         self
     }
@@ -952,6 +1155,12 @@ impl ProgramOptions {
 
     pub(crate) fn shared_paths(&self) -> Option<Arc<ProgramPathMappings>> {
         self.paths.clone()
+    }
+
+    pub(crate) fn paths_option_validation(&self) -> Option<&PathsOptionValidationPlan> {
+        self.paths
+            .as_deref()
+            .map(ProgramPathMappings::option_validation)
     }
 }
 

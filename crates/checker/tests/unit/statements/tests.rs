@@ -1071,6 +1071,44 @@ fn require_collision_reports_2441_and_no_emit_filters_it() {
 }
 
 #[test]
+fn commonjs_import_equals_value_aliases_reserve_require_but_type_aliases_do_not() {
+    let check = |type_only: bool| {
+        let qualifier = if type_only { "type " } else { "" };
+        let result = check_program(
+            &[
+                InputFile::new("dep.ts".to_owned(), "export const value = 1;\n".to_owned()),
+                InputFile::new(
+                    "main.ts".to_owned(),
+                    format!(
+                        "import {qualifier}require = require('./dep');\nexport {{ require }};\n"
+                    ),
+                ),
+            ],
+            &CompilerOptions {
+                module: Some(1),
+                target: Some(2),
+                ..CompilerOptions::default()
+            },
+        );
+        result
+            .diagnostics
+            .iter()
+            .filter(|diagnostic| diagnostic.code() == 2441)
+            .map(|diagnostic| {
+                (
+                    diagnostic.code(),
+                    diagnostic.start.unwrap_or(u32::MAX),
+                    diagnostic.length.unwrap_or(u32::MAX),
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(check(false), [(2441, 7, 7)]);
+    assert_eq!(check(true), []);
+}
+
+#[test]
 fn node_commonjs_format_reports_generated_name_collisions() {
     let text = "function require() {}\nconst exports = {};\nclass Object {}\nexport const __esModule = false;\nexport {require, exports, Object};\n";
     for (extension, allow_js, check_js) in [("ts", false, None), ("js", true, Some(true))] {

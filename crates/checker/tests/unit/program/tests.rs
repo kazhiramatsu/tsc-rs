@@ -225,6 +225,40 @@ fn snapshot_reuses_owned_handles_across_fresh_checker_sessions() {
 }
 
 #[test]
+fn program_membership_can_change_without_mutating_a_shared_document() {
+    let domain = IdentityDomain::reclaiming();
+    let text = TextSnapshot::new(
+        "interface SharedDeclaration { value: string }\n",
+        DocumentVersion::new("shared"),
+    );
+    let document = bound_document_for_snapshot("/shared.d.ts", text, &domain);
+    let default_library = ProgramSnapshot::new_with_file_facts(
+        vec![Arc::clone(&document)],
+        vec![ProgramFileFacts::DEFAULT_LIBRARY],
+    )
+    .expect("default-library Program");
+    let ordinary_source = ProgramSnapshot::new_with_file_facts(
+        vec![Arc::clone(&document)],
+        vec![ProgramFileFacts::ORDINARY],
+    )
+    .expect("ordinary-source Program");
+    let options = CompilerOptions {
+        skip_default_lib_check: Some(true),
+        ..CompilerOptions::default()
+    };
+    let default_state = CheckerState::from_snapshot(&default_library, &options);
+    let ordinary_state = CheckerState::from_snapshot(&ordinary_source, &options);
+    let file = ProgramFileId::from_raw(0);
+
+    assert!(Arc::ptr_eq(
+        default_library.document(0),
+        ordinary_source.document(0),
+    ));
+    assert!(default_state.skip_type_checking_file(file));
+    assert!(!ordinary_state.skip_type_checking_file(file));
+}
+
+#[test]
 fn ephemeral_store_publishes_only_completed_owned_documents() {
     let domain = IdentityDomain::reclaiming();
     let snapshot = TextSnapshot::new("export const value = 1;", DocumentVersion::new("1"));

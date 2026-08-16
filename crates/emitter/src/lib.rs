@@ -10,6 +10,7 @@
 mod activity;
 mod artifact;
 mod builtins;
+mod comment_cursor;
 mod error;
 mod execute;
 mod factory;
@@ -21,6 +22,7 @@ mod position;
 mod printer;
 mod resolver;
 mod sink;
+mod token_cursor;
 mod transform;
 mod writer;
 
@@ -29,8 +31,8 @@ pub use artifact::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitTextMetadata, EmitWriteMetadata,
 };
 pub use builtins::{
-    get_script_transformers, transform_class_fields, transform_ecmascript_module,
-    transform_type_script,
+    get_script_transformers, get_script_transformers_for_source, transform_class_fields,
+    transform_ecmascript_module, transform_type_script,
 };
 pub use error::{
     EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, EmitStage,
@@ -46,8 +48,9 @@ pub use factory::{
 };
 pub use host::{EmitHost, EmitSource};
 pub use metadata::{
-    EmitConstantValue, EmitEnumMemberValue, EmitFlags, EmitMetadata, InternalEmitFlags,
-    JavaScriptNumber, JavaScriptString, SourceMapRange, SyntheticComment, SyntheticCommentKind,
+    CommentRange, EmitConstantValue, EmitEnumMemberValue, EmitFlags, EmitMetadata,
+    InternalEmitFlags, JavaScriptNumber, JavaScriptString, SourceMapRange, SyntheticComment,
+    SyntheticCommentKind,
 };
 pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{
@@ -61,10 +64,10 @@ pub use position::{
 };
 pub use printer::{
     create_printer, DisabledSourceMapRecorder, PrintRequest, PrintedText, Printer, PrinterError,
-    PrinterOptions, SourceMapHookEvent, SourceMapHookPhase, SourceMapRecorder,
+    PrinterOptions, SourceFileTextMode, SourceMapHookEvent, SourceMapHookPhase, SourceMapRecorder,
 };
 pub use resolver::{
-    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
+    EmitExportContainerMode, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
     EmitTypeReferenceSerializationKind, UnavailableEmitResolver,
 };
 pub use sink::{EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink, OutputSink};
@@ -79,3 +82,7 @@ pub use writer::{create_text_writer, NewLineKind, TextWriter};
 #[cfg(test)]
 #[path = "../tests/unit/lib/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/token_cursor/tests.rs"]
+mod token_cursor_tests;

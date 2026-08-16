@@ -1,8 +1,12 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
 Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, and H2.4a are
-complete. **H2.4b is the next slice.**
+H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, H2.4a-H2.4b, and
+H2.5a-H2.5f are complete. **H2.5g is in progress and not yet qualified.**
+This status header is the single current progress authority. A summary table
+elsewhere may mirror the live phase label, but counts and compatibility claims
+there remain at the last completed-slice freeze until this header records the
+next completed freeze.
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
@@ -10,8 +14,20 @@ acceptance. The
 [compiler compatibility residual](compiler-compatibility-residual.md) owns the
 surface inventory, [H1](h1-emit.md) remains the frozen bounded-emit contract,
 and the [incremental/LSP design](lsp-and-incremental.md) owns the L2-L5 data and
-lifetime architecture. The project-wide
-[definition of done](definition-of-done.md) still wins on completion claims.
+lifetime architecture. The
+[definition of done](definition-of-done.md) remains authoritative for the
+frozen M8 batch-diagnostics claim. This document owns the separate follow-on
+product finish lines and never rewrites the M8 denominator.
+The [current emitter architecture](emitter-architecture.md) owns validated
+Rust emitter types, ownership, integration seams, and their lifecycle; this
+schedule does not duplicate that implementation map.
+The [functional CI framework and evidence architecture](functional-ci-evidence.md)
+owns the post-H2.5g migration to a reusable protocol/runner with tsc-rs as its
+reference adapter, a demand-driven typed impact graph, adapter-owned
+deterministic plans and optional bundle interiors (H2 uses fixed shards),
+content-addressed verified roots, complete local-full projection, and exact-key
+hosted cache consumption. It does not amend or replace the current H2.5g
+closure commands.
 
 The target is the pinned TypeScript 6.0.3 compiler and tooling surface. LSP is
 listed because it is an intended Rust-native product, but it is not an
@@ -35,8 +51,9 @@ PR, and one reviewable before/after result. Every slice:
    failed, and adjacent-control dispositions;
 4. captures positive, adjacent-negative, and applicable fault-injection oracle
    witnesses before implementing behavior;
-5. ports the pinned TypeScript control flow and adds `tsc-port`, `tsc-span`,
-   and `tsc-hash` ledger entries at port time;
+5. models the pinned TypeScript semantics, ownership, call order, and control
+   flow in Rust and adds `tsc-port`, `tsc-span`, and `tsc-hash` ledger entries
+   at implementation time;
 6. compares every applicable observable exactly: diagnostics, text bytes,
    output paths and order, callback metadata, result presence, status, and
    failure boundary;
@@ -46,6 +63,20 @@ PR, and one reviewable before/after result. Every slice:
    final runtime candidate and records the result in the PR; and
 9. lets ordinary GitHub Actions run only the fixed, unsplit
    `cargo xtask acceptance` boundary sourced from `ts-tests`.
+
+After the separately reviewed functional-CI activation, that same hosted
+command may consume an exact-key remote cache only through the Rust
+`HostedVerifiedRoot` contract. The command and ts-tests-only case scope remain
+unchanged, and owner controls remain excluded. Before that activation, the
+current workflow and H2.5g closure route remain unchanged.
+
+H2.5g is the sole non-retroactive exception to the implementation-ready packet
+format because its production work began before that gate was adopted. The
+exception waives only the new packet/readiness-manifest format. It does not
+waive exact Rust execution, the exhaustive zero-difference inventory, owner
+controls, hosted acceptance, the complete local gate, immutable evidence, or
+current-architecture revalidation. It cannot authorize H2.5h-a or any later
+production edit.
 
 Each scheduled row is an upper bound, not permission for a mega-PR. Its
 inventory slice must add suffixes before runtime work when it finds multiple
@@ -65,6 +96,222 @@ Runtime slices that can affect diagnostic accepted state continue to use the
 repository `slice-evidence snapshot`/`verify` protocol. Track-specific emit,
 state, build, service, or protocol observations supplement that evidence; they
 do not replace its FP/loss checks or the complete local gate.
+
+### 1.1 Mandatory implementation-ready design gate
+
+Every slice whose production work starts after H2.5g must pass a documented
+design gate before a production file is edited. The design packet must be
+mechanically executable by an implementation agent that has no unstated
+repository or TypeScript knowledge. Phrases such as "follow tsc", "implement
+the remaining branches", or "add the necessary tests" are not executable
+instructions and do not pass this gate.
+
+The authority order is fixed:
+
+1. pinned TypeScript 6.0.3 defines semantics, state ownership, call order,
+   branch behavior, helper algorithms, and externally observable results;
+2. fresh `active-qualified` rows in the current tsc-rs architecture define
+   frozen integration boundaries; `active-unqualified`, `dormant`, and
+   `planned` rows are research inputs or targets, never inherited premises;
+   and
+3. Rust defines the representation: exhaustive enums, newtypes, arenas plus
+   side tables where identity requires them, explicit provenance and
+   lifetimes, typed state transitions, and `Result` failure boundaries.
+
+This order requires reading tsc before designing the Rust change. It neither
+permits a speculative greenfield model that omits upstream behavior nor a
+line-for-line transplant of TypeScript closures, mutable sentinels, object
+shapes, or incidental function boundaries. The intended result preserves the
+tsc structure that carries meaning while expressing that structure with
+Rust-owned data and invariants.
+
+Before implementation, the owning slice document must contain all of the
+following:
+
+- **Identity, purpose, and boundary:** slice ID and kind (`inventory`,
+  `foundation`, `runtime`, `evidence`, or `documentation`), purpose, explicit
+  non-goals, prerequisites, trusted base, activation state before and after,
+  next owner, and hashes of every authority artifact.
+- **Required-reference table:** every applicable architecture concern/sub-row
+  and open architecture-gap ID, including `active-qualified`,
+  `active-unqualified`, `dormant`, and `planned` rows; its validation ref/date,
+  exact current Rust symbol and visibility; every pinned tsc declaration and
+  hash; every frozen predecessor contract; its lifecycle before and after;
+  and any historical document used only as rationale. A historical design
+  statement is never cited as current implementation fact.
+- **Pinned upstream map:** vendored file, declaration/body line spans,
+  `tsc-hash` identity, callers, callees, call order, branch predicates, helper
+  graph, and observable failure order. Function names alone are not stable
+  identities.
+- **Rust semantic map:** a table mapping every relevant tsc object, field,
+  sentinel, and state transition to a concrete Rust type and module. Each row
+  names its producer, owner, updater, consumer, lifetime, invalidation rule,
+  and whether identity or provenance is observable.
+- **Current local-gap matrix:** every reachable semantic row mapped to its
+  current Rust symbol and classified `already-exact`, `missing`,
+  `partial-or-stale`, `obsolete`, or `shared-prerequisite`, with evidence. The
+  matrix is generated before Rust design; the post-implementation runtime
+  inventory is a separate gate.
+- **Implementation sequence:** allowed and forbidden files, function-level
+  edits in dependency order, inputs and outputs, preconditions and
+  postconditions, error behavior, and transform/pass composition rules. Every
+  step has one unambiguous next action and one observable completion check.
+- **Frozen witnesses:** focused input fixtures and oracle-produced exact
+  outputs for positive branches, adjacent negative branches, composition
+  boundaries, and applicable sink/host/cancellation faults. The document lists
+  the exact commands for reproducing each witness.
+- **Acceptance:** focused tests, complete inventory command, local regression
+  command, expected counts/hashes, fail-closed behavior, and the precise
+  condition that permits the slice to be called complete.
+- **Traceability and resources:** a row for every upstream owner or invariant
+  linking it to its Rust type/function, focused test, and ratchet/schema/ledger
+  evidence; CPU and worker ceilings for heavy commands; resumable checkpoints;
+  and a single write owner for every file shared by parallel tasks.
+- **Prohibitions:** no fixture/case-ID or path-specific branches, output text
+  substitution, hand-authored expected output, generic fallback that converts
+  an unknown branch into success, or inheritance of stale flags/state without
+  a pinned upstream justification.
+- **Unresolved items:** every open semantic, ownership, composition, or oracle
+  question with an owner and resolution command. Any unresolved item blocks
+  production implementation; it may not be delegated as an implicit judgment
+  call.
+
+The packet also records a readiness summary: authority hashes, reachable
+upstream rows, local-gap rows, Rust-map rows, witness rows, architecture
+concerns/gaps, lifecycle transitions, undispositioned rows, and unresolved
+rows, plus the exact command that checks it. Every architecture impact is
+classified `premise-unchanged`, `modified-requalify`, `activate`,
+`future-owned-fail-closed`, or `proven-unreachable`. Readiness requires fresh
+hashes, full row-to-step/test traceability, no missing/duplicate/stale
+architecture reference, no illegal lifecycle transition,
+`undispositioned = 0`, and `unresolved = 0`; prose approval alone is
+insufficient.
+
+Only a fresh `active-qualified` concern may be used as a frozen implementation
+premise. `active-unqualified` is research input, `dormant` is a non-compatible
+seam, and `planned` is a design target. A modified qualified concern becomes
+`active-unqualified` for the candidate and returns to `active-qualified` only
+after its exact profile is frozen at an immutable final validation ref. A
+concern with mixed behavior is split into sub-rows so one lifecycle never
+hides another.
+
+In the local-gap matrix, `missing` and `partial-or-stale` are ready only when
+each maps to a concrete implementation step and focused test.
+`shared-prerequisite` is ready only when that dependency is closed or is a
+legal deferred row. `obsolete` names the replacement/removal proof and all
+former consumers. `already-exact` names current exact evidence. No other
+classification is accepted.
+
+`deferred` is not a synonym for unknown. A deferred row is legal only when it
+is outside the admitted scope, names its earliest owner slice, has an explicit
+reachability guard, and has a typed fail-closed or adjacent-negative control.
+Anything else is unresolved and blocks production work. If implementation
+reveals a new owner, data-model decision, observable, or required file, stop,
+amend the design packet, rerun its readiness check, and only then resume.
+Inherited deferrals are not grandfathered: every new packet revalidates their
+guard, earliest owner, typed failure boundary, and negative control.
+
+Emitter and transformer packets must additionally specify transform-flag
+propagation and full recomputation points; parsed/current/synthetic node
+provenance; comment owner and resume-cursor transitions; lexical receiver and
+captured-binding ownership; printer expression context; generated-binding
+scope; and ordering/composition with every already-active pass. These are
+semantic inputs, not cleanup concerns.
+
+Large rows are split into explicit, ordered sub-slices:
+`research -> Rust design -> fixture freeze -> implementation -> full inventory
+-> profile freeze`. Research, design, and fixture work may run in parallel
+when their inputs are independent. Production implementation starts only when
+the first three are complete, contains no unresolved item, and names
+non-overlapping file ownership for any parallel implementation tasks. If that
+cannot be done without architectural judgment, the row is re-sliced before
+code is changed.
+
+A dormant foundation slice proves its internal semantics with direct controls
+and proves zero activation, zero candidate execution, and zero admission. It
+must not execute future-owned corpus rows or count structural availability as
+compatibility. Its consuming runtime slice later supplies the end-to-end
+oracle observations. Durable Rust architecture is itself a completion
+condition for both foundation and runtime slices; fitting work into the
+current slice is not permission to add a throwaway API or local workaround.
+
+### 1.2 H2.5g legacy closing protocol
+
+H2.5g may finish under its already-established in-progress contract; that does
+not call its current worktree, checked-in candidate artifacts, or candidate
+counts qualified. Its exact closure commands and required results are indexed
+in [the H2.5g legacy closure route](slices/README.md#h25g-legacy-closure-route).
+
+Closure uses two immutable refs rather than an impossible self-reference:
+
+1. commit the final production code, tests, qualification/owner/profile
+   artifacts, schemas, and generators, then run every required runtime gate
+   from that clean immutable commit. Once they pass, that
+   implementation/evidence commit is the **final validation ref**;
+2. in a following documentation-only commit, cite that ref in the
+   current-architecture freeze, bind the exact profile bytes contained by that
+   ref, and promote only the validated rows to `active-qualified`. After the PR
+   merges, the roadmap-review documentation records the actual merge ref as
+   delivery lineage, verifies that it contains the final validation ref, and
+   proves that all profile-bound runtime/evidence inputs remain byte-identical.
+
+The documentation commit cannot cite its own hash, and a predicted merge hash
+is not evidence. Any change to runtime or evidence inputs after step 1 requires
+a new final validation ref and a rerun of the applicable gates. The first
+required application of the full implementation-ready design gate is the
+post-H2.5g roadmap review; every remaining H2 slice must be rewritten to that
+format before its implementation phase begins.
+
+### 1.3 Functional-CI pre-closure shadow and post-merge interlock
+
+The packet-control bootstrap is now the first interlock. FCI-0a and FCI-0b
+remain documentation-only boundary/API-manifest records and never become
+runtime authorization. The bootstrap freezes the shared packet checker/schema
+and the first exact ready Functional-CI implementation packet, FCI-1a;
+subsequent short-lived packet branches advance one indexed packet at a time
+through
+[the architecture's stage table](functional-ci-evidence.md#14-migration-stages-and-packets)
+and the pre-closure shadow gate:
+
+```text
+packet-control bootstrap + versioned packet freeze
+  -> FCI-1a through FCI-5b
+  -> FCI-5c.1 H2.5g membership shadow
+  -> H2.5g final validation reference + close/merge lineage
+  -> source-snapshot/runner boundary + FCI-5c.1b observation shadow
+  -> FCI-5c.2
+  -> FCI-6 through FCI-8 complete shadow
+  -> FCI-9a local-full activation
+  -> FCI-9b hosted ts-tests-only activation
+  -> FCI-10 cleanup
+  -> H2.5h-a
+```
+
+Within a stage, lettered packets run in lexical order and numeric subpackets
+run in numeric order unless a packet records an earlier dependency explicitly.
+The required subdivisions are FCI-1a-c, FCI-2a-b, FCI-4a.1-a.3, FCI-5a-b,
+FCI-5c.1/5c.1b/5c.2, and FCI-7c.1-c.2; they refine but do not reorder the
+hard gate. FCI-5c.1 is membership-only; FCI-5c.1b cannot execute until a
+typed source snapshot and runner entry exist.
+A stage closes only when all of its packets and immutable proofs close. FCI-8 begins only
+after the FCI-7c.2 framework qualification/API freeze. FCI-8b is read-only
+protected-host/bootstrap research and FCI-8c is read-only hosted-provider
+research; bootstrap/provider code is forbidden until its respective packet
+freezes every workflow,
+attestation, atomicity, authority, scope, limit, retention, recovery, and
+failure decision. FCI-8d implements protected N+1 engine promotion, FCI-8e the
+provider backend, and FCI-8f the complete hosted shadow. FCI-8a/FCI-9a own
+complete `local-full` shadow/activation; FCI-8f/FCI-9b separately own the
+unchanged unsplit ts-tests-only hosted boundary.
+
+Read-only architecture work, graph/inventory capture, fixtures, and provider
+research may overlap when indexed packets give them disjoint files and inputs.
+A stage row is not production authorization: the exact packet must be linked
+from the slice-packet index, contain no unresolved implementation choice, and
+be machine-checked `ready` before its production files change. The bootstrap
+is the only pre-closure exception and cannot authorize FCI-6+, workflow,
+provider, or H2.5g authority changes. H2.5h-a remains blocked through FCI-10
+even if its own inventory or design research runs early.
 
 ## 2. Additional contracts required after H1
 
@@ -754,7 +1001,7 @@ regression gate remain local.
 | H2.3c — complete | Automatic and development JSX runtimes, import source, helper imports, and file-kind interactions. | H2.3b and H2.1b. Runtime import de-duplication/order, pragma precedence, key/spread fallback, UTF-16 development metadata, and ESM/CommonJS/System projections are exact. |
 | H2.3d — complete | JSON source eligibility/copying and `resolveJsonModule` output/path behavior. | H2.3a. AST-formatted text, BOM/newline, empty/same-location paths, mixed writes, 5070/5071, and module-format controls are exact; all 695 global rows retain explicit later dependencies. |
 | H2.4a — complete | Legacy decorators plus decorator metadata and referenced-value/check-flag/type-reference-serialization resolver facts. | H2.2c. Evaluation order, metadata helpers, named/anonymous class and member cases, module projections, and failure behavior are exact. |
-| H2.4b | Standard decorators, `transformClassFields`, `useDefineForClassFields` modes, private/static elements, and their shared helpers. | H2.4a. ESNext and first-downlevel reachability is closed before lowering the target. |
+| H2.4b — complete | Standard decorators, `transformClassFields`, `useDefineForClassFields` modes, private/static elements, and their shared helpers. | H2.4a. ESNext and first-downlevel reachability is closed before lowering the target. |
 
 H2.4a closed on 2026-08-09. Its
 [qualification](../../../ratchets/h2-4a-qualification.v1.json) applies the
@@ -787,7 +1034,7 @@ exact emitted diagnostic, and one exact no-emit diagnostic. Each Rust control ru
 and matches diagnostics, callback bytes, materialized bytes, paths, order, BOM,
 provenance, result state, and H2 activity.
 
-The [current runtime profile](../../../ratchets/h2-4a-profile.v1.json) and its
+The [H2.4a runtime profile](../../../ratchets/h2-4a-profile.v1.json) and its
 [strict schema](../../../.github/ci/contracts/h2-4a-profile.schema.json)
 preserve every H2.3d authority byte for byte, mark H2.1a through H2.4a active,
 and name H2.4b as next. The monotonic corpus profile now has 318 exact cases,
@@ -804,12 +1051,418 @@ The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
 generation, schema checks, focused controls, and the complete H0/H1/L1
 regression gate remain local.
 
+H2.4b closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-4b-qualification.v1.json) applies the
+dependency-closed selection rule after H2.4a. Of 104 global rows that mention
+H2.4b, 63 retain a later owner and 41 form the dependency-closed global
+denominator. Three immutable H2.1a source deferrals whose remaining dependency
+was standard-decorator preservation are joined as explicit promotions. The
+combined H2.4b denominator is therefore 44: 42 rows execute twice with 150
+exact reported diagnostics and 56 exact writes; two parser-owned rows are
+explicitly source-deferred to H2.9 and fail before the first sink callback.
+There are no unexecuted or undispositioned candidates.
+
+- standard class, field, method, getter, setter, auto-accessor, private, static,
+  computed-name, named/default export, and class-replacement decorators lower
+  through exact `__esDecorate`, `__runInitializers`, `__setFunctionName`, and
+  `__propKey` helpers;
+- decorator call binding, computed-key evaluation, derived-constructor
+  placement, base metadata inheritance, field/extra/class initializer order,
+  and class replacement targets match TypeScript exactly;
+- `transformClassFields` closes assignment and define modes, public/private
+  instance and static fields, auto accessors, static blocks, lexical
+  `this`/computed names, and constructor synthesis/injection;
+- native ESNext decorators that remain after TypeScript erasure are emitted by
+  a typed modifier/decorator-list printer. Decorator/modifier ordering,
+  argument comments, and assertion-parenthesis removal match TypeScript; and
+- ESNext, CommonJS, and System projections, helper suppression,
+  `noEmitOnError`, diagnostics, callback metadata, and repeated execution are
+  exact.
+
+The separate
+[owner controls](../../../ratchets/h2-4b-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 thirty-eight times and freeze 19 controls, 18 exact writes,
+three exact reported diagnostics, one exact emitted diagnostic, one exact
+no-emit control, one define-fields control, and 18 assignment-fields
+controls. Each Rust control runs twice through a fresh Program and matches
+diagnostics, callback and materialized bytes, paths, order, BOM, provenance,
+result state, and H2 activity.
+
+The [current runtime profile](../../../ratchets/h2-4b-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-4b-profile.schema.json)
+preserve every H2.4a authority byte for byte, mark H2.1a through H2.4b active,
+and name H2.5a as next. The monotonic corpus profile now has 360 exact cases,
+838 exact reported diagnostics, 469 exact writes, 5 unchanged H2.9 diagnostic
+controls, and three source-deferred rows. Freshness is checked with:
+
+```text
+node crates/oracle/h2-4b-qualification.mjs --check
+node crates/oracle/h2-4b-owner-controls.mjs --check
+node crates/oracle/h2-4b-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.5a closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5a-qualification.v1.json) applies the
+dependency-closed selection rule after H2.4b. Of 634 global rows that mention
+H2.5a, 462 retain a later owner and 172 form the exact denominator. Rust runs
+167 admitted rows twice with 335 exact reported diagnostics and 287 exact
+writes. Five source rows fail closed before the first sink callback: four are
+owned by H2.9 and one output-path case by H2.8a. There are no unexecuted or
+undispositioned candidates.
+
+- `transformESNext` lowers synchronous and asynchronous explicit resource
+  management at source, block, function, loop, namespace, and module
+  boundaries with exact helper policy and disposal order;
+- generated `env`, `e`, and `result` bindings are preplanned by typed output
+  scope ownership. Parsed function-body layout, ordinary transformed blocks,
+  synthesized loops, and names introduced by earlier transforms retain tsc's
+  observable ordering without adopting its closure graph;
+- ES2021 and ES2022 class-field, private-name, auto-accessor, static-block,
+  parameter-property, and standard-decorator boundaries compose exactly with
+  the new target pass. Decorator receiver caching and lexical `super` use
+  explicit Rust state; and
+- ES2021 through ES2025 target selection, the adjacent ESNext preservation
+  boundary, ESNext/CommonJS projection, helper suppression, diagnostics,
+  repeated execution, and `noEmitOnError` pre-write behavior are exact.
+
+The separate
+[owner controls](../../../ratchets/h2-5a-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 forty times and freeze 20 controls, 19 exact writes, one exact
+reported/emitted diagnostic, four ES2021 controls, twelve ES2022 controls,
+three later-standard controls, and one adjacent ESNext control. Each Rust
+control runs twice through a fresh Program and matches diagnostics, callback
+and materialized bytes, paths, order, BOM, provenance, result state, and all
+active H2 counters.
+
+The [current runtime profile](../../../ratchets/h2-5a-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5a-profile.schema.json)
+preserve every H2.4b authority byte for byte, mark H2.1a through H2.5a active,
+and name H2.5b as next. The monotonic corpus profile now has 527 exact cases,
+1,173 exact reported diagnostics, 756 exact writes, 5 unchanged output-exact
+diagnostic controls, and eight explicit source deferrals. Freshness is checked
+with:
+
+```text
+node crates/oracle/h2-5a-qualification.mjs --check
+node crates/oracle/h2-5a-owner-controls.mjs --check
+node crates/oracle/h2-5a-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.5b closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5b-qualification.v1.json) applies the
+same dependency-closed rule after H2.5a. Of 84 global rows that mention
+H2.5b, 12 retain a later owner and 72 form the exact denominator. Rust runs 68
+admitted rows twice with 48 exact reported diagnostics and 93 exact writes.
+Four source rows are explicitly owned by H2.9 and fail closed before the first
+sink callback. There are no unexecuted or undispositioned candidates.
+
+- `transformES2021` lowers identifier, property, element, `super`, nested, and
+  parenthesized logical assignments while evaluating effectful receivers,
+  keys, and right-hand sides exactly once and in tsc order;
+- source and function generated bindings use one typed scope allocator shared
+  with class fields. Parameter initializers, binding-pattern defaults, concise
+  arrows, and nested functions retain their distinct hoist owners instead of
+  reproducing tsc's mutable closure state;
+- public/private fields, methods, static and instance initializers, standard
+  and legacy decorators, enums, namespaces, parameter properties, and
+  CommonJS exports compose with the new pass. Class-expression aliases are
+  resolver-backed emit substitutions rather than textual rewrites; and
+- the compiler printer now has an explicit canonical source-file mode,
+  target-aware numeric spelling, and deferred-import phase support.
+  `import.defer` participates in authoritative module request planning for
+  ES module, CommonJS, Node, and Preserve output without fabricated resolver
+  rows.
+
+The separate
+[owner controls](../../../ratchets/h2-5b-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 forty times and freeze 20 controls, 19 exact writes, and one
+exact reported/emitted diagnostic. They cover logical-assignment evaluation
+and collision order, source/function/parameter hoists, adjacent ES2021
+preservation, class-field and decorator composition, CommonJS projection, and
+`noEmitOnError`. Each Rust control runs twice through a fresh Program and
+matches diagnostics, callback and materialized bytes, paths, order, BOM,
+provenance, result state, and all active H2 counters.
+
+The [current runtime profile](../../../ratchets/h2-5b-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5b-profile.schema.json)
+preserve every H2.5a authority byte for byte, mark H2.1a through H2.5b active,
+and name H2.5c as next. The monotonic corpus profile now has 595 exact cases,
+1,221 exact reported diagnostics, 849 exact writes, 5 unchanged output-exact
+diagnostic controls, and twelve explicit source deferrals. Freshness is
+checked with:
+
+```text
+node crates/oracle/h2-5b-qualification.mjs --check
+node crates/oracle/h2-5b-owner-controls.mjs --check
+node crates/oracle/h2-5b-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.5c closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5c-qualification.v1.json) applies the
+same dependency-closed rule after H2.5b. Of 16 global rows that mention
+H2.5c, one retains a later owner and 15 form the exact denominator. Rust runs
+14 admitted rows twice with 19 exact reported diagnostics and 14 exact
+writes. The remaining source row is explicitly owned by H2.9 and fails closed
+before the first sink callback. There are no unexecuted or undispositioned
+candidates.
+
+- `transformES2020` lowers optional property, element, and call chains,
+  optional `delete`, and nullish coalescing with exact receiver binding,
+  short-circuiting, and once-only evaluation;
+- the shared target-ladder pass represents chain segments, synthetic
+  references, call receivers, and visited values with Rust enums. A
+  session-unique generated-binding identity is finalized from the composed
+  tree, so ES2021 and ES2020 temporaries retain tsc declaration order across
+  source, function, and parameter-hoist scopes without copying its mutable
+  closure graph;
+- erased TypeScript outer expressions retain their grammar boundary, and
+  class-field composition evaluates computed keys once at class definition
+  time. Anonymous class assigned names own stable private helper prefixes;
+  CommonJS substitution and custom-prologue ordering remain exact; and
+- ES2019 activates the pass while ES2020 preserves the syntax. Standard and
+  legacy decorators, public/private fields, `super`, nested and parenthesized
+  chains, comments, diagnostics, and `noEmitOnError` behavior compose exactly.
+
+The separate
+[owner controls](../../../ratchets/h2-5c-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 fifty-two times and freeze 26 controls, 25 exact writes, and
+one exact reported/emitted diagnostic. They cover optional-chain receiver and
+evaluation order, nullish coalescing, source/function/parameter hoists,
+adjacent ES2020 preservation, class-field and decorator composition, CommonJS
+projection, generated-name collisions, and `noEmitOnError`. Each Rust control
+runs twice through a fresh Program and matches diagnostics, callback and
+materialized bytes, paths, order, BOM, provenance, result state, and all
+active H2 counters.
+
+The [current runtime profile](../../../ratchets/h2-5c-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5c-profile.schema.json)
+preserve every H2.5b authority byte for byte, mark H2.1a through H2.5c active,
+and name H2.5d as next. The monotonic corpus profile now has 609 exact cases,
+1,240 exact reported diagnostics, 863 exact writes, 5 unchanged output-exact
+diagnostic controls, and thirteen explicit source deferrals. Freshness is
+checked with:
+
+```text
+node crates/oracle/h2-5c-qualification.mjs --check
+node crates/oracle/h2-5c-owner-controls.mjs --check
+node crates/oracle/h2-5c-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.5d closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5d-qualification.v1.json) applies the
+same dependency-closed rule after H2.5c. Of 45 global rows that mention
+H2.5d, 24 have every required slice closed through H2.5d; the other 21 remain
+future-owned and are outside this denominator. Rust runs 23 admitted rows
+twice with 47 exact reported diagnostics and 57 exact writes. The remaining
+candidate is explicitly owned by H2.9 and fails closed before the first sink
+callback. There are no unexecuted or undispositioned candidates.
+
+- `transformES2019` lowers only missing catch bindings below ES2019 and leaves
+  explicit bindings and ES2019 output unchanged;
+- generated catch names share the typed source/function name-generation
+  scopes used by adjacent target passes, so collisions and nested scope reuse
+  follow tsc without reproducing its mutable closure graph;
+- the printer owns parsed `catch`, synthetic `(`, and block `{` token
+  boundaries. This preserves tsc's comments around an inserted binding,
+  including the intentionally repeated block-leading comment;
+- named evaluation restores parenthesized and partially emitted outer
+  expressions, helper priority distinguishes an absent priority from a
+  numeric one, and decorator/class-field/using composition retains
+  `__setFunctionName` order; and
+- class-field initialization follows a typed `super()` statement path through
+  nested `try` blocks while preserving the original outer block layout. UMD
+  global merging, CommonJS projection, diagnostics, and `noEmitOnError`
+  behavior remain exact.
+
+The separate
+[owner controls](../../../ratchets/h2-5d-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 forty times and freeze 20 controls, 19 exact writes, two
+exact reported diagnostics, and one exact emitted diagnostic. They cover
+optional and explicit catch bindings, source and nested-function collisions,
+token comments, ES2020/ES2021/ESNext temporary composition, using disposal,
+derived-constructor `super()` paths, standard decorators, class fields,
+CommonJS, the adjacent ES2019 preservation boundary, and `noEmitOnError`.
+Each Rust control runs twice through a fresh Program and matches diagnostics,
+callback and materialized bytes, paths, order, BOM, provenance, result state,
+and every active H2 counter.
+
+The [current runtime profile](../../../ratchets/h2-5d-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5d-profile.schema.json)
+preserve every H2.5c authority byte for byte, mark H2.1a through H2.5d active,
+and name H2.5e as next. The monotonic corpus profile now has 632 exact cases,
+1,287 exact reported diagnostics, 920 exact writes, 5 unchanged output-exact
+diagnostic controls, and fourteen explicit source deferrals. Freshness is
+checked with:
+
+```text
+node crates/oracle/h2-5d-qualification.mjs --check
+node crates/oracle/h2-5d-owner-controls.mjs --check
+node crates/oracle/h2-5d-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.5e closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5e-qualification.v1.json) applies the
+same dependency-closed rule after H2.5d. Of 163 global rows that mention
+H2.5e, 41 have every required slice closed through H2.5e; the other 122 remain
+future-owned and are outside this denominator. Rust runs 40 admitted rows
+twice with 88 exact reported diagnostics and 46 exact writes. The remaining
+candidate is explicitly owned by H2.9 and fails closed before the first sink
+callback. There are no unexecuted or undispositioned candidates.
+
+- `transformES2018` lowers object spread/rest in literals, bindings,
+  assignments, parameters, catch clauses, and iteration heads; `for await`
+  retains abrupt-completion semantics; and async generators preserve await,
+  yield, delegation, return, and helper order;
+- target transforms allocate stable generated-binding identities and finalize
+  printable names from the composed ownership tree. Outer forwarding
+  parameters, inner generator parameters, helper temporaries, and sibling
+  function reuse are represented by typed Rust plans instead of tsc's nested
+  mutable name-generator closures;
+- async-generator `super` property and computed accesses, calls, reads,
+  writes, updates, lexical arrows, and nested super containers use explicit
+  capture facts. Scoped `_super` and `_superIndex` bindings retain tsc's getter,
+  setter, cache, and receiver behavior without printer-time hidden state;
+- delimited-list comment ownership keeps comments attached to the first
+  surviving rest/spread element, and concise arrows become function blocks
+  only when a generated parameter prologue requires one; and
+- ES2018 preserves the syntax while ES2017 activates the pass. Using disposal,
+  standard decorators, class fields, JSX, CommonJS, diagnostics, generated-name
+  collisions, and `noEmitOnError` compose exactly.
+
+The separate
+[owner controls](../../../ratchets/h2-5e-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 sixty times and freeze 30 controls, 29 exact writes, one exact
+reported diagnostic, and one exact emitted diagnostic. They cover object
+spread/rest evaluation and comments, parameters and concise arrows, catch and
+loop bindings, `for await`, async generators and delegation, property and
+computed `super` reads/writes/calls, outer/inner generated-binding identity,
+adjacent ES2018 preservation, using/decorator/class-field/JSX composition,
+CommonJS, and `noEmitOnError`. Each Rust control runs twice through a fresh
+Program and matches diagnostics, callback and materialized bytes, paths,
+order, BOM, provenance, result state, and every active H2 counter.
+
+The [current runtime profile](../../../ratchets/h2-5e-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5e-profile.schema.json)
+preserve every H2.5d authority byte for byte, mark H2.1a through H2.5e active,
+and name H2.5f as next. The monotonic corpus profile now has 672 exact cases,
+1,375 exact reported diagnostics, 966 exact writes, 5 unchanged output-exact
+diagnostic controls, and fifteen explicit source deferrals. Freshness is
+checked with:
+
+```text
+node crates/oracle/h2-5e-qualification.mjs --check
+node crates/oracle/h2-5e-owner-controls.mjs --check
+node crates/oracle/h2-5e-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
+H2.5f closed on 2026-08-10. Its
+[qualification](../../../ratchets/h2-5f-qualification.v1.json) applies the
+same dependency-closed rule after H2.5e. Of nine global rows that mention
+H2.5f, eight have every required slice closed through H2.5f; the remaining
+row is future-owned and outside this denominator. Rust runs all eight admitted
+rows twice with 20 exact reported diagnostics and eight exact writes. There
+are no source deferrals, unexecuted candidates, or undispositioned candidates.
+
+- `transformES2017` lowers async declarations, expressions, arrows, and
+  methods through the exact `__awaiter` helper and generator body while
+  preserving top-level await at the ES2016 boundary;
+- non-simple parameter forwarding, rest parameters, destructuring defaults,
+  and `var` collisions use typed parameter and collision plans. Hoisted
+  declarations, `for`/`for in`/`for of`, and catch-clause shadowing preserve
+  tsc's binding and evaluation order;
+- lexical `arguments` identity is obtained from the checker-owned resolver
+  seam rather than printable-name guessing. Property names remain untouched,
+  while async arrows capture the resolved outer binding exactly;
+- async `super` property and computed reads, writes, calls, lexical arrows,
+  and nested class boundaries use explicit capture records and stable target
+  bindings; and
+- the printer derives function-body roles from the final transformed tree,
+  so ordinary blocks, source-multiline function bodies, and explicit
+  `SingleLine` synthetic blocks retain tsc's distinct layouts. ES2018 object
+  rest, async generators, decorators, class fields, CommonJS, diagnostics,
+  comments, and `noEmitOnError` compose exactly; and
+- the complete acceptance replay also closes the previously latent target
+  composition seams without changing an oracle: class-field temporaries now
+  carry session-unique binding identities until final-tree name assignment,
+  parameter properties precede ordinary field initializers, decorated native
+  auto-accessor comments remain getter-owned, and ES2022 disposal names follow
+  retained class-member order. These are shared typed ownership fixes, not
+  case-specific spellings or ratchet exceptions.
+
+The separate
+[owner controls](../../../ratchets/h2-5f-owner-controls.v1.json) run pinned
+TypeScript 6.0.3 forty-two times and freeze 21 controls, 20 exact writes, two
+exact reported diagnostics, and one exact emitted diagnostic. They cover all
+async function shapes, non-simple parameters and collisions, lexical
+`arguments`, property/computed `super`, await precedence and comments,
+generated-name collisions, adjacent ES2017 preservation, object-rest,
+async-generator, decorator, class-field and CommonJS composition, top-level
+await, and `noEmitOnError`. Each Rust control runs twice through a fresh
+Program and matches diagnostics, callback and materialized bytes, paths,
+order, BOM, provenance, result state, and every active H2 counter.
+
+The [current runtime profile](../../../ratchets/h2-5f-profile.v1.json) and its
+[strict schema](../../../.github/ci/contracts/h2-5f-profile.schema.json)
+preserve every H2.5e authority byte for byte, mark H2.1a through H2.5f active,
+and name H2.5g as next. The monotonic corpus profile now has 680 exact cases,
+1,395 exact reported diagnostics, 974 exact writes, 5 unchanged output-exact
+diagnostic controls, and fifteen explicit source deferrals. Freshness is
+checked with:
+
+```text
+node crates/oracle/h2-5f-qualification.mjs --check
+node crates/oracle/h2-5f-owner-controls.mjs --check
+node crates/oracle/h2-5f-profile.mjs --check
+```
+
+The ordinary hosted boundary remains only `cargo xtask acceptance`; profile
+generation, schema checks, focused controls, and the complete H0/H1/L1
+regression gate remain local.
+
 ### 4.4 Target ladder
 
 The target profile moves newest to oldest. A row activates only after all
 transformers above it in `getScriptTransformers` are closed. Each row is a
 separate runtime slice even when a corpus fixture exercises several already
 closed transforms.
+
+The pinned TypeScript implementation is the behavioral oracle for transformer
+selection, evaluation order, helper semantics, diagnostics, and emitted bytes;
+it is not the Rust module architecture. Target transforms must model their
+state with ownership-safe arenas, exhaustive enums, typed scope/operation
+plans, and explicit `Result` boundaries. A `tsc-port` ledger edge records the
+semantic correspondence, but line-for-line transplantation of TypeScript's
+nested closures, mutable sentinel values, or incidental function boundaries is
+not an implementation goal and is not accepted as slice completion. This is
+not a prohibition on using tsc to finish difficult behavior: when closure
+stalls, its control flow and helper algorithms are the authoritative reference,
+then are expressed through Rust-owned types and state. Exact compatibility and
+a durable Rust architecture are both completion conditions; architectural
+novelty by itself is not.
 
 | Slice | Newly closed owner | Dependencies |
 | --- | --- | --- |
@@ -820,12 +1473,22 @@ closed transforms.
 | H2.5e | `transformES2018` | H2.5d |
 | H2.5f | `transformES2017` | H2.5e |
 | H2.5g | `transformES2016` | H2.5f |
-| H2.5h | `transformES2015` plus `transformGenerators`, which activate together | H2.5g |
+| H2.5h-a | Architecture validation, complete `transformES2015`/`transformGenerators` owner graph and local-gap matrix, Rust mapping, and oracle-fixture freeze. It may propose dormant foundation children but activates no transformer and admits no candidate. | H2.5g closure and merge lineage, post-merge packet freeze, and FCI-1 through FCI-10 |
+| H2.5h-b+ | Runtime owner slices cut by H2.5h-a. `transformES2015` and `transformGenerators` activate together only for a dependency cluster whose pinned owner graph proves joint activation; independent SCCs receive further suffixes before implementation. | H2.5h-a and every foundation child it names |
 
 Every target row closes its exact syntax gates, helper graph, generated-name
 collisions, substitution/notification composition, resolver calls, source-map
 ranges when that track is available, and the newly admitted upstream runner
 observations. Merely accepting the target enum is forbidden.
+
+The concrete next entry is
+[`slices/h2-5h-a.md`](slices/h2-5h-a.md). It remains explicitly blocked until
+the H2.5g profile is frozen at its final validation ref, the merge ref is
+recorded as containing that ref with identical profile-bound inputs, and the
+post-merge roadmap review adds the versioned readiness manifest and checker
+named there. It remains blocked after that review until every FCI-1 through
+FCI-10 packet and activation gate is complete. No agent may infer a runtime
+implementation task from the target-ladder summary.
 
 ### 4.5 Maps, declarations, output/config, and broad qualification
 
@@ -937,8 +1600,18 @@ not silently merge them in an implementation PR.
 
 ## 8. Opening and closing a slice
 
+The sole H2.5g legacy exception skips only the first packet-readiness bullet
+below because implementation was already in progress when that gate was
+adopted. It follows the closing protocol in section 1.2 and every applicable
+before-merge requirement below. H2.5h-a and every later slice receive no such
+exception.
+
 Before implementation:
 
+- freeze the complete
+  [implementation-ready design packet](#11-mandatory-implementation-ready-design-gate),
+  with no `TBD`, unresolved item, implicit judgment call, or unowned shared-file
+  seam;
 - confirm every dependency row is closed on `main`;
 - create a fresh branch named for exactly one slice;
 - record the trusted base and immutable before evidence outside the worktree;
@@ -950,6 +1623,9 @@ Before implementation:
 Before merge:
 
 - every in-slice owner and observation is closed or explicitly dispositioned;
+- every affected active-architecture concern records the final validation
+  ref/date, exact Rust symbols and visibility, tsc identities, focused
+  tests/ratchets, and post-freeze lifecycle; no candidate marker remains;
 - all new outputs/state transitions match the correct upstream or protocol
   oracle exactly, including failures and cancellation;
 - frozen earlier profiles and resource gates remain green;
@@ -963,6 +1639,15 @@ Before merge:
 
 Stop and amend this plan before implementation continues if:
 
+- a mandatory architecture reference or tsc hash is missing/stale, its Rust
+  symbol no longer resolves, a non-qualified concern is used as a frozen
+  premise, or an architecture concern/gap has no impact disposition;
+- the next step requires guessing an upstream owner, Rust integration seam,
+  expected observable, verification command/result, or deferral owner that the
+  implementation-ready design packet does not state;
+- finishing the row would require a fixture/case-specific branch, text-based
+  semantic substitution, throwaway slice API, or other local shortcut instead
+  of its final architectural owner;
 - a row needs two unrelated transformer/query/protocol owner groups;
 - an admitted branch needs a resolver, host, helper, printer, map, declaration,
   cache, or schema owner assigned to another unfinished row;

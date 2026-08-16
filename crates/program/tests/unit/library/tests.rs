@@ -1,6 +1,4 @@
-use std::path::Path;
-
-use super::LibraryCatalog;
+use super::{replacement_package_name, LibraryCatalog};
 use tsc_types::CompilerOptions;
 
 #[test]
@@ -32,19 +30,30 @@ fn typescript_6_0_3_catalog_pins_aliases_counts_and_target_defaults() {
 #[test]
 fn priorities_and_spelling_suggestions_match_the_pinned_order() {
     let catalog = LibraryCatalog::typescript_6_0_3("/vendor/lib");
-    let directory = Path::new("/vendor/lib");
-    assert_eq!(
-        catalog.priority(directory, Path::new("/vendor/lib/lib.es6.d.ts")),
-        0
-    );
+    assert_eq!(catalog.file_name_priority("lib.es6.d.ts"), 0);
     assert!(
-        catalog.priority(directory, Path::new("/vendor/lib/lib.es5.d.ts"))
-            < catalog.priority(directory, Path::new("/vendor/lib/lib.dom.d.ts"))
+        catalog.file_name_priority("lib.es5.d.ts") < catalog.file_name_priority("lib.dom.d.ts")
     );
     assert_eq!(
-        catalog.priority(directory, Path::new("/outside/lib.es5.d.ts")),
+        catalog.file_name_priority("outside-lib.es5.d.ts"),
         catalog.logical_entry_count() + 2
     );
     assert_eq!(catalog.spelling_suggestion("es2050"), Some("es2015"));
     assert_eq!(catalog.spelling_suggestion("not-a-library"), None);
+}
+
+#[test]
+fn replacement_package_names_preserve_tsc_package_and_subpath_shape() {
+    assert_eq!(
+        replacement_package_name("lib.dom.d.ts"),
+        "@typescript/lib-dom"
+    );
+    assert_eq!(
+        replacement_package_name("lib.dom.iterable.d.ts"),
+        "@typescript/lib-dom/iterable"
+    );
+    assert_eq!(
+        replacement_package_name("lib.esnext.array.extra.d.ts"),
+        "@typescript/lib-esnext/array-extra"
+    );
 }

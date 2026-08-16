@@ -1,0 +1,22 @@
+[package]
+name = "tsc-rs-ci-harness"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[package.metadata.tsc-rs]
+role = "ci-harness-tsc-rs"
+
+[[bin]]
+name = "tsc-rs-ci-harness"
+path = "src/main.rs"
+
+[dependencies]
+tsc-ci-core.workspace = true
+tsc-ci-adapter-protocol.workspace = true
+tsc-compiler.workspace = true
+tsc-harness.workspace = true
+
+[lints]
+workspace = true

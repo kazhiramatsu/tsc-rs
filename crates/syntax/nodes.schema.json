@@ -1781,6 +1781,14 @@
       ]
     },
     {
+      "kindName": "NotEmittedStatement",
+      "dataName": "NotEmittedStatementData",
+      "fields": [
+      ],
+      "children": [
+      ]
+    },
+    {
       "kindName": "NumericLiteral",
       "dataName": "NumericLiteralData",
       "fields": [

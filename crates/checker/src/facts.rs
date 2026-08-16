@@ -472,7 +472,7 @@ impl<'a> CheckerState<'a> {
     /// unknownSymbol sentinel.
     fn get_global_non_nullable_type_instantiation(&mut self, ty: TypeId) -> CheckResult<TypeId> {
         if self.deferred_global_non_nullable_type_alias.is_none() {
-            let symbol = self.get_global_symbol("NonNullable", SymbolFlags::TYPE_ALIAS, None);
+            let symbol = self.get_global_symbol("NonNullable", SymbolFlags::TYPE_ALIAS, None)?;
             self.deferred_global_non_nullable_type_alias = Some(symbol);
         }
         match self

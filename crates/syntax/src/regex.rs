@@ -739,8 +739,12 @@ impl RegexScanner {
             }
             10 | 0x2028 | 0x2029 => Vec::new(),
             value => {
-                if self.any_unicode_mode && is_identifier_part_code_point(value as u32, self.target)
-                {
+                // In `u` and `v` mode every identity escape is invalid, not only
+                // escapes of identifier characters. This also matters for error
+                // recovery after an invalid control escape: `\c\`` leaves the
+                // second backslash to be scanned again, where `\`` must report
+                // an identity-escape diagnostic.
+                if self.any_unicode_mode {
                     self.error(
                         &diagnostics::This_character_cannot_be_escaped_in_a_regular_expression,
                         self.pos.saturating_sub(2),

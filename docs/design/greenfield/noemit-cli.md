@@ -1,5 +1,11 @@
 # H0: filesystem-hosted `--noEmit` execution contract
 
+Document role: **frozen H0 compatibility contract and design history**. It is
+authoritative for the H0 no-emit profile, lineage, and non-regression
+boundary, not for current Rust symbol shapes. Use the
+[current emitter architecture](emitter-architecture.md) for the current emit
+entry/protocol map and current source for concrete host APIs.
+
 Status: complete for the frozen single-project no-emit profile. M9 remains
 paused after the merged M9.1b true-replay foundation.
 
@@ -133,6 +139,11 @@ trait CompilerHost {
 `MemoryCompilerHost` is the oracle and conformance adapter.
 `FsCompilerHost` is the production adapter. Both feed the same resolver and
 program loader.
+
+The trait above is the frozen H0 sketch. The current shape, including
+`get_directories`, is owned by
+[`CompilerHost`](../../../crates/host/src/lib.rs); do not reconstruct the
+current interface from this historical block.
 
 Byte decoding is centralized and matches the vendored Node host for UTF-8,
 UTF-8 BOM, UTF-16LE, UTF-16BE, and invalid UTF-8 replacement. A no-emit

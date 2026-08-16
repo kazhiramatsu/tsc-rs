@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use tsc_emitter::{
-    emit_files, get_source_files_to_emit, preflight_emit, EmitBundle, EmitContractViolation,
-    EmitDiagnosticGate, EmitFailure, EmitHost, EmitIoError, EmitIoOperation, EmitMode,
-    EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitRoot, EmitSelection, EmitSource,
-    EmitWriteDisposition, MemoryOutputSink, OutputSink, UnavailableEmitResolver,
-    UnsupportedEmitFeature,
+    emit_files, get_source_files_to_emit, preflight_emit, validate_bootstrap_emit_options,
+    EmitBundle, EmitContractViolation, EmitDiagnosticGate, EmitFailure, EmitHost, EmitIoError,
+    EmitIoOperation, EmitMode, EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitRoot,
+    EmitSelection, EmitSource, EmitWriteDisposition, MemoryOutputSink, OutputSink,
+    UnavailableEmitResolver, UnsupportedEmitFeature,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{parse_source_file, SourceFile};
@@ -34,6 +34,69 @@ fn bootstrap_shape_is_whole_program_source_file_javascript_only() {
         Some(std::path::Path::new("/project/out.js"))
     );
     assert_eq!(plan.validate_bootstrap_shape(), Ok(()));
+}
+
+#[test]
+fn remove_comments_is_an_active_javascript_emit_option() {
+    assert_eq!(
+        validate_bootstrap_emit_options(&CompilerOptions {
+            target: Some(99),
+            module: Some(200),
+            remove_comments: Some(true),
+            ..CompilerOptions::default()
+        }),
+        Ok(()),
+    );
+}
+
+#[test]
+fn erasable_syntax_only_is_checker_policy_not_an_emit_preflight_axis() {
+    assert_eq!(
+        validate_bootstrap_emit_options(&CompilerOptions {
+            target: Some(99),
+            module: Some(200),
+            erasable_syntax_only: Some(true),
+            ..CompilerOptions::default()
+        }),
+        Ok(()),
+    );
+}
+
+#[test]
+fn isolated_declarations_without_declaration_emit_reaches_the_option_diagnostic_gate() {
+    assert_eq!(
+        validate_bootstrap_emit_options(&CompilerOptions {
+            target: Some(2),
+            module: Some(1),
+            isolated_declarations: Some(true),
+            ..CompilerOptions::default()
+        }),
+        Ok(()),
+    );
+
+    for options in [
+        CompilerOptions {
+            target: Some(2),
+            module: Some(1),
+            isolated_declarations: Some(true),
+            declaration: Some(true),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            target: Some(2),
+            module: Some(1),
+            isolated_declarations: Some(true),
+            composite: Some(true),
+            ..CompilerOptions::default()
+        },
+    ] {
+        assert!(matches!(
+            validate_bootstrap_emit_options(&options),
+            Err(EmitFailure::UnsupportedCompilerOption {
+                option: "declaration" | "composite"
+            })
+        ));
+    }
 }
 
 #[test]
@@ -253,6 +316,30 @@ fn executable_planning_preserves_source_order_eligibility_and_out_dir_layout() {
         ]
     );
     assert!(preflight.diagnostics().is_empty());
+}
+
+#[test]
+fn computed_resolve_json_module_is_validated_against_module_kind() {
+    let host = TestEmitHost::new(
+        CompilerOptions {
+            module: Some(4),
+            module_resolution: Some(100),
+            ..CompilerOptions::default()
+        },
+        "/project",
+        true,
+        &[("/project/index.ts", true)],
+    );
+
+    let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
+    assert_eq!(
+        preflight
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5071]
+    );
 }
 
 #[test]

@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-3c",
+  "status": "ready",
+  "trustedBase": "2e23d479a45014849997eb640924ff4ff84f22f3",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-3c-source-sandbox-resource.md",
+    "sha256": "c27d027e48a2ffc2ff42955615425b8ddba01502459d252d13e63265f12748b3"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-3b",
+      "receiptSha256": "f356153a1502d9118659331a77fb178999cf67ab0438b74f7cadb62370dee8b7"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/ci-runner/Cargo.toml",
+    "crates/ci-runner/src/lib.rs",
+    "crates/ci-runner/src/resource.rs",
+    "crates/ci-runner/src/snapshot.rs",
+    "crates/ci-runner/tests/snapshot_resource.rs",
+    "docs/design/greenfield/slices/fci-3c-source-sandbox-resource.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-3c.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/ci-core",
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    "crates/oracle",
+    "crates/ci-testkit",
+    "crates/ci-adapter",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g"
+  ],
+  "proof": {
+    "commands": [
+      "cargo check -p tsc-rs-ci-runner --lib",
+      "cargo test -p tsc-rs-ci-runner --test snapshot_resource",
+      "cargo test -p tsc-rs-ci-runner --lib",
+      "node .github/ci/slice-readiness.mjs --check fci-3c"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-3c.v1.json"
+  }
+}

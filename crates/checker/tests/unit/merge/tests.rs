@@ -1,4 +1,4 @@
-use tsc_types::{CompilerOptions, SymbolFlags};
+use tsc_types::{CompilerOptions, ScriptTarget, SymbolFlags};
 
 use crate::state::test_support::with_program_state;
 
@@ -72,6 +72,94 @@ fn augmentation_conflicts_survive_to_the_post_pass_flush() {
                     (2300, Some("a.ts".to_owned()), 34),
                     (2300, Some("b.ts".to_owned()), 6),
                 ]
+            );
+        },
+    );
+}
+
+#[test]
+fn global_namespace_merge_resolves_alias_meaning_before_conflict_detection() {
+    // checkerInitializationCrash.ts: the exported import-equals symbol is
+    // syntactically an Alias, but resolveSymbol exposes its TypeAlias target
+    // before mergeSymbol applies the incoming type alias's exclusions. The
+    // conflict is therefore owned by the augmentation merge (2300 on both
+    // names), not by the later checkAliasSymbol fallback (2440).
+    with_program_state(
+        &[
+            (
+                "a.d.ts",
+                "declare namespace react { type ReactNode = string; }\n\
+                 declare global { namespace FullCalendarVDom { export import VNode = react.ReactNode; } }\n\
+                 export {};\n",
+            ),
+            (
+                "b.d.ts",
+                "declare global { namespace FullCalendarVDom { type VNode = number; } }\n\
+                 export {};\n",
+            ),
+        ],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+            state.check_source_file(1);
+            let mut pins = state
+                .diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.file_name.as_deref().unwrap_or_default(),
+                        diagnostic.start.unwrap_or(u32::MAX),
+                        diagnostic.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect::<Vec<_>>();
+            pins.sort_unstable();
+            assert_eq!(
+                pins,
+                [(2300, "a.d.ts", 113, 5), (2300, "b.d.ts", 51, 5)]
+            );
+        },
+    );
+}
+
+#[test]
+fn global_augmentation_conflicts_with_an_earlier_umd_global_export() {
+    with_program_state(
+        &[
+            (
+                "global.d.ts",
+                "declare global {\n    const React: typeof import(\"./module\");\n}\nexport {};\n",
+            ),
+            (
+                "module.d.ts",
+                "export as namespace React;\nexport function foo(): string;\n",
+            ),
+            ("some_module.ts", "export {}\nReact.foo;\n"),
+            ("emits.ts", "console.log(\"hello\");\nReact.foo;\n"),
+        ],
+        &CompilerOptions {
+            strict: Some(true),
+            module: Some(99),
+            target: Some(ScriptTarget::ES2018.bits()),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let pins = state
+                .diagnostics
+                .iter()
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.file_name.as_deref().unwrap_or_default(),
+                        diagnostic.start.unwrap_or(u32::MAX),
+                        diagnostic.length.unwrap_or(u32::MAX),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                pins,
+                [(2451, "global.d.ts", 27, 5), (2451, "module.d.ts", 20, 5),]
             );
         },
     );

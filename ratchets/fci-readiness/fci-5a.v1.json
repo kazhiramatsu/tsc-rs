@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-5a",
+  "status": "ready",
+  "trustedBase": "b8a0fbcacd87e9dd555d132f012102ad6ea8a439",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-5a-protocol-control-plan.md",
+    "sha256": "135c57ecca825e083ac789a0f364f58d51acc1dfe2e75af71ab6d02a12cbe335"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-4d",
+      "receiptSha256": "4a7c3872522c8f194d2b8530a5f9f6f4cbb17f7816e817393d3c35e11a0a07c3"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/ci-adapter-tsc-rs-protocol/Cargo.toml",
+    "crates/ci-adapter-tsc-rs-protocol/src/lib.rs",
+    "crates/ci-adapter-tsc-rs-protocol/tests/protocol.rs",
+    "crates/ci-adapter-tsc-rs-control/Cargo.toml",
+    "crates/ci-adapter-tsc-rs-control/src/lib.rs",
+    "crates/ci-adapter-tsc-rs-control/tests/plan.rs",
+    ".github/ci/contracts/functional-ci-shard-plan.v1.schema.json",
+    ".github/ci/plans/h2-5g.v1.json",
+    "docs/design/greenfield/slices/fci-5a-protocol-control-plan.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-5a.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/compiler",
+    "crates/oracle",
+    "crates/harness",
+    "crates/xtask",
+    "crates/emitter",
+    "crates/checker",
+    "crates/ci-runner",
+    "crates/ci-testkit",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g",
+    "ratchets/h2"
+  ],
+  "proof": {
+    "commands": [
+      "cargo xtask test ci-adapter-tsc-rs-protocol",
+      "cargo xtask test ci-adapter-tsc-rs-control",
+      "cargo test -p tsc-rs-ci-adapter-control --test plan",
+      "cargo tree -p tsc-rs-ci-adapter-control --edges normal,build,dev",
+      "node .github/ci/slice-readiness.mjs --check fci-5a"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-5a.v1.json"
+  }
+}

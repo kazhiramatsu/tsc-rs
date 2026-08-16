@@ -1,6 +1,13 @@
 use std::path::PathBuf;
 
-use super::{builtins::rewrite_relative_module_specifier, EmitOutcome, SourceMapObservation};
+use tsc_syntax::{parse_source_file, NodeData, SyntaxKind};
+
+use super::{
+    builtins::rewrite_relative_module_specifier,
+    factory::{EmitHelperName, NodeFactory},
+    EmitFlags, EmitOutcome, SourceMapObservation, TransformArena, TransformFlags, TransformNode,
+    TransformSourceId,
+};
 
 #[test]
 fn outcome_retains_optional_presence_and_independent_emitted_file_order() {
@@ -71,4 +78,214 @@ fn relative_module_specifier_rewrite_matches_typescript_suffix_rules() {
             "specifier should remain unchanged: {input}"
         );
     }
+}
+
+#[test]
+fn emit_helper_name_distinguishes_user_calls_and_survives_factory_updates() {
+    let parsed = parse_source_file(
+        "helper-name.ts",
+        "__runInitializers();\n",
+        Default::default(),
+        None,
+    );
+    let NodeData::SourceFile(source_file) = &parsed.arena.node(parsed.root).data else {
+        panic!("source file root");
+    };
+    let source_statements = parsed
+        .arena
+        .node_array(source_file.statements.expect("source statements"));
+    let NodeData::ExpressionStatement(statement) =
+        &parsed.arena.node(source_statements.nodes[0]).data
+    else {
+        panic!("parsed helper call statement");
+    };
+    let parsed_call_id = statement.expression.expect("parsed helper call");
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    let parsed_call = arena
+        .node_ref(source, parsed_call_id)
+        .expect("mounted parsed helper call");
+
+    let (helper, helper_call, user_call) = {
+        let mut factory = NodeFactory::new(&mut arena);
+        let helper = factory
+            .create_unscoped_helper_identifier(source, EmitHelperName::RunInitializers)
+            .expect("create typed helper identifier");
+        let helper_call = create_test_call(&mut factory, source, helper);
+        let user = create_test_identifier(&mut factory, source, "__runInitializers");
+        let user_call = create_test_call(&mut factory, source, user);
+        (helper, helper_call, user_call)
+    };
+
+    let helper_flags = arena
+        .metadata(helper)
+        .expect("typed helper metadata")
+        .flags();
+    assert!(helper_flags.contains(EmitFlags::HELPER_NAME));
+    assert!(helper_flags.contains(EmitFlags::ADVISE_ON_EMIT_NODE));
+    assert!(arena
+        .is_call_to_emit_helper(helper_call, EmitHelperName::RunInitializers)
+        .expect("classify typed helper call"));
+    assert!(!arena
+        .is_call_to_emit_helper(user_call, EmitHelperName::RunInitializers)
+        .expect("classify same-spelling user call"));
+    assert!(!arena
+        .is_call_to_emit_helper(parsed_call, EmitHelperName::RunInitializers)
+        .expect("classify parsed same-spelling user call"));
+
+    let helper_data = arena.node(helper).expect("helper node").data.clone();
+    let (cloned_call, updated_call) = {
+        let mut factory = NodeFactory::new(&mut arena);
+        let cloned = factory.clone_node(helper).expect("clone helper identifier");
+        let updated = factory
+            .update_node(helper, helper_data, TransformFlags::CONTAINS_ES_2015)
+            .expect("update helper identifier");
+        (
+            create_test_call(&mut factory, source, cloned),
+            create_test_call(&mut factory, source, updated),
+        )
+    };
+    assert!(arena
+        .is_call_to_emit_helper(cloned_call, EmitHelperName::RunInitializers)
+        .expect("classify cloned helper call"));
+    assert!(arena
+        .is_call_to_emit_helper(updated_call, EmitHelperName::RunInitializers)
+        .expect("classify updated helper call"));
+}
+
+#[test]
+fn factory_private_expression_flags_distinguish_declarations_property_access_and_in() {
+    let parsed = parse_source_file("private-flags.ts", "", Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+
+    let (private_name, declaration, property_access, element_access, private_in) = {
+        let mut factory = NodeFactory::new(&mut arena);
+        let private_name = factory
+            .create_node(
+                source,
+                NodeData::PrivateIdentifier(tsc_syntax::nodes::PrivateIdentifierData {
+                    escaped_text: "#field".to_owned(),
+                    text: "#field".to_owned(),
+                }),
+                TransformFlags::NONE,
+            )
+            .expect("create private name");
+        let receiver = create_test_identifier(&mut factory, source, "receiver");
+        let declaration = factory
+            .create_node(
+                source,
+                NodeData::PropertyDeclaration(tsc_syntax::nodes::PropertyDeclarationData {
+                    name: Some(private_name.node()),
+                    modifiers: None,
+                    question_token: None,
+                    exclamation_token: None,
+                    r#type: None,
+                    initializer: None,
+                }),
+                TransformFlags::NONE,
+            )
+            .expect("create private declaration");
+        let property_access = factory
+            .create_node(
+                source,
+                NodeData::PropertyAccessExpression(
+                    tsc_syntax::nodes::PropertyAccessExpressionData {
+                        expression: Some(receiver.node()),
+                        question_dot_token: None,
+                        name: Some(private_name.node()),
+                    },
+                ),
+                TransformFlags::NONE,
+            )
+            .expect("create private property access");
+        let element_access = factory
+            .create_node(
+                source,
+                NodeData::ElementAccessExpression(tsc_syntax::nodes::ElementAccessExpressionData {
+                    expression: Some(receiver.node()),
+                    question_dot_token: None,
+                    argument_expression: Some(private_name.node()),
+                }),
+                TransformFlags::NONE,
+            )
+            .expect("create private element access");
+        let in_token = factory
+            .create_token(source, SyntaxKind::InKeyword, TransformFlags::NONE)
+            .expect("create in token");
+        let private_in = factory
+            .create_node(
+                source,
+                NodeData::BinaryExpression(tsc_syntax::nodes::BinaryExpressionData {
+                    left: Some(private_name.node()),
+                    operator_token: Some(in_token.node()),
+                    right: Some(receiver.node()),
+                }),
+                TransformFlags::NONE,
+            )
+            .expect("create private in expression");
+        (
+            private_name,
+            declaration,
+            property_access,
+            element_access,
+            private_in,
+        )
+    };
+
+    let private_expression = TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION;
+    assert!(!arena
+        .transform_flags(private_name)
+        .contains(private_expression));
+    assert!(!arena
+        .transform_flags(declaration)
+        .contains(private_expression));
+    assert!(arena
+        .transform_flags(property_access)
+        .contains(private_expression));
+    assert!(!arena
+        .transform_flags(element_access)
+        .contains(private_expression));
+    assert!(arena
+        .transform_flags(private_in)
+        .contains(private_expression));
+}
+
+fn create_test_identifier(
+    factory: &mut NodeFactory<'_>,
+    source: TransformSourceId,
+    text: &str,
+) -> TransformNode {
+    factory
+        .create_node(
+            source,
+            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                escaped_text: tsc_syntax::escape_leading_underscores(text),
+                text: text.to_owned(),
+            }),
+            TransformFlags::NONE,
+        )
+        .expect("create test identifier")
+}
+
+fn create_test_call(
+    factory: &mut NodeFactory<'_>,
+    source: TransformSourceId,
+    expression: TransformNode,
+) -> TransformNode {
+    let arguments = factory
+        .create_node_array(source, Vec::new())
+        .expect("create test arguments");
+    factory
+        .create_node(
+            source,
+            NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                expression: Some(expression.node()),
+                question_dot_token: None,
+                type_arguments: None,
+                arguments: Some(arguments.array()),
+            }),
+            TransformFlags::NONE,
+        )
+        .expect("create test call")
 }

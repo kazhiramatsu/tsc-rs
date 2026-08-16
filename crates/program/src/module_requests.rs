@@ -129,6 +129,7 @@ impl PlannedLibReferenceDirective {
 pub struct SourceRequestPlan {
     path_references: Vec<PlannedPathReference>,
     module_requests: Vec<ResolutionKey>,
+    unpreprocessed_module_requests: BTreeSet<ResolutionKey>,
     loadable_module_requests: BTreeSet<ResolutionKey>,
     module_request_spans: BTreeMap<ResolutionKey, (u32, u32)>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
@@ -143,6 +144,16 @@ impl SourceRequestPlan {
 
     pub fn module_requests(&self) -> &[ResolutionKey] {
         &self.module_requests
+    }
+
+    /// Static module references which remain reachable from checker syntax,
+    /// but are deliberately excluded from TypeScript's source-file import
+    /// preprocessing. The prepared-program provider returns authoritative
+    /// `NotFound` for these keys without asking the module-resolution host.
+    /// This is observable for imports and re-exports in a module augmentation
+    /// body.
+    pub fn unpreprocessed_module_requests(&self) -> impl ExactSizeIterator<Item = &ResolutionKey> {
+        self.unpreprocessed_module_requests.iter()
     }
 
     pub fn module_requests_with_loadability(
@@ -365,6 +376,21 @@ fn plan_module_requests_worker(
     let mut static_occurrences = Vec::new();
     let mut dynamic_occurrences = Vec::new();
     let mut augmentation_occurrences = Vec::new();
+    let mut unpreprocessed_module_requests = BTreeSet::new();
+    collect_static_module_references(StaticModuleReferenceContext {
+        parsed: &parsed,
+        source,
+        expanded,
+        static_mode,
+        import_syntax_affects_resolution,
+        static_occurrences: &mut static_occurrences,
+        augmentation_occurrences: &mut augmentation_occurrences,
+        unpreprocessed_module_requests: &mut unpreprocessed_module_requests,
+    })?;
+
+    // `forEachDynamicImportOrRequireCall` is a separate whole-file walk in
+    // tsc. In particular, module-declaration boundaries affect the static
+    // collector above but do not hide import types or dynamic import calls.
     let mut contains_jsx = false;
     let mut stack = vec![parsed.root];
     while let Some(node_id) = stack.pop() {
@@ -377,116 +403,6 @@ fn plan_module_requests_worker(
                 | NodeData::JsxSelfClosingElement(_)
         );
         match &node.data {
-            NodeData::ImportDeclaration(import) => {
-                let mode = match import.attributes {
-                    None => static_mode,
-                    Some(attributes) if expanded => {
-                        let is_type_only = import.import_clause.is_some_and(|clause| {
-                            matches!(
-                                &parsed.arena.node(clause).data,
-                                NodeData::ImportClause(clause) if clause.is_type_only
-                            )
-                        });
-                        // Runtime attributes do not suppress the import
-                        // reference. Only a valid type-only
-                        // `resolution-mode` attribute changes its key; all
-                        // other attribute diagnostics belong to the parser
-                        // or checker boundary.
-                        if is_type_only {
-                            resolution_mode_override(&parsed, attributes).unwrap_or(static_mode)
-                        } else {
-                            static_mode
-                        }
-                    }
-                    Some(_) => static_mode,
-                };
-                if let Some(module_specifier) = import.module_specifier {
-                    let module_specifier = parsed.arena.node(module_specifier);
-                    if let NodeData::StringLiteral(literal) = &module_specifier.data {
-                        if !literal.text.is_empty() {
-                            static_occurrences.push(ModuleRequestOccurrence {
-                                pos: module_specifier.pos,
-                                end: module_specifier.end,
-                                loads_source: true,
-                                key: ResolutionKey::new(
-                                    source.path().canonical().clone(),
-                                    literal.text.clone(),
-                                    mode,
-                                ),
-                            });
-                        }
-                    }
-                }
-            }
-            NodeData::ExportDeclaration(export) if export.module_specifier.is_some() => {
-                if !expanded {
-                    return Err(unsupported_at(
-                        source,
-                        node.pos,
-                        "an export declaration has a module specifier",
-                    ));
-                }
-                let module_specifier = export
-                    .module_specifier
-                    .expect("guarded export module specifier");
-                let module_specifier = parsed.arena.node(module_specifier);
-                if let NodeData::StringLiteral(literal) = &module_specifier.data {
-                    if !literal.text.is_empty() {
-                        static_occurrences.push(ModuleRequestOccurrence {
-                            pos: module_specifier.pos,
-                            end: module_specifier.end,
-                            loads_source: true,
-                            key: ResolutionKey::new(
-                                source.path().canonical().clone(),
-                                literal.text.clone(),
-                                static_mode,
-                            ),
-                        });
-                    }
-                }
-            }
-            NodeData::ImportEqualsDeclaration(import_equals) => {
-                if !expanded {
-                    return Err(unsupported_at(
-                        source,
-                        node.pos,
-                        "an import-equals declaration is outside the static-import slice",
-                    ));
-                }
-                if let Some(module_reference) = import_equals.module_reference {
-                    if let NodeData::ExternalModuleReference(reference) =
-                        &parsed.arena.node(module_reference).data
-                    {
-                        if let Some(expression) = reference.expression {
-                            let expression = parsed.arena.node(expression);
-                            if let NodeData::StringLiteral(literal) = &expression.data {
-                                if !literal.text.is_empty() {
-                                    static_occurrences.push(ModuleRequestOccurrence {
-                                        pos: expression.pos,
-                                        end: expression.end,
-                                        loads_source: true,
-                                        key: ResolutionKey::new(
-                                            source.path().canonical().clone(),
-                                            literal.text.clone(),
-                                            if import_syntax_affects_resolution {
-                                                ResolutionMode::CommonJs
-                                            } else {
-                                                ResolutionMode::Unspecified
-                                            },
-                                        ),
-                                    });
-                                }
-                            }
-                        }
-                    }
-                }
-                // An internal `import alias = namespace.member` declaration does
-                // not issue a module-resolution request.
-            }
-            NodeData::ExternalModuleReference(_) => {
-                // The parser only produces these as the module-reference child of
-                // an import-equals declaration, which the parent arm owns above.
-            }
             NodeData::ImportType(import_type) => {
                 if !expanded {
                     return Err(unsupported_at(
@@ -582,78 +498,9 @@ fn plan_module_requests_worker(
                     }
                 }
             }
-            NodeData::ModuleDeclaration(module)
-                if module.name.is_some_and(|name| {
-                    parsed.arena.node(name).kind == SyntaxKind::StringLiteral
-                }) =>
-            {
-                let name = module
-                    .name
-                    .expect("guarded string-named module declaration");
-                let NodeData::StringLiteral(literal) = &parsed.arena.node(name).data else {
-                    unreachable!("guarded string-named module declaration")
-                };
-                let top_level = node.parent == Some(parsed.root);
-                let has_declare_modifier = module.modifiers.is_some_and(|modifiers| {
-                    parsed
-                        .arena
-                        .node_array(modifiers)
-                        .nodes
-                        .iter()
-                        .any(|&modifier| {
-                            parsed.arena.node(modifier).kind == SyntaxKind::DeclareKeyword
-                        })
-                });
-                let ambient_syntax = has_declare_modifier || parsed.is_declaration_file;
-                let allow_ambient_import_equals =
-                    ambient_syntax && top_level && parsed.external_module_indicator.is_none();
-                if allow_ambient_import_equals {
-                    collect_ambient_module_requests(
-                        &parsed,
-                        module.body,
-                        source,
-                        static_mode,
-                        import_syntax_affects_resolution,
-                        &mut static_occurrences,
-                    )?;
-                }
-                if ambient_syntax && parsed.external_module_indicator.is_some() {
-                    if !expanded {
-                        return Err(unsupported_at(
-                            source,
-                            node.pos,
-                            "a module augmentation is outside the static-import slice",
-                        ));
-                    }
-                    augmentation_occurrences.push(ModuleRequestOccurrence {
-                        pos: parsed.arena.node(name).pos,
-                        end: parsed.arena.node(name).end,
-                        loads_source: false,
-                        key: ResolutionKey::new(
-                            source.path().canonical().clone(),
-                            literal.text.clone(),
-                            static_mode,
-                        ),
-                    });
-                    // Imports and exports nested in an external module
-                    // augmentation are real checker module requests. The
-                    // augmentation target itself remains resolution-only,
-                    // but its body is traversed in source order so those
-                    // relative dependencies receive authoritative rows.
-                    if let Some(body) = module.body {
-                        stack.push(body);
-                    }
-                }
-                // A script ambient declaration introduces an external module,
-                // while a bare `module "name"` is not ambient syntax. Neither
-                // asks the host to resolve that name.
-                // collectModuleReferences owns the declaration as a boundary:
-                // its body is not part of the source-level traversal.
-                continue;
-            }
             NodeData::CallExpression(call) => {
-                let callee = call.expression.map(|id| parsed.arena.node(id));
-                if callee.is_some_and(|callee| callee.kind == SyntaxKind::ImportKeyword) {
+                let callee = call.expression;
+                if callee.is_some_and(|callee| is_import_call_callee(&parsed, callee)) {
                     if !expanded {
                         return Err(unsupported_at(
                             source,
@@ -687,7 +534,7 @@ fn plan_module_requests_worker(
                 }
                 let is_require = callee.is_some_and(|callee| {
                     matches!(
-                        &callee.data,
+                        &parsed.arena.node(callee).data,
                         NodeData::Identifier(identifier) if identifier.escaped_text == "require"
                     )
                 });
@@ -830,10 +677,15 @@ fn plan_module_requests_worker(
             module_requests.push(occurrence.key);
         }
     }
+    // The source-file resolution cache is keyed by exact specifier and mode.
+    // If another preprocessed occurrence owns the same key, checker lookups in
+    // an augmentation body observe that ordinary authoritative row.
+    unpreprocessed_module_requests.retain(|key| !seen_module_requests.contains(key));
 
     Ok(SourceRequestPlan {
         path_references,
         module_requests,
+        unpreprocessed_module_requests,
         loadable_module_requests,
         module_request_spans,
         type_reference_directives,
@@ -869,21 +721,71 @@ struct ModuleRequestOccurrence {
     key: ResolutionKey,
 }
 
-/// Collect the requests which TypeScript permits inside a script ambient
-/// module. `collectModuleReferences` treats the ambient declaration as a
-/// boundary, but still records non-relative import/export names (and external
-/// import-equals declarations); relative names stay local to the declaration
-/// and are not sent through module resolution.
-fn collect_ambient_module_requests(
-    parsed: &SourceFile,
-    body: Option<NodeId>,
-    source: &PreparedSourceFile,
+struct StaticModuleReferenceContext<'a> {
+    parsed: &'a SourceFile,
+    source: &'a PreparedSourceFile,
+    expanded: bool,
     static_mode: ResolutionMode,
     import_syntax_affects_resolution: bool,
-    occurrences: &mut Vec<ModuleRequestOccurrence>,
+    static_occurrences: &'a mut Vec<ModuleRequestOccurrence>,
+    augmentation_occurrences: &'a mut Vec<ModuleRequestOccurrence>,
+    unpreprocessed_module_requests: &'a mut BTreeSet<ResolutionKey>,
+}
+
+/// `collectExternalModuleReferences`' statement-only static collector.
+///
+/// Unlike a generic syntax walk, this enters only a top-level ambient module
+/// in a global script. External augmentations and nested non-relative ambient
+/// declarations are terminal module-augmentation entries. Their bodies are
+/// retained separately as checker-visible, host-unpreprocessed requests.
+fn collect_static_module_references(
+    context: StaticModuleReferenceContext<'_>,
 ) -> Result<(), ResolutionError> {
-    let mut stack = body.into_iter().collect::<Vec<_>>();
-    while let Some(node_id) = stack.pop() {
+    let StaticModuleReferenceContext {
+        parsed,
+        source,
+        expanded,
+        static_mode,
+        import_syntax_affects_resolution,
+        static_occurrences,
+        augmentation_occurrences,
+        unpreprocessed_module_requests,
+    } = context;
+    let NodeData::SourceFile(root) = &parsed.arena.node(parsed.root).data else {
+        return Err(unsupported(source, "the parsed root is not a source file"));
+    };
+    let statements = root
+        .statements
+        .map(|statements| parsed.arena.node_array(statements).nodes.as_slice())
+        .unwrap_or_default();
+    collect_static_module_reference_statements(
+        parsed,
+        statements,
+        source,
+        expanded,
+        static_mode,
+        import_syntax_affects_resolution,
+        /*in_ambient_module*/ false,
+        static_occurrences,
+        augmentation_occurrences,
+        unpreprocessed_module_requests,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn collect_static_module_reference_statements(
+    parsed: &SourceFile,
+    statements: &[NodeId],
+    source: &PreparedSourceFile,
+    expanded: bool,
+    static_mode: ResolutionMode,
+    import_syntax_affects_resolution: bool,
+    in_ambient_module: bool,
+    static_occurrences: &mut Vec<ModuleRequestOccurrence>,
+    augmentation_occurrences: &mut Vec<ModuleRequestOccurrence>,
+    unpreprocessed_module_requests: &mut BTreeSet<ResolutionKey>,
+) -> Result<(), ResolutionError> {
+    for &node_id in statements {
         let node = parsed.arena.node(node_id);
         match &node.data {
             NodeData::ImportDeclaration(import) => {
@@ -891,16 +793,30 @@ fn collect_ambient_module_requests(
                     let module_specifier = parsed.arena.node(module_specifier);
                     if let NodeData::StringLiteral(literal) = &module_specifier.data {
                         if !literal.text.is_empty()
-                            && !is_external_module_name_relative(&literal.text)
+                            && (!in_ambient_module
+                                || !is_external_module_name_relative(&literal.text))
                         {
-                            occurrences.push(ModuleRequestOccurrence {
+                            let mode = import
+                                .attributes
+                                .filter(|_| expanded)
+                                .and_then(|attributes| {
+                                    import.import_clause.filter(|&clause| {
+                                        matches!(
+                                            &parsed.arena.node(clause).data,
+                                            NodeData::ImportClause(clause) if clause.is_type_only
+                                        )
+                                    })?;
+                                    resolution_mode_override(parsed, attributes)
+                                })
+                                .unwrap_or(static_mode);
+                            static_occurrences.push(ModuleRequestOccurrence {
                                 pos: module_specifier.pos,
                                 end: module_specifier.end,
                                 loads_source: true,
                                 key: ResolutionKey::new(
                                     source.path().canonical().clone(),
                                     literal.text.clone(),
-                                    static_mode,
+                                    mode,
                                 ),
                             });
                         }
@@ -909,14 +825,22 @@ fn collect_ambient_module_requests(
                 continue;
             }
             NodeData::ExportDeclaration(export) if export.module_specifier.is_some() => {
+                if !expanded && !in_ambient_module {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "an export declaration has a module specifier",
+                    ));
+                }
                 let module_specifier = export
                     .module_specifier
                     .expect("guarded ambient export module specifier");
                 let module_specifier = parsed.arena.node(module_specifier);
                 if let NodeData::StringLiteral(literal) = &module_specifier.data {
-                    if !literal.text.is_empty() && !is_external_module_name_relative(&literal.text)
+                    if !literal.text.is_empty()
+                        && (!in_ambient_module || !is_external_module_name_relative(&literal.text))
                     {
-                        occurrences.push(ModuleRequestOccurrence {
+                        static_occurrences.push(ModuleRequestOccurrence {
                             pos: module_specifier.pos,
                             end: module_specifier.end,
                             loads_source: true,
@@ -931,6 +855,13 @@ fn collect_ambient_module_requests(
                 continue;
             }
             NodeData::ImportEqualsDeclaration(import_equals) => {
+                if !expanded && !in_ambient_module {
+                    return Err(unsupported_at(
+                        source,
+                        node.pos,
+                        "an import-equals declaration is outside the static-import slice",
+                    ));
+                }
                 if let Some(module_reference) = import_equals.module_reference {
                     if let NodeData::ExternalModuleReference(reference) =
                         &parsed.arena.node(module_reference).data
@@ -939,7 +870,7 @@ fn collect_ambient_module_requests(
                             let expression = parsed.arena.node(expression);
                             if let NodeData::StringLiteral(literal) = &expression.data {
                                 if !literal.text.is_empty() {
-                                    occurrences.push(ModuleRequestOccurrence {
+                                    static_occurrences.push(ModuleRequestOccurrence {
                                         pos: expression.pos,
                                         end: expression.end,
                                         loads_source: true,
@@ -958,29 +889,234 @@ fn collect_ambient_module_requests(
                         }
                     }
                 }
-                continue;
             }
-            NodeData::ModuleDeclaration(_module)
-                if _module.name.is_some_and(|name| {
-                    parsed.arena.node(name).kind == SyntaxKind::StringLiteral
-                }) =>
-            {
-                // A nested string-named module is another
-                // `collectModuleReferences` boundary. TypeScript records the
-                // outer ambient body's non-relative imports but does not
-                // descend into this nested declaration.
-                continue;
+            NodeData::ModuleDeclaration(module) => {
+                let Some(name) = module.name else {
+                    continue;
+                };
+                let name_node = parsed.arena.node(name);
+                let is_ambient_module = name_node.kind == SyntaxKind::StringLiteral
+                    || NodeFlags::from_bits(node.flags).contains(NodeFlags::GLOBAL_AUGMENTATION);
+                let has_declare_modifier = module.modifiers.is_some_and(|modifiers| {
+                    parsed
+                        .arena
+                        .node_array(modifiers)
+                        .nodes
+                        .iter()
+                        .any(|&modifier| {
+                            parsed.arena.node(modifier).kind == SyntaxKind::DeclareKeyword
+                        })
+                });
+                if !is_ambient_module
+                    || !(in_ambient_module || has_declare_modifier || parsed.is_declaration_file)
+                {
+                    // `collectExternalModuleReferences` treats an ordinary
+                    // namespace (and invalid, non-ambient string-named
+                    // module syntax) as a hard preprocessing boundary. The
+                    // checker still visits external import-equals
+                    // declarations in that subtree, so retain their exact
+                    // keys as authoritative unpreprocessed misses instead of
+                    // asking the host to resolve syntax which tsc never
+                    // publishes in `SourceFile.imports`.
+                    collect_unpreprocessed_module_requests(
+                        parsed,
+                        module.body,
+                        source,
+                        expanded,
+                        static_mode,
+                        import_syntax_affects_resolution,
+                        unpreprocessed_module_requests,
+                    );
+                    continue;
+                }
+                let name_text = match &name_node.data {
+                    NodeData::StringLiteral(literal) => literal.text.as_str(),
+                    NodeData::Identifier(identifier) => identifier.text.as_str(),
+                    _ => "",
+                };
+                let is_augmentation = parsed.external_module_indicator.is_some()
+                    || (in_ambient_module && !is_external_module_name_relative(name_text));
+                if is_augmentation {
+                    if let NodeData::StringLiteral(literal) = &name_node.data {
+                        if !expanded {
+                            return Err(unsupported_at(
+                                source,
+                                node.pos,
+                                "a module augmentation is outside the static-import slice",
+                            ));
+                        }
+                        augmentation_occurrences.push(ModuleRequestOccurrence {
+                            pos: name_node.pos,
+                            end: name_node.end,
+                            loads_source: false,
+                            key: ResolutionKey::new(
+                                source.path().canonical().clone(),
+                                literal.text.clone(),
+                                static_mode,
+                            ),
+                        });
+                    }
+                    collect_unpreprocessed_module_requests(
+                        parsed,
+                        module.body,
+                        source,
+                        expanded,
+                        static_mode,
+                        import_syntax_affects_resolution,
+                        unpreprocessed_module_requests,
+                    );
+                } else if !in_ambient_module {
+                    if let Some(body_statements) = module_body_statements(parsed, module.body) {
+                        collect_static_module_reference_statements(
+                            parsed,
+                            body_statements,
+                            source,
+                            expanded,
+                            static_mode,
+                            import_syntax_affects_resolution,
+                            /*in_ambient_module*/ true,
+                            static_occurrences,
+                            augmentation_occurrences,
+                            unpreprocessed_module_requests,
+                        )?;
+                    }
+                }
             }
             _ => {}
         }
-        let mut children = Vec::new();
-        for_each_child(&parsed.arena, node, |child| {
-            children.push(child);
-            false
-        });
-        stack.extend(children.into_iter().rev());
     }
     Ok(())
+}
+
+fn module_body_statements(parsed: &SourceFile, body: Option<NodeId>) -> Option<&[NodeId]> {
+    let NodeData::ModuleBlock(block) = &parsed.arena.node(body?).data else {
+        return None;
+    };
+    Some(
+        block
+            .statements
+            .map(|statements| parsed.arena.node_array(statements).nodes.as_slice())
+            .unwrap_or_default(),
+    )
+}
+
+fn collect_unpreprocessed_module_requests(
+    parsed: &SourceFile,
+    body: Option<NodeId>,
+    source: &PreparedSourceFile,
+    expanded: bool,
+    static_mode: ResolutionMode,
+    import_syntax_affects_resolution: bool,
+    requests: &mut BTreeSet<ResolutionKey>,
+) {
+    let Some(body) = body else {
+        return;
+    };
+    let body = parsed.arena.node(body);
+    if let NodeData::ModuleDeclaration(module) = &body.data {
+        collect_unpreprocessed_module_requests(
+            parsed,
+            module.body,
+            source,
+            expanded,
+            static_mode,
+            import_syntax_affects_resolution,
+            requests,
+        );
+        return;
+    }
+    let NodeData::ModuleBlock(block) = &body.data else {
+        return;
+    };
+    let statements = block
+        .statements
+        .map(|statements| parsed.arena.node_array(statements).nodes.as_slice())
+        .unwrap_or_default();
+    for &statement in statements {
+        match &parsed.arena.node(statement).data {
+            NodeData::ImportDeclaration(import) => {
+                let Some(specifier) = import.module_specifier else {
+                    continue;
+                };
+                let NodeData::StringLiteral(literal) = &parsed.arena.node(specifier).data else {
+                    continue;
+                };
+                if literal.text.is_empty() {
+                    continue;
+                }
+                let mode = import
+                    .attributes
+                    .filter(|_| expanded)
+                    .and_then(|attributes| {
+                        import.import_clause.filter(|&clause| {
+                            matches!(
+                                &parsed.arena.node(clause).data,
+                                NodeData::ImportClause(clause) if clause.is_type_only
+                            )
+                        })?;
+                        resolution_mode_override(parsed, attributes)
+                    })
+                    .unwrap_or(static_mode);
+                requests.insert(ResolutionKey::new(
+                    source.path().canonical().clone(),
+                    literal.text.clone(),
+                    mode,
+                ));
+            }
+            NodeData::ExportDeclaration(export) => {
+                let Some(specifier) = export.module_specifier else {
+                    continue;
+                };
+                let NodeData::StringLiteral(literal) = &parsed.arena.node(specifier).data else {
+                    continue;
+                };
+                if !literal.text.is_empty() {
+                    requests.insert(ResolutionKey::new(
+                        source.path().canonical().clone(),
+                        literal.text.clone(),
+                        static_mode,
+                    ));
+                }
+            }
+            NodeData::ImportEqualsDeclaration(import_equals) => {
+                let expression = import_equals
+                    .module_reference
+                    .and_then(|reference| match &parsed.arena.node(reference).data {
+                        NodeData::ExternalModuleReference(reference) => reference.expression,
+                        _ => None,
+                    });
+                let Some(expression) = expression else {
+                    continue;
+                };
+                let NodeData::StringLiteral(literal) = &parsed.arena.node(expression).data else {
+                    continue;
+                };
+                if !literal.text.is_empty() {
+                    requests.insert(ResolutionKey::new(
+                        source.path().canonical().clone(),
+                        literal.text.clone(),
+                        if import_syntax_affects_resolution {
+                            ResolutionMode::CommonJs
+                        } else {
+                            ResolutionMode::Unspecified
+                        },
+                    ));
+                }
+            }
+            NodeData::ModuleDeclaration(module) => {
+                collect_unpreprocessed_module_requests(
+                    parsed,
+                    module.body,
+                    source,
+                    expanded,
+                    static_mode,
+                    import_syntax_affects_resolution,
+                    requests,
+                );
+            }
+            _ => {}
+        }
+    }
 }
 
 /// tsc `getResolutionModeOverride`: only the exact one-element
@@ -1142,6 +1278,23 @@ fn dynamic_import_mode(
             source,
             format!("file emit module kind {other} has no owned dynamic-import resolution mode"),
         )),
+    }
+}
+
+/// tsc `isImportCall`: both `import(...)` and the TS 6 deferred form
+/// `import.defer(...)` publish the first literal argument as a dynamic module
+/// request. `keyword_token` keeps this structural, so `new.defer(...)` and an
+/// arbitrary `object.defer(...)` cannot be mistaken for an import call.
+fn is_import_call_callee(source: &SourceFile, callee: NodeId) -> bool {
+    match &source.arena.node(callee).data {
+        NodeData::Token if source.arena.node(callee).kind == SyntaxKind::ImportKeyword => true,
+        NodeData::MetaProperty(meta) if meta.keyword_token == SyntaxKind::ImportKeyword => {
+            meta.name.is_some_and(|name| {
+                matches!(&source.arena.node(name).data,
+                NodeData::Identifier(identifier) if identifier.escaped_text == "defer")
+            })
+        }
+        _ => false,
     }
 }
 

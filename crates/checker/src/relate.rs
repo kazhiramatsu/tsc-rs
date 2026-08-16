@@ -14,6 +14,7 @@
 
 use std::collections::HashMap;
 
+use tsc_binder::SymbolId;
 use tsc_syntax::SyntaxKind;
 use tsc_types::{
     IntersectionState, ObjectFlags, RelationComparisonResult, SymbolFlags, TypeFlags, TypeId,
@@ -66,6 +67,44 @@ pub type RelationCache = HashMap<String, RelationComparisonResult>;
 pub struct RelationCaches {
     per_relation: [RelationCache; 5],
     pub enum_relation: HashMap<String, RelationComparisonResult>,
+}
+
+/// Rust-owned result of tsc's enum-relation `errorReporter` callback.
+///
+/// The verdict cache stores only success/failure. A reporting relation that
+/// observes a cached failure deliberately recomputes the comparison and
+/// carries one of these typed reasons back to the relation error stack.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum EnumRelationError {
+    MissingMember {
+        source_member: SymbolId,
+        target_enum: SymbolId,
+    },
+    MismatchedMemberValue {
+        target_enum: SymbolId,
+        target_member: SymbolId,
+        expected: EvalValue,
+        given: EvalValue,
+    },
+    StringVsUnknownNumeric {
+        target_enum: SymbolId,
+        target_member: SymbolId,
+        known_string: String,
+    },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum EnumRelationOutcome {
+    Related,
+    Unrelated(Option<EnumRelationError>),
+}
+
+impl EnumRelationOutcome {
+    /// tsrs-native: closed-enum verdict projection for the typed replacement
+    /// of tsc's boolean-plus-errorReporter result.
+    pub(crate) const fn is_related(&self) -> bool {
+        matches!(self, Self::Related)
+    }
 }
 
 impl RelationCaches {
@@ -251,16 +290,29 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 253c223b70908f75bb9e3be5803ad582f0412432e034ab00e01cae4a891a9dce
     /// tsc-span: _tsc.js:64673-64732
     ///
-    /// errorReporter is never supplied (the engine is reportErrors=
-    /// false throughout): the Failed-entry re-run guard (64684) is
-    /// dead and the message emissions inside the walk are skipped —
-    /// the enumRelation verdict writes are unconditional in tsc and
-    /// stay so here.
+    /// Boolean callers use the cached verdict directly. Reporting callers
+    /// request a typed error and therefore replay cached failures, matching
+    /// tsc's `entry & Failed && errorReporter` guard without retaining a
+    /// callback borrow across checker operations.
     pub fn is_enum_type_related_to(
         &mut self,
-        source: tsc_binder::SymbolId,
-        target: tsc_binder::SymbolId,
+        source: SymbolId,
+        target: SymbolId,
     ) -> CheckResult<bool> {
+        Ok(self
+            .enum_type_relation(source, target, /*collect_error*/ false)?
+            .is_related())
+    }
+
+    /// tsrs-native: typed outcome/cache worker behind the pinned
+    /// `isEnumTypeRelatedTo` port, replacing its callback borrow with an
+    /// owned `EnumRelationError` while retaining cached-verdict replay.
+    pub(crate) fn enum_type_relation(
+        &mut self,
+        source: SymbolId,
+        target: SymbolId,
+        collect_error: bool,
+    ) -> CheckResult<EnumRelationOutcome> {
         let source_symbol = if self
             .binder
             .symbol(source)
@@ -284,7 +336,7 @@ impl<'a> CheckerState<'a> {
             target
         };
         if source_symbol == target_symbol {
-            return Ok(true);
+            return Ok(EnumRelationOutcome::Related);
         }
         {
             let source_data = self.binder.symbol(source_symbol);
@@ -293,12 +345,18 @@ impl<'a> CheckerState<'a> {
                 || !source_data.flags.intersects(SymbolFlags::REGULAR_ENUM)
                 || !target_data.flags.intersects(SymbolFlags::REGULAR_ENUM)
             {
-                return Ok(false);
+                return Ok(EnumRelationOutcome::Unrelated(None));
             }
         }
         let id = format!("{},{}", source_symbol.0, target_symbol.0);
         if let Some(&entry) = self.relations.enum_relation.get(&id) {
-            return Ok(entry.intersects(RelationComparisonResult::SUCCEEDED));
+            if !(collect_error && entry.intersects(RelationComparisonResult::FAILED)) {
+                return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {
+                    EnumRelationOutcome::Related
+                } else {
+                    EnumRelationOutcome::Unrelated(None)
+                });
+            }
         }
         let target_enum_type = self.get_type_of_symbol(target_symbol)?;
         let source_enum_type = self.get_type_of_symbol(source_symbol)?;
@@ -325,7 +383,12 @@ impl<'a> CheckerState<'a> {
                 self.relations
                     .enum_relation
                     .insert(id, RelationComparisonResult::FAILED);
-                return Ok(false);
+                return Ok(EnumRelationOutcome::Unrelated(collect_error.then_some(
+                    EnumRelationError::MissingMember {
+                        source_member: source_property,
+                        target_enum: target_symbol,
+                    },
+                )));
             };
             let source_declaration = self
                 .get_declaration_of_kind(source_property, SyntaxKind::EnumMember)
@@ -342,17 +405,45 @@ impl<'a> CheckerState<'a> {
                     || source_is_string
                     || target_is_string
                 {
+                    let error = if collect_error {
+                        match (target_value.clone(), source_value.clone()) {
+                            (Some(expected), Some(given)) => {
+                                Some(EnumRelationError::MismatchedMemberValue {
+                                    target_enum: target_symbol,
+                                    target_member: target_property,
+                                    expected,
+                                    given,
+                                })
+                            }
+                            (expected, given) => {
+                                let known_string = expected
+                                    .or(given)
+                                    .and_then(|value| match value {
+                                        EvalValue::Str(value) => Some(value),
+                                        EvalValue::Num(_) => None,
+                                    })
+                                    .expect("string/unknown enum mismatch has a known string");
+                                Some(EnumRelationError::StringVsUnknownNumeric {
+                                    target_enum: target_symbol,
+                                    target_member: target_property,
+                                    known_string,
+                                })
+                            }
+                        }
+                    } else {
+                        None
+                    };
                     self.relations
                         .enum_relation
                         .insert(id, RelationComparisonResult::FAILED);
-                    return Ok(false);
+                    return Ok(EnumRelationOutcome::Unrelated(error));
                 }
             }
         }
         self.relations
             .enum_relation
             .insert(id, RelationComparisonResult::SUCCEEDED);
-        Ok(true)
+        Ok(EnumRelationOutcome::Related)
     }
 }
 

@@ -1,4 +1,4 @@
-//! Small, fail-closed H0/H1 command-line driver.
+//! Small, fail-closed command-line driver for the admitted compiler surface.
 //!
 //! The driver intentionally owns process concerns (argument selection,
 //! current-directory discovery, diagnostic rendering, and exit status) while
@@ -696,12 +696,22 @@ fn parse_inline_boolean(argument: &str) -> Result<bool, CliError> {
 }
 
 fn parse_target(value: &str) -> Result<i32, CliError> {
-    if value.eq_ignore_ascii_case("esnext") {
-        Ok(99)
-    } else {
-        Err(CliError::Usage(format!(
-            "--target currently admits only 'esnext', got {value:?}"
-        )))
+    match value.to_ascii_lowercase().as_str() {
+        "es2015" | "es6" => Ok(2),
+        "es2016" => Ok(3),
+        "es2017" => Ok(4),
+        "es2018" => Ok(5),
+        "es2019" => Ok(6),
+        "es2020" => Ok(7),
+        "es2021" => Ok(8),
+        "es2022" => Ok(9),
+        "es2023" => Ok(10),
+        "es2024" => Ok(11),
+        "es2025" => Ok(12),
+        "esnext" | "latest" => Ok(99),
+        _ => Err(CliError::Usage(format!(
+            "--target currently admits es2015 through es2025, es6, esnext, and latest; got {value:?}"
+        ))),
     }
 }
 

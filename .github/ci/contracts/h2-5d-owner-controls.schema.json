@@ -1,0 +1,275 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-5d-owner-controls.schema.json",
+  "title": "tsc-rs H2.5d ES2019 target owner controls",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "phase",
+    "status",
+    "typescript",
+    "generator",
+    "contract",
+    "controls",
+    "summary",
+    "controls_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "phase": { "const": "H2.5d-es2019-target-owner-controls" },
+    "status": { "const": "qualified" },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "controls": {
+      "type": "array",
+      "minItems": 20,
+      "maxItems": 20,
+      "items": { "$ref": "#/$defs/control" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "controls",
+        "exact_outputs",
+        "typescript_runs",
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "no_emit_on_error_controls",
+        "es2018_controls",
+        "es2019_controls",
+        "optional_catch_binding_controls",
+        "explicit_catch_binding_controls",
+        "generated_name_composition_controls",
+        "nested_scope_controls",
+        "comment_controls",
+        "using_controls",
+        "standard_decorator_controls",
+        "class_composition_controls",
+        "commonjs_controls",
+        "h2_5a_active_controls",
+        "h2_5b_active_controls",
+        "h2_5c_active_controls",
+        "h2_5d_active_controls"
+      ],
+      "properties": {
+        "controls": { "const": 20 },
+        "exact_outputs": { "const": 19 },
+        "typescript_runs": { "const": 40 },
+        "reported_diagnostics": { "const": 2 },
+        "emit_diagnostics": { "const": 1 },
+        "no_emit_on_error_controls": { "const": 1 },
+        "es2018_controls": { "const": 19 },
+        "es2019_controls": { "const": 1 },
+        "optional_catch_binding_controls": { "const": 17 },
+        "explicit_catch_binding_controls": { "const": 1 },
+        "generated_name_composition_controls": { "const": 4 },
+        "nested_scope_controls": { "const": 4 },
+        "comment_controls": { "const": 1 },
+        "using_controls": { "const": 3 },
+        "standard_decorator_controls": { "const": 1 },
+        "class_composition_controls": { "const": 3 },
+        "commonjs_controls": { "const": 1 },
+        "h2_5a_active_controls": { "const": 19 },
+        "h2_5b_active_controls": { "const": 19 },
+        "h2_5c_active_controls": { "const": 19 },
+        "h2_5d_active_controls": { "const": 18 }
+      }
+    },
+    "controls_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "root", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": { "const": "/project/input.ts" },
+        "root": { "const": true },
+        "utf8_base64": { "type": "string" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "compiler_options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "alwaysStrict",
+        "ignoreDeprecations",
+        "module",
+        "newLine",
+        "target",
+        "useDefineForClassFields"
+      ],
+      "properties": {
+        "alwaysStrict": { "const": true },
+        "experimentalDecorators": { "const": true },
+        "ignoreDeprecations": { "const": "6.0" },
+        "module": { "enum": [1, 99] },
+        "newLine": { "const": 1 },
+        "noEmitHelpers": { "const": true },
+        "noEmitOnError": { "const": true },
+        "target": { "enum": [5, 6] },
+        "useDefineForClassFields": { "type": "boolean" }
+      }
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_directory", "roots", "files", "compiler_options"],
+      "properties": {
+        "current_directory": { "const": "/project" },
+        "roots": { "const": ["/project/input.ts"] },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/file" }
+        },
+        "compiler_options": { "$ref": "#/$defs/compiler_options" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "category", "file", "start", "length", "message"],
+      "properties": {
+        "code": { "type": "integer", "minimum": 1 },
+        "category": { "enum": ["Warning", "Error", "Suggestion", "Message"] },
+        "file": { "type": ["string", "null"] },
+        "start": { "type": ["integer", "null"], "minimum": 0 },
+        "length": { "type": ["integer", "null"], "minimum": 0 },
+        "message": { "type": "string" }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "kind",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files"
+      ],
+      "properties": {
+        "index": { "const": 0 },
+        "path": { "const": "/project/input.js" },
+        "kind": { "const": "javascript" },
+        "callback_utf8_base64": { "type": "string" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 1 },
+        "write_byte_order_mark": { "const": false },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 1 },
+        "on_error_callback_present": { "const": true },
+        "source_files": { "const": ["/project/input.ts"] }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "emit_skipped",
+        "writes",
+        "run_fingerprint_sha256"
+      ],
+      "properties": {
+        "reported_diagnostics": {
+          "type": "array",
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_diagnostics": {
+          "type": "array",
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_skipped": { "type": "boolean" },
+        "writes": {
+          "type": "array",
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/write" }
+        },
+        "run_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "input",
+        "runtime_expectation",
+        "repetitions",
+        "observation",
+        "control_fingerprint_sha256"
+      ],
+      "properties": {
+        "control_id": { "type": "string", "minLength": 1 },
+        "input": { "$ref": "#/$defs/input" },
+        "runtime_expectation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "h2_2a_sources",
+            "h2_2b_sources",
+            "h2_2c_sources",
+            "h2_4a_sources",
+            "h2_4b_sources",
+            "h2_5a_sources",
+            "h2_5b_sources",
+            "h2_5c_sources",
+            "h2_5d_sources"
+          ],
+          "properties": {
+            "h2_2a_sources": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "h2_2b_sources": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "h2_2c_sources": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "h2_4a_sources": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "h2_4b_sources": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "h2_5a_sources": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "h2_5b_sources": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "h2_5c_sources": { "type": "integer", "minimum": 0, "maximum": 1 },
+            "h2_5d_sources": { "type": "integer", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" },
+        "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

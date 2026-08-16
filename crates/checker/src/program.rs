@@ -644,36 +644,121 @@ impl EphemeralDocumentStore {
     pub fn into_snapshot(self, lib_count: usize) -> Result<ProgramSnapshot, ProgramIdentityError> {
         ProgramSnapshot::new(self.documents, lib_count)
     }
+
+    /// tsrs-native: transfers one-shot document slots and typed membership
+    /// facts into Rust's immutable Program snapshot.
+    ///
+    /// Transfer completed documents together with Program-owned source facts.
+    /// Facts deliberately do not live on `BoundDocument`: one cached document
+    /// may be a default library in one Program and an ordinary source in
+    /// another.
+    pub fn into_snapshot_with_file_facts(
+        self,
+        file_facts: Vec<ProgramFileFacts>,
+    ) -> Result<ProgramSnapshot, ProgramIdentityError> {
+        ProgramSnapshot::new_with_file_facts(self.documents, file_facts)
+    }
 }
 
-/// Ordered immutable document handles and the per-Program library boundary.
+/// Stable identity of one document in a [`ProgramSnapshot`]'s source order.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ProgramFileId(u32);
+
+impl ProgramFileId {
+    /// tsrs-native: constructs Rust's compact typed Program-file identity.
+    pub const fn from_raw(raw: u32) -> Self {
+        Self(raw)
+    }
+
+    /// tsrs-native: exposes the stored integer at an explicit identity boundary.
+    pub const fn raw(self) -> u32 {
+        self.0
+    }
+
+    /// tsrs-native: converts the typed Program-file identity for Vec indexing.
+    pub const fn index(self) -> usize {
+        self.0 as usize
+    }
+}
+
+/// Immutable host/program facts for one source-file membership.
+///
+/// This is intentionally separate from parsed/bound document state. Default
+/// library membership is assigned by `createProgram`; neither a `.d.ts`
+/// extension nor a `lib.*` basename is an authoritative substitute.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ProgramFileFacts {
+    default_library: bool,
+}
+
+impl ProgramFileFacts {
+    pub const ORDINARY: Self = Self {
+        default_library: false,
+    };
+    pub const DEFAULT_LIBRARY: Self = Self {
+        default_library: true,
+    };
+
+    /// tsrs-native: reads Program-owned default-library membership instead of
+    /// inferring it from a parsed document or path.
+    pub const fn is_default_library(self) -> bool {
+        self.default_library
+    }
+}
+
+/// Ordered immutable document handles and their per-Program source facts.
 /// The checker borrows this snapshot by cloning only its `Arc` handles; it
 /// never reparses or rebinds an unchanged document while constructing a fresh
 /// checker session.
 #[derive(Clone, Debug)]
 pub struct ProgramSnapshot {
     documents: Vec<Arc<BoundDocument>>,
-    lib_count: usize,
+    file_facts: Vec<ProgramFileFacts>,
 }
 
 impl ProgramSnapshot {
-    /// tsrs-native: validates and publishes ordered immutable Program handles.
+    /// tsrs-native: compatibility constructor for Rust's immutable Program
+    /// snapshot, projecting a legacy library-prefix count into typed facts.
+    ///
+    /// Compatibility constructor for callers whose authoritative library set
+    /// is an ordered prefix. New program builders should pass explicit facts
+    /// through [`Self::new_with_file_facts`].
     pub fn new(
         documents: Vec<Arc<BoundDocument>>,
         lib_count: usize,
     ) -> Result<Self, ProgramIdentityError> {
+        if lib_count > documents.len() {
+            return Err(ProgramIdentityError::FileFactsLength {
+                documents: documents.len(),
+                facts: lib_count,
+            });
+        }
+        let mut file_facts = vec![ProgramFileFacts::DEFAULT_LIBRARY; lib_count];
+        file_facts.resize(documents.len(), ProgramFileFacts::ORDINARY);
+        Self::new_with_file_facts(documents, file_facts)
+    }
+
+    /// tsrs-native: validates and publishes Rust-owned immutable document
+    /// handles together with per-Program source facts.
+    ///
+    /// Validate and publish ordered immutable Program handles with explicit
+    /// membership facts supplied by the Program builder.
+    pub fn new_with_file_facts(
+        documents: Vec<Arc<BoundDocument>>,
+        file_facts: Vec<ProgramFileFacts>,
+    ) -> Result<Self, ProgramIdentityError> {
         if documents.is_empty() {
             return Err(ProgramIdentityError::EmptyProgram);
         }
-        if lib_count > documents.len() {
-            return Err(ProgramIdentityError::EmptyOwner {
-                space: ProgramIdentitySpace::Node,
-                file: lib_count,
+        if file_facts.len() != documents.len() {
+            return Err(ProgramIdentityError::FileFactsLength {
+                documents: documents.len(),
+                facts: file_facts.len(),
             });
         }
         Ok(Self {
             documents,
-            lib_count,
+            file_facts,
         })
     }
 
@@ -687,14 +772,33 @@ impl ProgramSnapshot {
         &self.documents[index]
     }
 
+    /// tsrs-native: indexes immutable per-Program facts by typed file identity.
+    pub fn file_facts(&self, file: ProgramFileId) -> ProgramFileFacts {
+        self.file_facts[file.index()]
+    }
+
+    /// tsrs-native: iterates Rust's dense typed Program-file identity domain.
+    pub fn file_ids(&self) -> impl ExactSizeIterator<Item = ProgramFileId> + '_ {
+        (0..self.documents.len()).map(|index| {
+            ProgramFileId::from_raw(u32::try_from(index).expect("Program file index overflow"))
+        })
+    }
+
     /// tsrs-native: returns the number of ordered Program documents.
     pub fn file_count(&self) -> usize {
         self.documents.len()
     }
 
-    /// tsrs-native: returns the library-prefix length in Program order.
+    /// tsrs-native: derives the legacy library count from explicit immutable
+    /// per-file membership facts.
+    ///
+    /// Return the number of sources whose Program membership is a default
+    /// library. No prefix inference is performed.
     pub fn lib_count(&self) -> usize {
-        self.lib_count
+        self.file_facts
+            .iter()
+            .filter(|facts| facts.is_default_library())
+            .count()
     }
 }
 
@@ -748,6 +852,10 @@ pub enum ProgramIdentitySpace {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProgramIdentityError {
     EmptyProgram,
+    FileFactsLength {
+        documents: usize,
+        facts: usize,
+    },
     EmptyOwner {
         space: ProgramIdentitySpace,
         file: usize,
@@ -777,6 +885,10 @@ impl std::fmt::Display for ProgramIdentityError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::EmptyProgram => formatter.write_str("a program has no source files"),
+            Self::FileFactsLength { documents, facts } => write!(
+                formatter,
+                "a Program has {documents} documents but {facts} source-fact rows"
+            ),
             Self::EmptyOwner { space, file } => {
                 write!(formatter, "program file {file} has an empty {space:?} arena")
             }
@@ -817,6 +929,9 @@ pub struct ProgramBinder<'a> {
     /// BoundDocument. In both cases checker code sees the same immutable
     /// BindData projection.
     file_entries: Vec<ProgramEntry<'a>>,
+    /// Program-owned facts copied from the immutable snapshot. They remain
+    /// session-local and never mutate shared parsed/bound documents.
+    file_facts: Vec<ProgramFileFacts>,
     /// Node-id intervals in parse allocation order (ascending by start).
     node_owners: Vec<ArenaOwner>,
     /// Node-array-id intervals in parse allocation order.
@@ -945,19 +1060,26 @@ impl<'a> ProgramBinder<'a> {
             .iter()
             .map(ProgramEntry::Owned)
             .collect::<Vec<_>>();
-        Self::try_new_entries_with_lib_count(entries, snapshot.lib_count)
+        Self::try_new_entries_with_file_facts(entries, snapshot.file_facts.clone())
     }
 
     fn try_new_entries(entries: Vec<ProgramEntry<'a>>) -> Result<Self, ProgramIdentityError> {
-        Self::try_new_entries_with_lib_count(entries, 0)
+        let file_facts = vec![ProgramFileFacts::ORDINARY; entries.len()];
+        Self::try_new_entries_with_file_facts(entries, file_facts)
     }
 
-    fn try_new_entries_with_lib_count(
+    fn try_new_entries_with_file_facts(
         file_entries: Vec<ProgramEntry<'a>>,
-        _lib_count: usize,
+        file_facts: Vec<ProgramFileFacts>,
     ) -> Result<Self, ProgramIdentityError> {
         if file_entries.is_empty() {
             return Err(ProgramIdentityError::EmptyProgram);
+        }
+        if file_facts.len() != file_entries.len() {
+            return Err(ProgramIdentityError::FileFactsLength {
+                documents: file_entries.len(),
+                facts: file_facts.len(),
+            });
         }
         validate_identity_domains(&file_entries)?;
 
@@ -1016,6 +1138,7 @@ impl<'a> ProgramBinder<'a> {
 
         Ok(Self {
             file_entries,
+            file_facts,
             node_owners,
             array_owners,
             symbol_owners,
@@ -1026,6 +1149,19 @@ impl<'a> ProgramBinder<'a> {
     /// tsrs-native: Rust ProgramBinder collection accessor.
     pub fn file_count(&self) -> usize {
         self.file_entries.len()
+    }
+
+    /// tsrs-native: iterates the binder view's dense typed Program-file identities.
+    pub fn file_ids(&self) -> impl ExactSizeIterator<Item = ProgramFileId> + '_ {
+        (0..self.file_entries.len()).map(|index| {
+            ProgramFileId::from_raw(u32::try_from(index).expect("Program file index overflow"))
+        })
+    }
+
+    /// tsrs-native: projects immutable Program membership facts through the
+    /// binder view's typed file identity.
+    pub fn file_facts(&self, file: ProgramFileId) -> ProgramFileFacts {
+        self.file_facts[file.index()]
     }
 
     /// tsrs-native: Rust ProgramBinder iterator over borrowed file
@@ -1148,6 +1284,26 @@ impl<'a> ProgramBinder<'a> {
     /// `container.locals` property access.
     pub fn locals_of(&self, scope: NodeId) -> Option<&SymbolTable> {
         self.binder_of_node(scope).locals.get(&scope)
+    }
+
+    /// tsrs-native: validates Rust numeric node ownership while projecting
+    /// tsc's direct `container.nextContainer` link from binder side tables.
+    ///
+    /// tsc `container.nextContainer` in the owning file's binder chain.
+    /// A cross-file or unknown identity is rejected so semantic scope walks
+    /// cannot accept a generated name after leaving their source domain.
+    pub(crate) fn next_container_of(&self, container: NodeId) -> Result<Option<NodeId>, ()> {
+        let owner = self.try_file_index_of_node(container).ok_or(())?;
+        let next = self
+            .binder_of_node(container)
+            .next_container
+            .get(&container)
+            .copied();
+        match next {
+            Some(next) if self.try_file_index_of_node(next) == Some(owner) => Ok(Some(next)),
+            Some(_) => Err(()),
+            None => Ok(None),
+        }
     }
 
     /// tsc node.symbol (addDeclarationToSymbol).

@@ -10,9 +10,9 @@ use tsc_compiler::{
 };
 use tsc_program::ResolutionMode;
 use tsc_program::{
-    CompilerOptions, ModuleExtension, ModuleResolution, PathContext, PreparedProgram,
-    PreparedSourceFile, ProgramPath, ResolutionKey, ResolvedModule, ResolvedModuleTarget,
-    SourceFileId,
+    CompilerOptions, ModuleExtension, ModuleResolution, PathContext, PathMapping, PreparedProgram,
+    PreparedSourceFile, ProgramOptions, ProgramPath, ResolutionKey, ResolvedModule,
+    ResolvedModuleTarget, SourceFileId,
 };
 
 const H2_1C_OWNER_CONTROLS: &[u8] = include_bytes!(concat!(
@@ -439,6 +439,347 @@ fn h2_1b_explicit_and_implied_commonjs_select_the_exact_path() {
 }
 
 #[test]
+fn commonjs_erased_final_import_retains_statement_list_tail_comments() {
+    let options = CompilerOptions {
+        no_emit: Some(false),
+        target: Some(2),
+        module: Some(1),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut builder =
+        PreparedProgram::emitting_builder(PathContext::new(path("/project"), true), options);
+    let dependency = builder
+        .add_source_file(PreparedSourceFile::new(
+            path("/project/a.ts"),
+            "export default 0;\n",
+        ))
+        .expect("add import dependency");
+    let importer = builder
+        .add_source_file(PreparedSourceFile::new(
+            path("/project/b.ts"),
+            concat!(
+                "import unused from \"./a\";\n",
+                "\n",
+                "// statement-list tail after erased import\n",
+            ),
+        ))
+        .expect("add importer");
+    builder
+        .add_root_file(dependency)
+        .expect("add dependency root");
+    builder.add_root_file(importer).expect("add importer root");
+    for mode in [ResolutionMode::Unspecified, ResolutionMode::CommonJs] {
+        builder
+            .add_module_resolution(
+                ResolutionKey::new(path("/project/b.ts").canonical().clone(), "./a", mode),
+                Ok(source_resolution(
+                    dependency,
+                    "/project/a.ts",
+                    ModuleExtension::Ts,
+                )),
+            )
+            .expect("add authoritative import resolution");
+    }
+
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(builder.build().expect("prepared erased-import program"))
+        .emit(&mut sink)
+        .expect("CommonJS erased-import emit");
+    assert!(outcome.diagnostics().is_empty());
+    let importer_output = sink
+        .writes()
+        .iter()
+        .find(|write| write.path() == Path::new("/project/b.js"))
+        .expect("b.js output");
+    assert_eq!(
+        importer_output.callback_text(),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "// statement-list tail after erased import\n",
+        ),
+    );
+}
+
+#[test]
+fn deprecated_module_none_selects_transform_modules_commonjs_delegate() {
+    let prepared = prepared_with_sources_and_minimal_lib(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            module: Some(0),
+            ..CompilerOptions::default()
+        },
+        &[("/project/input.ts", "export const value: number = 1;\n")],
+    );
+    let mut sink = MemoryOutputSink::new();
+    let (outcome, diagnostics) = ProgramSession::new(prepared)
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("module=None CommonJS-delegate emit");
+
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5107]
+    );
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        concat!(
+            "\"use strict\";\n",
+            "Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "exports.value = void 0;\n",
+            "exports.value = 1;\n",
+        )
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1a),
+        1
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_1b),
+        1
+    );
+}
+
+#[test]
+fn paths_option_diagnostics_restore_the_emit_report_semantic_gate() {
+    let options = CompilerOptions {
+        no_emit: Some(false),
+        target: Some(2),
+        module: Some(1),
+        ..CompilerOptions::default()
+    };
+    let mut builder =
+        PreparedProgram::emitting_builder(PathContext::new(path("/project"), true), options);
+    builder.set_program_options(
+        ProgramOptions::default().with_paths(vec![PathMapping::new("*", vec!["bare".to_owned()])]),
+    );
+    let library = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add minimal library");
+    builder
+        .add_library_file(library)
+        .expect("register minimal library");
+    let input = builder
+        .add_source_file(PreparedSourceFile::new(
+            path("/project/input.ts"),
+            "import \"someModule\";\n",
+        ))
+        .expect("add side-effect import root");
+    builder
+        .add_root_file(input)
+        .expect("add side-effect import root file");
+    for mode in [ResolutionMode::Unspecified, ResolutionMode::CommonJs] {
+        builder
+            .add_module_resolution(
+                ResolutionKey::new(
+                    path("/project/input.ts").canonical().clone(),
+                    "someModule",
+                    mode,
+                ),
+                Ok(ModuleResolution::not_found()),
+            )
+            .expect("add authoritative side-effect import miss");
+    }
+
+    let mut sink = MemoryOutputSink::new();
+    let (_, diagnostics) = ProgramSession::new(builder.build().expect("prepared paths program"))
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("emit with paths option diagnostic");
+
+    assert_eq!(
+        diagnostics
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5090]
+    );
+    assert_eq!(sink.writes().len(), 1);
+}
+
+#[test]
+fn commonjs_namespace_import_does_not_consume_the_generated_module_binding() {
+    let prepared = prepared_with_package_import(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            module: Some(1),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        },
+        concat!(
+            "import * as pkg from \"pkg\";\n",
+            "import { value } from \"pkg\";\n",
+            "pkg;\n",
+            "value;\n",
+        ),
+    );
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("CommonJS namespace and named imports emit");
+    let text = sink.writes()[0].callback_text();
+
+    assert!(text.contains("const pkg = __importStar(require(\"pkg\"));\n"));
+    assert!(text.contains("const pkg_1 = require(\"pkg\");\n"));
+    assert!(!text.contains("const pkg_2 ="));
+}
+
+#[test]
+fn commonjs_export_star_requests_its_complete_helper_dependency_graph() {
+    let prepared = prepared_with_package_import(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            module: Some(1),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        },
+        "export * from \"pkg\";\n",
+    );
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("CommonJS export-star emit");
+    let text = sink.writes()[0].callback_text();
+
+    let create_binding = text
+        .find("var __createBinding =")
+        .expect("create-binding dependency");
+    let export_star = text.find("var __exportStar =").expect("export-star helper");
+    let call = text
+        .find("__exportStar(require(\"pkg\"), exports);")
+        .expect("export-star call");
+    assert!(create_binding < export_star && export_star < call);
+}
+
+#[test]
+fn commonjs_export_list_preserves_hoisted_function_initialization() {
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            module: Some(1),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        },
+        &[(
+            "/project/input.ts",
+            concat!(
+                "function predicate(value: unknown) {}\n",
+                "export { predicate };\n"
+            ),
+        )],
+    );
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("CommonJS export-list function emit");
+    let text = sink.writes()[0].callback_text();
+
+    let initialization = text
+        .find("exports.predicate = predicate;")
+        .expect("hoisted function export initialization");
+    let declaration = text
+        .find("function predicate(value) {")
+        .expect("function declaration");
+    assert!(initialization < declaration);
+    assert!(!text.contains("exports.predicate = void 0;"));
+}
+
+#[test]
+fn commonjs_namespace_initializers_follow_the_checker_export_owner() {
+    let cases = [
+        (
+            concat!(
+                "export default function Foo() {}\n",
+                "namespace Foo { export var x; }\n",
+                "interface Foo {}\n",
+                "export interface Foo {}\n",
+            ),
+            ")(exports.Foo || (exports.Foo = {}));",
+        ),
+        (
+            concat!(
+                "export default function Foo() {}\n",
+                "namespace Foo { export var x; }\n",
+            ),
+            ")(Foo || (exports.Foo = Foo = {}));",
+        ),
+        (
+            concat!("export {};\n", "namespace Local { export var y; }\n",),
+            ")(Local || (Local = {}));",
+        ),
+        (
+            concat!(
+                "export function Bar() {}\n",
+                "namespace Bar { export var x; }\n",
+            ),
+            ")(Bar || (exports.Bar = Bar = {}));",
+        ),
+    ];
+
+    for (source, expected_initializer) in cases {
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(2),
+                module: Some(1),
+                always_strict: Some(false),
+                ..CompilerOptions::default()
+            },
+            &[("/project/input.ts", source)],
+        );
+        let mut sink = MemoryOutputSink::new();
+        ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("CommonJS namespace export-owner emit");
+        let text = sink.writes()[0].callback_text();
+
+        assert!(text.contains(expected_initializer), "{text}");
+    }
+}
+
+#[test]
+fn amd_marker_does_not_borrow_comments_from_an_erased_ambient_module() {
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            module: Some(2),
+            always_strict: Some(false),
+            ..CompilerOptions::default()
+        },
+        &[(
+            "/project/input.ts",
+            concat!(
+                "export {};\n",
+                "// augmentation belongs only to erased TypeScript syntax\n",
+                "declare namespace TypesOnly { interface Shape {} }\n",
+            ),
+        )],
+    );
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("AMD ambient-module erasure emit");
+
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        concat!(
+            "define([\"require\", \"exports\"], function (require, exports) {\n",
+            "    \"use strict\";\n",
+            "    Object.defineProperty(exports, \"__esModule\", { value: true });\n",
+            "});\n",
+        ),
+    );
+}
+
+#[test]
 fn h2_1c_amd_and_umd_wrappers_match_the_pinned_transform() {
     let cases = [
         (
@@ -691,10 +1032,11 @@ fn h2_1c_amd_pragmas_and_static_dependency_order_match_the_pinned_transform() {
 #[test]
 fn empty_emit_program_preserves_present_empty_observations_without_a_resolver() {
     let mut sink = MemoryOutputSink::new();
-    let outcome = ProgramSession::new(empty_emit_program())
-        .emit(&mut sink)
+    let (outcome, reported_diagnostics) = ProgramSession::new(empty_emit_program())
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
         .expect("empty H1.4 emit");
 
+    assert!(reported_diagnostics.is_empty());
     assert!(!outcome.emit_skipped());
     assert!(outcome.diagnostics().is_empty());
     assert_eq!(outcome.emitted_files(), Some([].as_slice()));
@@ -878,7 +1220,10 @@ fn h2_3a_check_js_changes_diagnostics_without_changing_source_routing() {
             sink.writes()[0].path(),
             Path::new("/project/dist/checked.js")
         );
-        assert_eq!(sink.writes()[0].callback_text(), SOURCE);
+        assert_eq!(
+            sink.writes()[0].callback_text(),
+            format!("\"use strict\";\n{SOURCE}")
+        );
         assert!(!outcome.emit_skipped());
     }
 }
@@ -1413,7 +1758,7 @@ fn h2_3d_resolve_json_module_option_diagnostics_match_typescript_and_gate_no_emi
 }
 
 #[test]
-fn a_later_standard_decorator_source_cannot_leave_an_earlier_partial_write() {
+fn h2_4b_standard_decorator_source_joins_the_atomic_multi_source_emit() {
     let prepared = prepared_with_sources(
         CompilerOptions {
             no_emit: Some(false),
@@ -1428,14 +1773,15 @@ fn a_later_standard_decorator_source_cannot_leave_an_earlier_partial_write() {
         ],
     );
     let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared)
+    let outcome = ProgramSession::new(prepared)
         .emit(&mut sink)
-        .expect_err("standard decorators remain owned by H2.4b");
-    assert!(
-        matches!(error, DriverError::Emit(EmitFailure::Transform(_))),
-        "unexpected later-source failure: {error:?}"
+        .expect("standard decorators are admitted by H2.4b");
+    assert!(!outcome.emit_skipped());
+    assert_eq!(sink.writes, 2);
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_4b),
+        1
     );
-    assert_eq!(sink.writes, 0);
 }
 
 #[test]
@@ -1674,6 +2020,49 @@ fn h2_2b_runtime_namespace_emit_matches_typescript_shapes() {
             1
         );
     }
+}
+
+#[test]
+fn namespace_generated_names_use_semantic_local_scope_ownership() {
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(2),
+            ..CompilerOptions::default()
+        },
+        &[(
+            "/project/input.ts",
+            concat!(
+                "namespace Z.M { export function bar() {} }\n",
+                "namespace A.M { export import M = Z.M; M.bar(); }\n",
+                "namespace B.M { import M = Z.M; M.bar(); }\n",
+            ),
+        )],
+    );
+    let mut sink = MemoryOutputSink::new();
+    let outcome = ProgramSession::new(prepared)
+        .emit(&mut sink)
+        .expect("namespace generated-name scope emit");
+
+    assert!(outcome.diagnostics().is_empty());
+    assert_eq!(sink.writes().len(), 1);
+    let text = sink.writes()[0].callback_text();
+    assert!(
+        text.contains(concat!(
+            "    (function (M) {\n",
+            "        M.M = Z.M;\n",
+            "        M.M.bar();\n",
+        )),
+        "exported aliases are namespace properties, not local-name reservations: {text}",
+    );
+    assert!(
+        text.contains(concat!(
+            "    (function (M_1) {\n",
+            "        var M = Z.M;\n",
+            "        M.bar();\n",
+        )),
+        "non-exported aliases reserve the namespace IIFE local name: {text}",
+    );
 }
 
 #[test]

@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
 
 import {
+  H2_5G_ARTIFACT_CONTRACTS,
   classifyPaths,
   loadPolicy,
   pathsDigest,
@@ -12,8 +14,10 @@ import {
   validateLaneSelection,
   validateMergeReceipt,
   validatePolicy,
+  validateJsonSchemaSubset,
   validateQualificationResult,
   validateBoundReceipt,
+  validateRustOwnerControlBoundaries,
 } from "./qualification.mjs";
 
 const HEAD = "1".repeat(40);
@@ -23,6 +27,667 @@ const HASH = "a".repeat(64);
 function clone(value) {
   return structuredClone(value);
 }
+
+const SUBSET_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["kind", "payload", "choice"],
+  properties: {
+    kind: { const: "sample" },
+    payload: { $ref: "#/$defs/payload" },
+    choice: { oneOf: [{ const: "left" }, { const: "right" }] },
+  },
+  allOf: [
+    { properties: { choice: { type: "string" } } },
+    {
+      if: { properties: { kind: { const: "sample" } } },
+      then: { properties: { payload: { properties: { count: { minimum: 1 } } } } },
+    },
+  ],
+  $defs: {
+    payload: {
+      type: "object",
+      additionalProperties: false,
+      required: ["count", "tags", "name", "optional"],
+      properties: {
+        count: { type: "integer", minimum: 0, maximum: 3 },
+        tags: {
+          type: "array",
+          minItems: 1,
+          maxItems: 2,
+          uniqueItems: true,
+          items: { enum: ["a", "b"] },
+        },
+        name: { type: "string", minLength: 1, maxLength: 3, pattern: "^[a-z😀]+$" },
+        optional: { type: ["string", "null"] },
+      },
+    },
+  },
+};
+
+const SUBSET_VALUE = {
+  kind: "sample",
+  payload: { count: 2, tags: ["a", "b"], name: "😀a", optional: null },
+  choice: "left",
+};
+
+const ROOTLESS_CASE_ID =
+  "typescript-6.0.3/compiler/jsFileCompilationWithoutJsExtensions.ts#default";
+
+const HOSTED_MODULE_PATHS = [
+  "crates/xtask/src/bounded_pipeline.rs",
+  "crates/xtask/src/h1_emit_acceptance.rs",
+  "crates/xtask/src/h2_1a_acceptance.rs",
+  "crates/xtask/src/h2_1b_acceptance.rs",
+  "crates/xtask/src/h2_1c_acceptance.rs",
+  "crates/xtask/src/h2_1d_acceptance.rs",
+  "crates/xtask/src/h2_1e_acceptance.rs",
+  "crates/xtask/src/h2_2a_acceptance.rs",
+  "crates/xtask/src/h2_2b_acceptance.rs",
+  "crates/xtask/src/h2_2c_acceptance.rs",
+  "crates/xtask/src/h2_2d_acceptance.rs",
+  "crates/xtask/src/h2_3a_acceptance.rs",
+  "crates/xtask/src/h2_3b_acceptance.rs",
+  "crates/xtask/src/h2_3c_acceptance.rs",
+  "crates/xtask/src/h2_3d_acceptance.rs",
+];
+
+const OWNER_MODULE_PATHS = [
+  "crates/xtask/src/h2_3b_acceptance.rs",
+  "crates/xtask/src/h2_3c_acceptance.rs",
+  "crates/xtask/src/h2_3d_acceptance.rs",
+];
+
+const LOCAL_OWNER_CALLS = [
+  "h2_3b_acceptance::run_owner_controls",
+  "h2_3c_acceptance::run_owner_controls",
+  "h2_3d_acceptance::run_owner_controls",
+  "h2_3d_acceptance::run_h2_4a_owner_controls",
+  "h2_3d_acceptance::run_h2_4b_owner_controls",
+  "h2_3d_acceptance::run_h2_5a_owner_controls",
+  "h2_3d_acceptance::run_h2_5b_owner_controls",
+  "h2_3d_acceptance::run_h2_5c_owner_controls",
+  "h2_3d_acceptance::run_h2_5d_owner_controls",
+  "h2_3d_acceptance::run_h2_5e_owner_controls",
+  "h2_3d_acceptance::run_h2_5f_owner_controls",
+  "h2_3d_acceptance::run_h2_5g_owner_controls",
+];
+
+function rustSourceSha256(xtaskSource, moduleSources) {
+  return Object.fromEntries([
+    ["crates/xtask/src/main.rs", sha256(xtaskSource)],
+    ...Object.entries(moduleSources).map(([sourcePath, source]) => [sourcePath, sha256(source)]),
+  ]);
+}
+
+function repinRustFixture(fixture) {
+  fixture.sourceSha256 = rustSourceSha256(fixture.xtaskSource, fixture.moduleSources);
+  return fixture;
+}
+
+function rustOwnerBoundaryFixture() {
+  const ownerStatements = LOCAL_OWNER_CALLS.map((callee, index) =>
+    index + 1 === LOCAL_OWNER_CALLS.length
+      ? `    ${callee}(workspace)`
+      : `    ${callee}(workspace)?;`,
+  ).join("\n");
+  const hostedStatements = [
+    ...HOSTED_MODULE_PATHS.filter((modulePath) => !modulePath.endsWith("/bounded_pipeline.rs")).map((modulePath) =>
+      `${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)}::run(&workspace)?;`,
+    ),
+    "h2_2c_acceptance::run_h2_4a(&workspace)?;",
+    "h2_2c_acceptance::run_h2_4b(&workspace)?;",
+    "h2_2c_acceptance::run_h2_5a(&workspace)?;",
+    "h2_2c_acceptance::run_h2_5b(&workspace)?;",
+    "h2_2c_acceptance::run_h2_5c(&workspace)?;",
+    "h2_2c_acceptance::run_h2_5d(&workspace)?;",
+    "h2_2c_acceptance::run_h2_5e(&workspace)?;",
+    "h2_2c_acceptance::run_h2_5f(&workspace)?;",
+    "h2_2c_acceptance::run_h2_5g(&workspace)",
+  ].map((statement) => `    ${statement}`).join("\n");
+  const moduleDeclarations = HOSTED_MODULE_PATHS.map((modulePath) =>
+    `mod ${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)};`,
+  ).join("\n");
+  const xtaskSource = `
+${moduleDeclarations}
+
+fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!(r#"run_owner_controls {argument}"#).into());
+    }
+    conformance(std::iter::empty())?;
+    let workspace = find_workspace_root()?;
+    // h2_3d_acceptance::run_h2_5g_owner_controls(&workspace)?;
+${hostedStatements}
+}
+
+fn ci_h2_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
+${ownerStatements}
+}
+`;
+  const moduleSources = Object.fromEntries(
+    HOSTED_MODULE_PATHS.map((modulePath) => {
+      const ownerFunction = OWNER_MODULE_PATHS.includes(modulePath)
+        ? `
+const OWNER_CONTROLS_RELATIVE_PATH: &str = "owner.json";
+pub fn run_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    Ok(())
+}
+`
+        : "";
+      const targetFunctions = modulePath.endsWith("/h2_2c_acceptance.rs")
+        ? ["run_h2_4a", "run_h2_4b", "run_h2_5a", "run_h2_5b", "run_h2_5c", "run_h2_5d", "run_h2_5e", "run_h2_5f", "run_h2_5g"]
+          .map((functionName) => `
+pub fn ${functionName}(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    Ok(())
+}
+`)
+          .join("")
+        : "";
+      return [
+        modulePath,
+        `
+pub fn run(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let decoy = "OWNER_CONTROLS_RELATIVE_PATH run_owner_controls(workspace)";
+    /* run_owner_controls(workspace)?; */
+    Ok(())
+}
+${ownerFunction}${targetFunctions}`,
+      ];
+    }),
+  );
+  return repinRustFixture({ xtaskSource, moduleSources });
+}
+
+test("H2.5g artifact-to-schema mapping is fixed and immutable", () => {
+  assert.equal(Object.isFrozen(H2_5G_ARTIFACT_CONTRACTS), true);
+  assert.deepEqual(
+    H2_5G_ARTIFACT_CONTRACTS.map(({ schema, artifact }) => [schema, artifact]),
+    [
+      [
+        ".github/ci/contracts/h2-5g-qualification.schema.json",
+        "ratchets/h2-5g-qualification.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-5g-owner-controls.schema.json",
+        "ratchets/h2-5g-owner-controls.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-5g-profile.schema.json",
+        "ratchets/h2-5g-profile.v1.json",
+      ],
+    ],
+  );
+});
+
+test("JSON schema subset validates local refs and every H2.5g keyword family", () => {
+  assert.equal(validateJsonSchemaSubset(SUBSET_SCHEMA, SUBSET_VALUE, "subset fixture"), SUBSET_VALUE);
+  const reordered = { nested: [1, { value: true }], name: "fixture" };
+  assert.equal(
+    validateJsonSchemaSubset(
+      { const: { name: "fixture", nested: [1, { value: true }] } },
+      reordered,
+      "deep const fixture",
+    ),
+    reordered,
+  );
+  assert.equal(
+    validateJsonSchemaSubset(
+      {
+        $schema: "https://json-schema.org/draft/2020-12/schema",
+        $id: "https://example.invalid/root.schema.json",
+        type: "null",
+      },
+      null,
+    ),
+    null,
+  );
+});
+
+test("H2.5g rootless exception is exact and cannot take the nonempty branch", () => {
+  const qualificationSchema = JSON.parse(
+    fs.readFileSync(new URL("./contracts/h2-5g-qualification.schema.json", import.meta.url), "utf8"),
+  );
+  const caseRules = qualificationSchema.$defs.case.allOf;
+  const exactEmpty = caseRules.find((rule) => rule.if?.properties?.case_id?.const === ROOTLESS_CASE_ID);
+  const emptyOrNonempty = caseRules.find((rule) => Array.isArray(rule.oneOf));
+  assert.ok(exactEmpty);
+  assert.ok(emptyOrNonempty);
+  const schema = { allOf: [exactEmpty, emptyOrNonempty] };
+  const special = { case_id: ROOTLESS_CASE_ID, input: { roots: [] }, files: [] };
+  const ordinary = { case_id: "typescript-6.0.3/compiler/ordinary.ts#default", input: { roots: ["ordinary.ts"] }, files: [{}] };
+  assert.equal(validateJsonSchemaSubset(schema, special), special);
+  assert.equal(validateJsonSchemaSubset(schema, ordinary), ordinary);
+
+  const specialWithRoot = clone(special);
+  specialWithRoot.input.roots.push("decoy.ts");
+  assert.throws(() => validateJsonSchemaSubset(schema, specialWithRoot), /maxItems/u);
+  const specialWithFile = clone(special);
+  specialWithFile.files.push({});
+  assert.throws(() => validateJsonSchemaSubset(schema, specialWithFile), /maxItems/u);
+  const ordinaryWithoutInputs = clone(ordinary);
+  ordinaryWithoutInputs.input.roots = [];
+  ordinaryWithoutInputs.files = [];
+  assert.throws(() => validateJsonSchemaSubset(schema, ordinaryWithoutInputs), /oneOf matched 0/u);
+});
+
+test("JSON schema subset rejects invalid artifact values fail-closed", () => {
+  const mutations = [
+    ["missing required property", (value) => delete value.payload.name],
+    ["additional property", (value) => { value.extra = true; }],
+    ["const", (value) => { value.kind = "other"; }],
+    ["union type", (value) => { value.payload.optional = 1; }],
+    ["integer type", (value) => { value.payload.count = 1.5; }],
+    ["minimum through if/then", (value) => { value.payload.count = 0; }],
+    ["maximum", (value) => { value.payload.count = 4; }],
+    ["minItems", (value) => { value.payload.tags = []; }],
+    ["maxItems", (value) => { value.payload.tags = ["a", "b", "a"]; }],
+    ["uniqueItems", (value) => { value.payload.tags = ["a", "a"]; }],
+    ["enum", (value) => { value.payload.tags = ["c"]; }],
+    ["pattern", (value) => { value.payload.name = "A"; }],
+    ["maxLength", (value) => { value.payload.name = "abcd"; }],
+    ["oneOf", (value) => { value.choice = "middle"; }],
+  ];
+  for (const [name, mutate] of mutations) {
+    const value = clone(SUBSET_VALUE);
+    mutate(value);
+    assert.throws(
+      () => validateJsonSchemaSubset(SUBSET_SCHEMA, value, name),
+      /violates JSON schema/u,
+      name,
+    );
+  }
+  assert.throws(
+    () => validateJsonSchemaSubset({ type: "array", uniqueItems: true }, [{ a: 1 }, { a: 1 }]),
+    /uniqueItems/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ oneOf: [{ type: "integer" }, { type: "integer" }] }, 1),
+    /matched 2 branches/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ allOf: [{ type: "integer" }, { minimum: 2 }] }, 1),
+    /minimum/u,
+  );
+});
+
+test("JSON schema subset rejects unsafe or unsupported schemas", () => {
+  assert.throws(
+    () => validateJsonSchemaSubset({ $ref: "https://example.invalid/schema.json" }, {}),
+    /local JSON Pointer/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ $ref: "#/$defs/missing", $defs: {} }, {}),
+    /unresolved local/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ $ref: "#/$defs/loop", $defs: { loop: { $ref: "#/$defs/loop" } } }, {}),
+    /cyclic local/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ type: "string", pattern: "[" }, "value"),
+    /invalid pattern/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ type: "integer", not: { const: 0 } }, 1),
+    /unsupported keyword not/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ if: { const: true } }, true),
+    /if and then must appear together/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ properties: { nested: { $id: "nested" } } }, {}),
+    /\$id is supported only on the root schema/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ $schema: "http://json-schema.org/draft-07/schema#" }, {}),
+    /\$schema must select JSON Schema draft 2020-12/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ $defs: { nested: { $schema: "nested" } } }, {}),
+    /\$schema is supported only on the root schema/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ $ref: "#/$defs/%64ecoy", $defs: { decoy: {} } }, {}),
+    /percent-encoding is not supported/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ const: { nested: [Number.NaN] } }, { nested: [null] }),
+    /non-finite numbers are not JSON-compatible/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({ enum: [{ nested: Number.POSITIVE_INFINITY }] }, {}),
+    /non-finite numbers are not JSON-compatible/u,
+  );
+  assert.throws(
+    () => validateJsonSchemaSubset({}, { nested: [Number.NEGATIVE_INFINITY] }),
+    /instance \/nested\/0.*non-finite numbers/u,
+  );
+});
+
+test("Rust owner-control boundary ignores comments and string literals", () => {
+  const fixture = rustOwnerBoundaryFixture();
+  assert.equal(validateRustOwnerControlBoundaries(fixture), true);
+
+  const hostedStringDecoy = rustOwnerBoundaryFixture();
+  hostedStringDecoy.xtaskSource = hostedStringDecoy.xtaskSource.replace(
+    "    h2_2c_acceptance::run_h2_5g(&workspace)",
+    '    let missing_runner = "h2_2c_acceptance::run_h2_5g(&workspace)";\n    Ok(())',
+  );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(hostedStringDecoy),
+    /body differs from the pinned canonical ts-tests entrypoint/u,
+  );
+
+  const localCommentDecoy = rustOwnerBoundaryFixture();
+  localCommentDecoy.xtaskSource = localCommentDecoy.xtaskSource.replace(
+    "    h2_3b_acceptance::run_owner_controls(workspace)?;",
+    "    // h2_3b_acceptance::run_owner_controls(workspace)?;",
+  );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(localCommentDecoy),
+    /body differs from the exact complete local owner-control statements/u,
+  );
+
+  const localStringDecoy = rustOwnerBoundaryFixture();
+  localStringDecoy.xtaskSource = localStringDecoy.xtaskSource.replace(
+    "    h2_3c_acceptance::run_owner_controls(workspace)?;",
+    '    let missing_control = "h2_3c_acceptance::run_owner_controls(workspace)?;";',
+  );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(localStringDecoy),
+    /body differs from the exact complete local owner-control statements/u,
+  );
+
+  const unreachableLocalCalls = rustOwnerBoundaryFixture();
+  unreachableLocalCalls.xtaskSource = unreachableLocalCalls.xtaskSource.replace(
+    "    h2_3b_acceptance::run_owner_controls(workspace)?;",
+    "    return Ok(());\n    h2_3b_acceptance::run_owner_controls(workspace)?;",
+  );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(unreachableLocalCalls),
+    /body differs from the exact complete local owner-control statements/u,
+  );
+});
+
+test("Rust owner-control boundary rejects direct hosted owner calls", () => {
+  const hosted = rustOwnerBoundaryFixture();
+  hosted.xtaskSource = hosted.xtaskSource.replace(
+    "    h2_2c_acceptance::run_h2_5g(&workspace)",
+    "    h2_3d_acceptance::run_h2_5g_owner_controls(&workspace)?;\n" +
+      "    h2_2c_acceptance::run_h2_5g(&workspace)",
+  );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(hosted),
+    /body differs from the pinned canonical ts-tests entrypoint/u,
+  );
+
+  const module = rustOwnerBoundaryFixture();
+  const modulePath = OWNER_MODULE_PATHS[0];
+  module.moduleSources[modulePath] = module.moduleSources[modulePath].replace(
+    "    let decoy =",
+    "    h2_3b_acceptance::run_owner_controls(workspace)?;\n    let decoy =",
+  );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(module),
+    /hosted run function contains a direct owner-control call/u,
+  );
+});
+
+test("Rust hosted call graph rejects transitive owner-control helpers and aliases", () => {
+  for (const [name, call] of [
+    ["same-module helper", "    run_extra(workspace)?;"],
+    ["qualified same-module helper", "    self::run_extra(workspace)?;"],
+    ["local alias", "    let neutral = run_extra;\n    neutral(workspace)?;"],
+  ]) {
+    const fixture = rustOwnerBoundaryFixture();
+    const modulePath = OWNER_MODULE_PATHS[0];
+    fixture.moduleSources[modulePath] = fixture.moduleSources[modulePath]
+      .replace("    let decoy =", `${call}\n    let decoy =`)
+      .replace(
+        "pub fn run_owner_controls",
+        `fn run_extra(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_owner_controls(workspace)
+}
+pub fn run_owner_controls`,
+      );
+    assert.throws(
+      () => validateRustOwnerControlBoundaries(fixture),
+      /hosted call graph.*reachable function.*run_extra.*owner-control symbol/u,
+      name,
+    );
+  }
+
+  const groupedAlias = rustOwnerBoundaryFixture();
+  const groupedAliasModule = OWNER_MODULE_PATHS[0];
+  groupedAlias.moduleSources[groupedAliasModule] = `use self::{run_extra as neutral};\n${groupedAlias.moduleSources[groupedAliasModule]}`
+    .replace("    let decoy =", "    neutral(workspace)?;\n    let decoy =")
+    .replace(
+      "pub fn run_owner_controls",
+      `fn run_extra(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_owner_controls(workspace)
+}
+pub fn run_owner_controls`,
+    );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(groupedAlias),
+    /hosted call graph.*run_extra.*owner-control symbol/u,
+  );
+
+  const unresolvedAlias = rustOwnerBoundaryFixture();
+  const unresolvedModule = OWNER_MODULE_PATHS[0];
+  unresolvedAlias.moduleSources[unresolvedModule] = `use self::missing as neutral;\n${unresolvedAlias.moduleSources[unresolvedModule]}`
+    .replace("    let decoy =", "    neutral(workspace)?;\n    let decoy =");
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(unresolvedAlias),
+    /unresolved local Rust function path self::missing/u,
+  );
+
+  const crossModule = rustOwnerBoundaryFixture();
+  crossModule.moduleSources[OWNER_MODULE_PATHS[0]] = crossModule.moduleSources[
+    OWNER_MODULE_PATHS[0]
+  ].replace(
+    "    let decoy =",
+    "    h2_3c_acceptance::run_extra(workspace)?;\n    let decoy =",
+  );
+  crossModule.moduleSources[OWNER_MODULE_PATHS[1]] = crossModule.moduleSources[
+    OWNER_MODULE_PATHS[1]
+  ].replace(
+    "pub fn run_owner_controls",
+    `fn run_extra(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_owner_controls(workspace)
+}
+pub fn run_owner_controls`,
+  );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(crossModule),
+    /hosted call graph.*h2_3c_acceptance::run_extra.*owner-control symbol/u,
+  );
+
+  const mainHelper = rustOwnerBoundaryFixture();
+  mainHelper.xtaskSource = mainHelper.xtaskSource
+    .replace(
+      "    h2_2c_acceptance::run_h2_5g(&workspace)",
+      "    hosted_extra(&workspace)?;\n    h2_2c_acceptance::run_h2_5g(&workspace)",
+    )
+    .replace(
+      "fn ci_h2_owner_controls",
+      `fn hosted_extra(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    h2_3d_acceptance::run_owner_controls(workspace)
+}
+
+fn ci_h2_owner_controls`,
+    );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(mainHelper),
+    /body differs from the pinned canonical ts-tests entrypoint/u,
+  );
+
+  const unresolvedLocalModule = rustOwnerBoundaryFixture();
+  unresolvedLocalModule.xtaskSource = `mod neutral;\n${unresolvedLocalModule.xtaskSource}`
+    .replace(
+      "    h2_2c_acceptance::run_h2_5g(&workspace)",
+      "    hosted_extra(&workspace)?;\n    h2_2c_acceptance::run_h2_5g(&workspace)",
+    )
+    .replace(
+      "fn ci_h2_owner_controls",
+      `fn hosted_extra(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    neutral::run(workspace)
+}
+
+fn ci_h2_owner_controls`,
+    );
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(unresolvedLocalModule),
+    /body differs from the pinned canonical ts-tests entrypoint/u,
+  );
+});
+
+test("hosted acceptance body is pinned as one canonical executable shape", () => {
+  const mutations = [
+    ["leading return", (source) => source.replace(
+      "    if let Some(argument) = args.next() {",
+      "    return Ok(());\n    if let Some(argument) = args.next() {",
+    )],
+    ["changed argument guard", (source) => source.replace(
+      "if let Some(argument) = args.next()",
+      "if args.next().is_some()",
+    )],
+    ["extra unqualified statement", (source) => source.replace(
+      "    conformance(std::iter::empty())?;",
+      "    benign()?;\n    conformance(std::iter::empty())?;",
+    )],
+    ["reordered setup", (source) => source.replace(
+      "    conformance(std::iter::empty())?;\n    let workspace = find_workspace_root()?;",
+      "    let workspace = find_workspace_root()?;\n    conformance(std::iter::empty())?;",
+    )],
+    ["wrong argument", (source) => source.replace(
+      "h2_3b_acceptance::run(&workspace)?;",
+      "h2_3b_acceptance::run(workspace)?;",
+    )],
+    ["wrong suffix", (source) => source.replace(
+      "h2_3c_acceptance::run(&workspace)?;",
+      "h2_3c_acceptance::run(&workspace);",
+    )],
+    ["nested call", (source) => source.replace(
+      "    h2_3d_acceptance::run(&workspace)?;",
+      "    { h2_3d_acceptance::run(&workspace)?; }",
+    )],
+    ["reordered calls", (source) => source.replace(
+      "    h2_1a_acceptance::run(&workspace)?;\n    h2_1b_acceptance::run(&workspace)?;",
+      "    h2_1b_acceptance::run(&workspace)?;\n    h2_1a_acceptance::run(&workspace)?;",
+    )],
+  ];
+  for (const [name, mutate] of mutations) {
+    const fixture = rustOwnerBoundaryFixture();
+    fixture.xtaskSource = mutate(fixture.xtaskSource);
+    repinRustFixture(fixture);
+    assert.throws(
+      () => validateRustOwnerControlBoundaries(fixture),
+      /body differs from the pinned canonical ts-tests entrypoint/u,
+      name,
+    );
+  }
+});
+
+test("hosted module declarations reject path, cfg, inline, duplicate, and nested alternatives", () => {
+  const moduleName = "h1_emit_acceptance";
+  const declaration = `mod ${moduleName};`;
+  const mutations = [
+    ["path", `#[path = "alternate.rs"]\n${declaration}`],
+    ["cfg", `#[cfg(unix)]\n${declaration}`],
+    ["inline", `mod ${moduleName} {}`],
+    ["duplicate", `${declaration}\n${declaration}`],
+    ["cfg alternatives", `#[cfg(unix)]\n${declaration}\n#[cfg(not(unix))]\n${declaration}`],
+    ["nested", `mod wrapper { ${declaration} }`],
+  ];
+  for (const [name, replacement] of mutations) {
+    const fixture = rustOwnerBoundaryFixture();
+    fixture.xtaskSource = fixture.xtaskSource.replace(declaration, replacement);
+    repinRustFixture(fixture);
+    assert.throws(
+      () => validateRustOwnerControlBoundaries(fixture),
+      /module declaration|must use the canonical|declaration must/u,
+      name,
+    );
+  }
+});
+
+test("raw source pins close Rust constructs outside the bounded call-graph grammar", () => {
+  const modulePath = OWNER_MODULE_PATHS[0];
+  const directOwnerVariants = [
+    ["tuple destructuring", "    let (neutral,) = (run_owner_controls,);\n    neutral(workspace)?;"],
+    ["excess parentheses", "    (run_owner_controls)(workspace)?;"],
+    ["block", "    { run_owner_controls(workspace)?; }"],
+    ["as fn alias", "    let neutral = run_owner_controls as fn(&Path) -> _;\n    neutral(workspace)?;"],
+  ];
+  for (const [name, statement] of directOwnerVariants) {
+    const fixture = rustOwnerBoundaryFixture();
+    fixture.moduleSources[modulePath] = fixture.moduleSources[modulePath].replace(
+      "    let decoy =",
+      `${statement}\n    let decoy =`,
+    );
+    assert.throws(
+      () => validateRustOwnerControlBoundaries(fixture),
+      /hosted run function contains a direct owner-control call or input/u,
+      name,
+    );
+  }
+
+  const contentAddressedVariants = [
+    [
+      "nested grouped import",
+      "mod holder { pub use super::run_owner_controls; }\n" +
+        "use self::{holder::{run_owner_controls as neutral}};\n",
+      "    neutral(workspace)?;",
+    ],
+    [
+      "macro_rules",
+      "macro_rules! neutral { () => { run_owner_controls(workspace)?; }; }\n",
+      "    neutral!();",
+    ],
+    [
+      "impl method",
+      "struct Neutral;\nimpl Neutral { fn call(workspace: &Path) -> Result<(), Box<dyn Error>> { run_owner_controls(workspace) } }\n",
+      "    Neutral::call(workspace)?;",
+    ],
+    [
+      "nested module",
+      "mod neutral { pub fn call(workspace: &Path) -> Result<(), Box<dyn Error>> { super::run_owner_controls(workspace) } }\n",
+      "    neutral::call(workspace)?;",
+    ],
+  ];
+  for (const [name, prefix, statement] of contentAddressedVariants) {
+    const fixture = rustOwnerBoundaryFixture();
+    fixture.moduleSources[modulePath] = `${prefix}${fixture.moduleSources[modulePath]}`.replace(
+      "    let decoy =",
+      `${statement}\n    let decoy =`,
+    );
+    assert.throws(
+      () => validateRustOwnerControlBoundaries(fixture),
+      /h2_3b_acceptance\.rs content hash drifted/u,
+      name,
+    );
+  }
+
+  const rawByteFixture = rustOwnerBoundaryFixture();
+  rawByteFixture.rawSourceBytes = Object.fromEntries([
+    ["crates/xtask/src/main.rs", Buffer.from(rawByteFixture.xtaskSource)],
+    ...Object.entries(rawByteFixture.moduleSources).map(([sourcePath, source]) => [
+      sourcePath,
+      Buffer.from(source),
+    ]),
+  ]);
+  rawByteFixture.rawSourceBytes[modulePath] = Buffer.concat([
+    rawByteFixture.rawSourceBytes[modulePath],
+    Buffer.from("\n"),
+  ]);
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(rawByteFixture),
+    /h2_3b_acceptance\.rs content hash drifted/u,
+  );
+});
 
 test("policy and every qualification schema boundary are valid", () => {
   const policy = validatePolicy(loadPolicy());
@@ -36,6 +701,14 @@ test("policy and every qualification schema boundary are valid", () => {
     "acceptance",
   ]);
   assert.equal(policy.hosted_acceptance.only_acceptance_tests, true);
+  assert.equal(
+    Object.keys(policy.hosted_acceptance.rust_source_sha256).length,
+    16,
+  );
+  assert.match(
+    policy.hosted_acceptance.rust_source_sha256["crates/xtask/src/main.rs"],
+    /^[0-9a-f]{64}$/u,
+  );
   assert.deepEqual(policy.local_full_gate.authoritative_command, [
     "cargo",
     "xtask",
@@ -64,6 +737,15 @@ test("policy and every qualification schema boundary are valid", () => {
   assert.throws(
     () => validatePolicy(broadenedHostedCommand),
     /hosted ts-tests acceptance/u,
+  );
+
+  const driftedHostedSource = clone(policy);
+  driftedHostedSource.hosted_acceptance.rust_source_sha256[
+    "crates/xtask/src/main.rs"
+  ] = "0".repeat(64);
+  assert.throws(
+    () => validatePolicy(driftedHostedSource),
+    /main\.rs content hash drifted/u,
   );
 });
 

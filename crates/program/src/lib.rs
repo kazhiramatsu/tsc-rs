@@ -94,6 +94,7 @@ mod library;
 mod loader;
 mod module_requests;
 mod module_resolution;
+mod option_validation;
 mod path;
 mod prepared;
 mod resolution;
@@ -134,7 +135,12 @@ pub use module_requests::{
     SourceRequestPlan,
 };
 pub use module_resolution::{
-    HostModuleResolution, HostResolvedModule, HostResolvedTypeReferenceDirective, ModuleResolver,
+    normalize_absolute_path_lexical, HostModuleResolution, HostResolvedModule,
+    HostResolvedTypeReferenceDirective, ModuleResolver,
+};
+pub use option_validation::{
+    validate_compiler_options, validate_paths_option_diagnostics, CompilerOptionValidationLocation,
+    CompilerOptionViolation,
 };
 pub use path::{CanonicalPath, ProgramPath};
 pub use prepared::{

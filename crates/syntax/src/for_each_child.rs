@@ -1460,6 +1460,7 @@ where
             }
             None
         }
+        NodeData::NotEmittedStatement(_data) => None,
         NodeData::NumericLiteral(_data) => None,
         NodeData::ObjectBindingPattern(data) => {
             if let Some(result) = visit_optional_nodes(lookup, data.elements, &mut cb) {
@@ -2806,6 +2807,7 @@ where
         }
         NodeData::NoSubstitutionTemplateLiteral(_data) => None,
         NodeData::NonNullExpression(_data) => None,
+        NodeData::NotEmittedStatement(_data) => None,
         NodeData::NumericLiteral(_data) => None,
         NodeData::ObjectBindingPattern(data) => {
             if let Some(id) = data.elements {
@@ -3779,6 +3781,7 @@ where
             map_optional_node(&mut data.expression, visitor)?;
             Ok(())
         }
+        NodeData::NotEmittedStatement(_data) => Ok(()),
         NodeData::NumericLiteral(_data) => Ok(()),
         NodeData::ObjectBindingPattern(data) => {
             map_optional_nodes(&mut data.elements, visitor)?;

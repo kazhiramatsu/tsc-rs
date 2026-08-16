@@ -12,6 +12,12 @@ members = [
     "crates/harness",
     "crates/oracle",
     "crates/conformance",
+    "crates/ci-core",
+    "crates/ci-runner",
+    "crates/ci-testkit",
+    "crates/ci-adapter-tsc-rs-protocol",
+    "crates/ci-adapter-tsc-rs-control",
+    "crates/ci-harness-tsc-rs",
     "crates/fuzz",
     "crates/xtask",
 ]
@@ -31,6 +37,12 @@ iter_over_hash_type = "deny"
 [workspace.dependencies]
 tsc-binder = { package = "tsc-rs-binder", path = "crates/binder" }
 tsc-checker = { package = "tsc-rs-checker", path = "crates/checker" }
+tsc-ci-core = { package = "tsc-rs-ci-core", path = "crates/ci-core" }
+tsc-ci-runner = { package = "tsc-rs-ci-runner", path = "crates/ci-runner" }
+tsc-ci-testkit = { package = "tsc-rs-ci-testkit", path = "crates/ci-testkit" }
+tsc-ci-adapter-protocol = { package = "tsc-rs-ci-adapter-protocol", path = "crates/ci-adapter-tsc-rs-protocol" }
+tsc-ci-adapter-control = { package = "tsc-rs-ci-adapter-control", path = "crates/ci-adapter-tsc-rs-control" }
+tsc-ci-harness = { package = "tsc-rs-ci-harness", path = "crates/ci-harness-tsc-rs" }
 tsc-compiler = { package = "tsc-rs-compiler", path = "crates/compiler" }
 tsc-conformance = { package = "tsc-rs-conformance", path = "crates/conformance" }
 tsc-diagnostics = { package = "tsc-rs-diagnostics", path = "crates/diagnostics" }
@@ -42,6 +54,8 @@ tsc-oracle = { package = "tsc-rs-oracle", path = "crates/oracle" }
 tsc-program = { package = "tsc-rs-program", path = "crates/program" }
 tsc-syntax = { package = "tsc-rs-syntax", path = "crates/syntax" }
 tsc-types = { package = "tsc-rs-types", path = "crates/types" }
+sha2 = "0.10"
+libc = "0.2"
 
 # Test failures retain Rust backtraces and assertion context without embedding
 # full DWARF/PDB data in every large integration binary. This materially

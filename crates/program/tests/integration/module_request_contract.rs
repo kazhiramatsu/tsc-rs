@@ -94,6 +94,45 @@ fn dynamic_import_attributes_retain_the_first_literal_resolution_request() {
 }
 
 #[test]
+fn deferred_dynamic_import_uses_the_same_authoritative_mode_as_import_call() {
+    let source = source_at(
+        "/b.ts",
+        concat!(
+            "import.defer(\"./a.js\");\n",
+            "import(\"./ordinary.js\");\n",
+            "new.defer(\"./not-an-import.js\");\n",
+        ),
+        None,
+    );
+
+    for (module, expected_mode) in [
+        (1, ResolutionMode::CommonJs),
+        (99, ResolutionMode::EsNext),
+        (200, ResolutionMode::EsNext),
+    ] {
+        let options = CompilerOptions {
+            module: Some(module),
+            ..CompilerOptions::default()
+        };
+        let plan = plan_source_requests(&source, &options)
+            .unwrap_or_else(|error| panic!("plan import.defer for module {module}: {error}"));
+        assert_eq!(
+            plan.module_requests()
+                .iter()
+                .map(|request| (request.specifier(), request.mode()))
+                .collect::<Vec<_>>(),
+            [("./a.js", expected_mode), ("./ordinary.js", expected_mode),],
+            "module {module}"
+        );
+        assert_eq!(
+            plan.observed_request_occurrence_count(),
+            2,
+            "module {module}"
+        );
+    }
+}
+
+#[test]
 fn expanded_plan_includes_external_import_equals_as_common_js() {
     let source = source(
         concat!(
@@ -854,9 +893,10 @@ fn module_body_requests_follow_collect_module_references_boundaries() {
             "external augmentation",
             "/augmentation.ts",
             "export {}; declare module \"foo\" { import \"bar\"; }\n",
-            // The augmentation target is kept as a resolution-only row, and
-            // its body still contributes real imports to the checker table.
-            &["bar", "foo"][..],
+            // collectModuleReferences records the augmentation name but owns
+            // the declaration as a boundary; body imports are not file-level
+            // host requests.
+            &["foo"][..],
         ),
         (
             "script ambient non-relative import",
@@ -882,6 +922,119 @@ fn module_body_requests_follow_collect_module_references_boundaries() {
             "{label}"
         );
     }
+}
+
+#[test]
+fn external_augmentation_body_module_requests_never_escape_to_the_source_plan() {
+    let source = source_at(
+        "/augmentation.ts",
+        concat!(
+            "export {};\n",
+            "declare module \"./target\" {\n",
+            "  import * as all from \"./dependency\";\n",
+            "  export * from \"./dependency\";\n",
+            "}\n",
+            "import \"./outside\";\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan = plan_source_requests(&source, &options)
+        .expect("plan external augmentation collection boundary");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["./outside", "./target"]
+    );
+    assert_eq!(
+        plan.module_request_loads_source(&plan.module_requests()[0]),
+        Some(true)
+    );
+    assert_eq!(
+        plan.module_request_loads_source(&plan.module_requests()[1]),
+        Some(false)
+    );
+    assert_eq!(
+        plan.unpreprocessed_module_requests()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["./dependency"]
+    );
+}
+
+#[test]
+fn ordinary_namespace_import_equals_requests_are_authoritative_unpreprocessed_misses() {
+    let source = source_at(
+        "/nested.ts",
+        concat!(
+            "export namespace outer {\n",
+            "  import first = require(\"first-missing\");\n",
+            "  namespace middle.inner {\n",
+            "    export import second = require(\"second-missing\");\n",
+            "  }\n",
+            "}\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan =
+        plan_source_requests(&source, &options).expect("plan namespace preprocessing boundary");
+    assert!(plan.module_requests().is_empty());
+    assert_eq!(
+        plan.unpreprocessed_module_requests()
+            .map(|request| (request.specifier(), request.mode()))
+            .collect::<Vec<_>>(),
+        [
+            ("first-missing", ResolutionMode::CommonJs),
+            ("second-missing", ResolutionMode::CommonJs),
+        ]
+    );
+    assert_eq!(plan.observed_request_occurrence_count(), 0);
+}
+
+#[test]
+fn nested_ambient_module_declarations_are_resolution_only_augmentations() {
+    let source = source_at(
+        "/ambient.d.ts",
+        concat!(
+            "declare module \"base\" { export class Value {} }\n",
+            "declare module \"container\" {\n",
+            "  module \"base\" { interface Value { added(): void; } }\n",
+            "}\n",
+        ),
+        None,
+    );
+    let options = CompilerOptions {
+        module: Some(1),
+        module_resolution: Some(100),
+        ..CompilerOptions::default()
+    };
+
+    let plan =
+        plan_source_requests(&source, &options).expect("plan nested ambient module augmentation");
+    assert_eq!(
+        plan.module_requests()
+            .iter()
+            .map(|request| request.specifier())
+            .collect::<Vec<_>>(),
+        ["base"]
+    );
+    assert_eq!(
+        plan.module_request_loads_source(&plan.module_requests()[0]),
+        Some(false)
+    );
 }
 
 #[test]

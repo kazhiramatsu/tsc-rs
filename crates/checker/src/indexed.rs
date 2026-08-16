@@ -1854,6 +1854,13 @@ impl<'a> CheckerState<'a> {
     fn is_string_index_signature_only_type(&mut self, ty: TypeId) -> CheckResult<bool> {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) {
+            // 64671: a generic mapped type must remain symbolic here. Eagerly
+            // resolving its members can force the template while its owning
+            // recursive alias is still being declared, turning a deferred
+            // indexed access into a spurious declared-type cycle.
+            if self.is_generic_mapped_type_state(ty)? {
+                return Ok(false);
+            }
             let properties = self.get_properties_of_type_full(ty)?;
             if !properties.is_empty() {
                 return Ok(false);

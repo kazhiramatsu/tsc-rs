@@ -425,13 +425,12 @@ pub fn preflight_emit(
     let mut blocked_outputs = BTreeSet::new();
     let mut diagnostics = Vec::new();
     let options = host.compiler_options();
-    if options.resolve_json_module == Some(true) {
+    if options.resolve_json_module_effective() {
         if options.emit_module_resolution_kind() == 1 {
             diagnostics.push(option_diagnostic(
                 &gen::Option_resolveJsonModule_cannot_be_specified_when_moduleResolution_is_set_to_classic,
             ));
-        }
-        if matches!(options.emit_module_kind(), 0 | 3 | 4) {
+        } else if matches!(options.emit_module_kind(), 0 | 3 | 4) {
             diagnostics.push(option_diagnostic(
                 &gen::Option_resolveJsonModule_cannot_be_specified_when_module_is_set_to_none_system_or_umd,
             ));

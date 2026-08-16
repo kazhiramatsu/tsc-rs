@@ -5,15 +5,18 @@
 //! CheckAbort is never cached or converted into a verdict.
 //!
 //! Boolean callers use tsc's reportErrors=false face. Diagnostic
-//! callers replay the failed relation in a fresh reporting frame,
-//! preserving errorInfo, incompatibleStack, per-level normalization,
-//! and head suppression. excess_properties_worker also exposes the
-//! head-site reporting adapter needed to retain tsc's final source
-//! location for object-literal and JSX diagnostics.
+//! callers enter a reporting relation frame directly, preserving
+//! errorInfo, incompatibleStack, per-level normalization, and head
+//! suppression without first publishing a boolean probe's cache
+//! entries. excess_properties_worker also exposes the head-site
+//! reporting adapter needed to retain tsc's final source location for
+//! object-literal and JSX diagnostics.
 
 use std::collections::HashSet;
 
-use tsc_diagnostics::{gen as diagnostics, DiagnosticMessage, MessageChain, RelatedInfo};
+use tsc_diagnostics::{
+    gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo,
+};
 use tsc_types::{
     ConditionalRootId, ExpandingFlags, IntersectionState, ObjectFlags, RecursionFlags,
     RelationComparisonResult, SymbolFlags, Ternary, TypeData, TypeFlags, TypeId, UnionReduction,
@@ -21,8 +24,43 @@ use tsc_types::{
 
 use tsc_syntax::NodeId;
 
-use crate::relate::RelationKind;
+use crate::evaluate::EvalValue;
+use crate::relate::{EnumRelationError, EnumRelationOutcome, RelationKind};
 use crate::state::{CheckResult, CheckerState};
+
+#[derive(Debug)]
+struct SimpleTypeRelationOutcome {
+    related: bool,
+    enum_error: Option<EnumRelationError>,
+}
+
+impl SimpleTypeRelationOutcome {
+    const fn related() -> Self {
+        Self {
+            related: true,
+            enum_error: None,
+        }
+    }
+
+    const fn unrelated(enum_error: Option<EnumRelationError>) -> Self {
+        Self {
+            related: false,
+            enum_error,
+        }
+    }
+}
+
+fn enum_relation_value_text(value: &EvalValue) -> String {
+    match value {
+        EvalValue::Num(value) => tsc_types::js_number_to_string(*value),
+        EvalValue::Str(value) => format!(
+            "\"{}\"",
+            crate::check::string_literal_type_display_text(&tsc_types::TemplateText::from_utf8(
+                value,
+            ))
+        ),
+    }
+}
 
 /// stableTypeOrdering off: binary search keyed by type id over the
 /// id-sorted member list (tsc containsType 61327).
@@ -150,6 +188,7 @@ impl<'a> CheckerState<'a> {
                 /*ignore_constraints*/ false,
             )?;
             if let Some(&related) = self.relations.cache(relation).get(&key) {
+                self.replay_cached_relation_variance_markers(source, related)?;
                 return Ok(related.intersects(RelationComparisonResult::SUCCEEDED));
             }
         }
@@ -167,6 +206,32 @@ impl<'a> CheckerState<'a> {
         Ok(false)
     }
 
+    /// tsrs-native: reconcile retained relation-cache entries with variance
+    /// slots restored by the Rust speculation transaction.
+    ///
+    /// Replay tsc's out-of-band variance bits when a relation cache hit
+    /// bypasses `recursive_type_related_to`. The public cache fast path does
+    /// not need this in tsc because completed variance measurements are never
+    /// unwound; the Rust speculation transaction can restore a variance slot
+    /// while deliberately retaining the permanent relation cache.
+    pub(crate) fn replay_cached_relation_variance_markers(
+        &mut self,
+        source: TypeId,
+        entry: RelationComparisonResult,
+    ) -> CheckResult<()> {
+        if self.variance_handler_stack.is_empty() {
+            return Ok(());
+        }
+        let reports = entry.bits() & RelationComparisonResult::REPORTS_MASK.bits();
+        if reports & RelationComparisonResult::REPORTS_UNMEASURABLE.bits() != 0 {
+            self.instantiate_type(source, Some(self.report_unmeasurable_mapper))?;
+        }
+        if reports & RelationComparisonResult::REPORTS_UNRELIABLE.bits() != 0 {
+            self.instantiate_type(source, Some(self.report_unreliable_mapper))?;
+        }
+        Ok(())
+    }
+
     /// tsc-port: isSimpleTypeRelatedTo @6.0.3
     /// tsc-hash: 364b4fccbfeccb19bc4a4e11466fd7343a2e454b11f86fd9ef244dc4f26ba72b
     /// tsc-span: _tsc.js:64733-64761
@@ -179,24 +244,37 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         relation: RelationKind,
     ) -> CheckResult<bool> {
+        Ok(self
+            .simple_type_relation(source, target, relation, /*collect_enum_error*/ false)?
+            .related)
+    }
+
+    fn simple_type_relation(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+        collect_enum_error: bool,
+    ) -> CheckResult<SimpleTypeRelationOutcome> {
+        let mut enum_error = None;
         let s = self.tables.flags_of(source).bits();
         let t = self.tables.flags_of(target).bits();
         if t & TypeFlags::ANY.bits() != 0
             || s & TypeFlags::NEVER.bits() != 0
             || source == self.tables.intrinsics.wildcard
         {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if t & TypeFlags::UNKNOWN.bits() != 0
             && !(relation == RelationKind::StrictSubtype && s & TypeFlags::ANY.bits() != 0)
         {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if t & TypeFlags::NEVER.bits() != 0 {
-            return Ok(false);
+            return Ok(SimpleTypeRelationOutcome::unrelated(None));
         }
         if s & TypeFlags::STRING_LIKE.bits() != 0 && t & TypeFlags::STRING.bits() != 0 {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::STRING_LITERAL.bits() != 0
             && s & TypeFlags::ENUM_LITERAL.bits() != 0
@@ -204,10 +282,10 @@ impl<'a> CheckerState<'a> {
             && t & TypeFlags::ENUM_LITERAL.bits() == 0
             && self.literal_values_equal(source, target)
         {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::NUMBER_LIKE.bits() != 0 && t & TypeFlags::NUMBER.bits() != 0 {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::NUMBER_LITERAL.bits() != 0
             && s & TypeFlags::ENUM_LITERAL.bits() != 0
@@ -215,16 +293,16 @@ impl<'a> CheckerState<'a> {
             && t & TypeFlags::ENUM_LITERAL.bits() == 0
             && self.literal_values_equal(source, target)
         {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::BIG_INT_LIKE.bits() != 0 && t & TypeFlags::BIG_INT.bits() != 0 {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::BOOLEAN_LIKE.bits() != 0 && t & TypeFlags::BOOLEAN.bits() != 0 {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::ES_SYMBOL_LIKE.bits() != 0 && t & TypeFlags::ES_SYMBOL.bits() != 0 {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::ENUM.bits() != 0 && t & TypeFlags::ENUM.bits() != 0 {
             let source_symbol = self
@@ -239,9 +317,13 @@ impl<'a> CheckerState<'a> {
                 .expect("enum types carry their symbol");
             if self.binder.symbol(source_symbol).escaped_name
                 == self.binder.symbol(target_symbol).escaped_name
-                && self.is_enum_type_related_to(source_symbol, target_symbol)?
             {
-                return Ok(true);
+                match self.enum_type_relation(source_symbol, target_symbol, collect_enum_error)? {
+                    EnumRelationOutcome::Related => {
+                        return Ok(SimpleTypeRelationOutcome::related());
+                    }
+                    EnumRelationOutcome::Unrelated(error) => enum_error = error,
+                }
             }
         }
         if s & TypeFlags::ENUM_LITERAL.bits() != 0 && t & TypeFlags::ENUM_LITERAL.bits() != 0 {
@@ -255,18 +337,24 @@ impl<'a> CheckerState<'a> {
                 .type_of(target)
                 .symbol
                 .expect("enum literal types carry their symbol");
-            if s & TypeFlags::UNION.bits() != 0
-                && t & TypeFlags::UNION.bits() != 0
-                && self.is_enum_type_related_to(source_symbol, target_symbol)?
-            {
-                return Ok(true);
+            if s & TypeFlags::UNION.bits() != 0 && t & TypeFlags::UNION.bits() != 0 {
+                match self.enum_type_relation(source_symbol, target_symbol, collect_enum_error)? {
+                    EnumRelationOutcome::Related => {
+                        return Ok(SimpleTypeRelationOutcome::related());
+                    }
+                    EnumRelationOutcome::Unrelated(error) => enum_error = error,
+                }
             }
             if s & TypeFlags::LITERAL.bits() != 0
                 && t & TypeFlags::LITERAL.bits() != 0
                 && self.literal_values_equal(source, target)
-                && self.is_enum_type_related_to(source_symbol, target_symbol)?
             {
-                return Ok(true);
+                match self.enum_type_relation(source_symbol, target_symbol, collect_enum_error)? {
+                    EnumRelationOutcome::Related => {
+                        return Ok(SimpleTypeRelationOutcome::related());
+                    }
+                    EnumRelationOutcome::Unrelated(error) => enum_error = error,
+                }
             }
         }
         if s & TypeFlags::UNDEFINED.bits() != 0
@@ -274,14 +362,14 @@ impl<'a> CheckerState<'a> {
                 && t & TypeFlags::UNION_OR_INTERSECTION.bits() == 0)
                 || t & (TypeFlags::UNDEFINED.bits() | TypeFlags::VOID.bits()) != 0)
         {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::NULL.bits() != 0
             && ((!self.tables.strict_null_checks
                 && t & TypeFlags::UNION_OR_INTERSECTION.bits() == 0)
                 || t & TypeFlags::NULL.bits() != 0)
         {
-            return Ok(true);
+            return Ok(SimpleTypeRelationOutcome::related());
         }
         if s & TypeFlags::OBJECT.bits() != 0 && t & TypeFlags::NON_PRIMITIVE.bits() != 0 {
             let strict_subtype_exclusion = relation == RelationKind::StrictSubtype
@@ -291,19 +379,19 @@ impl<'a> CheckerState<'a> {
                     .object_flags_of(source)
                     .intersects(ObjectFlags::FRESH_LITERAL);
             if !strict_subtype_exclusion {
-                return Ok(true);
+                return Ok(SimpleTypeRelationOutcome::related());
             }
         }
         if relation == RelationKind::Assignable || relation == RelationKind::Comparable {
             if s & TypeFlags::ANY.bits() != 0 {
-                return Ok(true);
+                return Ok(SimpleTypeRelationOutcome::related());
             }
             if s & TypeFlags::NUMBER.bits() != 0
                 && (t & TypeFlags::ENUM.bits() != 0
                     || (t & TypeFlags::NUMBER_LITERAL.bits() != 0
                         && t & TypeFlags::ENUM_LITERAL.bits() != 0))
             {
-                return Ok(true);
+                return Ok(SimpleTypeRelationOutcome::related());
             }
             if s & TypeFlags::NUMBER_LITERAL.bits() != 0
                 && s & TypeFlags::ENUM_LITERAL.bits() == 0
@@ -312,13 +400,13 @@ impl<'a> CheckerState<'a> {
                         && t & TypeFlags::ENUM_LITERAL.bits() != 0
                         && self.literal_values_equal(source, target)))
             {
-                return Ok(true);
+                return Ok(SimpleTypeRelationOutcome::related());
             }
             if self.is_unknown_like_union_type(target)? {
-                return Ok(true);
+                return Ok(SimpleTypeRelationOutcome::related());
             }
         }
-        Ok(false)
+        Ok(SimpleTypeRelationOutcome::unrelated(enum_error))
     }
 
     fn literal_values_equal(&self, source: TypeId, target: TypeId) -> bool {
@@ -757,6 +845,65 @@ impl<'a> CheckerState<'a> {
         head_message: Option<&'static DiagnosticMessage>,
         containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Option<RelationErrorOutput>> {
+        self.relation_error_output_with_context_at(
+            source,
+            target,
+            relation,
+            head_message,
+            containing_message_chain,
+            None,
+        )
+    }
+
+    /// tsrs-native: project tsc's mutable errorNode closure slot into an
+    /// explicit argument and return only the owned relation diagnostic.
+    ///
+    /// Rust-owned projection of tsc's mutable `errorNode` closure slot.
+    /// Nested relation reporters may narrow the diagnostic from the caller's
+    /// expression to a concrete property declaration without mutating AST
+    /// nodes or retaining a checker borrow in the returned value.
+    pub(crate) fn relation_error_output_with_context_at(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+        head_message: Option<&'static DiagnosticMessage>,
+        containing_message_chain: Option<MessageChain>,
+        error_node: Option<tsc_syntax::NodeId>,
+    ) -> CheckResult<Option<RelationErrorOutput>> {
+        Ok(self
+            .check_relation_with_error_output_at(
+                source,
+                target,
+                relation,
+                head_message,
+                containing_message_chain,
+                error_node,
+            )?
+            .1)
+    }
+
+    /// tsc-port: checkTypeRelatedTo @6.0.3 (reporting-mode output face)
+    /// tsc-hash: bf733d6181fb759f6b95d8beca1b21a072e94e36deeb94708fba113be2f8e601
+    /// tsc-span: _tsc.js:64842-64936
+    ///
+    /// Direct reporting entry for tsc's `checkTypeRelatedTo`.
+    ///
+    /// Unlike `isTypeRelatedTo`, this starts the relation frame with
+    /// `reportErrors` enabled. Keeping the verdict and its diagnostic
+    /// output together is semantically significant: a preliminary
+    /// boolean walk can publish failed cache entries that nested
+    /// non-reporting overload probes would observe during a replay,
+    /// changing `Maybe` branches into hard failures.
+    pub(crate) fn check_relation_with_error_output_at(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+        head_message: Option<&'static DiagnosticMessage>,
+        containing_message_chain: Option<MessageChain>,
+        error_node: Option<tsc_syntax::NodeId>,
+    ) -> CheckResult<(bool, Option<RelationErrorOutput>)> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
         // reportUnmatchedProperty reads checkTypeRelatedTo's closure-
         // level `headMessage`, not the per-recursion `headMessage2`.
@@ -787,6 +934,7 @@ impl<'a> CheckerState<'a> {
             relation_count,
             error_state: RelationErrorState {
                 should_skip_elaboration,
+                error_node,
                 ..RelationErrorState::default()
             },
         };
@@ -801,9 +949,12 @@ impl<'a> CheckerState<'a> {
         if !checker.error_state.incompatible_stack.is_empty() {
             checker.report_incompatible_stack()?;
         }
-        if !is_false(result) {
-            return Ok(None);
-        }
+        // checkTypeRelatedTo publishes `errorInfo` independently of its
+        // ternary verdict, then returns `result !== False`. A recursive
+        // relation may therefore finish as `Maybe` while still owning a
+        // diagnostic chain; treating that truthy verdict as "no output"
+        // drops diagnostics produced during JSX child elaboration.
+        let related = !is_false(result);
         let mut message = checker.error_state.error_info.take();
         if let Some(mut containing) = containing_message_chain {
             if let Some(inner) = message.take() {
@@ -825,10 +976,14 @@ impl<'a> CheckerState<'a> {
                 message = Some(containing);
             }
         }
-        Ok(message.map(|message| RelationErrorOutput {
-            message,
-            related: std::mem::take(&mut checker.error_state.related_info),
-        }))
+        Ok((
+            related,
+            message.map(|message| RelationErrorOutput {
+                message,
+                related: std::mem::take(&mut checker.error_state.related_info),
+                error_node: checker.error_state.error_node,
+            }),
+        ))
     }
 }
 
@@ -837,11 +992,30 @@ impl<'a> CheckerState<'a> {
 /// parent-skipped 2353/2561 and the relation head never lands; a
 /// discriminant incompatibility reports only a chain row in tsc, so
 /// the head stays.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ExcessPropertyOutcome {
     None,
-    UnknownProperty,
+    UnknownProperty { diagnostic: Option<Diagnostic> },
     Incompatible,
+}
+
+enum ExcessPropertyReportKind {
+    Jsx {
+        source_text: String,
+        target_text: String,
+        prop_text: String,
+        suggestion: Option<String>,
+    },
+    ObjectLiteral {
+        target_text: String,
+        prop_text: String,
+        suggestion: Option<String>,
+    },
+}
+
+struct ExcessPropertyReport {
+    node: tsc_syntax::NodeId,
+    kind: ExcessPropertyReportKind,
 }
 
 /// The diagnostic value produced by one reporting-mode relation walk.
@@ -852,6 +1026,7 @@ pub(crate) enum ExcessPropertyOutcome {
 pub(crate) struct RelationErrorOutput {
     pub(crate) message: MessageChain,
     pub(crate) related: Vec<RelatedInfo>,
+    pub(crate) error_node: Option<tsc_syntax::NodeId>,
 }
 
 #[derive(Clone, Default)]
@@ -870,6 +1045,8 @@ pub(crate) struct RelationErrorState {
     /// reportUnmatchedProperty's closure-level `shouldSkipElaboration`.
     /// It is false only for the two class-implements head messages.
     should_skip_elaboration: bool,
+    /// tsc's closure-local mutable errorNode, owned as a copyable arena id.
+    error_node: Option<tsc_syntax::NodeId>,
 }
 
 fn count_message_chain_breadth(info: &[MessageChain]) -> usize {
@@ -1061,6 +1238,24 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
     }
 
+    fn is_simple_type_related_to_with_reporting(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        report_errors: bool,
+    ) -> CheckResult<bool> {
+        let outcome = self.st.simple_type_relation(
+            source,
+            target,
+            self.relation,
+            /*collect_enum_error*/ report_errors,
+        )?;
+        if let Some(error) = outcome.enum_error {
+            self.report_enum_relation_error(error)?;
+        }
+        Ok(outcome.related)
+    }
+
     /// tsc-port: isRelatedTo @6.0.3
     /// tsc-hash: 47404a0f4ae9f5c59d0f972b7e338adbd1a9cbb8419eae7187f6415cd1d68fd5
     /// tsc-span: _tsc.js:65147-65247
@@ -1108,15 +1303,15 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         {
             if (self.relation == RelationKind::Comparable
                 && !self.flags(original_target).intersects(TypeFlags::NEVER)
-                && self.st.is_simple_type_related_to(
+                && self.is_simple_type_related_to_with_reporting(
                     original_target,
                     original_source,
-                    self.relation,
+                    /*report_errors*/ false,
                 )?)
-                || self.st.is_simple_type_related_to(
+                || self.is_simple_type_related_to_with_reporting(
                     original_source,
                     original_target,
-                    self.relation,
+                    report_errors,
                 )?
             {
                 return Ok(Ternary::TRUE);
@@ -1207,12 +1402,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         }
         if (self.relation == RelationKind::Comparable
             && !self.flags(target).intersects(TypeFlags::NEVER)
-            && self
-                .st
-                .is_simple_type_related_to(target, source, self.relation)?)
-            || self
-                .st
-                .is_simple_type_related_to(source, target, self.relation)?
+            && self.is_simple_type_related_to_with_reporting(
+                target, source, /*report_errors*/ false,
+            )?)
+            || self.is_simple_type_related_to_with_reporting(source, target, report_errors)?
         {
             return Ok(Ternary::TRUE);
         }
@@ -1273,6 +1466,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if is_performing_common_property_checks
                 && !self.st.has_common_properties(source, target)?
             {
+                if report_errors {
+                    self.report_no_common_properties_error(
+                        original_source,
+                        original_target,
+                        source,
+                        target,
+                    )?;
+                }
                 return Ok(Ternary::FALSE);
             }
             let skip_caching = (self.flags(source).intersects(TypeFlags::UNION)
@@ -1327,6 +1528,130 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             self.report_incompatible_stack()?;
         }
         self.report_error_direct(message, args);
+        Ok(())
+    }
+
+    /// tsc-port: isRelatedTo.commonPropertyDiagnostic @6.0.3
+    /// tsc-hash: cd9a14d4a382b328bf0cebba997739e27e3cf76e23cb462d0af6bf340c7cc69d
+    /// tsc-span: _tsc.js:65208-65235
+    ///
+    /// This row belongs to the recursive relation frame. In particular, a
+    /// weak-type failure reached while comparing property types must remain
+    /// in `errorInfo`; the enclosing property comparison then prepends its
+    /// 2326 incompatibility row and the outer assignment prepends 2322.
+    /// Reconstructing 2559 only at the top-level checker boundary loses that
+    /// leaf.
+    fn report_no_common_properties_error(
+        &mut self,
+        original_source: TypeId,
+        original_target: TypeId,
+        source: TypeId,
+        target: TypeId,
+    ) -> CheckResult<()> {
+        let display_source = if self
+            .st
+            .tables
+            .type_of(original_source)
+            .alias_symbol
+            .is_some()
+        {
+            original_source
+        } else {
+            source
+        };
+        let display_target = if self
+            .st
+            .tables
+            .type_of(original_target)
+            .alias_symbol
+            .is_some()
+        {
+            original_target
+        } else {
+            target
+        };
+        let source_text = self
+            .st
+            .type_to_string_slice_with_error_enclosing(display_source)?;
+        let target_text = self
+            .st
+            .type_to_string_slice_with_error_enclosing(display_target)?;
+
+        let mut callable_face = false;
+        for kind in [
+            crate::state::SignatureKind::Call,
+            crate::state::SignatureKind::Construct,
+        ] {
+            let signatures = self.st.get_signatures_of_type(source, kind)?;
+            let Some(&first) = signatures.first() else {
+                continue;
+            };
+            let return_type = self.st.get_return_type_of_signature(first)?;
+            if is_true(self.is_related_to(
+                return_type,
+                target,
+                RecursionFlags::SOURCE,
+                /*report_errors*/ false,
+                IntersectionState::NONE,
+            )?) {
+                callable_face = true;
+                break;
+            }
+        }
+        self.report_error(
+            if callable_face {
+                &diagnostics::Value_of_type_0_has_no_properties_in_common_with_type_1_Did_you_mean_to_call_it
+            } else {
+                &diagnostics::Type_0_has_no_properties_in_common_with_type_1
+            },
+            vec![source_text, target_text],
+        )
+    }
+
+    fn report_enum_relation_error(&mut self, error: EnumRelationError) -> CheckResult<()> {
+        match error {
+            EnumRelationError::MissingMember {
+                source_member,
+                target_enum,
+            } => {
+                let target_type = self.st.get_declared_type_of_symbol_slice(target_enum)?;
+                let target_text = self.st.get_type_name_for_error_display(target_type)?;
+                self.report_error(
+                    &diagnostics::Property_0_is_missing_in_type_1,
+                    vec![self.st.symbol_display_name(source_member), target_text],
+                )?;
+            }
+            EnumRelationError::MismatchedMemberValue {
+                target_enum,
+                target_member,
+                expected,
+                given,
+            } => {
+                self.report_error(
+                    &diagnostics::Each_declaration_of_0_1_differs_in_its_value_where_2_was_expected_but_3_was_given,
+                    vec![
+                        self.st.symbol_display_name(target_enum),
+                        self.st.symbol_display_name(target_member),
+                        enum_relation_value_text(&expected),
+                        enum_relation_value_text(&given),
+                    ],
+                )?;
+            }
+            EnumRelationError::StringVsUnknownNumeric {
+                target_enum,
+                target_member,
+                known_string,
+            } => {
+                self.report_error(
+                    &diagnostics::One_value_of_0_1_is_the_string_2_and_the_other_is_assumed_to_be_an_unknown_numeric_value,
+                    vec![
+                        self.st.symbol_display_name(target_enum),
+                        self.st.symbol_display_name(target_member),
+                        enum_relation_value_text(&EvalValue::Str(known_string)),
+                    ],
+                )?;
+            }
+        }
         Ok(())
     }
 
@@ -1475,6 +1800,12 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
         while let Some((message, args)) = stack.pop() {
             match message.code {
                 code if code == diagnostics::Types_of_property_0_are_incompatible.code => {
+                    // A property appended after a constructed return value
+                    // belongs to that value, not to the constructor target:
+                    // `(new C()).p`, never `new C().p`.
+                    if path.starts_with("new ") {
+                        path = format!("({path})");
+                    }
                     let property = args.first().cloned().unwrap_or_default();
                     if path.is_empty() {
                         path = property;
@@ -1664,7 +1995,28 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 &diagnostics::Type_0_is_not_comparable_to_type_1
             } else if source_text == target_text {
                 &diagnostics::Type_0_is_not_assignable_to_type_1_Two_different_types_with_this_name_exist_but_they_are_unrelated
+            } else if self.st.options.exact_optional_property_types == Some(true)
+                && self
+                    .st
+                    .has_exact_optional_unassignable_properties(source, target)?
+            {
+                &diagnostics::Type_0_is_not_assignable_to_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties
             } else {
+                if self.flags(source).intersects(TypeFlags::STRING_LITERAL)
+                    && self.flags(target).intersects(TypeFlags::UNION)
+                {
+                    if let Some(suggested_type) = self
+                        .st
+                        .get_suggested_type_for_nonexistent_string_literal_type(source, target)
+                    {
+                        let suggested_text = self.st.type_to_string_slice(suggested_type)?;
+                        self.report_error(
+                            &diagnostics::Type_0_is_not_assignable_to_type_1_Did_you_mean_2,
+                            vec![generalized_source_text, target_text, suggested_text],
+                        )?;
+                        return Ok(());
+                    }
+                }
                 &diagnostics::Type_0_is_not_assignable_to_type_1
             });
         }
@@ -1754,6 +2106,22 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 maybe_suppress = self.error_state.error_info.is_some();
             }
         }
+        let suppress_jsx_intersection_head = if self
+            .st
+            .tables
+            .object_flags_of(source)
+            .intersects(ObjectFlags::JSX_ATTRIBUTES)
+            && self.flags(target).intersects(TypeFlags::INTERSECTION)
+        {
+            match self.error_state.error_node {
+                Some(error_node) => self
+                    .st
+                    .jsx_intersection_contains_intrinsic_attributes(target, error_node)?,
+                None => false,
+            }
+        } else {
+            false
+        };
         if self.flags(source).intersects(TypeFlags::OBJECT)
             && self.flags(target).intersects(TypeFlags::PRIMITIVE)
         {
@@ -1766,6 +2134,20 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                 &diagnostics::The_Object_type_is_assignable_to_very_few_other_types_Did_you_mean_to_use_the_any_type_instead,
                 vec![],
             )?;
+        } else if suppress_jsx_intersection_head {
+            // reportErrorResults returns here: the intrinsic constituent's
+            // 2741/2739 detail is the complete diagnostic.
+            return Ok(());
+        } else if let Some(mut elaboration) =
+            self.st.elaborate_never_intersection_row(original_target)?
+        {
+            if let Some(existing) = self.error_state.error_info.take() {
+                elaboration.next_present = true;
+                elaboration.next.push(existing);
+            }
+            self.error_state.error_info = Some(elaboration);
+            self.error_state.error_info_revision =
+                self.error_state.error_info_revision.wrapping_add(1);
         }
         if head_message.is_none() && maybe_suppress {
             let saved_error_state = self.capture_error_calculation_state();
@@ -1888,13 +2270,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             .tables
             .object_flags_of(source)
             .intersects(ObjectFlags::JSX_ATTRIBUTES);
-        if (self.relation == RelationKind::Assignable || self.relation == RelationKind::Comparable)
-            && (self
-                .st
-                .is_type_subset_of(self.st.empty_object_type, target)?
-                || (!is_comparing_jsx_attributes && self.st.is_empty_object_type(target)?))
-        {
-            return Ok(ExcessPropertyOutcome::None);
+        if self.relation == RelationKind::Assignable || self.relation == RelationKind::Comparable {
+            // tsc tests the global `Object` type here, not the intrinsic
+            // empty-object sentinel.  In particular, a union containing
+            // `Object` accepts otherwise-unknown object-literal properties.
+            let global_object = self.st.global_object_type()?;
+            if self.st.is_type_subset_of(global_object, target)?
+                || (!is_comparing_jsx_attributes && self.st.is_empty_object_type(target)?)
+            {
+                return Ok(ExcessPropertyOutcome::None);
+            }
         }
         let mut reduced_target = target;
         let mut check_types: Option<Vec<TypeId>> = None;
@@ -1917,10 +2302,27 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     continue;
                 }
                 if !self.st.is_known_property(reduced_target, &name)? {
-                    if let Some(error_node) = report_node {
-                        self.report_excess_property(source, prop, reduced_target, error_node)?;
-                    }
-                    return Ok(ExcessPropertyOutcome::UnknownProperty);
+                    let diagnostic = if let Some(error_node) = report_node {
+                        Some(self.create_excess_property_diagnostic(
+                            source,
+                            prop,
+                            reduced_target,
+                            error_node,
+                        )?)
+                    } else if report_errors {
+                        if let Some(error_node) = self.error_state.error_node {
+                            self.report_excess_property_into_relation(
+                                source,
+                                prop,
+                                reduced_target,
+                                error_node,
+                            )?;
+                        }
+                        None
+                    } else {
+                        None
+                    };
+                    return Ok(ExcessPropertyOutcome::UnknownProperty { diagnostic });
                 }
                 if let Some(check_types) = &check_types {
                     let prop_type = self.st.get_type_of_symbol(prop)?;
@@ -1964,13 +2366,128 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
     /// (65382-65389), an Identifier name probes the spelling
     /// suggestion, and the parent-skipped report means the 2353/2561
     /// IS the top-level code — the relation head never lands.
-    fn report_excess_property(
+    fn create_excess_property_diagnostic(
+        &mut self,
+        source: TypeId,
+        prop: tsc_binder::SymbolId,
+        reduced_target: TypeId,
+        error_node: tsc_syntax::NodeId,
+    ) -> CheckResult<Diagnostic> {
+        let report =
+            self.resolve_excess_property_report(source, prop, reduced_target, error_node)?;
+        match report.kind {
+            ExcessPropertyReportKind::Jsx {
+                source_text,
+                target_text,
+                prop_text,
+                suggestion,
+            } => {
+                // JSX excess-property rows do not use the object-literal
+                // parent-skipped protocol. tsc first reports the 2339/2551
+                // detail into errorInfo, then reportRelationError prepends
+                // the generic 2322. This head-site adapter owns the final
+                // source location, so materialize the same complete chain.
+                let detail = match suggestion {
+                    Some(suggestion) => MessageChain::new(
+                        &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
+                        &[prop_text, target_text.clone(), suggestion],
+                    ),
+                    None => MessageChain::new(
+                        &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
+                        &[prop_text, target_text.clone()],
+                    ),
+                };
+                let message = MessageChain::new(
+                    &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+                    &[source_text, target_text],
+                )
+                .with_next(vec![detail]);
+                let mut diagnostic = self.st.create_error(
+                    Some(report.node),
+                    &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
+                    &[],
+                );
+                diagnostic.message = message;
+                Ok(diagnostic)
+            }
+            ExcessPropertyReportKind::ObjectLiteral {
+                target_text,
+                prop_text,
+                suggestion,
+            } => {
+                let diagnostic = match suggestion {
+                    Some(suggestion) => self.st.create_error(
+                        Some(report.node),
+                        &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
+                        &[&prop_text, &target_text, &suggestion],
+                    ),
+                    None => self.st.create_error(
+                        Some(report.node),
+                        &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+                        &[&prop_text, &target_text],
+                    ),
+                };
+                Ok(diagnostic)
+            }
+        }
+    }
+
+    fn report_excess_property_into_relation(
         &mut self,
         source: TypeId,
         prop: tsc_binder::SymbolId,
         reduced_target: TypeId,
         error_node: tsc_syntax::NodeId,
     ) -> CheckResult<()> {
+        let report =
+            self.resolve_excess_property_report(source, prop, reduced_target, error_node)?;
+        self.error_state.error_node = Some(report.node);
+        match report.kind {
+            ExcessPropertyReportKind::Jsx {
+                target_text,
+                prop_text,
+                suggestion,
+                ..
+            } => match suggestion {
+                Some(suggestion) => self.report_error(
+                    &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
+                    vec![prop_text, target_text, suggestion],
+                )?,
+                None => self.report_error(
+                    &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
+                    vec![prop_text, target_text],
+                )?,
+            },
+            ExcessPropertyReportKind::ObjectLiteral {
+                target_text,
+                prop_text,
+                suggestion,
+            } => {
+                match suggestion {
+                    Some(suggestion) => self.report_error(
+                        &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
+                        vec![prop_text, target_text, suggestion],
+                    )?,
+                    None => self.report_error(
+                        &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
+                        vec![prop_text, target_text],
+                    )?,
+                }
+                // reportParentSkippedError: suppress this recursion level's
+                // generic relation row while retaining the outer caller head.
+                self.error_state.skip_parent_counter += 1;
+            }
+        }
+        Ok(())
+    }
+
+    fn resolve_excess_property_report(
+        &mut self,
+        source: TypeId,
+        prop: tsc_binder::SymbolId,
+        reduced_target: TypeId,
+        error_node: tsc_syntax::NodeId,
+    ) -> CheckResult<ExcessPropertyReport> {
         let error_target = self.st.filter_type_with(reduced_target, |state, member| {
             Ok(state.is_excess_property_check_target(member))
         })?;
@@ -2032,31 +2549,17 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     SymbolFlags::VALUE,
                 )
             });
-            let detail = if let Some(suggestion_symbol) = suggestion_symbol {
-                let suggestion = self.st.symbol_display_name(suggestion_symbol);
-                MessageChain::new(
-                    &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1_Did_you_mean_2,
-                    &[prop_text, target_text.clone(), suggestion],
-                )
-            } else {
-                MessageChain::new(
-                    &tsc_diagnostics::gen::Property_0_does_not_exist_on_type_1,
-                    &[prop_text, target_text.clone()],
-                )
-            };
-            let message = MessageChain::new(
-                &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
-                &[source_text, target_text],
-            )
-            .with_next(vec![detail]);
-            let mut diagnostic = self.st.create_error(
-                Some(report_node),
-                &tsc_diagnostics::gen::Type_0_is_not_assignable_to_type_1,
-                &[],
-            );
-            diagnostic.message = message;
-            self.st.push_error_diagnostic(diagnostic);
-            return Ok(());
+            let suggestion = suggestion_symbol
+                .map(|suggestion_symbol| self.st.symbol_name_as_written_slice(suggestion_symbol));
+            return Ok(ExcessPropertyReport {
+                node: report_node,
+                kind: ExcessPropertyReportKind::Jsx {
+                    source_text,
+                    target_text,
+                    prop_text,
+                    suggestion,
+                },
+            });
         }
         let object_literal_declaration = self
             .st
@@ -2100,19 +2603,14 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             }
         }
         let target_text = self.st.type_to_string_slice(error_target)?;
-        match suggestion {
-            Some(suggestion) => self.st.error_at(
-                Some(report_node),
-                &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_but_0_does_not_exist_in_type_1_Did_you_mean_to_write_2,
-                &[&prop_text, &target_text, &suggestion],
-            ),
-            None => self.st.error_at(
-                Some(report_node),
-                &tsc_diagnostics::gen::Object_literal_may_only_specify_known_properties_and_0_does_not_exist_in_type_1,
-                &[&prop_text, &target_text],
-            ),
-        };
-        Ok(())
+        Ok(ExcessPropertyReport {
+            node: report_node,
+            kind: ExcessPropertyReportKind::ObjectLiteral {
+                target_text,
+                prop_text,
+                suggestion,
+            },
+        })
     }
 
     fn should_check_as_excess_property(
@@ -2754,19 +3252,10 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                         | RelationComparisonResult::STACK_DEPTH_OVERFLOW.bits(),
                 ));
             if !replay_failure {
-                if !self.st.variance_handler_stack.is_empty() {
-                    // 65742-65750: replay the entry's Reports* bits into
-                    // the active handler via the reporter mappers.
-                    let saved = entry.bits() & RelationComparisonResult::REPORTS_MASK.bits();
-                    if saved & RelationComparisonResult::REPORTS_UNMEASURABLE.bits() != 0 {
-                        let mapper = self.st.report_unmeasurable_mapper;
-                        self.st.instantiate_type(source, Some(mapper))?;
-                    }
-                    if saved & RelationComparisonResult::REPORTS_UNRELIABLE.bits() != 0 {
-                        let mapper = self.st.report_unreliable_mapper;
-                        self.st.instantiate_type(source, Some(mapper))?;
-                    }
-                }
+                // 65742-65750: replay the entry's Reports* bits into
+                // the active handler via the reporter mappers.
+                self.st
+                    .replay_cached_relation_variance_markers(source, entry)?;
                 return Ok(if entry.intersects(RelationComparisonResult::SUCCEEDED) {
                     Ternary::TRUE
                 } else {
@@ -3888,14 +4377,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67507-67532
     ///
     /// tsc's identity is a node/symbol/type object; here it is a
-    /// discriminated key. KNOWN-GAP since M4 (m4-review B3): the
-    /// symbol arm lacks tsc's `!(Anonymous && Class)` exclusion, and
-    /// the TypeParameter arm returns the TYPE where tsc returns
-    /// type.symbol — M4 declared type parameters carry symbols
-    /// (constraints.rs attaches them; the old "symbol-less
-    /// synthetics" claim is false), so instantiation clones never
-    /// unify and deep generic recursion can overflow into a wrong
-    /// False.
+    /// discriminated key. Type parameters deliberately key on their
+    /// declaration symbol rather than the instantiated TypeId. This
+    /// lets successively instantiated generic signatures converge on
+    /// the same recursive comparison, while preserving tsc's shared
+    /// `undefined` identity for symbol-less synthetic parameters.
     pub(crate) fn get_recursion_identity(&self, ty: TypeId) -> RecursionIdentity {
         let flags = self.tables.flags_of(ty);
         if flags.intersects(TypeFlags::OBJECT) && !self.is_object_or_array_literal_type(ty) {
@@ -3909,16 +4395,30 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if let Some(symbol) = self.tables.type_of(ty).symbol {
-                return RecursionIdentity::Symbol(symbol);
+                let is_anonymous_class = self
+                    .tables
+                    .object_flags_of(ty)
+                    .intersects(ObjectFlags::ANONYMOUS)
+                    && self
+                        .binder
+                        .symbol(symbol)
+                        .flags
+                        .intersects(SymbolFlags::CLASS);
+                if !is_anonymous_class {
+                    return RecursionIdentity::Symbol(symbol);
+                }
             }
             if self.tables.is_tuple_type(ty) {
                 return RecursionIdentity::Type(self.tables.reference_target(ty));
             }
         }
         if flags.intersects(TypeFlags::TYPE_PARAMETER) {
-            // KNOWN-GAP (m4-review B3): tsc returns type.symbol here;
-            // declared type parameters have carried symbols since M4.
-            return RecursionIdentity::Type(ty);
+            return self
+                .tables
+                .type_of(ty)
+                .symbol
+                .map(RecursionIdentity::Symbol)
+                .unwrap_or(RecursionIdentity::Missing);
         }
         if flags.intersects(TypeFlags::INDEXED_ACCESS) {
             // 67522-67527: chase the objectType chain.
@@ -4059,6 +4559,10 @@ impl<'a> CheckerState<'a> {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum RecursionIdentity {
+    /// JavaScript `undefined`, returned by tsc for a symbol-less
+    /// synthetic type parameter. All such parameters intentionally
+    /// share this recursion identity.
+    Missing,
     Symbol(tsc_binder::SymbolId),
     Type(TypeId),
     /// Every mapper-carrying instance of one conditional root shares

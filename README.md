@@ -38,13 +38,14 @@ Roadmap](#development-status-and-roadmap). The `PreparedProgram` type in
 `crates/compiler`; the session owns the program, keeps parser/binder/checker
 borrows within one run, separates the five no-emit diagnostic buckets, and
 now exposes a distinct fail-closed emit entry backed by the typed protocols in
-`crates/emitter`. Transformer/printer execution and JavaScript output are not
-yet connected.
+`crates/emitter`. The bounded emit route now runs the connected transform,
+printer, artifact, and output-sink pipeline for the currently admitted H2
+profile; broader emit compatibility remains under active H2 qualification.
 Existing conformance tests still assemble files, libraries, options, and
-  resolution facts through the harness and checker APIs. The bounded
-  filesystem/config/CLI path is available through the production binary;
-  general package/project discovery and the remaining broad config surface
-  are still being closed.
+resolution facts through the harness and checker APIs. The bounded
+filesystem/config/CLI path is available through the production binary;
+general package/project discovery and the remaining broad config surface are
+still being closed.
 
 ## Build and Explore
 
@@ -186,7 +187,8 @@ does not imply compatibility with newer TypeScript releases.
 | Filesystem-hosted `--noEmit` command | Available for the frozen H0 command-line and config profile |
 | tsconfig discovery and JSONC configuration | Available for the frozen H0 option/root profile; other recognized fields fail closed |
 | `node_modules`, package `exports`/`imports`, `paths`, and `typeRoots` resolution | Available for the frozen Classic-through-Bundler H0 profile |
-| Output emission (`.js`, `.d.ts`, source maps, or build info) | Not implemented |
+| Admitted JavaScript output (`.js`) | Available for the frozen H1 profile and the currently admitted H2 one-shot rows; broader H2 compatibility remains fail-closed and under qualification |
+| Declaration output (`.d.ts`), source/declaration maps, and build info | Not implemented |
 | Watch, incremental, project-reference, or solution builds | Outside the current scope |
 | Language server and stable public `TypeChecker` API | Outside the current scope |
 | TypeScript versions other than 6.0.3 | Unsupported |
@@ -232,9 +234,9 @@ repository root. There is intentionally no top-level `src/` directory.
 | `crates/types` | Shared compiler options, symbols, types, signatures, and relation data |
 | `crates/host` | Read-only compiler-host contract and deterministic in-memory host adapter |
 | `crates/program` | Owned prepared-program, path-identity, and authoritative resolution contracts |
-| `crates/emitter` | Typed emit artifacts, output topology, outcomes, failures, and in-memory sink |
-| `crates/compiler` | One-shot owned program execution and no-emit diagnostic buckets |
-| `crates/checker` | Parser/binder assembly and semantic diagnostic checking |
+| `crates/emitter` | Emitter-owned host/resolver protocols, transform arena/factory/passes, printer, output planning/artifacts, sinks, outcomes, and failures |
+| `crates/compiler` | One-shot owned Program execution, no-emit diagnostic buckets, and staged emit orchestration |
+| `crates/checker` | Parser/binder/checker assembly, semantic diagnostics, and the checker-owned scoped emit resolver |
 | `crates/diagnostics` | Diagnostic messages, structures, line maps, sorting, and deduplication |
 | `crates/harness` | TypeScript fixture expansion and program-input construction |
 | `crates/oracle` | Node-based access to the vendored TypeScript oracle |
@@ -243,7 +245,7 @@ repository root. There is intentionally no top-level `src/` directory.
 | `crates/xtask` | Code generation, audits, conformance commands, and the complete CI gate |
 | `ts-tests` | Checked-in TypeScript conformance corpus |
 | `vendor/typescript-6.0.3` | Pinned compiler bundle and standard library files |
-| `docs/design/greenfield` | Authoritative architecture, execution plans, and completion contracts |
+| `docs/design/greenfield` | Index containing the active execution route plus frozen contracts and historical plans; follow `docs/design/README.md` for authority |
 
 Internal Cargo packages currently follow `tsc-rs-<role>`, while shared
 dependency aliases use `tsc-<role>` and Rust crate identifiers use
@@ -265,14 +267,35 @@ before evidence, and implement the smallest dependency-complete producer
 slice. Expected diagnostics and messages come from the oracle rather than
 memory.
 
-Start with:
+Before production code changes, every slice whose implementation starts after
+H2.5g must freeze the
+[implementation-ready design packet](docs/design/greenfield/post-h1-completion-slices.md#11-mandatory-implementation-ready-design-gate).
+It derives semantics and phase boundaries from pinned tsc sources, maps them to
+a durable Rust-owned architecture, and leaves no unstated implementation
+decision; a missing or unresolved field blocks implementation. H2.5g closes
+under its already-established qualification/owner-control/profile contract
+set and current-architecture audit, as indexed by the
+[H2.5g closure route](docs/design/greenfield/slices/README.md#h25g-legacy-closure-route).
+It is the sole, final non-retroactive exception; it does not waive the packet
+gate for H2.5h-a or any later slice.
+
+The mandatory post-H1 emitter route is:
 
 - [repository workflow and verification rules](CLAUDE.md);
+- [design roles and precedence](docs/design/README.md);
 - [greenfield execution guide](docs/design/greenfield/README.md);
+- [current emitter architecture](docs/design/greenfield/emitter-architecture.md);
+- [post-H1 completion slices](docs/design/greenfield/post-h1-completion-slices.md);
+- [current slice-packet index](docs/design/greenfield/slices/README.md).
+
+The emitter architecture, schedule, and selected ready packet are the current
+Rust implementation route; the schedule is the live status authority. Read
+frozen contracts and historical plans only when that route names them. Those
+predecessor/evidence references include:
+
 - [definition of done](docs/design/greenfield/definition-of-done.md);
 - [H0 filesystem-hosted no-emit contract](docs/design/greenfield/noemit-cli.md);
 - [H1 JavaScript emit contract](docs/design/greenfield/h1-emit.md);
-- [post-H1 completion slices](docs/design/greenfield/post-h1-completion-slices.md);
 - [persistent Program and incremental-parser design](docs/design/greenfield/lsp-and-incremental.md);
 - [M8 execution and close contract](docs/design/greenfield/m8-execution-and-close.md);
 - [M9 execution and close contract](docs/design/greenfield/m9-execution-and-close.md); and
@@ -332,10 +355,11 @@ Sharing the Program/resolution invalidation layer keeps builder/watch and
 service work from growing separate caches with incompatible stale-state rules.
 The branch-sized order and per-slice gates are fixed by the
 [post-H1 completion slices](docs/design/greenfield/post-h1-completion-slices.md);
-the audited
+it owns the detailed finish lines and dependency order. The audited
 [compiler compatibility residual](docs/design/greenfield/compiler-compatibility-residual.md)
-and [LSP/incremental design](docs/design/greenfield/lsp-and-incremental.md)
-define the detailed finish lines. Ordinary GitHub CI remains the single
+is historical owner/gap input, while the
+[LSP/incremental design](docs/design/greenfield/lsp-and-incremental.md) owns the
+L2-L5 data and lifetime architecture. Ordinary GitHub CI remains the single
 `cargo xtask acceptance` entrypoint while the complete gate remains local.
 
 H0.0 now freezes the 241 exact host-resolution identities in a dedicated
@@ -479,7 +503,7 @@ profile and fail closed.
 | H0 | Complete (frozen single-project no-emit profile; 241/241 host rows, 7,276/7,276 compiler plans, 82/82 compatible project plans, exact CLI/program oracles) | Filesystem-hosted `--noEmit`: program construction, config/CLI, embedded libraries, rendering, and exit behavior |
 | L0/L1 | Complete and performance-qualified | Shared text/position snapshots, domain-scoped identity leases, owned bind/Program snapshots, immutable incremental parsing/rebinding, registry reuse, exact fresh equivalence, reclamation stress, and approved large-edit evidence |
 | H1 | Complete and performance-qualified (H1.0a–H1.6) | Bounded `ESNext`/`Preserve` whole-Program `.ts` JavaScript emit is exact and fail-closed |
-| H2 | H2.0a/H2.0b, H2.1a–H2.1e module formats, H2.2a–H2.2d TypeScript transforms, H2.3a JavaScript/JSX/JSON source-output families, and H2.4a legacy decorators complete; H2.4b standard decorators and class fields next | [Branch-sized broad one-shot compiler slices](docs/design/greenfield/post-h1-completion-slices.md), with 318 fully exact rows, 688 exact reported diagnostics, 413 exact writes, 5 output-exact diagnostic controls, one parser-owned source deferral, 19 legacy-decorator and 14 JSON owner controls, all five JSX modes, and immutable H0/H1/L1/resource lineage |
+| H2 | H2.0a/H2.0b, H2.1a–H2.1e module formats, H2.2a–H2.2d TypeScript transforms, H2.3a–H2.3d JavaScript/JSX/JSON source-output families, H2.4a/H2.4b decorators/class fields, H2.5a ESNext lowering, H2.5b ES2021 lowering, H2.5c ES2020 lowering, H2.5d ES2019 lowering, H2.5e ES2018 lowering, and H2.5f ES2017 lowering complete; H2.5g ES2016 lowering in progress and not yet qualified | [Canonical progress and branch-sized broad one-shot compiler slices](docs/design/greenfield/post-h1-completion-slices.md), with this mirror retaining the last frozen H2.5f counts: 680 fully exact rows, 1,395 exact reported diagnostics, 974 exact writes, 5 output-exact diagnostic controls, fifteen explicit later-owned source deferrals, 21 ES2017-transform, 30 ES2018-transform, 20 ES2019-transform, 26 ES2020-transform, 20 ES2021-transform, 20 ESNext-transform, 19 legacy-decorator, 19 standard-decorator/class-field, and 14 JSON owner controls, all five JSX modes, and immutable H0/H1/L1/resource lineage |
 
 The exact accepted-state summary below is generated by
 `cargo xtask readme-status` and must not be edited by hand.

@@ -1,6 +1,6 @@
 use tsc_binder::bind_source_file;
 use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
-use tsc_types::{CompilerOptions, LiteralValue, TemplateText, TypeData};
+use tsc_types::{CheckFlags, CompilerOptions, LiteralValue, TemplateText, TypeData};
 
 use crate::relpin::find_probe_annotation;
 use crate::relpin::{probe_relation, RelpinQuery, RelpinRelation, RelpinVerdict};
@@ -22,6 +22,64 @@ fn probe(
         relation,
         options: &options,
     })
+}
+
+#[test]
+fn union_intersection_property_with_many_constituents_stays_deferred_until_observed() {
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "declare let value: { p?: \"a\" } & { p?: \"b\" } & { p?: \"c\" };\n",
+        )],
+        &CompilerOptions::default(),
+        |state| {
+            let annotation =
+                find_probe_annotation(state.binder.source(0), "value").expect("annotation");
+            let intersection = state
+                .get_type_from_type_node(annotation)
+                .expect("intersection type");
+            let property = state
+                .get_union_or_intersection_property(
+                    intersection,
+                    "p",
+                    /*skip_object_function_property_augment*/ false,
+                )
+                .expect("property lookup")
+                .expect("p property");
+
+            assert!(state
+                .get_check_flags(property)
+                .intersects(CheckFlags::DEFERRED_TYPE));
+            assert!(state
+                .links
+                .symbol(property)
+                .type_of_symbol
+                .resolved()
+                .is_none());
+
+            // Optional properties cannot make an intersection `never`, so
+            // getReducedType observes the flags without forcing its type.
+            assert_eq!(
+                state.get_reduced_type(intersection),
+                Ok(intersection),
+                "optional deferred property does not reduce the intersection"
+            );
+            assert!(state
+                .links
+                .symbol(property)
+                .type_of_symbol
+                .resolved()
+                .is_none());
+
+            let resolved = state
+                .get_type_of_symbol(property)
+                .expect("deferred property type");
+            assert_eq!(
+                state.links.symbol(property).type_of_symbol.resolved(),
+                Some(resolved)
+            );
+        },
+    );
 }
 
 #[test]
@@ -355,6 +413,46 @@ fn conditional_source_and_target_relations_are_live() {
                     .is_type_assignable_to(inferred_source, inferred_target)
                     .expect("conditional-pair relation"),
                 "matching infer parameters compare through the parked relation frame"
+            );
+        },
+    );
+}
+
+#[test]
+fn resolving_return_type_short_circuits_recursive_signature_comparison() {
+    crate::state::test_support::with_program_state(
+        &[(
+            "a.ts",
+            "class A<T> { unmeasurableUsage!: { [K in keyof T]-?: T[K] }; }\n\
+             class B<T> extends A<T> {\n\
+                 method(): string | (this extends C ? undefined : null) { return \"\"; }\n\
+             }\n\
+             class C<T = any> extends B<T> { marker!: string; }\n\
+             const x = new C<{}>();\n\
+             const y = x.method();\n",
+        )],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            assert!(
+                state
+                    .diagnostics
+                    .iter()
+                    .all(|diagnostic| diagnostic.file_name.is_none()),
+                "{:?}",
+                state.diagnostics
+            );
+
+            let y = state
+                .resolve_file_scope_name("y", tsc_types::SymbolFlags::VARIABLE)
+                .expect("y resolves");
+            let y_type = state.get_type_of_symbol(y).expect("y type resolves");
+            assert_eq!(
+                state.type_to_string_slice(y_type).expect("y type renders"),
+                "string | undefined"
             );
         },
     );
@@ -1900,6 +1998,36 @@ fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
         error_chains(
             &[(
                 "a.ts",
+                "class Foo { constructor(x: number) {} }\n\
+                     const foo: { new(): Foo } = Foo;\n",
+            )],
+            &strict,
+        ),
+        [vec![
+            (
+                2322,
+                "Type 'typeof Foo' is not assignable to type 'new () => Foo'.".to_owned(),
+            ),
+            (
+                2419,
+                "Types of construct signatures are incompatible.".to_owned(),
+            ),
+            (
+                2322,
+                "Type 'new (x: number) => Foo' is not assignable to type 'new () => Foo'."
+                    .to_owned(),
+            ),
+            (
+                2849,
+                "Target signature provides too few arguments. Expected 1 or more, but got 0."
+                    .to_owned(),
+            ),
+        ]]
+    );
+    assert_eq!(
+        error_chains(
+            &[(
+                "a.ts",
                 "interface Array<T> { [index: number]: T }\n\
                      let x = [{ a: 1, b: 2 }, { a: \"abc\" }, {}][0];\n\
                      x = { a: \"value\", b: 1 };\n",
@@ -2021,6 +2149,41 @@ fn relation_reporting_keeps_union_keyof_and_class_member_failure_levels() {
                 ),
             ],
         ]
+    );
+
+    assert_eq!(
+        error_chains(
+            &[(
+                "a.ts",
+                "class Base { fn() { return 10; } }\n\
+                     class Derived extends Base {\n\
+                         fn() { return 10 as number | string; }\n\
+                     }\n",
+            )],
+            &strict,
+        ),
+        [vec![
+            (
+                2416,
+                "Property 'fn' in type 'Derived' is not assignable to the same property in base \
+                     type 'Base'."
+                    .to_owned(),
+            ),
+            (
+                2322,
+                "Type '() => number | string' is not assignable to type '() => number'.".to_owned(),
+            ),
+            (
+                2322,
+                "Type 'string | number' is not assignable to type 'number'.".to_owned(),
+            ),
+            (
+                2322,
+                "Type 'string' is not assignable to type 'number'.".to_owned(),
+            ),
+        ]],
+        "the outer signature keeps a single return assertion's syntax while the nested \
+         relation keeps the canonical semantic union"
     );
 
     assert_eq!(

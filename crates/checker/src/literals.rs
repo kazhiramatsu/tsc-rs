@@ -23,8 +23,8 @@ use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    AccessFlags, CheckFlags, CheckMode, ContextFlags, ElementFlags, ObjectFlags, SymbolFlags,
-    TypeData, TypeFlags, TypeId, UnionReduction,
+    AccessFlags, CheckFlags, CheckMode, ContextFlags, ElementFlags, NodeCheckFlags, ObjectFlags,
+    SymbolFlags, TypeData, TypeFlags, TypeId, UnionReduction,
 };
 
 use crate::state::{CheckResult, CheckerState, IndexInfo};
@@ -428,11 +428,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:74061-74082
     ///
     /// The result caches on the EXPRESSION node's resolvedType slot
-    /// (74062). The class-expression-property loop-capture side-effect
-    /// (LoopWithCapturedBlockScopedBinding/BlockScopedBindingInLoop
-    /// nodeCheckFlags, 74067-74074) is emit-marking — elided, no
-    /// diagnostic reads those bits. The cache write is guarded like
-    /// checkExpressionCached: a re-entrant inner fill wins the slot.
+    /// (74062). A computed instance property in a class expression inside an
+    /// iteration also records its checker-owned emit placement facts. The
+    /// cache write is guarded like checkExpressionCached: a re-entrant inner
+    /// fill wins the slot.
     pub(crate) fn check_computed_property_name(&mut self, node: NodeId) -> CheckResult<TypeId> {
         let expression = match self.data_of(node) {
             NodeData::ComputedPropertyName(data) => data.expression,
@@ -488,6 +487,33 @@ impl<'a> CheckerState<'a> {
                 expression,
                 crate::links::LinkSlot::Resolved(ty),
             );
+        }
+        if parent.is_some_and(|parent| {
+            self.kind_of(parent) == SyntaxKind::PropertyDeclaration
+                && !self.has_static_modifier(parent)
+        }) && grandparent
+            .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::ClassExpression)
+        {
+            let class_expression = grandparent.expect("class expression grandparent");
+            if let Some(container) = self.get_enclosing_block_scope_container(class_expression) {
+                if let Some(iteration) = self.get_enclosing_iteration_statement(container) {
+                    self.links.or_node_check_flags(
+                        self.speculation_depth,
+                        iteration,
+                        NodeCheckFlags::LOOP_WITH_CAPTURED_BLOCK_SCOPED_BINDING,
+                    );
+                    self.links.or_node_check_flags(
+                        self.speculation_depth,
+                        node,
+                        NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP,
+                    );
+                    self.links.or_node_check_flags(
+                        self.speculation_depth,
+                        class_expression,
+                        NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP,
+                    );
+                }
+            }
         }
         let nullable = self.tables.flags_of(ty).intersects(TypeFlags::NULLABLE);
         let legal = if nullable {

@@ -9,7 +9,7 @@ use tsc_host::{to_file_name_lower_case, CompilerHost, HostError};
 use tsc_types::CompilerOptions;
 
 use crate::json::{json_object_get, parse_json_object};
-use crate::library::LibraryCatalog;
+use crate::library::{replacement_package_name, LibraryCatalog};
 use crate::module_requests::{
     is_declaration_file_name, plan_source_requests, PlannedLibReferenceDirective,
     PlannedPathReference, PlannedTypeReferenceDirective,
@@ -167,6 +167,7 @@ pub enum ProgramLoadOperation {
     PlanSourceRequests,
     DiscoverAutomaticTypes,
     ResolveTypeReference,
+    ResolveLibrary,
     ResolveModule,
     BindResolutions,
     BuildPreparedProgram,
@@ -185,6 +186,7 @@ impl ProgramLoadOperation {
             Self::PlanSourceRequests => "plan source requests",
             Self::DiscoverAutomaticTypes => "discover automatic type directives",
             Self::ResolveTypeReference => "resolve type-reference directive",
+            Self::ResolveLibrary => "resolve standard-library replacement",
             Self::ResolveModule => "resolve module request",
             Self::BindResolutions => "bind authoritative resolutions",
             Self::BuildPreparedProgram => "build loaded prepared program",
@@ -616,6 +618,20 @@ fn load_program_worker(
                     error,
                 )
             })?;
+    // tsc resolves replacement libraries with an isolated Node10 option set;
+    // ordinary module options such as paths, baseUrl, moduleSuffixes, and
+    // package exports must not influence this lookup.
+    let library_resolution_options = CompilerOptions {
+        module_resolution: Some(2),
+        ..CompilerOptions::default()
+    };
+    let mut library_resolver = (compiler_options.lib_replacement == Some(true)
+        && program_options.no_lib() != Some(true))
+    .then(|| ModuleResolver::new(host, &library_resolution_options))
+    .transpose()
+    .map_err(|error| {
+        ProgramLoadError::resolution(ProgramLoadOperation::InitializeResolver, None, None, error)
+    })?;
     let path_context = resolver.path_context().clone();
     validate_type_roots(&program_options, &path_context)?;
     let library_directory = if program_options.no_lib() == Some(true) {
@@ -627,15 +643,16 @@ fn load_program_worker(
         )?)
     };
 
-    let mut graph = StagedGraph::new(
+    let mut graph = StagedGraph::new(StagedGraphConfig {
         host,
-        &compiler_options,
-        &program_options,
+        compiler_options: &compiler_options,
+        program_options: &program_options,
         library_catalog,
         library_directory,
         limits,
-        &mut resolver,
-    );
+        resolver: &mut resolver,
+        library_resolver: library_resolver.as_mut(),
+    });
     for (index, root_name) in root_names.iter().enumerate() {
         let root_spelling = root_name.clone();
         let root = normalize_root(root_name, &path_context)?;
@@ -651,11 +668,19 @@ fn load_program_worker(
         }
     }
     let staged = graph.finish();
-    let packages = resolver
-        .observed_package_metadata()
-        .cloned()
-        .collect::<Vec<_>>();
+    let mut packages_by_path = BTreeMap::new();
+    for package in resolver.observed_package_metadata().chain(
+        library_resolver
+            .iter()
+            .flat_map(|resolver| resolver.observed_package_metadata()),
+    ) {
+        packages_by_path
+            .entry(package.package_json().canonical().clone())
+            .or_insert_with(|| package.clone());
+    }
+    let packages = packages_by_path.into_values().collect::<Vec<_>>();
     drop(resolver);
+    drop(library_resolver);
 
     publish_program(
         mode,
@@ -979,7 +1004,30 @@ impl DiscoveryReason {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SourceClass {
     Ordinary,
-    Library,
+    Library { priority: usize, replacement: bool },
+}
+
+impl SourceClass {
+    const fn library_priority(self) -> Option<usize> {
+        match self {
+            Self::Ordinary => None,
+            Self::Library { priority, .. } => Some(priority),
+        }
+    }
+
+    const fn is_library(self) -> bool {
+        self.library_priority().is_some()
+    }
+
+    const fn is_replacement(self) -> bool {
+        matches!(
+            self,
+            Self::Library {
+                replacement: true,
+                ..
+            }
+        )
+    }
 }
 
 struct StagedSource {
@@ -992,7 +1040,11 @@ struct StagedSource {
     inclusion_reasons: Vec<SourceInclusionReason>,
     alternate_inclusion_reasons: Vec<(PathBuf, SourceInclusionReason)>,
     has_non_external_reason: bool,
-    class: SourceClass,
+    /// Program-owned default-library membership is independent of how the
+    /// source first entered the graph. A replacement declaration may already
+    /// be an explicit root when a later lib lookup selects the same identity.
+    library_priority: Option<usize>,
+    library_replacement: bool,
     path_references: Vec<PlannedPathReference>,
     type_reference_directives: Vec<PlannedTypeReferenceDirective>,
     lib_reference_directives: Vec<PlannedLibReferenceDirective>,
@@ -1002,6 +1054,18 @@ struct StagedSource {
     modules_with_elided_imports: bool,
     processing_references: bool,
     pending_reprocesses: VecDeque<SourceReprocess>,
+}
+
+impl StagedSource {
+    const fn source_class(&self) -> SourceClass {
+        match self.library_priority {
+            Some(priority) => SourceClass::Library {
+                priority,
+                replacement: self.library_replacement,
+            },
+            None => SourceClass::Ordinary,
+        }
+    }
 }
 
 /// A pair of distinct source identities that collide only under tsc's
@@ -1068,6 +1132,8 @@ struct StagedGraph<'host, 'options, 'resolver> {
     library_directory: Option<ProgramPath>,
     limits: ProgramLoadLimits,
     resolver: &'resolver mut ModuleResolver<'host>,
+    library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
+    resolved_library_paths: BTreeMap<String, ProgramPath>,
     states: BTreeMap<CanonicalPath, VisitState>,
     package_id_to_source: BTreeMap<PackageId, usize>,
     files_by_name_ignore_case: BTreeMap<String, usize>,
@@ -1087,24 +1153,32 @@ struct StagedGraph<'host, 'options, 'resolver> {
     total_source_bytes: usize,
 }
 
+/// Immutable and borrowed inputs for one staged graph. Keeping this boundary
+/// typed avoids a positional constructor with unrelated resolver, option, and
+/// resource arguments while preserving the loader's separate lifetimes.
+struct StagedGraphConfig<'host, 'options, 'resolver> {
+    host: &'host dyn CompilerHost,
+    compiler_options: &'options CompilerOptions,
+    program_options: &'options ProgramOptions,
+    library_catalog: Option<&'options LibraryCatalog>,
+    library_directory: Option<ProgramPath>,
+    limits: ProgramLoadLimits,
+    resolver: &'resolver mut ModuleResolver<'host>,
+    library_resolver: Option<&'resolver mut ModuleResolver<'host>>,
+}
+
 impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
-    fn new(
-        host: &'host dyn CompilerHost,
-        compiler_options: &'options CompilerOptions,
-        program_options: &'options ProgramOptions,
-        library_catalog: Option<&'options LibraryCatalog>,
-        library_directory: Option<ProgramPath>,
-        limits: ProgramLoadLimits,
-        resolver: &'resolver mut ModuleResolver<'host>,
-    ) -> Self {
+    fn new(config: StagedGraphConfig<'host, 'options, 'resolver>) -> Self {
         Self {
-            host,
-            compiler_options,
-            program_options,
-            library_catalog,
-            library_directory,
-            limits,
-            resolver,
+            host: config.host,
+            compiler_options: config.compiler_options,
+            program_options: config.program_options,
+            library_catalog: config.library_catalog,
+            library_directory: config.library_directory,
+            limits: config.limits,
+            resolver: config.resolver,
+            library_resolver: config.library_resolver,
+            resolved_library_paths: BTreeMap::new(),
             states: BTreeMap::new(),
             package_id_to_source: BTreeMap::new(),
             files_by_name_ignore_case: BTreeMap::new(),
@@ -1533,14 +1607,18 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             }
         };
         for (file_name, reason) in selected {
-            let path = self.library_path(file_name)?;
+            let catalog_path = self.catalog_library_path(file_name)?;
+            let path = self.resolved_library_path(file_name)?;
             if self
                 .visit_source(
                     path.clone(),
                     0,
                     0,
                     DiscoveryReason::dependency(SourceInclusionReason::Library),
-                    SourceClass::Library,
+                    SourceClass::Library {
+                        priority: catalog.file_name_priority(file_name),
+                        replacement: path.canonical() != catalog_path.canonical(),
+                    },
                 )?
                 .is_none()
                 && self
@@ -1619,27 +1697,20 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             .postorder
             .iter()
             .copied()
-            .filter(|&source| self.sources[source].class == SourceClass::Library)
+            .filter(|&source| self.sources[source].library_priority.is_some())
             .collect::<Vec<_>>();
         if !library_postorder.is_empty() {
-            let catalog = self
-                .library_catalog
-                .expect("a library source requires an injected catalog");
-            let directory = self
-                .library_directory
-                .as_ref()
-                .expect("a library source requires a normalized catalog directory")
-                .display();
             library_postorder.sort_by_key(|&source| {
-                let path = self.sources[source].prepared.path().display();
-                catalog.priority(directory, path)
+                self.sources[source]
+                    .library_priority
+                    .expect("filtered library source has a stable priority")
             });
         }
         let ordinary_postorder = self
             .postorder
             .iter()
             .copied()
-            .filter(|&source| self.sources[source].class == SourceClass::Ordinary)
+            .filter(|&source| self.sources[source].library_priority.is_none())
             .collect();
         CompleteGraph {
             sources: self.sources,
@@ -1839,7 +1910,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             inclusion_reasons: vec![reason.inclusion.clone()],
             alternate_inclusion_reasons: Vec::new(),
             has_non_external_reason: reason.seeds_non_external_reachability,
-            class,
+            library_priority: class.library_priority(),
+            library_replacement: class.is_replacement(),
             path_references,
             type_reference_directives,
             lib_reference_directives,
@@ -1876,7 +1948,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.states
             .insert(path.canonical().clone(), VisitState::Visiting(source));
 
-        if self.sources[source].class == SourceClass::Library
+        if self.sources[source].library_priority.is_some()
             && !self.sources[source].path_references.is_empty()
         {
             return Err(ProgramLoadError::unsupported(
@@ -1924,16 +1996,37 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 .alternate_inclusion_reasons
                 .push((path.display().to_path_buf(), reason.inclusion.clone()));
         }
-        if self.sources[source].class != class {
+        let existing_class = self.sources[source].source_class();
+        if existing_class.is_library() != class.is_library()
+            && !existing_class.is_replacement()
+            && !class.is_replacement()
+        {
             return Err(ProgramLoadError::unsupported(
                 ProgramLoadOperation::ReadSource,
                 Some(path.display().to_path_buf()),
                 "library-source-classification-collision",
                 format!(
-                    "the source was first discovered as {:?} and later requested as {:?}",
-                    self.sources[source].class, class
+                    "the source was first discovered as {existing_class:?} and later requested as {class:?}"
                 ),
             ));
+        }
+        if let Some(priority) = class.library_priority() {
+            if self.sources[source].library_priority.is_none()
+                && !self.sources[source].path_references.is_empty()
+            {
+                return Err(ProgramLoadError::unsupported(
+                    ProgramLoadOperation::PlanSourceRequests,
+                    Some(path.display().to_path_buf()),
+                    "default-library-path-references",
+                    "a source promoted to default-library membership already has path-reference descendants whose checker-visible membership cannot be represented",
+                ));
+            }
+            self.sources[source].library_priority = Some(
+                self.sources[source]
+                    .library_priority
+                    .map_or(priority, |existing| existing.min(priority)),
+            );
+            self.sources[source].library_replacement |= class.is_replacement();
         }
         let reprocess = {
             let staged = &mut self.sources[source];
@@ -2058,7 +2151,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
         self.process_module_requests(source, requests, depth, node_modules_depth)
     }
 
-    fn library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
+    fn catalog_library_path(&self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
         let directory = self
             .library_directory
             .as_ref()
@@ -2088,6 +2181,82 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 error,
             )
         })
+    }
+
+    /// Resolve a logical TypeScript library through `@typescript/lib-*` and
+    /// retain the catalog path as the ordinary miss fallback. The synthetic
+    /// containing file fixes node_modules ancestry without becoming a source
+    /// or a module-resolution row in the prepared Program.
+    ///
+    /// tsc-port: getInferredLibraryNameResolveFrom @6.0.3
+    /// tsc-hash: 3b0042413535c17a745ef10495c1a068db91f949611f8459cc5cf5d678d103b4
+    /// tsc-span: _tsc.js:122398-122401
+    /// tsc-port: pathForLibFileWorker @6.0.3
+    /// tsc-hash: 55c88bbf3d28be6acc2005e67cc61be44ab47825d457b1455253b597d75bb258
+    /// tsc-span: _tsc.js:124526-124573
+    fn resolved_library_path(&mut self, file_name: &str) -> Result<ProgramPath, ProgramLoadError> {
+        if let Some(path) = self.resolved_library_paths.get(file_name) {
+            return Ok(path.clone());
+        }
+        let fallback = self.catalog_library_path(file_name)?;
+        let actual = if self.compiler_options.lib_replacement == Some(true) {
+            let base = self.program_options.config_file_path().map_or_else(
+                || {
+                    self.resolver
+                        .path_context()
+                        .current_directory()
+                        .display()
+                        .to_str()
+                        .expect("program current directory is Unicode")
+                        .to_owned()
+                },
+                |config| {
+                    directory_name(
+                        config
+                            .display()
+                            .to_str()
+                            .expect("program config path is Unicode"),
+                    )
+                },
+            );
+            let synthetic_name = format!("__lib_node_modules_lookup_{file_name}__.ts");
+            let resolve_from = normalize_absolute_path(Path::new(&synthetic_name), Some(&base))
+                .map_err(|error| {
+                    ProgramLoadError::resolution(
+                        ProgramLoadOperation::ResolveLibrary,
+                        Some(PathBuf::from(base.as_str())),
+                        Some(replacement_package_name(file_name)),
+                        error,
+                    )
+                })?;
+            let package_name = replacement_package_name(file_name);
+            let resolution = self
+                .library_resolver
+                .as_deref_mut()
+                .expect("libReplacement=true initializes the library resolver")
+                .resolve(
+                    Path::new(&resolve_from),
+                    &package_name,
+                    ResolutionMode::Unspecified,
+                )
+                .map_err(|error| {
+                    ProgramLoadError::resolution(
+                        ProgramLoadOperation::ResolveLibrary,
+                        Some(PathBuf::from(resolve_from.as_str())),
+                        Some(package_name.clone()),
+                        error,
+                    )
+                })?;
+            match resolution {
+                ResolutionOutcome::Resolved(module) => module.resolved_file().clone(),
+                ResolutionOutcome::NotFound => fallback,
+            }
+        } else {
+            fallback
+        };
+        self.resolved_library_paths
+            .insert(file_name.to_owned(), actual.clone());
+        Ok(actual)
     }
 
     fn process_lib_references(
@@ -2120,13 +2289,17 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 )?);
                 continue;
             };
-            let target = self.library_path(file_name)?;
+            let target = self.resolved_library_path(file_name)?;
+            let catalog_path = self.catalog_library_path(file_name)?;
             match self.visit_source(
                 target.clone(),
                 depth.saturating_add(1),
                 node_modules_depth,
                 DiscoveryReason::dependency(SourceInclusionReason::Library),
-                SourceClass::Library,
+                SourceClass::Library {
+                    priority: catalog.file_name_priority(file_name),
+                    replacement: target.canonical() != catalog_path.canonical(),
+                },
             )? {
                 Some(target_source) if target_source == source => {
                     self.program_diagnostics.push(located_diagnostic(
@@ -2280,7 +2453,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     pos: reference.pos(),
                     end: reference.end(),
                 }),
-                self.sources[source].class,
+                self.sources[source].source_class(),
             )?;
             match target_source {
                 Some(target_source) if target_source == source => {
@@ -2329,7 +2502,7 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                     pos: reference.pos(),
                     end: reference.end(),
                 }),
-                self.sources[source].class,
+                self.sources[source].source_class(),
             )? {
                 self.record_source_edge(source, target_source, false);
                 if target_source == source {
@@ -2540,6 +2713,20 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             };
             let child_node_modules_depth = node_modules_depth.saturating_add(usize::from(external));
+            if let Some(reason) = resolution_diagnostic_unloaded_reason(
+                &extension,
+                self.compiler_options,
+                containing_file_is_declaration,
+                loads_source,
+            ) {
+                // createProgram records the successful resolution, but a
+                // getResolutionDiagnostic result prevents findSourceFile.
+                // Retain that distinction as typed graph-admission state so
+                // the checker can report the resolution diagnostic without
+                // treating the absent source as a failed module lookup.
+                self.module_resolutions[index].unloaded_reason = Some(reason);
+                continue;
+            }
             if extension.is_javascript() {
                 // tsc records the reprocessing latch from depth elision before
                 // checking whether this occurrence can add a source. That is
@@ -2574,15 +2761,6 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
                 continue;
             }
             if !loads_source {
-                continue;
-            }
-            if is_arbitrary_declaration_extension(&extension)
-                && self.compiler_options.allow_arbitrary_extensions != Some(true)
-                && !containing_file_is_declaration
-            {
-                // The resolution row remains authoritative so the diagnostic
-                // layer can report TS6263, but createProgram does not add the
-                // declaration twin to source membership in this case.
                 continue;
             }
             // Resolver-owned external symlink handling has already replaced
@@ -2744,7 +2922,7 @@ fn publish_program(
         let source_id = builder.add_source_file(prepared.clone()).map_err(|error| {
             ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
         })?;
-        if staged_source.class == SourceClass::Library {
+        if staged_source.library_priority.is_some() {
             builder.add_library_file(source_id).map_err(|error| {
                 ProgramLoadError::preparation(ProgramLoadOperation::BuildPreparedProgram, error)
             })?;
@@ -2886,20 +3064,19 @@ fn bind_module_resolution(
             resolved_file: module.resolved_file().clone(),
             reason: unloaded_reason.unwrap_or(UnloadedModuleReason::NoResolve),
         }
-    } else if module.extension().is_javascript() && owned_source.is_none() {
-        let reason = unloaded_reason.ok_or_else(|| {
-            ResolutionError::unsupported(
-                "unexplained-unloaded-javascript",
-                format!(
-                    "resolved JavaScript target {} has no source-membership exclusion",
-                    module.resolved_file().display().display()
-                ),
-            )
-        })?;
+    } else if let (None, Some(reason)) = (owned_source, unloaded_reason) {
         ResolvedModuleTarget::Unloaded {
             resolved_file: module.resolved_file().clone(),
             reason,
         }
+    } else if module.extension().is_javascript() && owned_source.is_none() {
+        return Err(ResolutionError::unsupported(
+            "unexplained-unloaded-javascript",
+            format!(
+                "resolved JavaScript target {} has no source-membership exclusion",
+                module.resolved_file().display().display()
+            ),
+        ));
     } else if is_arbitrary_declaration_extension(module.extension()) && owned_source.is_none() {
         ResolvedModuleTarget::Unloaded {
             resolved_file: module.resolved_file().clone(),
@@ -3071,6 +3248,35 @@ fn path_contains_node_modules(path: &Path) -> bool {
         .is_some_and(|path| path.split('/').any(|component| component == "node_modules"))
 }
 
+/// tsc-port: getResolutionDiagnostic @6.0.3 (source-admission projection)
+/// tsc-hash: 6a5b5f0cdb2e104edc5249432808de1d68f96a32df84f5d0437d28669a348431
+/// tsc-span: _tsc.js:125687-125721
+///
+/// A successful resolution can still carry a diagnostic that prevents
+/// `processImportedModules` from calling `findSourceFile`. Keep that verdict
+/// separate from extension loadability: `.tsx` is ordinarily a TypeScript
+/// source, yet without a JSX mode it is resolution-only just like `.jsx`.
+fn resolution_diagnostic_unloaded_reason(
+    extension: &ModuleExtension,
+    options: &CompilerOptions,
+    containing_file_is_declaration: bool,
+    loads_source: bool,
+) -> Option<UnloadedModuleReason> {
+    match extension {
+        ModuleExtension::Tsx | ModuleExtension::Jsx if options.jsx.unwrap_or(0) == 0 => {
+            Some(UnloadedModuleReason::JsxWithoutJsxOption)
+        }
+        ModuleExtension::Arbitrary(_)
+            if loads_source
+                && !containing_file_is_declaration
+                && options.allow_arbitrary_extensions != Some(true) =>
+        {
+            Some(UnloadedModuleReason::ArbitraryExtensionWithoutOption)
+        }
+        _ => None,
+    }
+}
+
 fn unloaded_javascript_reason(
     extension: &ModuleExtension,
     options: &CompilerOptions,
@@ -3082,9 +3288,6 @@ fn unloaded_javascript_reason(
 ) -> Option<UnloadedModuleReason> {
     if !extension.is_javascript() {
         return None;
-    }
-    if matches!(extension, ModuleExtension::Jsx) && options.jsx.unwrap_or(0) == 0 {
-        return Some(UnloadedModuleReason::JsxWithoutJsxOption);
     }
     if !loads_source {
         return Some(UnloadedModuleReason::ResolutionOnly);

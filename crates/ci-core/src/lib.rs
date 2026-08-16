@@ -1,0 +1,91 @@
+//! Pure, repository-independent Functional-CI value seams.
+//!
+//! FCI-1a intentionally contains inert identifiers and input references only.
+//! Canonical encoding, hashing, graph evaluation, effects, and authority are
+//! introduced by later dependency-ordered packets.
+
+#![forbid(unsafe_code)]
+
+mod adapter;
+mod canonical;
+mod digest;
+mod explain;
+mod graph;
+mod graph_schema;
+mod graph_validation;
+mod hash;
+mod identity;
+mod ids;
+mod impact;
+mod input;
+mod inventory;
+mod membership;
+mod model;
+mod registry;
+
+pub use adapter::{
+    AdapterDescriptorError, AdapterDescriptorSetV1, AdapterDescriptorV1, AdapterIdV1,
+};
+pub use canonical::{
+    decode_canonical, decode_object_with_keys, BoundedBytesSink, CanonicalDecoder, CanonicalEncode,
+    CanonicalError, CanonicalSink, CanonicalValue, DecodeError, StrictJsonDecoder,
+};
+pub use digest::{
+    ActionKeyV1, AdapterRegistryDigestV1, ApplicationNamespaceDigestV1, AuthorityReceiptDigestV1,
+    BuildArtifactIdV1, ConflictRegistryDigestV1, GraphDigestV1, InputDigestV1, ObjectDigestV1,
+    OutcomeDigestV1, PublicationEventDigestV1,
+};
+pub use explain::{
+    shortest_reason_paths, validate_budget, BudgetError, BudgetFieldV1, ExplanationError,
+    MissDifferenceV1, MissFieldV1, PlanSets, PlanningBudgetV1, PlanningObservationV1, ReasonPath,
+    WhyMiss,
+};
+pub use graph::{
+    ActionRecord, AdapterInstanceRefV1, CompleteMembership, CompositeProfileV1, InstanceIdV1,
+    NodeClass, NodeRecord, PendingMembership, RootRecord,
+};
+pub use graph_schema::{ActionGraph, GraphSchemaError};
+pub use graph_validation::{
+    validate_declared_closures, validate_global_id_sets, validate_graph, ActionProposal,
+    ClosureRecord, DerivedProposal, EvaluationPlan, ExecutionProposal, GraphValidationError,
+    RootProposal, ValidatedGraph,
+};
+pub use hash::{
+    hash_action_key, hash_adapter_registry, hash_application_namespace, hash_authority_receipt,
+    hash_build_artifact, hash_conflict_registry, hash_graph, hash_input, hash_object, hash_outcome,
+    hash_publication_event,
+};
+pub use identity::{
+    BuildComponentSetV1, BuildComponentV1, DisclosureEntryV1, DisclosureError, DisclosureHistoryV1,
+    EvidenceAudienceV1, ExecutionPlatformV1, FilesystemAccessV1, IdentityError, InvocationIdV1,
+    InvocationIdentityV1, NetworkAccessV1, PlatformTokenV1, ProcessObservationStatusV1,
+    ProcessObservationV1, PublicEnvironmentEntryV1, ReuseScopeV1, SandboxCapabilitiesV1,
+    SecretFreeEnvironmentV1, ToolIdV1, ToolRefV1, ToolRoleV1, ToolchainSetV1,
+};
+pub use ids::{
+    validate_namespace_lineage, validate_rename, ApplicationNamespaceV1, ImplementationIdV1,
+    NamespaceError, NamespaceLineageV1, ProtocolDomainTagV1, ProtocolDomainV1, SchemaIdV1,
+};
+pub use impact::{
+    compare_graphs, digest_graph, validate_graph_transition, GraphTransitionV1, ImpactError,
+    ImpactPlan, TransitionApprovalV1, TransitionChangeV1, TransitionDecisionV1, TransitionError,
+    TrustBindingV1, TrustRootError, TrustRootV1,
+};
+pub use input::CanonicalInputRefV1;
+pub use inventory::{
+    BuildSystemOwnershipV1, CollisionKindV1, GeneratedOwnershipV1, GlobalDispositionV1,
+    InventoryEntryV1, InventoryError, NegativeLookupV1, NormalizedPathV1, PathCollisionV1,
+    UnknownInputPolicyV1, WorkspaceInventorySpecV1,
+};
+pub use membership::{
+    complete_adapter_input, complete_composite_input, CompleteAdapterInput, CompleteCompositeInput,
+    MembershipError,
+};
+pub use model::{
+    ActionModel, AdapterInvariantError, AdapterVerdict, CandidateVerificationError, DerivedVerdict,
+    LeafVerdict, ModelError, VerdictCode,
+};
+pub use registry::{
+    AdapterCodec, AdapterDecodeError, AdapterRegistration, AdapterRegistryBuilder, RegistryError,
+    VerifiedAdapterRegistry,
+};

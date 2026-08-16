@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/acceptance-failure.v1.schema.json",
+  "title": "tsc-rs acceptance slice failure classification",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "slice",
+    "class",
+    "retry",
+    "input_sha256",
+    "message_sha256",
+    "message",
+    "message_bytes",
+    "truncated"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "acceptance-failure" },
+    "slice": {
+      "enum": [
+        "conformance",
+        "h1",
+        "h2-1a",
+        "h2-1b",
+        "h2-1c",
+        "h2-1d",
+        "h2-1e",
+        "h2-2a",
+        "h2-2b",
+        "h2-2c",
+        "h2-2d",
+        "h2-3a",
+        "h2-3b",
+        "h2-3c",
+        "h2-3d",
+        "h2-4a",
+        "h2-4b",
+        "h2-5a",
+        "h2-5b",
+        "h2-5c",
+        "h2-5d",
+        "h2-5e",
+        "h2-5f",
+        "h2-5g"
+      ]
+    },
+    "class": { "enum": ["environment", "semantic"] },
+    "retry": { "enum": ["retry-same-slice", "fix-before-rerun"] },
+    "input_sha256": { "$ref": "#/$defs/sha256" },
+    "message_sha256": { "$ref": "#/$defs/sha256" },
+    "message": { "type": "string", "maxLength": 262144 },
+    "message_bytes": { "type": "integer", "minimum": 0, "maximum": 262144 },
+    "truncated": { "type": "boolean" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  }
+}

@@ -112,6 +112,21 @@ fn typeof_namespace_member_resolves_through_exports() {
     );
 }
 
+#[test]
+fn typeof_query_uses_the_flow_type_at_its_query_location() {
+    assert_eq!(
+        checked_rows(concat!(
+            "declare let c: string | number;\n",
+            "if (typeof c === \"string\") {\n",
+            "    type C = { [key: string]: typeof c };\n",
+            "    const bad: C = { bar: 1 };\n",
+            "    void bad;\n",
+            "}\n",
+        )),
+        [(2322, 124, 3)],
+    );
+}
+
 fn checked_rows(text: &str) -> Vec<(u32, u32, u32)> {
     with_program_state(&[("a.ts", text)], &CompilerOptions::default(), |state| {
         state.check_source_file(0);

@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-3a",
+  "status": "ready",
+  "trustedBase": "ee02939da83283fabe257e2e18dede705765e812",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-3a-canonical-hash.md",
+    "sha256": "ed640024846c280caa13b10961f36be3b1cad91cdfffff78e0e090aa28b96b84"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-2b",
+      "receiptSha256": "d741953505ac8b508bd2b554e55b42740ed63bf356a5c9945ff42d610fff2b37"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/ci-core/Cargo.toml",
+    "crates/ci-core/src/lib.rs",
+    "crates/ci-core/src/canonical.rs",
+    "crates/ci-core/src/digest.rs",
+    "crates/ci-core/src/hash.rs",
+    "crates/ci-core/src/ids.rs",
+    "crates/ci-core/tests/canonical.rs",
+    "crates/ci-core/tests/hashes.rs",
+    "docs/design/greenfield/slices/fci-3a-canonical-hash.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-3a.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/ci-runner",
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    "crates/oracle",
+    "crates/ci-testkit",
+    "crates/ci-adapter",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g"
+  ],
+  "proof": {
+    "commands": [
+      "cargo test -p tsc-rs-ci-core --test canonical",
+      "cargo test -p tsc-rs-ci-core --test hashes",
+      "cargo test -p tsc-rs-ci-core --test identifiers",
+      "node .github/ci/slice-readiness.mjs --check fci-3a"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-3a.v1.json"
+  }
+}

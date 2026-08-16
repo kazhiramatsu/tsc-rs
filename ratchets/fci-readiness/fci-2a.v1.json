@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-2a",
+  "status": "ready",
+  "trustedBase": "8c71022cbe89a28d56618e5ee710301b1cd715b7",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-2a-runner-errors.md",
+    "sha256": "0e3f3f11afcb71e8899ce77da64540835f2ac8d4a16666b62031d91fffc3d073"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-1c",
+      "receiptSha256": "45e363b93c29ab351847538edb4e24ffaa4a2affdbe983ae3e6f561abad0c418"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/ci-runner/Cargo.toml",
+    "crates/ci-runner/src/lib.rs",
+    "crates/ci-runner/src/error.rs",
+    "crates/ci-runner/tests/error_boundary.rs",
+    "docs/design/greenfield/slices/fci-2a-runner-errors.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-2a.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    "crates/oracle",
+    "crates/ci-core",
+    "crates/ci-testkit",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g",
+    "crates/ci-adapter"
+  ],
+  "proof": {
+    "commands": [
+      "cargo test -p tsc-rs-ci-runner --test error_boundary",
+      "cargo tree -p tsc-rs-ci-runner --edges normal,build,dev",
+      "node .github/ci/slice-readiness.mjs --check fci-2a"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-2a.v1.json"
+  }
+}

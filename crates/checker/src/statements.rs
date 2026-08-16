@@ -1279,16 +1279,13 @@ impl<'a> CheckerState<'a> {
         if self.node_flags(node) & NodeFlags::AMBIENT.bits() != 0 {
             return false;
         }
-        // Type-only import declarations never collide (5.8d re-audits
-        // the ImportSpecifier grandparent face with §9).
-        // ImportEqualsDeclaration.isTypeOnly is unmodeled in the node
-        // data — the whole kind skips (FN-only: real import-equals
-        // collisions under sub-ES2015 module formats stay silent;
-        // reporting without the type-only gate would fabricate rows on
-        // `import type x = require(...)`, an FP).
+        // Type-only import declarations never collide. Import-equals carries
+        // the same explicit `is_type_only` bit as the other import forms, so
+        // value aliases must continue through the generated-name check while
+        // `import type x = require(...)` remains exempt.
         let is_type_only = match self.data_of(node) {
             NodeData::ImportClause(data) => data.is_type_only,
-            NodeData::ImportEqualsDeclaration(_) => true,
+            NodeData::ImportEqualsDeclaration(data) => data.is_type_only,
             NodeData::ImportSpecifier(data) => {
                 data.is_type_only
                     || self

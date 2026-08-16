@@ -1,0 +1,1189 @@
+{
+  "schema": 1,
+  "phase": "H2.5a-esnext-target-owner-controls",
+  "status": "qualified",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-5a-owner-controls.mjs",
+    "sha256": "2fe85aa628428bc043174305854fe851e9ae78f9be3fffc9f195065035c6a091"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5a-owner-controls.schema.json",
+    "sha256": "9979927dc11ca75cf42739dfb77766165994ba9814c29177770c1de60aa411a3"
+  },
+  "controls": [
+    {
+      "control_id": "using-source-block-function-and-namespace-scopes",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55Owp1c2luZyByb290ID0gYWNxdWlyZSgpOwpmdW5jdGlvbiBuZXN0ZWQoKSB7IHVzaW5nIGlubmVyID0gYWNxdWlyZSgpOyB9CnsgdXNpbmcgYmxvY2sgPSBhY3F1aXJlKCk7IH0KbmFtZXNwYWNlIE4geyB1c2luZyBtZW1iZXIgPSBhY3F1aXJlKCk7IH0K",
+            "utf8_sha256": "ec684587407134da883cde1158d640d8a0102e0c0886d3716daa1315891e56c2",
+            "utf8_bytes": 228
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 1,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CmZ1bmN0aW9uIG5lc3RlZCgpIHsgY29uc3QgZW52XzMgPSB7IHN0YWNrOiBbXSwgZXJyb3I6IHZvaWQgMCwgaGFzRXJyb3I6IGZhbHNlIH07IHRyeSB7CiAgICBjb25zdCBpbm5lciA9IF9fYWRkRGlzcG9zYWJsZVJlc291cmNlKGVudl8zLCBhY3F1aXJlKCksIGZhbHNlKTsKfQpjYXRjaCAoZV8zKSB7CiAgICBlbnZfMy5lcnJvciA9IGVfMzsKICAgIGVudl8zLmhhc0Vycm9yID0gdHJ1ZTsKfQpmaW5hbGx5IHsKICAgIF9fZGlzcG9zZVJlc291cmNlcyhlbnZfMyk7Cn0gfQp2YXIgcm9vdCwgTjsKY29uc3QgZW52XzEgPSB7IHN0YWNrOiBbXSwgZXJyb3I6IHZvaWQgMCwgaGFzRXJyb3I6IGZhbHNlIH07CnRyeSB7CiAgICByb290ID0gX19hZGREaXNwb3NhYmxlUmVzb3VyY2UoZW52XzEsIGFjcXVpcmUoKSwgZmFsc2UpOwogICAgewogICAgICAgIGNvbnN0IGVudl8yID0geyBzdGFjazogW10sIGVycm9yOiB2b2lkIDAsIGhhc0Vycm9yOiBmYWxzZSB9OwogICAgICAgIHRyeSB7CiAgICAgICAgICAgIGNvbnN0IGJsb2NrID0gX19hZGREaXNwb3NhYmxlUmVzb3VyY2UoZW52XzIsIGFjcXVpcmUoKSwgZmFsc2UpOwogICAgICAgIH0KICAgICAgICBjYXRjaCAoZV8xKSB7CiAgICAgICAgICAgIGVudl8yLmVycm9yID0gZV8xOwogICAgICAgICAgICBlbnZfMi5oYXNFcnJvciA9IHRydWU7CiAgICAgICAgfQogICAgICAgIGZpbmFsbHkgewogICAgICAgICAgICBfX2Rpc3Bvc2VSZXNvdXJjZXMoZW52XzIpOwogICAgICAgIH0KICAgIH0KICAgIChmdW5jdGlvbiAoTikgewogICAgICAgIGNvbnN0IGVudl80ID0geyBzdGFjazogW10sIGVycm9yOiB2b2lkIDAsIGhhc0Vycm9yOiBmYWxzZSB9OwogICAgICAgIHRyeSB7CiAgICAgICAgICAgIGNvbnN0IG1lbWJlciA9IF9fYWRkRGlzcG9zYWJsZVJlc291cmNlKGVudl80LCBhY3F1aXJlKCksIGZhbHNlKTsKICAgICAgICB9CiAgICAgICAgY2F0Y2ggKGVfNCkgewogICAgICAgICAgICBlbnZfNC5lcnJvciA9IGVfNDsKICAgICAgICAgICAgZW52XzQuaGFzRXJyb3IgPSB0cnVlOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsKICAgICAgICAgICAgX19kaXNwb3NlUmVzb3VyY2VzKGVudl80KTsKICAgICAgICB9CiAgICB9KShOIHx8IChOID0ge30pKTsKfQpjYXRjaCAoZV8yKSB7CiAgICBlbnZfMS5lcnJvciA9IGVfMjsKICAgIGVudl8xLmhhc0Vycm9yID0gdHJ1ZTsKfQpmaW5hbGx5IHsKICAgIF9fZGlzcG9zZVJlc291cmNlcyhlbnZfMSk7Cn0K",
+            "callback_utf8_sha256": "d536fa9588fe6385ea597cd2eae447cb61cf12e7f80a18c56146440ab3b9dabc",
+            "callback_utf8_bytes": 3639,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "d536fa9588fe6385ea597cd2eae447cb61cf12e7f80a18c56146440ab3b9dabc",
+            "materialized_utf8_bytes": 3639,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "764c66c11ab92e6f399aea05c50c6c58d0e648658ebcaa83b3a67376dbb1219d"
+      },
+      "control_fingerprint_sha256": "1da9f0d31c3900056057dbabc20e4c1772ae8384a3cb3aaebcce70d05c725000"
+    },
+    {
+      "control_id": "generated-name-collisions-remain-scope-local",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55Owpjb25zdCBlbnZfMSA9IDEsIGVfMSA9IDIsIHJlc3VsdF8xID0gMzsKdXNpbmcgcm9vdCA9IGFjcXVpcmUoKTsKZnVuY3Rpb24gbmVzdGVkKCkgeyBjb25zdCBlbnZfMiA9IDQsIGVfMiA9IDUsIHJlc3VsdF8yID0gNjsgdXNpbmcgaW5uZXIgPSBhY3F1aXJlKCk7IH0K",
+            "utf8_sha256": "1acb4d656036cf94122444c0159dd14b4bad338449c57efefe36b56c53cfa759",
+            "utf8_bytes": 237
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CmNvbnN0IGVudl8xID0gMSwgZV8xID0gMiwgcmVzdWx0XzEgPSAzOwpmdW5jdGlvbiBuZXN0ZWQoKSB7IGNvbnN0IGVudl80ID0geyBzdGFjazogW10sIGVycm9yOiB2b2lkIDAsIGhhc0Vycm9yOiBmYWxzZSB9OyB0cnkgewogICAgY29uc3QgZW52XzIgPSA0LCBlXzIgPSA1LCByZXN1bHRfMiA9IDY7CiAgICBjb25zdCBpbm5lciA9IF9fYWRkRGlzcG9zYWJsZVJlc291cmNlKGVudl80LCBhY3F1aXJlKCksIGZhbHNlKTsKfQpjYXRjaCAoZV80KSB7CiAgICBlbnZfNC5lcnJvciA9IGVfNDsKICAgIGVudl80Lmhhc0Vycm9yID0gdHJ1ZTsKfQpmaW5hbGx5IHsKICAgIF9fZGlzcG9zZVJlc291cmNlcyhlbnZfNCk7Cn0gfQp2YXIgcm9vdDsKY29uc3QgZW52XzMgPSB7IHN0YWNrOiBbXSwgZXJyb3I6IHZvaWQgMCwgaGFzRXJyb3I6IGZhbHNlIH07CnRyeSB7CiAgICByb290ID0gX19hZGREaXNwb3NhYmxlUmVzb3VyY2UoZW52XzMsIGFjcXVpcmUoKSwgZmFsc2UpOwp9CmNhdGNoIChlXzMpIHsKICAgIGVudl8zLmVycm9yID0gZV8zOwogICAgZW52XzMuaGFzRXJyb3IgPSB0cnVlOwp9CmZpbmFsbHkgewogICAgX19kaXNwb3NlUmVzb3VyY2VzKGVudl8zKTsKfQo=",
+            "callback_utf8_sha256": "44b01bc2882c928690ea050e29cde2b43fecba3e23a4429a15b216af83399cc6",
+            "callback_utf8_bytes": 2996,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "44b01bc2882c928690ea050e29cde2b43fecba3e23a4429a15b216af83399cc6",
+            "materialized_utf8_bytes": 2996,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "baa6599cb0b9890cd0fa65fb387ec762166b72c5a6940a15787563fe4d5aa9ce"
+      },
+      "control_fingerprint_sha256": "282f5940d881b9746b643b1b0bc24fa94e947284b5c43773e4af33c58b5ef96d"
+    },
+    {
+      "control_id": "await-using-in-async-function",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55Owphc3luYyBmdW5jdGlvbiBjb25zdW1lKCkgeyBhd2FpdCB1c2luZyB2YWx1ZSA9IGFjcXVpcmUoKTsgcmV0dXJuIHZhbHVlOyB9Cg==",
+            "utf8_sha256": "e92088009228e310832cb5d7a96cd655a52142ffe5dfd4072ee892d7027e8ee4",
+            "utf8_bytes": 160
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CmFzeW5jIGZ1bmN0aW9uIGNvbnN1bWUoKSB7IGNvbnN0IGVudl8xID0geyBzdGFjazogW10sIGVycm9yOiB2b2lkIDAsIGhhc0Vycm9yOiBmYWxzZSB9OyB0cnkgewogICAgY29uc3QgdmFsdWUgPSBfX2FkZERpc3Bvc2FibGVSZXNvdXJjZShlbnZfMSwgYWNxdWlyZSgpLCB0cnVlKTsKICAgIHJldHVybiB2YWx1ZTsKfQpjYXRjaCAoZV8xKSB7CiAgICBlbnZfMS5lcnJvciA9IGVfMTsKICAgIGVudl8xLmhhc0Vycm9yID0gdHJ1ZTsKfQpmaW5hbGx5IHsKICAgIGNvbnN0IHJlc3VsdF8xID0gX19kaXNwb3NlUmVzb3VyY2VzKGVudl8xKTsKICAgIGlmIChyZXN1bHRfMSkKICAgICAgICBhd2FpdCByZXN1bHRfMTsKfSB9Cg==",
+            "callback_utf8_sha256": "c211237793c98ca143fcf046b63cd5f53e0c1da6c3a2b2cccfa8b6ffdc34ff21",
+            "callback_utf8_bytes": 2746,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "c211237793c98ca143fcf046b63cd5f53e0c1da6c3a2b2cccfa8b6ffdc34ff21",
+            "materialized_utf8_bytes": 2746,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "dc4c9d8a20fbaee3056b96720c93f9441633cf834885451174329dba38d1751b"
+      },
+      "control_fingerprint_sha256": "d2c3ffa051902d79a1f07ceaf18c00fb7806b0160d10412ae21b7b94210f6285"
+    },
+    {
+      "control_id": "using-for-initializer",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGNvbmRpdGlvbigpOiBib29sZWFuOyBkZWNsYXJlIGZ1bmN0aW9uIHN0ZXAoKTogdm9pZDsgZGVjbGFyZSBmdW5jdGlvbiBjb25zdW1lKHZhbHVlOiBhbnkpOiB2b2lkOwpmb3IgKHVzaW5nIHZhbHVlID0gYWNxdWlyZSgpOyBjb25kaXRpb24oKTsgc3RlcCgpKSB7IGNvbnN1bWUodmFsdWUpOyB9Cg==",
+            "utf8_sha256": "9dc6537bbae600205a504160bf4048ce1af4981c0ae3dea556dbf73fdc71394f",
+            "utf8_bytes": 271
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CnsKICAgIGNvbnN0IGVudl8xID0geyBzdGFjazogW10sIGVycm9yOiB2b2lkIDAsIGhhc0Vycm9yOiBmYWxzZSB9OwogICAgdHJ5IHsKICAgICAgICBjb25zdCB2YWx1ZSA9IF9fYWRkRGlzcG9zYWJsZVJlc291cmNlKGVudl8xLCBhY3F1aXJlKCksIGZhbHNlKTsKICAgICAgICBmb3IgKDsgY29uZGl0aW9uKCk7IHN0ZXAoKSkgewogICAgICAgICAgICBjb25zdW1lKHZhbHVlKTsKICAgICAgICB9CiAgICB9CiAgICBjYXRjaCAoZV8xKSB7CiAgICAgICAgZW52XzEuZXJyb3IgPSBlXzE7CiAgICAgICAgZW52XzEuaGFzRXJyb3IgPSB0cnVlOwogICAgfQogICAgZmluYWxseSB7CiAgICAgICAgX19kaXNwb3NlUmVzb3VyY2VzKGVudl8xKTsKICAgIH0KfQo=",
+            "callback_utf8_sha256": "0b22bebff4b38d79b8623d7bad27b993a6b957efe5f125ee273de9b9c0896ad7",
+            "callback_utf8_bytes": 2765,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "0b22bebff4b38d79b8623d7bad27b993a6b957efe5f125ee273de9b9c0896ad7",
+            "materialized_utf8_bytes": 2765,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "a7ccdbbf4008a5ae0923b634b282f2ac50668b34b267410c368e3326c708ed15"
+      },
+      "control_fingerprint_sha256": "1c35a54393786269c2e620a4401bb0e780416d5578bfaf901e0d7f7766c77103"
+    },
+    {
+      "control_id": "using-for-of-binding",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGNvbnN0IHZhbHVlczogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGNvbnN1bWUodmFsdWU6IGFueSk6IHZvaWQ7CmZvciAodXNpbmcgdmFsdWUgb2YgdmFsdWVzKSB7IGNvbnN1bWUodmFsdWUpOyB9Cg==",
+            "utf8_sha256": "8b8e5e6b618c72efb6ca86cdb8f116a5bd063b4f2c207b3ce2a0e986d990f9d1",
+            "utf8_bytes": 172
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CmZvciAoY29uc3QgdmFsdWVfMSBvZiB2YWx1ZXMpIHsKICAgIGNvbnN0IGVudl8xID0geyBzdGFjazogW10sIGVycm9yOiB2b2lkIDAsIGhhc0Vycm9yOiBmYWxzZSB9OwogICAgdHJ5IHsKICAgICAgICBjb25zdCB2YWx1ZSA9IF9fYWRkRGlzcG9zYWJsZVJlc291cmNlKGVudl8xLCB2YWx1ZV8xLCBmYWxzZSk7CiAgICAgICAgY29uc3VtZSh2YWx1ZSk7CiAgICB9CiAgICBjYXRjaCAoZV8xKSB7CiAgICAgICAgZW52XzEuZXJyb3IgPSBlXzE7CiAgICAgICAgZW52XzEuaGFzRXJyb3IgPSB0cnVlOwogICAgfQogICAgZmluYWxseSB7CiAgICAgICAgX19kaXNwb3NlUmVzb3VyY2VzKGVudl8xKTsKICAgIH0KfQo=",
+            "callback_utf8_sha256": "795005af59b3631587d766c729423cf603c1c39c5f5fbb50cf1a284076489096",
+            "callback_utf8_bytes": 2741,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "795005af59b3631587d766c729423cf603c1c39c5f5fbb50cf1a284076489096",
+            "materialized_utf8_bytes": 2741,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "016bfd3d627e5dc45a80f63e98a3c4bb135107dc3ffdc6934994248cb467537c"
+      },
+      "control_fingerprint_sha256": "31416518393ec7e588370b2016a079f284d8c30fa833700a03ec43f8fe0d02d9"
+    },
+    {
+      "control_id": "await-using-for-await-of-binding",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGNvbnN0IHZhbHVlczogYW55OyBkZWNsYXJlIGZ1bmN0aW9uIGNvbnN1bWUodmFsdWU6IGFueSk6IHZvaWQ7CmFzeW5jIGZ1bmN0aW9uIHJ1bigpIHsgZm9yIGF3YWl0IChhd2FpdCB1c2luZyB2YWx1ZSBvZiB2YWx1ZXMpIHsgY29uc3VtZSh2YWx1ZSk7IH0gfQo=",
+            "utf8_sha256": "ce9cf0496aa41ca509456f04acc8fa87467adbc2fb9632be39ad7c092d0c2ec6",
+            "utf8_bytes": 209
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CmFzeW5jIGZ1bmN0aW9uIHJ1bigpIHsgZm9yIGF3YWl0IChjb25zdCB2YWx1ZV8xIG9mIHZhbHVlcykgewogICAgY29uc3QgZW52XzEgPSB7IHN0YWNrOiBbXSwgZXJyb3I6IHZvaWQgMCwgaGFzRXJyb3I6IGZhbHNlIH07CiAgICB0cnkgewogICAgICAgIGNvbnN0IHZhbHVlID0gX19hZGREaXNwb3NhYmxlUmVzb3VyY2UoZW52XzEsIHZhbHVlXzEsIHRydWUpOwogICAgICAgIGNvbnN1bWUodmFsdWUpOwogICAgfQogICAgY2F0Y2ggKGVfMSkgewogICAgICAgIGVudl8xLmVycm9yID0gZV8xOwogICAgICAgIGVudl8xLmhhc0Vycm9yID0gdHJ1ZTsKICAgIH0KICAgIGZpbmFsbHkgewogICAgICAgIGNvbnN0IHJlc3VsdF8xID0gX19kaXNwb3NlUmVzb3VyY2VzKGVudl8xKTsKICAgICAgICBpZiAocmVzdWx0XzEpCiAgICAgICAgICAgIGF3YWl0IHJlc3VsdF8xOwogICAgfQp9IH0K",
+            "callback_utf8_sha256": "666dc1970cbfcfc1dcb29043ad4d0eb077584e928f82d620f09a72eb8a5e7939",
+            "callback_utf8_bytes": 2838,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "666dc1970cbfcfc1dcb29043ad4d0eb077584e928f82d620f09a72eb8a5e7939",
+            "materialized_utf8_bytes": 2838,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "dba8b5a9b0cded43e888891e5050e49d493ae6387cfc8f009750ffa4e5ec6d93"
+      },
+      "control_fingerprint_sha256": "97bc4f52cb198cf6fac368dfffdb47136079e73d3f89fc7627eb14159eba48e6"
+    },
+    {
+      "control_id": "no-emit-helpers-retains-disposal-calls",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55Owp1c2luZyB2YWx1ZSA9IGFjcXVpcmUoKTsK",
+            "utf8_sha256": "01f012f3b1e50c7dc9c062bcc4fc55335d8dd60898919355e44aec486febdc0c",
+            "utf8_bytes": 111
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "noEmitHelpers": true,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgdmFsdWU7CmNvbnN0IGVudl8xID0geyBzdGFjazogW10sIGVycm9yOiB2b2lkIDAsIGhhc0Vycm9yOiBmYWxzZSB9Owp0cnkgewogICAgdmFsdWUgPSBfX2FkZERpc3Bvc2FibGVSZXNvdXJjZShlbnZfMSwgYWNxdWlyZSgpLCBmYWxzZSk7Cn0KY2F0Y2ggKGVfMSkgewogICAgZW52XzEuZXJyb3IgPSBlXzE7CiAgICBlbnZfMS5oYXNFcnJvciA9IHRydWU7Cn0KZmluYWxseSB7CiAgICBfX2Rpc3Bvc2VSZXNvdXJjZXMoZW52XzEpOwp9Cg==",
+            "callback_utf8_sha256": "8c383b4024fc749fb3ccd855b14a819e7493081c3de7c0fcca3ed2afe20ce7f9",
+            "callback_utf8_bytes": 265,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "8c383b4024fc749fb3ccd855b14a819e7493081c3de7c0fcca3ed2afe20ce7f9",
+            "materialized_utf8_bytes": 265,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "ebf1cde20a081cbdf456de9d86b4632eb762b84ba577cf31dd544819510eb95f"
+      },
+      "control_fingerprint_sha256": "102a363b44c3644510f91adbc163d83fa6062cc25998f749423c5d867817a477"
+    },
+    {
+      "control_id": "commonjs-export-and-disposal-order",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBnbG9iYWwgeyBpbnRlcmZhY2UgRGlzcG9zYWJsZSB7fSBpbnRlcmZhY2UgQXN5bmNEaXNwb3NhYmxlIHt9IH0KZGVjbGFyZSBmdW5jdGlvbiBhY3F1aXJlKCk6IGFueTsKZXhwb3J0IGNvbnN0IGJlZm9yZSA9IDE7CnVzaW5nIHZhbHVlID0gYWNxdWlyZSgpOwpleHBvcnQgY29uc3QgYWZ0ZXIgPSAyOwo=",
+            "utf8_sha256": "ef6c5ac6630a34a79b5ac6792452c5e76b4b1a84a0adf7f789568a3cadfb1c66",
+            "utf8_bytes": 179
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 1,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7Ck9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CmV4cG9ydHMuYWZ0ZXIgPSBleHBvcnRzLmJlZm9yZSA9IHZvaWQgMDsKZXhwb3J0cy5iZWZvcmUgPSAxOwp2YXIgdmFsdWU7CmNvbnN0IGVudl8xID0geyBzdGFjazogW10sIGVycm9yOiB2b2lkIDAsIGhhc0Vycm9yOiBmYWxzZSB9Owp0cnkgewogICAgdmFsdWUgPSBfX2FkZERpc3Bvc2FibGVSZXNvdXJjZShlbnZfMSwgYWNxdWlyZSgpLCBmYWxzZSk7CiAgICBleHBvcnRzLmFmdGVyID0gMjsKfQpjYXRjaCAoZV8xKSB7CiAgICBlbnZfMS5lcnJvciA9IGVfMTsKICAgIGVudl8xLmhhc0Vycm9yID0gdHJ1ZTsKfQpmaW5hbGx5IHsKICAgIF9fZGlzcG9zZVJlc291cmNlcyhlbnZfMSk7Cn0K",
+            "callback_utf8_sha256": "cb8693a7e4910c80481eda643c1fdbef91997e13d979d376b0536c69e3fdacab",
+            "callback_utf8_bytes": 2793,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "cb8693a7e4910c80481eda643c1fdbef91997e13d979d376b0536c69e3fdacab",
+            "materialized_utf8_bytes": 2793,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "53fef03e172752a81c44c869ed5d3a716766d55d89dc7ae24edec43f77a17ada"
+      },
+      "control_fingerprint_sha256": "c815f842be0e07fa4f36758e9ba832eb68e331fbe0af4a5f678f0448f7bbae6e"
+    },
+    {
+      "control_id": "esnext-preserves-native-using",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55Owp1c2luZyB2YWx1ZSA9IGFjcXVpcmUoKTsK",
+            "utf8_sha256": "01f012f3b1e50c7dc9c062bcc4fc55335d8dd60898919355e44aec486febdc0c",
+            "utf8_bytes": 111
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 99,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 0
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp1c2luZyB2YWx1ZSA9IGFjcXVpcmUoKTsK",
+            "callback_utf8_sha256": "7d260bd86e4b9c90e3a363e0ce52a1061119c4002b2229c23578b01ed5913196",
+            "callback_utf8_bytes": 39,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7d260bd86e4b9c90e3a363e0ce52a1061119c4002b2229c23578b01ed5913196",
+            "materialized_utf8_bytes": 39,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "95e02eb27f05e5604ebc6ad3ce2251c3b755c28c4dadb0a1956220377e37c8c1"
+      },
+      "control_fingerprint_sha256": "a9c75d5da89dc8ae857d2e2ce9c1ca1770d0f576f3d93d7aae058ff39b3872cd"
+    },
+    {
+      "control_id": "es2023-selects-esnext-lowering",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55Owp1c2luZyB2YWx1ZSA9IGFjcXVpcmUoKTsK",
+            "utf8_sha256": "01f012f3b1e50c7dc9c062bcc4fc55335d8dd60898919355e44aec486febdc0c",
+            "utf8_bytes": 111
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 10,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CnZhciB2YWx1ZTsKY29uc3QgZW52XzEgPSB7IHN0YWNrOiBbXSwgZXJyb3I6IHZvaWQgMCwgaGFzRXJyb3I6IGZhbHNlIH07CnRyeSB7CiAgICB2YWx1ZSA9IF9fYWRkRGlzcG9zYWJsZVJlc291cmNlKGVudl8xLCBhY3F1aXJlKCksIGZhbHNlKTsKfQpjYXRjaCAoZV8xKSB7CiAgICBlbnZfMS5lcnJvciA9IGVfMTsKICAgIGVudl8xLmhhc0Vycm9yID0gdHJ1ZTsKfQpmaW5hbGx5IHsKICAgIF9fZGlzcG9zZVJlc291cmNlcyhlbnZfMSk7Cn0K",
+            "callback_utf8_sha256": "a69f8a5e375f91726849f502ff7c38bcb2d6810436d5c5340fddcf751e776222",
+            "callback_utf8_bytes": 2646,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a69f8a5e375f91726849f502ff7c38bcb2d6810436d5c5340fddcf751e776222",
+            "materialized_utf8_bytes": 2646,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "9dbbd0d3245311174b1b385d74ca74d165ce61b5728a051f0b06bbc1dccba3ce"
+      },
+      "control_fingerprint_sha256": "0fdd018f7331f210f930263630171f987d7b7604c5f56e17217e89e7eeaea08b"
+    },
+    {
+      "control_id": "es2024-selects-esnext-lowering",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55Owp1c2luZyB2YWx1ZSA9IGFjcXVpcmUoKTsK",
+            "utf8_sha256": "01f012f3b1e50c7dc9c062bcc4fc55335d8dd60898919355e44aec486febdc0c",
+            "utf8_bytes": 111
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 11,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CnZhciB2YWx1ZTsKY29uc3QgZW52XzEgPSB7IHN0YWNrOiBbXSwgZXJyb3I6IHZvaWQgMCwgaGFzRXJyb3I6IGZhbHNlIH07CnRyeSB7CiAgICB2YWx1ZSA9IF9fYWRkRGlzcG9zYWJsZVJlc291cmNlKGVudl8xLCBhY3F1aXJlKCksIGZhbHNlKTsKfQpjYXRjaCAoZV8xKSB7CiAgICBlbnZfMS5lcnJvciA9IGVfMTsKICAgIGVudl8xLmhhc0Vycm9yID0gdHJ1ZTsKfQpmaW5hbGx5IHsKICAgIF9fZGlzcG9zZVJlc291cmNlcyhlbnZfMSk7Cn0K",
+            "callback_utf8_sha256": "a69f8a5e375f91726849f502ff7c38bcb2d6810436d5c5340fddcf751e776222",
+            "callback_utf8_bytes": 2646,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a69f8a5e375f91726849f502ff7c38bcb2d6810436d5c5340fddcf751e776222",
+            "materialized_utf8_bytes": 2646,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "9dbbd0d3245311174b1b385d74ca74d165ce61b5728a051f0b06bbc1dccba3ce"
+      },
+      "control_fingerprint_sha256": "27dae555b1bdc5e58da06d9a0a7abfe293210020cabd8ef9c319b65be5e1d857"
+    },
+    {
+      "control_id": "es2025-selects-esnext-lowering",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQpkZWNsYXJlIGZ1bmN0aW9uIGFjcXVpcmUoKTogYW55Owp1c2luZyB2YWx1ZSA9IGFjcXVpcmUoKTsK",
+            "utf8_sha256": "01f012f3b1e50c7dc9c062bcc4fc55335d8dd60898919355e44aec486febdc0c",
+            "utf8_bytes": 111
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 12,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19hZGREaXNwb3NhYmxlUmVzb3VyY2UgPSAodGhpcyAmJiB0aGlzLl9fYWRkRGlzcG9zYWJsZVJlc291cmNlKSB8fCBmdW5jdGlvbiAoZW52LCB2YWx1ZSwgYXN5bmMpIHsKICAgIGlmICh2YWx1ZSAhPT0gbnVsbCAmJiB2YWx1ZSAhPT0gdm9pZCAwKSB7CiAgICAgICAgaWYgKHR5cGVvZiB2YWx1ZSAhPT0gIm9iamVjdCIgJiYgdHlwZW9mIHZhbHVlICE9PSAiZnVuY3Rpb24iKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJPYmplY3QgZXhwZWN0ZWQuIik7CiAgICAgICAgdmFyIGRpc3Bvc2UsIGlubmVyOwogICAgICAgIGlmIChhc3luYykgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5hc3luY0Rpc3Bvc2UpIHRocm93IG5ldyBUeXBlRXJyb3IoIlN5bWJvbC5hc3luY0Rpc3Bvc2UgaXMgbm90IGRlZmluZWQuIik7CiAgICAgICAgICAgIGRpc3Bvc2UgPSB2YWx1ZVtTeW1ib2wuYXN5bmNEaXNwb3NlXTsKICAgICAgICB9CiAgICAgICAgaWYgKGRpc3Bvc2UgPT09IHZvaWQgMCkgewogICAgICAgICAgICBpZiAoIVN5bWJvbC5kaXNwb3NlKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJTeW1ib2wuZGlzcG9zZSBpcyBub3QgZGVmaW5lZC4iKTsKICAgICAgICAgICAgZGlzcG9zZSA9IHZhbHVlW1N5bWJvbC5kaXNwb3NlXTsKICAgICAgICAgICAgaWYgKGFzeW5jKSBpbm5lciA9IGRpc3Bvc2U7CiAgICAgICAgfQogICAgICAgIGlmICh0eXBlb2YgZGlzcG9zZSAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiT2JqZWN0IG5vdCBkaXNwb3NhYmxlLiIpOwogICAgICAgIGlmIChpbm5lcikgZGlzcG9zZSA9IGZ1bmN0aW9uKCkgeyB0cnkgeyBpbm5lci5jYWxsKHRoaXMpOyB9IGNhdGNoIChlKSB7IHJldHVybiBQcm9taXNlLnJlamVjdChlKTsgfSB9OwogICAgICAgIGVudi5zdGFjay5wdXNoKHsgdmFsdWU6IHZhbHVlLCBkaXNwb3NlOiBkaXNwb3NlLCBhc3luYzogYXN5bmMgfSk7CiAgICB9CiAgICBlbHNlIGlmIChhc3luYykgewogICAgICAgIGVudi5zdGFjay5wdXNoKHsgYXN5bmM6IHRydWUgfSk7CiAgICB9CiAgICByZXR1cm4gdmFsdWU7Cn07CnZhciBfX2Rpc3Bvc2VSZXNvdXJjZXMgPSAodGhpcyAmJiB0aGlzLl9fZGlzcG9zZVJlc291cmNlcykgfHwgKGZ1bmN0aW9uIChTdXBwcmVzc2VkRXJyb3IpIHsKICAgIHJldHVybiBmdW5jdGlvbiAoZW52KSB7CiAgICAgICAgZnVuY3Rpb24gZmFpbChlKSB7CiAgICAgICAgICAgIGVudi5lcnJvciA9IGVudi5oYXNFcnJvciA/IG5ldyBTdXBwcmVzc2VkRXJyb3IoZSwgZW52LmVycm9yLCAiQW4gZXJyb3Igd2FzIHN1cHByZXNzZWQgZHVyaW5nIGRpc3Bvc2FsLiIpIDogZTsKICAgICAgICAgICAgZW52Lmhhc0Vycm9yID0gdHJ1ZTsKICAgICAgICB9CiAgICAgICAgdmFyIHIsIHMgPSAwOwogICAgICAgIGZ1bmN0aW9uIG5leHQoKSB7CiAgICAgICAgICAgIHdoaWxlIChyID0gZW52LnN0YWNrLnBvcCgpKSB7CiAgICAgICAgICAgICAgICB0cnkgewogICAgICAgICAgICAgICAgICAgIGlmICghci5hc3luYyAmJiBzID09PSAxKSByZXR1cm4gcyA9IDAsIGVudi5zdGFjay5wdXNoKHIpLCBQcm9taXNlLnJlc29sdmUoKS50aGVuKG5leHQpOwogICAgICAgICAgICAgICAgICAgIGlmIChyLmRpc3Bvc2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgdmFyIHJlc3VsdCA9IHIuZGlzcG9zZS5jYWxsKHIudmFsdWUpOwogICAgICAgICAgICAgICAgICAgICAgICBpZiAoci5hc3luYykgcmV0dXJuIHMgfD0gMiwgUHJvbWlzZS5yZXNvbHZlKHJlc3VsdCkudGhlbihuZXh0LCBmdW5jdGlvbihlKSB7IGZhaWwoZSk7IHJldHVybiBuZXh0KCk7IH0pOwogICAgICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgICAgICBlbHNlIHMgfD0gMTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGNhdGNoIChlKSB7CiAgICAgICAgICAgICAgICAgICAgZmFpbChlKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgfQogICAgICAgICAgICBpZiAocyA9PT0gMSkgcmV0dXJuIGVudi5oYXNFcnJvciA/IFByb21pc2UucmVqZWN0KGVudi5lcnJvcikgOiBQcm9taXNlLnJlc29sdmUoKTsKICAgICAgICAgICAgaWYgKGVudi5oYXNFcnJvcikgdGhyb3cgZW52LmVycm9yOwogICAgICAgIH0KICAgICAgICByZXR1cm4gbmV4dCgpOwogICAgfTsKfSkodHlwZW9mIFN1cHByZXNzZWRFcnJvciA9PT0gImZ1bmN0aW9uIiA/IFN1cHByZXNzZWRFcnJvciA6IGZ1bmN0aW9uIChlcnJvciwgc3VwcHJlc3NlZCwgbWVzc2FnZSkgewogICAgdmFyIGUgPSBuZXcgRXJyb3IobWVzc2FnZSk7CiAgICByZXR1cm4gZS5uYW1lID0gIlN1cHByZXNzZWRFcnJvciIsIGUuZXJyb3IgPSBlcnJvciwgZS5zdXBwcmVzc2VkID0gc3VwcHJlc3NlZCwgZTsKfSk7CnZhciB2YWx1ZTsKY29uc3QgZW52XzEgPSB7IHN0YWNrOiBbXSwgZXJyb3I6IHZvaWQgMCwgaGFzRXJyb3I6IGZhbHNlIH07CnRyeSB7CiAgICB2YWx1ZSA9IF9fYWRkRGlzcG9zYWJsZVJlc291cmNlKGVudl8xLCBhY3F1aXJlKCksIGZhbHNlKTsKfQpjYXRjaCAoZV8xKSB7CiAgICBlbnZfMS5lcnJvciA9IGVfMTsKICAgIGVudl8xLmhhc0Vycm9yID0gdHJ1ZTsKfQpmaW5hbGx5IHsKICAgIF9fZGlzcG9zZVJlc291cmNlcyhlbnZfMSk7Cn0K",
+            "callback_utf8_sha256": "a69f8a5e375f91726849f502ff7c38bcb2d6810436d5c5340fddcf751e776222",
+            "callback_utf8_bytes": 2646,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a69f8a5e375f91726849f502ff7c38bcb2d6810436d5c5340fddcf751e776222",
+            "materialized_utf8_bytes": 2646,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "9dbbd0d3245311174b1b385d74ca74d165ce61b5728a051f0b06bbc1dccba3ce"
+      },
+      "control_fingerprint_sha256": "738fcb5e79c59e8a82e6e316d095ef3de6fce938b8d65bb870c9322ceabebcd4"
+    },
+    {
+      "control_id": "es2022-auto-accessor-with-native-fields",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "Y2xhc3MgQyB7IGZpZWxkID0gMTsgYWNjZXNzb3IgaXRlbSA9IDI7ICNuYXRpdmUgPSAzOyBzdGF0aWMgYWNjZXNzb3IgdG90YWwgPSA0OyB9Cg==",
+            "utf8_sha256": "b86388e6bc6be0fe32ccb40aaf549c849e2626102bd8ee0a5cd79e25b39fb6f4",
+            "utf8_bytes": 82
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjbGFzcyBDIHsKICAgIGZpZWxkID0gMTsKICAgICNpdGVtX2FjY2Vzc29yX3N0b3JhZ2UgPSAyOwogICAgZ2V0IGl0ZW0oKSB7IHJldHVybiB0aGlzLiNpdGVtX2FjY2Vzc29yX3N0b3JhZ2U7IH0KICAgIHNldCBpdGVtKHZhbHVlKSB7IHRoaXMuI2l0ZW1fYWNjZXNzb3Jfc3RvcmFnZSA9IHZhbHVlOyB9CiAgICAjbmF0aXZlID0gMzsKICAgIHN0YXRpYyAjdG90YWxfYWNjZXNzb3Jfc3RvcmFnZSA9IDQ7CiAgICBzdGF0aWMgZ2V0IHRvdGFsKCkgeyByZXR1cm4gQy4jdG90YWxfYWNjZXNzb3Jfc3RvcmFnZTsgfQogICAgc3RhdGljIHNldCB0b3RhbCh2YWx1ZSkgeyBDLiN0b3RhbF9hY2Nlc3Nvcl9zdG9yYWdlID0gdmFsdWU7IH0KfQo=",
+            "callback_utf8_sha256": "28aaa448bcd181199bcb01052b6f54a4862baf3f4a0c61c78fada1b2185100b8",
+            "callback_utf8_bytes": 374,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "28aaa448bcd181199bcb01052b6f54a4862baf3f4a0c61c78fada1b2185100b8",
+            "materialized_utf8_bytes": 374,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "98dc4500fa2dfe8ee6a3aa031d91a5b5cdfad338d21cf4fc3a7e9d5388d4b0f5"
+      },
+      "control_fingerprint_sha256": "a8411c67453b92e50ca39c449a1a2ee4944c860ecd38a4004b004a8ad9f417cf"
+    },
+    {
+      "control_id": "es2021-class-fields-assignment-mode",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "Y2xhc3MgQmFzZSB7fQpjbGFzcyBDIGV4dGVuZHMgQmFzZSB7IGZpZWxkID0gMTsgZW1wdHk6IHVua25vd247ICNwcml2YXRlID0gMjsgc3RhdGljIHRvdGFsID0gMzsgfQo=",
+            "utf8_sha256": "f9c2e4c31745364e2415ad9ba2488cad2a3ed007e096e645f9ef84fd0d79e536",
+            "utf8_bytes": 98
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 8,
+          "useDefineForClassFields": false
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 1,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX0NfcHJpdmF0ZTsKY2xhc3MgQmFzZSB7Cn0KY2xhc3MgQyBleHRlbmRzIEJhc2UgewogICAgY29uc3RydWN0b3IoKSB7CiAgICAgICAgc3VwZXIoLi4uYXJndW1lbnRzKTsKICAgICAgICB0aGlzLmZpZWxkID0gMTsKICAgICAgICBfQ19wcml2YXRlLnNldCh0aGlzLCAyKTsKICAgIH0KfQpfQ19wcml2YXRlID0gbmV3IFdlYWtNYXAoKTsKQy50b3RhbCA9IDM7Cg==",
+            "callback_utf8_sha256": "7dc6ea5608286b3f32c1198d56fe931d4ff8887fcf0afdffbcceb79b90817d0a",
+            "callback_utf8_bytes": 223,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7dc6ea5608286b3f32c1198d56fe931d4ff8887fcf0afdffbcceb79b90817d0a",
+            "materialized_utf8_bytes": 223,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "b91d66de949da393129211126d27b5120e005373b51639ff609e418b809986a1"
+      },
+      "control_fingerprint_sha256": "d63bee1e97dd8cae74f09d6b4e4cae2d61b2fd2e128579da339a4850541a4159"
+    },
+    {
+      "control_id": "es2021-class-fields-define-mode",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "Y2xhc3MgQmFzZSB7fQpjbGFzcyBDIGV4dGVuZHMgQmFzZSB7IGZpZWxkID0gMTsgZW1wdHk6IHVua25vd247ICNwcml2YXRlID0gMjsgc3RhdGljIHRvdGFsID0gMzsgfQo=",
+            "utf8_sha256": "f9c2e4c31745364e2415ad9ba2488cad2a3ed007e096e645f9ef84fd0d79e536",
+            "utf8_bytes": 98
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 8,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX0NfcHJpdmF0ZTsKY2xhc3MgQmFzZSB7Cn0KY2xhc3MgQyBleHRlbmRzIEJhc2UgewogICAgY29uc3RydWN0b3IoKSB7CiAgICAgICAgc3VwZXIoLi4uYXJndW1lbnRzKTsKICAgICAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkodGhpcywgImZpZWxkIiwgewogICAgICAgICAgICBlbnVtZXJhYmxlOiB0cnVlLAogICAgICAgICAgICBjb25maWd1cmFibGU6IHRydWUsCiAgICAgICAgICAgIHdyaXRhYmxlOiB0cnVlLAogICAgICAgICAgICB2YWx1ZTogMQogICAgICAgIH0pOwogICAgICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eSh0aGlzLCAiZW1wdHkiLCB7CiAgICAgICAgICAgIGVudW1lcmFibGU6IHRydWUsCiAgICAgICAgICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwKICAgICAgICAgICAgd3JpdGFibGU6IHRydWUsCiAgICAgICAgICAgIHZhbHVlOiB2b2lkIDAKICAgICAgICB9KTsKICAgICAgICBfQ19wcml2YXRlLnNldCh0aGlzLCAyKTsKICAgIH0KfQpfQ19wcml2YXRlID0gbmV3IFdlYWtNYXAoKTsKT2JqZWN0LmRlZmluZVByb3BlcnR5KEMsICJ0b3RhbCIsIHsKICAgIGVudW1lcmFibGU6IHRydWUsCiAgICBjb25maWd1cmFibGU6IHRydWUsCiAgICB3cml0YWJsZTogdHJ1ZSwKICAgIHZhbHVlOiAzCn0pOwo=",
+            "callback_utf8_sha256": "c9c2f54f042db2c16050d47b9b61227539dda901e266a4e1c60bd87d8f6e6938",
+            "callback_utf8_bytes": 650,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "c9c2f54f042db2c16050d47b9b61227539dda901e266a4e1c60bd87d8f6e6938",
+            "materialized_utf8_bytes": 650,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "fb60bf06417edb2a6293be64569bb122ec192610c1079d3677f8f38412b779c8"
+      },
+      "control_fingerprint_sha256": "173fd934f31e3548c241e084d6cd696af3b75b69758a2f0c0ef0bc43c960c798"
+    },
+    {
+      "control_id": "decorator-expression-receiver-binding",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjbGFzcyBQcm92aWRlciB7IGRlY29yYXRlKHZhbHVlOiBhbnksIGNvbnRleHQ6IGFueSk6IGFueTsgfQpkZWNsYXJlIGNvbnN0IGluc3RhbmNlOiBQcm92aWRlcjsKY2xhc3MgQyB7IEBpbnN0YW5jZS5kZWNvcmF0ZSBtZXRob2QxKCkge30gQChpbnN0YW5jZVsiZGVjb3JhdGUiXSkgbWV0aG9kMigpIHt9IEAoKGluc3RhbmNlLmRlY29yYXRlKSkgbWV0aG9kMygpIHt9IH0K",
+            "utf8_sha256": "361cdf6fb4a1ef4e291be5576ba2cce05450e1acbea7a4361da52a958974a717",
+            "utf8_bytes": 219
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 1,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19ydW5Jbml0aWFsaXplcnMgPSAodGhpcyAmJiB0aGlzLl9fcnVuSW5pdGlhbGl6ZXJzKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgaW5pdGlhbGl6ZXJzLCB2YWx1ZSkgewogICAgdmFyIHVzZVZhbHVlID0gYXJndW1lbnRzLmxlbmd0aCA+IDI7CiAgICBmb3IgKHZhciBpID0gMDsgaSA8IGluaXRpYWxpemVycy5sZW5ndGg7IGkrKykgewogICAgICAgIHZhbHVlID0gdXNlVmFsdWUgPyBpbml0aWFsaXplcnNbaV0uY2FsbCh0aGlzQXJnLCB2YWx1ZSkgOiBpbml0aWFsaXplcnNbaV0uY2FsbCh0aGlzQXJnKTsKICAgIH0KICAgIHJldHVybiB1c2VWYWx1ZSA/IHZhbHVlIDogdm9pZCAwOwp9Owp2YXIgX19lc0RlY29yYXRlID0gKHRoaXMgJiYgdGhpcy5fX2VzRGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChjdG9yLCBkZXNjcmlwdG9ySW4sIGRlY29yYXRvcnMsIGNvbnRleHRJbiwgaW5pdGlhbGl6ZXJzLCBleHRyYUluaXRpYWxpemVycykgewogICAgZnVuY3Rpb24gYWNjZXB0KGYpIHsgaWYgKGYgIT09IHZvaWQgMCAmJiB0eXBlb2YgZiAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiRnVuY3Rpb24gZXhwZWN0ZWQiKTsgcmV0dXJuIGY7IH0KICAgIHZhciBraW5kID0gY29udGV4dEluLmtpbmQsIGtleSA9IGtpbmQgPT09ICJnZXR0ZXIiID8gImdldCIgOiBraW5kID09PSAic2V0dGVyIiA/ICJzZXQiIDogInZhbHVlIjsKICAgIHZhciB0YXJnZXQgPSAhZGVzY3JpcHRvckluICYmIGN0b3IgPyBjb250ZXh0SW5bInN0YXRpYyJdID8gY3RvciA6IGN0b3IucHJvdG90eXBlIDogbnVsbDsKICAgIHZhciBkZXNjcmlwdG9yID0gZGVzY3JpcHRvckluIHx8ICh0YXJnZXQgPyBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwgY29udGV4dEluLm5hbWUpIDoge30pOwogICAgdmFyIF8sIGRvbmUgPSBmYWxzZTsKICAgIGZvciAodmFyIGkgPSBkZWNvcmF0b3JzLmxlbmd0aCAtIDE7IGkgPj0gMDsgaS0tKSB7CiAgICAgICAgdmFyIGNvbnRleHQgPSB7fTsKICAgICAgICBmb3IgKHZhciBwIGluIGNvbnRleHRJbikgY29udGV4dFtwXSA9IHAgPT09ICJhY2Nlc3MiID8ge30gOiBjb250ZXh0SW5bcF07CiAgICAgICAgZm9yICh2YXIgcCBpbiBjb250ZXh0SW4uYWNjZXNzKSBjb250ZXh0LmFjY2Vzc1twXSA9IGNvbnRleHRJbi5hY2Nlc3NbcF07CiAgICAgICAgY29udGV4dC5hZGRJbml0aWFsaXplciA9IGZ1bmN0aW9uIChmKSB7IGlmIChkb25lKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJDYW5ub3QgYWRkIGluaXRpYWxpemVycyBhZnRlciBkZWNvcmF0aW9uIGhhcyBjb21wbGV0ZWQiKTsgZXh0cmFJbml0aWFsaXplcnMucHVzaChhY2NlcHQoZiB8fCBudWxsKSk7IH07CiAgICAgICAgdmFyIHJlc3VsdCA9ICgwLCBkZWNvcmF0b3JzW2ldKShraW5kID09PSAiYWNjZXNzb3IiID8geyBnZXQ6IGRlc2NyaXB0b3IuZ2V0LCBzZXQ6IGRlc2NyaXB0b3Iuc2V0IH0gOiBkZXNjcmlwdG9yW2tleV0sIGNvbnRleHQpOwogICAgICAgIGlmIChraW5kID09PSAiYWNjZXNzb3IiKSB7CiAgICAgICAgICAgIGlmIChyZXN1bHQgPT09IHZvaWQgMCkgY29udGludWU7CiAgICAgICAgICAgIGlmIChyZXN1bHQgPT09IG51bGwgfHwgdHlwZW9mIHJlc3VsdCAhPT0gIm9iamVjdCIpIHRocm93IG5ldyBUeXBlRXJyb3IoIk9iamVjdCBleHBlY3RlZCIpOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuZ2V0KSkgZGVzY3JpcHRvci5nZXQgPSBfOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuc2V0KSkgZGVzY3JpcHRvci5zZXQgPSBfOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuaW5pdCkpIGluaXRpYWxpemVycy51bnNoaWZ0KF8pOwogICAgICAgIH0KICAgICAgICBlbHNlIGlmIChfID0gYWNjZXB0KHJlc3VsdCkpIHsKICAgICAgICAgICAgaWYgKGtpbmQgPT09ICJmaWVsZCIpIGluaXRpYWxpemVycy51bnNoaWZ0KF8pOwogICAgICAgICAgICBlbHNlIGRlc2NyaXB0b3Jba2V5XSA9IF87CiAgICAgICAgfQogICAgfQogICAgaWYgKHRhcmdldCkgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwgY29udGV4dEluLm5hbWUsIGRlc2NyaXB0b3IpOwogICAgZG9uZSA9IHRydWU7Cn07CmxldCBDID0gKCgpID0+IHsKICAgIHZhciBfYSwgX2IsIF9jOwogICAgbGV0IF9pbnN0YW5jZUV4dHJhSW5pdGlhbGl6ZXJzID0gW107CiAgICBsZXQgX21ldGhvZDFfZGVjb3JhdG9yczsKICAgIGxldCBfbWV0aG9kMl9kZWNvcmF0b3JzOwogICAgbGV0IF9tZXRob2QzX2RlY29yYXRvcnM7CiAgICByZXR1cm4gY2xhc3MgQyB7CiAgICAgICAgc3RhdGljIHsKICAgICAgICAgICAgY29uc3QgX21ldGFkYXRhID0gdHlwZW9mIFN5bWJvbCA9PT0gImZ1bmN0aW9uIiAmJiBTeW1ib2wubWV0YWRhdGEgPyBPYmplY3QuY3JlYXRlKG51bGwpIDogdm9pZCAwOwogICAgICAgICAgICBfbWV0aG9kMV9kZWNvcmF0b3JzID0gWyhfYSA9IGluc3RhbmNlKS5kZWNvcmF0ZS5iaW5kKF9hKV07CiAgICAgICAgICAgIF9tZXRob2QyX2RlY29yYXRvcnMgPSBbKChfYiA9IGluc3RhbmNlKVsiZGVjb3JhdGUiXS5iaW5kKF9iKSldOwogICAgICAgICAgICBfbWV0aG9kM19kZWNvcmF0b3JzID0gWygoKF9jID0gaW5zdGFuY2UpLmRlY29yYXRlLmJpbmQoX2MpKSldOwogICAgICAgICAgICBfX2VzRGVjb3JhdGUodGhpcywgbnVsbCwgX21ldGhvZDFfZGVjb3JhdG9ycywgeyBraW5kOiAibWV0aG9kIiwgbmFtZTogIm1ldGhvZDEiLCBzdGF0aWM6IGZhbHNlLCBwcml2YXRlOiBmYWxzZSwgYWNjZXNzOiB7IGhhczogb2JqID0+ICJtZXRob2QxIiBpbiBvYmosIGdldDogb2JqID0+IG9iai5tZXRob2QxIH0sIG1ldGFkYXRhOiBfbWV0YWRhdGEgfSwgbnVsbCwgX2luc3RhbmNlRXh0cmFJbml0aWFsaXplcnMpOwogICAgICAgICAgICBfX2VzRGVjb3JhdGUodGhpcywgbnVsbCwgX21ldGhvZDJfZGVjb3JhdG9ycywgeyBraW5kOiAibWV0aG9kIiwgbmFtZTogIm1ldGhvZDIiLCBzdGF0aWM6IGZhbHNlLCBwcml2YXRlOiBmYWxzZSwgYWNjZXNzOiB7IGhhczogb2JqID0+ICJtZXRob2QyIiBpbiBvYmosIGdldDogb2JqID0+IG9iai5tZXRob2QyIH0sIG1ldGFkYXRhOiBfbWV0YWRhdGEgfSwgbnVsbCwgX2luc3RhbmNlRXh0cmFJbml0aWFsaXplcnMpOwogICAgICAgICAgICBfX2VzRGVjb3JhdGUodGhpcywgbnVsbCwgX21ldGhvZDNfZGVjb3JhdG9ycywgeyBraW5kOiAibWV0aG9kIiwgbmFtZTogIm1ldGhvZDMiLCBzdGF0aWM6IGZhbHNlLCBwcml2YXRlOiBmYWxzZSwgYWNjZXNzOiB7IGhhczogb2JqID0+ICJtZXRob2QzIiBpbiBvYmosIGdldDogb2JqID0+IG9iai5tZXRob2QzIH0sIG1ldGFkYXRhOiBfbWV0YWRhdGEgfSwgbnVsbCwgX2luc3RhbmNlRXh0cmFJbml0aWFsaXplcnMpOwogICAgICAgICAgICBpZiAoX21ldGFkYXRhKSBPYmplY3QuZGVmaW5lUHJvcGVydHkodGhpcywgU3ltYm9sLm1ldGFkYXRhLCB7IGVudW1lcmFibGU6IHRydWUsIGNvbmZpZ3VyYWJsZTogdHJ1ZSwgd3JpdGFibGU6IHRydWUsIHZhbHVlOiBfbWV0YWRhdGEgfSk7CiAgICAgICAgfQogICAgICAgIG1ldGhvZDEoKSB7IH0KICAgICAgICBtZXRob2QyKCkgeyB9CiAgICAgICAgbWV0aG9kMygpIHsgfQogICAgICAgIGNvbnN0cnVjdG9yKCkgewogICAgICAgICAgICBfX3J1bkluaXRpYWxpemVycyh0aGlzLCBfaW5zdGFuY2VFeHRyYUluaXRpYWxpemVycyk7CiAgICAgICAgfQogICAgfTsKfSkoKTsK",
+            "callback_utf8_sha256": "cb7df21f444d2e0680da31127cda98eae926ec7b1e468a57266f15a95ffc7f73",
+            "callback_utf8_bytes": 3753,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "cb7df21f444d2e0680da31127cda98eae926ec7b1e468a57266f15a95ffc7f73",
+            "materialized_utf8_bytes": 3753,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "0044c9067f3c011c700c68a1d7bd2aace17fea71f4e2825bcdda947ecfb2af89"
+      },
+      "control_fingerprint_sha256": "9ca44c6896ebd6ca1bec8fba3c8658ca8abc4837858e642e6c518a2af69f70ee"
+    },
+    {
+      "control_id": "decorator-super-binding-uses-lexical-this",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "ZGVjbGFyZSBjbGFzcyBQcm92aWRlciB7IGRlY29yYXRlKHZhbHVlOiBhbnksIGNvbnRleHQ6IGFueSk6IGFueTsgfQpjbGFzcyBEIGV4dGVuZHMgUHJvdmlkZXIgeyBtZXRob2QoKSB7IGNsYXNzIE5lc3RlZCB7IEAoc3VwZXIuZGVjb3JhdGUpIG1ldGhvZDEoKSB7fSBAKHN1cGVyWyJkZWNvcmF0ZSJdKSBtZXRob2QyKCkge30gQCgoc3VwZXIuZGVjb3JhdGUpKSBtZXRob2QzKCkge30gfSB9IH0K",
+            "utf8_sha256": "cd69b862bc7ad242a3da5ad007c344a6898c20cb720f437372193320d8b56fb2",
+            "utf8_bytes": 225
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 1,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19ydW5Jbml0aWFsaXplcnMgPSAodGhpcyAmJiB0aGlzLl9fcnVuSW5pdGlhbGl6ZXJzKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgaW5pdGlhbGl6ZXJzLCB2YWx1ZSkgewogICAgdmFyIHVzZVZhbHVlID0gYXJndW1lbnRzLmxlbmd0aCA+IDI7CiAgICBmb3IgKHZhciBpID0gMDsgaSA8IGluaXRpYWxpemVycy5sZW5ndGg7IGkrKykgewogICAgICAgIHZhbHVlID0gdXNlVmFsdWUgPyBpbml0aWFsaXplcnNbaV0uY2FsbCh0aGlzQXJnLCB2YWx1ZSkgOiBpbml0aWFsaXplcnNbaV0uY2FsbCh0aGlzQXJnKTsKICAgIH0KICAgIHJldHVybiB1c2VWYWx1ZSA/IHZhbHVlIDogdm9pZCAwOwp9Owp2YXIgX19lc0RlY29yYXRlID0gKHRoaXMgJiYgdGhpcy5fX2VzRGVjb3JhdGUpIHx8IGZ1bmN0aW9uIChjdG9yLCBkZXNjcmlwdG9ySW4sIGRlY29yYXRvcnMsIGNvbnRleHRJbiwgaW5pdGlhbGl6ZXJzLCBleHRyYUluaXRpYWxpemVycykgewogICAgZnVuY3Rpb24gYWNjZXB0KGYpIHsgaWYgKGYgIT09IHZvaWQgMCAmJiB0eXBlb2YgZiAhPT0gImZ1bmN0aW9uIikgdGhyb3cgbmV3IFR5cGVFcnJvcigiRnVuY3Rpb24gZXhwZWN0ZWQiKTsgcmV0dXJuIGY7IH0KICAgIHZhciBraW5kID0gY29udGV4dEluLmtpbmQsIGtleSA9IGtpbmQgPT09ICJnZXR0ZXIiID8gImdldCIgOiBraW5kID09PSAic2V0dGVyIiA/ICJzZXQiIDogInZhbHVlIjsKICAgIHZhciB0YXJnZXQgPSAhZGVzY3JpcHRvckluICYmIGN0b3IgPyBjb250ZXh0SW5bInN0YXRpYyJdID8gY3RvciA6IGN0b3IucHJvdG90eXBlIDogbnVsbDsKICAgIHZhciBkZXNjcmlwdG9yID0gZGVzY3JpcHRvckluIHx8ICh0YXJnZXQgPyBPYmplY3QuZ2V0T3duUHJvcGVydHlEZXNjcmlwdG9yKHRhcmdldCwgY29udGV4dEluLm5hbWUpIDoge30pOwogICAgdmFyIF8sIGRvbmUgPSBmYWxzZTsKICAgIGZvciAodmFyIGkgPSBkZWNvcmF0b3JzLmxlbmd0aCAtIDE7IGkgPj0gMDsgaS0tKSB7CiAgICAgICAgdmFyIGNvbnRleHQgPSB7fTsKICAgICAgICBmb3IgKHZhciBwIGluIGNvbnRleHRJbikgY29udGV4dFtwXSA9IHAgPT09ICJhY2Nlc3MiID8ge30gOiBjb250ZXh0SW5bcF07CiAgICAgICAgZm9yICh2YXIgcCBpbiBjb250ZXh0SW4uYWNjZXNzKSBjb250ZXh0LmFjY2Vzc1twXSA9IGNvbnRleHRJbi5hY2Nlc3NbcF07CiAgICAgICAgY29udGV4dC5hZGRJbml0aWFsaXplciA9IGZ1bmN0aW9uIChmKSB7IGlmIChkb25lKSB0aHJvdyBuZXcgVHlwZUVycm9yKCJDYW5ub3QgYWRkIGluaXRpYWxpemVycyBhZnRlciBkZWNvcmF0aW9uIGhhcyBjb21wbGV0ZWQiKTsgZXh0cmFJbml0aWFsaXplcnMucHVzaChhY2NlcHQoZiB8fCBudWxsKSk7IH07CiAgICAgICAgdmFyIHJlc3VsdCA9ICgwLCBkZWNvcmF0b3JzW2ldKShraW5kID09PSAiYWNjZXNzb3IiID8geyBnZXQ6IGRlc2NyaXB0b3IuZ2V0LCBzZXQ6IGRlc2NyaXB0b3Iuc2V0IH0gOiBkZXNjcmlwdG9yW2tleV0sIGNvbnRleHQpOwogICAgICAgIGlmIChraW5kID09PSAiYWNjZXNzb3IiKSB7CiAgICAgICAgICAgIGlmIChyZXN1bHQgPT09IHZvaWQgMCkgY29udGludWU7CiAgICAgICAgICAgIGlmIChyZXN1bHQgPT09IG51bGwgfHwgdHlwZW9mIHJlc3VsdCAhPT0gIm9iamVjdCIpIHRocm93IG5ldyBUeXBlRXJyb3IoIk9iamVjdCBleHBlY3RlZCIpOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuZ2V0KSkgZGVzY3JpcHRvci5nZXQgPSBfOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuc2V0KSkgZGVzY3JpcHRvci5zZXQgPSBfOwogICAgICAgICAgICBpZiAoXyA9IGFjY2VwdChyZXN1bHQuaW5pdCkpIGluaXRpYWxpemVycy51bnNoaWZ0KF8pOwogICAgICAgIH0KICAgICAgICBlbHNlIGlmIChfID0gYWNjZXB0KHJlc3VsdCkpIHsKICAgICAgICAgICAgaWYgKGtpbmQgPT09ICJmaWVsZCIpIGluaXRpYWxpemVycy51bnNoaWZ0KF8pOwogICAgICAgICAgICBlbHNlIGRlc2NyaXB0b3Jba2V5XSA9IF87CiAgICAgICAgfQogICAgfQogICAgaWYgKHRhcmdldCkgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRhcmdldCwgY29udGV4dEluLm5hbWUsIGRlc2NyaXB0b3IpOwogICAgZG9uZSA9IHRydWU7Cn07CmNsYXNzIEQgZXh0ZW5kcyBQcm92aWRlciB7CiAgICBtZXRob2QoKSB7IGxldCBOZXN0ZWQgPSAoKCkgPT4gewogICAgICAgIGxldCBfb3V0ZXJUaGlzID0gdGhpczsKICAgICAgICBsZXQgX2luc3RhbmNlRXh0cmFJbml0aWFsaXplcnMgPSBbXTsKICAgICAgICBsZXQgX21ldGhvZDFfZGVjb3JhdG9yczsKICAgICAgICBsZXQgX21ldGhvZDJfZGVjb3JhdG9yczsKICAgICAgICBsZXQgX21ldGhvZDNfZGVjb3JhdG9yczsKICAgICAgICByZXR1cm4gY2xhc3MgTmVzdGVkIHsKICAgICAgICAgICAgc3RhdGljIHsKICAgICAgICAgICAgICAgIGNvbnN0IF9tZXRhZGF0YSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgU3ltYm9sLm1ldGFkYXRhID8gT2JqZWN0LmNyZWF0ZShudWxsKSA6IHZvaWQgMDsKICAgICAgICAgICAgICAgIF9tZXRob2QxX2RlY29yYXRvcnMgPSBbKHN1cGVyLmRlY29yYXRlLmJpbmQoX291dGVyVGhpcykpXTsKICAgICAgICAgICAgICAgIF9tZXRob2QyX2RlY29yYXRvcnMgPSBbKHN1cGVyWyJkZWNvcmF0ZSJdLmJpbmQoX291dGVyVGhpcykpXTsKICAgICAgICAgICAgICAgIF9tZXRob2QzX2RlY29yYXRvcnMgPSBbKChzdXBlci5kZWNvcmF0ZS5iaW5kKF9vdXRlclRoaXMpKSldOwogICAgICAgICAgICAgICAgX19lc0RlY29yYXRlKHRoaXMsIG51bGwsIF9tZXRob2QxX2RlY29yYXRvcnMsIHsga2luZDogIm1ldGhvZCIsIG5hbWU6ICJtZXRob2QxIiwgc3RhdGljOiBmYWxzZSwgcHJpdmF0ZTogZmFsc2UsIGFjY2VzczogeyBoYXM6IG9iaiA9PiAibWV0aG9kMSIgaW4gb2JqLCBnZXQ6IG9iaiA9PiBvYmoubWV0aG9kMSB9LCBtZXRhZGF0YTogX21ldGFkYXRhIH0sIG51bGwsIF9pbnN0YW5jZUV4dHJhSW5pdGlhbGl6ZXJzKTsKICAgICAgICAgICAgICAgIF9fZXNEZWNvcmF0ZSh0aGlzLCBudWxsLCBfbWV0aG9kMl9kZWNvcmF0b3JzLCB7IGtpbmQ6ICJtZXRob2QiLCBuYW1lOiAibWV0aG9kMiIsIHN0YXRpYzogZmFsc2UsIHByaXZhdGU6IGZhbHNlLCBhY2Nlc3M6IHsgaGFzOiBvYmogPT4gIm1ldGhvZDIiIGluIG9iaiwgZ2V0OiBvYmogPT4gb2JqLm1ldGhvZDIgfSwgbWV0YWRhdGE6IF9tZXRhZGF0YSB9LCBudWxsLCBfaW5zdGFuY2VFeHRyYUluaXRpYWxpemVycyk7CiAgICAgICAgICAgICAgICBfX2VzRGVjb3JhdGUodGhpcywgbnVsbCwgX21ldGhvZDNfZGVjb3JhdG9ycywgeyBraW5kOiAibWV0aG9kIiwgbmFtZTogIm1ldGhvZDMiLCBzdGF0aWM6IGZhbHNlLCBwcml2YXRlOiBmYWxzZSwgYWNjZXNzOiB7IGhhczogb2JqID0+ICJtZXRob2QzIiBpbiBvYmosIGdldDogb2JqID0+IG9iai5tZXRob2QzIH0sIG1ldGFkYXRhOiBfbWV0YWRhdGEgfSwgbnVsbCwgX2luc3RhbmNlRXh0cmFJbml0aWFsaXplcnMpOwogICAgICAgICAgICAgICAgaWYgKF9tZXRhZGF0YSkgT2JqZWN0LmRlZmluZVByb3BlcnR5KHRoaXMsIFN5bWJvbC5tZXRhZGF0YSwgeyBlbnVtZXJhYmxlOiB0cnVlLCBjb25maWd1cmFibGU6IHRydWUsIHdyaXRhYmxlOiB0cnVlLCB2YWx1ZTogX21ldGFkYXRhIH0pOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG1ldGhvZDEoKSB7IH0KICAgICAgICAgICAgbWV0aG9kMigpIHsgfQogICAgICAgICAgICBtZXRob2QzKCkgeyB9CiAgICAgICAgICAgIGNvbnN0cnVjdG9yKCkgewogICAgICAgICAgICAgICAgX19ydW5Jbml0aWFsaXplcnModGhpcywgX2luc3RhbmNlRXh0cmFJbml0aWFsaXplcnMpOwogICAgICAgICAgICB9CiAgICAgICAgfTsKICAgIH0pKCk7IH0KfQo=",
+            "callback_utf8_sha256": "cad4b6193bb4ad69b1c01d9e546bae19f18d8dc103acf552d4b528deb5d4cb3c",
+            "callback_utf8_bytes": 3908,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "cad4b6193bb4ad69b1c01d9e546bae19f18d8dc103acf552d4b528deb5d4cb3c",
+            "materialized_utf8_bytes": 3908,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "f5464b5668c2e9fa779d27d8304b3a1e4ab7aaa59b8515698ce70082ebd004c0"
+      },
+      "control_fingerprint_sha256": "75c7ef3e46a79f18d9ae6196a3e91f5fa6556767aa858abd4dad4243fda5585c"
+    },
+    {
+      "control_id": "es2021-static-this-and-super",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "Y2xhc3MgQmFzZSB7IHN0YXRpYyB2YWx1ZSA9IDE7IHN0YXRpYyBtZXRob2QoKSB7fSB9CmNsYXNzIEMgZXh0ZW5kcyBCYXNlIHsgc3RhdGljIGV4dHJhOiBudW1iZXI7IHN0YXRpYyB2YWx1ZSA9IHN1cGVyLnZhbHVlOyBzdGF0aWMgeyBzdXBlci5tZXRob2QoKTsgdGhpcy5leHRyYSA9IDI7IH0gfQo=",
+            "utf8_sha256": "e1d40bebf761ee42ca7867ebce7bd790bcd080eae258aead9cdad06bd24fab46",
+            "utf8_bytes": 170
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 8,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2EsIF9iOwpjbGFzcyBCYXNlIHsKICAgIHN0YXRpYyBtZXRob2QoKSB7IH0KfQpPYmplY3QuZGVmaW5lUHJvcGVydHkoQmFzZSwgInZhbHVlIiwgewogICAgZW51bWVyYWJsZTogdHJ1ZSwKICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwKICAgIHdyaXRhYmxlOiB0cnVlLAogICAgdmFsdWU6IDEKfSk7CmNsYXNzIEMgZXh0ZW5kcyAoX2IgPSBCYXNlKSB7Cn0KX2EgPSBDOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoQywgInZhbHVlIiwgewogICAgZW51bWVyYWJsZTogdHJ1ZSwKICAgIGNvbmZpZ3VyYWJsZTogdHJ1ZSwKICAgIHdyaXRhYmxlOiB0cnVlLAogICAgdmFsdWU6IFJlZmxlY3QuZ2V0KF9iLCAidmFsdWUiLCBfYSkKfSk7CigoKSA9PiB7CiAgICBSZWZsZWN0LmdldChfYiwgIm1ldGhvZCIsIF9hKS5jYWxsKF9hKTsKICAgIF9hLmV4dHJhID0gMjsKfSkoKTsK",
+            "callback_utf8_sha256": "70cd649abf2c126cb06c76c22fd5f9259408a458f685b3f9a629b8bf2fa6a004",
+            "callback_utf8_bytes": 450,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "70cd649abf2c126cb06c76c22fd5f9259408a458f685b3f9a629b8bf2fa6a004",
+            "materialized_utf8_bytes": 450,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "56e810b14e1fc7997ccdb4470014170f9116fdc68d83acf92a5cf545e8376ac0"
+      },
+      "control_fingerprint_sha256": "7212c8c4034f0d800e448ab801485a42a6fd8711abee7498c0560788b6c12d0a"
+    },
+    {
+      "control_id": "parameter-property-and-field-initializer-order",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "Y2xhc3MgQmFzZSB7fQpjbGFzcyBDIGV4dGVuZHMgQmFzZSB7IGZpZWxkID0gdGhpcy5wYXJhbWV0ZXI7IGNvbnN0cnVjdG9yKHB1YmxpYyBwYXJhbWV0ZXI6IG51bWJlcikgeyBzdXBlcigpOyB9IH0K",
+            "utf8_sha256": "c443caa5a8faa52dc8b02899dec46797173272c1716ff6c3f9cddf2bce1089ef",
+            "utf8_bytes": 114
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "target": 8,
+          "useDefineForClassFields": false
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 1,
+        "h2_4b_sources": 1,
+        "h2_5a_sources": 1
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "emit_diagnostics": [],
+        "emit_skipped": false,
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/input.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjbGFzcyBCYXNlIHsKfQpjbGFzcyBDIGV4dGVuZHMgQmFzZSB7CiAgICBjb25zdHJ1Y3RvcihwYXJhbWV0ZXIpIHsKICAgICAgICBzdXBlcigpOwogICAgICAgIHRoaXMucGFyYW1ldGVyID0gcGFyYW1ldGVyOwogICAgICAgIHRoaXMuZmllbGQgPSB0aGlzLnBhcmFtZXRlcjsKICAgIH0KfQo=",
+            "callback_utf8_sha256": "cb7394a0c957f0dbd00581d3e6dfcab19f27668cc622beb48bc7e085da5f78fc",
+            "callback_utf8_bytes": 179,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "cb7394a0c957f0dbd00581d3e6dfcab19f27668cc622beb48bc7e085da5f78fc",
+            "materialized_utf8_bytes": 179,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/input.ts"
+            ]
+          }
+        ],
+        "run_fingerprint_sha256": "2ba5bd5621233260ae119b70724bc041b68e24a4a5ee71cea875081cf2322be8"
+      },
+      "control_fingerprint_sha256": "7aa8de7d88a0c824b5c4bb92c189c4579a4bd4b71e421e7c807c8dff6450761e"
+    },
+    {
+      "control_id": "no-emit-on-error-stops-before-write",
+      "input": {
+        "current_directory": "/project",
+        "roots": [
+          "/project/input.ts"
+        ],
+        "files": [
+          {
+            "path": "/project/input.ts",
+            "root": true,
+            "utf8_base64": "aW50ZXJmYWNlIERpc3Bvc2FibGUge30KaW50ZXJmYWNlIEFzeW5jRGlzcG9zYWJsZSB7fQp1c2luZyB2YWx1ZSA9IG1pc3Npbmc7Cg==",
+            "utf8_sha256": "41a5f93aaa8434e41ae697682254336b63a9dbd84caea9b94692269de1e85174",
+            "utf8_bytes": 76
+          }
+        ],
+        "compiler_options": {
+          "alwaysStrict": true,
+          "ignoreDeprecations": "6.0",
+          "module": 99,
+          "newLine": 1,
+          "noEmitOnError": true,
+          "target": 9,
+          "useDefineForClassFields": true
+        }
+      },
+      "runtime_expectation": {
+        "h2_2b_sources": 0,
+        "h2_2c_sources": 0,
+        "h2_4b_sources": 0,
+        "h2_5a_sources": 0
+      },
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/input.ts",
+            "start": 67,
+            "length": 7,
+            "message": "Cannot find name 'missing'."
+          }
+        ],
+        "emit_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/input.ts",
+            "start": 67,
+            "length": 7,
+            "message": "Cannot find name 'missing'."
+          }
+        ],
+        "emit_skipped": true,
+        "writes": [],
+        "run_fingerprint_sha256": "20d930a281e5dfc60103c1d39a901f8e90b9b3b72879014ce84f2285537bf81c"
+      },
+      "control_fingerprint_sha256": "fcb2ac52e64a6dd03fd4283a0250e7b1dfff513752929db3b9f08dee43c8a08e"
+    }
+  ],
+  "summary": {
+    "controls": 20,
+    "exact_outputs": 19,
+    "typescript_runs": 40,
+    "reported_diagnostics": 1,
+    "emit_diagnostics": 1,
+    "no_emit_on_error_controls": 1,
+    "no_emit_helpers_controls": 1,
+    "es2021_controls": 4,
+    "es2022_controls": 12,
+    "later_standard_controls": 3,
+    "esnext_controls": 1,
+    "using_controls": 13,
+    "await_using_controls": 2,
+    "standard_decorator_controls": 2,
+    "h2_5a_active_controls": 18
+  },
+  "controls_fingerprint_sha256": "36aa49d546b99ad5413883d513d22b7792c5ec8b95417dfc4e63459786d9a4ab"
+}

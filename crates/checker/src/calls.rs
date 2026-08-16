@@ -17,6 +17,7 @@ use tsc_types::{
     TypeId, UnionReduction,
 };
 
+use crate::elaboration::ElaborationDiagnosticSink;
 use crate::inference::InferenceContextId;
 use crate::relate::RelationKind;
 
@@ -242,12 +243,299 @@ impl<'a> CheckerState<'a> {
                 }
             }
         }
+        if self.options.emit_decorator_metadata == Some(true) {
+            self.mark_decorator_metadata_aliases(node)?;
+        }
         for modifier in modifiers {
             if self.kind_of(modifier) == SyntaxKind::Decorator {
                 self.check_decorator(modifier)?;
             }
         }
         Ok(())
+    }
+
+    /// tsc-port: markDecoratorAliasReferenced @6.0.3
+    /// tsc-hash: 3a68f792b0da68a120622558271469120ce40552a0547c6c3a40af09ea035a51
+    /// tsc-span: _tsc.js:71867-71908
+    ///
+    /// Decorator metadata is emitted after TypeScript syntax erasure. The
+    /// checker therefore records when a type-syntax use is also a runtime
+    /// alias use, and import elision consumes that durable fact later.
+    fn mark_decorator_metadata_aliases(&mut self, node: NodeId) -> CheckResult<()> {
+        match self.data_of(node).clone() {
+            NodeData::ClassDeclaration(data) => {
+                let constructor = self.nodes_of(data.members).into_iter().find(|&member| {
+                    matches!(
+                        self.data_of(member),
+                        NodeData::Constructor(data) if data.body.is_some()
+                    )
+                });
+                if let Some(constructor) = constructor {
+                    for parameter in self.function_like_parameters(constructor) {
+                        let r#type = self.parameter_type_node_for_decorator_metadata(parameter);
+                        self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
+                    }
+                }
+            }
+            NodeData::GetAccessor(_) | NodeData::SetAccessor(_) => {
+                let symbol = self.get_symbol_of_declaration(node)?;
+                let other_kind = if self.kind_of(node) == SyntaxKind::GetAccessor {
+                    SyntaxKind::SetAccessor
+                } else {
+                    SyntaxKind::GetAccessor
+                };
+                let other = self.get_declaration_of_kind(symbol, other_kind);
+                let r#type = self
+                    .annotated_accessor_type_node(Some(node))
+                    .or_else(|| self.annotated_accessor_type_node(other));
+                self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
+            }
+            NodeData::MethodDeclaration(data) => {
+                for parameter in self.nodes_of(data.parameters) {
+                    let r#type = self.parameter_type_node_for_decorator_metadata(parameter);
+                    self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
+                }
+                let return_type = self.effective_return_type_node(node);
+                self.mark_decorator_metadata_type_node_as_referenced(return_type)?;
+            }
+            NodeData::PropertyDeclaration(_) => {
+                let r#type = self.effective_type_annotation_node(node);
+                self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
+            }
+            NodeData::Parameter(_) => {
+                let r#type = self.parameter_type_node_for_decorator_metadata(node);
+                self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
+                if let Some(signature) = self.parent_of(node) {
+                    for parameter in self.function_like_parameters(signature) {
+                        let r#type = self.parameter_type_node_for_decorator_metadata(parameter);
+                        self.mark_decorator_metadata_type_node_as_referenced(r#type)?;
+                    }
+                    let return_type = self.effective_return_type_node(signature);
+                    self.mark_decorator_metadata_type_node_as_referenced(return_type)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
+    fn function_like_parameters(&self, node: NodeId) -> Vec<NodeId> {
+        let parameters = match self.data_of(node) {
+            NodeData::Constructor(data) => data.parameters,
+            NodeData::FunctionDeclaration(data) => data.parameters,
+            NodeData::FunctionExpression(data) => data.parameters,
+            NodeData::ArrowFunction(data) => data.parameters,
+            NodeData::MethodDeclaration(data) => data.parameters,
+            NodeData::GetAccessor(data) => data.parameters,
+            NodeData::SetAccessor(data) => data.parameters,
+            _ => None,
+        };
+        self.nodes_of(parameters)
+    }
+
+    /// tsc-port: getParameterTypeNodeForDecoratorCheck @6.0.3
+    /// tsc-hash: 1d9427a617814c2a84781a8d159888be1e22e7a8676bc1a173485f4a954763b1
+    /// tsc-span: _tsc.js:82740-82743
+    fn parameter_type_node_for_decorator_metadata(&self, parameter: NodeId) -> Option<NodeId> {
+        let r#type = self.effective_type_annotation_node(parameter)?;
+        if !self.is_rest_parameter_declaration(parameter) {
+            return Some(r#type);
+        }
+        match self.data_of(r#type) {
+            NodeData::ArrayType(data) => data.element_type,
+            NodeData::TypeReference(data) => {
+                let arguments = self.nodes_of(data.type_arguments);
+                (arguments.len() == 1).then_some(arguments[0])
+            }
+            _ => None,
+        }
+    }
+
+    /// tsc-port: markDecoratorMedataDataTypeNodeAsReferenced @6.0.3
+    /// tsc-hash: 7424345a75a04f0186f51f2b0629f81e5711a22c586884d2e2c6d12fbe32ec11
+    /// tsc-span: _tsc.js:71991-72000
+    fn mark_decorator_metadata_type_node_as_referenced(
+        &mut self,
+        r#type: Option<NodeId>,
+    ) -> CheckResult<()> {
+        let Some(entity_name) = self.decorator_metadata_entity_name(r#type) else {
+            return Ok(());
+        };
+        if !matches!(
+            self.kind_of(entity_name),
+            SyntaxKind::Identifier | SyntaxKind::QualifiedName
+        ) {
+            return Ok(());
+        }
+        self.mark_entity_name_or_entity_expression_as_reference(entity_name, true)
+    }
+
+    /// tsc-port: markEntityNameOrEntityExpressionAsReference @6.0.3
+    /// tsc-hash: 2d7fc56d57e3ddbdf31eecd35c1fb485d6f0d2f83ec1af49e7638c5eb895b980
+    /// tsc-span: _tsc.js:71959-71983
+    ///
+    /// Resolve the root in its type/namespace meaning first. Calling the
+    /// ordinary expression resolver here would incorrectly diagnose local
+    /// type aliases as value uses before metadata serialization has selected
+    /// its runtime fallback.
+    fn mark_entity_name_or_entity_expression_as_reference(
+        &mut self,
+        type_name: NodeId,
+        for_decorator_metadata: bool,
+    ) -> CheckResult<()> {
+        let root_name = self.first_identifier(type_name);
+        let meaning = if self.kind_of(type_name) == SyntaxKind::Identifier {
+            SymbolFlags::TYPE
+        } else {
+            SymbolFlags::NAMESPACE
+        } | SymbolFlags::ALIAS;
+        let name = self
+            .identifier_text(root_name)
+            .unwrap_or_default()
+            .to_owned();
+        let Some(root_symbol) = self.resolve_name(
+            Some(root_name),
+            &name,
+            meaning,
+            /*name_not_found_message*/ None,
+            /*is_use*/ true,
+            /*exclude_globals*/ false,
+        )?
+        else {
+            return Ok(());
+        };
+        if !self
+            .symbol_flags(root_symbol)
+            .intersects(SymbolFlags::ALIAS)
+        {
+            return Ok(());
+        }
+
+        let can_collect_alias_accessibility = self.options.verbatim_module_syntax != Some(true);
+        let symbol_is_value =
+            self.symbol_is_value(root_symbol, /*include_type_only_members*/ false)?;
+        let target = self.resolve_alias(root_symbol)?;
+        if can_collect_alias_accessibility
+            && symbol_is_value
+            && !self.is_const_enum_or_const_enum_only_module_symbol(target)
+            && self.get_type_only_alias_declaration(root_symbol)?.is_none()
+        {
+            return self.mark_alias_symbol_as_referenced(root_symbol);
+        }
+
+        let isolated_modules = self.options.isolated_modules == Some(true)
+            || self.options.verbatim_module_syntax == Some(true);
+        let has_explicit_type_only_declaration = self
+            .binder
+            .symbol(root_symbol)
+            .declarations
+            .iter()
+            .copied()
+            .any(|declaration| self.is_type_only_import_or_export_declaration(declaration));
+        if for_decorator_metadata
+            && isolated_modules
+            && self.options.emit_module_kind() >= 5
+            && !symbol_is_value
+            && !has_explicit_type_only_declaration
+        {
+            let related = self
+                .binder
+                .symbol(root_symbol)
+                .declarations
+                .iter()
+                .copied()
+                .find(|declaration| self.is_alias_symbol_declaration(*declaration))
+                .map(|declaration| {
+                    self.related_info_for_node(
+                        declaration,
+                        &diagnostics::_0_was_imported_here,
+                        &[&name],
+                    )
+                })
+                .into_iter()
+                .collect();
+            self.error_at_with_related(
+                Some(type_name),
+                &diagnostics::A_type_referenced_in_a_decorated_signature_must_be_imported_with_import_type_or_a_namespace_import_when_isolatedModules_and_emitDecoratorMetadata_are_enabled,
+                &[],
+                related,
+            );
+        }
+        Ok(())
+    }
+
+    /// tsc-port: getEntityNameForDecoratorMetadata @6.0.3
+    /// tsc-hash: 5688615fbf1c6bc55dbd481def6eda81d0d36556451169f5ccdb1731d927d968
+    /// tsc-span: _tsc.js:82698-82713
+    fn decorator_metadata_entity_name(&self, r#type: Option<NodeId>) -> Option<NodeId> {
+        let r#type = r#type?;
+        match self.data_of(r#type) {
+            NodeData::IntersectionType(data) => {
+                self.decorator_metadata_entity_name_from_types(data.types)
+            }
+            NodeData::UnionType(data) => self.decorator_metadata_entity_name_from_types(data.types),
+            NodeData::ConditionalType(data) => self.decorator_metadata_common_entity_name(
+                [data.true_type, data.false_type].into_iter().flatten(),
+            ),
+            NodeData::ParenthesizedType(data) => self.decorator_metadata_entity_name(data.r#type),
+            NodeData::NamedTupleMember(data) => self.decorator_metadata_entity_name(data.r#type),
+            NodeData::TypeReference(data) => data.type_name,
+            _ => None,
+        }
+    }
+
+    fn decorator_metadata_entity_name_from_types(
+        &self,
+        types: Option<NodeArrayId>,
+    ) -> Option<NodeId> {
+        self.decorator_metadata_common_entity_name(self.nodes_of(types))
+    }
+
+    /// tsc-port: getEntityNameForDecoratorMetadataFromTypeList @6.0.3
+    /// tsc-hash: 00ebd0c69eec1bee6e917796ec115321557cd85b0cfcc5aa0ca45ae52936d662
+    /// tsc-span: _tsc.js:82714-82739
+    fn decorator_metadata_common_entity_name(
+        &self,
+        types: impl IntoIterator<Item = NodeId>,
+    ) -> Option<NodeId> {
+        let strict_null_checks = self
+            .options
+            .strict_option_value(self.options.strict_null_checks);
+        let mut common = None;
+        for mut r#type in types {
+            loop {
+                r#type = match self.data_of(r#type) {
+                    NodeData::ParenthesizedType(data) => data.r#type?,
+                    NodeData::NamedTupleMember(data) => data.r#type?,
+                    _ => break,
+                };
+            }
+            if self.kind_of(r#type) == SyntaxKind::NeverKeyword {
+                continue;
+            }
+            if !strict_null_checks
+                && (self.kind_of(r#type) == SyntaxKind::UndefinedKeyword
+                    || matches!(
+                        self.data_of(r#type),
+                        NodeData::LiteralType(data)
+                            if data.literal.is_some_and(|literal| self.kind_of(literal) == SyntaxKind::NullKeyword)
+                    ))
+            {
+                continue;
+            }
+            let individual = self.decorator_metadata_entity_name(Some(r#type))?;
+            if let Some(previous) = common {
+                let same_identifier = self.kind_of(previous) == SyntaxKind::Identifier
+                    && self.kind_of(individual) == SyntaxKind::Identifier
+                    && self.identifier_text(previous) == self.identifier_text(individual);
+                if !same_identifier {
+                    return None;
+                }
+            } else {
+                common = Some(individual);
+            }
+        }
+        common
     }
 
     /// tsc-port: nodeCanBeDecorated @6.0.3
@@ -2552,7 +2840,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-span: _tsc.js:67246-67249
     ///
     /// Consumers read only `.length` — the boolean face.
-    fn has_exact_optional_unassignable_properties(
+    pub(crate) fn has_exact_optional_unassignable_properties(
         &mut self,
         source: TypeId,
         target: TypeId,
@@ -2947,7 +3235,9 @@ impl<'a> CheckerState<'a> {
         {
             return Ok(Some(vec![factory_arity_error]));
         }
-        if self.is_type_related_to(check_attributes_type, param_type, relation)? {
+        let initially_related =
+            self.is_type_related_to(check_attributes_type, param_type, relation)?;
+        if initially_related {
             return Ok(None);
         }
         if mode == ApplicabilityMode::Silent {
@@ -2958,28 +3248,28 @@ impl<'a> CheckerState<'a> {
             NodeData::JsxSelfClosingElement(data) => data.tag_name.unwrap_or(node),
             _ => node,
         };
-        let before = self.diagnostics.len();
         if let Some(attributes) = attributes_node {
-            let elaborated = self.elaborate_literal_assignment(
+            let (elaborated, diagnostics) = self.capture_literal_assignment_elaboration(
                 attributes,
                 param_type,
                 Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
             )?;
             if elaborated.reported() {
                 return Ok(Some(
-                    self.take_captured_applicability_errors(node, before, mode),
+                    self.applicability_errors_from_diagnostics(diagnostics, mode),
                 ));
             }
         }
-        self.check_type_assignable_to(
+        let (_, diagnostic) = self.capture_type_assignable_to_diagnostic(
             check_attributes_type,
             param_type,
-            Some(relation_error_node),
+            relation_error_node,
             &diagnostics::Type_0_is_not_assignable_to_type_1,
         )?;
-        Ok(Some(
-            self.take_captured_applicability_errors(node, before, mode),
-        ))
+        Ok(Some(self.applicability_errors_from_diagnostics(
+            diagnostic.into_iter().collect(),
+            mode,
+        )))
     }
 
     /// checkTagNameDoesNotExpectTooManyArguments (76109-76188), verdict
@@ -3151,13 +3441,10 @@ impl<'a> CheckerState<'a> {
     /// tsrs-native: run the common elaborateError reporter under
     /// errorOutputContainer.skipLogging semantics.
     ///
-    /// The common engine writes through CheckerState so assignment and
-    /// return callers keep their established behavior. Applicability
-    /// needs the same diagnostics as DATA: Report mode publishes them
-    /// only after overload selection, while Probe mode wraps their
-    /// span/related rows in 2769. Capture only rows inside the effective
-    /// argument; relation probes can lazily emit file-less missing-global
-    /// diagnostics, which remain in the main list.
+    /// The elaboration sink returns only rows explicitly owned by this
+    /// applicability frame. Report mode publishes them after overload
+    /// selection; lazy file-less diagnostics remain in the program
+    /// sink and cannot accidentally suppress the outer relation head.
     fn capture_argument_elaboration(
         &mut self,
         node: NodeId,
@@ -3165,13 +3452,14 @@ impl<'a> CheckerState<'a> {
         head: &'static DiagnosticMessage,
         mode: ApplicabilityMode,
     ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
-        let before = self.diagnostics.len();
-        let outcome = self.elaborate_literal_assignment(node, target, Some(head))?;
+        let (outcome, diagnostics) =
+            self.capture_literal_assignment_elaboration(node, target, Some(head))?;
         if !outcome.reported() {
+            debug_assert!(diagnostics.is_empty());
             return Ok(None);
         }
         Ok(Some(
-            self.take_captured_applicability_errors(node, before, mode),
+            self.applicability_errors_from_diagnostics(diagnostics, mode),
         ))
     }
 
@@ -3197,9 +3485,9 @@ impl<'a> CheckerState<'a> {
         } else {
             head
         };
-        let before = self.diagnostics.len();
-        self.check_type_assignable_to(source, target, Some(node), head)?;
-        Ok(self.take_captured_applicability_errors(node, before, mode))
+        let (_, diagnostic) =
+            self.capture_type_assignable_to_diagnostic(source, target, node, head)?;
+        Ok(self.applicability_errors_from_diagnostics(diagnostic.into_iter().collect(), mode))
     }
 
     /// tsc-port: getUndefinedStrippedTargetIfNeeded @6.0.3
@@ -3269,52 +3557,34 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    fn take_captured_applicability_errors(
-        &mut self,
-        node: NodeId,
-        before: usize,
+    fn applicability_errors_from_diagnostics(
+        &self,
+        diagnostics: Vec<Diagnostic>,
         mode: ApplicabilityMode,
     ) -> Vec<ApplicabilityError> {
-        let source = self.binder.source_of_node(node);
-        let syntax_node = source.arena.node(node);
-        let start_byte = tsc_syntax::skip_trivia(source.text(), syntax_node.pos as usize);
-        let to_utf16 = |byte: usize| -> u32 {
-            source
-                .positions()
-                .byte_to_utf16((byte) as u32)
-                .unwrap_or(byte as u32)
-        };
-        let node_start = to_utf16(start_byte);
-        let node_end = to_utf16(syntax_node.end as usize);
-        let file_name = source.file_name.clone();
-
-        let emitted = self.diagnostics.split_off(before);
-        let mut errors = Vec::new();
-        for diagnostic in emitted {
-            let is_argument_row = diagnostic.file_name.as_deref() == Some(file_name.as_str())
-                && diagnostic
-                    .start
-                    .is_some_and(|start| node_start <= start && start < node_end);
-            if !is_argument_row {
-                self.push_error_diagnostic(diagnostic);
-                continue;
-            }
-            let span = DiagSpan {
-                file_name: diagnostic
-                    .file_name
-                    .clone()
-                    .expect("argument rows have a file"),
-                start: diagnostic.start.expect("argument rows have a start"),
-                length: diagnostic.length.expect("argument rows have a length"),
-            };
-            let related = diagnostic.related.clone();
-            errors.push(ApplicabilityError {
-                span,
-                related,
-                diagnostic: (mode == ApplicabilityMode::Report).then_some(diagnostic),
-            });
-        }
-        errors
+        diagnostics
+            .into_iter()
+            .map(|diagnostic| {
+                let span = DiagSpan {
+                    file_name: diagnostic
+                        .file_name
+                        .clone()
+                        .expect("applicability-owned rows have a source file"),
+                    start: diagnostic
+                        .start
+                        .expect("applicability-owned rows have a source start"),
+                    length: diagnostic
+                        .length
+                        .expect("applicability-owned rows have a source length"),
+                };
+                let related = diagnostic.related.clone();
+                ApplicabilityError {
+                    span,
+                    related,
+                    diagnostic: (mode == ApplicabilityMode::Report).then_some(diagnostic),
+                }
+            })
+            .collect()
     }
 
     /// tsc-port: getSignatureApplicabilityError @6.0.3
@@ -4222,7 +4492,7 @@ impl<'a> CheckerState<'a> {
                         if matches!(trial.disposition, OverloadCandidateDisposition::Success(_)) {
                             SpeculationOutcome::Commit(trial)
                         } else {
-                            SpeculationOutcome::Rollback(trial)
+                            SpeculationOutcome::Reject(trial)
                         },
                     )
                 })?
@@ -5738,6 +6008,7 @@ impl<'a> CheckerState<'a> {
         source: TypeId,
         target: TypeId,
         relation: RelationKind,
+        sink: &mut ElaborationDiagnosticSink,
     ) -> CheckResult<bool> {
         let properties = match self.data_of(attributes) {
             NodeData::JsxAttributes(data) => data.properties,
@@ -5759,7 +6030,9 @@ impl<'a> CheckerState<'a> {
             let Some(source_property) = self.get_property_of_type_full(source, &name)? else {
                 continue;
             };
-            let Some(target_type) = self.member_elaboration_target_type(source, target, &name)?
+            let name_type = self.tables.get_string_literal_type(&name);
+            let Some(target_type) =
+                self.member_elaboration_target_type(source, target, name_type)?
             else {
                 continue;
             };
@@ -5769,10 +6042,11 @@ impl<'a> CheckerState<'a> {
             }
             if let Some(initializer) = initializer {
                 if self
-                    .elaborate_literal_assignment(
+                    .elaborate_literal_assignment_into_sink(
                         initializer,
                         target_type,
                         Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                        sink,
                     )?
                     .reported()
                 {
@@ -5787,19 +6061,22 @@ impl<'a> CheckerState<'a> {
                 source_type,
                 target_type,
             )?;
-            let diagnostics_before_report = self.diagnostics.len();
-            self.check_type_assignable_to(
+            let (_, mut diagnostic) = self.capture_type_assignable_to_diagnostic(
                 source_type,
                 target_type,
-                Some(name_node),
+                name_node,
                 &diagnostics::Type_0_is_not_assignable_to_type_1,
             )?;
-            if self.diagnostics.len() > diagnostics_before_report {
-                let diagnostic_index = self.diagnostics.len() - 1;
+            if let Some(diagnostic) = &mut diagnostic {
                 let name_type = self.tables.get_string_literal_type(&name);
-                self.attach_elementwise_elaboration_related(diagnostic_index, target, name_type)?;
+                if let Some(related) = self.elementwise_elaboration_related(target, name_type)? {
+                    diagnostic.related.push(related);
+                }
             }
-            reported = true;
+            if let Some(diagnostic) = diagnostic {
+                sink.publish(self, diagnostic);
+                reported = true;
+            }
         }
         Ok(reported)
     }
@@ -5853,21 +6130,21 @@ impl<'a> CheckerState<'a> {
                 )?;
                 // checkTypeAssignableToAndOptionallyElaborate(attrType,
                 // result, errorNode=tagName, expr=attributes).
-                if !self.is_type_assignable_to(attr_type, result)?
-                    && !self
-                        .elaborate_literal_assignment(
-                            attributes,
-                            result,
-                            Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
-                        )?
-                        .reported()
-                {
-                    self.check_type_assignable_to(
-                        attr_type,
+                let initially_related = self.is_type_assignable_to(attr_type, result)?;
+                if !initially_related {
+                    let elaborated = self.elaborate_literal_assignment(
+                        attributes,
                         result,
-                        Some(tag_name),
-                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
                     )?;
+                    if !elaborated.reported() {
+                        self.check_type_assignable_to(
+                            attr_type,
+                            result,
+                            Some(tag_name),
+                            &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        )?;
+                    }
                 }
                 let type_argument_nodes = self.nodes_of(type_arguments);
                 if !type_argument_nodes.is_empty() {
@@ -6702,7 +6979,7 @@ impl<'a> CheckerState<'a> {
         // getGlobalESSymbolConstructorSymbol(reportErrors=false)
         // (77701): the silent global-value probe; the deferredGlobal*
         // memo elides (deterministic, no suggestion-budget burn).
-        let Some(global_es_symbol) = self.get_global_symbol("Symbol", SymbolFlags::VALUE, None)
+        let Some(global_es_symbol) = self.get_global_symbol("Symbol", SymbolFlags::VALUE, None)?
         else {
             return Ok(false);
         };

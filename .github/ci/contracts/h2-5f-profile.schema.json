@@ -1,0 +1,258 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-5f-profile.schema.json",
+  "title": "tsc-rs H2.5f runtime profile transition",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "origin",
+    "qualification",
+    "runtime_inputs",
+    "admitted_profile",
+    "transition",
+    "evidence",
+    "summary",
+    "profile_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h2-runtime-profile" },
+    "status": { "const": "qualified" },
+    "phase": { "const": "H2.5f" },
+    "typescript": { "$ref": "#/$defs/typescript" },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["trusted_h2_5e_merge", "historical", "interpretation"],
+      "properties": {
+        "trusted_h2_5e_merge": { "const": "4d59ca19507219e91cf5ea1f9af02057d1d551ac" },
+        "historical": { "$ref": "#/$defs/historical" },
+        "interpretation": {
+          "const": "H2.5e artifacts remain immutable lineage; current runtime ownership transfers to this H2.5f profile"
+        }
+      }
+    },
+    "qualification": { "$ref": "#/$defs/path_hash" },
+    "runtime_inputs": {
+      "type": "array",
+      "minItems": 86,
+      "maxItems": 86,
+      "items": { "$ref": "#/$defs/path_hash" }
+    },
+    "admitted_profile": {
+      "const": {
+        "execution": "single-project-one-shot-whole-program",
+        "target_states": ["ES2016(3)", "ES2017(4)", "ES2018(5)", "ES2019(6)", "ES2020(7)", "ES2021(8)", "ES2022(9)", "ES2023(10)", "ES2024(11)", "ES2025(12)", "ESNext(99)"],
+        "module_states": [
+          "absent-effective-ESNext",
+          "ES2015(5)",
+          "ES2020(6)",
+          "ESNext(99)",
+          "CommonJS(1)",
+          "AMD(2)",
+          "UMD(3)",
+          "System(4)",
+          "Node16(100)",
+          "Node18(101)",
+          "Node20(102)",
+          "NodeNext(199)",
+          "Preserve(200)"
+        ],
+        "jsx_modes": ["Preserve(1)", "React(2)", "ReactNative(3)", "ReactJSX(4)", "ReactJSXDev(5)"],
+        "source_kinds": [".ts", ".mts", ".cts", ".tsx", ".js", ".mjs", ".cjs", ".jsx", ".json"],
+        "products": ["javascript", "mjs", "cjs", "jsx", "json"],
+        "exact_cases": 680,
+        "h2_5f_exact_cases": 8,
+        "exact_reported_diagnostics": 1395,
+        "exact_writes": 974,
+        "diagnostic_deferred_output_controls": 5,
+        "diagnostic_control_writes": 5,
+        "source_deferred_cases": 15,
+        "candidate_denominator": 688,
+        "h2_5f_candidate_denominator": 8,
+        "h2_5f_global_future_rows": 1,
+        "h2_5f_owner_controls": 21,
+        "h2_5f_owner_writes": 20
+      }
+    },
+    "transition": {
+      "const": {
+        "completed_slice": "H2.5f",
+        "next_slice": "H2.5g",
+        "active_runtime_slices": [
+          "H2.1a",
+          "H2.1b",
+          "H2.1c",
+          "H2.1d",
+          "H2.1e",
+          "H2.2a",
+          "H2.2b",
+          "H2.2c",
+          "H2.2d",
+          "H2.3a",
+          "H2.3b",
+          "H2.3c",
+          "H2.3d",
+          "H2.4a",
+          "H2.4b",
+          "H2.5a",
+          "H2.5b",
+          "H2.5c",
+          "H2.5d",
+          "H2.5e",
+          "H2.5f"
+        ],
+        "inactive_runtime_slice_count": 16,
+        "classic_jsx_tsx_owner": "complete",
+        "automatic_jsx_runtime_owner": "complete",
+        "json_output_owner": "complete",
+        "legacy_decorators_owner": "complete",
+        "standard_decorators_and_class_fields_owner": "complete",
+        "target_esnext_transform_owner": "complete",
+        "target_es2021_transform_owner": "complete",
+        "target_es2020_transform_owner": "complete",
+        "target_es2019_transform_owner": "complete",
+        "target_es2018_transform_owner": "complete",
+        "target_es2017_transform_owner": "complete",
+        "target_es2016_transform_owner": "H2.5g",
+        "general_output_matrix_owner": "H2.8a",
+        "h2_5f_candidate_cases": 8,
+        "h2_5f_admitted_cases": 8,
+        "h2_5f_global_future_rows": 1,
+        "h2_5f_source_deferred_cases": 0,
+        "deferred_failure_boundary": "typed failure before first sink write"
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "typescript_repetitions",
+        "rust_repetitions",
+        "legal_worker_control",
+        "denominator_control",
+        "target_band_control",
+        "async_function_control",
+        "generated_binding_control",
+        "lexical_capture_control",
+        "composition_control",
+        "diagnostic_control",
+        "printer_control",
+        "failure_control",
+        "owner_controls",
+        "h0_authority",
+        "h1_authority",
+        "l1_authority",
+        "historical_h2_5e_profile",
+        "local_full_gate",
+        "hosted_gate",
+        "hosted_gate_scope"
+      ],
+      "properties": {
+        "typescript_repetitions": { "const": 2 },
+        "rust_repetitions": { "const": 2 },
+        "legal_worker_control": { "const": "h2_5f_cases_and_owner_controls_run_twice_in_isolated_programs" },
+        "denominator_control": { "const": "h2_5f_exact_denominator_is_8_with_0_source_deferred_cases_and_1_global_future_row" },
+        "target_band_control": { "const": "es2016_lowers_es2017_syntax_while_es2017_preserves_it" },
+        "async_function_control": { "const": "declarations_expressions_arrows_methods_parameters_and_await_precedence_match_tsc" },
+        "generated_binding_control": { "const": "typed_binding_identity_reconciles_parameter_arguments_and_var_collision_names" },
+        "lexical_capture_control": { "const": "resolver_owned_arguments_and_super_capture_preserve_lexical_boundaries" },
+        "composition_control": { "const": "object_rest_async_generators_decorators_class_fields_and_commonjs_compose_in_transform_order" },
+        "diagnostic_control": { "const": "reported_emit_and_no_emit_on_error_diagnostics_match_tsc" },
+        "printer_control": { "const": "helper_order_delimited_comments_and_synthetic_function_layout_are_exact" },
+        "failure_control": { "const": "no_emit_on_error_writes_nothing_before_the_first_sink_write" },
+        "owner_controls": { "$ref": "#/$defs/owner_controls" },
+        "h0_authority": { "$ref": "#/$defs/path_hash" },
+        "h1_authority": { "$ref": "#/$defs/path_hash" },
+        "l1_authority": { "$ref": "#/$defs/path_hash" },
+        "historical_h2_5e_profile": { "$ref": "#/$defs/path_hash" },
+        "local_full_gate": { "const": "cargo xtask ci --baseline 4d59ca19507219e91cf5ea1f9af02057d1d551ac" },
+        "hosted_gate": { "const": "cargo xtask acceptance" },
+        "hosted_gate_scope": { "const": "fixed-unsplit-ts-tests-only" }
+      }
+    },
+    "summary": {
+      "const": {
+        "completed_runtime_slices": 21,
+        "next_runtime_slices": 1,
+        "runtime_admissions": 680,
+        "executed_candidates": 688,
+        "h2_5f_executed_candidates": 8,
+        "h2_5f_global_future_rows": 1,
+        "unexecuted_candidates": 0,
+        "undispositioned_candidates": 0,
+        "historical_artifacts_reinterpreted": 0
+      }
+    },
+    "profile_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": { "$ref": "#/$defs/sha1" },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "historical": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "qualification",
+        "owner_controls",
+        "profile_generator",
+        "qualification_generator",
+        "owner_controls_generator",
+        "profile_contract",
+        "qualification_contract",
+        "owner_controls_contract"
+      ],
+      "properties": {
+        "profile": { "$ref": "#/$defs/path_hash" },
+        "qualification": { "$ref": "#/$defs/path_hash" },
+        "owner_controls": { "$ref": "#/$defs/path_hash" },
+        "profile_generator": { "$ref": "#/$defs/path_hash" },
+        "qualification_generator": { "$ref": "#/$defs/path_hash" },
+        "owner_controls_generator": { "$ref": "#/$defs/path_hash" },
+        "profile_contract": { "$ref": "#/$defs/path_hash" },
+        "qualification_contract": { "$ref": "#/$defs/path_hash" },
+        "owner_controls_contract": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "owner_controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact", "generator", "contract"],
+      "properties": {
+        "artifact": { "$ref": "#/$defs/path_hash" },
+        "generator": { "$ref": "#/$defs/path_hash" },
+        "contract": { "$ref": "#/$defs/path_hash" }
+      }
+    }
+  }
+}

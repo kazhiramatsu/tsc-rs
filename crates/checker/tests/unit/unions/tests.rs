@@ -83,6 +83,34 @@ fn subtype_reduction_drops_strict_subtypes() {
 }
 
 #[test]
+fn eager_array_roots_precede_user_types_in_union_order() {
+    with_state(
+        "interface Array<T> { readonly length: number; [index: number]: T; }\n\
+         type Record<K extends keyof any, T> = { [P in K]: T };\n\
+         declare var record: Record<string, any>;\n",
+        |state| {
+            // Public program runs complete this initializeTypeChecker block
+            // before the first source check. Drive the same boundary directly
+            // in this state-level ordering regression.
+            state.materialize_init_global_diagnostics();
+            let any_array = state.any_array_type().expect("any array root");
+            let record = annotation(state, "record");
+            let union = state
+                .get_union_type_ex(&[record, any_array], UnionReduction::Literal)
+                .expect("constructs");
+            let TypeData::Union { types, .. } = &state.tables.type_of(union).data else {
+                panic!("distinct object types form a union");
+            };
+            assert_eq!(types.as_ref(), &[any_array, record]);
+            assert_eq!(
+                state.type_to_string_slice(union).expect("union renders"),
+                "any[] | Record<string, any>"
+            );
+        },
+    );
+}
+
+#[test]
 fn checker_side_unions_reduce_template_matched_string_literals() {
     with_state("declare var t: `a${string}`;\n", |state| {
         let template = annotation(state, "t");

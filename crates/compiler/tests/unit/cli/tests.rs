@@ -10,7 +10,7 @@ fn run(arguments: &[&str]) -> CliOutput {
 }
 
 #[test]
-fn argument_parser_selects_emit_and_rejects_unknown_options() {
+fn argument_parser_selects_emit_and_the_admitted_target_ladder() {
     assert_eq!(
         parse_arguments(&["--noEmit=false".to_owned()])
             .expect("explicit false selects emit")
@@ -22,9 +22,23 @@ fn argument_parser_selects_emit_and_rejects_unknown_options() {
         parse_arguments(&["--watch".to_owned()]),
         Err(CliError::Usage(_))
     ));
+    assert_eq!(
+        parse_arguments(&["--target=es2015".to_owned()])
+            .expect("the current H2 downlevel target is admitted")
+            .compiler_options
+            .target,
+        Some(2)
+    );
+    assert_eq!(
+        parse_arguments(&["--target=latest".to_owned()])
+            .expect("the tsc latest alias is admitted")
+            .compiler_options
+            .target,
+        Some(99)
+    );
     assert!(matches!(
-        parse_arguments(&["--target=latest".to_owned()]),
-        Err(CliError::Usage(message)) if message.contains("only 'esnext'")
+        parse_arguments(&["--target=es5".to_owned()]),
+        Err(CliError::Usage(message)) if message.contains("es2015 through es2025")
     ));
 }
 

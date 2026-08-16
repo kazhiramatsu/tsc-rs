@@ -1532,8 +1532,10 @@ impl<'a> CheckerState<'a> {
         })
     }
 
-    /// tsc getEnclosingIterationStatement (72245).
-    fn get_enclosing_iteration_statement(&self, node: NodeId) -> Option<NodeId> {
+    /// tsc-port: getEnclosingIterationStatement @6.0.3
+    /// tsc-hash: 4bcb6018a19df115ef75decdd4a44420dc13681e5a9fb5b23ab1f813ca299b10
+    /// tsc-span: _tsc.js:72243-72249
+    pub(crate) fn get_enclosing_iteration_statement(&self, node: NodeId) -> Option<NodeId> {
         self.find_ancestor(Some(node), |state, n| {
             let kind = state.kind_of(n);
             let starts_new_lexical_environment = matches!(

@@ -12,7 +12,7 @@
 //! Namespace machinery includes jsxFactory-family options, leading
 //! @jsx pragmas, and react-jsx implicit runtime imports.
 
-use tsc_binder::{SymbolId, SymbolTable};
+use tsc_binder::{escape_leading_underscores, SymbolId, SymbolTable};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
     CheckMode, ContextFlags, IntersectionFlags, JsxFlags, ObjectFlags, SymbolFlags, TypeData,
@@ -109,7 +109,11 @@ fn leading_jsx_pragmas(text: &str) -> JsxPragmaSettings {
     settings
 }
 
-fn first_entity_identifier(entity: &str) -> Option<String> {
+/// Parse the first identifier of a JSX factory entity name and cross
+/// the source-name -> symbol-table-key boundary. tsc obtains an
+/// Identifier node here and returns its `escapedText`; compiler-option
+/// and pragma strings therefore need the same escaping explicitly.
+fn first_entity_escaped_identifier(entity: &str) -> Option<String> {
     let valid_identifier = |part: &str| {
         !part.is_empty()
             && part.chars().next().is_some_and(|character| {
@@ -124,7 +128,7 @@ fn first_entity_identifier(entity: &str) -> Option<String> {
     if !valid_identifier(first) || !parts.all(valid_identifier) {
         return None;
     }
-    Some(first.to_owned())
+    Some(escape_leading_underscores(first))
 }
 
 /// tsc JsxReferenceKind (getJsxReferenceKind 76075).
@@ -963,21 +967,21 @@ impl<'a> CheckerState<'a> {
             if let Some(symbol) = symbol {
                 self.links
                     .set_symbol_is_referenced(self.speculation_depth, symbol);
-                if self.options.verbatim_module_syntax != Some(true)
-                    && self
-                        .binder
-                        .symbol(symbol)
-                        .flags
-                        .intersects(SymbolFlags::ALIAS)
-                    && self.get_type_only_alias_declaration(symbol)?.is_none()
-                {
-                    self.mark_alias_symbol_as_referenced(symbol)?;
-                }
+                self.mark_jsx_value_alias_as_referenced(symbol)?;
             }
         }
         if is_fragment {
             let factory_namespace = self.get_jsx_factory_namespace_name(node);
-            self.resolve_name(
+            // The ordinary JSX factory is still a semantic use for name
+            // resolution and noUnused accounting, but a fragment does not
+            // necessarily call it. In particular, `@jsxFrag null` lowers to
+            // the fragment factory value directly and tsc deliberately does
+            // not set the alias-link `referenced` bit here. Import elision
+            // must therefore remain distinct from Symbol.isReferenced.
+            //
+            // tsc-port: markJsxAliasReferenced @6.0.3
+            // tsc-span: _tsc.js:71811-71824
+            let _ = self.resolve_name(
                 Some(jsx_factory_location),
                 &factory_namespace,
                 meaning,
@@ -989,10 +993,24 @@ impl<'a> CheckerState<'a> {
         Ok(())
     }
 
+    fn mark_jsx_value_alias_as_referenced(&mut self, symbol: SymbolId) -> CheckResult<()> {
+        if self.options.verbatim_module_syntax != Some(true)
+            && self
+                .binder
+                .symbol(symbol)
+                .flags
+                .intersects(SymbolFlags::ALIAS)
+            && self.get_type_only_alias_declaration(symbol)?.is_none()
+        {
+            self.mark_alias_symbol_as_referenced(symbol)?;
+        }
+        Ok(())
+    }
+
     /// tsc-port: checkJsxChildren @6.0.3
     /// tsc-hash: 4278af460ef6a9ddc82ec13a9987a5a5680260214fdf98c2be57a7f478751355
     /// tsc-span: _tsc.js:74496-74510
-    fn check_jsx_children(
+    pub(crate) fn check_jsx_children(
         &mut self,
         node: NodeId,
         check_mode: CheckMode,
@@ -1058,6 +1076,40 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         };
         self.get_declared_type_of_symbol_slice(symbol)
+    }
+
+    /// tsc-port: reportErrorResults.jsxIntrinsicIntersectionGuard @6.0.3
+    /// tsc-hash: cb50e8cbf7ba4cedeea10dca540aec3bd381abd02e5c2de67a6b9e51d84c7dde
+    /// tsc-span: _tsc.js:65274-65279
+    ///
+    /// A JSX attributes relation against the props intersection has already
+    /// produced its useful missing-property row while visiting the intrinsic
+    /// constituent. The outer intersection must not prepend a generic 2322.
+    /// Keep the namespace lookup here so the relation engine need not know
+    /// JSX namespace names or resolution policy.
+    pub(crate) fn jsx_intersection_contains_intrinsic_attributes(
+        &mut self,
+        target: TypeId,
+        location: NodeId,
+    ) -> CheckResult<bool> {
+        if !self
+            .tables
+            .flags_of(target)
+            .intersects(TypeFlags::INTERSECTION)
+        {
+            return Ok(false);
+        }
+        let target_types = match &self.tables.type_of(target).data {
+            TypeData::Intersection { types } => types.to_vec(),
+            _ => return Ok(false),
+        };
+        let intrinsic_attributes = self.get_jsx_type(JSX_INTRINSIC_ATTRIBUTES, location)?;
+        let intrinsic_class_attributes =
+            self.get_jsx_type(JSX_INTRINSIC_CLASS_ATTRIBUTES, location)?;
+        Ok(!self.tables.is_error_type(intrinsic_attributes)
+            && !self.tables.is_error_type(intrinsic_class_attributes)
+            && (target_types.contains(&intrinsic_attributes)
+                || target_types.contains(&intrinsic_class_attributes)))
     }
 
     /// getSymbol(getExportsOfSymbol(namespace), name, meaning) (50791)
@@ -2070,7 +2122,7 @@ impl<'a> CheckerState<'a> {
             JSX_NAMESPACE_NAME,
             SymbolFlags::NAMESPACE,
             /*diagnostic*/ None,
-        );
+        )?;
         let global = global.map(|symbol| self.get_merged_symbol(symbol));
         match self.resolve_symbol_ex(global, false)? {
             Some(symbol) if symbol != self.unknown_symbol => Ok(Some(symbol)),
@@ -2160,17 +2212,17 @@ impl<'a> CheckerState<'a> {
             // getJsxFragmentFactoryEntity, then falls through to the
             // ordinary JSX namespace.
             if let Some(local) = pragmas.fragment_factory {
-                return first_entity_identifier(&local)
+                return first_entity_escaped_identifier(&local)
                     .unwrap_or_else(|| self.global_jsx_namespace_name());
             }
             if let Some(option) = self.options.jsx_fragment_factory.as_deref() {
-                return first_entity_identifier(option)
+                return first_entity_escaped_identifier(option)
                     .unwrap_or_else(|| self.global_jsx_namespace_name());
             }
             return self.global_jsx_namespace_name();
         }
         if let Some(local) = pragmas.factory {
-            if let Some(namespace) = first_entity_identifier(&local) {
+            if let Some(namespace) = first_entity_escaped_identifier(&local) {
                 return namespace;
             }
         }
@@ -2182,17 +2234,20 @@ impl<'a> CheckerState<'a> {
         pragmas
             .factory
             .as_deref()
-            .and_then(first_entity_identifier)
+            .and_then(first_entity_escaped_identifier)
             .unwrap_or_else(|| self.global_jsx_namespace_name())
     }
 
     fn global_jsx_namespace_name(&self) -> String {
         match self.options.jsx_factory.as_deref() {
-            Some(factory) => first_entity_identifier(factory).unwrap_or_else(|| "React".to_owned()),
+            Some(factory) => {
+                first_entity_escaped_identifier(factory).unwrap_or_else(|| "React".to_owned())
+            }
             None => self
                 .options
                 .react_namespace
-                .clone()
+                .as_deref()
+                .map(escape_leading_underscores)
                 .unwrap_or_else(|| "React".to_owned()),
         }
     }

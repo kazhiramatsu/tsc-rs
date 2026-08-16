@@ -44,6 +44,10 @@ pub fn create_text_writer(new_line: NewLineKind) -> TextWriter {
 }
 
 impl TextWriter {
+    pub(crate) const fn indent_size() -> usize {
+        INDENT.len()
+    }
+
     fn new(new_line: NewLineKind) -> Self {
         Self {
             output: String::new(),

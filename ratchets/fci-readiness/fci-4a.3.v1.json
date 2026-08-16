@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "packetId": "fci-4a.3",
+  "status": "ready",
+  "trustedBase": "9ee8948a880b57201ad38d5c416fc47aac12b4b3",
+  "packet": {
+    "path": "docs/design/greenfield/slices/fci-4a.3-sealed-registry-membership.md",
+    "sha256": "dc33f2f45d5e4939273dd7a15d95ffa8d153aa6412b05daf4589e44c951faf5b"
+  },
+  "predecessors": [
+    {
+      "packetId": "fci-4a.2",
+      "receiptSha256": "c3abd033dc3d9214f7753a62235b5e9aa5fa3d67d36dd68d0ae7b3c5a37630a6"
+    }
+  ],
+  "allowedPaths": [
+    "Cargo.toml",
+    "Cargo.lock",
+    "crates/ci-core/src/lib.rs",
+    "crates/ci-core/src/graph.rs",
+    "crates/ci-core/src/model.rs",
+    "crates/ci-core/src/registry.rs",
+    "crates/ci-core/src/membership.rs",
+    "crates/ci-core/tests/registry_membership.rs",
+    "crates/ci-testkit/Cargo.toml",
+    "crates/ci-testkit/src/lib.rs",
+    "crates/ci-testkit/tests/fixtures.rs",
+    "docs/design/greenfield/slices/fci-4a.3-sealed-registry-membership.md",
+    "docs/design/greenfield/slices/README.md",
+    "ratchets/fci-readiness/fci-4a.3.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/ci-runner",
+    "crates/emitter",
+    "crates/xtask",
+    "crates/compiler",
+    "crates/oracle",
+    "crates/ci-adapter",
+    ".github/workflows",
+    ".github/ci/contracts/h2-5g"
+  ],
+  "proof": {
+    "commands": [
+      "cargo test -p tsc-rs-ci-core --test registry_membership",
+      "cargo test -p tsc-rs-ci-testkit",
+      "cargo tree -p tsc-rs-ci-testkit --edges normal,build,dev",
+      "node .github/ci/slice-readiness.mjs --check fci-4a.3"
+    ],
+    "evidencePath": "ratchets/fci-readiness/fci-4a.3.v1.json"
+  }
+}

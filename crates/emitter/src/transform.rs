@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::error::Error;
 use std::fmt;
 
@@ -5,9 +6,21 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    EmitFlags, EmitResolverError, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
-    TransformSourceId, UnsupportedEmitFeature,
+    EmitFlags, EmitResolverError, NodeFactory, SourcePositionError, TransformArena, TransformNode,
+    TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
 };
+
+/// Session-unique identity for a generated lexical binding. Target passes use
+/// the identity while building syntax and assign its printable text only when
+/// the last admitted target pass has established final declaration order.
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub(crate) struct GeneratedBindingId(u64);
+
+impl GeneratedBindingId {
+    const fn new(raw: u64) -> Self {
+        Self(raw)
+    }
+}
 
 /// TypeScript transform-feature bits retained outside persistent syntax nodes.
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
@@ -244,7 +257,7 @@ pub struct EmitHelper {
     name: Box<str>,
     scoped: bool,
     text: Option<Box<str>>,
-    priority: u8,
+    priority: Option<u8>,
     dependencies: Box<[EmitHelper]>,
 }
 
@@ -254,7 +267,7 @@ impl EmitHelper {
             name: name.into(),
             scoped,
             text: None,
-            priority: 0,
+            priority: None,
             dependencies: dependencies.into_boxed_slice(),
         }
     }
@@ -263,7 +276,7 @@ impl EmitHelper {
         name: impl Into<Box<str>>,
         scoped: bool,
         text: impl Into<Box<str>>,
-        priority: u8,
+        priority: Option<u8>,
         dependencies: Vec<EmitHelper>,
     ) -> Self {
         Self {
@@ -287,7 +300,7 @@ impl EmitHelper {
         self.text.as_deref()
     }
 
-    pub const fn priority(&self) -> u8 {
+    pub const fn priority(&self) -> Option<u8> {
         self.priority
     }
 
@@ -377,6 +390,8 @@ pub struct TransformationContext {
     block_scope_stack: Vec<Vec<TransformNode>>,
     emit_helpers: Vec<EmitHelper>,
     diagnostics: DiagnosticList,
+    next_generated_binding_id: u64,
+    generated_binding_names: BTreeMap<GeneratedBindingId, Box<str>>,
 }
 
 impl TransformationContext {
@@ -393,6 +408,8 @@ impl TransformationContext {
             block_scope_stack: Vec::new(),
             emit_helpers: Vec::new(),
             diagnostics: Vec::new(),
+            next_generated_binding_id: 0,
+            generated_binding_names: BTreeMap::new(),
         }
     }
 
@@ -411,6 +428,44 @@ impl TransformationContext {
 
     pub fn factory(&mut self) -> Result<NodeFactory<'_>, TransformError> {
         self.require_before_completed("construct or use the node factory")?;
+        Ok(NodeFactory::new(&mut self.arena))
+    }
+
+    pub(crate) fn allocate_generated_binding_id(
+        &mut self,
+    ) -> Result<GeneratedBindingId, TransformError> {
+        self.require_before_completed("allocate a generated binding identity")?;
+        let id = GeneratedBindingId::new(self.next_generated_binding_id);
+        self.next_generated_binding_id = self
+            .next_generated_binding_id
+            .checked_add(1)
+            .expect("generated binding identity overflow");
+        Ok(id)
+    }
+
+    pub(crate) fn record_generated_binding_name(
+        &mut self,
+        binding: GeneratedBindingId,
+        name: &str,
+    ) {
+        self.generated_binding_names.insert(binding, name.into());
+    }
+
+    pub(crate) fn generated_binding_name(&self, binding: GeneratedBindingId) -> Option<&str> {
+        self.generated_binding_names
+            .get(&binding)
+            .map(AsRef::as_ref)
+    }
+
+    /// Constructs nodes owned by an emit-time substitution.
+    ///
+    /// TypeScript's substitution hooks may synthesize a replacement after the
+    /// transform pipeline has completed. Keeping that capability separate from
+    /// [`Self::factory`] makes the lifecycle distinction explicit: ordinary
+    /// transforms cannot be resumed during printing, while a substitution may
+    /// still append immutable replacement nodes to the session arena.
+    pub fn substitution_factory(&mut self) -> Result<NodeFactory<'_>, TransformError> {
+        self.require_before_disposed("construct an emit substitution")?;
         Ok(NodeFactory::new(&mut self.arena))
     }
 
@@ -659,6 +714,7 @@ impl TransformationContext {
         self.block_scoped_variables.clear();
         self.block_scope_stack.clear();
         self.emit_helpers.clear();
+        self.generated_binding_names.clear();
         self.arena.clear_session_metadata();
         self.state = TransformationState::Disposed;
     }
@@ -683,7 +739,7 @@ pub trait Transformer {
 
     fn substitute_node(
         &mut self,
-        _context: &TransformationContext,
+        _context: &mut TransformationContext,
         _hint: EmitHint,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -717,6 +773,32 @@ pub struct TransformationResult<'transformers> {
     transformers: Vec<Box<dyn Transformer + 'transformers>>,
 }
 
+/// Emit-time hooks enabled for one node after applying its per-node flags.
+///
+/// Most printer workers can enter the ordinary notification/substitution
+/// pipeline directly. A worker that must wrap that pipeline with additional
+/// source-comment ownership needs this explicit capability check so a later
+/// transformer cannot silently change the required phase order.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct EmitPipelineHooks {
+    substitution: bool,
+    notification: bool,
+}
+
+impl EmitPipelineHooks {
+    pub(crate) const fn is_empty(self) -> bool {
+        !self.substitution && !self.notification
+    }
+
+    pub(crate) const fn substitution(self) -> bool {
+        self.substitution
+    }
+
+    pub(crate) const fn notification(self) -> bool {
+        self.notification
+    }
+}
+
 impl TransformationResult<'_> {
     pub const fn state(&self) -> TransformationState {
         self.context.state()
@@ -738,6 +820,16 @@ impl TransformationResult<'_> {
         &self.context.emit_helpers
     }
 
+    pub(crate) fn emit_pipeline_hooks(
+        &self,
+        node: TransformNode,
+    ) -> Result<EmitPipelineHooks, TransformError> {
+        Ok(EmitPipelineHooks {
+            substitution: self.context.is_substitution_enabled(node)?,
+            notification: self.context.is_emit_notification_enabled(node)?,
+        })
+    }
+
     pub fn substitute_node(
         &mut self,
         hint: EmitHint,
@@ -747,7 +839,7 @@ impl TransformationResult<'_> {
             return Ok(node);
         }
         for transformer in &mut self.transformers {
-            node = transformer.substitute_node(&self.context, hint, node)?;
+            node = transformer.substitute_node(&mut self.context, hint, node)?;
             self.context.arena.node(node)?;
         }
         Ok(node)
@@ -885,7 +977,44 @@ pub enum TransformError {
         parent: SyntaxKind,
         field: &'static str,
     },
+    MissingTransformHandoff {
+        producer: &'static str,
+        consumer: &'static str,
+        node: TransformNode,
+        handoff: &'static str,
+    },
+    UnexpectedChildKind {
+        parent: SyntaxKind,
+        field: &'static str,
+        actual: SyntaxKind,
+    },
+    ContextualNodeArrayOwnerConflict {
+        context: &'static str,
+        array: TransformNodeArray,
+        existing_parent: TransformNode,
+        attempted_parent: TransformNode,
+    },
+    ContextualNodeArrayAlreadyVisited {
+        context: &'static str,
+        array: TransformNodeArray,
+        parent: TransformNode,
+    },
+    ReentrantContextualNodeArrayVisit {
+        context: &'static str,
+        array: TransformNodeArray,
+        parent: TransformNode,
+    },
+    ContextualNodeArrayWrongVisitor {
+        context: &'static str,
+        array: TransformNodeArray,
+        parent: TransformNode,
+    },
     MissingProgramSource(TransformNode),
+    ResolverNodeNotInParseTree(TransformNode),
+    InvalidSourceRange {
+        node: TransformNode,
+        error: SourcePositionError,
+    },
     MissingProgramSourceForModuleFormat(TransformSourceId),
     EmitHostRequiredForImpliedModuleFormat,
     DeferredModuleFormat {
@@ -974,9 +1103,91 @@ impl fmt::Display for TransformError {
                 formatter,
                 "transform removed required child {field} from {parent:?}"
             ),
+            Self::MissingTransformHandoff {
+                producer,
+                consumer,
+                node,
+                handoff,
+            } => write!(
+                formatter,
+                "{consumer} requires {producer} {handoff} for transform node {}:{}",
+                node.source().raw(),
+                node.node().0
+            ),
+            Self::UnexpectedChildKind {
+                parent,
+                field,
+                actual,
+            } => write!(
+                formatter,
+                "transform found unexpected {actual:?} child in {parent:?}.{field}"
+            ),
+            Self::ContextualNodeArrayOwnerConflict {
+                context,
+                array,
+                existing_parent,
+                attempted_parent,
+            } => write!(
+                formatter,
+                "{context} array {}:{} is owned by {}:{}, not attempted parent {}:{}",
+                array.source().raw(),
+                array.array().0,
+                existing_parent.source().raw(),
+                existing_parent.node().0,
+                attempted_parent.source().raw(),
+                attempted_parent.node().0
+            ),
+            Self::ContextualNodeArrayAlreadyVisited {
+                context,
+                array,
+                parent,
+            } => write!(
+                formatter,
+                "{context} array {}:{} for parent {}:{} was already visited",
+                array.source().raw(),
+                array.array().0,
+                parent.source().raw(),
+                parent.node().0
+            ),
+            Self::ReentrantContextualNodeArrayVisit {
+                context,
+                array,
+                parent,
+            } => write!(
+                formatter,
+                "{context} array {}:{} for parent {}:{} was visited reentrantly",
+                array.source().raw(),
+                array.array().0,
+                parent.source().raw(),
+                parent.node().0
+            ),
+            Self::ContextualNodeArrayWrongVisitor {
+                context,
+                array,
+                parent,
+            } => write!(
+                formatter,
+                "{context} array {}:{} for parent {}:{} reached the ordinary array visitor",
+                array.source().raw(),
+                array.array().0,
+                parent.source().raw(),
+                parent.node().0
+            ),
             Self::MissingProgramSource(node) => write!(
                 formatter,
                 "transform node {}:{} has no Program source for an emit-resolver query",
+                node.source().raw(),
+                node.node().0
+            ),
+            Self::ResolverNodeNotInParseTree(node) => write!(
+                formatter,
+                "transform node {}:{} has no parse-tree identity for an emit-resolver query",
+                node.source().raw(),
+                node.node().0
+            ),
+            Self::InvalidSourceRange { node, error } => write!(
+                formatter,
+                "transform node {}:{} has an invalid source range: {error}",
                 node.source().raw(),
                 node.node().0
             ),

@@ -1,0 +1,1517 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.5f-es2017-target",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-5f-qualification.mjs",
+    "sha256": "72773d747b0da690f7614dbd16755e5904aa617cc8e0b0f6573edbb84c342fad"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5f-qualification.schema.json",
+    "sha256": "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"
+  },
+  "origin": {
+    "h2_5e_merge": "4d59ca19507219e91cf5ea1f9af02057d1d551ac",
+    "h2_5e_profile": {
+      "path": "ratchets/h2-5e-profile.v1.json",
+      "sha256": "feb33d22cd90054ae366a07f7e2b9178c01291f3c55c6fd4a3586ccc873825d9"
+    }
+  },
+  "selection_contract": {
+    "global_h2_5f_rows": 9,
+    "candidate_definition": "the 8 dependency-closed rows among the 9 global H2.5f rows whose complete required-slice set is closed through H2.5f",
+    "global_candidate_denominator": 8,
+    "candidate_denominator": 8,
+    "future_deferred_rows": 1
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+    },
+    "global_candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "every selected global row has a required-slice set closed through H2.5f; every emit-eligible source targets ES2016, has no parse diagnostics, has AST depth <= 256, and requires no later source/output owner; transformES2017 runs after the already-closed transformESNext/class-field/ES2021/ES2020/ES2019 pipeline and before the module transformer, and diagnostics and writes are exact; declaration/package/config inputs remain non-emitted controls",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "transform-es2017",
+      "declaration": {
+        "id": "h2:b8d2552de921c865b3f7e1b921163cd5863e31768031f1802f923a37375407ef",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformES2017",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformES2017@100810:1",
+        "source_range": {
+          "start": {
+            "offset": 4867348,
+            "line": 100810,
+            "character": 1
+          },
+          "end": {
+            "offset": 4897769,
+            "line": 101560,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "e84500a5aa5de018fa6f8b03dfc11e57847dda2c4522ec30120f94cb2e7ed189",
+        "body_sha256": "bfa8bab06b8a4a23840ff680cda6ca6f14d34426f090621c99b74470e0a09503",
+        "ledger_slice_sha256": "07da9b5d92984c37fa3326cfc93d3d4c5af591ebdca4521f317c49ea51c02335"
+      },
+      "disposition_before_h2_5f": "deferred-h2"
+    }
+  ],
+  "cases": [
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/bigIntWithTargetES2016.ts#default",
+      "selection_origin": "global-h2-5f-candidate",
+      "expansion_case": 504,
+      "source": {
+        "path": "bigIntWithTargetES2016.ts",
+        "bytes": 141,
+        "sha256": "dea2f27c2bf082bd80ef8e9e32e00d9928973a34db4648135ecfd9c1dd3bd7de",
+        "git_blob_sha1": "329605bf3c43d127773721cfe21d680f187421c8"
+      },
+      "target_state": "ES2016(3)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/bigIntWithTargetES2016.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2016"
+          },
+          {
+            "name": "lib",
+            "value": "esnext"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/bigIntWithTargetES2016.ts",
+            "utf8_base64": "QmlnSW50KDEpICoqIEJpZ0ludCgxKTsgLy8gc2hvdWxkIG5vdCBlcnJvcgoKbGV0IG51bSA9IEJpZ0ludCgyKTsKbnVtICoqPSBCaWdJbnQoMik7IC8vIHNob3VsZCBub3QgZXJyb3IK",
+            "utf8_sha256": "8af1177f0e3fb0e3c09f2aae69e99ed70a51afaa7253d56ae3536ac4495e0297",
+            "utf8_bytes": 105
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/bigIntWithTargetES2016.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 6,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "8af1177f0e3fb0e3c09f2aae69e99ed70a51afaa7253d56ae3536ac4495e0297"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2017"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/bigIntWithTargetES2016.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KQmlnSW50KDEpICoqIEJpZ0ludCgxKTsgLy8gc2hvdWxkIG5vdCBlcnJvcg0KbGV0IG51bSA9IEJpZ0ludCgyKTsNCm51bSAqKj0gQmlnSW50KDIpOyAvLyBzaG91bGQgbm90IGVycm9yDQo=",
+              "callback_utf8_sha256": "2deba02f97f5b07f09b78c5f9685ccca5b41a424a1eb46e0169908559644e62a",
+              "callback_utf8_bytes": 122,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2deba02f97f5b07f09b78c5f9685ccca5b41a424a1eb46e0169908559644e62a",
+              "materialized_utf8_bytes": 122,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/bigIntWithTargetES2016.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "22338dc82269c58d1acb7fbea727a96bea9a00093749dbf0dd5282d80e7bf4a1"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/bigIntWithTargetES2016.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KQmlnSW50KDEpICoqIEJpZ0ludCgxKTsgLy8gc2hvdWxkIG5vdCBlcnJvcg0KbGV0IG51bSA9IEJpZ0ludCgyKTsNCm51bSAqKj0gQmlnSW50KDIpOyAvLyBzaG91bGQgbm90IGVycm9yDQo=",
+              "callback_utf8_sha256": "2deba02f97f5b07f09b78c5f9685ccca5b41a424a1eb46e0169908559644e62a",
+              "callback_utf8_bytes": 122,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2deba02f97f5b07f09b78c5f9685ccca5b41a424a1eb46e0169908559644e62a",
+              "materialized_utf8_bytes": 122,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/bigIntWithTargetES2016.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "22338dc82269c58d1acb7fbea727a96bea9a00093749dbf0dd5282d80e7bf4a1"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "1cf106ebdcb674f5c5942ff3a3f2d1f367a063a757505055f723fda00a415c75"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/moduleNodeImportRequireEmit.ts#target%3Des2016",
+      "selection_origin": "global-h2-5f-candidate",
+      "expansion_case": 4816,
+      "source": {
+        "path": "moduleNodeImportRequireEmit.ts",
+        "bytes": 320,
+        "sha256": "adf860d67a15a82ab534e4fca281d212ce6cd6d86221835a778b1276b3e73a7f",
+        "git_blob_sha1": "8687a9db8fd1ffa8607dd2668768c8ae549d16a9"
+      },
+      "target_state": "ES2016(3)",
+      "module_state": "NodeNext(199)",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/index.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2016"
+          },
+          {
+            "name": "module",
+            "value": "nodenext"
+          },
+          {
+            "name": "filename",
+            "value": "index.ts"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 2,
+            "path": "/.src/index.ts",
+            "utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4KLy8gVGhpcyBzaG91bGQgZW1pdCBhIGNhbGwgdG8gY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpCmltcG9ydCBmb28gPSByZXF1aXJlKCJmb28iKTsKZm9vOw==",
+            "utf8_sha256": "ca6ab7b8b9945476c6c7c348d25aa885d035051a8375684c63a22a7ade6495f0",
+            "utf8_bytes": 130
+          },
+          {
+            "unit": 0,
+            "path": "/.src/package.json",
+            "utf8_base64": "ewogICAgInR5cGUiOiAibW9kdWxlIgp9",
+            "utf8_sha256": "4c075cc9db695324371c18cff3fa4f380d774cde4b5d531101700aa049e39d0c",
+            "utf8_bytes": 24
+          },
+          {
+            "unit": 1,
+            "path": "/.src/mod.d.ts",
+            "utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImZvbyI7",
+            "utf8_sha256": "7bf4371a627c1996a8db602f22c13cc484903ddd41f79e93c8404c6a938af9a6",
+            "utf8_bytes": 21
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 1,
+          "path": "/.src/mod.d.ts",
+          "script_kind": "TS",
+          "declaration_file": true,
+          "emit_eligible": false,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "7bf4371a627c1996a8db602f22c13cc484903ddd41f79e93c8404c6a938af9a6"
+        },
+        {
+          "unit": 2,
+          "path": "/.src/index.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "ESModule",
+          "emit_module_format": 99,
+          "feature_roots": [
+            {
+              "feature": "import-equals",
+              "start": 97,
+              "end": 125,
+              "kind": "ImportEqualsDeclaration"
+            }
+          ],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 4,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ca6ab7b8b9945476c6c7c348d25aa885d035051a8375684c63a22a7ade6495f0"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2017"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsgY3JlYXRlUmVxdWlyZSBhcyBfY3JlYXRlUmVxdWlyZSB9IGZyb20gIm1vZHVsZSI7DQpjb25zdCBfX3JlcXVpcmUgPSBfY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpOw0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4NCi8vIFRoaXMgc2hvdWxkIGVtaXQgYSBjYWxsIHRvIGNyZWF0ZVJlcXVpcmUoaW1wb3J0Lm1ldGEudXJsKQ0KY29uc3QgZm9vID0gX19yZXF1aXJlKCJmb28iKTsNCmZvbzsNCg==",
+              "callback_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "callback_utf8_bytes": 247,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "materialized_utf8_bytes": 247,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "c8630479fe708487826bd5809931d34361e8288325378fb94fb0323a4f092819"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/index.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "aW1wb3J0IHsgY3JlYXRlUmVxdWlyZSBhcyBfY3JlYXRlUmVxdWlyZSB9IGZyb20gIm1vZHVsZSI7DQpjb25zdCBfX3JlcXVpcmUgPSBfY3JlYXRlUmVxdWlyZShpbXBvcnQubWV0YS51cmwpOw0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi9tb2QuZC50cyIgLz4NCi8vIFRoaXMgc2hvdWxkIGVtaXQgYSBjYWxsIHRvIGNyZWF0ZVJlcXVpcmUoaW1wb3J0Lm1ldGEudXJsKQ0KY29uc3QgZm9vID0gX19yZXF1aXJlKCJmb28iKTsNCmZvbzsNCg==",
+              "callback_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "callback_utf8_bytes": 247,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "72f93d612347a35267c1db51f8b39a3303f0094a291a5a87de9c733ef543b68b",
+              "materialized_utf8_bytes": 247,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/index.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "c8630479fe708487826bd5809931d34361e8288325378fb94fb0323a4f092819"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "65c941ec1f97c01c5d1c0cc302a67628b826d6c1ee918c5f33983246767c98a0"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/noObjectKeysToKeyofT.ts#default",
+      "selection_origin": "global-h2-5f-candidate",
+      "expansion_case": 5193,
+      "source": {
+        "path": "noObjectKeysToKeyofT.ts",
+        "bytes": 279,
+        "sha256": "5921a34aecc03153d29ac7d7634330040627b973bdf1451378619dd8fb4a2f5e",
+        "git_blob_sha1": "cece9d1762547e033ce492f9365f1af284b68b4e"
+      },
+      "target_state": "ES2016(3)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/noObjectKeysToKeyofT.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2016"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/noObjectKeysToKeyofT.ts",
+            "utf8_base64": "Ly8gRG8gbm90IGNoYW5nZSBPYmplY3Qua2V5cyB0byByZXR1cm4ga2V5b2YgVC4KLy8gVGhlIGN1cnJlbnQgcmV0dXJuIHR5cGUgKHN0cmluZ1tdKSBpcyBpbnRlbnRpb25hbC4KT2JqZWN0LmtleXMoeyBhOiAwIH0pLnB1c2goImIiKTsKCi8vIFNlZSBhbHNvCi8vIGh0dHBzOi8vc3RhY2tvdmVyZmxvdy5jb20vcXVlc3Rpb25zLzU1MDEyMTc0L3doeS1kb2VzbnQtb2JqZWN0LWtleXMtcmV0dXJuLWEta2V5b2YtdHlwZS1pbi10eXBlc2NyaXB0",
+            "utf8_sha256": "973682326d1d830579728a73f1adf5e4c4ad7828f9409200af60c05f15caef15",
+            "utf8_bytes": 252
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/noObjectKeysToKeyofT.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "973682326d1d830579728a73f1adf5e4c4ad7828f9409200af60c05f15caef15"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2017"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/noObjectKeysToKeyofT.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRG8gbm90IGNoYW5nZSBPYmplY3Qua2V5cyB0byByZXR1cm4ga2V5b2YgVC4NCi8vIFRoZSBjdXJyZW50IHJldHVybiB0eXBlIChzdHJpbmdbXSkgaXMgaW50ZW50aW9uYWwuDQpPYmplY3Qua2V5cyh7IGE6IDAgfSkucHVzaCgiYiIpOw0KLy8gU2VlIGFsc28NCi8vIGh0dHBzOi8vc3RhY2tvdmVyZmxvdy5jb20vcXVlc3Rpb25zLzU1MDEyMTc0L3doeS1kb2VzbnQtb2JqZWN0LWtleXMtcmV0dXJuLWEta2V5b2YtdHlwZS1pbi10eXBlc2NyaXB0DQo=",
+              "callback_utf8_sha256": "f61c7d5f82041190ac46ef2fc9c38043c798e0d30ccc310b7c79bd509c599e65",
+              "callback_utf8_bytes": 272,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f61c7d5f82041190ac46ef2fc9c38043c798e0d30ccc310b7c79bd509c599e65",
+              "materialized_utf8_bytes": 272,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/noObjectKeysToKeyofT.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "2b0b9364107dcb2cf72576eade24ddf5e68a4627be8515ec49ba435dda4eafd1"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/noObjectKeysToKeyofT.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gRG8gbm90IGNoYW5nZSBPYmplY3Qua2V5cyB0byByZXR1cm4ga2V5b2YgVC4NCi8vIFRoZSBjdXJyZW50IHJldHVybiB0eXBlIChzdHJpbmdbXSkgaXMgaW50ZW50aW9uYWwuDQpPYmplY3Qua2V5cyh7IGE6IDAgfSkucHVzaCgiYiIpOw0KLy8gU2VlIGFsc28NCi8vIGh0dHBzOi8vc3RhY2tvdmVyZmxvdy5jb20vcXVlc3Rpb25zLzU1MDEyMTc0L3doeS1kb2VzbnQtb2JqZWN0LWtleXMtcmV0dXJuLWEta2V5b2YtdHlwZS1pbi10eXBlc2NyaXB0DQo=",
+              "callback_utf8_sha256": "f61c7d5f82041190ac46ef2fc9c38043c798e0d30ccc310b7c79bd509c599e65",
+              "callback_utf8_bytes": 272,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "f61c7d5f82041190ac46ef2fc9c38043c798e0d30ccc310b7c79bd509c599e65",
+              "materialized_utf8_bytes": 272,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/noObjectKeysToKeyofT.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "2b0b9364107dcb2cf72576eade24ddf5e68a4627be8515ec49ba435dda4eafd1"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "b53ca5c8e59a63dcf3692d1c4fffbfb4825c6652ce8433bbc5f1cdc1116f252b"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/numericUnderscoredSeparator.ts#target%3Des2016",
+      "selection_origin": "global-h2-5f-candidate",
+      "expansion_case": 5298,
+      "source": {
+        "path": "numericUnderscoredSeparator.ts",
+        "bytes": 132,
+        "sha256": "7b800af1e84225da517fe656639b06748fdfcc0b25fd57de690fc604b60ce4ab",
+        "git_blob_sha1": "78f39faeb95f9f6470a07faccb6e817656faa43d"
+      },
+      "target_state": "ES2016(3)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/numericUnderscoredSeparator.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2016"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/numericUnderscoredSeparator.ts",
+            "utf8_base64": "MV8wMDBfMDAwXzAwMF8wMDAKMGIxMDEwXzAwMDFfMTAwMF8wMTAxCjBiMTAxMF8wMDAxXzEwMDBfMDEwMQoweEEwX0IwX0MwCg==",
+            "utf8_sha256": "35d43849c15ac0022bde4fb591bc48ff369f82344456c395c9b252ef81294ed4",
+            "utf8_bytes": 73
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/numericUnderscoredSeparator.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "35d43849c15ac0022bde4fb591bc48ff369f82344456c395c9b252ef81294ed4"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2017"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/numericUnderscoredSeparator.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KMTAwMDAwMDAwMDAwMDsNCjQxMzQ5Ow0KNDEzNDk7DQoxMDUzMTAwODsNCg==",
+              "callback_utf8_sha256": "d56fc6c6e44a889d45cc34308553eb784c0e3f1e05473944d333a23ab395f966",
+              "callback_utf8_bytes": 58,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d56fc6c6e44a889d45cc34308553eb784c0e3f1e05473944d333a23ab395f966",
+              "materialized_utf8_bytes": 58,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/numericUnderscoredSeparator.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "502d8ae0b35d29794b4eaa3df1719de31466db3c271f770dd90f14b65f790195"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/numericUnderscoredSeparator.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KMTAwMDAwMDAwMDAwMDsNCjQxMzQ5Ow0KNDEzNDk7DQoxMDUzMTAwODsNCg==",
+              "callback_utf8_sha256": "d56fc6c6e44a889d45cc34308553eb784c0e3f1e05473944d333a23ab395f966",
+              "callback_utf8_bytes": 58,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "d56fc6c6e44a889d45cc34308553eb784c0e3f1e05473944d333a23ab395f966",
+              "materialized_utf8_bytes": 58,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/numericUnderscoredSeparator.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "502d8ae0b35d29794b4eaa3df1719de31466db3c271f770dd90f14b65f790195"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "81d8d72b1c1fe637e389e9dfc3ca25ff413caac3d72c1a2fffe230ae70229042"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/classes/methodDeclarations/optionalMethodDeclarations.ts#target%3Des2016",
+      "selection_origin": "global-h2-5f-candidate",
+      "expansion_case": 798,
+      "source": {
+        "path": "classes/methodDeclarations/optionalMethodDeclarations.ts",
+        "bytes": 204,
+        "sha256": "1ab9b169a2e454ace218fa1989a0351988c55557313c56064931ab70373e4af6",
+        "git_blob_sha1": "d1bd1a8d2d0fe114589ffcd7c21f81ac530414a7"
+      },
+      "target_state": "ES2016(3)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionalMethodDeclarations.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2016"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionalMethodDeclarations.ts",
+            "utf8_base64": "Ly8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy8zNDk1MiNpc3N1ZWNvbW1lbnQtNTUyMDI1MDI3CmNsYXNzIEMgewogICAgLy8gPyBzaG91bGQgYmUgcmVtb3ZlZCBpbiBlbWl0CiAgICBtZXRob2Q/KCkge30KfQ==",
+            "utf8_sha256": "e9e3b2307ba7ca932155046ed8554a35946318cde905638ebae0ddb84ad931e7",
+            "utf8_bytes": 142
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/optionalMethodDeclarations.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 4,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "e9e3b2307ba7ca932155046ed8554a35946318cde905638ebae0ddb84ad931e7"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2017"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/optionalMethodDeclarations.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy8zNDk1MiNpc3N1ZWNvbW1lbnQtNTUyMDI1MDI3DQpjbGFzcyBDIHsNCiAgICAvLyA/IHNob3VsZCBiZSByZW1vdmVkIGluIGVtaXQNCiAgICBtZXRob2QoKSB7IH0NCn0NCg==",
+              "callback_utf8_sha256": "086984dd36a1b5bbb1337faf7550723b547a431743b1513c3429d7f6cffcd550",
+              "callback_utf8_bytes": 163,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "086984dd36a1b5bbb1337faf7550723b547a431743b1513c3429d7f6cffcd550",
+              "materialized_utf8_bytes": 163,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/optionalMethodDeclarations.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "f649c681116717db20ecfa7c09c5b2debcda039aaddc44e971db8dd3efe8c368"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/optionalMethodDeclarations.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy8zNDk1MiNpc3N1ZWNvbW1lbnQtNTUyMDI1MDI3DQpjbGFzcyBDIHsNCiAgICAvLyA/IHNob3VsZCBiZSByZW1vdmVkIGluIGVtaXQNCiAgICBtZXRob2QoKSB7IH0NCn0NCg==",
+              "callback_utf8_sha256": "086984dd36a1b5bbb1337faf7550723b547a431743b1513c3429d7f6cffcd550",
+              "callback_utf8_bytes": 163,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "086984dd36a1b5bbb1337faf7550723b547a431743b1513c3429d7f6cffcd550",
+              "materialized_utf8_bytes": 163,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/optionalMethodDeclarations.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "f649c681116717db20ecfa7c09c5b2debcda039aaddc44e971db8dd3efe8c368"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "10e0b53675f0067f717046f276ec7c9288f13fb533ea6d5e61209621b4264462"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/es2016/es2016IntlAPIs.ts#default",
+      "selection_origin": "global-h2-5f-candidate",
+      "expansion_case": 1302,
+      "source": {
+        "path": "es2016/es2016IntlAPIs.ts",
+        "bytes": 482,
+        "sha256": "64bcd6b82288db05e7c13a4cfff553a84f40218feb1790cbd96724f49a5495cd",
+        "git_blob_sha1": "eaa4949f7e64474cb72a431c66d4be53cb2d662c"
+      },
+      "target_state": "ES2016(3)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/es2016IntlAPIs.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2016"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/es2016IntlAPIs.ts",
+            "utf8_base64": "Ly8gU2FtcGxlIGZyb20KLy8gaHR0cHM6Ly9kZXZlbG9wZXIubW96aWxsYS5vcmcvZW4tVVMvZG9jcy9XZWIvSmF2YVNjcmlwdC9SZWZlcmVuY2UvR2xvYmFsX09iamVjdHMvSW50bC9nZXRDYW5vbmljYWxMb2NhbGVzCmNvbnNvbGUubG9nKEludGwuZ2V0Q2Fub25pY2FsTG9jYWxlcygnRU4tVVMnKSk7Ci8vIEV4cGVjdGVkIG91dHB1dDogQXJyYXkgWyJlbi1VUyJdCgpjb25zb2xlLmxvZyhJbnRsLmdldENhbm9uaWNhbExvY2FsZXMoWydFTi1VUycsICdGciddKSk7Ci8vIEV4cGVjdGVkIG91dHB1dDogQXJyYXkgWyJlbi1VUyIsICJmciJdCgp0cnkgewogIEludGwuZ2V0Q2Fub25pY2FsTG9jYWxlcygnRU5fVVMnKTsKfSBjYXRjaCAoZXJyKSB7CiAgY29uc29sZS5sb2coZXJyLnRvU3RyaW5nKCkpOwogIC8vIEV4cGVjdGVkIG91dHB1dDogUmFuZ2VFcnJvcjogaW52YWxpZCBsYW5ndWFnZSB0YWc6IEVOX1VTCn0K",
+            "utf8_sha256": "8f08a6463b1e5c8ec4b750fb3bc720d7b536d9f5e2ceea8b5dadff55903b14c3",
+            "utf8_bytes": 462
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/es2016IntlAPIs.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 9,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "8f08a6463b1e5c8ec4b750fb3bc720d7b536d9f5e2ceea8b5dadff55903b14c3"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2017"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/es2016IntlAPIs.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gU2FtcGxlIGZyb20NCi8vIGh0dHBzOi8vZGV2ZWxvcGVyLm1vemlsbGEub3JnL2VuLVVTL2RvY3MvV2ViL0phdmFTY3JpcHQvUmVmZXJlbmNlL0dsb2JhbF9PYmplY3RzL0ludGwvZ2V0Q2Fub25pY2FsTG9jYWxlcw0KY29uc29sZS5sb2coSW50bC5nZXRDYW5vbmljYWxMb2NhbGVzKCdFTi1VUycpKTsNCi8vIEV4cGVjdGVkIG91dHB1dDogQXJyYXkgWyJlbi1VUyJdDQpjb25zb2xlLmxvZyhJbnRsLmdldENhbm9uaWNhbExvY2FsZXMoWydFTi1VUycsICdGciddKSk7DQovLyBFeHBlY3RlZCBvdXRwdXQ6IEFycmF5IFsiZW4tVVMiLCAiZnIiXQ0KdHJ5IHsNCiAgICBJbnRsLmdldENhbm9uaWNhbExvY2FsZXMoJ0VOX1VTJyk7DQp9DQpjYXRjaCAoZXJyKSB7DQogICAgY29uc29sZS5sb2coZXJyLnRvU3RyaW5nKCkpOw0KICAgIC8vIEV4cGVjdGVkIG91dHB1dDogUmFuZ2VFcnJvcjogaW52YWxpZCBsYW5ndWFnZSB0YWc6IEVOX1VTDQp9DQo=",
+              "callback_utf8_sha256": "ee3c2e4d28e9211415d5581545ea9c6643a606009c2d572f73adc6a6462fcb79",
+              "callback_utf8_bytes": 494,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ee3c2e4d28e9211415d5581545ea9c6643a606009c2d572f73adc6a6462fcb79",
+              "materialized_utf8_bytes": 494,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/es2016IntlAPIs.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 18046,
+              "category": "Error",
+              "file": "/.src/es2016IntlAPIs.ts",
+              "start": 381,
+              "length": 3,
+              "message": "'err' is of type 'unknown'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "d5c73aaa3fff64700519e74420babaea72d8a304aa9aa908ba3d3f79c6c00972"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/es2016IntlAPIs.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gU2FtcGxlIGZyb20NCi8vIGh0dHBzOi8vZGV2ZWxvcGVyLm1vemlsbGEub3JnL2VuLVVTL2RvY3MvV2ViL0phdmFTY3JpcHQvUmVmZXJlbmNlL0dsb2JhbF9PYmplY3RzL0ludGwvZ2V0Q2Fub25pY2FsTG9jYWxlcw0KY29uc29sZS5sb2coSW50bC5nZXRDYW5vbmljYWxMb2NhbGVzKCdFTi1VUycpKTsNCi8vIEV4cGVjdGVkIG91dHB1dDogQXJyYXkgWyJlbi1VUyJdDQpjb25zb2xlLmxvZyhJbnRsLmdldENhbm9uaWNhbExvY2FsZXMoWydFTi1VUycsICdGciddKSk7DQovLyBFeHBlY3RlZCBvdXRwdXQ6IEFycmF5IFsiZW4tVVMiLCAiZnIiXQ0KdHJ5IHsNCiAgICBJbnRsLmdldENhbm9uaWNhbExvY2FsZXMoJ0VOX1VTJyk7DQp9DQpjYXRjaCAoZXJyKSB7DQogICAgY29uc29sZS5sb2coZXJyLnRvU3RyaW5nKCkpOw0KICAgIC8vIEV4cGVjdGVkIG91dHB1dDogUmFuZ2VFcnJvcjogaW52YWxpZCBsYW5ndWFnZSB0YWc6IEVOX1VTDQp9DQo=",
+              "callback_utf8_sha256": "ee3c2e4d28e9211415d5581545ea9c6643a606009c2d572f73adc6a6462fcb79",
+              "callback_utf8_bytes": 494,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "ee3c2e4d28e9211415d5581545ea9c6643a606009c2d572f73adc6a6462fcb79",
+              "materialized_utf8_bytes": 494,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/es2016IntlAPIs.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 18046,
+              "category": "Error",
+              "file": "/.src/es2016IntlAPIs.ts",
+              "start": 381,
+              "length": 3,
+              "message": "'err' is of type 'unknown'."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "d5c73aaa3fff64700519e74420babaea72d8a304aa9aa908ba3d3f79c6c00972"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "8b24b311f54421d63490e2e30cc3cc4f05e94622d3d1d959f5ec2da02c40fb51"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/callChain/callChainWithSuper.ts#target%3Des2016",
+      "selection_origin": "global-h2-5f-candidate",
+      "expansion_case": 3270,
+      "source": {
+        "path": "expressions/optionalChaining/callChain/callChainWithSuper.ts",
+        "bytes": 233,
+        "sha256": "4d21de7e142ba61b557f0ef5c29fb704e8dbecda605558756802efeb51d20a75",
+        "git_blob_sha1": "d66c71b1c3acda10667dce2fda6fa24d0132854a"
+      },
+      "target_state": "ES2016(3)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/callChainWithSuper.ts"
+        ],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2016"
+          },
+          {
+            "name": "strict",
+            "value": "true"
+          },
+          {
+            "name": "noTypesAndSymbols",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/callChainWithSuper.ts",
+            "utf8_base64": "Ly8gR0gjMzQ5NTIKY2xhc3MgQmFzZSB7IG1ldGhvZD8oKSB7fSB9CmNsYXNzIERlcml2ZWQgZXh0ZW5kcyBCYXNlIHsKICAgIG1ldGhvZDEoKSB7IHJldHVybiBzdXBlci5tZXRob2Q/LigpOyB9CiAgICBtZXRob2QyKCkgeyByZXR1cm4gc3VwZXJbIm1ldGhvZCJdPy4oKTsgfQp9",
+            "utf8_sha256": "ae3f43f79401dd15c9e02dec09e9fd9ebf19d95256cf9009d24ae84dbd7ca02e",
+            "utf8_bytes": 159
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/callChainWithSuper.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 8,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "ae3f43f79401dd15c9e02dec09e9fd9ebf19d95256cf9009d24ae84dbd7ca02e"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2017"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/callChainWithSuper.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gR0gjMzQ5NTINCmNsYXNzIEJhc2Ugew0KICAgIG1ldGhvZCgpIHsgfQ0KfQ0KY2xhc3MgRGVyaXZlZCBleHRlbmRzIEJhc2Ugew0KICAgIG1ldGhvZDEoKSB7IHZhciBfYTsgcmV0dXJuIChfYSA9IHN1cGVyLm1ldGhvZCkgPT09IG51bGwgfHwgX2EgPT09IHZvaWQgMCA/IHZvaWQgMCA6IF9hLmNhbGwodGhpcyk7IH0NCiAgICBtZXRob2QyKCkgeyB2YXIgX2E7IHJldHVybiAoX2EgPSBzdXBlclsibWV0aG9kIl0pID09PSBudWxsIHx8IF9hID09PSB2b2lkIDAgPyB2b2lkIDAgOiBfYS5jYWxsKHRoaXMpOyB9DQp9DQo=",
+              "callback_utf8_sha256": "2d0432866bac5dc3393c4db46ac1fd9df7be6cce5a2a9c78e57a590f563db19d",
+              "callback_utf8_bytes": 311,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2d0432866bac5dc3393c4db46ac1fd9df7be6cce5a2a9c78e57a590f563db19d",
+              "materialized_utf8_bytes": 311,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/callChainWithSuper.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "2cc04d97da974af4f0e9b1d631a65363cc2e57e8f8d4866edaa30ad17e065cd5"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/callChainWithSuper.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gR0gjMzQ5NTINCmNsYXNzIEJhc2Ugew0KICAgIG1ldGhvZCgpIHsgfQ0KfQ0KY2xhc3MgRGVyaXZlZCBleHRlbmRzIEJhc2Ugew0KICAgIG1ldGhvZDEoKSB7IHZhciBfYTsgcmV0dXJuIChfYSA9IHN1cGVyLm1ldGhvZCkgPT09IG51bGwgfHwgX2EgPT09IHZvaWQgMCA/IHZvaWQgMCA6IF9hLmNhbGwodGhpcyk7IH0NCiAgICBtZXRob2QyKCkgeyB2YXIgX2E7IHJldHVybiAoX2EgPSBzdXBlclsibWV0aG9kIl0pID09PSBudWxsIHx8IF9hID09PSB2b2lkIDAgPyB2b2lkIDAgOiBfYS5jYWxsKHRoaXMpOyB9DQp9DQo=",
+              "callback_utf8_sha256": "2d0432866bac5dc3393c4db46ac1fd9df7be6cce5a2a9c78e57a590f563db19d",
+              "callback_utf8_bytes": 311,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "2d0432866bac5dc3393c4db46ac1fd9df7be6cce5a2a9c78e57a590f563db19d",
+              "materialized_utf8_bytes": 311,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/callChainWithSuper.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 0,
+          "run_fingerprint_sha256": "2cc04d97da974af4f0e9b1d631a65363cc2e57e8f8d4866edaa30ad17e065cd5"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "311b6fa4ef9062f41c033eb93d6ffa4c1ac35a07d2af55641f163df2fbb4cca7"
+    },
+    {
+      "suite": "conformance",
+      "case_id": "typescript-6.0.3/conformance/functions/functionWithUseStrictAndSimpleParameterList_es2016.ts#default",
+      "selection_origin": "global-h2-5f-candidate",
+      "expansion_case": 3804,
+      "source": {
+        "path": "functions/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+        "bytes": 719,
+        "sha256": "2e23f25c9283f547aa8e96ddceea8c4e28aba05d34e6e182ed20c6c5f656720f",
+        "git_blob_sha1": "3daeecc0900c5f9579c5da4b136b728fc8f8b042"
+      },
+      "target_state": "ES2016(3)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts"
+        ],
+        "settings": [
+          {
+            "name": "strict",
+            "value": "false"
+          },
+          {
+            "name": "target",
+            "value": "es2016"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+            "utf8_base64": "ZnVuY3Rpb24gYShhID0gMTApIHsKICAgICJ1c2Ugc3RyaWN0IjsKfQoKZXhwb3J0IHZhciBmb28gPSAxMDsKZnVuY3Rpb24gYihhID0gMTApIHsKfQoKZnVuY3Rpb24gY29udGFpbmVyKCkgewogICAgInVzZSBzdHJpY3QiOwogICAgZnVuY3Rpb24gZihhID0gMTApIHsKICAgIH0KfQoKZnVuY3Rpb24gcmVzdCguLi5hcmdzOiBhbnlbXSkgewogICAgJ3VzZSBzdHJpY3QnOwp9CgpmdW5jdGlvbiByZXN0MShhID0gMSwgLi4uYXJncykgewogICAgJ3VzZSBzdHJpY3QnOwp9CgpmdW5jdGlvbiBwYXJhbURlZmF1bHQocGFyYW0gPSAxKSB7CiAgICAndXNlIHN0cmljdCc7Cn0KCmZ1bmN0aW9uIG9iamVjdEJpbmRpbmdQYXR0ZXJuKHtmb299OiBhbnkpIHsKICAgICd1c2Ugc3RyaWN0JzsKfQoKZnVuY3Rpb24gYXJyYXlCaW5kaW5nUGF0dGVybihbZm9vXTogYW55W10pIHsKICAgICd1c2Ugc3RyaWN0JzsKfQoKZnVuY3Rpb24gbWFueVBhcmFtZXRlcihhID0gMTAsIGIgPSAyMCkgewogICAgInVzZSBzdHJpY3QiOwp9CgpmdW5jdGlvbiBtYW55UHJvbG9ndWUoYSA9IDEwLCBiID0gMjApIHsKICAgICJmb28iOwogICAgInVzZSBzdHJpY3QiOwp9CgpmdW5jdGlvbiBpbnZhbGlkUHJvbG9ndWUoYSA9IDEwLCBiID0gMjApIHsKICAgICJmb28iOwogICAgY29uc3QgYyA9IDE7CiAgICAidXNlIHN0cmljdCI7Cn0K",
+            "utf8_sha256": "d840b91f5b18f96c679706b0503f31ff28c9531bdcc78afd8777ddd626521a7f",
+            "utf8_bytes": 681
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 7,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "d840b91f5b18f96c679706b0503f31ff28c9531bdcc78afd8777ddd626521a7f"
+        }
+      ],
+      "owner_reachability": [
+        "transform-es2017"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_runs": [
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZnVuY3Rpb24gYShhID0gMTApIHsNCiAgICAidXNlIHN0cmljdCI7DQp9DQpleHBvcnQgdmFyIGZvbyA9IDEwOw0KZnVuY3Rpb24gYihhID0gMTApIHsNCn0NCmZ1bmN0aW9uIGNvbnRhaW5lcigpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgZnVuY3Rpb24gZihhID0gMTApIHsNCiAgICB9DQp9DQpmdW5jdGlvbiByZXN0KC4uLmFyZ3MpIHsNCiAgICAndXNlIHN0cmljdCc7DQp9DQpmdW5jdGlvbiByZXN0MShhID0gMSwgLi4uYXJncykgew0KICAgICd1c2Ugc3RyaWN0JzsNCn0NCmZ1bmN0aW9uIHBhcmFtRGVmYXVsdChwYXJhbSA9IDEpIHsNCiAgICAndXNlIHN0cmljdCc7DQp9DQpmdW5jdGlvbiBvYmplY3RCaW5kaW5nUGF0dGVybih7IGZvbyB9KSB7DQogICAgJ3VzZSBzdHJpY3QnOw0KfQ0KZnVuY3Rpb24gYXJyYXlCaW5kaW5nUGF0dGVybihbZm9vXSkgew0KICAgICd1c2Ugc3RyaWN0JzsNCn0NCmZ1bmN0aW9uIG1hbnlQYXJhbWV0ZXIoYSA9IDEwLCBiID0gMjApIHsNCiAgICAidXNlIHN0cmljdCI7DQp9DQpmdW5jdGlvbiBtYW55UHJvbG9ndWUoYSA9IDEwLCBiID0gMjApIHsNCiAgICAiZm9vIjsNCiAgICAidXNlIHN0cmljdCI7DQp9DQpmdW5jdGlvbiBpbnZhbGlkUHJvbG9ndWUoYSA9IDEwLCBiID0gMjApIHsNCiAgICAiZm9vIjsNCiAgICBjb25zdCBjID0gMTsNCiAgICAidXNlIHN0cmljdCI7DQp9DQo=",
+              "callback_utf8_sha256": "c66961a90fa1684d57156e9cf4beaa06d29baf57ecfc607a55464ce055e46fc4",
+              "callback_utf8_bytes": 692,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "c66961a90fa1684d57156e9cf4beaa06d29baf57ecfc607a55464ce055e46fc4",
+              "materialized_utf8_bytes": 692,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 11,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 25,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 176,
+              "length": 14,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 198,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 230,
+              "length": 5,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 237,
+              "length": 7,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 252,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 291,
+              "length": 9,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 308,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 355,
+              "length": 10,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 373,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 419,
+              "length": 12,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 439,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 479,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 487,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 501,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 540,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 548,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 573,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "5fa6d181b274bfaf5d67dd83efc48c6f6af487de71ae5eb342ff197096065c27"
+        },
+        {
+          "writes": [
+            {
+              "index": 0,
+              "path": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "ZnVuY3Rpb24gYShhID0gMTApIHsNCiAgICAidXNlIHN0cmljdCI7DQp9DQpleHBvcnQgdmFyIGZvbyA9IDEwOw0KZnVuY3Rpb24gYihhID0gMTApIHsNCn0NCmZ1bmN0aW9uIGNvbnRhaW5lcigpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgZnVuY3Rpb24gZihhID0gMTApIHsNCiAgICB9DQp9DQpmdW5jdGlvbiByZXN0KC4uLmFyZ3MpIHsNCiAgICAndXNlIHN0cmljdCc7DQp9DQpmdW5jdGlvbiByZXN0MShhID0gMSwgLi4uYXJncykgew0KICAgICd1c2Ugc3RyaWN0JzsNCn0NCmZ1bmN0aW9uIHBhcmFtRGVmYXVsdChwYXJhbSA9IDEpIHsNCiAgICAndXNlIHN0cmljdCc7DQp9DQpmdW5jdGlvbiBvYmplY3RCaW5kaW5nUGF0dGVybih7IGZvbyB9KSB7DQogICAgJ3VzZSBzdHJpY3QnOw0KfQ0KZnVuY3Rpb24gYXJyYXlCaW5kaW5nUGF0dGVybihbZm9vXSkgew0KICAgICd1c2Ugc3RyaWN0JzsNCn0NCmZ1bmN0aW9uIG1hbnlQYXJhbWV0ZXIoYSA9IDEwLCBiID0gMjApIHsNCiAgICAidXNlIHN0cmljdCI7DQp9DQpmdW5jdGlvbiBtYW55UHJvbG9ndWUoYSA9IDEwLCBiID0gMjApIHsNCiAgICAiZm9vIjsNCiAgICAidXNlIHN0cmljdCI7DQp9DQpmdW5jdGlvbiBpbnZhbGlkUHJvbG9ndWUoYSA9IDEwLCBiID0gMjApIHsNCiAgICAiZm9vIjsNCiAgICBjb25zdCBjID0gMTsNCiAgICAidXNlIHN0cmljdCI7DQp9DQo=",
+              "callback_utf8_sha256": "c66961a90fa1684d57156e9cf4beaa06d29baf57ecfc607a55464ce055e46fc4",
+              "callback_utf8_bytes": 692,
+              "write_byte_order_mark": false,
+              "materialized_utf8_sha256": "c66961a90fa1684d57156e9cf4beaa06d29baf57ecfc607a55464ce055e46fc4",
+              "materialized_utf8_bytes": 692,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 11,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 25,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 176,
+              "length": 14,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 198,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 230,
+              "length": 5,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 237,
+              "length": 7,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 252,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 291,
+              "length": 9,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 308,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 355,
+              "length": 10,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 373,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 419,
+              "length": 12,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 439,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 479,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 487,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 501,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 540,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1346,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 548,
+              "length": 6,
+              "message": "This parameter is not allowed with 'use strict' directive."
+            },
+            {
+              "code": 1347,
+              "category": "Error",
+              "file": "/.src/functionWithUseStrictAndSimpleParameterList_es2016.ts",
+              "start": 573,
+              "length": 13,
+              "message": "'use strict' directive cannot be used with non-simple parameter list."
+            }
+          ],
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": null,
+            "source_maps": null
+          },
+          "status_writes": [],
+          "exit_code": 2,
+          "run_fingerprint_sha256": "5fa6d181b274bfaf5d67dd83efc48c6f6af487de71ae5eb342ff197096065c27"
+        }
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "0faf0e6ae4d1bc04a98f1574b81239d9e0e0a80f2d0ac03b56791719b079e582"
+    }
+  ],
+  "summary": {
+    "candidates": 8,
+    "compiler_candidates": 4,
+    "conformance_candidates": 4,
+    "admitted_cases": 8,
+    "deferred_cases": 0,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 0,
+    "no_emit_control_cases": 0,
+    "target_states": [
+      {
+        "value": "ES2016(3)",
+        "cases": 8
+      }
+    ],
+    "module_states": [
+      {
+        "value": "absent",
+        "cases": 7
+      },
+      {
+        "value": "NodeNext(199)",
+        "cases": 1
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 8
+      }
+    ],
+    "first_deferred_slices": [],
+    "typescript_runs": 16,
+    "deterministic_typescript_cases": 8,
+    "admitted_typescript_writes": 8,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 20,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "d6358ad9b581b833a89286c27032cf041e8c9ac4ecfb5b27f114d2f2ff623dd1"
+}

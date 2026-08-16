@@ -840,6 +840,55 @@ fn resolution_default_pulls_earlier_slot_through_non_fixing_mapper() {
 }
 
 #[test]
+fn dependent_default_reuses_generic_index_memo_during_candidate_reentry() {
+    let text = "interface ProvidedActor { src: string; logic: () => unknown; }\n\
+                interface Machine<A extends ProvidedActor> {\n\
+                    types?: { actors?: A };\n\
+                    invoke: { src: string };\n\
+                }\n\
+                declare function capture<\n\
+                    const T extends Machine<A>,\n\
+                    A extends ProvidedActor = T extends { types: { actors: ProvidedActor } }\n\
+                        ? T[\"types\"][\"actors\"]\n\
+                        : ProvidedActor,\n\
+                >(value: { [K in keyof Machine<any> & keyof T]: T[K] }): A;\n\
+                const actor = capture({\n\
+                    types: {} as { actors: { src: \"str\"; logic: () => string } },\n\
+                    invoke: { src: \"str\" },\n\
+                    extra: 1,\n\
+                });\n\
+                const check: { src: \"str\"; logic: () => string } = actor;\n";
+    with_program_state(
+        &[("a.ts", text)],
+        &CompilerOptions {
+            strict: Some(true),
+            ..CompilerOptions::default()
+        },
+        |state| {
+            state.check_source_file(0);
+            let diagnostics = state
+                .diagnostics
+                .iter()
+                .filter(|diagnostic| {
+                    diagnostic.file_name.is_some()
+                        && diagnostic.category() == tsc_diagnostics::DiagnosticCategory::Error
+                })
+                .map(|diagnostic| {
+                    (
+                        diagnostic.code(),
+                        diagnostic.start.expect("source diagnostic has a start"),
+                    )
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                diagnostics,
+                vec![(2353, text.find("extra").expect("extra property") as u32)]
+            );
+        },
+    );
+}
+
+#[test]
 fn resolution_forward_default_collapses_to_unknown_via_backreference() {
     with_program_state(
         &[(

@@ -368,6 +368,81 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.4b activates
+    /// standard decorators and the ESNext class-fields branches selected by
+    /// `useDefineForClassFields`.
+    #[doc(hidden)]
+    pub const fn h2_4b_profile() -> Self {
+        let mut profile = Self::h2_4a_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_4b.index();
+        profile
+    }
+
+    /// Construct the current production admission profile. H2.5a admits the
+    /// ES2021-through-latest-standard target band and the `transformESNext`
+    /// explicit-resource-management boundary reached below ESNext.
+    #[doc(hidden)]
+    pub const fn h2_5a_profile() -> Self {
+        let mut profile = Self::h2_4b_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5a.index();
+        profile
+    }
+
+    /// Construct the current production admission profile. H2.5b admits the
+    /// ES2020 target boundary and its scoped logical-assignment lowering.
+    #[doc(hidden)]
+    pub const fn h2_5b_profile() -> Self {
+        let mut profile = Self::h2_5a_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5b.index();
+        profile
+    }
+
+    /// Construct the current production admission profile. H2.5c admits the
+    /// ES2019 target boundary and its optional-chain/nullish lowering.
+    #[doc(hidden)]
+    pub const fn h2_5c_profile() -> Self {
+        let mut profile = Self::h2_5b_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5c.index();
+        profile
+    }
+
+    /// Construct the current production admission profile. H2.5d admits the
+    /// ES2018 target boundary and optional-catch-binding lowering.
+    #[doc(hidden)]
+    pub const fn h2_5d_profile() -> Self {
+        let mut profile = Self::h2_5c_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5d.index();
+        profile
+    }
+
+    /// Construct the current production admission profile. H2.5e admits the
+    /// ES2017 target boundary and its ES2018 object-rest/spread, async
+    /// generator, and asynchronous-iteration lowering.
+    #[doc(hidden)]
+    pub const fn h2_5e_profile() -> Self {
+        let mut profile = Self::h2_5d_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5e.index();
+        profile
+    }
+
+    /// Construct the current production admission profile. H2.5f admits the
+    /// ES2016 target boundary and async-function lowering.
+    #[doc(hidden)]
+    pub const fn h2_5f_profile() -> Self {
+        let mut profile = Self::h2_5e_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5f.index();
+        profile
+    }
+
+    /// Construct the current production admission profile. H2.5g admits the
+    /// ES2015 target boundary and exponentiation lowering.
+    #[doc(hidden)]
+    pub const fn h2_5g_profile() -> Self {
+        let mut profile = Self::h2_5f_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5g.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }
