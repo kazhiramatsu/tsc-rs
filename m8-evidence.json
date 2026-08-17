@@ -3,7 +3,7 @@
   "artifact_dir": "target/m8/evidence",
   "runtime_coverage": {
     "artifact": "runtime-coverage.json",
-    "max_workers": 1,
+    "max_workers": 3,
     "programs_per_process": 500,
     "max_lib_cache_buckets": 8,
     "diagnostic_canary_programs": 32,
@@ -493,6 +493,9 @@
         "evidence": "Reviewed exact D2 zero-hit in the full 7,462-program oracle corpus; name=<anonymous>; lexical_path=<top>/createTypeChecker@46438:1/checkTypeArguments@76043:3/<anonymous>@76052:59; direct_codes=2344; source_slice_sha256=e073a36c4e313a56f87d3803a0eef42b7b84d90e5fb6b9d2daf5ad871fbba47e. Runtime absence does not shrink the static closure."
       }
     ]
+  },
+  "workspace_tests": {
+    "max_workers": 2
   },
   "fuzzer": {
     "artifact": "fuzzer-smoke.json",

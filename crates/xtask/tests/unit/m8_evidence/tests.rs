@@ -350,6 +350,7 @@ fn ci_output_binding_rejects_order_and_content_tampering() {
             diagnostic_canary_programs: 1,
             zero_hit_reviews: Vec::new(),
         },
+        workspace_tests: WorkspaceTestsConfig { max_workers: 4 },
         fuzzer: FuzzerConfig {
             artifact: "fuzz.json".to_owned(),
             seed: 1,

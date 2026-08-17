@@ -883,13 +883,31 @@ function reusableStoredCases(
   } catch {
     return null;
   }
+  // `owner_inventory` and `global_candidate_dispositions` are pin-carrying
+  // ratchet artifacts: an upstream pin-only rebind changes their file bytes
+  // without changing anything an observation can see. Their
+  // observation-relevant projections are compared exactly instead — the
+  // owner closure rows canonically below, and the selection they drive
+  // through the per-case identity (case-id membership, the 9,027-count
+  // guards, and every per-case fixture/settings/selection hash). The
+  // vendored TypeScript records and the vendor expansion inputs stay
+  // byte-compared: they are the oracle itself and are never pin-rebound.
+  const observationInputs = (inputs) => {
+    const {
+      owner_inventory: _ownerInventory,
+      global_candidate_dispositions: _globalDispositions,
+      ...rest
+    } = inputs;
+    return rest;
+  };
   if (
     stored.schema !== 1 ||
     stored.status !== "qualified-typescript-oracle" ||
     stored.phase !== "H2.5g-es2016-target" ||
     !hasValidFingerprint(stored, "qualification_fingerprint_sha256") ||
     canonical(stored.typescript) !== canonical(typescriptRecord) ||
-    canonical(stored.inputs) !== canonical(inputsRecord) ||
+    canonical(observationInputs(stored.inputs)) !==
+      canonical(observationInputs(inputsRecord)) ||
     canonical(stored.execution_contract) !== canonical(executionContract) ||
     canonical(stored.owner_closure) !== canonical(ownerRows)
   ) {

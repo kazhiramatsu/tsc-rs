@@ -122,6 +122,65 @@ fn scopes_invalidate_only_on_declared_inputs() {
 }
 
 #[test]
+fn node_runtime_oracle_scope_excludes_only_non_xtask_crate_rust() {
+    let original = snapshot(&[
+        ("crates/checker/src/lib.rs", "rust-a"),
+        ("crates/xtask/src/main.rs", "xtask-a"),
+        ("crates/oracle/h2-5g-qualification.mjs", "driver-a"),
+        ("ratchets/h2-5g-qualification.v1.json", "artifact-a"),
+        ("ts-tests/tests/cases/compiler/a.ts", "fixture-a"),
+        ("vendor/typescript-6.0.3/lib/_tsc.js", "vendor-a"),
+        (".node-version", "node-a"),
+        ("Cargo.lock", "lock-a"),
+    ]);
+    let with = |relative: &str, value: &str| {
+        let mut entries: Vec<(String, String)> = original
+            .entries
+            .iter()
+            .map(|entry| (entry.relative.clone(), entry.sha256.clone()))
+            .collect();
+        for entry in &mut entries {
+            if entry.0 == relative {
+                entry.1 = value.to_owned();
+            }
+        }
+        snapshot(
+            &entries
+                .iter()
+                .map(|(relative, sha)| (relative.as_str(), sha.as_str()))
+                .collect::<Vec<_>>(),
+        )
+    };
+    let scope = InputScope::NodeRuntimeOracle;
+    // The node drivers never read non-xtask crate Rust: a checker edit
+    // keeps the freshness-proof receipt alive.
+    assert_eq!(
+        fingerprint(&original, scope),
+        fingerprint(&with("crates/checker/src/lib.rs", "rust-b"), scope)
+    );
+    // Everything the phase actually consumes still re-runs it.
+    for (relative, value) in [
+        ("crates/xtask/src/main.rs", "xtask-b"),
+        ("crates/oracle/h2-5g-qualification.mjs", "driver-b"),
+        ("ratchets/h2-5g-qualification.v1.json", "artifact-b"),
+        ("ts-tests/tests/cases/compiler/a.ts", "fixture-b"),
+        ("vendor/typescript-6.0.3/lib/_tsc.js", "vendor-b"),
+        (".node-version", "node-b"),
+    ] {
+        assert_ne!(
+            fingerprint(&original, scope),
+            fingerprint(&with(relative, value), scope),
+            "{relative} must invalidate the node-runtime-oracle receipt"
+        );
+    }
+    // Rust-only build metadata stays outside the node phase.
+    assert_eq!(
+        fingerprint(&original, scope),
+        fingerprint(&with("Cargo.lock", "lock-b"), scope)
+    );
+}
+
+#[test]
 fn output_binding_must_remain_exact_for_reuse() {
     let workspace = temporary_directory("output");
     let output = workspace.join("target/m8/readiness.json");

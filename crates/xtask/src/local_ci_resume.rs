@@ -34,6 +34,16 @@ pub(crate) enum InputScope {
     Verification,
     /// Rust sources plus the formatter/toolchain configuration.
     RustFormat,
+    /// The H2.5g node-driver phase: vendored TypeScript, the fixture
+    /// corpus, ratchets/vendor artifacts, CI contracts/plans, the oracle
+    /// drivers, and the xtask sources that define which drivers run. The
+    /// audited read set of `ci_h2_5g_oracle_gates` contains no Rust crate
+    /// sources, so this scope excludes exactly the non-xtask crate Rust
+    /// (and the Rust-only build manifests) from the Verification set: a
+    /// checker-only diff keeps the ~20-minute freshness re-observation
+    /// receipt alive, while any oracle/vendor/ratchet/fixture/xtask change
+    /// still re-runs it.
+    NodeRuntimeOracle,
 }
 
 impl InputScope {
@@ -43,6 +53,7 @@ impl InputScope {
             Self::WorkspaceAudit => "workspace-audit",
             Self::Verification => "verification",
             Self::RustFormat => "rust-format",
+            Self::NodeRuntimeOracle => "node-runtime-oracle",
         }
     }
 
@@ -71,6 +82,16 @@ impl InputScope {
                     || matches!(
                         relative,
                         "rustfmt.toml" | ".rustfmt.toml" | "rust-toolchain.toml"
+                    )
+            }
+            Self::NodeRuntimeOracle => {
+                Self::Verification.includes(relative)
+                    && !(relative.starts_with("crates/")
+                        && !relative.starts_with("crates/xtask/")
+                        && relative.ends_with(".rs"))
+                    && !matches!(
+                        relative,
+                        "Cargo.lock" | "rustfmt.toml" | ".rustfmt.toml" | "rust-toolchain.toml"
                     )
             }
         }
@@ -576,12 +597,13 @@ fn tool_fingerprint(workspace: &Path) -> Result<String, Box<dyn Error>> {
     let mut hash = Sha256::new();
     hash_field(&mut hash, b"os", std::env::consts::OS.as_bytes());
     hash_field(&mut hash, b"arch", std::env::consts::ARCH.as_bytes());
-    let executable = std::env::current_exe()?;
-    hash_field(
-        &mut hash,
-        b"xtask-executable",
-        path_sha256(&executable)?.as_bytes(),
-    );
+    // The xtask binary hash is deliberately NOT part of the fingerprint.
+    // Every phase's own logic lives in tracked Rust sources that the phase
+    // input scopes already hash (Verification and WorkspaceAudit include
+    // crates/xtask; the node-driver scope keeps crates/xtask explicitly),
+    // so binary identity added only double-counting plus rebuild
+    // nondeterminism: any checker edit rebuilds xtask and used to discard
+    // every receipt, including phases whose inputs were untouched.
     for (program, arguments) in [
         ("cargo", &["--version", "--verbose"][..]),
         ("rustc", &["--version", "--verbose"][..]),

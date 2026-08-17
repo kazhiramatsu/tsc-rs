@@ -37,8 +37,19 @@ pub(crate) struct EvidenceConfig {
     schema: u32,
     artifact_dir: String,
     runtime_coverage: RuntimeConfig,
+    workspace_tests: WorkspaceTestsConfig,
     fuzzer: FuzzerConfig,
     performance: PerformanceConfig,
+}
+
+/// Reviewed CPU policy for the local workspace-test pipeline. Hosted
+/// Actions never executes workspace tests (the fixed boundary runs only
+/// `cargo xtask acceptance`), so this ceiling governs local gate runs;
+/// `TSRS_CI_TEST_WORKERS` may still clamp below it and the machine's
+/// available parallelism always bounds it.
+#[derive(Clone, Debug, Deserialize)]
+struct WorkspaceTestsConfig {
+    max_workers: usize,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -2374,7 +2385,16 @@ fn read_config(workspace: &Path) -> Result<EvidenceConfig, Box<dyn Error>> {
                 .into(),
         );
     }
+    if config.workspace_tests.max_workers == 0 {
+        return Err("m8-evidence.json workspace_tests.max_workers must be at least 1".into());
+    }
     Ok(config)
+}
+
+/// The reviewed local workspace-test worker ceiling from `m8-evidence.json`.
+/// tsrs-native: gate-policy accessor; no tsc counterpart.
+pub(crate) fn workspace_test_worker_ceiling(workspace: &Path) -> Result<usize, Box<dyn Error>> {
+    Ok(read_config(workspace)?.workspace_tests.max_workers)
 }
 
 fn artifact_dir(workspace: &Path, config: &EvidenceConfig) -> Result<PathBuf, Box<dyn Error>> {
