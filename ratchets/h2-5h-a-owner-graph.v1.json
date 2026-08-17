@@ -1,0 +1,3821 @@
+{
+  "schema": 1,
+  "kind": "h2-owner-graph",
+  "status": "frozen-owner-graph",
+  "phase": "H2.5h-a",
+  "slice_id": "H2.5h-a",
+  "plan_step": "prerequisite-transition-step-2",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-5h-a-owner-graph.mjs",
+    "sha256": "ac693c20dc22538d232f82cf583f5de0c304666c7549ea277d9207af372d36a2"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5h-a-owner-graph.schema.json",
+    "sha256": "f60c9e586d0bbdec8e59b2ff437ab687ab0a64bb0a8bd9b01fc271fef8775928"
+  },
+  "lineage": {
+    "foundation": {
+      "path": "ratchets/h2-5h-a-foundation.v1.json",
+      "sha256": "aa011296394bad0e55c635713ba7d6ac50fe415d319b57853f28bec916f80e43"
+    },
+    "foundation_fingerprint_sha256": "14e0df81edf1bca2b502fc59a4df10e4121d019d6af230957afd03b04506ae0c",
+    "comment_scope_witnesses": {
+      "path": "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
+      "sha256": "07986a2873b7bd9872e8872494667d2d27d4674ae3506df554ed97190df02c27"
+    },
+    "witnesses_fingerprint_sha256": "189dabe8c3c2cc6a46635effdb254f9bb41a02d77dccc718b828ee5a3eb47b21",
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "0336308c30c8a11798b1062670cc594ed53cec198643c580d47294d6dc9f7051"
+    },
+    "architecture_map": {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "dd21658450c7672e0008eb364c9ab911f5239ebb9c5a20d98f9910dd4c8f70bd"
+    },
+    "interpretation": "prerequisite-transition step 2 freezes the complete pinned owner reference closure; it assigns architecture rows but dispositions nothing, authorizes no production edit, and activates nothing"
+  },
+  "activation_contract": {
+    "runtime_activation_slice_id": "H2.5h-b+",
+    "activation": "target below ES2015",
+    "activation_mode": "joint",
+    "ordered_owner_keys": [
+      "transform-es2015",
+      "transform-generators"
+    ]
+  },
+  "upstream_registration": {
+    "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "activation_test": "languageVersion < ES2015(2)",
+    "ordered_transformers": [
+      "transformES2015",
+      "transformGenerators"
+    ],
+    "source_range": {
+      "start": {
+        "offset": 5446690,
+        "line": 115942,
+        "character": 3
+      },
+      "end": {
+        "offset": 5446817,
+        "line": 115945,
+        "character": 4
+      }
+    },
+    "registration_sha256": "f13bde7bd85c8fdc67b85ccc4dd8d86809cc3e7719518417e3d20b3ba7794066"
+  },
+  "owners": [
+    {
+      "index": 0,
+      "key": "transform-es2015",
+      "name": "transformES2015",
+      "declaration": {
+        "id": "h2:d9e073a32b44a2f52a209911387b97ac3bfa5a1a254785b5bee0add5081545a7",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformES2015",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformES2015@104740:1",
+        "source_range": {
+          "start": {
+            "offset": 5010274,
+            "line": 104740,
+            "character": 1
+          },
+          "end": {
+            "offset": 5141746,
+            "line": 108100,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "b59cbbc6c204139cf10d353626d1e1042545e96e3262e0d057bbf3b6efeb0097",
+        "body_sha256": "c7471e876573c7438920271f0f13943f4dc193fb465808a97be37e60402e0ea8",
+        "ledger_slice_sha256": "7624ff542054e68c5074493f79eeaf5a80723b09dfa3df82d32ba8a8c37e06bf"
+      },
+      "local_functions": [
+        {
+          "name": "recordTaggedTemplateString",
+          "start": 640,
+          "end": 828,
+          "sha256": "20dfb97b2936f0397f90deaf3e93423774204df6b48dd272bfc1c13b4b1604f4"
+        },
+        {
+          "name": "transformSourceFile",
+          "start": 952,
+          "end": 1369,
+          "sha256": "309e10687b8c6f88e2a31981b7aebdf4cc9bf5eb89a934af5d41284dd2567778"
+        },
+        {
+          "name": "enterSubtree",
+          "start": 1372,
+          "end": 1597,
+          "sha256": "22c6a3282588804a97ba8c6e1cfb1956b1bea8e2cc8fd031787f31907547e5f1"
+        },
+        {
+          "name": "exitSubtree",
+          "start": 1600,
+          "end": 1787,
+          "sha256": "a43f9ef9d4c428bcbf9419d89b900f20cd4f561d3f57e33206428a5f73200613"
+        },
+        {
+          "name": "isReturnVoidStatementInConstructorWithCapturedSuper",
+          "start": 1790,
+          "end": 1998,
+          "sha256": "3f53f06eba083b180891ca255579032a54df1afe93cdb087bacb257f626707fe"
+        },
+        {
+          "name": "isOrMayContainReturnCompletion",
+          "start": 2001,
+          "end": 2492,
+          "sha256": "be3dcbbee72922ceb1e88cfd0106a2260085d08c51ef6f5e4ae17f626c8faa90"
+        },
+        {
+          "name": "shouldVisitNode",
+          "start": 2495,
+          "end": 2929,
+          "sha256": "bb6a796d653dd6478de409cdfa41ab5af8ee0d3c4589637cd5fb5c5cb72155cc"
+        },
+        {
+          "name": "visitor",
+          "start": 2932,
+          "end": 3083,
+          "sha256": "bafec752012ea333610690a059a9348b722e277fa101c7841be02fbc19fdf07e"
+        },
+        {
+          "name": "visitorWithUnusedExpressionResult",
+          "start": 3086,
+          "end": 3262,
+          "sha256": "31e12745de63b980b76e51207a1d4b7008d741f523ce2130c57d76f74adf6f74"
+        },
+        {
+          "name": "classWrapperStatementVisitor",
+          "start": 3265,
+          "end": 3985,
+          "sha256": "5a0ffe926d0e956dd93166df1ae65d86e6bafedea40bcb508931f8b3ee46db4b"
+        },
+        {
+          "name": "callExpressionVisitor",
+          "start": 3988,
+          "end": 4209,
+          "sha256": "ae4cd75050480e8c67877e589b8ac2f53a993cc9b39345160bb985a870814543"
+        },
+        {
+          "name": "visitorWorker",
+          "start": 4212,
+          "end": 8845,
+          "sha256": "8496b8f884ca6661b4414c5029f29c6b015bc4d2d40c8c96b35877e4bb3f6ff6"
+        },
+        {
+          "name": "visitSourceFile",
+          "start": 8848,
+          "end": 9912,
+          "sha256": "fa22f76ccf9de3cbfff5760171993c9c18e914efe02ca30a276ea4c34426b52e"
+        },
+        {
+          "name": "visitSwitchStatement",
+          "start": 9915,
+          "end": 10366,
+          "sha256": "3d75f71c2efe45aed8052e473bfd50971e2e5a098db7c03e4eab5bf83486e56b"
+        },
+        {
+          "name": "visitCaseBlock",
+          "start": 10369,
+          "end": 10643,
+          "sha256": "5573d0fb91c99a53e4996e6cfbe9926302c4714a74d63f79b90ccb35fa2fb3da"
+        },
+        {
+          "name": "returnCapturedThis",
+          "start": 10646,
+          "end": 10773,
+          "sha256": "2ce0080b6b56f9316a9adc33aa900e48535e5ddb2ce93269c53f804d2caea91f"
+        },
+        {
+          "name": "createCapturedThis",
+          "start": 10776,
+          "end": 10900,
+          "sha256": "032cf19f930dc2d5ffadc24638ee15cd0dbff8baf5f2fee5630cc8efe607ac63"
+        },
+        {
+          "name": "visitReturnStatement",
+          "start": 10903,
+          "end": 11701,
+          "sha256": "ffd1e0641a6319ee822879bcc89ea6a9d25458fc17a3c36fa78a5495b53f6101"
+        },
+        {
+          "name": "visitThisKeyword",
+          "start": 11704,
+          "end": 12255,
+          "sha256": "0460f9aa322eb06e9542a84272660629a944fbc063ef212d0c895462186b764f"
+        },
+        {
+          "name": "visitVoidExpression",
+          "start": 12258,
+          "end": 12375,
+          "sha256": "e55851dbedae3a721177559a4d55b51f533d2b8610069e412c8f05c78b9a4b0d"
+        },
+        {
+          "name": "visitIdentifier",
+          "start": 12378,
+          "end": 12913,
+          "sha256": "4b19d74f4cbfed17244657c05f7449af15e8d2ca6ab599f941e3554e4f82d310"
+        },
+        {
+          "name": "visitBreakOrContinueStatement",
+          "start": 12916,
+          "end": 15081,
+          "sha256": "999e9a757cd0b4c4822b2ce9fcd8710be1e4f7963dc1613bf9fdd5cf8c319abf"
+        },
+        {
+          "name": "visitClassDeclaration",
+          "start": 15084,
+          "end": 16153,
+          "sha256": "01aa6bae3e504a6ab92c873971cd36d1f0f93efb0141abb7cf9498d47ea30e9c"
+        },
+        {
+          "name": "visitClassExpression",
+          "start": 16156,
+          "end": 16257,
+          "sha256": "549a801d5e51e5c389025a03a0e086416c99b2f30efad15f0eecf629b8159921"
+        },
+        {
+          "name": "transformClassLikeDeclarationToExpression",
+          "start": 16260,
+          "end": 17808,
+          "sha256": "5858bcdd506802ed2bacbd03572e3e8feae8eebd9803ce50b104a2d2e813221a"
+        },
+        {
+          "name": "transformClassBody",
+          "start": 17811,
+          "end": 19168,
+          "sha256": "26d6e3eec6177f8d9c3c715274d0c6d26196547505dfbcc49d6c097b6d893552"
+        },
+        {
+          "name": "addExtendsHelperIfNeeded",
+          "start": 19171,
+          "end": 19543,
+          "sha256": "a6b66338f690a350a06b6ad3244f3ef1ee8f87e017a0c9953f3116ca60a9a18f"
+        },
+        {
+          "name": "addConstructor",
+          "start": 19546,
+          "end": 20712,
+          "sha256": "3967df63f803a6d8fad5b08a8c4b4730e5883d6e4825a68732750f8f0c05eaca"
+        },
+        {
+          "name": "transformConstructorParameters",
+          "start": 20715,
+          "end": 20920,
+          "sha256": "cce602fb5e2edb4ff678a63e9b3ed3a4a1077ceda0ac4b6318b93fb73c77d563"
+        },
+        {
+          "name": "createDefaultConstructorBody",
+          "start": 20923,
+          "end": 21554,
+          "sha256": "c71be63fbd9d311b88c26a9391d59daa5f35b23f2da8cd9775547d4f0537b7bb"
+        },
+        {
+          "name": "isUninitializedVariableStatement",
+          "start": 21557,
+          "end": 21748,
+          "sha256": "f31596c74d661c3fe699aff1a4950caea6754d0d8f19caa715042f2cab803e50"
+        },
+        {
+          "name": "containsSuperCall",
+          "start": 21751,
+          "end": 22707,
+          "sha256": "ce5a96341df41e66385f02bfd41b6a875cac5cead07777cdb0a3c70773253de7"
+        },
+        {
+          "name": "transformConstructorBody",
+          "start": 22710,
+          "end": 24643,
+          "sha256": "074f34c9e72eae1969fa4a481ecd4662ac2005290abbdddfe606c47c8f412eb7"
+        },
+        {
+          "name": "isCapturedThis",
+          "start": 24646,
+          "end": 24749,
+          "sha256": "15dc6c6dba1b177b4c34b7383c9f54a9885159b6ee7bbd1b6d633920e156ae7c"
+        },
+        {
+          "name": "isSyntheticSuper",
+          "start": 24752,
+          "end": 24858,
+          "sha256": "f381b32d74ef683ef011f65c0d2ca068295ef95c0d5954ddf12b82c72606031d"
+        },
+        {
+          "name": "isThisCapturingVariableStatement",
+          "start": 24861,
+          "end": 25078,
+          "sha256": "888534af1dbdb8f28b5727bc58c8b646fce317c7379c08ef7565a7ae8c800d07"
+        },
+        {
+          "name": "isThisCapturingVariableDeclaration",
+          "start": 25081,
+          "end": 25227,
+          "sha256": "bdeeeab25e0a31b9d02b7b457578e6cbb953deb505cd1a3cc938eec4731bef25"
+        },
+        {
+          "name": "isThisCapturingAssignment",
+          "start": 25230,
+          "end": 25406,
+          "sha256": "034674ff928c5a91a4dd0e18ae3f68158403f2aa85b14b977bf68b58f03497f8"
+        },
+        {
+          "name": "isTransformedSuperCall",
+          "start": 25409,
+          "end": 25791,
+          "sha256": "8544b80cff99b4548487810e3c182c6397500c4cf00bd9ea2cb4f4415bc18092"
+        },
+        {
+          "name": "isTransformedSuperCallWithFallback",
+          "start": 25794,
+          "end": 26020,
+          "sha256": "5ba9ba421b5e7e8685f08bf38eff62bd3d96198fd81c5423dba6b12c2f4e218f"
+        },
+        {
+          "name": "isImplicitSuperCall",
+          "start": 26023,
+          "end": 26445,
+          "sha256": "58c052e71e17c4ddf17c9d2acc41a00dc9272ec6155d0ac69ad17f1230da09a4"
+        },
+        {
+          "name": "isImplicitSuperCallWithFallback",
+          "start": 26448,
+          "end": 26668,
+          "sha256": "7ea5c7d7b711e9952a7b230480d2171cde9d8925ec474cc8ca90ffa817fa3ab8"
+        },
+        {
+          "name": "isThisCapturingTransformedSuperCallWithFallback",
+          "start": 26671,
+          "end": 26833,
+          "sha256": "938f6d41797dafab3b8e4fc3cfb1837f82b6bec1b9fa8b4f09f90176a1fdc01f"
+        },
+        {
+          "name": "isThisCapturingImplicitSuperCallWithFallback",
+          "start": 26836,
+          "end": 26992,
+          "sha256": "2c4c049625a90c358f4f7d59f71cb0a06918f3eaecba74fa70ffc2131d485d71"
+        },
+        {
+          "name": "isTransformedSuperCallLike",
+          "start": 26995,
+          "end": 27308,
+          "sha256": "b18c57e097ed84e717d9b7358664f7119b9b13db7fb622425a73d273295640d1"
+        },
+        {
+          "name": "simplifyConstructorInlineSuperInThisCaptureVariable",
+          "start": 27311,
+          "end": 29529,
+          "sha256": "225eabbdae9be75091b54fce246465d2ea54c10597baab85c802d543e75280ec"
+        },
+        {
+          "name": "simplifyConstructorInlineSuperReturn",
+          "start": 29532,
+          "end": 31594,
+          "sha256": "e12a6f59ac41520bb6ad68041f48db477ffa3c98771e6c3d9b7bfccd47176dc2"
+        },
+        {
+          "name": "elideUnusedThisCaptureWorker",
+          "start": 31597,
+          "end": 32933,
+          "sha256": "8043e6efd598670388a76634e97ff969e82c34adc7c9cb3ed0040afc7bee3be2"
+        },
+        {
+          "name": "simplifyConstructorElideUnusedThisCapture",
+          "start": 32936,
+          "end": 33515,
+          "sha256": "0136dd51499cca7954f01f5847e2b26136e8caba9d67bdf9692580fd26a254cc"
+        },
+        {
+          "name": "injectSuperPresenceCheckWorker",
+          "start": 33518,
+          "end": 34862,
+          "sha256": "1417ca8f858995b870609c888453aa12d46763086554e11ade7c5dbf75c29b09"
+        },
+        {
+          "name": "complicateConstructorInjectSuperPresenceCheck",
+          "start": 34865,
+          "end": 35045,
+          "sha256": "533c278e9c3e2713c188dfd7836eee2158a40a5fa55fbf514440367088d22ebd"
+        },
+        {
+          "name": "simplifyConstructor",
+          "start": 35048,
+          "end": 35510,
+          "sha256": "4709981cefa46aa9b27d38b793c78520dafee008e39ccdbc78055a313254bc79"
+        },
+        {
+          "name": "isSufficientlyCoveredByReturnStatements",
+          "start": 35513,
+          "end": 36207,
+          "sha256": "a50488f4d6bea4a02bdf9470e0c99ba377d17d5e382c07c8a8407f2da1e823fe"
+        },
+        {
+          "name": "createActualThis",
+          "start": 36210,
+          "end": 36315,
+          "sha256": "ff42509f0bf639249062d7e9cc1b1a9eaaca2df330469d54f9611d470d81a86f"
+        },
+        {
+          "name": "createDefaultSuperCallOrThis",
+          "start": 36318,
+          "end": 36757,
+          "sha256": "30cd2afc46f2a56f85eadc0bf747bff2e9b4a5b473b649403c0d0a0bbebe4ce8"
+        },
+        {
+          "name": "visitParameter",
+          "start": 36760,
+          "end": 37919,
+          "sha256": "959f029daefcf69c3363addd1f8eae9236b2c9d304ac6b37592fdb4b11da28f2"
+        },
+        {
+          "name": "hasDefaultValueOrBindingPattern",
+          "start": 37922,
+          "end": 38045,
+          "sha256": "dd520bef17a0617968bbbacd38aa39cde6d26f771456101ade1de58c70fe1b0f"
+        },
+        {
+          "name": "addDefaultValueAssignmentsIfNeeded2",
+          "start": 38048,
+          "end": 38726,
+          "sha256": "47e2b98a01f4b885e6bc1a08fc453d5f53c26543016a851cefe71eed36641000"
+        },
+        {
+          "name": "insertDefaultValueAssignmentForBindingPattern",
+          "start": 38729,
+          "end": 39888,
+          "sha256": "bb64d2e837fc2d29afe0ef353112f706629e5839dd6594930373534459088856"
+        },
+        {
+          "name": "insertDefaultValueAssignmentForInitializer",
+          "start": 39891,
+          "end": 41324,
+          "sha256": "71f569d722ae3e16eb92bf1357936c2929613bd91a42a0af4a7eee5de3f044d9"
+        },
+        {
+          "name": "shouldAddRestParameter",
+          "start": 41327,
+          "end": 41487,
+          "sha256": "cb96b41d29cad0b799cf6ff516d1c5a22bec9f181914cf2e34d6c123baaa3b13"
+        },
+        {
+          "name": "addRestParameterIfNeeded",
+          "start": 41490,
+          "end": 44942,
+          "sha256": "c46739cb6fb725dd6628743a7091333577bebc4df4fcff2567fc0a84f4d69bc9"
+        },
+        {
+          "name": "insertCaptureThisForNodeIfNeeded",
+          "start": 44945,
+          "end": 45228,
+          "sha256": "6a0bdd56438100908e5d4e85e9e48335813637e2df2cd07683cdc14209793035"
+        },
+        {
+          "name": "insertCaptureThisForNode",
+          "start": 45231,
+          "end": 45920,
+          "sha256": "4d40bb46706498be2c31204e291de4dc10d4605a9424c78ffeefe69b02df6551"
+        },
+        {
+          "name": "insertCaptureNewTargetIfNeeded",
+          "start": 45923,
+          "end": 48134,
+          "sha256": "e2e80d55405c45f4030e75e969f01484174d2ac1ae22ea362972b5f315b3761f"
+        },
+        {
+          "name": "addClassMembers",
+          "start": 48137,
+          "end": 49165,
+          "sha256": "dc781cd7309a3b9ea47c0cf212f9667a6e80d37dbccfa98d54b0d25568eaffc3"
+        },
+        {
+          "name": "transformSemicolonClassElementToStatement",
+          "start": 49168,
+          "end": 49298,
+          "sha256": "0a398a84254e087a056b77868c9f484fb5d8cce0bff76d4f3919cd461ee74052"
+        },
+        {
+          "name": "transformClassMethodDeclarationToStatement",
+          "start": 49301,
+          "end": 50914,
+          "sha256": "d308b7f8068905f99ef6f144d92232da13be7ede4c0e60c60b12872baf32e74d"
+        },
+        {
+          "name": "transformAccessorsToStatement",
+          "start": 50917,
+          "end": 51330,
+          "sha256": "1df39eaf30565009c090a5c1cbce74ca9664dd8d47b524527c37e9e07912ca07"
+        },
+        {
+          "name": "transformAccessorsToExpression",
+          "start": 51333,
+          "end": 53993,
+          "sha256": "6d04f07b82710a17ddce60f0e495c7bb8e969f74c07999c716440f477396fdb0"
+        },
+        {
+          "name": "visitArrowFunction",
+          "start": 53996,
+          "end": 54997,
+          "sha256": "4a8022811b4ce1450a7e1a556115d0145b4ffb11a5fcad55f3ff63c880dfa170"
+        },
+        {
+          "name": "visitFunctionExpression",
+          "start": 55000,
+          "end": 55965,
+          "sha256": "2784f895ffead8b10ae18a11057209aa4df2a9fe17a1cbc31b0f832b60818d7e"
+        },
+        {
+          "name": "visitFunctionDeclaration",
+          "start": 55968,
+          "end": 56813,
+          "sha256": "72f89c1a924166cb8c3d7e5b1442e4c0289a03f982b1defd352b5f63ff0e9936"
+        },
+        {
+          "name": "transformFunctionLikeToExpression",
+          "start": 56816,
+          "end": 58089,
+          "sha256": "e17e4f1f101088019548af9bf9217c6268397f85d895f46eeec7f2bc48bd8948"
+        },
+        {
+          "name": "transformFunctionBody",
+          "start": 58092,
+          "end": 61115,
+          "sha256": "6e6b52c1363de0fe7a2d55643ee8b42fa19df605d4901c46347a95e7b366a2d4"
+        },
+        {
+          "name": "visitBlock",
+          "start": 61118,
+          "end": 61631,
+          "sha256": "90bfaa722dd438b5eaaaf7f52ae5db0e003fd4979ec5f0de1b4196e41182a495"
+        },
+        {
+          "name": "visitExpressionStatement",
+          "start": 61634,
+          "end": 61756,
+          "sha256": "7eddef5426346cdb2d694e265c3f37a6e42c060d3f18a4bd332edb296551aaf2"
+        },
+        {
+          "name": "visitParenthesizedExpression",
+          "start": 61759,
+          "end": 61950,
+          "sha256": "5cd53bf2ac631778a29da75fac021c927f30d86c82999a0f1c221ad01bcf9ed1"
+        },
+        {
+          "name": "visitBinaryExpression",
+          "start": 61953,
+          "end": 62678,
+          "sha256": "2856850562ae60fa9081cd87d56c8bb6a5b34bbddaedd86a6e90adbda8d21dd2"
+        },
+        {
+          "name": "visitCommaListExpression",
+          "start": 62681,
+          "end": 63462,
+          "sha256": "0af38b425f7d121a6497a94e217c8aa17a1aef99c81b1a0bd7275f0da02a14e6"
+        },
+        {
+          "name": "isVariableStatementOfTypeScriptClassWrapper",
+          "start": 63465,
+          "end": 63753,
+          "sha256": "3669466a6c1d5865e23efbb295e86e74edf8a1e2262753130df71f3b06f21fa5"
+        },
+        {
+          "name": "visitVariableStatement",
+          "start": 63756,
+          "end": 65203,
+          "sha256": "25ef26786271fba46547465b6b7ec07a3dc63eddeb0169c143555f570ab84d63"
+        },
+        {
+          "name": "visitVariableDeclarationList",
+          "start": 65206,
+          "end": 66238,
+          "sha256": "a0d2116c329c9b70ed973de19f32b5acf8d22dfb441680f1ec46b69740fd3bc4"
+        },
+        {
+          "name": "getRangeUnion",
+          "start": 66241,
+          "end": 66512,
+          "sha256": "eb7f0c14fac7fffdf7cd5d217030adbe2bd27cb235f92b1610155f22b3e79f67"
+        },
+        {
+          "name": "shouldEmitExplicitInitializerForLetDeclaration",
+          "start": 66515,
+          "end": 67307,
+          "sha256": "70902cef8893f6eebf0190aa7d6ba45263a52acfd607c08b70ed112f90272749"
+        },
+        {
+          "name": "visitVariableDeclarationInLetDeclarationList",
+          "start": 67310,
+          "end": 67833,
+          "sha256": "7b0f0f8cf9d5d92ffecdd8c8e43cae87028687bdb0c5140b07b64591752cc467"
+        },
+        {
+          "name": "visitVariableDeclaration",
+          "start": 67836,
+          "end": 68405,
+          "sha256": "46c9da197f6ce4c2e087c70022d73a5023201cb897d9dee7f3d974d0ed5c83a2"
+        },
+        {
+          "name": "recordLabel",
+          "start": 68408,
+          "end": 68501,
+          "sha256": "a3ce872f3a07669f098d5ecf93900e112b399a091b1602a6e82e870ef127c908"
+        },
+        {
+          "name": "resetLabel",
+          "start": 68504,
+          "end": 68597,
+          "sha256": "fa649b33ef53b51bd267421e13b1888800c1bad2938bc01612616c90ce40ea90"
+        },
+        {
+          "name": "visitLabeledStatement",
+          "start": 68600,
+          "end": 69264,
+          "sha256": "5499b58690f515ab551ce00acd5c0bd91a24a4f8c2760a0afd95e1b41d159172"
+        },
+        {
+          "name": "visitIterationStatement",
+          "start": 69267,
+          "end": 69827,
+          "sha256": "94f45d42d45b5e32379ec82346ed2aff9840004895acd1e755d3ca99c2eff629"
+        },
+        {
+          "name": "visitIterationStatementWithFacts",
+          "start": 69830,
+          "end": 70214,
+          "sha256": "0ea76ed116985ca40e02f7aabee82340da75cfbc02240580173a04dfef921036"
+        },
+        {
+          "name": "visitDoOrWhileStatement",
+          "start": 70217,
+          "end": 70471,
+          "sha256": "5953d2567d4ee6f85f3ea240b8f4afeba2cb4ab6841647e1ae89f1716b9e397c"
+        },
+        {
+          "name": "visitForStatement",
+          "start": 70474,
+          "end": 70713,
+          "sha256": "e2ef79b4770c28d6c437921b2930adc1297e9083252b28de8413e24a38a1f281"
+        },
+        {
+          "name": "visitEachChildOfForStatement2",
+          "start": 70716,
+          "end": 71149,
+          "sha256": "2fdf7315d7129c77918958850a7ccb3bbcecb3e3dc0d00d62bcce1f5f1e144ac"
+        },
+        {
+          "name": "visitForInStatement",
+          "start": 71152,
+          "end": 71411,
+          "sha256": "d279595813bb5fd210e599a36e4d0a9adbc50fd4e830c88a290c3d01e8d02e03"
+        },
+        {
+          "name": "visitForOfStatement",
+          "start": 71414,
+          "end": 71782,
+          "sha256": "9768ccb2b96af62124603e6868a8aebb3e6a2b8e31914eb2be5a18ecfa1ffb47"
+        },
+        {
+          "name": "convertForOfStatementHead",
+          "start": 71785,
+          "end": 75052,
+          "sha256": "c3f7ab6cc2958b55416a18c050c6e89f703efc94c1bfd1989371906af21ddbe7"
+        },
+        {
+          "name": "createSyntheticBlockForConvertedStatements",
+          "start": 75055,
+          "end": 75331,
+          "sha256": "4791125bef6fe788fc8108d90e41cb0b36a6e6133f719ed8c1bc238ca7e1ed05"
+        },
+        {
+          "name": "convertForOfStatementForArray",
+          "start": 75334,
+          "end": 77511,
+          "sha256": "413f8b159a64a17a37483b2cbd22a4d6ecbc4ac139ab34b2be2899266dcc154c"
+        },
+        {
+          "name": "convertForOfStatementForIterable",
+          "start": 77514,
+          "end": 82386,
+          "sha256": "9dd3de9983b36a075580aeddfe6af328cab3b9a5d9c39dd2b12f7147b3b74c8d"
+        },
+        {
+          "name": "visitObjectLiteralExpression",
+          "start": 82389,
+          "end": 83772,
+          "sha256": "005f0be6d18e7602b4b096ff94d1464e531b432fe3206b1896ce979fb5254056"
+        },
+        {
+          "name": "shouldConvertPartOfIterationStatement",
+          "start": 83775,
+          "end": 83923,
+          "sha256": "053b3dc1a7412b5a5459d2056a3b435db4ddf3b570635bee3c12d55095bf99eb"
+        },
+        {
+          "name": "shouldConvertInitializerOfForStatement",
+          "start": 83926,
+          "end": 84099,
+          "sha256": "0f0b9d64bb5144ade3ef1370ca123977187e8b4bcb5f62b18a2a8a00700a266a"
+        },
+        {
+          "name": "shouldConvertConditionOfForStatement",
+          "start": 84102,
+          "end": 84269,
+          "sha256": "f0e4ff8a4ff46109c213086d14f5653b89eae653dc2f73b7d5732684569d07e9"
+        },
+        {
+          "name": "shouldConvertIncrementorOfForStatement",
+          "start": 84272,
+          "end": 84445,
+          "sha256": "a4da30b137a7ff699b62248b3a13fde48a808467766ca2230a56a70fc17c7d30"
+        },
+        {
+          "name": "shouldConvertIterationStatement",
+          "start": 84448,
+          "end": 84604,
+          "sha256": "4dbd4bbda98642e06659860c8159464e143e5eb922e4ab6488287dd3b88ebdb6"
+        },
+        {
+          "name": "shouldConvertBodyOfIterationStatement",
+          "start": 84607,
+          "end": 84756,
+          "sha256": "b9aeb0292626f394a68ce08b48a6d960adc60ad31b7c2ee3603f51730959eee9"
+        },
+        {
+          "name": "hoistVariableDeclarationDeclaredInConvertedLoop",
+          "start": 84759,
+          "end": 85246,
+          "sha256": "a04e382e6f4175dbd1ba43b0f63f59ce847cd55cbcc07ffc258449c34d800487"
+        },
+        {
+          "name": "visit",
+          "start": 84943,
+          "end": 85242,
+          "sha256": "2151fe2164fa52e281071a4a418a53b8b191fadd83a03479656517178e538340"
+        },
+        {
+          "name": "convertIterationStatementBodyIfNecessary",
+          "start": 85249,
+          "end": 87996,
+          "sha256": "ed10e77680982a06ebbe1f3d365d8e47c329b11c42ee7fbad90f97faa7cbd7bb"
+        },
+        {
+          "name": "convertIterationStatementCore",
+          "start": 87999,
+          "end": 88723,
+          "sha256": "fb0cb7d82c1d6a729a779f3f46f928bbcabcc66029be6eaff93be88980ee0149"
+        },
+        {
+          "name": "convertForStatement",
+          "start": 88726,
+          "end": 89484,
+          "sha256": "96297e1e102d5a0d820e08a2ea34e752fa308e2680df412bfb7e91f0afc11317"
+        },
+        {
+          "name": "convertForOfStatement",
+          "start": 89487,
+          "end": 89830,
+          "sha256": "01deb0565df0ba7540b8e6bd1c846ae62854db21c7164ff84196e42bd75532ef"
+        },
+        {
+          "name": "convertForInStatement",
+          "start": 89833,
+          "end": 90138,
+          "sha256": "38d97e3764c1e964a91b679a695025664759c38c8d1d1b9e129b4712cf2802ae"
+        },
+        {
+          "name": "convertDoStatement",
+          "start": 90141,
+          "end": 90358,
+          "sha256": "d42f598515b373ab64e9b0b6d5fee25b2add1142a5186b8925cf968c8d7a86d2"
+        },
+        {
+          "name": "convertWhileStatement",
+          "start": 90361,
+          "end": 90584,
+          "sha256": "1e12609051ad811f6fc30863e27bb1f31b25a3892dde7a95bbd8ded64ddb8c34"
+        },
+        {
+          "name": "createConvertedLoopState",
+          "start": 90587,
+          "end": 92029,
+          "sha256": "57e81928cc155e5a9c5f3eb3ac038e11d50609af902be9f01d28b7e2338fb179"
+        },
+        {
+          "name": "addExtraDeclarationsForConvertedLoop",
+          "start": 92032,
+          "end": 94350,
+          "sha256": "0aa15756408d2901a2d19bc3a82311cb78d5176f563d5e8c8910cb3b9adf304e"
+        },
+        {
+          "name": "createOutVariable",
+          "start": 94353,
+          "end": 94555,
+          "sha256": "cb9957cc5336cfe2f343d7e0b22274fc311966564e94be3ec3ed0682abb00db0"
+        },
+        {
+          "name": "createFunctionForInitializerOfForStatement",
+          "start": 94558,
+          "end": 96626,
+          "sha256": "acae378d4c2745cb10ec7bf148d6f0398aeea5a42dec45b564a6e44587ac9668"
+        },
+        {
+          "name": "createFunctionForBodyOfIterationStatement",
+          "start": 96629,
+          "end": 100203,
+          "sha256": "60e4a9628d9b9b799324395a17e63df98081fc7725fe536ddce9f4a7ef119ae6"
+        },
+        {
+          "name": "copyOutParameter",
+          "start": 100206,
+          "end": 100554,
+          "sha256": "376f136a00b46cc97cdf3b09903e66a35c7cf1ff05610cf7c90e72f6636e7b71"
+        },
+        {
+          "name": "copyOutParameters",
+          "start": 100557,
+          "end": 100836,
+          "sha256": "ac5d397a3a23866cb9507b85595cdd12214d375ee25f911fd36112c384199fa0"
+        },
+        {
+          "name": "generateCallToConvertedLoopInitializer",
+          "start": 100839,
+          "end": 101316,
+          "sha256": "c224511235901e6b9380806249ba89f731749ca6e4e894e4999fbf65cdc52da2"
+        },
+        {
+          "name": "generateCallToConvertedLoop",
+          "start": 101319,
+          "end": 104312,
+          "sha256": "f0ac04e5acdd4e9d29d2b44a547ccc7d081ed63a980501d5908aa938ecbeaea5"
+        },
+        {
+          "name": "setLabeledJump",
+          "start": 104315,
+          "end": 104787,
+          "sha256": "7c6e677e94c485accb5f7cf8dc9f5d51a27fdaf5fe9a66cbf8cd20c448d878a8"
+        },
+        {
+          "name": "processLabeledJumps",
+          "start": 104790,
+          "end": 105527,
+          "sha256": "35d600055cf803b89d44531fe30de6f78573cf6c8cc07cebb775f89a0dea739b"
+        },
+        {
+          "name": "processLoopVariableDeclaration",
+          "start": 105530,
+          "end": 107011,
+          "sha256": "f989b94bac9b2f077763fe2c2e43a0f88bf8681428abac4389d3205533b04aa3"
+        },
+        {
+          "name": "addObjectLiteralMembers",
+          "start": 107014,
+          "end": 108256,
+          "sha256": "2e0ecbee0d1ee51af8d09f6fa62970fd5e5f01dc72f1000e7604cc5519ae95de"
+        },
+        {
+          "name": "transformPropertyAssignmentToExpression",
+          "start": 108259,
+          "end": 108782,
+          "sha256": "d554da8f9ec39223f0ef3f7a5e125aa8fd6b386644410b492288f7cf82666a8c"
+        },
+        {
+          "name": "transformShorthandPropertyAssignmentToExpression",
+          "start": 108785,
+          "end": 109276,
+          "sha256": "57e9d50d25136b90ba13c2dda75ac0f3d9461bd4efc103de947ec9a9515c12eb"
+        },
+        {
+          "name": "transformObjectLiteralMethodDeclarationToExpression",
+          "start": 109279,
+          "end": 109891,
+          "sha256": "58f14a4dea98343262bdf4503726ecb2c7788d40fc083885077d4d9aaf770dc8"
+        },
+        {
+          "name": "visitCatchClause",
+          "start": 109894,
+          "end": 111158,
+          "sha256": "5c91ac04f202cae93c79ca2b03172bc9fa9fa4137e64af20c206d88e2985ae66"
+        },
+        {
+          "name": "addStatementToStartOfBlock",
+          "start": 111161,
+          "end": 111386,
+          "sha256": "b56a2a55860c9ec58b002ef56ff1b7e88d78b9a27ee7e550f7ed8791cd7e8ab5"
+        },
+        {
+          "name": "visitMethodDeclaration",
+          "start": 111389,
+          "end": 111943,
+          "sha256": "577aa27f4a6d2b59e2261f17bba0ce9e7ed074e2761dd06ea091c718cd3cc321"
+        },
+        {
+          "name": "visitAccessorDeclaration",
+          "start": 111946,
+          "end": 112815,
+          "sha256": "f03ff883eabab18642bcf849820374c32c52bd29ca1c35bbea29ef36a3fc0ff6"
+        },
+        {
+          "name": "visitShorthandPropertyAssignment",
+          "start": 112818,
+          "end": 113057,
+          "sha256": "952b0d2fcc2f50cbba74c2b66de67de59e7d0167663f1748488c839c61fa1cf4"
+        },
+        {
+          "name": "visitComputedPropertyName",
+          "start": 113060,
+          "end": 113157,
+          "sha256": "307c9bf814d23f38f21a4b6705c03d038a649b8ee5c7a2b9f5081f36556db61a"
+        },
+        {
+          "name": "visitYieldExpression",
+          "start": 113160,
+          "end": 113252,
+          "sha256": "3b3a838720500405e966f0aea7094d20038d135994f2070b5839c63cb4420d42"
+        },
+        {
+          "name": "visitArrayLiteralExpression",
+          "start": 113255,
+          "end": 113619,
+          "sha256": "61af499d18e5aab5857ddc76f23ac7467342e891549b6b66a20fc1ad6c487fa9"
+        },
+        {
+          "name": "visitCallExpression",
+          "start": 113622,
+          "end": 114366,
+          "sha256": "842c519c999ea7c58fddcb7ca6ccfc22e2a1f941b905d7a05c0955a84d8d54e3"
+        },
+        {
+          "name": "visitTypeScriptClassWrapper",
+          "start": 114369,
+          "end": 118192,
+          "sha256": "0e05534d51004bf9d1693acbf335bb20652da0159df0cadec601c30c18527e5e"
+        },
+        {
+          "name": "visitCallExpressionWithPotentialCapturedThisAssignment",
+          "start": 118195,
+          "end": 120241,
+          "sha256": "c3429ac8f94b23499535604ab83904de5c1b0dd0b3f747b610072ecf0dbd26dd"
+        },
+        {
+          "name": "visitNewExpression",
+          "start": 120244,
+          "end": 121073,
+          "sha256": "3ed24be15029929f9ffeb0d8aada6dbfed322bbbd9a7443c69c9f53e7876acaa"
+        },
+        {
+          "name": "transformAndSpreadElements",
+          "start": 121076,
+          "end": 122568,
+          "sha256": "36f95f65294514f2dd466b339ec39af44cbe32bce22e211b92992cb7c812ab35"
+        },
+        {
+          "name": "partitionSpread",
+          "start": 122571,
+          "end": 122686,
+          "sha256": "1c41ede32483b53222904c6f6a46f3381e219b68aada84172ce3121a9f66afbe"
+        },
+        {
+          "name": "visitSpanOfSpreads",
+          "start": 122689,
+          "end": 122777,
+          "sha256": "3a4c0f5f6c627c4aacb84276551bfc818e1f839d3024858626d90cd4d945196f"
+        },
+        {
+          "name": "visitExpressionOfSpread",
+          "start": 122780,
+          "end": 123509,
+          "sha256": "f1d89e49a2e2dd441cf9097316c0e1d170dd0e93870061ef903661f46bc8f513"
+        },
+        {
+          "name": "visitSpanOfNonSpreads",
+          "start": 123512,
+          "end": 123820,
+          "sha256": "a2b704ae190f894f3326dbb750ae93611ae1d31b26477d6f1aac543f034daca8"
+        },
+        {
+          "name": "visitSpreadElement",
+          "start": 123823,
+          "end": 123924,
+          "sha256": "eaac13986a0576b3237e28577da9b4362ac274ceeed23a5027ec7f5dd332ee19"
+        },
+        {
+          "name": "visitTemplateLiteral",
+          "start": 123927,
+          "end": 124040,
+          "sha256": "b0293d9a33abd6d5012e0b0efff09cf54fdf26dd7c38a4a5fd4026139bc8af23"
+        },
+        {
+          "name": "visitStringLiteral",
+          "start": 124043,
+          "end": 124220,
+          "sha256": "99e72d0f9d8c54896c1e032573e321a0d4ca361f80b5e69507395c1fd552f590"
+        },
+        {
+          "name": "visitNumericLiteral",
+          "start": 124223,
+          "end": 124432,
+          "sha256": "9101e7f6542ee4b40b8e8cdbcd5f6f9dcd9cf2dc79eaf7cc49dbab6d3c95cafd"
+        },
+        {
+          "name": "visitTaggedTemplateExpression",
+          "start": 124435,
+          "end": 124655,
+          "sha256": "1ffd8a63fe2a0e7881a91864ea4f8a99cfc37aa89ae1fa776c229b893077d738"
+        },
+        {
+          "name": "visitTemplateExpression",
+          "start": 124658,
+          "end": 125258,
+          "sha256": "e181744a81fd10737a38e4b1326a27d4e3a4a09b0c89ddb82b90c4c0eb8cf301"
+        },
+        {
+          "name": "createSyntheticSuper",
+          "start": 125261,
+          "end": 125388,
+          "sha256": "bec2dab51d328fac782dc617962b67aab97ab57e92d5bde031833b2de44d92e3"
+        },
+        {
+          "name": "visitSuperKeyword",
+          "start": 125391,
+          "end": 125812,
+          "sha256": "374e37f354f7ad5d5efe41ed4907919217d8d0bf7db259740a305fb3b0458cab"
+        },
+        {
+          "name": "visitMetaProperty",
+          "start": 125815,
+          "end": 126111,
+          "sha256": "7b4758cc8786ca25b8df248e0228b1246b08e1f7c50ef014ae67cc129563ddcc"
+        },
+        {
+          "name": "onEmitNode",
+          "start": 126114,
+          "end": 126648,
+          "sha256": "c634bedf65c5a657c6bab9fc608798a5b294641633a8ae17ed72412993d85d80"
+        },
+        {
+          "name": "enableSubstitutionsForBlockScopedBindings",
+          "start": 126651,
+          "end": 126899,
+          "sha256": "6bc078393241be6c4401013f08db3f03028b471fe9e67aaf81df24b6d3c22d6a"
+        },
+        {
+          "name": "enableSubstitutionsForCapturedThis",
+          "start": 126902,
+          "end": 127581,
+          "sha256": "39ae0a13ee1044c94d0f74f0fc397b1965bd30e8ba6ac2fc203682f7b473602b"
+        },
+        {
+          "name": "onSubstituteNode",
+          "start": 127584,
+          "end": 127856,
+          "sha256": "d02329b6def9cb6b04854ed019cfe2b6827d9e01f34d93b9d022dd73e83dbfb3"
+        },
+        {
+          "name": "substituteIdentifier",
+          "start": 127859,
+          "end": 128230,
+          "sha256": "18c7404171230a52550f26e97b55ff4b23eb17625484e0dc440a963ac6892c61"
+        },
+        {
+          "name": "isNameOfDeclarationWithCollidingName",
+          "start": 128233,
+          "end": 128600,
+          "sha256": "6b92f354aab1173f675f34847262f2e61017f17a5b0592a0587dd1359de830f2"
+        },
+        {
+          "name": "substituteExpression",
+          "start": 128603,
+          "end": 128855,
+          "sha256": "a670d6ac05ef827b1916b17577737a190fa721a5e84a4cf30bf23624650ad2ce"
+        },
+        {
+          "name": "substituteExpressionIdentifier",
+          "start": 128858,
+          "end": 129311,
+          "sha256": "51893904e14939f4fe801848894222cad24f44746951dffaae6bb33a97a5a4ab"
+        },
+        {
+          "name": "isPartOfClassBody",
+          "start": 129314,
+          "end": 129936,
+          "sha256": "982187bc9151079cdc85781b0190778e55e93d760bbdf38674183adcbbc9b9bc"
+        },
+        {
+          "name": "substituteThisKeyword",
+          "start": 129939,
+          "end": 130156,
+          "sha256": "167ebac4735fa65cd006e5f7d253d376eae9a096e6f6c5c722fbc0c6c619975c"
+        },
+        {
+          "name": "getClassMemberPrefix",
+          "start": 130159,
+          "end": 130357,
+          "sha256": "56f6decd824cb33a8c1115a8411ece59cccbc9b8134ff4c87f855b93d52ab71b"
+        },
+        {
+          "name": "hasSynthesizedDefaultSuperCall",
+          "start": 130360,
+          "end": 131470,
+          "sha256": "72165c37e933dfe5ed08b196e3c41e1014dac8f91d335cf43a1d4e0642ec326b"
+        }
+      ],
+      "factory_methods": [
+        "cloneNode",
+        "copyCustomPrologue",
+        "copyPrologue",
+        "copyStandardPrologue",
+        "createArrayLiteralExpression",
+        "createAssignment",
+        "createBinaryExpression",
+        "createBlock",
+        "createBreakStatement",
+        "createCallBinding",
+        "createCallExpression",
+        "createCaseBlock",
+        "createCaseClause",
+        "createCatchClause",
+        "createConditionalExpression",
+        "createContinueStatement",
+        "createElementAccessExpression",
+        "createEmptyStatement",
+        "createExportDefault",
+        "createExpressionStatement",
+        "createExternalModuleExport",
+        "createFalse",
+        "createForStatement",
+        "createFunctionApplyCall",
+        "createFunctionCallCall",
+        "createFunctionDeclaration",
+        "createFunctionExpression",
+        "createIdentifier",
+        "createIfStatement",
+        "createLessThan",
+        "createLogicalAnd",
+        "createLogicalNot",
+        "createLogicalOr",
+        "createLoopVariable",
+        "createNewExpression",
+        "createNodeArray",
+        "createNull",
+        "createNumericLiteral",
+        "createObjectDefinePropertyCall",
+        "createObjectLiteralExpression",
+        "createParameterDeclaration",
+        "createParenthesizedExpression",
+        "createPartiallyEmittedExpression",
+        "createPostfixIncrement",
+        "createPrefixUnaryExpression",
+        "createPropertyAccessExpression",
+        "createPropertyAssignment",
+        "createPropertyDescriptor",
+        "createReturnStatement",
+        "createStrictEquality",
+        "createStrictInequality",
+        "createStringLiteral",
+        "createSubtract",
+        "createSwitchStatement",
+        "createTempVariable",
+        "createThis",
+        "createThrowStatement",
+        "createToken",
+        "createTrue",
+        "createTryStatement",
+        "createTypeCheck",
+        "createUniqueName",
+        "createVariableDeclaration",
+        "createVariableDeclarationList",
+        "createVariableStatement",
+        "createVoidZero",
+        "createYieldExpression",
+        "getGeneratedNameForNode",
+        "getInternalName",
+        "getLocalName",
+        "inlineExpressions",
+        "mergeLexicalEnvironment",
+        "replacePropertyName",
+        "restoreEnclosingLabel",
+        "restoreOuterExpressions",
+        "updateBinaryExpression",
+        "updateBlock",
+        "updateCallExpression",
+        "updateCatchClause",
+        "updateCommaListExpression",
+        "updateDoStatement",
+        "updateForInStatement",
+        "updateForOfStatement",
+        "updateForStatement",
+        "updateFunctionDeclaration",
+        "updateFunctionExpression",
+        "updateGetAccessorDeclaration",
+        "updateSetAccessorDeclaration",
+        "updateSourceFile",
+        "updateVariableDeclaration",
+        "updateVariableDeclarationList",
+        "updateWhileStatement"
+      ],
+      "resolver_methods": [
+        "getReferencedDeclarationWithCollidingName",
+        "hasNodeCheckFlag",
+        "isArgumentsLocalBinding",
+        "isBindingCapturedByNode",
+        "isDeclarationWithCollidingName"
+      ],
+      "context_apis": [
+        "enableEmitNotification",
+        "enableSubstitution",
+        "endLexicalEnvironment",
+        "getCompilerOptions",
+        "getEmitHelperFactory",
+        "getEmitResolver",
+        "hoistVariableDeclaration",
+        "readEmitHelpers",
+        "resumeLexicalEnvironment",
+        "startLexicalEnvironment"
+      ],
+      "context_destructure": [
+        {
+          "local": "emitHelpers",
+          "member": "getEmitHelperFactory"
+        },
+        {
+          "local": "endLexicalEnvironment",
+          "member": "endLexicalEnvironment"
+        },
+        {
+          "local": "factory2",
+          "member": "factory"
+        },
+        {
+          "local": "hoistVariableDeclaration",
+          "member": "hoistVariableDeclaration"
+        },
+        {
+          "local": "resumeLexicalEnvironment",
+          "member": "resumeLexicalEnvironment"
+        },
+        {
+          "local": "startLexicalEnvironment",
+          "member": "startLexicalEnvironment"
+        }
+      ],
+      "helper_calls": [
+        "createExtendsHelper",
+        "createReadHelper",
+        "createSpreadArrayHelper",
+        "createValuesHelper"
+      ],
+      "external_utilities": [
+        "addEmitHelpers",
+        "addRange",
+        "addSyntheticLeadingComment",
+        "append",
+        "arrayIsEqualTo",
+        "cast",
+        "chainBundle",
+        "concatenate",
+        "createExpressionForPropertyName",
+        "createMemberAccessForPropertyName",
+        "createRange",
+        "createSpreadSegment",
+        "createTokenRange",
+        "elementAt",
+        "every",
+        "filter",
+        "first",
+        "firstOrUndefined",
+        "flatten",
+        "flattenDestructuringAssignment",
+        "flattenDestructuringBinding",
+        "forEachChild",
+        "getAllAccessorDeclarations",
+        "getClassExtendsHeritageElement",
+        "getCombinedNodeFlags",
+        "getCommentRange",
+        "getEmitFlags",
+        "getEnclosingBlockScopeContainer",
+        "getFirstConstructorWithBody",
+        "getInternalEmitFlags",
+        "getNameOfDeclaration",
+        "getOriginalNode",
+        "getParseTreeNode",
+        "getSourceMapRange",
+        "getSuperCallFromStatement",
+        "getUseDefineForClassFields",
+        "hasStaticModifier",
+        "hasSyntacticModifier",
+        "idText",
+        "insertStatementAfterCustomPrologue",
+        "insertStatementsAfterCustomPrologue",
+        "insertStatementsAfterStandardPrologue",
+        "isArrayLiteralExpression",
+        "isAssignmentExpression",
+        "isBinaryExpression",
+        "isBindingPattern",
+        "isBlock",
+        "isCallExpression",
+        "isCallToHelper",
+        "isCaseBlock",
+        "isCaseClause",
+        "isCatchClause",
+        "isClassElement",
+        "isClassLike",
+        "isComputedPropertyName",
+        "isDefaultClause",
+        "isDestructuringAssignment",
+        "isExpressionStatement",
+        "isForStatement",
+        "isFunctionLike",
+        "isGeneratedIdentifier",
+        "isIdentifier",
+        "isIdentifierANonContextualKeyword",
+        "isIfStatement",
+        "isInternalName",
+        "isIterationStatement",
+        "isLabeledStatement",
+        "isOmittedExpression",
+        "isPackedArrayLiteral",
+        "isPrivateIdentifier",
+        "isPropertyAccessExpression",
+        "isPropertyDeclaration",
+        "isReturnStatement",
+        "isSpreadElement",
+        "isStatic",
+        "isSuperCall",
+        "isSuperProperty",
+        "isSwitchStatement",
+        "isTryStatement",
+        "isVariableDeclaration",
+        "isVariableDeclarationList",
+        "isVariableStatement",
+        "isWithStatement",
+        "last",
+        "lastOrUndefined",
+        "map",
+        "moveRangeEnd",
+        "moveRangePos",
+        "moveSyntheticComments",
+        "nodeIsSynthesized",
+        "processTaggedTemplateExpression",
+        "rangeEndIsOnSameLineAsRangeStart",
+        "setCommentRange",
+        "setEmitFlags",
+        "setOriginalNode",
+        "setParent",
+        "setSourceMapRange",
+        "setTextRange",
+        "setTextRangeEnd",
+        "setTextRangePos",
+        "setTokenSourceMapRange",
+        "singleOrMany",
+        "singleOrUndefined",
+        "skipOuterExpressions",
+        "skipTrivia",
+        "some",
+        "spanMap",
+        "startOnNewLine",
+        "tryCast",
+        "unescapeLeadingUnderscores",
+        "unwrapInnermostStatementOfLabel",
+        "visitEachChild",
+        "visitNode",
+        "visitNodes2",
+        "visitParameterList"
+      ],
+      "hooks": [
+        "onEmitNode",
+        "onSubstituteNode"
+      ],
+      "enum_references": [
+        {
+          "value": 0,
+          "name": "All"
+        },
+        {
+          "value": 0,
+          "name": "ArrowFunctionSubtreeExcludes"
+        },
+        {
+          "value": 0,
+          "name": "BlockScopeIncludes"
+        },
+        {
+          "value": 0,
+          "name": "DoOrWhileStatementExcludes"
+        },
+        {
+          "value": 0,
+          "name": "None"
+        },
+        {
+          "value": 0,
+          "name": "ToOriginal"
+        },
+        {
+          "value": 1,
+          "name": "All"
+        },
+        {
+          "value": 1,
+          "name": "Body"
+        },
+        {
+          "value": 1,
+          "name": "CapturedThis"
+        },
+        {
+          "value": 1,
+          "name": "Expression"
+        },
+        {
+          "value": 1,
+          "name": "Let"
+        },
+        {
+          "value": 1,
+          "name": "SingleLine"
+        },
+        {
+          "value": 1,
+          "name": "ToOutParameter"
+        },
+        {
+          "value": 1,
+          "name": "TypeScriptClassWrapper"
+        },
+        {
+          "value": 1,
+          "name": "UnpackedSpread"
+        },
+        {
+          "value": 2,
+          "name": "ArrowFunction"
+        },
+        {
+          "value": 2,
+          "name": "BlockScopedBindings"
+        },
+        {
+          "value": 2,
+          "name": "Break"
+        },
+        {
+          "value": 2,
+          "name": "Initializer"
+        },
+        {
+          "value": 2,
+          "name": "PackedSpread"
+        },
+        {
+          "value": 3,
+          "name": "MultiLineCommentTrivia"
+        },
+        {
+          "value": 4,
+          "name": "AsyncFunctionBody"
+        },
+        {
+          "value": 4,
+          "name": "Continue"
+        },
+        {
+          "value": 7,
+          "name": "BlockScoped"
+        },
+        {
+          "value": 8,
+          "name": "NonStaticClassElement"
+        },
+        {
+          "value": 8,
+          "name": "NoSubstitution"
+        },
+        {
+          "value": 8,
+          "name": "Return"
+        },
+        {
+          "value": 9,
+          "name": "NumericLiteral"
+        },
+        {
+          "value": 11,
+          "name": "StringLiteral"
+        },
+        {
+          "value": 15,
+          "name": "NoSubstitutionTemplateLiteral"
+        },
+        {
+          "value": 16,
+          "name": "CapturesThis"
+        },
+        {
+          "value": 16,
+          "name": "Optimistic"
+        },
+        {
+          "value": 16,
+          "name": "TemplateHead"
+        },
+        {
+          "value": 17,
+          "name": "TemplateMiddle"
+        },
+        {
+          "value": 18,
+          "name": "TemplateTail"
+        },
+        {
+          "value": 20,
+          "name": "CloseBraceToken"
+        },
+        {
+          "value": 28,
+          "name": "CommaToken"
+        },
+        {
+          "value": 32,
+          "name": "Export"
+        },
+        {
+          "value": 32,
+          "name": "ExportedVariableStatement"
+        },
+        {
+          "value": 32,
+          "name": "FileLevel"
+        },
+        {
+          "value": 32,
+          "name": "NoLeadingSourceMap"
+        },
+        {
+          "value": 38,
+          "name": "ExclamationEqualsEqualsToken"
+        },
+        {
+          "value": 42,
+          "name": "AsteriskToken"
+        },
+        {
+          "value": 54,
+          "name": "ExclamationToken"
+        },
+        {
+          "value": 56,
+          "name": "AmpersandAmpersandToken"
+        },
+        {
+          "value": 57,
+          "name": "BarBarToken"
+        },
+        {
+          "value": 64,
+          "name": "EqualsToken"
+        },
+        {
+          "value": 64,
+          "name": "NoTrailingSourceMap"
+        },
+        {
+          "value": 64,
+          "name": "SourceFileIncludes"
+        },
+        {
+          "value": 64,
+          "name": "TopLevel"
+        },
+        {
+          "value": 65,
+          "name": "FunctionIncludes"
+        },
+        {
+          "value": 66,
+          "name": "ArrowFunctionIncludes"
+        },
+        {
+          "value": 69,
+          "name": "AsyncFunctionBodyIncludes"
+        },
+        {
+          "value": 73,
+          "name": "ConstructorIncludes"
+        },
+        {
+          "value": 80,
+          "name": "Identifier"
+        },
+        {
+          "value": 96,
+          "name": "NoSourceMap"
+        },
+        {
+          "value": 104,
+          "name": "InstanceOfKeyword"
+        },
+        {
+          "value": 105,
+          "name": "NewKeyword"
+        },
+        {
+          "value": 106,
+          "name": "NullKeyword"
+        },
+        {
+          "value": 108,
+          "name": "SuperKeyword"
+        },
+        {
+          "value": 110,
+          "name": "ThisKeyword"
+        },
+        {
+          "value": 126,
+          "name": "StaticKeyword"
+        },
+        {
+          "value": 128,
+          "name": "BlockIncludes"
+        },
+        {
+          "value": 168,
+          "name": "ComputedPropertyName"
+        },
+        {
+          "value": 170,
+          "name": "Parameter"
+        },
+        {
+          "value": 173,
+          "name": "PropertyDeclaration"
+        },
+        {
+          "value": 175,
+          "name": "MethodDeclaration"
+        },
+        {
+          "value": 176,
+          "name": "ClassStaticBlockDeclaration"
+        },
+        {
+          "value": 177,
+          "name": "Constructor"
+        },
+        {
+          "value": 178,
+          "name": "GetAccessor"
+        },
+        {
+          "value": 179,
+          "name": "SetAccessor"
+        },
+        {
+          "value": 209,
+          "name": "BindingElement"
+        },
+        {
+          "value": 210,
+          "name": "ArrayLiteralExpression"
+        },
+        {
+          "value": 211,
+          "name": "ObjectLiteralExpression"
+        },
+        {
+          "value": 214,
+          "name": "CallExpression"
+        },
+        {
+          "value": 215,
+          "name": "NewExpression"
+        },
+        {
+          "value": 216,
+          "name": "TaggedTemplateExpression"
+        },
+        {
+          "value": 218,
+          "name": "ParenthesizedExpression"
+        },
+        {
+          "value": 219,
+          "name": "FunctionExpression"
+        },
+        {
+          "value": 220,
+          "name": "ArrowFunction"
+        },
+        {
+          "value": 223,
+          "name": "VoidExpression"
+        },
+        {
+          "value": 227,
+          "name": "BinaryExpression"
+        },
+        {
+          "value": 229,
+          "name": "TemplateExpression"
+        },
+        {
+          "value": 230,
+          "name": "YieldExpression"
+        },
+        {
+          "value": 231,
+          "name": "SpreadElement"
+        },
+        {
+          "value": 232,
+          "name": "ClassExpression"
+        },
+        {
+          "value": 237,
+          "name": "MetaProperty"
+        },
+        {
+          "value": 241,
+          "name": "SemicolonClassElement"
+        },
+        {
+          "value": 242,
+          "name": "Block"
+        },
+        {
+          "value": 244,
+          "name": "VariableStatement"
+        },
+        {
+          "value": 245,
+          "name": "ExpressionStatement"
+        },
+        {
+          "value": 246,
+          "name": "IfStatement"
+        },
+        {
+          "value": 247,
+          "name": "DoStatement"
+        },
+        {
+          "value": 248,
+          "name": "WhileStatement"
+        },
+        {
+          "value": 249,
+          "name": "ForStatement"
+        },
+        {
+          "value": 250,
+          "name": "ForInStatement"
+        },
+        {
+          "value": 251,
+          "name": "ForOfStatement"
+        },
+        {
+          "value": 252,
+          "name": "ContinueStatement"
+        },
+        {
+          "value": 253,
+          "name": "BreakStatement"
+        },
+        {
+          "value": 254,
+          "name": "ReturnStatement"
+        },
+        {
+          "value": 256,
+          "name": "IdentifierHasExtendedUnicodeEscape"
+        },
+        {
+          "value": 256,
+          "name": "IterationStatement"
+        },
+        {
+          "value": 256,
+          "name": "SwitchStatement"
+        },
+        {
+          "value": 257,
+          "name": "LabeledStatement"
+        },
+        {
+          "value": 261,
+          "name": "VariableDeclaration"
+        },
+        {
+          "value": 262,
+          "name": "VariableDeclarationList"
+        },
+        {
+          "value": 263,
+          "name": "FunctionDeclaration"
+        },
+        {
+          "value": 264,
+          "name": "ClassDeclaration"
+        },
+        {
+          "value": 267,
+          "name": "EnumDeclaration"
+        },
+        {
+          "value": 270,
+          "name": "CaseBlock"
+        },
+        {
+          "value": 300,
+          "name": "CatchClause"
+        },
+        {
+          "value": 304,
+          "name": "PropertyAssignment"
+        },
+        {
+          "value": 305,
+          "name": "ShorthandPropertyAssignment"
+        },
+        {
+          "value": 357,
+          "name": "CommaListExpression"
+        },
+        {
+          "value": 384,
+          "name": "BinaryOrOctalSpecifier"
+        },
+        {
+          "value": 512,
+          "name": "IterationStatementBlock"
+        },
+        {
+          "value": 512,
+          "name": "IterationStatementBlockIncludes"
+        },
+        {
+          "value": 512,
+          "name": "NoTokenTrailingSourceMaps"
+        },
+        {
+          "value": 768,
+          "name": "NoTokenSourceMaps"
+        },
+        {
+          "value": 1024,
+          "name": "ContainsES2015"
+        },
+        {
+          "value": 1024,
+          "name": "IterationContainer"
+        },
+        {
+          "value": 1024,
+          "name": "NoLeadingComments"
+        },
+        {
+          "value": 1280,
+          "name": "DoOrWhileStatementIncludes"
+        },
+        {
+          "value": 2048,
+          "name": "Default"
+        },
+        {
+          "value": 2048,
+          "name": "ForStatement"
+        },
+        {
+          "value": 2048,
+          "name": "NoTrailingComments"
+        },
+        {
+          "value": 3008,
+          "name": "ForInOrForOfStatementExcludes"
+        },
+        {
+          "value": 3072,
+          "name": "NoComments"
+        },
+        {
+          "value": 3328,
+          "name": "ForStatementIncludes"
+        },
+        {
+          "value": 4096,
+          "name": "ForInOrForOfStatement"
+        },
+        {
+          "value": 4096,
+          "name": "LoopWithCapturedBlockScopedBinding"
+        },
+        {
+          "value": 5056,
+          "name": "ForStatementExcludes"
+        },
+        {
+          "value": 5376,
+          "name": "ForInOrForOfStatementIncludes"
+        },
+        {
+          "value": 6976,
+          "name": "BlockExcludes"
+        },
+        {
+          "value": 7104,
+          "name": "BlockScopeExcludes"
+        },
+        {
+          "value": 7104,
+          "name": "IterationStatementBlockExcludes"
+        },
+        {
+          "value": 8064,
+          "name": "SourceFileExcludes"
+        },
+        {
+          "value": 8192,
+          "name": "ConstructorWithSuperCall"
+        },
+        {
+          "value": 8192,
+          "name": "ContainsCapturedBlockScopeBinding"
+        },
+        {
+          "value": 15232,
+          "name": "ArrowFunctionExcludes"
+        },
+        {
+          "value": 16384,
+          "name": "CapturedBlockScopedBinding"
+        },
+        {
+          "value": 16384,
+          "name": "ContainsLexicalThis"
+        },
+        {
+          "value": 16384,
+          "name": "StaticInitializer"
+        },
+        {
+          "value": 16449,
+          "name": "StaticInitializerIncludes"
+        },
+        {
+          "value": 32662,
+          "name": "AsyncFunctionBodyExcludes"
+        },
+        {
+          "value": 32662,
+          "name": "ConstructorExcludes"
+        },
+        {
+          "value": 32670,
+          "name": "FunctionExcludes"
+        },
+        {
+          "value": 32670,
+          "name": "StaticInitializerExcludes"
+        },
+        {
+          "value": 32767,
+          "name": "AncestorFactsMask"
+        },
+        {
+          "value": 32768,
+          "name": "BlockScopedBindingInLoop"
+        },
+        {
+          "value": 32768,
+          "name": "ContainsRestOrSpread"
+        },
+        {
+          "value": 32768,
+          "name": "NewTarget"
+        },
+        {
+          "value": 32768,
+          "name": "SubtreeFactsMask"
+        },
+        {
+          "value": 65536,
+          "name": "LexicalThis"
+        },
+        {
+          "value": 65536,
+          "name": "NeedsLoopOutParameter"
+        },
+        {
+          "value": 131072,
+          "name": "CapturedLexicalThis"
+        },
+        {
+          "value": 131072,
+          "name": "Indented"
+        },
+        {
+          "value": 229376,
+          "name": "FunctionSubtreeExcludes"
+        },
+        {
+          "value": 524288,
+          "name": "AsyncFunctionBody"
+        },
+        {
+          "value": 524288,
+          "name": "ContainsBindingPattern"
+        },
+        {
+          "value": 1048576,
+          "name": "ContainsYield"
+        },
+        {
+          "value": 1048576,
+          "name": "ReuseTempVariableScope"
+        },
+        {
+          "value": 2097152,
+          "name": "CustomPrologue"
+        },
+        {
+          "value": 4194304,
+          "name": "ContainsHoistedDeclarationOrCompletion"
+        },
+        {
+          "value": 4194304,
+          "name": "NoHoisting"
+        },
+        {
+          "value": 8388608,
+          "name": "Iterator"
+        },
+        {
+          "value": 134217728,
+          "name": "ContainsLexicalSuper"
+        }
+      ],
+      "owner_fingerprint_sha256": "b25fc0b1c040eb6ddd7a5723d002e3efb968308a08b4711a728ca642860b793d"
+    },
+    {
+      "index": 1,
+      "key": "transform-generators",
+      "name": "transformGenerators",
+      "declaration": {
+        "id": "h2:cd0340dcabcfa16c656a820be877d057e797a963cf36460e0280c7d98242b2eb",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "transformGenerators",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/transformGenerators@108119:1",
+        "source_range": {
+          "start": {
+            "offset": 5142146,
+            "line": 108119,
+            "character": 1
+          },
+          "end": {
+            "offset": 5206576,
+            "line": 110087,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "32e4d6d16a155d726d64ecb62721900c6c32c06d7265b6b8849e17a67191849c",
+        "body_sha256": "19ec3038b4854b4a1ba89b8a804ee21091d9c18e4918cc07cc82d55b574b1d8d",
+        "ledger_slice_sha256": "a7c6256b82433a63dc01b3887370845fab05df1c00083366114fa045437f8e95"
+      },
+      "local_functions": [
+        {
+          "name": "transformSourceFile",
+          "start": 1167,
+          "end": 1464,
+          "sha256": "a79ab52842fa658373ab85212ff7c59d74ad5911f4775627208f47ca505e67fa"
+        },
+        {
+          "name": "visitor",
+          "start": 1467,
+          "end": 2006,
+          "sha256": "0b1b80f1dee58db1e6357063ba848c8b956ea74f67d4126c233e84eafd2f26d8"
+        },
+        {
+          "name": "visitJavaScriptInStatementContainingYield",
+          "start": 2009,
+          "end": 2494,
+          "sha256": "1ce00c90006ba005cc58ab64f732bbe789b9a5ffa5698f5cc916bd4cbe8f62f3"
+        },
+        {
+          "name": "visitJavaScriptInGeneratorFunctionBody",
+          "start": 2497,
+          "end": 3734,
+          "sha256": "aeec8c257fcef5301a35830b41d9ab03925cfb517328ae5a8830c02543226a73"
+        },
+        {
+          "name": "visitJavaScriptContainingYield",
+          "start": 3737,
+          "end": 4680,
+          "sha256": "96988d541b9557b99a63aa5854fb55e9828c5ced98d0a9585c0f01228684610e"
+        },
+        {
+          "name": "visitGenerator",
+          "start": 4683,
+          "end": 4986,
+          "sha256": "d104dd176d11cc684fa62401f4e0ee3b26fcfd38ef89ec4d600dbef4792075a9"
+        },
+        {
+          "name": "visitFunctionDeclaration",
+          "start": 4989,
+          "end": 6117,
+          "sha256": "c8db64fcf7985bf4de5dea94324d9f155b52507a1529921119e22a8a9482a34a"
+        },
+        {
+          "name": "visitFunctionExpression",
+          "start": 6120,
+          "end": 7149,
+          "sha256": "eedf5a79262756b2a9d9c56ad9f02162a24567e88efbafdb33f9894eb1f623ec"
+        },
+        {
+          "name": "visitAccessorDeclaration",
+          "start": 7152,
+          "end": 7606,
+          "sha256": "0a0e082a728d04ea88b01ab6dcfb1865d898958f2b9ba9a360dc73381e2f9ac7"
+        },
+        {
+          "name": "transformGeneratorFunctionBody",
+          "start": 7609,
+          "end": 9797,
+          "sha256": "128d13c8c9f719b9b4f470078476e0284cac532ea20fe0b0e8efd1af6834867d"
+        },
+        {
+          "name": "visitVariableStatement",
+          "start": 9800,
+          "end": 10582,
+          "sha256": "538abf8afa5879a06ead3ea0272fe8dbb836884be89383c5a196504af8aac8a8"
+        },
+        {
+          "name": "visitBinaryExpression",
+          "start": 10585,
+          "end": 10932,
+          "sha256": "5cd433ce9ad652b2f0c9a777ee63346bf043020b1569b9932879853466ffd0e4"
+        },
+        {
+          "name": "visitRightAssociativeBinaryExpression",
+          "start": 10935,
+          "end": 12595,
+          "sha256": "fc30bd56a01e232c2a69cd64443e5016abb3ca264e035612347ffa4fef2eebe8"
+        },
+        {
+          "name": "visitLeftAssociativeBinaryExpression",
+          "start": 12598,
+          "end": 13195,
+          "sha256": "fcf86031750625867879fd51b438875287c78852fba5e3086c64687f66aa8eee"
+        },
+        {
+          "name": "visitCommaExpression",
+          "start": 13198,
+          "end": 13914,
+          "sha256": "6fcc3e08cc83edcaf941442878d2c5af6aeab537b14365038f3be8939a436348"
+        },
+        {
+          "name": "visit",
+          "start": 13377,
+          "end": 13910,
+          "sha256": "0c97b43813ecb41bb6185a1a95073c49201dbcdc84934eb63577a1b06eab30e2"
+        },
+        {
+          "name": "visitCommaListExpression",
+          "start": 13917,
+          "end": 14606,
+          "sha256": "80a27a7f1d6cb1eb95bea6abb2015629cd4bd62cbe9542025742a54e22fc9b28"
+        },
+        {
+          "name": "visitLogicalBinaryExpression",
+          "start": 14609,
+          "end": 15417,
+          "sha256": "cbb9707748fce6aea6fdbefc915c6a314d660c79eb21a2a5ca7d2b822966ab7b"
+        },
+        {
+          "name": "visitConditionalExpression",
+          "start": 15420,
+          "end": 16370,
+          "sha256": "c59ae6c0edae43fea0a612d01693bb87d2992b825991a705bc11ac21d226704a"
+        },
+        {
+          "name": "visitYieldExpression",
+          "start": 16373,
+          "end": 17004,
+          "sha256": "9d3bcf4d643dce38fd00b375fb8f1db44ee17dae8467f1a13643b941a30841a4"
+        },
+        {
+          "name": "visitArrayLiteralExpression",
+          "start": 17007,
+          "end": 17202,
+          "sha256": "bb4a18b0106932a134c33620f694ec4a89be28fbce57c715911ec96baea0b994"
+        },
+        {
+          "name": "visitElements",
+          "start": 17205,
+          "end": 18902,
+          "sha256": "22b91b774540a24eef70c6d0d8cbfed9cf16d2ff486438f94608592f967e0c6e"
+        },
+        {
+          "name": "reduceElement",
+          "start": 18114,
+          "end": 18898,
+          "sha256": "4d4e7bc0ac33d51917f232a0221acbfa72e74afa217da6de1553e556e58cd545"
+        },
+        {
+          "name": "visitObjectLiteralExpression",
+          "start": 18905,
+          "end": 20208,
+          "sha256": "b23fa569d9f70972811c36a3aad3ee865bde06b00259740c5d3a7d1dbfe5da4d"
+        },
+        {
+          "name": "reduceProperty",
+          "start": 19617,
+          "end": 20204,
+          "sha256": "109e6b54bf885fff73e08045544a7565e3f1628032edb76477188bbf6b9a8d9f"
+        },
+        {
+          "name": "visitElementAccessExpression",
+          "start": 20211,
+          "end": 20605,
+          "sha256": "c4c1069cc56e7090e4d139889f61e6c64e5da3a35b9662555b929fe021741877"
+        },
+        {
+          "name": "visitCallExpression",
+          "start": 20608,
+          "end": 21298,
+          "sha256": "ee63f77d51f1d83e1c3b2fd42431ebee5ebdd5c0344f2b371351dec344eda2ef"
+        },
+        {
+          "name": "visitNewExpression",
+          "start": 21301,
+          "end": 22150,
+          "sha256": "32bf97b025f374b6d7706a5e34419bcbcfd2362bc06210fe454b3c46671ded57"
+        },
+        {
+          "name": "transformAndEmitStatements",
+          "start": 22153,
+          "end": 22369,
+          "sha256": "70041024205d8f5948c335c46e9ce94e0bfe5ffc8b9e18d2c71007b95b82af3d"
+        },
+        {
+          "name": "transformAndEmitEmbeddedStatement",
+          "start": 22372,
+          "end": 22560,
+          "sha256": "8c1d2d2628bb39ea35f550ccebed5b752a2027b739f7f93f8a055a28431ed7a6"
+        },
+        {
+          "name": "transformAndEmitStatement",
+          "start": 22563,
+          "end": 22891,
+          "sha256": "0ef325a61abf8050fe4403bb3a22caa8564f70809538d43cf2d5d71bf82e563f"
+        },
+        {
+          "name": "transformAndEmitStatementWorker",
+          "start": 22894,
+          "end": 24395,
+          "sha256": "3979a30cfa7b37fbf29707832ee04371be7c8e60e676087300310a4751cb4ed3"
+        },
+        {
+          "name": "transformAndEmitBlock",
+          "start": 24398,
+          "end": 24601,
+          "sha256": "2aedbf594847bfe00e658ae7c445ec1db1200028b933f915e29046705a5144a9"
+        },
+        {
+          "name": "transformAndEmitExpressionStatement",
+          "start": 24604,
+          "end": 24718,
+          "sha256": "a7a55961743ebb77f80aab4616f44e9b62099c84961a2df693b4d360023c474d"
+        },
+        {
+          "name": "transformAndEmitVariableDeclarationList",
+          "start": 24721,
+          "end": 25736,
+          "sha256": "57e6bee457edf70754bf468bd47d1854427eb49e96bad84d5eb1ac1e41efd620"
+        },
+        {
+          "name": "transformInitializedVariable",
+          "start": 25739,
+          "end": 26026,
+          "sha256": "261cffae2b588c8e3404a3c3e055f992e30ba1b3d22d6a9b92eb4092533e7892"
+        },
+        {
+          "name": "transformAndEmitIfStatement",
+          "start": 26029,
+          "end": 26953,
+          "sha256": "996d4763f6d8eb74dce17f2e46a66c30a07c2017a2e76112babed165bd61a831"
+        },
+        {
+          "name": "transformAndEmitDoStatement",
+          "start": 26956,
+          "end": 27524,
+          "sha256": "e49fa321734961b5d6aabbbbfb6cf0978c73ea39d85291254e81a0dc59139af6"
+        },
+        {
+          "name": "visitDoStatement",
+          "start": 27527,
+          "end": 27798,
+          "sha256": "f72857358ddef1a855bc9554640054a5b104092be59ae5ddf22aeee573041005"
+        },
+        {
+          "name": "transformAndEmitWhileStatement",
+          "start": 27801,
+          "end": 28293,
+          "sha256": "e5e519e9d5ddc30c5075a8017c66a9300af6c7fc1b6e06b95ee52e41dc06a63a"
+        },
+        {
+          "name": "visitWhileStatement",
+          "start": 28296,
+          "end": 28570,
+          "sha256": "0a8c0c85f411f57afea163f89c634ae74f9dccd1ad13625b3a0c3d93ca60c12f"
+        },
+        {
+          "name": "transformAndEmitForStatement",
+          "start": 28573,
+          "end": 29964,
+          "sha256": "713a81896ae5584281e9254e5153997e4aca5545f9eb658a4abdd32b29c90d86"
+        },
+        {
+          "name": "visitForStatement",
+          "start": 29967,
+          "end": 30875,
+          "sha256": "deb1fa59970d8652603a98ad4ce7e801edea0ed7eb36d2f6848ebbee38fa742b"
+        },
+        {
+          "name": "transformAndEmitForInStatement",
+          "start": 30878,
+          "end": 33130,
+          "sha256": "39a273d4082e17c2c75b2b46c5b14213f231ca6670cb8c5b65b28fb576bc65a4"
+        },
+        {
+          "name": "visitForInStatement",
+          "start": 33133,
+          "end": 33854,
+          "sha256": "d1d5a04e4f85cea43c601ff6e7ba6863cb689e730077d51f1cffad4744d4d918"
+        },
+        {
+          "name": "transformAndEmitContinueStatement",
+          "start": 33857,
+          "end": 34133,
+          "sha256": "ce5a0bf40f23bdedb353fdb1f0b3cabb452384c97a82198488a400eb32095fd0"
+        },
+        {
+          "name": "visitContinueStatement",
+          "start": 34136,
+          "end": 34479,
+          "sha256": "4a0feb8f5739a2fb9775bcfcab382eaa62dc41b35b3ecc972e767dfbd3ca681a"
+        },
+        {
+          "name": "transformAndEmitBreakStatement",
+          "start": 34482,
+          "end": 34752,
+          "sha256": "fd1b6bb6cb04daf19119504ec18ae036907603f7cc272d2fe1d79d05d13944cc"
+        },
+        {
+          "name": "visitBreakStatement",
+          "start": 34755,
+          "end": 35092,
+          "sha256": "e388d2aa5e81da9dff536b0c495c9d1be69ca3df84c8f86b7681ed970fbb33e2"
+        },
+        {
+          "name": "transformAndEmitReturnStatement",
+          "start": 35095,
+          "end": 35257,
+          "sha256": "0a255fd6b7430ccff86ea11237991c2621322c0db7b2aa6ad0b24f714475816f"
+        },
+        {
+          "name": "visitReturnStatement",
+          "start": 35260,
+          "end": 35426,
+          "sha256": "dcf9fea8f4f7380b3474fdcfcf1f7949e64de392adfbf66240d753a4a28286a5"
+        },
+        {
+          "name": "transformAndEmitWithStatement",
+          "start": 35429,
+          "end": 35778,
+          "sha256": "9a351b7e6afde7af025eb1ea5c349983c6fa806f0244612a6b9edb066f4d718b"
+        },
+        {
+          "name": "transformAndEmitSwitchStatement",
+          "start": 35781,
+          "end": 38139,
+          "sha256": "be6925ddb8832a807eaae28474f9674c6fbb85d53c524e0a3f965e4e8c2dc7cd"
+        },
+        {
+          "name": "visitSwitchStatement",
+          "start": 38142,
+          "end": 38395,
+          "sha256": "27660563362263fbc2f35506a8d81cb2c541f4635832f8ec5c661f704261cf15"
+        },
+        {
+          "name": "transformAndEmitLabeledStatement",
+          "start": 38398,
+          "end": 38688,
+          "sha256": "916e9a592a081fcb30a65e076b6163205bd7c97ea6793748acc5f9e771ee5ea2"
+        },
+        {
+          "name": "visitLabeledStatement",
+          "start": 38691,
+          "end": 38965,
+          "sha256": "4078156b1d1e70e35fed2dbdcc24fc627ca392d2193bec98cd6dd891ef61742a"
+        },
+        {
+          "name": "transformAndEmitThrowStatement",
+          "start": 38968,
+          "end": 39177,
+          "sha256": "1720a0dc0877475b4300ed31d3fdbbbea7c035e2a1e241e428407bc93fc46c50"
+        },
+        {
+          "name": "transformAndEmitTryStatement",
+          "start": 39180,
+          "end": 39750,
+          "sha256": "06bd1528e8ab64962dc1861c82f87fe815b9a48be0f81852bf18a55913c3c332"
+        },
+        {
+          "name": "containsYield",
+          "start": 39753,
+          "end": 39867,
+          "sha256": "c2a87f8d80fe5fcb9af39e1ec64832342e3741feb66ee0e7b92e1ca4f5ebe8ea"
+        },
+        {
+          "name": "countInitialNodesWithoutYield",
+          "start": 39870,
+          "end": 40081,
+          "sha256": "1b9d74110ae73219b7a709a333f41bc36ed5e850026c57e91af51a3daf0d2c47"
+        },
+        {
+          "name": "onSubstituteNode",
+          "start": 40084,
+          "end": 40279,
+          "sha256": "649fe0d4e6a2612c89a57ea5d7e5c578f0f3f2493d6285e7f0185e07d321fe20"
+        },
+        {
+          "name": "substituteExpression",
+          "start": 40282,
+          "end": 40427,
+          "sha256": "716079b80743be177edcb2933c40c10b097e0da7c797cbd3310cbecdd95a22a2"
+        },
+        {
+          "name": "substituteExpressionIdentifier",
+          "start": 40430,
+          "end": 41167,
+          "sha256": "26cd671285bc0a463bf9ecb928dab0e316768e223dfc216b97ab1cd2e32eefb0"
+        },
+        {
+          "name": "cacheExpression",
+          "start": 41170,
+          "end": 41486,
+          "sha256": "f80e69924ae7605c4b49354c1bec393c8cfbaa5c65436a791b2103c231e33e2d"
+        },
+        {
+          "name": "declareLocal",
+          "start": 41489,
+          "end": 41711,
+          "sha256": "bd9600f97405d1dd6146c25f12a42309017be5457dcc40224396ece01bfeeadc"
+        },
+        {
+          "name": "defineLabel",
+          "start": 41714,
+          "end": 41896,
+          "sha256": "f8113f89a2fe5cda6f8bf20fa590de63b0d6b27c42c8d32a9a445180f8b31951"
+        },
+        {
+          "name": "markLabel",
+          "start": 41899,
+          "end": 42062,
+          "sha256": "b9babd5b161ed66fbf21de4a86ceab29e8ae6b47d60b5aab753f2b13c6e235ab"
+        },
+        {
+          "name": "beginBlock",
+          "start": 42065,
+          "end": 42428,
+          "sha256": "8165cd654efd1a6e4a260cd35119427bd9742eaaf80470c61a38f58b0936df79"
+        },
+        {
+          "name": "endBlock",
+          "start": 42431,
+          "end": 42773,
+          "sha256": "104349d3f1ab4c802e8d689019ee34f81963215b7486ea95d9d84c2f938a1589"
+        },
+        {
+          "name": "peekBlock",
+          "start": 42776,
+          "end": 42842,
+          "sha256": "0379e5698529cf9a5c4f1c627486a6893b4af7fb23daf94e5cf789fca31a3e25"
+        },
+        {
+          "name": "peekBlockKind",
+          "start": 42845,
+          "end": 42938,
+          "sha256": "cc3af2ca08611808c3734f15b64b5cf6754b9e62389fd25253b9e49f652d39d1"
+        },
+        {
+          "name": "beginWithBlock",
+          "start": 42941,
+          "end": 43185,
+          "sha256": "192ca497e6e2b515ebc223d3a0223f2994c814084cea8bde400732949ec442f4"
+        },
+        {
+          "name": "endWithBlock",
+          "start": 43188,
+          "end": 43330,
+          "sha256": "07d93fb92deb412925f370423ae74def7390a3c43c5c21d70a5186ffb2ead336"
+        },
+        {
+          "name": "beginExceptionBlock",
+          "start": 43333,
+          "end": 43621,
+          "sha256": "4e4551a606428babf70ec551a4d59d5fe12f423f20578d4b24e19570312676b4"
+        },
+        {
+          "name": "beginCatchBlock",
+          "start": 43624,
+          "end": 44797,
+          "sha256": "f39c4da1360cd479e6547808040b6f2f98318a6989a2fc702249056e14fa68c9"
+        },
+        {
+          "name": "beginFinallyBlock",
+          "start": 44800,
+          "end": 45196,
+          "sha256": "d18db8a49dfbdc12e501335ce5f21c3de148bd56cd77f72ad877151a83e88067"
+        },
+        {
+          "name": "endExceptionBlock",
+          "start": 45199,
+          "end": 45562,
+          "sha256": "0934e6206f0d4fd7f14a9d58c9947cbf5626ca8554c0b8d2353b13989654c949"
+        },
+        {
+          "name": "beginScriptLoopBlock",
+          "start": 45565,
+          "end": 45721,
+          "sha256": "27561b14d8cc722efdb63af26684a6eaaefe1433e39652228e37a306aa17d5f4"
+        },
+        {
+          "name": "beginLoopBlock",
+          "start": 45724,
+          "end": 45941,
+          "sha256": "0b322343bac58e35c179b68dea8418cee8531e7833243d9d4f06cda68e5acb39"
+        },
+        {
+          "name": "endLoopBlock",
+          "start": 45944,
+          "end": 46158,
+          "sha256": "3706b3b69022dc912d8a152762b7af34463e4cd4991a35b8f6334c2a7f9e8f10"
+        },
+        {
+          "name": "beginScriptSwitchBlock",
+          "start": 46161,
+          "end": 46296,
+          "sha256": "d325fccf60c5a25d34491422e471752049432f0323ff87a9fc85f8342f74fd80"
+        },
+        {
+          "name": "beginSwitchBlock",
+          "start": 46299,
+          "end": 46486,
+          "sha256": "ccc0d7b0375d94ec369ea70ed30ed66ed872d6968f34676599ce56898e704a09"
+        },
+        {
+          "name": "endSwitchBlock",
+          "start": 46489,
+          "end": 46707,
+          "sha256": "3f9a15c43359652420474232efdac4a65db7955328346e9178a981a6176a8258"
+        },
+        {
+          "name": "beginScriptLabeledBlock",
+          "start": 46710,
+          "end": 46873,
+          "sha256": "17230a85acb23e9b8a76bdf1d99e69ac5b241b5915df8d9c8ca4aff9f202edd7"
+        },
+        {
+          "name": "beginLabeledBlock",
+          "start": 46876,
+          "end": 47068,
+          "sha256": "d5caa1fdd20eb5e85fad7939fcec0982395dd51b59081862eb18a6baed4f9638"
+        },
+        {
+          "name": "endLabeledBlock",
+          "start": 47071,
+          "end": 47256,
+          "sha256": "a2ca7803874b1185e11247052aa44e73104d5552b9eb81f0ae1cb82cdd36912d"
+        },
+        {
+          "name": "supportsUnlabeledBreak",
+          "start": 47259,
+          "end": 47376,
+          "sha256": "6e79da4fa984acbefaf97fa3bda44c7639df05c35edea8b59faffe5a447ff3f7"
+        },
+        {
+          "name": "supportsLabeledBreakOrContinue",
+          "start": 47379,
+          "end": 47474,
+          "sha256": "95450d30a9e5fe6947f3462ef9ee57d3bf8030001b02b607225b134f958bc229"
+        },
+        {
+          "name": "supportsUnlabeledContinue",
+          "start": 47477,
+          "end": 47564,
+          "sha256": "6bfdacdfe4d9822040caca93d6ee40e6a6708035e3f152c608c29fcf247d5d7d"
+        },
+        {
+          "name": "hasImmediateContainingLabeledBlock",
+          "start": 47567,
+          "end": 47929,
+          "sha256": "fe8ea3eeeccdd4216cbfc04a2db24e4582e3cac4a032c0d50e8618ff1aa8a7b9"
+        },
+        {
+          "name": "findBreakTarget",
+          "start": 47932,
+          "end": 48657,
+          "sha256": "39437811c360780ab7eaf623df56ce9da7193b178d53bba6bec8919a4144610d"
+        },
+        {
+          "name": "findContinueTarget",
+          "start": 48660,
+          "end": 49268,
+          "sha256": "028b46a4f1fa9704ab9e7a227932f8004388e337fb926c4fa5c9476a71451ad8"
+        },
+        {
+          "name": "createLabel",
+          "start": 49271,
+          "end": 49753,
+          "sha256": "90b7d004f747a4bbb024112739e26637c5f34cdee2cdf0d7a971746dbaf877b3"
+        },
+        {
+          "name": "createInstruction",
+          "start": 49756,
+          "end": 49992,
+          "sha256": "d4399d7f4c0267e6c1bef49757c4bc66a1812566bf1db13e8a7e688781c7e9cb"
+        },
+        {
+          "name": "createInlineBreak",
+          "start": 49995,
+          "end": 50323,
+          "sha256": "b434bcae606774fdfb30517b1f5a2602c9c0affe2108b998d4aca01c38a8b868"
+        },
+        {
+          "name": "createInlineReturn",
+          "start": 50326,
+          "end": 50641,
+          "sha256": "971caef31f8fed2c2381a0ffbbaf41a94fb528ce2e32caa75c6aaeed88aab26b"
+        },
+        {
+          "name": "createGeneratorResume",
+          "start": 50644,
+          "end": 50900,
+          "sha256": "9668e268aa0a495fb0bbf7bf0ecd6526a95f556b9e6213e849a84ec763bf1ee3"
+        },
+        {
+          "name": "emitNop",
+          "start": 50903,
+          "end": 50956,
+          "sha256": "626eec2b4c1e03c2a33a0d023156f555d7ab6a8f0cf8a5d43b60b17036693958"
+        },
+        {
+          "name": "emitStatement",
+          "start": 50959,
+          "end": 51090,
+          "sha256": "dbd8d41691c5fe30032f88936b100ce465215ceff61a00131464daec0f26e6df"
+        },
+        {
+          "name": "emitAssignment",
+          "start": 51093,
+          "end": 51202,
+          "sha256": "31813c6a072d9ac6c49a2edeb835fd1046a9cd6e6e672454b7a369c8e61892af"
+        },
+        {
+          "name": "emitBreak",
+          "start": 51205,
+          "end": 51296,
+          "sha256": "acb88bff6c99ac51345f840d5c9faaa5ddabe44dce001532893079434203fbeb"
+        },
+        {
+          "name": "emitBreakWhenTrue",
+          "start": 51299,
+          "end": 51428,
+          "sha256": "917e2141e43ed6170c75dde83890d4c55da3c6ae99e2935264cc9e1b19612fd6"
+        },
+        {
+          "name": "emitBreakWhenFalse",
+          "start": 51431,
+          "end": 51562,
+          "sha256": "a48b5013899b6984411e172bba838f9a33be2084c14e29ad85f0b70dd214b576"
+        },
+        {
+          "name": "emitYieldStar",
+          "start": 51565,
+          "end": 51674,
+          "sha256": "abbf88e5e95c64e393b904925315918767771e28d8ce60a7542e79f8f78acd2c"
+        },
+        {
+          "name": "emitYield",
+          "start": 51677,
+          "end": 51778,
+          "sha256": "38299919ca7ca69662f5c38edd0c71424eadc2260a52587df673489130820988"
+        },
+        {
+          "name": "emitReturn",
+          "start": 51781,
+          "end": 51884,
+          "sha256": "9856d46f2c96481051a9dc5c5987b2d7c681bbaf3abacc1d9d1abaec40370c5d"
+        },
+        {
+          "name": "emitThrow",
+          "start": 51887,
+          "end": 51988,
+          "sha256": "596710ffc636860471fc6de2a2a983b126291cf7d0610baf08c431ee55553656"
+        },
+        {
+          "name": "emitEndfinally",
+          "start": 51991,
+          "end": 52059,
+          "sha256": "e60c95ed009bb4a8f4030d924b9c0989f3688a5db33bc8d246d354d313a404e4"
+        },
+        {
+          "name": "emitWorker",
+          "start": 52062,
+          "end": 52489,
+          "sha256": "708b6b86fe08a7ff26086920d3ec5ccbca7b74352bfe667efc0919f230250462"
+        },
+        {
+          "name": "build2",
+          "start": 52492,
+          "end": 53546,
+          "sha256": "26ebd56c0fcf20b63fc9676d9d2b6656291e1ce6d65ea09f0fc814babe139eb7"
+        },
+        {
+          "name": "buildStatements",
+          "start": 53549,
+          "end": 54171,
+          "sha256": "8863be5f3112369edfa9fd1f9d2897b9cd6e19ebd47c1e16dec5b191987c12db"
+        },
+        {
+          "name": "flushLabel",
+          "start": 54174,
+          "end": 54416,
+          "sha256": "72efa2b62396ffba9a9b1205852b38c51dba041ed5129f0d206e5f3480b01575"
+        },
+        {
+          "name": "flushFinalLabel",
+          "start": 54419,
+          "end": 54836,
+          "sha256": "4439bb621b0b50a44ff33e090ceefb9b465c090975d23d894d76d318a9f59e0b"
+        },
+        {
+          "name": "isFinalLabelReachable",
+          "start": 54839,
+          "end": 55223,
+          "sha256": "9d34e12978f84c2857a805466a8d8c1516ce39c1f856a650b775dff4ba22af82"
+        },
+        {
+          "name": "appendLabel",
+          "start": 55226,
+          "end": 56866,
+          "sha256": "4696396ee03e80cfcbc98c7611847151ed5e51908fd6af6fc2d8e38f13f76a0b"
+        },
+        {
+          "name": "tryEnterLabel",
+          "start": 56869,
+          "end": 57363,
+          "sha256": "1e0336950c06d6f336535d510afbeb1ab5d460792bb1c4ea6997a0cf1f5d1feb"
+        },
+        {
+          "name": "updateLabelExpressions",
+          "start": 57366,
+          "end": 57957,
+          "sha256": "30c75a8d0c2d345e4305deaab372bc0f69d2e1ecc442faef07a2d6b0816ae5f0"
+        },
+        {
+          "name": "tryEnterOrLeaveBlock",
+          "start": 57960,
+          "end": 59148,
+          "sha256": "cc757438bdab249a92d294f184a0208759ec375da664a545226bcadf1a6452ed"
+        },
+        {
+          "name": "writeOperation",
+          "start": 59151,
+          "end": 60456,
+          "sha256": "ef8233e21b13021fb9cbf6886578a71806e5e9691986545af55308f203cc10e4"
+        },
+        {
+          "name": "writeStatement",
+          "start": 60459,
+          "end": 60644,
+          "sha256": "6a35bf29eb39adeba7097dafbba3ec46cab3465a25b19e34ceba7e9db48489f2"
+        },
+        {
+          "name": "writeAssign",
+          "start": 60647,
+          "end": 60834,
+          "sha256": "572fb9a8cd8d6ee1035ca56a6d12df4478ec78deaa6c99d442048afd2aad8930"
+        },
+        {
+          "name": "writeThrow",
+          "start": 60837,
+          "end": 61063,
+          "sha256": "a4b47867497e222db238a2373aad17018a44180a06f1b976d721ace6c29d51ef"
+        },
+        {
+          "name": "writeReturn",
+          "start": 61066,
+          "end": 61582,
+          "sha256": "7c25af285741246d594dffa31f2aa8bd6a0229202f6b9b40416d98f00de22251"
+        },
+        {
+          "name": "writeBreak",
+          "start": 61585,
+          "end": 62026,
+          "sha256": "d346ebb72a8de39bd31753ea62c3ca56ae1bc98f4917516d6f02fce9f4db9f01"
+        },
+        {
+          "name": "writeBreakWhenTrue",
+          "start": 62029,
+          "end": 62625,
+          "sha256": "affb11a8d0ed68773d74da63602012346a87bf2fb750af86b28bb5b8fb1e5fa4"
+        },
+        {
+          "name": "writeBreakWhenFalse",
+          "start": 62628,
+          "end": 63252,
+          "sha256": "3cfaccbb84ea46a6ee6e033f81fe246e0f7517a1a8a2efa01881a03690b74857"
+        },
+        {
+          "name": "writeYield",
+          "start": 63255,
+          "end": 63729,
+          "sha256": "738bd81f5e453ad866bfd4a3a70b5c80db8330d971d7ac9f4904c3c44b42a8de"
+        },
+        {
+          "name": "writeYieldStar",
+          "start": 63732,
+          "end": 64178,
+          "sha256": "7eac8334ca6c116200183c7d8fbe28b80a8fd2e5de3bc7e4099cebfce4c493ea"
+        },
+        {
+          "name": "writeEndfinally",
+          "start": 64181,
+          "end": 64428,
+          "sha256": "b5c8149a37d9f65c7b6fe1650ecdacddb6fef123638db651859d9c8b25785b00"
+        }
+      ],
+      "factory_methods": [
+        "cloneNode",
+        "copyPrologue",
+        "createArrayConcatCall",
+        "createArrayLiteralExpression",
+        "createAssignment",
+        "createBinaryExpression",
+        "createBlock",
+        "createCallBinding",
+        "createCallExpression",
+        "createCaseBlock",
+        "createCaseClause",
+        "createElementAccessExpression",
+        "createExpressionStatement",
+        "createForInStatement",
+        "createFunctionApplyCall",
+        "createFunctionDeclaration",
+        "createFunctionExpression",
+        "createIfStatement",
+        "createLessThan",
+        "createLogicalNot",
+        "createLoopVariable",
+        "createNewExpression",
+        "createNumericLiteral",
+        "createObjectLiteralExpression",
+        "createOmittedExpression",
+        "createParameterDeclaration",
+        "createPostfixIncrement",
+        "createPropertyAccessExpression",
+        "createReturnStatement",
+        "createSwitchStatement",
+        "createTempVariable",
+        "createThrowStatement",
+        "createUniqueName",
+        "createVoidZero",
+        "createWithStatement",
+        "inlineExpressions",
+        "updateBinaryExpression",
+        "updateElementAccessExpression",
+        "updateForInStatement",
+        "updateForStatement",
+        "updatePropertyAccessExpression"
+      ],
+      "resolver_methods": [
+        "getReferencedValueDeclaration"
+      ],
+      "context_apis": [
+        "enableSubstitution",
+        "endLexicalEnvironment",
+        "getCompilerOptions",
+        "getEmitHelperFactory",
+        "getEmitResolver",
+        "hoistFunctionDeclaration",
+        "hoistVariableDeclaration",
+        "readEmitHelpers",
+        "resumeLexicalEnvironment"
+      ],
+      "context_destructure": [
+        {
+          "local": "emitHelpers",
+          "member": "getEmitHelperFactory"
+        },
+        {
+          "local": "endLexicalEnvironment",
+          "member": "endLexicalEnvironment"
+        },
+        {
+          "local": "factory2",
+          "member": "factory"
+        },
+        {
+          "local": "hoistFunctionDeclaration",
+          "member": "hoistFunctionDeclaration"
+        },
+        {
+          "local": "hoistVariableDeclaration",
+          "member": "hoistVariableDeclaration"
+        },
+        {
+          "local": "resumeLexicalEnvironment",
+          "member": "resumeLexicalEnvironment"
+        }
+      ],
+      "helper_calls": [
+        "createGeneratorHelper",
+        "createValuesHelper"
+      ],
+      "external_utilities": [
+        "String",
+        "addEmitHelpers",
+        "addSyntheticTrailingComment",
+        "chainBundle",
+        "createExpressionForObjectLiteralElementLike",
+        "forEach",
+        "getEmitFlags",
+        "getEmitScriptTarget",
+        "getExpressionAssociativity",
+        "getInitializedVariables",
+        "getInstructionName",
+        "getNonAssignmentOperatorForCompoundAssignment",
+        "getOriginalNode",
+        "getOriginalNodeId",
+        "idText",
+        "insertStatementsAfterStandardPrologue",
+        "isBinaryExpression",
+        "isBlock",
+        "isCompoundAssignment",
+        "isFunctionLikeDeclaration",
+        "isGeneratedIdentifier",
+        "isIdentifier",
+        "isImportCall",
+        "isLeftHandSideExpression",
+        "isLogicalOperator",
+        "isVariableDeclarationList",
+        "lastOrUndefined",
+        "map",
+        "reduceLeft",
+        "setCommentRange",
+        "setEmitFlags",
+        "setOriginalNode",
+        "setParent",
+        "setSourceMapRange",
+        "setTextRange",
+        "startOnNewLine",
+        "visitEachChild",
+        "visitIterationBody",
+        "visitNode",
+        "visitNodes2",
+        "visitParameterList"
+      ],
+      "hooks": [
+        "onSubstituteNode"
+      ],
+      "enum_references": [
+        {
+          "value": 0,
+          "name": "Exception"
+        },
+        {
+          "value": 0,
+          "name": "Left"
+        },
+        {
+          "value": 0,
+          "name": "Nop"
+        },
+        {
+          "value": 0,
+          "name": "Open"
+        },
+        {
+          "value": 0,
+          "name": "Try"
+        },
+        {
+          "value": 1,
+          "name": "Catch"
+        },
+        {
+          "value": 1,
+          "name": "Close"
+        },
+        {
+          "value": 1,
+          "name": "Expression"
+        },
+        {
+          "value": 1,
+          "name": "Right"
+        },
+        {
+          "value": 1,
+          "name": "SingleLine"
+        },
+        {
+          "value": 1,
+          "name": "Statement"
+        },
+        {
+          "value": 1,
+          "name": "With"
+        },
+        {
+          "value": 2,
+          "name": "Assign"
+        },
+        {
+          "value": 2,
+          "name": "Finally"
+        },
+        {
+          "value": 2,
+          "name": "Return"
+        },
+        {
+          "value": 2,
+          "name": "Switch"
+        },
+        {
+          "value": 3,
+          "name": "Break"
+        },
+        {
+          "value": 3,
+          "name": "Done"
+        },
+        {
+          "value": 3,
+          "name": "Loop"
+        },
+        {
+          "value": 3,
+          "name": "MultiLineCommentTrivia"
+        },
+        {
+          "value": 4,
+          "name": "BreakWhenTrue"
+        },
+        {
+          "value": 4,
+          "name": "Labeled"
+        },
+        {
+          "value": 4,
+          "name": "Yield"
+        },
+        {
+          "value": 5,
+          "name": "BreakWhenFalse"
+        },
+        {
+          "value": 5,
+          "name": "YieldStar"
+        },
+        {
+          "value": 6,
+          "name": "Yield"
+        },
+        {
+          "value": 7,
+          "name": "Endfinally"
+        },
+        {
+          "value": 7,
+          "name": "YieldStar"
+        },
+        {
+          "value": 8,
+          "name": "Return"
+        },
+        {
+          "value": 9,
+          "name": "Throw"
+        },
+        {
+          "value": 10,
+          "name": "Endfinally"
+        },
+        {
+          "value": 28,
+          "name": "CommaToken"
+        },
+        {
+          "value": 56,
+          "name": "AmpersandAmpersandToken"
+        },
+        {
+          "value": 80,
+          "name": "Identifier"
+        },
+        {
+          "value": 103,
+          "name": "InKeyword"
+        },
+        {
+          "value": 178,
+          "name": "GetAccessor"
+        },
+        {
+          "value": 179,
+          "name": "SetAccessor"
+        },
+        {
+          "value": 210,
+          "name": "ArrayLiteralExpression"
+        },
+        {
+          "value": 211,
+          "name": "ObjectLiteralExpression"
+        },
+        {
+          "value": 212,
+          "name": "PropertyAccessExpression"
+        },
+        {
+          "value": 213,
+          "name": "ElementAccessExpression"
+        },
+        {
+          "value": 214,
+          "name": "CallExpression"
+        },
+        {
+          "value": 215,
+          "name": "NewExpression"
+        },
+        {
+          "value": 219,
+          "name": "FunctionExpression"
+        },
+        {
+          "value": 227,
+          "name": "BinaryExpression"
+        },
+        {
+          "value": 228,
+          "name": "ConditionalExpression"
+        },
+        {
+          "value": 230,
+          "name": "YieldExpression"
+        },
+        {
+          "value": 242,
+          "name": "Block"
+        },
+        {
+          "value": 244,
+          "name": "VariableStatement"
+        },
+        {
+          "value": 245,
+          "name": "ExpressionStatement"
+        },
+        {
+          "value": 246,
+          "name": "IfStatement"
+        },
+        {
+          "value": 247,
+          "name": "DoStatement"
+        },
+        {
+          "value": 248,
+          "name": "WhileStatement"
+        },
+        {
+          "value": 249,
+          "name": "ForStatement"
+        },
+        {
+          "value": 250,
+          "name": "ForInStatement"
+        },
+        {
+          "value": 252,
+          "name": "ContinueStatement"
+        },
+        {
+          "value": 253,
+          "name": "BreakStatement"
+        },
+        {
+          "value": 254,
+          "name": "ReturnStatement"
+        },
+        {
+          "value": 255,
+          "name": "WithStatement"
+        },
+        {
+          "value": 256,
+          "name": "SwitchStatement"
+        },
+        {
+          "value": 257,
+          "name": "LabeledStatement"
+        },
+        {
+          "value": 258,
+          "name": "ThrowStatement"
+        },
+        {
+          "value": 259,
+          "name": "TryStatement"
+        },
+        {
+          "value": 263,
+          "name": "FunctionDeclaration"
+        },
+        {
+          "value": 297,
+          "name": "CaseClause"
+        },
+        {
+          "value": 298,
+          "name": "DefaultClause"
+        },
+        {
+          "value": 357,
+          "name": "CommaListExpression"
+        },
+        {
+          "value": 768,
+          "name": "NoTokenSourceMaps"
+        },
+        {
+          "value": 2048,
+          "name": "ContainsGenerator"
+        },
+        {
+          "value": 8192,
+          "name": "HelperName"
+        },
+        {
+          "value": 1048576,
+          "name": "ContainsYield"
+        },
+        {
+          "value": 1048576,
+          "name": "ReuseTempVariableScope"
+        },
+        {
+          "value": 2097152,
+          "name": "CustomPrologue"
+        },
+        {
+          "value": 4194304,
+          "name": "ContainsHoistedDeclarationOrCompletion"
+        },
+        {
+          "value": 8388608,
+          "name": "Iterator"
+        }
+      ],
+      "owner_fingerprint_sha256": "86e167137261aea96deb8bd5ae2c2c73c5d50219d3a3a58a235ea46252cd7ac9"
+    }
+  ],
+  "shared_modules": [
+    {
+      "module_id": "destructuring-flattener",
+      "entries": [
+        "flattenDestructuringAssignment",
+        "flattenDestructuringBinding"
+      ],
+      "reached_from": [
+        "transformES2015"
+      ],
+      "family": [
+        {
+          "name": "flattenDestructuringAssignment",
+          "start_offset": 4555185,
+          "end_offset": 4557846,
+          "declaration_sha256": "92c34bfdbdc448562becd52f1b08c9a36011fda6088dd7e7b72a63c5952910d7"
+        },
+        {
+          "name": "bindingOrAssignmentElementAssignsToName",
+          "start_offset": 4557847,
+          "end_offset": 4558209,
+          "declaration_sha256": "ad1d9a89ed7c2389be31c4597cf41eb88efae43b4cd22a466bfd9f21d1ee14c5"
+        },
+        {
+          "name": "bindingOrAssignmentPatternAssignsToName",
+          "start_offset": 4558210,
+          "end_offset": 4558507,
+          "declaration_sha256": "c55fe4decb7f4b116d703dc97d37d06d35b4d2a1ab25ea22aa8f8d621776799d"
+        },
+        {
+          "name": "bindingOrAssignmentElementContainsNonLiteralComputedName",
+          "start_offset": 4558508,
+          "end_offset": 4558990,
+          "declaration_sha256": "beaf9fb33df4ca158381df2696f1535b4fe684ccef9c27f542d1b96cb71dac45"
+        },
+        {
+          "name": "bindingOrAssignmentPatternContainsNonLiteralComputedName",
+          "start_offset": 4558991,
+          "end_offset": 4559197,
+          "declaration_sha256": "7997a64c8016e8c422ac8f28d5b1e1ff01f5fef385e23548cb01c968ba5c24d2"
+        },
+        {
+          "name": "flattenDestructuringBinding",
+          "start_offset": 4559198,
+          "end_offset": 4562586,
+          "declaration_sha256": "044cf734bf9ee5cc6d2bbeb8fdfdd1c1ba65624ad743369d3a186761c2b06700"
+        },
+        {
+          "name": "flattenBindingOrAssignmentElement",
+          "start_offset": 4562587,
+          "end_offset": 4563964,
+          "declaration_sha256": "3fd6f65a1334cad283960bbba670658faeb439b74d763831a38a646058901dc7"
+        },
+        {
+          "name": "flattenObjectBindingOrAssignmentPattern",
+          "start_offset": 4563965,
+          "end_offset": 4566464,
+          "declaration_sha256": "9125d09c5fc75ee44dd116768961b3fb85f99ddaee093e00808ab41e7e94d6ec"
+        },
+        {
+          "name": "flattenArrayBindingOrAssignmentPattern",
+          "start_offset": 4566465,
+          "end_offset": 4569442,
+          "declaration_sha256": "c434aa5e7327fb2f5d6a5f0025ba41957847b80e08e4c542ea531d39f73050ac"
+        },
+        {
+          "name": "isSimpleBindingOrAssignmentElement",
+          "start_offset": 4569443,
+          "end_offset": 4570105,
+          "declaration_sha256": "5449cf437258eb9fc81d5ce89ce0a90e73e25ddb9a9e81efb2f5215e36418dc0"
+        },
+        {
+          "name": "createDefaultValueCheck",
+          "start_offset": 4570106,
+          "end_offset": 4570550,
+          "declaration_sha256": "f09f064a23b845f9d8004f1064bbfd09d720a375a85c8cce4156e4700fa6960d"
+        },
+        {
+          "name": "createDestructuringPropertyAccess",
+          "start_offset": 4570551,
+          "end_offset": 4571549,
+          "declaration_sha256": "c0024fa267666aa40cafb619b6cf480d16cf12ea2479b6ba5c136448489d13f8"
+        },
+        {
+          "name": "ensureIdentifier",
+          "start_offset": 4571550,
+          "end_offset": 4572252,
+          "declaration_sha256": "4d8b5f1bec715c0cccabeb94ac0857d1f8661fefea5cf0d9a482834e5429d35b"
+        },
+        {
+          "name": "makeArrayBindingPattern",
+          "start_offset": 4572253,
+          "end_offset": 4572421,
+          "declaration_sha256": "573ffb59cc6c38e81590cb0b376199ba21ed54fd9de611f0dd80a70cf46b49ba"
+        },
+        {
+          "name": "makeArrayAssignmentPattern",
+          "start_offset": 4572422,
+          "end_offset": 4572666,
+          "declaration_sha256": "9050b4b5e9d7d905044a11a61d4b9ef5d2085bc21c350cfa622dcbc45256e8d3"
+        },
+        {
+          "name": "makeObjectBindingPattern",
+          "start_offset": 4572667,
+          "end_offset": 4572832,
+          "declaration_sha256": "5f6b2a3e126e37af730587444c43360eecdeb814380a0f0ec5e0e6738d460812"
+        },
+        {
+          "name": "makeObjectAssignmentPattern",
+          "start_offset": 4572833,
+          "end_offset": 4573081,
+          "declaration_sha256": "386ca3832529d18973bfc2577f94d79e891c1f317e10d6cfc7e76e07560df58a"
+        },
+        {
+          "name": "makeBindingElement",
+          "start_offset": 4573082,
+          "end_offset": 4573251,
+          "declaration_sha256": "8b13f0dc671a837597fdd687e6e48d3cb2278e5bc6607d6cbbf808d34140034e"
+        }
+      ],
+      "external_edges": [
+        "addRange",
+        "append",
+        "every",
+        "forEach",
+        "getElementsOfBindingOrAssignmentPattern",
+        "getInitializerOfBindingOrAssignmentElement",
+        "getPropertyNameOfBindingOrAssignmentElement",
+        "getRestIndicatorOfBindingOrAssignmentElement",
+        "getTargetOfBindingOrAssignmentElement",
+        "idText",
+        "isArrayBindingOrAssignmentPattern",
+        "isBigIntLiteral",
+        "isBindingOrAssignmentPattern",
+        "isComputedPropertyName",
+        "isDeclarationBindingElement",
+        "isDestructuringAssignment",
+        "isEmptyArrayLiteral",
+        "isEmptyObjectLiteral",
+        "isIdentifier",
+        "isLiteralExpression",
+        "isObjectBindingOrAssignmentPattern",
+        "isOmittedExpression",
+        "isPropertyNameLiteral",
+        "isSimpleInlineableExpression",
+        "isStringOrNumericLiteralLike",
+        "isVariableDeclaration",
+        "last",
+        "map",
+        "nodeIsSynthesized",
+        "setTextRange",
+        "some",
+        "tryGetPropertyNameOfBindingOrAssignmentElement",
+        "visitNode"
+      ]
+    },
+    {
+      "module_id": "tagged-template",
+      "entries": [
+        "processTaggedTemplateExpression"
+      ],
+      "reached_from": [
+        "transformES2015"
+      ],
+      "family": [
+        {
+          "name": "processTaggedTemplateExpression",
+          "start_offset": 4585992,
+          "end_offset": 4587851,
+          "declaration_sha256": "5d93b32a693e1b69b0010dfd39db437e5e146b620fdde8c76b9f32240b5f5650"
+        },
+        {
+          "name": "createTemplateCooked",
+          "start_offset": 4587852,
+          "end_offset": 4588036,
+          "declaration_sha256": "e36fe1b71887855b8bcfba7d12d620c2f87b11b0ccf86228d2290c69677e6e68"
+        }
+      ],
+      "external_edges": [
+        "getRawLiteral",
+        "hasInvalidEscape",
+        "isExternalModule",
+        "isNoSubstitutionTemplateLiteral",
+        "visitEachChild",
+        "visitNode"
+      ]
+    }
+  ],
+  "composition_edges": [
+    {
+      "edge_id": "pass-order",
+      "kind": "registration-order",
+      "from": "transformES2015",
+      "to": "transformGenerators",
+      "evidence": "joint upstream registration pushes transformES2015 then transformGenerators for languageVersion < ES2015; ES2015 output is Generators input"
+    },
+    {
+      "edge_id": "yield-star-synthesis",
+      "kind": "synthesized-consumer",
+      "from": "transformES2015",
+      "to": "transformGenerators",
+      "evidence": "converted loop bodies containing yield are re-emitted as factory2.createYieldExpression(AsteriskToken, loopCall) and the synthesized yield* is lowered by the Generators state machine",
+      "owner_relative_offsets": [
+        101107,
+        101796
+      ]
+    },
+    {
+      "edge_id": "substitution-chain",
+      "kind": "hook-chain",
+      "from": "transformGenerators",
+      "to": "transformES2015",
+      "evidence": "both owners save previousOnSubstituteNode and delegate; ES2015 additionally chains previousOnEmitNode (Generators registers substitution only)"
+    },
+    {
+      "edge_id": "destructuring-shared-module",
+      "kind": "shared-module",
+      "from": "transformES2015",
+      "to": "destructuring-flattener",
+      "evidence": "flattenDestructuringAssignment/Binding called from ES2015 only"
+    },
+    {
+      "edge_id": "tagged-template-shared-module",
+      "kind": "shared-module",
+      "from": "transformES2015",
+      "to": "tagged-template",
+      "evidence": "processTaggedTemplateExpression called from ES2015 only"
+    }
+  ],
+  "surface_row_assignments": [
+    {
+      "surface_id": "resolver-collision-capture-queries",
+      "rows": [
+        "E-RESOLVER-CAPTURE-H",
+        "E-RESOLVER-BASE",
+        "EA-GAP-CAPTURE"
+      ],
+      "members": {
+        "resolver": [
+          "getReferencedDeclarationWithCollidingName",
+          "isDeclarationWithCollidingName",
+          "isArgumentsLocalBinding",
+          "isBindingCapturedByNode",
+          "getReferencedValueDeclaration"
+        ]
+      }
+    },
+    {
+      "surface_id": "resolver-node-check-flags",
+      "rows": [
+        "E-CHECKER-FACTS-H",
+        "E-CHECKER-FACTS-BASE"
+      ],
+      "members": {
+        "resolver": [
+          "hasNodeCheckFlag"
+        ]
+      }
+    },
+    {
+      "surface_id": "factory-construction",
+      "rows": [
+        "E-ARENA",
+        "EA-GAP-FLAGS"
+      ],
+      "members": {
+        "factory": [
+          "createNodeArray",
+          "cloneNode",
+          "createTempVariable"
+        ]
+      }
+    },
+    {
+      "surface_id": "syntax-guards",
+      "rows": [
+        "E-SYNTAX-FACTS"
+      ],
+      "members": {
+        "utilities": [
+          "isIdentifier",
+          "isBindingPattern",
+          "isIterationStatement"
+        ]
+      }
+    },
+    {
+      "surface_id": "helper-factory",
+      "rows": [
+        "E-HELPERS-BASE",
+        "E-HELPERS-H",
+        "E-HELPERS-PROVENANCE-G"
+      ],
+      "members": {
+        "helpers": [
+          "createExtendsHelper",
+          "createReadHelper",
+          "createSpreadArrayHelper",
+          "createValuesHelper",
+          "createGeneratorHelper"
+        ]
+      }
+    },
+    {
+      "surface_id": "name-generation",
+      "rows": [
+        "E-NAMES-BASE",
+        "E-NAMES-H"
+      ],
+      "members": {
+        "factory": [
+          "createUniqueName",
+          "createLoopVariable",
+          "getGeneratedNameForNode",
+          "getInternalName",
+          "getLocalName"
+        ],
+        "utilities": [
+          "isGeneratedIdentifier",
+          "isInternalName"
+        ]
+      }
+    },
+    {
+      "surface_id": "lexical-environment",
+      "rows": [
+        "E-CONTEXT",
+        "EA-GAP-CAPTURE"
+      ],
+      "members": {
+        "context": [
+          "startLexicalEnvironment",
+          "resumeLexicalEnvironment",
+          "endLexicalEnvironment",
+          "hoistVariableDeclaration",
+          "hoistFunctionDeclaration"
+        ],
+        "factory": [
+          "mergeLexicalEnvironment",
+          "copyStandardPrologue",
+          "copyCustomPrologue"
+        ]
+      }
+    },
+    {
+      "surface_id": "hook-composition",
+      "rows": [
+        "E-ORDER-H",
+        "EA-GAP-COMPOSITION"
+      ],
+      "members": {
+        "context": [
+          "enableSubstitution",
+          "enableEmitNotification"
+        ],
+        "utilities": [
+          "chainBundle"
+        ]
+      }
+    },
+    {
+      "surface_id": "comment-apis",
+      "rows": [
+        "E-COMMENTS-H",
+        "E-COMMENT-SCOPE-H"
+      ],
+      "members": {
+        "utilities": [
+          "setCommentRange",
+          "moveSyntheticComments",
+          "addSyntheticLeadingComment",
+          "addSyntheticTrailingComment",
+          "getCommentRange"
+        ]
+      }
+    },
+    {
+      "surface_id": "source-map-apis",
+      "rows": [
+        "EA-GAP-MAPS-DECLS"
+      ],
+      "members": {
+        "utilities": [
+          "setSourceMapRange",
+          "setTokenSourceMapRange",
+          "getSourceMapRange"
+        ]
+      }
+    },
+    {
+      "surface_id": "destructuring-module",
+      "rows": [
+        "EA-GAP-COMPOSITION",
+        "E-CAPTURE-BASE"
+      ],
+      "members": {
+        "utilities": [
+          "flattenDestructuringAssignment",
+          "flattenDestructuringBinding"
+        ]
+      }
+    },
+    {
+      "surface_id": "tagged-template-module",
+      "rows": [
+        "EA-GAP-COMPOSITION",
+        "E-STRINGS"
+      ],
+      "members": {
+        "utilities": [
+          "processTaggedTemplateExpression"
+        ]
+      }
+    },
+    {
+      "surface_id": "loop-partition-machinery",
+      "rows": [
+        "EA-GAP-CAPTURE",
+        "E-CAPTURE-BASE"
+      ],
+      "members": {
+        "utilities": [
+          "visitIterationBody",
+          "unwrapInnermostStatementOfLabel",
+          "spanMap"
+        ],
+        "factory": [
+          "createLoopVariable",
+          "restoreEnclosingLabel"
+        ]
+      }
+    },
+    {
+      "surface_id": "outer-expression-wrappers",
+      "rows": [
+        "E-POSITIONS",
+        "E-COMMENTS-H"
+      ],
+      "members": {
+        "utilities": [
+          "skipOuterExpressions"
+        ],
+        "factory": [
+          "createPartiallyEmittedExpression",
+          "restoreOuterExpressions"
+        ]
+      }
+    },
+    {
+      "surface_id": "class-lowering-reach",
+      "rows": [
+        "E-CAPTURE-CLASS-G",
+        "E-NAMES-CLASS-G",
+        "E-METADATA-G-CLASS"
+      ],
+      "members": {
+        "utilities": [
+          "getAllAccessorDeclarations",
+          "getFirstConstructorWithBody",
+          "isStatic",
+          "hasStaticModifier"
+        ]
+      }
+    },
+    {
+      "surface_id": "transform-flag-recomputation",
+      "rows": [
+        "EA-GAP-FLAGS",
+        "E-METADATA-BASE"
+      ],
+      "members": {
+        "utilities": [
+          "setEmitFlags",
+          "getEmitFlags",
+          "setOriginalNode",
+          "setTextRange",
+          "nodeIsSynthesized"
+        ]
+      }
+    },
+    {
+      "surface_id": "yield-star-synthesis",
+      "rows": [
+        "EA-GAP-COMPOSITION",
+        "E-ORDER-H"
+      ],
+      "members": {
+        "factory": [
+          "createYieldExpression"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "owners": 2,
+    "local_functions": 300,
+    "factory_methods_distinct": 98,
+    "resolver_methods_distinct": 6,
+    "helper_calls_distinct": 5,
+    "external_utilities_distinct": 132,
+    "enum_reference_pairs": 242,
+    "shared_modules": 2,
+    "shared_module_functions": 20,
+    "composition_edges": 5,
+    "surfaces": 17,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0
+  },
+  "owner_graph_fingerprint_sha256": "3e57e55b3afd8c8c548e4d1b4a7f82b6c07562556675d4a288135a59328dbc14"
+}

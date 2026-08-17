@@ -62,6 +62,63 @@ reuses. The H2.5h-a design branch performs these steps in order:
    lifecycle transitions (the paused Functional-CI tail is not a
    prerequisite under the recorded Option A review).
 
+Prerequisite-transition progress:
+
+- Step 1 **verified (2026-08-17)**: every qualified H2.5g row in the
+  architecture map names the immutable final validation ref `0653e10d`
+  with the merge ref `507a96ac` recorded as delivery lineage only
+  (architecture map §1), and the ancestry proofs
+  (`507a96ac` ⊂ `0653e10d` ⊂ current main) re-ran green.
+- Step 2 **complete (2026-08-18)**: the complete pinned owner graph is
+  frozen at `ratchets/h2-5h-a-owner-graph.v1.json` (generator
+  `crates/oracle/h2-5h-a-owner-graph.mjs` `--write|--check`, contract
+  `.github/ci/contracts/h2-5h-a-owner-graph.schema.json`, registered in
+  the artifact-contract table): both owner declarations re-validated
+  from the frozen owner inventory, parser-exact classified reference
+  closures (300 pinned local functions, 98 factory methods, the six
+  resolver methods matching the foundation coverage, five helper
+  factories, 132 external utilities, 242 frozen enum value/name pairs),
+  the destructuring-flattener (18 functions) and tagged-template (2)
+  shared-module closures, five composition edges (including the two
+  pinned `yield*` synthesis sites through which ES2015 loop conversion
+  feeds the Generators state machine), and seventeen
+  census-surface-to-architecture-row assignments verified against both
+  the census and the architecture map. Assignment is not disposition:
+  the applicability manifest remains step 5's output.
+- Step 3 **complete (2026-08-18)**: the current-Rust local-gap matrix is
+  frozen at `ratchets/h2-5h-a-gap-matrix.v1.json` (generator
+  `crates/oracle/h2-5h-a-gap-matrix.mjs` `--write|--check`, registered):
+  thirteen capability rows (3 exists / 7 partial / 3 missing) verified
+  mechanically on both sides — every requirement surface must exist in
+  the frozen owner graph, every positive Rust anchor is pinned
+  (path+symbol+file hash), and every recorded absence is asserted, so a
+  landed implementation breaks the matrix and forces a reviewed
+  re-disposition. The mint itself corrected two draft assumptions
+  fail-closed: the `EmitResolver` trait already declares three of the
+  six owner queries (typed fail-closed defaults), and the
+  ObjectRestSpread flatten level already lives inside the ES2018
+  lowering. No production code was edited.
+- Step 4 **decided (2026-08-18)**: the owner graph proves ES2015 and
+  Generators form ONE implementation unit, so H2.5h receives **no
+  further owner-SCC suffix split**: the runtime activation slice is
+  **H2.5h-b** (single, joint), resolving the deferred
+  `H2.5h-b+`/`determined-by-H2.5h-a-owner-graph` split. Evidence, all
+  pinned in the owner-graph artifact: (1) the `yield-star-synthesis`
+  composition edge — ES2015 loop conversion re-emits generator-crossing
+  loop calls as synthesized `yield*` at two pinned sites, which only the
+  Generators state machine can lower, so ES2015's loop conversion is
+  semantically incomplete without its consumer; (2) the joint upstream
+  registration (one guard pushes both transformers); (3) the shared
+  surface (35 factory methods, the values helper, the chained
+  substitution hook). Implementation may still be delivered as ordered
+  reviewable packets inside H2.5h-b, and the E-COMMENT-SCOPE-H
+  implementation packets (steps 2-6 of the comment-scope plan) precede
+  any ES2015/Generators production work as already mandated. The
+  machine encoding of this decision (profile transition update and the
+  readiness manifest's slice assignment) is step 5's output; this
+  record authorizes no production edit by itself.
+
+
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must
 also preserve the single unsplit `cargo xtask acceptance` command and update
 the complete hosted action union, protected engine adapter/profile registry,
