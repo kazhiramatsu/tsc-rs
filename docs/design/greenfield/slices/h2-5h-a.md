@@ -98,6 +98,25 @@ Prerequisite-transition progress:
   six owner queries (typed fail-closed defaults), and the
   ObjectRestSpread flatten level already lives inside the ES2018
   lowering. No production code was edited.
+- Step 4 **decided (2026-08-18)**: the owner graph proves ES2015 and
+  Generators form ONE implementation unit, so H2.5h receives **no
+  further owner-SCC suffix split**: the runtime activation slice is
+  **H2.5h-b** (single, joint), resolving the deferred
+  `H2.5h-b+`/`determined-by-H2.5h-a-owner-graph` split. Evidence, all
+  pinned in the owner-graph artifact: (1) the `yield-star-synthesis`
+  composition edge — ES2015 loop conversion re-emits generator-crossing
+  loop calls as synthesized `yield*` at two pinned sites, which only the
+  Generators state machine can lower, so ES2015's loop conversion is
+  semantically incomplete without its consumer; (2) the joint upstream
+  registration (one guard pushes both transformers); (3) the shared
+  surface (35 factory methods, the values helper, the chained
+  substitution hook). Implementation may still be delivered as ordered
+  reviewable packets inside H2.5h-b, and the E-COMMENT-SCOPE-H
+  implementation packets (steps 2-6 of the comment-scope plan) precede
+  any ES2015/Generators production work as already mandated. The
+  machine encoding of this decision (profile transition update and the
+  readiness manifest's slice assignment) is step 5's output; this
+  record authorizes no production edit by itself.
 
 
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must
