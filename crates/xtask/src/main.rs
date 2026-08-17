@@ -7677,10 +7677,12 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
     // The current H2 runtime owner is intentionally isolated from the long
     // historical oracle phase. Its 9,027-row TypeScript freshness proof runs
     // after compile/tests have already failed fast, and a later owner-control
-    // failure cannot force it to run again.
+    // failure cannot force it to run again. The phase executes node drivers
+    // only, so its receipt scope excludes non-xtask crate Rust: a
+    // checker-only diff no longer repeats the ~20-minute re-observation.
     resume.run_phase(
         "h2-5g-oracle",
-        local_ci_resume::InputScope::Verification,
+        local_ci_resume::InputScope::NodeRuntimeOracle,
         "",
         &[],
         || ci_h2_5g_oracle_gates(&workspace),
@@ -7797,7 +7799,7 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
         return Err("workspace test compilation produced no executable test targets".into());
     }
 
-    let worker_count = ci_test_worker_count()?.min(tests.len());
+    let worker_count = ci_test_worker_count(workspace)?.min(tests.len());
     println!(
         "workspace test pipeline: executables={} workers={worker_count} peak_harness_threads={} ordinary_harness_threads=1",
         tests.len(),
@@ -8005,31 +8007,43 @@ fn cargo_test_executables(stdout: &[u8]) -> Result<Vec<CiTestExecutable>, Box<dy
     Ok(tests)
 }
 
-const MAX_CI_TEST_WORKERS: usize = 2;
 const CI_TEST_WORKERS_ENV: &str = "TSRS_CI_TEST_WORKERS";
 
-fn ci_test_worker_count() -> Result<usize, Box<dyn Error>> {
+fn ci_test_worker_count(workspace: &Path) -> Result<usize, Box<dyn Error>> {
     let available = std::thread::available_parallelism()
         .map(std::num::NonZeroUsize::get)
         .unwrap_or(1);
     let configured = std::env::var(CI_TEST_WORKERS_ENV).ok();
-    select_ci_test_workers(configured.as_deref(), available).map_err(|error| error.into())
+    // The worker ceiling is reviewed CPU policy, not a hardcoded constant:
+    // m8-evidence.json `workspace_tests.max_workers` is tracked and gated, so
+    // raising local parallelism is a reviewed change. The env knob only
+    // clamps DOWN, and available parallelism always bounds the result.
+    let reviewed_ceiling = m8_evidence::workspace_test_worker_ceiling(workspace)?;
+    select_ci_test_workers(configured.as_deref(), available, reviewed_ceiling)
+        .map_err(|error| error.into())
 }
 
-fn select_ci_test_workers(configured: Option<&str>, available: usize) -> Result<usize, String> {
+fn select_ci_test_workers(
+    configured: Option<&str>,
+    available: usize,
+    reviewed_ceiling: usize,
+) -> Result<usize, String> {
     if available == 0 {
         return Err("available CI test parallelism must be positive".to_owned());
     }
-    let ceiling = available.min(MAX_CI_TEST_WORKERS);
+    if reviewed_ceiling == 0 {
+        return Err("reviewed CI test worker ceiling must be positive".to_owned());
+    }
+    let ceiling = available.min(reviewed_ceiling);
     let Some(configured) = configured else {
         return Ok(ceiling);
     };
     let workers = configured.parse::<usize>().map_err(|_| {
-        format!("{CI_TEST_WORKERS_ENV} must be an integer from 1 to {MAX_CI_TEST_WORKERS}")
+        format!("{CI_TEST_WORKERS_ENV} must be an integer from 1 to {reviewed_ceiling}")
     })?;
-    if workers == 0 || workers > MAX_CI_TEST_WORKERS {
+    if workers == 0 || workers > reviewed_ceiling {
         return Err(format!(
-            "{CI_TEST_WORKERS_ENV} must be an integer from 1 to {MAX_CI_TEST_WORKERS}"
+            "{CI_TEST_WORKERS_ENV} must be an integer from 1 to {reviewed_ceiling}"
         ));
     }
     Ok(workers.min(available))

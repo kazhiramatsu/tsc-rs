@@ -120,15 +120,17 @@ fn rejects_unknown_or_incomplete_lane_arguments() {
 }
 
 #[test]
-fn local_test_pipeline_is_bounded_to_two_processes() {
-    assert_eq!(select_ci_test_workers(None, 1).unwrap(), 1);
-    assert_eq!(select_ci_test_workers(None, 8).unwrap(), 2);
-    assert_eq!(select_ci_test_workers(Some("1"), 8).unwrap(), 1);
-    assert_eq!(select_ci_test_workers(Some("2"), 1).unwrap(), 1);
-    assert!(select_ci_test_workers(Some("0"), 8).is_err());
-    assert!(select_ci_test_workers(Some("3"), 8).is_err());
-    assert!(select_ci_test_workers(Some("two"), 8).is_err());
-    assert!(select_ci_test_workers(None, 0).is_err());
+fn local_test_pipeline_is_bounded_by_the_reviewed_ceiling() {
+    assert_eq!(select_ci_test_workers(None, 1, 4).unwrap(), 1);
+    assert_eq!(select_ci_test_workers(None, 8, 4).unwrap(), 4);
+    assert_eq!(select_ci_test_workers(None, 8, 2).unwrap(), 2);
+    assert_eq!(select_ci_test_workers(Some("1"), 8, 4).unwrap(), 1);
+    assert_eq!(select_ci_test_workers(Some("4"), 1, 4).unwrap(), 1);
+    assert!(select_ci_test_workers(Some("0"), 8, 4).is_err());
+    assert!(select_ci_test_workers(Some("5"), 8, 4).is_err());
+    assert!(select_ci_test_workers(Some("two"), 8, 4).is_err());
+    assert!(select_ci_test_workers(None, 0, 4).is_err());
+    assert!(select_ci_test_workers(None, 8, 0).is_err());
 }
 
 #[test]
