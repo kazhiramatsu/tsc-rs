@@ -1,46 +1,47 @@
 {
-  "schemaVersion": 1,
-  "packetId": "packet-control-bootstrap",
-  "status": "ready",
-  "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
-  "schemaPath": ".github/ci/contracts/slice-readiness.v1.schema.json",
-  "schemaSha256": "712a0c64982e06bcf32f433bced3f96b6ac731f15d9ad4594d9e069e5d32eedd",
-  "checkerPath": ".github/ci/slice-readiness.mjs",
-  "checkerSha256": "6cf16f475643342a9495b1f7cf60d4db325206a8645314b61001d1e405a2e058",
-  "allowedPacketIds": [
-    "fci-1a",
-    "fci-1b",
-    "fci-1c",
-    "fci-2a",
-    "fci-2b",
-    "fci-3a",
-    "fci-3b",
-    "fci-3c",
-    "fci-4a.1",
-    "fci-4a.2",
-    "fci-4a.3",
-    "fci-4b",
-    "fci-4c",
-    "fci-4d",
-    "fci-5a",
-    "fci-5b",
-    "fci-5c.1"
+ "schemaVersion": 1,
+ "packetId": "packet-control-bootstrap",
+ "status": "ready",
+ "trustedBase": "507a96ac51af39fe0285760cdbf3244422fc40bd",
+ "schemaPath": ".github/ci/contracts/slice-readiness.v1.schema.json",
+ "schemaSha256": "712a0c64982e06bcf32f433bced3f96b6ac731f15d9ad4594d9e069e5d32eedd",
+ "checkerPath": ".github/ci/slice-readiness.mjs",
+ "checkerSha256": "6cf16f475643342a9495b1f7cf60d4db325206a8645314b61001d1e405a2e058",
+ "allowedPacketIds": [
+  "fci-1a",
+  "fci-1b",
+  "fci-1c",
+  "fci-2a",
+  "fci-2b",
+  "fci-3a",
+  "fci-3b",
+  "fci-3c",
+  "fci-4a.1",
+  "fci-4a.2",
+  "fci-4a.3",
+  "fci-4b",
+  "fci-4c",
+  "fci-4d",
+  "fci-5a",
+  "fci-5b",
+  "fci-5c.1",
+  "h2-5h-a"
+ ],
+ "forbiddenTransitions": [
+  "h2-5g-authority",
+  "fci-5c.2",
+  "fci-6-plus",
+  "workflow",
+  "hosted-provider",
+  "cache-authority",
+  "outcome-capability"
+ ],
+ "proof": {
+  "commands": [
+   "node .github/ci/slice-readiness.mjs --schema-check",
+   "node .github/ci/slice-readiness.mjs --test",
+   "node .github/ci/slice-readiness.mjs --bootstrap-check"
   ],
-  "forbiddenTransitions": [
-    "h2-5g-authority",
-    "fci-5c.2",
-    "fci-6-plus",
-    "workflow",
-    "hosted-provider",
-    "cache-authority",
-    "outcome-capability"
-  ],
-  "proof": {
-    "commands": [
-      "node .github/ci/slice-readiness.mjs --schema-check",
-      "node .github/ci/slice-readiness.mjs --test",
-      "node .github/ci/slice-readiness.mjs --bootstrap-check"
-    ],
-    "evidencePath": "ratchets/fci-packet-bootstrap.v1.json"
-  }
+  "evidencePath": "ratchets/fci-packet-bootstrap.v1.json"
+ }
 }

@@ -1,9 +1,13 @@
 # H2.5h-a — ES2015/Generators architecture and design packet
 
-Readiness: **unblocked design draft (2026-08-17)** — the H2.5g closure and
-the post-merge roadmap review are recorded and the paused Functional-CI
-tail is no longer a dependency; implementation still requires this packet
-to be completed and machine-checked `ready`.
+Readiness: **packet manifest, machine-tracked (status: `design`,
+2026-08-18)** — envelope `ratchets/fci-readiness/h2-5h-a.v1.json` under
+the frozen shared slice-readiness schema/checker; prerequisite-transition
+steps 1-4 are complete and step 5's manifest half is frozen
+(the disposition artifact below). The `ready` flip requires step 6
+(ES2015/Generators witness freeze) and step 7 (packet checker green);
+production work requires per-packet design gates as listed in the packet
+ladder.
 
 This is the concrete handoff for the first post-FCI emitter/H2 design-gated
 work. It is not an implementation specification yet and authorizes no
@@ -117,6 +121,73 @@ Prerequisite-transition progress:
   machine encoding of this decision (profile transition update and the
   readiness manifest's slice assignment) is step 5's output; this
   record authorizes no production edit by itself.
+- Step 5 manifest half **complete (2026-08-18)**: the architecture-row
+  disposition manifest is frozen at
+  `ratchets/h2-5h-a-dispositions.v1.json` (generator
+  `crates/oracle/h2-5h-a-dispositions.mjs` `--write|--check`,
+  registered): all 45 rows dispositioned exactly once (16
+  premise-unchanged / 15 modified-requalify / 10 activate / 4
+  future-owned-fail-closed / 0 proven-unreachable, undispositioned = 0
+  by construction — the row inventory is derived from the architecture
+  map and compared against the reviewed table, so a map change makes
+  the manifest stale), every citation verified against the frozen owner
+  graph and local-gap matrix, and premise-unchanged rows forbidden from
+  citing non-`exists` capabilities. The readiness envelope
+  (`ratchets/fci-readiness/h2-5h-a.v1.json`, status `design`) and the
+  bootstrap authorization (`allowedPacketIds += h2-5h-a`) are live.
+  Remaining for `ready`: step 6 and step 7 below.
+
+## Packet ladder and checker
+
+The campaign delivers through machine-tracked packets in this order.
+Every packet that edits a production file passes the
+[mandatory design gate](../post-h1-completion-slices.md#11-mandatory-implementation-ready-design-gate)
+in its own packet document before that edit; this manifest never
+substitutes for a per-packet gate.
+
+1. **CS-2 .. CS-6 — comment-scope implementation packets** (printer
+   production edits; the six-step plan's steps 2-6 in
+   [the comment-scope section](#first-mandatory-design-packet-global-comment-scope)):
+   CS-2 introduces the immutable `CommentEmissionScope`/`EmitContext`
+   triple at the root and core pipeline; CS-3 migrates expression and
+   list routes; CS-4 statements, declarations, classes, JSX,
+   parameters, transformed nodes, substitution, and notification; CS-5
+   token/comment scanners and deletes every contextless or dual nested
+   API; CS-6 runs the focused fixtures, complete emitter suite, owner
+   controls, inventory, and the zero-contextless-use audit. Inputs
+   already frozen: the scope-graph study and the ten-family witness
+   artifact. No ES2015/Generators production work may precede CS-6
+   green.
+2. **W-H2.5H — step-6 witness machine**: oracle-produced positive,
+   adjacent-negative, composition, and fault witnesses for the
+   ES2015/Generators surface, extending the comment-scope witness
+   mechanism; witness families are enumerated per owner-graph surface
+   (loop conversion incl. the two pinned `yield*` sites, class
+   lowering lanes, destructuring flattener family, tagged templates,
+   helper graph, name generation, resolver queries against the
+   foundation's direct controls, hook chains, enum-pair guards).
+3. **B-1 .. — H2.5h-b implementation packets** (single joint runtime
+   slice per the step-4 SCC decision): authored after W-H2.5H against
+   the frozen graph/matrix/witnesses, each with its own design-gate
+   packet document; the activation split is not revisited.
+
+**Packet checker** (step 7; also the envelope's proof commands): all of
+
+```text
+node crates/oracle/h2-5h-a-foundation.mjs --check
+node crates/oracle/h2-5h-a-comment-scope-witnesses.mjs --check
+node crates/oracle/h2-5h-a-owner-graph.mjs --check
+node crates/oracle/h2-5h-a-gap-matrix.mjs --check
+node crates/oracle/h2-5h-a-dispositions.mjs --check
+node .github/ci/qualification.mjs check
+node .github/ci/slice-readiness.mjs --check h2-5h-a
+```
+
+green at one head, with the last command legal only once the envelope
+status is `ready` (after step 6). The five artifact `--check`s and the
+qualification registry run inside every full local gate already; the
+readiness flip is the only manual transition and requires the step-6
+witness artifact registered and green first.
 
 
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must

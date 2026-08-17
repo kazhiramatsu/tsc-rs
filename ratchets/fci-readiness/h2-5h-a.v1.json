@@ -1,0 +1,61 @@
+{
+ "schemaVersion": 1,
+ "packetId": "h2-5h-a",
+ "status": "design",
+ "trustedBase": "92cfa478856f6c76ca6aa9d939b5df493abc6b12",
+ "packet": {
+  "path": "docs/design/greenfield/slices/h2-5h-a.md",
+  "sha256": "b29f7d0144aee9e5977e3ca84b992a72b328ce671a5502689eb1d6a61a1c281f"
+ },
+ "predecessors": [],
+ "allowedPaths": [
+  "crates/oracle/h2-5h-a-foundation.mjs",
+  "crates/oracle/h2-5h-a-comment-scope-witnesses.mjs",
+  "crates/oracle/h2-5h-a-owner-graph.mjs",
+  "crates/oracle/h2-5h-a-gap-matrix.mjs",
+  "crates/oracle/h2-5h-a-dispositions.mjs",
+  "ratchets/h2-5h-a-foundation.v1.json",
+  "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
+  "ratchets/h2-5h-a-owner-graph.v1.json",
+  "ratchets/h2-5h-a-gap-matrix.v1.json",
+  "ratchets/h2-5h-a-dispositions.v1.json",
+  ".github/ci/contracts/h2-5h-a-foundation.schema.json",
+  ".github/ci/contracts/h2-5h-a-comment-scope-witnesses.schema.json",
+  ".github/ci/contracts/h2-5h-a-owner-graph.schema.json",
+  ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
+  ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
+  ".github/ci/qualification.mjs",
+  ".github/ci/qualification.test.mjs",
+  "docs/design/greenfield/slices/h2-5h-a.md",
+  "docs/design/greenfield/slices/h2-5h-a-comment-scope.md",
+  "docs/design/greenfield/slices/README.md",
+  "docs/design/greenfield/post-h1-completion-slices.md",
+  "docs/design/greenfield/emitter-architecture.md",
+  "ratchets/fci-readiness/h2-5h-a.v1.json",
+  "ratchets/fci-packet-bootstrap.v1.json"
+ ],
+ "forbiddenPrefixes": [
+  "crates/compiler",
+  "crates/checker",
+  "crates/emitter",
+  "crates/binder",
+  "crates/syntax",
+  "crates/types",
+  "crates/diags",
+  "crates/harness",
+  "crates/conformance",
+  "crates/xtask",
+  ".github/workflows"
+ ],
+ "proof": {
+  "commands": [
+   "node crates/oracle/h2-5h-a-foundation.mjs --check",
+   "node crates/oracle/h2-5h-a-comment-scope-witnesses.mjs --check",
+   "node crates/oracle/h2-5h-a-owner-graph.mjs --check",
+   "node crates/oracle/h2-5h-a-gap-matrix.mjs --check",
+   "node crates/oracle/h2-5h-a-dispositions.mjs --check",
+   "node .github/ci/qualification.mjs check"
+  ],
+  "evidencePath": "ratchets/h2-5h-a-dispositions.v1.json"
+ }
+}
