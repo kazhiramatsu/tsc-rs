@@ -117,6 +117,15 @@ current H2 implementation maps.
   This applies to every gating command below (`ci`, `conformance`,
   `ratchet check`, `scope audit`, `families check`, `escapes`,
   `ledger check`, `invariants`).
+- **Background priority (user directive, 2026-08-17):** launch every
+  heavy multi-minute command demoted so the machine stays usable:
+  `taskpolicy -b nice -n 15 cargo xtask ci ...` (children inherit).
+  Exception: wall-clock performance observations are invalid under
+  demotion (measured 60.7s vs 16s normal). If a demoted gate fails
+  ONLY on the reviewed performance ceiling, rerun the same command at
+  normal priority — the resume journal retains the green phases, so
+  only the measurement-bearing phase repeats. Never raise a ceiling
+  to compensate.
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
   (from the repository root, using the trusted base recorded in the PR). Its
   full-corpus B2 producer reuses an existing exact-fingerprint artifact
