@@ -13,15 +13,15 @@ Its readiness and active-slice status are owned by the
 [post-H1 schedule](../post-h1-completion-slices.md), not by this draft in
 isolation.
 
-The block is intentional and mechanically fail-closed: the packet-control
-bootstrap now freezes the shared checker/schema and may authorize only the
-pre-closure FCI-1a through FCI-5c.1 membership shadow packet. H2.5g must still
-close and merge before the source-snapshot/runner observation packet, FCI-5c.2,
-and every later FCI packet; subsequent short-lived packet
-branches must advance the interlock one authorized packet at a time through
-FCI-10. Only then may the required final H2.5g/FCI architecture lineage,
-complete owner/local-gap inventories, Rust mapping, and frozen H2.5h witnesses
-authorize this slice.
+Under the recorded Option A roadmap review (2026-08-17), the Functional-CI
+packet tail is paused and is not a dependency of this slice: H2.5h-a may
+begin on its own design branch now. What carries over from the interlock is
+the machinery, not the ordering — the frozen shared slice-readiness
+schema/checker (already validated inside the CI oracle suite) is the vehicle
+for this packet's readiness manifest, and the mandatory design gate below is
+unchanged. The final H2.5g architecture lineage, complete owner/local-gap
+inventories, Rust mapping, and frozen H2.5h witnesses still authorize
+implementation; nothing here waives them.
 
 For the future packet, vendored TypeScript 6.0.3 owns semantics. The current
 code and tests plus freshly revalidated rows in
@@ -31,14 +31,9 @@ or history only; they are not implementation instructions.
 
 ## Prerequisite transition
 
-The packet-control bootstrap creates the shared packet checker/schema and
-freezes the first exact ready FCI packet. Separate short-lived packet branches
-then advance the Functional-CI interlock one indexed packet at a time through
-FCI-10 exactly as owned by the schedule/index. H2.5h-a research may
-overlap only when a separate indexed research packet explicitly authorizes its
-read-only files and commands; an early inventory is never readiness or
-production authority. After FCI-10 closes, a new H2.5h-a design branch performs
-these steps in order:
+The packet-control bootstrap froze the shared packet checker/schema before
+the Option A pause; that shared contract is the readiness vehicle this slice
+reuses. The H2.5h-a design branch performs these steps in order:
 
 1. verify that every qualified H2.5g row in
    [the current emitter architecture](../emitter-architecture.md) names the
@@ -61,10 +56,11 @@ these steps in order:
    amendment packet before creating the H2.5h-a packet;
 6. freeze oracle-produced positive, adjacent-negative, composition, and fault
    witnesses; and
-7. run the packet checker. Production work begins only when FCI-10 is recorded
-   complete in the owning index and the checker reports fresh hashes, zero
-   undispositioned rows, zero unresolved rows, full architecture/upstream/
-   local-gap/step/test coverage, and legal lifecycle transitions.
+7. run the packet checker. Production work begins only when the checker
+   reports fresh hashes, zero undispositioned rows, zero unresolved rows,
+   full architecture/upstream/local-gap/step/test coverage, and legal
+   lifecycle transitions (the paused Functional-CI tail is not a
+   prerequisite under the recorded Option A review).
 
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must
 also preserve the single unsplit `cargo xtask acceptance` command and update
@@ -82,10 +78,11 @@ is not evidence.
 
 The readiness checker command and expected counts/hashes are owned by the
 versioned packet-control bootstrap and the active packet, not by this handoff.
-This page remains blocked until FCI-10 and the separate H2.5h-a packet replaces
-it. An agent that encounters this page performs no inventory unless an indexed
-research packet authorizes it, and never creates ES2015 or Generator runtime
-code.
+This page remains a design draft until the complete H2.5h-a packet replaces
+it under the mandatory design gate. An agent that encounters this page may
+perform the read-only inventory steps above on the H2.5h-a design branch,
+and never creates ES2015 or Generator runtime code before the packet is
+machine-checked ready.
 
 ## Mandatory architecture inputs
 
