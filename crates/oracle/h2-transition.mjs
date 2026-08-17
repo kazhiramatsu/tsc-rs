@@ -28,13 +28,13 @@ const INPUT_HASHES = Object.freeze({
   "ratchets/h1-owner-inventory.v1.json":
     "6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5",
   "ratchets/h1-rust-omissions.v1.json":
-    "1ba9a6cfa708eb832432733948132977b585e215b795847c31a7033749723a8b",
+    "35522cbf53bb2bbeef8417b42ba41fa76a994cd52374f5f65063153be067d30f",
   "ratchets/h1-emit-profile.v1.json":
     "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db",
   "ratchets/h1-emit-oracle.v1.json":
     "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d",
   "ratchets/h1-emit-qualification.v1.json":
-    "bce42b6193d80e985084548cbddbef6f093831e1b9bec20167bc2ba2a4444fec",
+    "449763c309e5ad77f811a3d3d084468c719ce247032c5163715d373766572ac1",
   "vendor/typescript-6.0.3/compiler-profile-classification.v1.json":
     "7158d2e4fac5b6d43ee9382d5dadac7d27e358c86bd532e07b4d1f9ff85ad5b0",
   "vendor/typescript-6.0.3/conformance-profile-classification.v1.json":

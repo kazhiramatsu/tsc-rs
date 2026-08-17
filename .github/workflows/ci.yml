@@ -31,6 +31,10 @@ jobs:
       # H2.5g is the sole hosted-wide fan-out. The Rust pipeline restores
       # qualification order; local runs remain serial unless explicitly set.
       TSRS_H2_5G_WORKERS: "2"
+      # Hosted acceptance keeps the conformance checker pool at the same
+      # conservative bound as the emit workers; the dev profile ceiling in
+      # m8-evidence.json applies locally.
+      TSRS_CONFORMANCE_WORKERS: "2"
     steps:
       - name: Checkout candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

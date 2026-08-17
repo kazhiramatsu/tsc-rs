@@ -1506,6 +1506,7 @@ pub fn report(workspace: &Path, out_json: &Path) -> ConformanceResult<()> {
             files: Vec::new(),
             out_json: workspace.join("target/families/conformance.json"),
             band: crate::DiagnosticBand::All,
+            checker_workers: 1,
         },
         out_json,
     )

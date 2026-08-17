@@ -301,6 +301,7 @@ pub fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
         files: Vec::new(),
         out_json: conformance_out,
         band: tsc_conformance::DiagnosticBand::TwoXxx,
+        checker_workers: super::conformance_checker_workers(&workspace)?,
     })?;
     run_census(&workspace, &manifest, &out_path, check, &summary)
 }

@@ -1874,6 +1874,7 @@ fn m8_readiness_inner(
                 files: Vec::new(),
                 out_json: out_dir.join("conformance.json"),
                 band: tsc_conformance::DiagnosticBand::All,
+                checker_workers: conformance_checker_workers(&workspace)?,
             },
             &families_report_path,
         )?)
@@ -2069,6 +2070,7 @@ fn completion_gate(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Err
             files: Vec::new(),
             out_json: conformance_path,
             band: tsc_conformance::DiagnosticBand::All,
+            checker_workers: conformance_checker_workers(&workspace)?,
         },
         &families_path,
     )?;
@@ -4609,6 +4611,7 @@ fn conformance(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>>
         files: parsed.files,
         out_json: out_json.clone(),
         band: parsed.band,
+        checker_workers: conformance_checker_workers(&workspace)?,
     };
     // `--families-report`: the ci shape — the A5 rollup rides this
     // gating run instead of re-checking the corpus in a second one.
@@ -8005,6 +8008,42 @@ fn cargo_test_executables(stdout: &[u8]) -> Result<Vec<CiTestExecutable>, Box<dy
         });
     }
     Ok(tests)
+}
+
+const CONFORMANCE_WORKERS_ENV: &str = "TSRS_CONFORMANCE_WORKERS";
+
+/// Resolve the conformance checker-worker count: the reviewed
+/// `m8-evidence.json` ceiling, clamped down by `TSRS_CONFORMANCE_WORKERS`
+/// and by available parallelism.
+fn conformance_checker_workers(workspace: &Path) -> Result<usize, Box<dyn Error>> {
+    // Read the reviewed ceiling with a local parse instead of calling into
+    // m8_evidence: this helper is reachable from the hosted acceptance
+    // entry, whose bounded call-graph grammar closes over main.rs only.
+    let manifest: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(workspace.join("m8-evidence.json"))?)?;
+    let reviewed_ceiling = manifest
+        .get("conformance_runner")
+        .and_then(|section| section.get("max_workers"))
+        .and_then(serde_json::Value::as_u64)
+        .ok_or("m8-evidence.json conformance_runner.max_workers must be a positive integer")?
+        as usize;
+    let available = std::thread::available_parallelism()
+        .map(std::num::NonZeroUsize::get)
+        .unwrap_or(1);
+    let ceiling = available.min(reviewed_ceiling).max(1);
+    let Some(configured) = std::env::var(CONFORMANCE_WORKERS_ENV).ok() else {
+        return Ok(ceiling);
+    };
+    let workers = configured.parse::<usize>().map_err(|_| {
+        format!("{CONFORMANCE_WORKERS_ENV} must be an integer from 1 to {reviewed_ceiling}")
+    })?;
+    if workers == 0 || workers > reviewed_ceiling {
+        return Err(format!(
+            "{CONFORMANCE_WORKERS_ENV} must be an integer from 1 to {reviewed_ceiling}"
+        )
+        .into());
+    }
+    Ok(workers.min(available))
 }
 
 const CI_TEST_WORKERS_ENV: &str = "TSRS_CI_TEST_WORKERS";
