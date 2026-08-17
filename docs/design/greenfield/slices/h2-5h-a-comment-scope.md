@@ -56,9 +56,12 @@ savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd)`**
 pos !== end` gate, the triple is restored **from the caller-saved values
 first**, and only then are the node's trailing comments emitted
 (`emitTrailingComments(end)`, skipped for `NotEmittedStatement`). A
-node's trailing trivia is therefore emitted under its **parent's**
-container scope, not its own — this ordering is load-bearing for the
-`x /*TAIL*/` relocation counterexample in the handoff.
+node's trailing walk therefore consults its **parent's** restored
+container scope, not the node's own claim — witnessed by the frozen
+`x /*TAIL*/` counterexample: under a synthetic arrow wrapper the
+relocated statement's trailing comment emits once, inside the wrapper
+(`() => { x; /*TAIL*/ };`), because the restored file-level
+`containerEnd` does not match the statement's end.
 
 Synthetic comments bypass the triple entirely: synthetic leading
 comments are emitted inside `emitLeadingCommentsOfNode` after the claim,
@@ -147,6 +150,17 @@ the child's.
 
 ## 3. Witness set to freeze (step 1 remainder)
 
+Status: **frozen** at `ratchets/h2-5h-a-comment-scope-witnesses.v1.json`
+(generator `crates/oracle/h2-5h-a-comment-scope-witnesses.mjs`
+`--write|--check`; contract
+`.github/ci/contracts/h2-5h-a-comment-scope-witnesses.schema.json`;
+registered in the qualification artifact-contract table). Every family
+below is frozen as one positive case, one remove-comments control, and
+one adjacent-negative control, each observed twice in a fresh
+pinned-TypeScript process, and the artifact also machine-pins §1: the
+complete 23-line occurrence set of the triple and anchored slice hashes
+for all seven site spans.
+
 Oracle-captured bytes only (no transcription), each with remove-comments
 and adjacent-negative controls, covering:
 
@@ -170,5 +184,18 @@ and adjacent-negative controls, covering:
     `NotEmittedStatement` trailing suppression.
 
 The witness generator extends the H2.5h-a foundation's direct-control
-mechanism (fresh-process pinned-tsc observation, two runs, fingerprints)
-and is the next machine increment of this sub-packet.
+mechanism (fresh-process pinned-tsc observation, two runs,
+fingerprints). Notable facts the freeze recorded, beyond the corrected
+counterexample bytes in §1.2: the type-node trailing repetition (item
+9) emits a variable declaration's post-annotation comment in place of
+the erased annotation (`const typed /*TYPE-T*/ = 1;`) but a function
+**return-type** trailing comment does not survive emission at all; a
+`NotEmittedStatement` replacement drops its source trailing comment
+entirely and a zero-width (`pos === end`) synthetic range emits neither
+leading nor trailing trivia (item 10); `NoTrailingComments` suppression
+is complete — the suppressed comment does not resurface through the
+next construct's leading walk (item 6); synthetic comments emit inside
+the source-comment envelope
+(`/*SRC-L*/ /* SYN-LEAD */ node; /* SYN-TRAIL */ /*SRC-T*/`) and are
+dropped under `removeComments` while a pinned `/*!` header is retained
+(items 7-8).

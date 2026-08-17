@@ -221,6 +221,10 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
         ".github/ci/contracts/h2-5h-a-foundation.schema.json",
         "ratchets/h2-5h-a-foundation.v1.json",
       ],
+      [
+        ".github/ci/contracts/h2-5h-a-comment-scope-witnesses.schema.json",
+        "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
+      ],
     ],
   );
 });

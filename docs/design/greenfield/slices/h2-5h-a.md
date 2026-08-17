@@ -137,10 +137,20 @@ the ready packet.
 
 ## First mandatory design packet: global comment scope
 
-Step-1 progress: the complete pinned scope graph and the current-Rust
-delta are frozen in
-[the comment-scope study](h2-5h-a-comment-scope.md); the witness
-generator and the implementation packets remain open.
+Step-1 progress: **complete.** The pinned scope graph and the
+current-Rust delta are frozen in
+[the comment-scope study](h2-5h-a-comment-scope.md), and the ten-family
+witness set is frozen at `ratchets/h2-5h-a-comment-scope-witnesses.v1.json`
+(generator `crates/oracle/h2-5h-a-comment-scope-witnesses.mjs`
+`--write|--check`, contract
+`.github/ci/contracts/h2-5h-a-comment-scope-witnesses.schema.json`,
+subset-validated by the registered artifact-contract table): thirty
+oracle-captured cases — one positive, one remove-comments control, and
+one adjacent-negative control per family — observed twice each in fresh
+pinned-TypeScript processes, plus the machine-checked scope-graph pins
+(the complete 23-line occurrence set and seven anchored span hashes).
+The implementation packets (steps 2-6) remain open and are still
+design-gated.
 
 Before the ES2015 or Generators owner graph may authorize production work, the
 slice must close `E-COMMENT-SCOPE-H`. This is an architecture prerequisite,
@@ -177,19 +187,25 @@ contextless API that will be deleted or made root-only; leaving two callable
 nested pipelines is not an allowed intermediate completion state.
 
 The frozen oracle set starts with this known counterexample and its
-remove-comments and adjacent-negative controls:
+remove-comments and adjacent-negative controls (bytes below are the
+oracle-captured output from the frozen witness artifact; an earlier
+draft of this page transcribed `() => { x; }; /*TAIL*/` from memory and
+the pinned oracle falsified it — the trailing comment relocates with
+the original statement into the wrapper and is neither duplicated at
+the end of the file nor dropped):
 
 ```text
-source: x /*TAIL*/\n
+source: x /*TAIL*/\n  (after `declare const x: number;`)
 transform: replace the outer statement with synthetic `() => { originalStmt }`
-tsc output: () => { x; }; /*TAIL*/\n
+tsc output: () => { x; /*TAIL*/ };\n
 ```
 
 It then covers direct children, ordinary and declaration lists, synthetic
 wrappers, statements, declarations, classes, JSX, parameters, token/comment
 scanners, source changes, zero-width ranges, and errors during nested emit.
 Expected bytes are captured from the pinned oracle; they are never transcribed
-from this example into tests.
+from this example into tests. The falsified draft output above is the
+standing argument for that rule.
 
 The implementation plan must be split into independently reviewable packets:
 

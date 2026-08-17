@@ -1,0 +1,2604 @@
+{
+  "schema": 1,
+  "kind": "h2-comment-scope-witnesses",
+  "status": "frozen-comment-scope-witnesses",
+  "phase": "H2.5h-a",
+  "slice_id": "H2.5h-a",
+  "sub_packet": "E-COMMENT-SCOPE-H",
+  "plan_step": "step-1-witness-freeze",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-5h-a-comment-scope-witnesses.mjs",
+    "sha256": "8aea1bffa7daa753da0b2dd92d048aa47fca59b730c4e5c1152e1ae4d1cd395d"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5h-a-comment-scope-witnesses.schema.json",
+    "sha256": "e4fed94fb484e0f3171163e8a3370941263f81e26d943fa1b6549c7be20edb2c"
+  },
+  "lineage": {
+    "foundation": {
+      "path": "ratchets/h2-5h-a-foundation.v1.json",
+      "sha256": "185854868cb676b694ed6c178fa49f33bc660bb0a695687f197e32363b1de52a"
+    },
+    "foundation_fingerprint_sha256": "66c415e7965d3c13947a514f4ec3ff225fc10995d49bf388ba60b5cc723fb830",
+    "scope_study": {
+      "path": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md",
+      "sha256": "70582706258f4235de5bd2233a8726516b1165e68fb40076184632b30c9b9609"
+    },
+    "handoff": {
+      "path": "docs/design/greenfield/slices/h2-5h-a.md",
+      "sha256": "89871fcf348c586d4d1b82fb1344dc412764eb072fac59ced95e1a499ad90e8f"
+    },
+    "interpretation": "E-COMMENT-SCOPE-H step 1 freezes oracle-captured comment-scope bytes; it authorizes no production edit and activates nothing"
+  },
+  "scope_graph": {
+    "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+    "grep_pattern": "containerPos|containerEnd|declarationListContainerEnd",
+    "occurrence_lines": [
+      {
+        "line": 116957,
+        "text": "  var containerPos = -1;"
+      },
+      {
+        "line": 116958,
+        "text": "  var containerEnd = -1;"
+      },
+      {
+        "line": 116959,
+        "text": "  var declarationListContainerEnd = -1;"
+      },
+      {
+        "line": 118404,
+        "text": "        state.containerPosStack[state.stackIndex] = containerPos;"
+      },
+      {
+        "line": 118405,
+        "text": "        state.containerEndStack[state.stackIndex] = containerEnd;"
+      },
+      {
+        "line": 118406,
+        "text": "        state.declarationListContainerEndStack[state.stackIndex] = declarationListContainerEnd;"
+      },
+      {
+        "line": 118417,
+        "text": "          containerPosStack: [-1],"
+      },
+      {
+        "line": 118418,
+        "text": "          containerEndStack: [-1],"
+      },
+      {
+        "line": 118419,
+        "text": "          declarationListContainerEndStack: [-1],"
+      },
+      {
+        "line": 118456,
+        "text": "        const savedContainerPos = state.containerPosStack[state.stackIndex];"
+      },
+      {
+        "line": 118457,
+        "text": "        const savedContainerEnd = state.containerEndStack[state.stackIndex];"
+      },
+      {
+        "line": 118458,
+        "text": "        const savedDeclarationListContainerEnd = state.declarationListContainerEndStack[state.stackIndex];"
+      },
+      {
+        "line": 120980,
+        "text": "    const savedContainerPos = containerPos;"
+      },
+      {
+        "line": 120981,
+        "text": "    const savedContainerEnd = containerEnd;"
+      },
+      {
+        "line": 120982,
+        "text": "    const savedDeclarationListContainerEnd = declarationListContainerEnd;"
+      },
+      {
+        "line": 121021,
+        "text": "        containerPos = pos;"
+      },
+      {
+        "line": 121024,
+        "text": "        containerEnd = end;"
+      },
+      {
+        "line": 121026,
+        "text": "          declarationListContainerEnd = end;"
+      },
+      {
+        "line": 121038,
+        "text": "      containerPos = savedContainerPos;"
+      },
+      {
+        "line": 121039,
+        "text": "      containerEnd = savedContainerEnd;"
+      },
+      {
+        "line": 121040,
+        "text": "      declarationListContainerEnd = savedDeclarationListContainerEnd;"
+      },
+      {
+        "line": 121220,
+        "text": "    if (currentSourceFile && (containerPos === -1 || pos !== containerPos)) {"
+      },
+      {
+        "line": 121235,
+        "text": "    if (currentSourceFile && (containerEnd === -1 || end !== containerEnd && end !== declarationListContainerEnd)) {"
+      }
+    ],
+    "spans": [
+      {
+        "span_id": "printer-scope-state",
+        "role": "state",
+        "start_line": 116957,
+        "end_line": 116959,
+        "anchor": "  var containerPos = -1;",
+        "slice_sha256": "feea9862f9b696d2b67ff1dedc0db3fff5e0d73e33fc9c155c78f28649f72dc0"
+      },
+      {
+        "span_id": "binary-trampoline-carrier",
+        "role": "save-restore-carrier-iterative",
+        "start_line": 118390,
+        "end_line": 118468,
+        "anchor": "  function createEmitBinaryExpression() {",
+        "slice_sha256": "dd8a1d4048abbb7a61faa5c484c8c10edf5f762b48bdca28cbed76dffd46cec6"
+      },
+      {
+        "span_id": "pipeline-emit-with-comments",
+        "role": "save-restore-carrier-recursive",
+        "start_line": 120978,
+        "end_line": 120986,
+        "anchor": "  function pipelineEmitWithComments(hint, node) {",
+        "slice_sha256": "263af5299b06aaeca9c4e6397b6013e6b2c465afcab2709d8cbdd5ace688bd34"
+      },
+      {
+        "span_id": "emit-leading-comments-of-node",
+        "role": "set-site",
+        "start_line": 121007,
+        "end_line": 121032,
+        "anchor": "  function emitLeadingCommentsOfNode(node, emitFlags, pos, end) {",
+        "slice_sha256": "ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb"
+      },
+      {
+        "span_id": "emit-trailing-comments-of-node",
+        "role": "restore-site",
+        "start_line": 121033,
+        "end_line": 121052,
+        "anchor": "  function emitTrailingCommentsOfNode(node, emitFlags, pos, end, savedContainerPos, savedContainerEnd, savedDeclarationListContainerEnd) {",
+        "slice_sha256": "2090ee7a9c2c1dd1502c175a1f2690c7645f4635dc61745533fa6b4a47f0c4b6"
+      },
+      {
+        "span_id": "for-each-leading-comment-to-emit",
+        "role": "guarded-reader-leading",
+        "start_line": 121219,
+        "end_line": 121233,
+        "anchor": "  function forEachLeadingCommentToEmit(pos, cb) {",
+        "slice_sha256": "2e1fb613c9b9bb29f94a866a92b31e77c392cd696ee93b2e61a001e4e3981a9c"
+      },
+      {
+        "span_id": "for-each-trailing-comment-to-emit",
+        "role": "guarded-reader-trailing",
+        "start_line": 121234,
+        "end_line": 121238,
+        "anchor": "  function forEachTrailingCommentToEmit(end, cb) {",
+        "slice_sha256": "bd6612ac9040b10e756e1b9666a34daebcc0fe66a227dfda01db103bfd3f27a7"
+      }
+    ]
+  },
+  "families": [
+    {
+      "family_id": "synthetic-wrapper-relocation",
+      "study_item": 1,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "the handoff counterexample: a statement with trailing trivia is moved into a synthetic arrow wrapper; the trailing walk runs under the restored parent scope and the comment emits with the relocated statement inside the wrapper",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "synthetic-wrapper-relocation--positive",
+          "role": "positive",
+          "transform": "wrap-expression-statements-in-synthetic-arrow",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCB4OiBudW1iZXI7CnggLypUQUlMKi8K",
+                "utf8_sha256": "580f14018d3362a8dc82c5015d0dccf434d5b25a0dc0524db2297d9c3275d95a",
+                "utf8_bytes": 36
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "TAIL",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwooKSA9PiB7IHg7IC8qVEFJTCovIH07Cg==",
+                "callback_utf8_sha256": "3185fb0571d6e4576d31d439bd16310d4c950da89ce47f79cddb2e2b51619fd1",
+                "callback_utf8_bytes": 37,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "3185fb0571d6e4576d31d439bd16310d4c950da89ce47f79cddb2e2b51619fd1",
+                "materialized_utf8_bytes": 37,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "TAIL",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "82bd7f92d4f7c473e10fd9e81b7bce45641273710dac99970717477b8a41c091"
+          },
+          "case_fingerprint_sha256": "f97eff4a1ae293d03f940e4af324f6111ea96a865ccdd82ec0bf007c43cf384b"
+        },
+        {
+          "case_id": "synthetic-wrapper-relocation--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "wrap-expression-statements-in-synthetic-arrow",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCB4OiBudW1iZXI7CnggLypUQUlMKi8K",
+                "utf8_sha256": "580f14018d3362a8dc82c5015d0dccf434d5b25a0dc0524db2297d9c3275d95a",
+                "utf8_bytes": 36
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "TAIL",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwooKSA9PiB7IHg7IH07Cg==",
+                "callback_utf8_sha256": "084a7893428416910ab618b024ebcb316c1fb4c25a855496f056d04b45648adc",
+                "callback_utf8_bytes": 28,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "084a7893428416910ab618b024ebcb316c1fb4c25a855496f056d04b45648adc",
+                "materialized_utf8_bytes": 28,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "TAIL",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "27c28bd5ceb76813a489d8f83cc9229fa15ddab75ab416e3e5ba6534d340b193"
+          },
+          "case_fingerprint_sha256": "4ed5ab38dab0889c4d0dcc17718f284e1c505e155cfdf4b533a62885e391c40b"
+        },
+        {
+          "case_id": "synthetic-wrapper-relocation--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCB4OiBudW1iZXI7CnggLypUQUlMKi8K",
+                "utf8_sha256": "580f14018d3362a8dc82c5015d0dccf434d5b25a0dc0524db2297d9c3275d95a",
+                "utf8_bytes": 36
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "TAIL",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp4OyAvKlRBSUwqLwo=",
+                "callback_utf8_sha256": "7598a84ba49be603f958f4f5a23d90ceccad5c2012782381ee1b8427b9be02e2",
+                "callback_utf8_bytes": 26,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "7598a84ba49be603f958f4f5a23d90ceccad5c2012782381ee1b8427b9be02e2",
+                "materialized_utf8_bytes": 26,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "TAIL",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "06c8ad4b4c202a9a359d480e2c675408c6df5fc12961c573feacb335a9a8c1af"
+          },
+          "case_fingerprint_sha256": "289630c5c9c46e864d3a49bdd6580a26e3c7b4eee84f767d9d70000525618615"
+        }
+      ],
+      "family_fingerprint_sha256": "299466d99075e45b6325f2fef36f11230358693301e53ea699463042f697dcc2"
+    },
+    {
+      "family_id": "container-start-shared-prefix",
+      "study_item": 2,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "a direct child sharing the container's start position must not re-claim the same leading prefix (containerPos guard)",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "container-start-shared-prefix--positive",
+          "role": "positive",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCB4OiBudW1iZXI7Ci8qTEVBRCovIHg7Cg==",
+                "utf8_sha256": "54ebc119028530e9ec464dcde8363a651c6cba0ec77c99cee958599f6bec66cf",
+                "utf8_bytes": 37
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "LEAD",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovKkxFQUQqLyB4Owo=",
+                "callback_utf8_sha256": "8cae2f794ca077a61566b3540ee73e5a3589def719ef57b65559ab80af0c25b8",
+                "callback_utf8_bytes": 26,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "8cae2f794ca077a61566b3540ee73e5a3589def719ef57b65559ab80af0c25b8",
+                "materialized_utf8_bytes": 26,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "LEAD",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "81cd63c1b321b411db8e183fb6f46168ca68a431c8f6cd679821166f7ecaba85"
+          },
+          "case_fingerprint_sha256": "4871251f5d7e6885471d1e59aa8b877be660b742a5640f429ae643efe36f89f4"
+        },
+        {
+          "case_id": "container-start-shared-prefix--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "identity",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCB4OiBudW1iZXI7Ci8qTEVBRCovIHg7Cg==",
+                "utf8_sha256": "54ebc119028530e9ec464dcde8363a651c6cba0ec77c99cee958599f6bec66cf",
+                "utf8_bytes": 37
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "LEAD",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp4Owo=",
+                "callback_utf8_sha256": "c85bb767c3348d1ac2ec40b7bfde2467c9991d8fda6f550037a1c61d331ec173",
+                "callback_utf8_bytes": 17,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "c85bb767c3348d1ac2ec40b7bfde2467c9991d8fda6f550037a1c61d331ec173",
+                "materialized_utf8_bytes": 17,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "LEAD",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "604861959dc2decb62c1932216fcc35ef71daf972644bc9fce452f306199dbc0"
+          },
+          "case_fingerprint_sha256": "bce178ba8a9ed82c5cd6e77c02ffffa4c2a39a6ff2efc571aecbff63bdbfdb1a"
+        },
+        {
+          "case_id": "container-start-shared-prefix--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCB4OiBudW1iZXI7CiggLypMRUFEKi8geCk7Cg==",
+                "utf8_sha256": "fa4d073e305b7bcdb86ad9a87d6a0116aff4d534d9a97f3d0113892034be0fab",
+                "utf8_bytes": 40
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "LEAD",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwooIC8qTEVBRCoveCk7Cg==",
+                "callback_utf8_sha256": "f3df2ba56dc0f0844c5d435ad51a62fd4aeadb03bd46d231987f010a970481d9",
+                "callback_utf8_bytes": 28,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f3df2ba56dc0f0844c5d435ad51a62fd4aeadb03bd46d231987f010a970481d9",
+                "materialized_utf8_bytes": 28,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "LEAD",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "487b8f80f405aceaf74556dea679fe32815288c1044e1a735a2c42b464b80508"
+          },
+          "case_fingerprint_sha256": "478f0fcbd67f789cb1616b97198cbb3bf47f46ad49e139458936c612f3abe648"
+        }
+      ],
+      "family_fingerprint_sha256": "7465835fb2ae8a2a4efb9e800ef1814973d63f259e12db2eb45bcf04267b34c4"
+    },
+    {
+      "family_id": "delimited-list-starts",
+      "study_item": 3,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "leading comments at ordinary and multiline delimited-list element starts (list phase vs ordinary phase split)",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "delimited-list-starts--positive",
+          "role": "positive",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBmKGE6IG51bWJlciwgYjogbnVtYmVyKTogdm9pZDsKZigvKmExKi8gMSwgLyphMiovIDIpOwpmKAogIC8qbTEqLyAxLAogIC8qbTIqLyAyCik7Cg==",
+                "utf8_sha256": "d7ddec3e6565427b60896615ad7035b7a635e58507e212a51c40c24c2c187b27",
+                "utf8_bytes": 100
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "a1",
+              "expectation": "present"
+            },
+            {
+              "token": "a2",
+              "expectation": "present"
+            },
+            {
+              "token": "m1",
+              "expectation": "present"
+            },
+            {
+              "token": "m2",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmKC8qYTEqLyAxLCAvKmEyKi8gMik7CmYoCi8qbTEqLyAxLCAKLyptMiovIDIpOwo=",
+                "callback_utf8_sha256": "3f3d14fdced976f03715601ff17cac8fbdac57054934d79a9706b6cf39c51902",
+                "callback_utf8_bytes": 62,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "3f3d14fdced976f03715601ff17cac8fbdac57054934d79a9706b6cf39c51902",
+                "materialized_utf8_bytes": 62,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "a1",
+                "occurrences": 1
+              },
+              {
+                "token": "a2",
+                "occurrences": 1
+              },
+              {
+                "token": "m1",
+                "occurrences": 1
+              },
+              {
+                "token": "m2",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "6c259ede28b3e1e39599f7226f0e0fe8e1a8cf82b648d5140c1722492cc7b1f1"
+          },
+          "case_fingerprint_sha256": "bc67d91a79c490815609bfeed8f7565fa72c48a414bd973f10e69b43844aa4df"
+        },
+        {
+          "case_id": "delimited-list-starts--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "identity",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBmKGE6IG51bWJlciwgYjogbnVtYmVyKTogdm9pZDsKZigvKmExKi8gMSwgLyphMiovIDIpOwpmKAogIC8qbTEqLyAxLAogIC8qbTIqLyAyCik7Cg==",
+                "utf8_sha256": "d7ddec3e6565427b60896615ad7035b7a635e58507e212a51c40c24c2c187b27",
+                "utf8_bytes": 100
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "a1",
+              "expectation": "absent"
+            },
+            {
+              "token": "a2",
+              "expectation": "absent"
+            },
+            {
+              "token": "m1",
+              "expectation": "absent"
+            },
+            {
+              "token": "m2",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmKDEsIDIpOwpmKDEsIDIpOwo=",
+                "callback_utf8_sha256": "b92fe26b57396cade97bf9e47c08888256ebb9bcd39af8bf14b4d4be2412d7ac",
+                "callback_utf8_bytes": 32,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "b92fe26b57396cade97bf9e47c08888256ebb9bcd39af8bf14b4d4be2412d7ac",
+                "materialized_utf8_bytes": 32,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "a1",
+                "occurrences": 0
+              },
+              {
+                "token": "a2",
+                "occurrences": 0
+              },
+              {
+                "token": "m1",
+                "occurrences": 0
+              },
+              {
+                "token": "m2",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "e1fd591c43931059483e66802662a51483ff2f1a61ecd5e01621cbe0b820bc93"
+          },
+          "case_fingerprint_sha256": "92553ace39526812a74256b7d2bce26662e46f3a74ca803b95d293e18a7b3f9d"
+        },
+        {
+          "case_id": "delimited-list-starts--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBmKGE6IG51bWJlciwgYjogbnVtYmVyKTogdm9pZDsKZigxIC8qdDEqLywgMiAvKnQyKi8pOwo=",
+                "utf8_sha256": "50bf9aeb9b7babe105177d242f2e3f9373fd84ad657e955f6da08b166e7c4344",
+                "utf8_bytes": 71
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "t1",
+              "expectation": "present"
+            },
+            {
+              "token": "t2",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmKDEgLyp0MSovLCAyIC8qdDIqLyk7Cg==",
+                "callback_utf8_sha256": "4afc9e9acc705004ebdc62b92792a4a5023985e8ddfc30f34f5452d8bebaf93a",
+                "callback_utf8_bytes": 37,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "4afc9e9acc705004ebdc62b92792a4a5023985e8ddfc30f34f5452d8bebaf93a",
+                "materialized_utf8_bytes": 37,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "t1",
+                "occurrences": 1
+              },
+              {
+                "token": "t2",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "7e7554b684d166b4b53e54e6118c6848493c4f8b0669301d31e016e070decdce"
+          },
+          "case_fingerprint_sha256": "71d2bb8d3b5de9d9e7704602e2a725cfc477f849d6a8031a878944069f14a570"
+        }
+      ],
+      "family_fingerprint_sha256": "4731ad22b1456924e4907283b4603fe0e1f10486209c62b602e09759347a4499"
+    },
+    {
+      "family_id": "declaration-list-trailing-dedupe",
+      "study_item": 4,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "declarationListContainerEnd dedupe: trailing trivia at the shared declarator/list end emits once at the list boundary",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "declaration-list-trailing-dedupe--positive",
+          "role": "positive",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "dmFyIGEgPSAxLCBiID0gMiAvKlQxKi87CnZhciBjID0gMywgZCA9IDQ7IC8qVDIqLwo=",
+                "utf8_sha256": "ead05936c91078844d2c1a8a545a91c57f6a537731f69aa70e9e1f414790bbad",
+                "utf8_bytes": 50
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "T1",
+              "expectation": "present"
+            },
+            {
+              "token": "T2",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYSA9IDEsIGIgPSAyIC8qVDEqLzsKdmFyIGMgPSAzLCBkID0gNDsgLypUMiovCg==",
+                "callback_utf8_sha256": "16acf3968e125cd9117a26d77f577c8c5fc647eef8cff9a5a1d6cd2aee008180",
+                "callback_utf8_bytes": 64,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "16acf3968e125cd9117a26d77f577c8c5fc647eef8cff9a5a1d6cd2aee008180",
+                "materialized_utf8_bytes": 64,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "T1",
+                "occurrences": 1
+              },
+              {
+                "token": "T2",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "ca916667c65b7b9de45b40f9c0c2de29ebb83b62b490c9f4d4e369d1a5fc2229"
+          },
+          "case_fingerprint_sha256": "e8b74578c5a4726d91556edd91a29f6960d5ec4521b7aef8e829bd0e53f801fd"
+        },
+        {
+          "case_id": "declaration-list-trailing-dedupe--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "identity",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "dmFyIGEgPSAxLCBiID0gMiAvKlQxKi87CnZhciBjID0gMywgZCA9IDQ7IC8qVDIqLwo=",
+                "utf8_sha256": "ead05936c91078844d2c1a8a545a91c57f6a537731f69aa70e9e1f414790bbad",
+                "utf8_bytes": 50
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "T1",
+              "expectation": "absent"
+            },
+            {
+              "token": "T2",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYSA9IDEsIGIgPSAyOwp2YXIgYyA9IDMsIGQgPSA0Owo=",
+                "callback_utf8_sha256": "4f393ab7f9c1d62d1cfb6fc43142789c0b2faefbd0c074ff0d5411a7332a1afe",
+                "callback_utf8_bytes": 50,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "4f393ab7f9c1d62d1cfb6fc43142789c0b2faefbd0c074ff0d5411a7332a1afe",
+                "materialized_utf8_bytes": 50,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "T1",
+                "occurrences": 0
+              },
+              {
+                "token": "T2",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "0a886cfc3bb732136420d503519536fd8ddaea25d5029e0c37eb6e5406880d0d"
+          },
+          "case_fingerprint_sha256": "fac9c1eed1812f0ca608d8431b8f5bae420c4853a4c9c375a37698fcda6b5726"
+        },
+        {
+          "case_id": "declaration-list-trailing-dedupe--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "dmFyIGcgPSA2IC8qTUlEKi8sIGggPSA3Owo=",
+                "utf8_sha256": "cf274d078d483793d0664d8387c026d1056416c07cce8f8dfae9878d64ec7b23",
+                "utf8_bytes": 26
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "MID",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgZyA9IDYgLypNSUQqLywgaCA9IDc7Cg==",
+                "callback_utf8_sha256": "5eba52f2b749122182a4f8ba8e3585ab852fce0697738056e4321b9f7858173e",
+                "callback_utf8_bytes": 40,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "5eba52f2b749122182a4f8ba8e3585ab852fce0697738056e4321b9f7858173e",
+                "materialized_utf8_bytes": 40,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "MID",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "e18de05b4f6164199e00f9aa0f50a7f825e7b52864ecfdcb5b844abadc6f9107"
+          },
+          "case_fingerprint_sha256": "80e567f123b7e3d034b96ad18039fdadab49bbb4c7f79cbdf1130e7bf6da4c9c"
+        }
+      ],
+      "family_fingerprint_sha256": "f9b4e3107b884d715033e453e75f450b1d6ce305bde5d4cec92aadb5145f88c2"
+    },
+    {
+      "family_id": "binary-trampoline-parity",
+      "study_item": 5,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "comment scope across the iterative binary-expression trampoline stack must match the recursive carrier",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "binary-trampoline-parity--positive",
+          "role": "positive",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCBhOiBudW1iZXIsIGI6IG51bWJlciwgYzogbnVtYmVyLCBkOiBudW1iZXIsIGU6IG51bWJlcjsKY29uc3QgY2hhaW4gPSAvKmMwKi8gYSAvKmMxKi8gKyAvKmMyKi8gYiAvKmMzKi8gKyAvKmM0Ki8gYyAvKmM1Ki8gKyAvKmM2Ki8gZCAvKmM3Ki8gKyAvKmM4Ki8gZSAvKmM5Ki87CmNvbnN0IG5lc3RlZCA9IGEgKyAoIC8qbjEqLyBiICsgKCAvKm4yKi8gYyArIGQgLypuMyovICkgLypuNCovICk7Cg==",
+                "utf8_sha256": "a91eb8bbcd11d88a61ebab0a18cfe5bd64c8457245f5f0333db67b2f1949722a",
+                "utf8_bytes": 238
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "c0",
+              "expectation": "present"
+            },
+            {
+              "token": "c5",
+              "expectation": "present"
+            },
+            {
+              "token": "c9",
+              "expectation": "present"
+            },
+            {
+              "token": "n1",
+              "expectation": "present"
+            },
+            {
+              "token": "n2",
+              "expectation": "present"
+            },
+            {
+              "token": "n4",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBjaGFpbiA9IC8qYzAqLyBhIC8qYzEqLyArIC8qYzIqLyBiIC8qYzMqLyArIC8qYzQqLyBjIC8qYzUqLyArIC8qYzYqLyBkIC8qYzcqLyArIC8qYzgqLyBlIC8qYzkqLzsKY29uc3QgbmVzdGVkID0gYSArICggLypuMSovYiArICggLypuMiovYyArIGQgLypuMyovKSAvKm40Ki8pOwo=",
+                "callback_utf8_sha256": "8d75d815cb50b8c372f75b18422a466a6d131c92eadcfcb16372ad5c6c4cb84a",
+                "callback_utf8_bytes": 179,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "8d75d815cb50b8c372f75b18422a466a6d131c92eadcfcb16372ad5c6c4cb84a",
+                "materialized_utf8_bytes": 179,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "c0",
+                "occurrences": 1
+              },
+              {
+                "token": "c5",
+                "occurrences": 1
+              },
+              {
+                "token": "c9",
+                "occurrences": 1
+              },
+              {
+                "token": "n1",
+                "occurrences": 1
+              },
+              {
+                "token": "n2",
+                "occurrences": 1
+              },
+              {
+                "token": "n4",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "86299a03f6912d54f7e40d9c7556e9d229dc581dec2a9293971d4ca6e03e4c29"
+          },
+          "case_fingerprint_sha256": "752a1c7f0fdf21155b5ae88564874700de9d6be5d1873aa39419edaecc9767fc"
+        },
+        {
+          "case_id": "binary-trampoline-parity--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "identity",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCBhOiBudW1iZXIsIGI6IG51bWJlciwgYzogbnVtYmVyLCBkOiBudW1iZXIsIGU6IG51bWJlcjsKY29uc3QgY2hhaW4gPSAvKmMwKi8gYSAvKmMxKi8gKyAvKmMyKi8gYiAvKmMzKi8gKyAvKmM0Ki8gYyAvKmM1Ki8gKyAvKmM2Ki8gZCAvKmM3Ki8gKyAvKmM4Ki8gZSAvKmM5Ki87CmNvbnN0IG5lc3RlZCA9IGEgKyAoIC8qbjEqLyBiICsgKCAvKm4yKi8gYyArIGQgLypuMyovICkgLypuNCovICk7Cg==",
+                "utf8_sha256": "a91eb8bbcd11d88a61ebab0a18cfe5bd64c8457245f5f0333db67b2f1949722a",
+                "utf8_bytes": 238
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "c0",
+              "expectation": "absent"
+            },
+            {
+              "token": "c9",
+              "expectation": "absent"
+            },
+            {
+              "token": "n2",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBjaGFpbiA9IGEgKyBiICsgYyArIGQgKyBlOwpjb25zdCBuZXN0ZWQgPSBhICsgKGIgKyAoYyArIGQpKTsK",
+                "callback_utf8_sha256": "ffb1732f93bb038bd1876e3f588b13a008099bb3762b01e4622711e9910c8328",
+                "callback_utf8_bytes": 81,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "ffb1732f93bb038bd1876e3f588b13a008099bb3762b01e4622711e9910c8328",
+                "materialized_utf8_bytes": 81,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "c0",
+                "occurrences": 0
+              },
+              {
+                "token": "c9",
+                "occurrences": 0
+              },
+              {
+                "token": "n2",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "0acb80d295e54debd16a01b880e48feea324d15b8fa8e865551e53985408de6a"
+          },
+          "case_fingerprint_sha256": "a45f1fb82d2668e4395a92f6b0f431d2b73950e636be58176ffd39649c1e52bc"
+        },
+        {
+          "case_id": "binary-trampoline-parity--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCBhOiBudW1iZXIsIGI6IG51bWJlciwgYzogbnVtYmVyLCBkOiBudW1iZXIsIGU6IG51bWJlcjsKY29uc3QgY2hhaW4gPSBhICsgYiArIGMgKyBkICsgZTsKY29uc3QgbmVzdGVkID0gYSArIChiICsgKGMgKyBkKSk7Cg==",
+                "utf8_sha256": "112ca4b610df7eb353daa022ec7ffa8b3671dbe821d7431a41199a60b50e4bd8",
+                "utf8_bytes": 136
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBjaGFpbiA9IGEgKyBiICsgYyArIGQgKyBlOwpjb25zdCBuZXN0ZWQgPSBhICsgKGIgKyAoYyArIGQpKTsK",
+                "callback_utf8_sha256": "ffb1732f93bb038bd1876e3f588b13a008099bb3762b01e4622711e9910c8328",
+                "callback_utf8_bytes": 81,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "ffb1732f93bb038bd1876e3f588b13a008099bb3762b01e4622711e9910c8328",
+                "materialized_utf8_bytes": 81,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "26717c6069776f3e05fd85ace6de9b80e7cc23fc2e1ab9b1f6cb068ef06f2a7e"
+          },
+          "case_fingerprint_sha256": "9d8986bdf276de83caf1c8201e9b9e1fad1c433353a06714f96f86d7b21d877c"
+        }
+      ],
+      "family_fingerprint_sha256": "72656c94e42da64dc6333a33699f1865b7ae08077ef733d5ecf33eb4c0d44c23"
+    },
+    {
+      "family_id": "emit-flag-suppression",
+      "study_item": 6,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "NoLeadingComments/NoTrailingComments/NoNestedComments interaction with the flag-suppressed container claim",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "emit-flag-suppression--positive",
+          "role": "positive",
+          "transform": "apply-comment-emit-flags",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzZXR1cCgpOiB2b2lkOwpkZWNsYXJlIGZ1bmN0aW9uIHN1cHByZXNzTGVhZCgpOiB2b2lkOwpkZWNsYXJlIGZ1bmN0aW9uIHN1cHByZXNzVHJhaWwoKTogdm9pZDsKZGVjbGFyZSBmdW5jdGlvbiBuZXN0ZWQoKTogdm9pZDsKc2V0dXAoKTsKLypMMSovIHN1cHByZXNzTGVhZCgpOyAvKlQxKi8KLypMMiovIHN1cHByZXNzVHJhaWwoKTsgLypUMiovCnsKICAvKkIxKi8gbmVzdGVkKCk7IC8qQjIqLwp9CnNldHVwKCk7Cg==",
+                "utf8_sha256": "83152d5712229c6b79a5cbf9390c51a71fef6406dbd7497412cc41b363f103c1",
+                "utf8_bytes": 253
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "L1",
+              "expectation": "absent"
+            },
+            {
+              "token": "T1",
+              "expectation": "present"
+            },
+            {
+              "token": "L2",
+              "expectation": "present"
+            },
+            {
+              "token": "T2",
+              "expectation": "absent"
+            },
+            {
+              "token": "B1",
+              "expectation": "absent"
+            },
+            {
+              "token": "B2",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpzZXR1cCgpOwpzdXBwcmVzc0xlYWQoKTsgLypUMSovCi8qTDIqLyBzdXBwcmVzc1RyYWlsKCk7CnsKICAgIG5lc3RlZCgpOwp9CnNldHVwKCk7Cg==",
+                "callback_utf8_sha256": "7b110b5f5ac4a2e1c311e715e220adfb5fa6909b7086bc8aacfa92c1c58e7e72",
+                "callback_utf8_bytes": 97,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "7b110b5f5ac4a2e1c311e715e220adfb5fa6909b7086bc8aacfa92c1c58e7e72",
+                "materialized_utf8_bytes": 97,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "L1",
+                "occurrences": 0
+              },
+              {
+                "token": "T1",
+                "occurrences": 1
+              },
+              {
+                "token": "L2",
+                "occurrences": 1
+              },
+              {
+                "token": "T2",
+                "occurrences": 0
+              },
+              {
+                "token": "B1",
+                "occurrences": 0
+              },
+              {
+                "token": "B2",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "9513382d1751213e0a189438eae74c948f2249917a7ca6fb1dd748fa89a564cc"
+          },
+          "case_fingerprint_sha256": "fd4169d8bcb9159c1b3e6f574ac58a49dc5e1b152dff2a262a271c854b0e5a37"
+        },
+        {
+          "case_id": "emit-flag-suppression--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "apply-comment-emit-flags",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzZXR1cCgpOiB2b2lkOwpkZWNsYXJlIGZ1bmN0aW9uIHN1cHByZXNzTGVhZCgpOiB2b2lkOwpkZWNsYXJlIGZ1bmN0aW9uIHN1cHByZXNzVHJhaWwoKTogdm9pZDsKZGVjbGFyZSBmdW5jdGlvbiBuZXN0ZWQoKTogdm9pZDsKc2V0dXAoKTsKLypMMSovIHN1cHByZXNzTGVhZCgpOyAvKlQxKi8KLypMMiovIHN1cHByZXNzVHJhaWwoKTsgLypUMiovCnsKICAvKkIxKi8gbmVzdGVkKCk7IC8qQjIqLwp9CnNldHVwKCk7Cg==",
+                "utf8_sha256": "83152d5712229c6b79a5cbf9390c51a71fef6406dbd7497412cc41b363f103c1",
+                "utf8_bytes": 253
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "L1",
+              "expectation": "absent"
+            },
+            {
+              "token": "T1",
+              "expectation": "absent"
+            },
+            {
+              "token": "L2",
+              "expectation": "absent"
+            },
+            {
+              "token": "T2",
+              "expectation": "absent"
+            },
+            {
+              "token": "B1",
+              "expectation": "absent"
+            },
+            {
+              "token": "B2",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpzZXR1cCgpOwpzdXBwcmVzc0xlYWQoKTsKc3VwcHJlc3NUcmFpbCgpOwp7CiAgICBuZXN0ZWQoKTsKfQpzZXR1cCgpOwo=",
+                "callback_utf8_sha256": "4cef0aa3b21dae58844f78ecf08f8fbf485e5f6df9a55396078993d42e9ec4d2",
+                "callback_utf8_bytes": 83,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "4cef0aa3b21dae58844f78ecf08f8fbf485e5f6df9a55396078993d42e9ec4d2",
+                "materialized_utf8_bytes": 83,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "L1",
+                "occurrences": 0
+              },
+              {
+                "token": "T1",
+                "occurrences": 0
+              },
+              {
+                "token": "L2",
+                "occurrences": 0
+              },
+              {
+                "token": "T2",
+                "occurrences": 0
+              },
+              {
+                "token": "B1",
+                "occurrences": 0
+              },
+              {
+                "token": "B2",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "e9f813fdbfde7de8527af286f13aaf54bda5d08a99c31c057f47f3a9fdb5a42f"
+          },
+          "case_fingerprint_sha256": "9d8f41fa978b44622b5cbb932031b37c1bdc118e21a8922dbc66e83dc0aa0e72"
+        },
+        {
+          "case_id": "emit-flag-suppression--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzZXR1cCgpOiB2b2lkOwpkZWNsYXJlIGZ1bmN0aW9uIHN1cHByZXNzTGVhZCgpOiB2b2lkOwpkZWNsYXJlIGZ1bmN0aW9uIHN1cHByZXNzVHJhaWwoKTogdm9pZDsKZGVjbGFyZSBmdW5jdGlvbiBuZXN0ZWQoKTogdm9pZDsKc2V0dXAoKTsKLypMMSovIHN1cHByZXNzTGVhZCgpOyAvKlQxKi8KLypMMiovIHN1cHByZXNzVHJhaWwoKTsgLypUMiovCnsKICAvKkIxKi8gbmVzdGVkKCk7IC8qQjIqLwp9CnNldHVwKCk7Cg==",
+                "utf8_sha256": "83152d5712229c6b79a5cbf9390c51a71fef6406dbd7497412cc41b363f103c1",
+                "utf8_bytes": 253
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "L1",
+              "expectation": "present"
+            },
+            {
+              "token": "T1",
+              "expectation": "present"
+            },
+            {
+              "token": "L2",
+              "expectation": "present"
+            },
+            {
+              "token": "T2",
+              "expectation": "present"
+            },
+            {
+              "token": "B1",
+              "expectation": "present"
+            },
+            {
+              "token": "B2",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpzZXR1cCgpOwovKkwxKi8gc3VwcHJlc3NMZWFkKCk7IC8qVDEqLwovKkwyKi8gc3VwcHJlc3NUcmFpbCgpOyAvKlQyKi8KewogICAgLypCMSovIG5lc3RlZCgpOyAvKkIyKi8KfQpzZXR1cCgpOwo=",
+                "callback_utf8_sha256": "644a60b1752ed0c917e0c7325e7471307e458651f373b4b21fca3b8d54f860ae",
+                "callback_utf8_bytes": 125,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "644a60b1752ed0c917e0c7325e7471307e458651f373b4b21fca3b8d54f860ae",
+                "materialized_utf8_bytes": 125,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "L1",
+                "occurrences": 1
+              },
+              {
+                "token": "T1",
+                "occurrences": 1
+              },
+              {
+                "token": "L2",
+                "occurrences": 1
+              },
+              {
+                "token": "T2",
+                "occurrences": 1
+              },
+              {
+                "token": "B1",
+                "occurrences": 1
+              },
+              {
+                "token": "B2",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "5d89ce575280ae3312b8d16912d8002ce6055c3eb6e402e584891de3bad74f82"
+          },
+          "case_fingerprint_sha256": "c2100ebe00dc50c6ad574cef67fed2765ccce1ad6c2c791f1e236cf51873bf59"
+        }
+      ],
+      "family_fingerprint_sha256": "8f035afb6e21a74352842c035bf5bb0d4189d718e0121edade17eccdf12793fc"
+    },
+    {
+      "family_id": "synthetic-comments-alongside-source",
+      "study_item": 7,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "synthetic leading/trailing comments bypass the triple and interleave with source trivia in the pinned order",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "synthetic-comments-alongside-source--positive",
+          "role": "positive",
+          "transform": "add-synthetic-comments-to-marked",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYXJrTWUoKTogdm9pZDsKLypTUkMtTCovIG1hcmtNZSgpOyAvKlNSQy1UKi8K",
+                "utf8_sha256": "1fc3fc40ea088151ee712e5b499ec40da6dbeb88404d02235a8eb12ea1d7b1af",
+                "utf8_bytes": 63
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "SRC-L",
+              "expectation": "present"
+            },
+            {
+              "token": "SRC-T",
+              "expectation": "present"
+            },
+            {
+              "token": "SYN-LEAD",
+              "expectation": "present"
+            },
+            {
+              "token": "SYN-TRAIL",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovKlNSQy1MKi8gLyogU1lOLUxFQUQgKi8gbWFya01lKCk7IC8qIFNZTi1UUkFJTCAqLyAvKlNSQy1UKi8K",
+                "callback_utf8_sha256": "c83452fe57ad726bb591384085e91a4fee4072ee314087d8222a6cf0bacd9452",
+                "callback_utf8_bytes": 75,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "c83452fe57ad726bb591384085e91a4fee4072ee314087d8222a6cf0bacd9452",
+                "materialized_utf8_bytes": 75,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "SRC-L",
+                "occurrences": 1
+              },
+              {
+                "token": "SRC-T",
+                "occurrences": 1
+              },
+              {
+                "token": "SYN-LEAD",
+                "occurrences": 1
+              },
+              {
+                "token": "SYN-TRAIL",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "55cec15926a904e8b18ef47fd78b8978f54b8ae7b44501009aa5aa97189b0e9b"
+          },
+          "case_fingerprint_sha256": "4745283cac0f0d3a670ecd984a079c7addbe4387fcf6003976dee311642551ef"
+        },
+        {
+          "case_id": "synthetic-comments-alongside-source--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "add-synthetic-comments-to-marked",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYXJrTWUoKTogdm9pZDsKLypTUkMtTCovIG1hcmtNZSgpOyAvKlNSQy1UKi8K",
+                "utf8_sha256": "1fc3fc40ea088151ee712e5b499ec40da6dbeb88404d02235a8eb12ea1d7b1af",
+                "utf8_bytes": 63
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "SRC-L",
+              "expectation": "absent"
+            },
+            {
+              "token": "SRC-T",
+              "expectation": "absent"
+            },
+            {
+              "token": "SYN-LEAD",
+              "expectation": "absent"
+            },
+            {
+              "token": "SYN-TRAIL",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwptYXJrTWUoKTsK",
+                "callback_utf8_sha256": "4e4d8413278b671fafd6cece553ab964fb02afcad049c0ecd73a441544eea253",
+                "callback_utf8_bytes": 24,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "4e4d8413278b671fafd6cece553ab964fb02afcad049c0ecd73a441544eea253",
+                "materialized_utf8_bytes": 24,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "SRC-L",
+                "occurrences": 0
+              },
+              {
+                "token": "SRC-T",
+                "occurrences": 0
+              },
+              {
+                "token": "SYN-LEAD",
+                "occurrences": 0
+              },
+              {
+                "token": "SYN-TRAIL",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "bff180de6449e6affc4215d86546c0689a9e907d09a0ffd420be4e71a2d85820"
+          },
+          "case_fingerprint_sha256": "d81c7dc6b11029b4afe80e9cbb9fc828595f08818d55b6a3fb2074ecb674b92e"
+        },
+        {
+          "case_id": "synthetic-comments-alongside-source--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "append-synthetic-statement-with-synthetic-comments",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBtYXJrTWUoKTogdm9pZDsKbWFya01lKCk7Cg==",
+                "utf8_sha256": "8c73269410a94a16e574449ac3ba50020210e8ac61b763e5cda9ff9e54c4e8c6",
+                "utf8_bytes": 43
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "SYN-LEAD",
+              "expectation": "present"
+            },
+            {
+              "token": "SYN-TRAIL",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwptYXJrTWUoKTsKLyogU1lOLUxFQUQgKi8gc3ludGhldGljTWFya2VyKCk7IC8qIFNZTi1UUkFJTCAqLwo=",
+                "callback_utf8_sha256": "a0254a6ad29c87ea60607c1eb72e626d26c2790df5f5da56394ebfe2d8e1daf5",
+                "callback_utf8_bytes": 74,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "a0254a6ad29c87ea60607c1eb72e626d26c2790df5f5da56394ebfe2d8e1daf5",
+                "materialized_utf8_bytes": 74,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "SYN-LEAD",
+                "occurrences": 1
+              },
+              {
+                "token": "SYN-TRAIL",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "a558da07a6ee934dd40fd548a89e3475690ffdd984d551517ff77b8f93f5baf7"
+          },
+          "case_fingerprint_sha256": "901234ec3136c222740139b85c384630178d8119851b294d8107e9db5e5b1304"
+        }
+      ],
+      "family_fingerprint_sha256": "262652279e9c724352df3a0a3921144c6925b347a73af792b2bb0009943a1ce4"
+    },
+    {
+      "family_id": "detached-comment-reroute",
+      "study_item": 8,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "detached comment ranges reroute the leading walk (hasDetachedComments adjacency) without touching the triple",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "detached-comment-reroute--positive",
+          "role": "positive",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "LyohIEZJTEUtSEVBREVSICovCgpkZWNsYXJlIGZ1bmN0aW9uIGJvZHkoKTogdm9pZDsKZnVuY3Rpb24gd3JhcHBlcigpIHsKICAvLyBERVRBQ0hFRC0xCiAgLy8gREVUQUNIRUQtMgoKICBib2R5KCk7CiAgcmV0dXJuIDE7Cn0K",
+                "utf8_sha256": "aeda50382c2f4dd29bad5937055a8b9341d732a087741add3a68184721c28e69",
+                "utf8_bytes": 129
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "FILE-HEADER",
+              "expectation": "present"
+            },
+            {
+              "token": "DETACHED-1",
+              "expectation": "present"
+            },
+            {
+              "token": "DETACHED-2",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovKiEgRklMRS1IRUFERVIgKi8KZnVuY3Rpb24gd3JhcHBlcigpIHsKICAgIC8vIERFVEFDSEVELTEKICAgIC8vIERFVEFDSEVELTIKICAgIGJvZHkoKTsKICAgIHJldHVybiAxOwp9Cg==",
+                "callback_utf8_sha256": "98bd0bfb64a11e0427cd5655231bd9eed1eb6ec7d02d6403768f35cd0bf0b858",
+                "callback_utf8_bytes": 118,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "98bd0bfb64a11e0427cd5655231bd9eed1eb6ec7d02d6403768f35cd0bf0b858",
+                "materialized_utf8_bytes": 118,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "FILE-HEADER",
+                "occurrences": 1
+              },
+              {
+                "token": "DETACHED-1",
+                "occurrences": 1
+              },
+              {
+                "token": "DETACHED-2",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "3d331e43d19cb6ac3e3c290357677d7b9705d39db548f74e47f8a84fd7791d27"
+          },
+          "case_fingerprint_sha256": "35a0f744621c898651a0e978bf1bd11186930e807821c40cc5b7cd003fd69eaf"
+        },
+        {
+          "case_id": "detached-comment-reroute--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "identity",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "LyohIEZJTEUtSEVBREVSICovCgpkZWNsYXJlIGZ1bmN0aW9uIGJvZHkoKTogdm9pZDsKZnVuY3Rpb24gd3JhcHBlcigpIHsKICAvLyBERVRBQ0hFRC0xCiAgLy8gREVUQUNIRUQtMgoKICBib2R5KCk7CiAgcmV0dXJuIDE7Cn0K",
+                "utf8_sha256": "aeda50382c2f4dd29bad5937055a8b9341d732a087741add3a68184721c28e69",
+                "utf8_bytes": 129
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "FILE-HEADER",
+              "expectation": "present"
+            },
+            {
+              "token": "DETACHED-1",
+              "expectation": "absent"
+            },
+            {
+              "token": "DETACHED-2",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovKiEgRklMRS1IRUFERVIgKi8KZnVuY3Rpb24gd3JhcHBlcigpIHsKICAgIGJvZHkoKTsKICAgIHJldHVybiAxOwp9Cg==",
+                "callback_utf8_sha256": "5ac20fd7fe9356cb8831de56495da6f78c1e0e06b82d983e04b95267839ccfb3",
+                "callback_utf8_bytes": 82,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "5ac20fd7fe9356cb8831de56495da6f78c1e0e06b82d983e04b95267839ccfb3",
+                "materialized_utf8_bytes": 82,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "FILE-HEADER",
+                "occurrences": 1
+              },
+              {
+                "token": "DETACHED-1",
+                "occurrences": 0
+              },
+              {
+                "token": "DETACHED-2",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "be325e7c5b1f3e62bef0e73542656e827e694a0a27d7e6870531b53ef6d3c5e5"
+          },
+          "case_fingerprint_sha256": "aabc738a9766d5e928bfd6e7fcae0df62da6138a46f2cd3c6f52dba48e1ae72b"
+        },
+        {
+          "case_id": "detached-comment-reroute--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBib2R5KCk6IHZvaWQ7CmZ1bmN0aW9uIHdyYXBwZXIoKSB7CiAgLy8gQVRUQUNIRUQtMQogIGJvZHkoKTsKICByZXR1cm4gMTsKfQo=",
+                "utf8_sha256": "11b9f7113f09091a7dd75adee715cbce926f4390025fc8593cab848ba4a9636d",
+                "utf8_bytes": 92
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "ATTACHED-1",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiB3cmFwcGVyKCkgewogICAgLy8gQVRUQUNIRUQtMQogICAgYm9keSgpOwogICAgcmV0dXJuIDE7Cn0K",
+                "callback_utf8_sha256": "40a017d27a28b645ab1d575336fabcf261896cd91da63004faa41fd82ef53b00",
+                "callback_utf8_bytes": 81,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "40a017d27a28b645ab1d575336fabcf261896cd91da63004faa41fd82ef53b00",
+                "materialized_utf8_bytes": 81,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "ATTACHED-1",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "dc7b01d1d81aa8d2ca9e0a89500f49800f016333ebcc3ed45c0d02d4a9937a05"
+          },
+          "case_fingerprint_sha256": "de9f9cff103e27d4167ea56f0ae21e43a1af6b5ceb3c2d9a54468d9bd39f0bcb"
+        }
+      ],
+      "family_fingerprint_sha256": "cc113097579f2bc30814a448bfd36b26a89a7fc7702d2326e28a2c78a1ce8c64"
+    },
+    {
+      "family_id": "type-node-trailing-repetition",
+      "study_item": 9,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "emitCommentsAfterNode repeats the trailing phase over getTypeNode(node)'s range so trivia trailing an erased annotation survives",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "type-node-trailing-repetition--positive",
+          "role": "positive",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y29uc3QgdHlwZWQ6IG51bWJlciAvKlRZUEUtVCovID0gMTsKZnVuY3Rpb24gaCgpOiBudW1iZXIgLypSRVQtVCovIHsKICByZXR1cm4gMjsKfQo=",
+                "utf8_sha256": "546f03f2e7c2ba2d2b03cb048cf601f83ecaf88859c948848a8f3ce35215cced",
+                "utf8_bytes": 83
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "TYPE-T",
+              "expectation": "present"
+            },
+            {
+              "token": "RET-T",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB0eXBlZCAvKlRZUEUtVCovID0gMTsKZnVuY3Rpb24gaCgpIHsKICAgIHJldHVybiAyOwp9Cg==",
+                "callback_utf8_sha256": "9c2f101e9718297b3b109bcede85052ebfc8d0783bcd058748742a4c4f31aeb5",
+                "callback_utf8_bytes": 73,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "9c2f101e9718297b3b109bcede85052ebfc8d0783bcd058748742a4c4f31aeb5",
+                "materialized_utf8_bytes": 73,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "TYPE-T",
+                "occurrences": 1
+              },
+              {
+                "token": "RET-T",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "189516750107bf8576a557416adead3e1d881985b7589f941dfc5e917f5e0a0b"
+          },
+          "case_fingerprint_sha256": "dfcd86542a8af8a9b11694d33814a4bd0f4314c03071867842bbbee8716319b0"
+        },
+        {
+          "case_id": "type-node-trailing-repetition--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "identity",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y29uc3QgdHlwZWQ6IG51bWJlciAvKlRZUEUtVCovID0gMTsKZnVuY3Rpb24gaCgpOiBudW1iZXIgLypSRVQtVCovIHsKICByZXR1cm4gMjsKfQo=",
+                "utf8_sha256": "546f03f2e7c2ba2d2b03cb048cf601f83ecaf88859c948848a8f3ce35215cced",
+                "utf8_bytes": 83
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "TYPE-T",
+              "expectation": "absent"
+            },
+            {
+              "token": "RET-T",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB0eXBlZCA9IDE7CmZ1bmN0aW9uIGgoKSB7CiAgICByZXR1cm4gMjsKfQo=",
+                "callback_utf8_sha256": "608d9f24dcd1d4e43e879d44eb68becb0be91090556df1241c5c7ec578f8ae1b",
+                "callback_utf8_bytes": 62,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "608d9f24dcd1d4e43e879d44eb68becb0be91090556df1241c5c7ec578f8ae1b",
+                "materialized_utf8_bytes": 62,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "TYPE-T",
+                "occurrences": 0
+              },
+              {
+                "token": "RET-T",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "df9274e8b67199179dff92d1c04e9f8535ba2a5f93cb1a1841cb2f5ecbea9992"
+          },
+          "case_fingerprint_sha256": "bff7f7015fefbe41d9beca8273ad1585b3d8925b1485909a479b2bc657b8b644"
+        },
+        {
+          "case_id": "type-node-trailing-repetition--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y29uc3QgdW50eXBlZCAvKk5PLVQqLyA9IDE7Cg==",
+                "utf8_sha256": "459210bae82e16e832719a2a2427add38ae635d1ee707d206ddc7398846c5987",
+                "utf8_bytes": 28
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "NO-T",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB1bnR5cGVkIC8qTk8tVCovID0gMTsK",
+                "callback_utf8_sha256": "8493abc85ce9b825a592d13fb031a48cb772e5a8924b17e81b9722efc43e3076",
+                "callback_utf8_bytes": 42,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "8493abc85ce9b825a592d13fb031a48cb772e5a8924b17e81b9722efc43e3076",
+                "materialized_utf8_bytes": 42,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "NO-T",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "c8371b0e76404d3085b907f71214e336205ab0a34f3161cdc09f9eca47b9e738"
+          },
+          "case_fingerprint_sha256": "183907d779a99bd2e0b1fe376cea8e8817fbb780d59ea3089579e1457c5983d2"
+        }
+      ],
+      "family_fingerprint_sha256": "72241b37b42cbd4309a7530e2847d882641e01e80ae21b3f132abe2b2a1f721b"
+    },
+    {
+      "family_id": "zero-width-and-not-emitted",
+      "study_item": 10,
+      "study_anchor": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder",
+      "description": "pos===end ranges fail the outer claim gate and NotEmittedStatement suppresses the trailing phase",
+      "positive_vs_remove_comments_distinct": true,
+      "cases": [
+        {
+          "case_id": "zero-width-and-not-emitted--positive",
+          "role": "positive",
+          "transform": "replace-not-emitted-and-zero-width",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBrZWVwKCk6IHZvaWQ7CmRlY2xhcmUgZnVuY3Rpb24gZHJvcE1lKCk6IHZvaWQ7CmRlY2xhcmUgZnVuY3Rpb24gc2hyaW5rTWUoKTogdm9pZDsKa2VlcCgpOyAvKktFRVAtVCovCmRyb3BNZSgpOyAvKkRST1BQRUQtVCovCnNocmlua01lKCk7IC8qU0hSVU5LLVQqLwprZWVwKCk7Cg==",
+                "utf8_sha256": "551c4d04be861ab9cbc5128df6aeb7b3a3d797e9577b48638f5ed1bc104b419e",
+                "utf8_bytes": 175
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "KEEP-T",
+              "expectation": "present"
+            },
+            {
+              "token": "DROPPED-T",
+              "expectation": "absent"
+            },
+            {
+              "token": "SHRUNK-T",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwprZWVwKCk7IC8qS0VFUC1UKi8Kc2hydW5rTWFya2VyKCk7CmtlZXAoKTsK",
+                "callback_utf8_sha256": "715a1b548acc40a100c4b0d2351c7498bd62f22ae6d25e45e03ded949bdca931",
+                "callback_utf8_bytes": 57,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "715a1b548acc40a100c4b0d2351c7498bd62f22ae6d25e45e03ded949bdca931",
+                "materialized_utf8_bytes": 57,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "KEEP-T",
+                "occurrences": 1
+              },
+              {
+                "token": "DROPPED-T",
+                "occurrences": 0
+              },
+              {
+                "token": "SHRUNK-T",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "0c384c65f29a6ccd726705dcdc4c31b6d3bf0d0f6f62d03029d8bbcd8182ecc9"
+          },
+          "case_fingerprint_sha256": "bb54c2ab3bd8472c28414c07e229ac35b80ed16a8d0f48c3f7672a8a01406f88"
+        },
+        {
+          "case_id": "zero-width-and-not-emitted--remove-comments",
+          "role": "remove-comments-control",
+          "transform": "replace-not-emitted-and-zero-width",
+          "remove_comments": true,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBrZWVwKCk6IHZvaWQ7CmRlY2xhcmUgZnVuY3Rpb24gZHJvcE1lKCk6IHZvaWQ7CmRlY2xhcmUgZnVuY3Rpb24gc2hyaW5rTWUoKTogdm9pZDsKa2VlcCgpOyAvKktFRVAtVCovCmRyb3BNZSgpOyAvKkRST1BQRUQtVCovCnNocmlua01lKCk7IC8qU0hSVU5LLVQqLwprZWVwKCk7Cg==",
+                "utf8_sha256": "551c4d04be861ab9cbc5128df6aeb7b3a3d797e9577b48638f5ed1bc104b419e",
+                "utf8_bytes": 175
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": true,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "KEEP-T",
+              "expectation": "absent"
+            },
+            {
+              "token": "DROPPED-T",
+              "expectation": "absent"
+            },
+            {
+              "token": "SHRUNK-T",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwprZWVwKCk7CnNocnVua01hcmtlcigpOwprZWVwKCk7Cg==",
+                "callback_utf8_sha256": "41270710b6718b8dd2766278c651bdcdb4fa0cc5c95ab0c78ab97881ffb1b9c1",
+                "callback_utf8_bytes": 46,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "41270710b6718b8dd2766278c651bdcdb4fa0cc5c95ab0c78ab97881ffb1b9c1",
+                "materialized_utf8_bytes": 46,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "KEEP-T",
+                "occurrences": 0
+              },
+              {
+                "token": "DROPPED-T",
+                "occurrences": 0
+              },
+              {
+                "token": "SHRUNK-T",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "03ed976b6bea3bf3742d293193933f2d71983b43fed1d6a0f1b388bcee015fdd"
+          },
+          "case_fingerprint_sha256": "094719ca3fbcb6710eb9f6c5d7f73ede40c1ec16256cc7e6bed096d53bfe42ec"
+        },
+        {
+          "case_id": "zero-width-and-not-emitted--adjacent-negative",
+          "role": "adjacent-negative-control",
+          "transform": "identity",
+          "remove_comments": false,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBrZWVwKCk6IHZvaWQ7CmRlY2xhcmUgZnVuY3Rpb24gZHJvcE1lKCk6IHZvaWQ7CmRlY2xhcmUgZnVuY3Rpb24gc2hyaW5rTWUoKTogdm9pZDsKa2VlcCgpOyAvKktFRVAtVCovCmRyb3BNZSgpOyAvKkRST1BQRUQtVCovCnNocmlua01lKCk7IC8qU0hSVU5LLVQqLwprZWVwKCk7Cg==",
+                "utf8_sha256": "551c4d04be861ab9cbc5128df6aeb7b3a3d797e9577b48638f5ed1bc104b419e",
+                "utf8_bytes": 175
+              }
+            ],
+            "compiler_options": {
+              "module": 99,
+              "newLine": 1,
+              "removeComments": false,
+              "target": 3
+            }
+          },
+          "markers": [
+            {
+              "token": "KEEP-T",
+              "expectation": "present"
+            },
+            {
+              "token": "DROPPED-T",
+              "expectation": "present"
+            },
+            {
+              "token": "SHRUNK-T",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwprZWVwKCk7IC8qS0VFUC1UKi8KZHJvcE1lKCk7IC8qRFJPUFBFRC1UKi8Kc2hyaW5rTWUoKTsgLypTSFJVTkstVCovCmtlZXAoKTsK",
+                "callback_utf8_sha256": "e3e5fb5e9ec88e2a9d5df4e1c01643803e6bb818ef1f590c82f02319b758a437",
+                "callback_utf8_bytes": 90,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "e3e5fb5e9ec88e2a9d5df4e1c01643803e6bb818ef1f590c82f02319b758a437",
+                "materialized_utf8_bytes": 90,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "KEEP-T",
+                "occurrences": 1
+              },
+              {
+                "token": "DROPPED-T",
+                "occurrences": 1
+              },
+              {
+                "token": "SHRUNK-T",
+                "occurrences": 1
+              }
+            ],
+            "observation_fingerprint_sha256": "19fcd9bfc5b9476097118c8b07d74365c72d98f24ad6af3387638bb13ac2fd2b"
+          },
+          "case_fingerprint_sha256": "53ba4c80f368997a68617a18a17c358719ce91d47926504ae8779eab2a457440"
+        }
+      ],
+      "family_fingerprint_sha256": "f413be6e17df74402b7841022cddc99cdb4e29e885a3ef9670c6e7679c907e55"
+    }
+  ],
+  "summary": {
+    "families": 10,
+    "cases": 30,
+    "positive_cases": 10,
+    "remove_comments_controls": 10,
+    "adjacent_negative_controls": 10,
+    "typescript_oracle_runs": 60,
+    "transforms_used": [
+      "add-synthetic-comments-to-marked",
+      "append-synthetic-statement-with-synthetic-comments",
+      "apply-comment-emit-flags",
+      "identity",
+      "replace-not-emitted-and-zero-width",
+      "wrap-expression-statements-in-synthetic-arrow"
+    ],
+    "scope_graph_occurrence_lines": 23,
+    "scope_graph_spans": 7,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0
+  },
+  "witnesses_fingerprint_sha256": "347db80f3eca204f490d721f9fabe053684342022355476a491be0a6cfd7bfb7"
+}
