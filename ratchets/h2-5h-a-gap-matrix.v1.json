@@ -1,0 +1,510 @@
+{
+  "schema": 1,
+  "kind": "h2-local-gap-matrix",
+  "status": "frozen-local-gap-matrix",
+  "phase": "H2.5h-a",
+  "slice_id": "H2.5h-a",
+  "plan_step": "prerequisite-transition-step-3",
+  "generator": {
+    "path": "crates/oracle/h2-5h-a-gap-matrix.mjs",
+    "sha256": "452bb01ceb0dee97538618cb25c8da6f7545003ef2e17a5aeb09299d1232df98"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
+    "sha256": "a9c67fe9daea0f98c04ebadaec01a35543a183370e5467e0cca9ca020e64f45f"
+  },
+  "lineage": {
+    "owner_graph": {
+      "path": "ratchets/h2-5h-a-owner-graph.v1.json",
+      "sha256": "58df96707a46e5d60e903b6234f8d5ab68312a9113f7feaf3bc3e5f629c1dfc8"
+    },
+    "owner_graph_fingerprint_sha256": "3e57e55b3afd8c8c548e4d1b4a7f82b6c07562556675d4a288135a59328dbc14",
+    "architecture_map": {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "dd21658450c7672e0008eb364c9ab911f5239ebb9c5a20d98f9910dd4c8f70bd"
+    },
+    "interpretation": "prerequisite-transition step 3 records the current Rust capability states against the frozen owner graph; a landed implementation breaks its pinned absence and forces re-disposition; it edits no production code and activates nothing"
+  },
+  "capabilities": [
+    {
+      "index": 0,
+      "capability_id": "pass-registration-boundary",
+      "state": "exists",
+      "requirement": "joint transformES2015+transformGenerators registration for target below ES2015; today the boundary is a typed fail-closed rejection",
+      "surfaces": [
+        "hook-composition"
+      ],
+      "architecture_rows": [
+        "E-ORDER-H",
+        "EA-GAP-COMPOSITION"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/builtins.rs",
+          "symbol": "older targets belong to later target-ladder slices",
+          "file": {
+            "path": "crates/emitter/src/builtins.rs",
+            "sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
+          }
+        }
+      ],
+      "absences": [],
+      "note": "the dormant seam this packet eventually activates; activation stays with H2.5h-b+",
+      "capability_fingerprint_sha256": "ed7cfd62804c50d279ad11f73471692d6358abfe2631860a700fbf6a9ced86b1"
+    },
+    {
+      "index": 1,
+      "capability_id": "lexical-environment",
+      "state": "exists",
+      "requirement": "start/resume/end lexical environment with hoisted variable/function declarations and suspension, as both owners destructure from the context",
+      "surfaces": [
+        "lexical-environment"
+      ],
+      "architecture_rows": [
+        "E-CONTEXT"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/transform.rs",
+          "symbol": "pub struct LexicalEnvironment",
+          "file": {
+            "path": "crates/emitter/src/transform.rs",
+            "sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+          }
+        },
+        {
+          "path": "crates/emitter/src/transform.rs",
+          "symbol": "lexical_environment_stack",
+          "file": {
+            "path": "crates/emitter/src/transform.rs",
+            "sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+          }
+        },
+        {
+          "path": "crates/emitter/src/transform.rs",
+          "symbol": "lexical_environment_suspended",
+          "file": {
+            "path": "crates/emitter/src/transform.rs",
+            "sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+          }
+        }
+      ],
+      "absences": [],
+      "note": null,
+      "capability_fingerprint_sha256": "2c4e2f006228064c638dd014a5fe361878d5f6ad08dc685300227f0049265cfc"
+    },
+    {
+      "index": 2,
+      "capability_id": "node-construction",
+      "state": "exists",
+      "requirement": "synthetic node construction for the 98 distinct factory methods the owners call; the Rust model is generic arena construction, so the mapping is per capability, not per tsc factory name",
+      "surfaces": [
+        "factory-construction"
+      ],
+      "architecture_rows": [
+        "E-ARENA"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/factory.rs",
+          "symbol": "pub fn create_node",
+          "file": {
+            "path": "crates/emitter/src/factory.rs",
+            "sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
+          }
+        },
+        {
+          "path": "crates/emitter/src/factory.rs",
+          "symbol": "pub fn create_node_array",
+          "file": {
+            "path": "crates/emitter/src/factory.rs",
+            "sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
+          }
+        }
+      ],
+      "absences": [],
+      "note": null,
+      "capability_fingerprint_sha256": "11c5984f5bda4307e265cef97f1e47e456c5622599785df374899ed3ec5f1198"
+    },
+    {
+      "index": 3,
+      "capability_id": "transform-flag-recomputation",
+      "state": "partial",
+      "requirement": "full postorder transform-flag classification usable for freshly synthesized ES2015/Generators output; EA-GAP-FLAGS bans inheriting old ES2015/Generator/Yield bits through a partial mask",
+      "surfaces": [
+        "transform-flag-recomputation"
+      ],
+      "architecture_rows": [
+        "EA-GAP-FLAGS",
+        "E-METADATA-BASE"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/factory.rs",
+          "symbol": "pub fn propagate_child_flags",
+          "file": {
+            "path": "crates/emitter/src/factory.rs",
+            "sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
+          }
+        }
+      ],
+      "absences": [],
+      "note": "propagation exists; the shared full classifier for changed nodes is the outstanding EA-GAP-FLAGS deliverable",
+      "capability_fingerprint_sha256": "532b3012ba1651db2573f0887596af9106f50b13ba8ce4ef09c39c9c4007abae"
+    },
+    {
+      "index": 4,
+      "capability_id": "substitution-notification-hooks",
+      "state": "partial",
+      "requirement": "chained onSubstituteNode for both owners and chained onEmitNode for ES2015 (Generators registers substitution only)",
+      "surfaces": [
+        "hook-composition"
+      ],
+      "architecture_rows": [
+        "E-ORDER-H"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/transform.rs",
+          "symbol": "pub fn substitution_factory",
+          "file": {
+            "path": "crates/emitter/src/transform.rs",
+            "sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+          }
+        }
+      ],
+      "absences": [],
+      "note": "substitution machinery exists; ES2015-grade notification chaining parity is dispositioned by the step-5 manifest under E-ORDER-H",
+      "capability_fingerprint_sha256": "d7d1f87925fec646523ee26ec4ff762b20e6f4ef17d7898605360a472c4d67e2"
+    },
+    {
+      "index": 5,
+      "capability_id": "helper-emission",
+      "state": "partial",
+      "requirement": "the five owner helper factories: extends, values, read, spreadArray, generator",
+      "surfaces": [
+        "helper-factory"
+      ],
+      "architecture_rows": [
+        "E-HELPERS-BASE",
+        "E-HELPERS-H"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/builtins/helpers.rs",
+          "symbol": "typescript:read",
+          "file": {
+            "path": "crates/emitter/src/builtins/helpers.rs",
+            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+          }
+        }
+      ],
+      "absences": [
+        {
+          "path": "crates/emitter/src/builtins/helpers.rs",
+          "symbol": "typescript:extends",
+          "file": {
+            "path": "crates/emitter/src/builtins/helpers.rs",
+            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/helpers.rs",
+          "symbol": "__extends",
+          "file": {
+            "path": "crates/emitter/src/builtins/helpers.rs",
+            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/helpers.rs",
+          "symbol": "typescript:spreadArray",
+          "file": {
+            "path": "crates/emitter/src/builtins/helpers.rs",
+            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/helpers.rs",
+          "symbol": "typescript:generator",
+          "file": {
+            "path": "crates/emitter/src/builtins/helpers.rs",
+            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+          }
+        }
+      ],
+      "note": "read helper exists from the H2.5g ladder; extends/values/spreadArray/generator helper texts are absent (asyncValues/asyncGenerator are different helpers)",
+      "capability_fingerprint_sha256": "bd0fe40499c50104beb4b3bc62b4a283cb189d4a6cccd46fe9c1b76346be5af9"
+    },
+    {
+      "index": 6,
+      "capability_id": "name-generation-deferred",
+      "state": "partial",
+      "requirement": "createUniqueName/createTempVariable/createLoopVariable and getGeneratedNameForNode/getInternalName/getLocalName semantics (deferred resolution at print time)",
+      "surfaces": [
+        "name-generation"
+      ],
+      "architecture_rows": [
+        "E-NAMES-BASE",
+        "E-NAMES-H"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/builtins/generated_bindings.rs",
+          "symbol": "GeneratedBindingScopes",
+          "file": {
+            "path": "crates/emitter/src/builtins/generated_bindings.rs",
+            "sha256": "5f88460467ca1983b2cccb884626aafd91f605e931aab6b9ee183752467cd319"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/generated_bindings.rs",
+          "symbol": "allocate_temp",
+          "file": {
+            "path": "crates/emitter/src/builtins/generated_bindings.rs",
+            "sha256": "5f88460467ca1983b2cccb884626aafd91f605e931aab6b9ee183752467cd319"
+          }
+        }
+      ],
+      "absences": [],
+      "note": "the Rust model is eager scoped reservation, not tsc's deferred resolution; E-NAMES-H owns the equivalence argument the step-5 manifest must disposition",
+      "capability_fingerprint_sha256": "9f524c4ee6b36fb0fa3e0bf0767ba20f87bbb61b4cdcfd384617b34673d7c450"
+    },
+    {
+      "index": 7,
+      "capability_id": "comment-scope-threading",
+      "state": "partial",
+      "requirement": "the containerPos/containerEnd/declarationListContainerEnd triple as an immutable threaded scope (frozen study + ten-family witnesses)",
+      "surfaces": [
+        "comment-apis"
+      ],
+      "architecture_rows": [
+        "E-COMMENT-SCOPE-H",
+        "E-COMMENTS-H"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/comment_cursor.rs",
+          "symbol": "CommentCursor",
+          "file": {
+            "path": "crates/emitter/src/comment_cursor.rs",
+            "sha256": "be9db619edc2d2c43d9b43eaac66b2b816fc038cb8f56faf783839fffa1c49d2"
+          }
+        },
+        {
+          "path": "crates/emitter/src/printer.rs",
+          "symbol": "token_owned_comment_phase_prefix",
+          "file": {
+            "path": "crates/emitter/src/printer.rs",
+            "sha256": "ece1dc03ed594ecc64c87607cb3e8bc37d25fb2fef7032986307cc5aee791b16"
+          }
+        }
+      ],
+      "absences": [
+        {
+          "path": "crates/emitter/src/printer.rs",
+          "symbol": "declaration_list_container_end",
+          "file": {
+            "path": "crates/emitter/src/printer.rs",
+            "sha256": "ece1dc03ed594ecc64c87607cb3e8bc37d25fb2fef7032986307cc5aee791b16"
+          }
+        },
+        {
+          "path": "crates/emitter/src/comment_cursor.rs",
+          "symbol": "container_end",
+          "file": {
+            "path": "crates/emitter/src/comment_cursor.rs",
+            "sha256": "be9db619edc2d2c43d9b43eaac66b2b816fc038cb8f56faf783839fffa1c49d2"
+          }
+        }
+      ],
+      "note": "closed by E-COMMENT-SCOPE-H implementation packets 2-6 before any ES2015/Generators production work",
+      "capability_fingerprint_sha256": "30cead11ba0edcaec9adba863403682d5f75db6ee15cffda5fe9fd665fa6470e"
+    },
+    {
+      "index": 8,
+      "capability_id": "resolver-collision-capture-queries",
+      "state": "partial",
+      "requirement": "the six emit-resolver queries the owners call: getReferencedDeclarationWithCollidingName, isDeclarationWithCollidingName, isArgumentsLocalBinding, isBindingCapturedByNode, getReferencedValueDeclaration, hasNodeCheckFlag(loop set)",
+      "surfaces": [
+        "resolver-collision-capture-queries",
+        "resolver-node-check-flags"
+      ],
+      "architecture_rows": [
+        "E-RESOLVER-CAPTURE-H",
+        "E-CHECKER-FACTS-H"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/resolver.rs",
+          "symbol": "fn is_arguments_local_binding",
+          "file": {
+            "path": "crates/emitter/src/resolver.rs",
+            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+          }
+        },
+        {
+          "path": "crates/emitter/src/resolver.rs",
+          "symbol": "fn get_referenced_value_declaration",
+          "file": {
+            "path": "crates/emitter/src/resolver.rs",
+            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+          }
+        },
+        {
+          "path": "crates/emitter/src/resolver.rs",
+          "symbol": "fn has_node_check_flag",
+          "file": {
+            "path": "crates/emitter/src/resolver.rs",
+            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+          }
+        }
+      ],
+      "absences": [
+        {
+          "path": "crates/emitter/src/resolver.rs",
+          "symbol": "colliding_name",
+          "file": {
+            "path": "crates/emitter/src/resolver.rs",
+            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+          }
+        },
+        {
+          "path": "crates/emitter/src/resolver.rs",
+          "symbol": "binding_captured",
+          "file": {
+            "path": "crates/emitter/src/resolver.rs",
+            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+          }
+        }
+      ],
+      "note": "the EmitResolver trait already declares three of the six (typed fail-closed defaults; is_arguments_local_binding is implemented for async capture); the collision/capture pair is absent and checker-side answer parity for the loop NodeCheckFlags set must be dispositioned against the foundation's six direct controls",
+      "capability_fingerprint_sha256": "4a8e4fac23d5872f118a473b271500a1bc2b781a0920a2f1bb4a40f57d6963b9"
+    },
+    {
+      "index": 9,
+      "capability_id": "loop-conversion-capture",
+      "state": "missing",
+      "requirement": "converted-loop extraction with captured block-scoped bindings, out-parameters, this/arguments/new.target capture, and yield* re-emission for generator-containing bodies",
+      "surfaces": [
+        "loop-partition-machinery",
+        "yield-star-synthesis"
+      ],
+      "architecture_rows": [
+        "EA-GAP-CAPTURE",
+        "E-CAPTURE-BASE"
+      ],
+      "anchors": [],
+      "absences": [
+        {
+          "path": "crates/emitter/src/builtins.rs",
+          "symbol": "converted_loop",
+          "file": {
+            "path": "crates/emitter/src/builtins.rs",
+            "sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
+          }
+        }
+      ],
+      "note": "the yield* composition edge makes this inseparable from the Generators consumer (SCC evidence)",
+      "capability_fingerprint_sha256": "097e1bbedbcb3b46b41bf60d9eed424d648bbf80b62a63935c512e601abf7c43"
+    },
+    {
+      "index": 10,
+      "capability_id": "generator-state-machine",
+      "state": "missing",
+      "requirement": "the transformGenerators state machine (labels, try/catch protocol, instruction encoding via createGeneratorHelper)",
+      "surfaces": [
+        "yield-star-synthesis",
+        "helper-factory"
+      ],
+      "architecture_rows": [
+        "EA-GAP-COMPOSITION",
+        "E-ORDER-H"
+      ],
+      "anchors": [],
+      "absences": [
+        {
+          "path": "crates/emitter/src/builtins",
+          "module": "generators.rs"
+        }
+      ],
+      "note": null,
+      "capability_fingerprint_sha256": "da97d2a058397ab881ac26f18957530618693dc421d21ff0f5a0839eed202c70"
+    },
+    {
+      "index": 11,
+      "capability_id": "destructuring-flattener-es2015",
+      "state": "partial",
+      "requirement": "the 18-function shared flattener family for binding patterns and destructuring assignments at the ES5 boundary (FlattenLevel All)",
+      "surfaces": [
+        "destructuring-module"
+      ],
+      "architecture_rows": [
+        "EA-GAP-COMPOSITION",
+        "E-CAPTURE-BASE"
+      ],
+      "anchors": [
+        {
+          "path": "crates/emitter/src/builtins/es2018.rs",
+          "symbol": "flatten_destructuring_assignment",
+          "file": {
+            "path": "crates/emitter/src/builtins/es2018.rs",
+            "sha256": "622da5f93fe6d51016437ee130608abf28f3c5f8658c64960a77f917a4937f83"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/es2018.rs",
+          "symbol": "flatten_destructuring_binding",
+          "file": {
+            "path": "crates/emitter/src/builtins/es2018.rs",
+            "sha256": "622da5f93fe6d51016437ee130608abf28f3c5f8658c64960a77f917a4937f83"
+          }
+        }
+      ],
+      "absences": [
+        {
+          "path": "crates/emitter/src/builtins.rs",
+          "symbol": "flatten_destructuring",
+          "file": {
+            "path": "crates/emitter/src/builtins.rs",
+            "sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
+          }
+        }
+      ],
+      "note": "the ObjectRestSpread flatten level is ported inside the ES2018 lowering; the shared ES5-level family (FlattenLevel All: binding patterns, array patterns, defaults) and its extraction as a shared module remain outstanding",
+      "capability_fingerprint_sha256": "24be3b2d02801d3d6697d46eda7d53739d41391c1c47f0799897aaab52cd0283"
+    },
+    {
+      "index": 12,
+      "capability_id": "tagged-template-lowering",
+      "state": "missing",
+      "requirement": "processTaggedTemplateExpression + createTemplateCooked for target below ES2015",
+      "surfaces": [
+        "tagged-template-module"
+      ],
+      "architecture_rows": [
+        "EA-GAP-COMPOSITION",
+        "E-STRINGS"
+      ],
+      "anchors": [],
+      "absences": [
+        {
+          "path": "crates/emitter/src/builtins",
+          "module": "tagged_template.rs"
+        }
+      ],
+      "note": null,
+      "capability_fingerprint_sha256": "198e7b04f95e28a78cbfc71e397f3d166013f6d592fd1e48a2bc65ef66659bf8"
+    }
+  ],
+  "summary": {
+    "capabilities": 13,
+    "exists": 3,
+    "partial": 7,
+    "missing": 3,
+    "pinned_rust_files": 9,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0
+  },
+  "gap_matrix_fingerprint_sha256": "3db4f6fe900c02d698e45a51f514445903a1db63e66d591e66bbdae82bee5cf8"
+}

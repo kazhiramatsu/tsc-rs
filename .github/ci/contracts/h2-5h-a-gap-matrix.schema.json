@@ -1,0 +1,203 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
+  "title": "tsc-rs H2.5h-a current-Rust local-gap matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "slice_id",
+    "plan_step",
+    "generator",
+    "contract",
+    "lineage",
+    "capabilities",
+    "summary",
+    "gap_matrix_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h2-local-gap-matrix" },
+    "status": { "const": "frozen-local-gap-matrix" },
+    "phase": { "const": "H2.5h-a" },
+    "slice_id": { "const": "H2.5h-a" },
+    "plan_step": { "const": "prerequisite-transition-step-3" },
+    "generator": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": { "const": "crates/oracle/h2-5h-a-gap-matrix.mjs" }
+          },
+          "required": ["path"]
+        }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": {
+              "const": ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json"
+            }
+          },
+          "required": ["path"]
+        }
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_graph",
+        "owner_graph_fingerprint_sha256",
+        "architecture_map",
+        "interpretation"
+      ],
+      "properties": {
+        "owner_graph": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "ratchets/h2-5h-a-owner-graph.v1.json" }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "owner_graph_fingerprint_sha256": { "$ref": "#/$defs/sha256" },
+        "architecture_map": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": {
+                  "const": "docs/design/greenfield/emitter-architecture.md"
+                }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "interpretation": {
+          "const": "prerequisite-transition step 3 records the current Rust capability states against the frozen owner graph; a landed implementation breaks its pinned absence and forces re-disposition; it edits no production code and activates nothing"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": { "$ref": "#/$defs/capability" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capabilities",
+        "exists",
+        "partial",
+        "missing",
+        "pinned_rust_files",
+        "rust_runs",
+        "runtime_admissions_delta"
+      ],
+      "properties": {
+        "capabilities": { "const": 13 },
+        "exists": { "const": 3 },
+        "partial": { "const": 7 },
+        "missing": { "const": 3 },
+        "pinned_rust_files": {
+          "type": "integer",
+          "minimum": 5,
+          "maximum": 12
+        },
+        "rust_runs": { "const": 0 },
+        "runtime_admissions_delta": { "const": 0 }
+      }
+    },
+    "gap_matrix_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "symbol", "file"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "symbol": { "type": "string", "minLength": 1 },
+        "file": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "absence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "symbol": { "type": "string", "minLength": 1 },
+        "module": { "type": "string", "minLength": 1 },
+        "file": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "capability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "capability_id",
+        "state",
+        "requirement",
+        "surfaces",
+        "architecture_rows",
+        "anchors",
+        "absences",
+        "note",
+        "capability_fingerprint_sha256"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "maximum": 12 },
+        "capability_id": { "type": "string", "minLength": 1 },
+        "state": { "enum": ["exists", "partial", "missing"] },
+        "requirement": { "type": "string", "minLength": 1 },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "architecture_rows": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^E[A]?-[A-Z0-9-]+$" }
+        },
+        "anchors": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/anchor" }
+        },
+        "absences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/absence" }
+        },
+        "note": { "type": ["string", "null"] },
+        "capability_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

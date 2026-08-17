@@ -85,6 +85,19 @@ Prerequisite-transition progress:
   census-surface-to-architecture-row assignments verified against both
   the census and the architecture map. Assignment is not disposition:
   the applicability manifest remains step 5's output.
+- Step 3 **complete (2026-08-18)**: the current-Rust local-gap matrix is
+  frozen at `ratchets/h2-5h-a-gap-matrix.v1.json` (generator
+  `crates/oracle/h2-5h-a-gap-matrix.mjs` `--write|--check`, registered):
+  thirteen capability rows (3 exists / 7 partial / 3 missing) verified
+  mechanically on both sides — every requirement surface must exist in
+  the frozen owner graph, every positive Rust anchor is pinned
+  (path+symbol+file hash), and every recorded absence is asserted, so a
+  landed implementation breaks the matrix and forces a reviewed
+  re-disposition. The mint itself corrected two draft assumptions
+  fail-closed: the `EmitResolver` trait already declares three of the
+  six owner queries (typed fail-closed defaults), and the
+  ObjectRestSpread flatten level already lives inside the ES2018
+  lowering. No production code was edited.
 
 
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must

@@ -229,6 +229,10 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
         ".github/ci/contracts/h2-5h-a-owner-graph.schema.json",
         "ratchets/h2-5h-a-owner-graph.v1.json",
       ],
+      [
+        ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
+        "ratchets/h2-5h-a-gap-matrix.v1.json",
+      ],
     ],
   );
 });
