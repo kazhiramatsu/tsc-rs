@@ -1,0 +1,654 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-5h-a-comment-scope-witnesses.schema.json",
+  "title": "tsc-rs H2.5h-a E-COMMENT-SCOPE-H frozen witness set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "slice_id",
+    "sub_packet",
+    "plan_step",
+    "typescript",
+    "generator",
+    "contract",
+    "lineage",
+    "scope_graph",
+    "families",
+    "summary",
+    "witnesses_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h2-comment-scope-witnesses" },
+    "status": { "const": "frozen-comment-scope-witnesses" },
+    "phase": { "const": "H2.5h-a" },
+    "slice_id": { "const": "H2.5h-a" },
+    "sub_packet": { "const": "E-COMMENT-SCOPE-H" },
+    "plan_step": { "const": "step-1-witness-freeze" },
+    "typescript": { "$ref": "#/$defs/typescript" },
+    "generator": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": {
+              "const": "crates/oracle/h2-5h-a-comment-scope-witnesses.mjs"
+            }
+          },
+          "required": ["path"]
+        }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": {
+              "const": ".github/ci/contracts/h2-5h-a-comment-scope-witnesses.schema.json"
+            }
+          },
+          "required": ["path"]
+        }
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "foundation",
+        "foundation_fingerprint_sha256",
+        "scope_study",
+        "handoff",
+        "interpretation"
+      ],
+      "properties": {
+        "foundation": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "ratchets/h2-5h-a-foundation.v1.json" }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "foundation_fingerprint_sha256": { "$ref": "#/$defs/sha256" },
+        "scope_study": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": {
+                  "const": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md"
+                }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "handoff": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": {
+                  "const": "docs/design/greenfield/slices/h2-5h-a.md"
+                }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "interpretation": {
+          "const": "E-COMMENT-SCOPE-H step 1 freezes oracle-captured comment-scope bytes; it authorizes no production edit and activates nothing"
+        }
+      }
+    },
+    "scope_graph": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "grep_pattern", "occurrence_lines", "spans"],
+      "properties": {
+        "source": { "const": "vendor/typescript-6.0.3/lib/_tsc.js" },
+        "grep_pattern": {
+          "const": "containerPos|containerEnd|declarationListContainerEnd"
+        },
+        "occurrence_lines": {
+          "type": "array",
+          "minItems": 23,
+          "maxItems": 23,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["line", "text"],
+            "properties": {
+              "line": { "type": "integer", "minimum": 1 },
+              "text": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "spans": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "allOf": [
+              { "$ref": "#/$defs/scope_span" },
+              {
+                "oneOf": [
+                  {
+                    "properties": {
+                      "span_id": { "const": "printer-scope-state" },
+                      "role": { "const": "state" },
+                      "start_line": { "const": 116957 },
+                      "end_line": { "const": 116959 }
+                    },
+                    "required": ["span_id", "role", "start_line", "end_line"]
+                  },
+                  {
+                    "properties": {
+                      "span_id": { "const": "binary-trampoline-carrier" },
+                      "role": { "const": "save-restore-carrier-iterative" },
+                      "start_line": { "const": 118390 },
+                      "end_line": { "const": 118468 }
+                    },
+                    "required": ["span_id", "role", "start_line", "end_line"]
+                  },
+                  {
+                    "properties": {
+                      "span_id": { "const": "pipeline-emit-with-comments" },
+                      "role": { "const": "save-restore-carrier-recursive" },
+                      "start_line": { "const": 120978 },
+                      "end_line": { "const": 120986 }
+                    },
+                    "required": ["span_id", "role", "start_line", "end_line"]
+                  },
+                  {
+                    "properties": {
+                      "span_id": { "const": "emit-leading-comments-of-node" },
+                      "role": { "const": "set-site" },
+                      "start_line": { "const": 121007 },
+                      "end_line": { "const": 121032 }
+                    },
+                    "required": ["span_id", "role", "start_line", "end_line"]
+                  },
+                  {
+                    "properties": {
+                      "span_id": { "const": "emit-trailing-comments-of-node" },
+                      "role": { "const": "restore-site" },
+                      "start_line": { "const": 121033 },
+                      "end_line": { "const": 121052 }
+                    },
+                    "required": ["span_id", "role", "start_line", "end_line"]
+                  },
+                  {
+                    "properties": {
+                      "span_id": {
+                        "const": "for-each-leading-comment-to-emit"
+                      },
+                      "role": { "const": "guarded-reader-leading" },
+                      "start_line": { "const": 121219 },
+                      "end_line": { "const": 121233 }
+                    },
+                    "required": ["span_id", "role", "start_line", "end_line"]
+                  },
+                  {
+                    "properties": {
+                      "span_id": {
+                        "const": "for-each-trailing-comment-to-emit"
+                      },
+                      "role": { "const": "guarded-reader-trailing" },
+                      "start_line": { "const": 121234 },
+                      "end_line": { "const": 121238 }
+                    },
+                    "required": ["span_id", "role", "start_line", "end_line"]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      }
+    },
+    "families": {
+      "type": "array",
+      "minItems": 10,
+      "maxItems": 10,
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/family" },
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "family_id": { "const": "synthetic-wrapper-relocation" },
+                  "study_item": { "const": 1 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "container-start-shared-prefix" },
+                  "study_item": { "const": 2 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "delimited-list-starts" },
+                  "study_item": { "const": 3 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": {
+                    "const": "declaration-list-trailing-dedupe"
+                  },
+                  "study_item": { "const": 4 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "binary-trampoline-parity" },
+                  "study_item": { "const": 5 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "emit-flag-suppression" },
+                  "study_item": { "const": 6 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": {
+                    "const": "synthetic-comments-alongside-source"
+                  },
+                  "study_item": { "const": 7 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "detached-comment-reroute" },
+                  "study_item": { "const": 8 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": {
+                    "const": "type-node-trailing-repetition"
+                  },
+                  "study_item": { "const": 9 }
+                },
+                "required": ["family_id", "study_item"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "zero-width-and-not-emitted" },
+                  "study_item": { "const": 10 }
+                },
+                "required": ["family_id", "study_item"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "families",
+        "cases",
+        "positive_cases",
+        "remove_comments_controls",
+        "adjacent_negative_controls",
+        "typescript_oracle_runs",
+        "transforms_used",
+        "scope_graph_occurrence_lines",
+        "scope_graph_spans",
+        "rust_runs",
+        "runtime_admissions_delta"
+      ],
+      "properties": {
+        "families": { "const": 10 },
+        "cases": { "const": 30 },
+        "positive_cases": { "const": 10 },
+        "remove_comments_controls": { "const": 10 },
+        "adjacent_negative_controls": { "const": 10 },
+        "typescript_oracle_runs": { "const": 60 },
+        "transforms_used": {
+          "const": [
+            "add-synthetic-comments-to-marked",
+            "append-synthetic-statement-with-synthetic-comments",
+            "apply-comment-emit-flags",
+            "identity",
+            "replace-not-emitted-and-zero-width",
+            "wrap-expression-statements-in-synthetic-arrow"
+          ]
+        },
+        "scope_graph_occurrence_lines": { "const": 23 },
+        "scope_graph_spans": { "const": 7 },
+        "rust_runs": { "const": 0 },
+        "runtime_admissions_delta": { "const": 0 }
+      }
+    },
+    "witnesses_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": {
+          "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+        },
+        "bundle": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "vendor/typescript-6.0.3/lib/typescript.js" }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "implementation": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "vendor/typescript-6.0.3/lib/_tsc.js" }
+              },
+              "required": ["path"]
+            }
+          ]
+        }
+      }
+    },
+    "scope_span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "span_id",
+        "role",
+        "start_line",
+        "end_line",
+        "anchor",
+        "slice_sha256"
+      ],
+      "properties": {
+        "span_id": {
+          "enum": [
+            "printer-scope-state",
+            "binary-trampoline-carrier",
+            "pipeline-emit-with-comments",
+            "emit-leading-comments-of-node",
+            "emit-trailing-comments-of-node",
+            "for-each-leading-comment-to-emit",
+            "for-each-trailing-comment-to-emit"
+          ]
+        },
+        "role": {
+          "enum": [
+            "state",
+            "save-restore-carrier-iterative",
+            "save-restore-carrier-recursive",
+            "set-site",
+            "restore-site",
+            "guarded-reader-leading",
+            "guarded-reader-trailing"
+          ]
+        },
+        "start_line": { "type": "integer", "minimum": 1 },
+        "end_line": { "type": "integer", "minimum": 1 },
+        "anchor": { "type": "string", "minLength": 1 },
+        "slice_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "root", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": { "const": "/project/input.ts" },
+        "root": { "const": true },
+        "utf8_base64": { "type": "string", "minLength": 1 },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "case_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_directory", "roots", "files", "compiler_options"],
+      "properties": {
+        "current_directory": { "const": "/project" },
+        "roots": { "const": ["/project/input.ts"] },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/input_file" }
+        },
+        "compiler_options": {
+          "oneOf": [
+            {
+              "const": {
+                "module": 99,
+                "newLine": 1,
+                "removeComments": false,
+                "target": 3
+              }
+            },
+            {
+              "const": {
+                "module": 99,
+                "newLine": 1,
+                "removeComments": true,
+                "target": 3
+              }
+            }
+          ]
+        }
+      }
+    },
+    "marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "expectation"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1 },
+        "expectation": { "enum": ["present", "absent", "recorded"] }
+      }
+    },
+    "marker_occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "occurrences"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1 },
+        "occurrences": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files"
+      ],
+      "properties": {
+        "index": { "const": 0 },
+        "path": { "const": "/project/input.js" },
+        "callback_utf8_base64": { "type": "string" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "write_byte_order_mark": { "const": false },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "on_error_callback_present": { "type": "boolean" },
+        "source_files": { "const": ["/project/input.ts"] }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "emit_skipped",
+        "writes",
+        "marker_occurrences",
+        "observation_fingerprint_sha256"
+      ],
+      "properties": {
+        "reported_diagnostics": { "const": [] },
+        "emit_diagnostics": { "const": [] },
+        "emit_skipped": { "const": false },
+        "writes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/write" }
+        },
+        "marker_occurrences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/marker_occurrence" }
+        },
+        "observation_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "witness_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "role",
+        "transform",
+        "remove_comments",
+        "input",
+        "markers",
+        "repetitions",
+        "observation",
+        "case_fingerprint_sha256"
+      ],
+      "properties": {
+        "case_id": { "type": "string", "minLength": 1 },
+        "role": {
+          "enum": [
+            "positive",
+            "remove-comments-control",
+            "adjacent-negative-control"
+          ]
+        },
+        "transform": {
+          "enum": [
+            "identity",
+            "wrap-expression-statements-in-synthetic-arrow",
+            "apply-comment-emit-flags",
+            "add-synthetic-comments-to-marked",
+            "append-synthetic-statement-with-synthetic-comments",
+            "replace-not-emitted-and-zero-width"
+          ]
+        },
+        "remove_comments": { "type": "boolean" },
+        "input": { "$ref": "#/$defs/case_input" },
+        "markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/marker" }
+        },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" },
+        "case_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "role": { "const": "remove-comments-control" } },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": { "remove_comments": { "const": true } }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "role": { "enum": ["positive", "adjacent-negative-control"] }
+            },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": { "remove_comments": { "const": false } }
+          }
+        }
+      ]
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "study_item",
+        "study_anchor",
+        "description",
+        "positive_vs_remove_comments_distinct",
+        "cases",
+        "family_fingerprint_sha256"
+      ],
+      "properties": {
+        "family_id": { "type": "string", "minLength": 1 },
+        "study_item": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "study_anchor": {
+          "const": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md#3-witness-set-to-freeze-step-1-remainder"
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "positive_vs_remove_comments_distinct": { "const": true },
+        "cases": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/witness_case" }
+        },
+        "family_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

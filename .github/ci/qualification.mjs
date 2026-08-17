@@ -86,7 +86,7 @@ const HOSTED_ACCEPTANCE_CANONICAL_BODY = [
   ),
 ].join("");
 
-export const H2_5G_ARTIFACT_CONTRACTS = Object.freeze([
+export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
   Object.freeze({
     label: "H2.5g qualification",
     schema: ".github/ci/contracts/h2-5g-qualification.schema.json",
@@ -101,6 +101,16 @@ export const H2_5G_ARTIFACT_CONTRACTS = Object.freeze([
     label: "H2.5g profile",
     schema: ".github/ci/contracts/h2-5g-profile.schema.json",
     artifact: "ratchets/h2-5g-profile.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.5h-a foundation",
+    schema: ".github/ci/contracts/h2-5h-a-foundation.schema.json",
+    artifact: "ratchets/h2-5h-a-foundation.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.5h-a comment-scope witnesses",
+    schema: ".github/ci/contracts/h2-5h-a-comment-scope-witnesses.schema.json",
+    artifact: "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
   }),
 ]);
 
@@ -739,13 +749,13 @@ function readWorkspaceJson(relativePath, label) {
   }
 }
 
-export function validateH2_5gArtifacts() {
-  for (const contract of H2_5G_ARTIFACT_CONTRACTS) {
+export function validateArtifactSchemaContracts() {
+  for (const contract of ARTIFACT_SCHEMA_CONTRACTS) {
     const schema = readWorkspaceJson(contract.schema, `${contract.label} schema`);
     const artifact = readWorkspaceJson(contract.artifact, `${contract.label} artifact`);
     validateJsonSchemaSubset(schema, artifact, `${contract.label} artifact`);
   }
-  return H2_5G_ARTIFACT_CONTRACTS;
+  return ARTIFACT_SCHEMA_CONTRACTS;
 }
 
 const SLICE_READINESS_CHECKER = ".github/ci/slice-readiness.mjs";
@@ -2085,10 +2095,10 @@ function main() {
   const command = process.argv[2];
   if (command === "check") {
     validatePolicy(loadPolicy());
-    validateH2_5gArtifacts();
+    const contracts = validateArtifactSchemaContracts();
     const readiness = validateFciReadinessChain();
     process.stdout.write(
-      `CI qualification policy, schemas, H2.5g artifacts, and the FCI readiness chain (${readiness.envelopes} envelopes, ${readiness.ready} ready) are valid\n`,
+      `CI qualification policy, schemas, ${contracts.length} registered artifact contracts, and the FCI readiness chain (${readiness.envelopes} envelopes, ${readiness.ready} ready) are valid\n`,
     );
     return;
   }

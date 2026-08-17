@@ -1,0 +1,1206 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-5h-a-foundation.schema.json",
+  "title": "tsc-rs H2.5h-a dormant semantic foundation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "slice_id",
+    "typescript",
+    "generator",
+    "contract",
+    "lineage",
+    "inputs",
+    "selection_contract",
+    "owner_activation_contract",
+    "owner_closure",
+    "runtime_contract",
+    "direct_controls",
+    "control_coverage",
+    "candidates",
+    "summary",
+    "foundation_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h2-dormant-semantic-foundation" },
+    "status": {
+      "enum": [
+        "pre-freeze-parent-profile-absent",
+        "frozen-dormant-semantic-foundation"
+      ]
+    },
+    "phase": { "const": "H2.5h-a" },
+    "slice_id": { "const": "H2.5h-a" },
+    "typescript": { "$ref": "#/$defs/typescript" },
+    "generator": { "$ref": "#/$defs/path_hash" },
+    "contract": { "$ref": "#/$defs/path_hash" },
+    "lineage": { "$ref": "#/$defs/lineage" },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_dispositions", "owner_inventory"],
+      "properties": {
+        "candidate_dispositions": { "$ref": "#/$defs/path_hash" },
+        "owner_inventory": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "selection_contract": { "$ref": "#/$defs/selection_contract" },
+    "owner_activation_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "foundation_slice_id",
+        "runtime_activation_slice_id",
+        "activation",
+        "activation_mode",
+        "ordered_owner_keys",
+        "order_basis",
+        "production_registration",
+        "upstream_registration"
+      ],
+      "properties": {
+        "foundation_slice_id": { "const": "H2.5h-a" },
+        "runtime_activation_slice_id": { "const": "H2.5h-b+" },
+        "activation": { "const": "target below ES2015" },
+        "activation_mode": { "const": "joint" },
+        "ordered_owner_keys": {
+          "const": ["transform-es2015", "transform-generators"]
+        },
+        "order_basis": { "const": "pinned-typescript-source-order" },
+        "production_registration": { "const": "dormant" },
+        "upstream_registration": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "activation_test",
+            "ordered_transformers",
+            "source_range",
+            "registration_sha256"
+          ],
+          "properties": {
+            "source": {
+              "const": "vendor/typescript-6.0.3/lib/_tsc.js"
+            },
+            "activation_test": {
+              "const": "languageVersion < ES2015(2)"
+            },
+            "ordered_transformers": {
+              "const": ["transformES2015", "transformGenerators"]
+            },
+            "source_range": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["start", "end"],
+              "properties": {
+                "start": { "$ref": "#/$defs/position" },
+                "end": { "$ref": "#/$defs/position" }
+              }
+            },
+            "registration_sha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    },
+    "owner_closure": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/owner" },
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "index": { "const": 0 },
+                  "key": { "const": "transform-es2015" },
+                  "declaration": {
+                    "allOf": [
+                      { "$ref": "#/$defs/declaration" },
+                      {
+                        "properties": {
+                          "name": { "const": "transformES2015" }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": ["index", "key", "declaration"]
+              },
+              {
+                "properties": {
+                  "index": { "const": 1 },
+                  "key": { "const": "transform-generators" },
+                  "declaration": {
+                    "allOf": [
+                      { "$ref": "#/$defs/declaration" },
+                      {
+                        "properties": {
+                          "name": { "const": "transformGenerators" }
+                        }
+                      }
+                    ]
+                  }
+                },
+                "required": ["index", "key", "declaration"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "runtime_contract": { "$ref": "#/$defs/runtime_contract" },
+    "direct_controls": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/direct_control" },
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "control_id": { "const": "syntax-transform-flag-matrix" },
+                  "layers": { "const": ["syntax"] }
+                },
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "checker-colliding-block-scope"
+                  },
+                  "layers": { "const": ["checker", "resolver"] }
+                },
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "checker-captured-loop-bindings"
+                  },
+                  "layers": { "const": ["checker", "resolver"] }
+                },
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "checker-arguments-and-catch-reference"
+                  },
+                  "layers": { "const": ["checker", "resolver"] }
+                },
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "factory-generated-name-lexical-environment"
+                  },
+                  "layers": { "const": ["factory"] }
+                },
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "factory-es2015-generator-helper-graph"
+                  },
+                  "layers": { "const": ["factory"] }
+                },
+                "required": ["control_id", "layers"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "control_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layers", "resolver_methods", "factory_operations"],
+      "properties": {
+        "layers": { "const": ["checker", "factory", "resolver", "syntax"] },
+        "resolver_methods": {
+          "const": [
+            "getReferencedDeclarationWithCollidingName",
+            "getReferencedValueDeclaration",
+            "hasNodeCheckFlag",
+            "isArgumentsLocalBinding",
+            "isBindingCapturedByNode",
+            "isDeclarationWithCollidingName"
+          ]
+        },
+        "factory_operations": {
+          "const": [
+            "extends-helper",
+            "generated-name-a",
+            "generated-name-b",
+            "generator-helper",
+            "hoisted-lexical-environment",
+            "read-helper",
+            "spread-array-helper",
+            "unique-name-a",
+            "unique-name-b",
+            "values-helper"
+          ]
+        }
+      }
+    },
+    "candidates": {
+      "type": "array",
+      "minItems": 932,
+      "maxItems": 932,
+      "items": { "$ref": "#/$defs/candidate" }
+    },
+    "summary": {
+      "const": {
+        "global_h2_5h_rows": 2012,
+        "candidates": 932,
+        "compiler_candidates": 231,
+        "conformance_candidates": 619,
+        "project_candidates": 82,
+        "runner_executable_cases": 850,
+        "project_foundation_cases": 82,
+        "future_deferred_rows": 1080,
+        "owner_roots": 2,
+        "direct_controls": 6,
+        "typescript_oracle_runs": 12,
+        "candidate_typescript_runs": 0,
+        "rust_runs": 0,
+        "runtime_admissions_delta": 0,
+        "h2_5h_activity": 0,
+        "unexecuted_candidates": 932,
+        "undispositioned_candidates": 0
+      }
+    },
+    "foundation_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "pre-freeze-parent-profile-absent" }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "lineage": {
+            "allOf": [
+              { "$ref": "#/$defs/lineage" },
+              {
+                "properties": {
+                  "state": {
+                    "const": "pre-freeze-h2-5g-parent-absent"
+                  },
+                  "parent_profile": { "type": "null" }
+                }
+              }
+            ]
+          },
+          "runtime_contract": {
+            "allOf": [
+              { "$ref": "#/$defs/runtime_contract" },
+              {
+                "properties": {
+                  "parent_completed_runtime_slices": { "type": "null" },
+                  "runtime_admissions_before": { "type": "null" },
+                  "runtime_admissions_after": { "type": "null" },
+                  "executed_candidates_before": { "type": "null" },
+                  "executed_candidates_after": { "type": "null" }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "frozen-dormant-semantic-foundation" }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "lineage": {
+            "allOf": [
+              { "$ref": "#/$defs/lineage" },
+              {
+                "properties": {
+                  "state": { "const": "closed-h2-5g-parent" },
+                  "parent_profile": { "$ref": "#/$defs/path_hash" }
+                }
+              }
+            ]
+          },
+          "runtime_contract": {
+            "allOf": [
+              { "$ref": "#/$defs/runtime_contract" },
+              {
+                "properties": {
+                  "parent_completed_runtime_slices": { "const": 22 },
+                  "runtime_admissions_before": { "const": 9196 },
+                  "runtime_admissions_after": { "const": 9196 },
+                  "executed_candidates_before": { "const": 9715 },
+                  "executed_candidates_after": { "const": 9715 }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": {
+          "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+        },
+        "bundle": { "$ref": "#/$defs/path_hash" },
+        "implementation": { "$ref": "#/$defs/path_hash" }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "parent_phase",
+        "parent_profile",
+        "interpretation"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "pre-freeze-h2-5g-parent-absent",
+            "closed-h2-5g-parent"
+          ]
+        },
+        "parent_phase": { "const": "H2.5g" },
+        "parent_profile": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/path_hash" }
+          ]
+        },
+        "interpretation": {
+          "const": "H2.5h-a freezes candidate identity and semantic controls without activating either H2.5h production transformer"
+        }
+      }
+    },
+    "selection_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selected_slice",
+        "foundation_slice_id",
+        "runtime_activation_slice_id",
+        "closed_through_slice",
+        "closed_runtime_slices",
+        "selection_authority",
+        "candidate_rule",
+        "global_h2_5h_rows",
+        "candidate_denominator",
+        "runner_executable_cases",
+        "project_foundation_cases",
+        "future_deferred_rows",
+        "suite_partition",
+        "global_membership_sha256",
+        "candidate_membership_sha256",
+        "future_membership_sha256"
+      ],
+      "properties": {
+        "selected_slice": { "const": "H2.5h" },
+        "foundation_slice_id": { "const": "H2.5h-a" },
+        "runtime_activation_slice_id": { "const": "H2.5h-b+" },
+        "closed_through_slice": { "const": "H2.5g" },
+        "closed_runtime_slices": {
+          "const": [
+            "H2.1a",
+            "H2.1b",
+            "H2.1c",
+            "H2.1d",
+            "H2.1e",
+            "H2.2a",
+            "H2.2b",
+            "H2.2c",
+            "H2.2d",
+            "H2.3a",
+            "H2.3b",
+            "H2.3c",
+            "H2.3d",
+            "H2.4a",
+            "H2.4b",
+            "H2.5a",
+            "H2.5b",
+            "H2.5c",
+            "H2.5d",
+            "H2.5e",
+            "H2.5f",
+            "H2.5g"
+          ]
+        },
+        "selection_authority": { "const": "required_slices-only" },
+        "candidate_rule": {
+          "const": "required_slices contains H2.5h and every other required slice is closed through H2.5g"
+        },
+        "global_h2_5h_rows": { "const": 2012 },
+        "candidate_denominator": { "const": 932 },
+        "runner_executable_cases": { "const": 850 },
+        "project_foundation_cases": { "const": 82 },
+        "future_deferred_rows": { "const": 1080 },
+        "suite_partition": {
+          "const": [
+            { "suite": "compiler", "cases": 231 },
+            { "suite": "conformance", "cases": 619 },
+            { "suite": "project", "cases": 82 }
+          ]
+        },
+        "global_membership_sha256": { "$ref": "#/$defs/sha256" },
+        "candidate_membership_sha256": { "$ref": "#/$defs/sha256" },
+        "future_membership_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offset", "line", "character"],
+      "properties": {
+        "offset": { "type": "integer", "minimum": 0 },
+        "line": { "type": "integer", "minimum": 1 },
+        "character": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "declaration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "source",
+        "name",
+        "kind",
+        "lexical_path",
+        "source_range",
+        "declaration_sha256",
+        "body_sha256",
+        "ledger_slice_sha256"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^h2:[0-9a-f]{64}$" },
+        "source": {
+          "const": "vendor/typescript-6.0.3/lib/_tsc.js"
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "const": "FunctionDeclaration" },
+        "lexical_path": { "type": "string", "minLength": 1 },
+        "source_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["start", "end"],
+          "properties": {
+            "start": { "$ref": "#/$defs/position" },
+            "end": { "$ref": "#/$defs/position" }
+          }
+        },
+        "declaration_sha256": { "$ref": "#/$defs/sha256" },
+        "body_sha256": { "$ref": "#/$defs/sha256" },
+        "ledger_slice_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "key",
+        "role",
+        "owner_slice",
+        "activation",
+        "disposition_before_foundation",
+        "runtime_state",
+        "declaration"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "maximum": 1 },
+        "key": {
+          "enum": ["transform-es2015", "transform-generators"]
+        },
+        "role": { "type": "string", "minLength": 1 },
+        "owner_slice": { "const": "H2.5h" },
+        "activation": { "const": "target below ES2015" },
+        "disposition_before_foundation": { "const": "deferred-h2" },
+        "runtime_state": { "const": "dormant" },
+        "declaration": { "$ref": "#/$defs/declaration" }
+      }
+    },
+    "runtime_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "foundation_slice_id",
+        "runtime_activation_slice_id",
+        "production_state",
+        "transformer_registration",
+        "active_runtime_slices",
+        "h2_5h_runtime_active",
+        "h2_5h_activity",
+        "candidate_execution_state",
+        "candidate_typescript_runs",
+        "rust_runs",
+        "parent_completed_runtime_slices",
+        "runtime_admissions_before",
+        "runtime_admissions_after",
+        "runtime_admissions_delta",
+        "executed_candidates_before",
+        "executed_candidates_after"
+      ],
+      "properties": {
+        "foundation_slice_id": { "const": "H2.5h-a" },
+        "runtime_activation_slice_id": { "const": "H2.5h-b+" },
+        "production_state": { "const": "dormant" },
+        "transformer_registration": { "const": "not-registered" },
+        "active_runtime_slices": {
+          "const": [
+            "H2.1a",
+            "H2.1b",
+            "H2.1c",
+            "H2.1d",
+            "H2.1e",
+            "H2.2a",
+            "H2.2b",
+            "H2.2c",
+            "H2.2d",
+            "H2.3a",
+            "H2.3b",
+            "H2.3c",
+            "H2.3d",
+            "H2.4a",
+            "H2.4b",
+            "H2.5a",
+            "H2.5b",
+            "H2.5c",
+            "H2.5d",
+            "H2.5e",
+            "H2.5f",
+            "H2.5g"
+          ]
+        },
+        "h2_5h_runtime_active": { "const": false },
+        "h2_5h_activity": { "const": 0 },
+        "candidate_execution_state": { "const": "not-run" },
+        "candidate_typescript_runs": { "const": 0 },
+        "rust_runs": { "const": 0 },
+        "parent_completed_runtime_slices": {
+          "type": ["integer", "null"],
+          "minimum": 22,
+          "maximum": 22
+        },
+        "runtime_admissions_before": {
+          "type": ["integer", "null"],
+          "minimum": 9196,
+          "maximum": 9196
+        },
+        "runtime_admissions_after": {
+          "type": ["integer", "null"],
+          "minimum": 9196,
+          "maximum": 9196
+        },
+        "runtime_admissions_delta": { "const": 0 },
+        "executed_candidates_before": {
+          "type": ["integer", "null"],
+          "minimum": 9715,
+          "maximum": 9715
+        },
+        "executed_candidates_after": {
+          "type": ["integer", "null"],
+          "minimum": 9715,
+          "maximum": 9715
+        }
+      }
+    },
+    "node_selector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file", "kind", "start", "end", "text"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1 },
+        "kind": { "type": "string", "minLength": 1 },
+        "start": { "type": "integer", "minimum": 0 },
+        "end": { "type": "integer", "minimum": 0 },
+        "text": { "type": ["string", "null"] }
+      }
+    },
+    "syntax_fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["subject", "transform_flags", "active_transform_flags"],
+      "properties": {
+        "subject": { "$ref": "#/$defs/node_selector" },
+        "transform_flags": { "type": "integer" },
+        "active_transform_flags": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "ContainsES2018",
+              "ContainsES2017",
+              "ContainsES2016",
+              "ContainsES2015",
+              "ContainsGenerator",
+              "ContainsDestructuringAssignment",
+              "ContainsLexicalThis",
+              "ContainsRestOrSpread",
+              "ContainsObjectRestOrSpread",
+              "ContainsComputedPropertyName",
+              "ContainsBlockScopedBinding",
+              "ContainsBindingPattern",
+              "ContainsYield",
+              "ContainsAwait",
+              "ContainsHoistedDeclarationOrCompletion"
+            ]
+          }
+        }
+      }
+    },
+    "checker_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject",
+        "symbol_flags",
+        "declarations",
+        "value_declaration"
+      ],
+      "properties": {
+        "subject": { "$ref": "#/$defs/node_selector" },
+        "symbol_flags": { "type": ["integer", "null"] },
+        "declarations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/node_selector" }
+        },
+        "value_declaration": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/node_selector" }
+          ]
+        }
+      }
+    },
+    "resolver_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "boolean", "declaration"],
+      "properties": {
+        "kind": { "enum": ["boolean", "declaration"] },
+        "boolean": { "type": ["boolean", "null"] },
+        "declaration": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/node_selector" }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "kind": { "const": "boolean" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": {
+              "boolean": { "type": "boolean" },
+              "declaration": { "type": "null" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "declaration" } },
+            "required": ["kind"]
+          },
+          "then": {
+            "properties": { "boolean": { "type": "null" } }
+          }
+        }
+      ]
+    },
+    "resolver_query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "method",
+        "subject",
+        "secondary_subject",
+        "argument",
+        "result"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "getReferencedDeclarationWithCollidingName",
+            "getReferencedValueDeclaration",
+            "hasNodeCheckFlag",
+            "isArgumentsLocalBinding",
+            "isBindingCapturedByNode",
+            "isDeclarationWithCollidingName"
+          ]
+        },
+        "subject": { "$ref": "#/$defs/node_selector" },
+        "secondary_subject": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/node_selector" }
+          ]
+        },
+        "argument": { "type": ["string", "null"] },
+        "result": { "$ref": "#/$defs/resolver_result" }
+      }
+    },
+    "generated_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["flags", "prefix", "suffix", "source"],
+      "properties": {
+        "flags": { "type": "integer" },
+        "prefix": { "type": ["string", "null"] },
+        "suffix": { "type": ["string", "null"] },
+        "source": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/node_selector" }
+          ]
+        }
+      }
+    },
+    "factory_tree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text",
+        "transform_flags",
+        "emit_flags",
+        "generated",
+        "children"
+      ],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "text": { "type": ["string", "null"] },
+        "transform_flags": { "type": "integer" },
+        "emit_flags": { "type": "integer" },
+        "generated": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generated_identity" }
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/factory_tree_depth2" }
+        }
+      }
+    },
+    "factory_tree_depth2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text",
+        "transform_flags",
+        "emit_flags",
+        "generated",
+        "children"
+      ],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "text": { "type": ["string", "null"] },
+        "transform_flags": { "type": "integer" },
+        "emit_flags": { "type": "integer" },
+        "generated": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generated_identity" }
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/factory_tree_depth3" }
+        }
+      }
+    },
+    "factory_tree_depth3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text",
+        "transform_flags",
+        "emit_flags",
+        "generated",
+        "children"
+      ],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "text": { "type": ["string", "null"] },
+        "transform_flags": { "type": "integer" },
+        "emit_flags": { "type": "integer" },
+        "generated": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generated_identity" }
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/factory_tree_depth4" }
+        }
+      }
+    },
+    "factory_tree_depth4": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text",
+        "transform_flags",
+        "emit_flags",
+        "generated",
+        "children"
+      ],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "text": { "type": ["string", "null"] },
+        "transform_flags": { "type": "integer" },
+        "emit_flags": { "type": "integer" },
+        "generated": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generated_identity" }
+          ]
+        },
+        "children": { "const": [] }
+      }
+    },
+    "factory_node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "tree"],
+      "properties": {
+        "label": { "type": "string", "minLength": 1 },
+        "tree": { "$ref": "#/$defs/factory_tree" }
+      }
+    },
+    "factory_relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relation", "left_label", "right_label", "result"],
+      "properties": {
+        "relation": { "type": "string", "minLength": 1 },
+        "left_label": { "type": "string", "minLength": 1 },
+        "right_label": { "type": "string", "minLength": 1 },
+        "result": { "type": "boolean" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "code", "category", "file", "start", "length"],
+      "properties": {
+        "phase": { "enum": ["pre-emit", "emit"] },
+        "code": { "type": "integer", "minimum": 0 },
+        "category": {
+          "enum": ["Warning", "Error", "Suggestion", "Message"]
+        },
+        "file": { "type": ["string", "null"] },
+        "start": { "type": ["integer", "null"], "minimum": 0 },
+        "length": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "path": { "type": "string", "minLength": 1 },
+        "callback_utf8_base64": { "type": "string" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "write_byte_order_mark": { "type": "boolean" },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "on_error_callback_present": { "type": "boolean" },
+        "source_files": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "syntax_nodes",
+        "checker_bindings",
+        "resolver_queries",
+        "factory_nodes",
+        "factory_relations",
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "emit_skipped",
+        "writes",
+        "observation_fingerprint_sha256"
+      ],
+      "properties": {
+        "syntax_nodes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/syntax_fact" }
+        },
+        "checker_bindings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/checker_binding" }
+        },
+        "resolver_queries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/resolver_query" }
+        },
+        "factory_nodes": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/factory_node" }
+        },
+        "factory_relations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/factory_relation" }
+        },
+        "reported_diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_skipped": { "const": false },
+        "writes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/write" }
+        },
+        "observation_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "root",
+        "utf8_base64",
+        "utf8_sha256",
+        "utf8_bytes"
+      ],
+      "properties": {
+        "path": { "const": "/project/input.ts" },
+        "root": { "const": true },
+        "utf8_base64": { "type": "string", "minLength": 1 },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "control_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_directory", "roots", "files", "compiler_options"],
+      "properties": {
+        "current_directory": { "const": "/project" },
+        "roots": { "const": ["/project/input.ts"] },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/input_file" }
+        },
+        "compiler_options": {
+          "const": {
+            "alwaysStrict": true,
+            "downlevelIteration": true,
+            "ignoreDeprecations": "6.0",
+            "importHelpers": false,
+            "module": 99,
+            "newLine": 1,
+            "noEmitHelpers": false,
+            "target": 1,
+            "useDefineForClassFields": false,
+            "useUnknownInCatchVariables": false
+          }
+        }
+      }
+    },
+    "direct_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "control_id",
+        "layers",
+        "input",
+        "repetitions",
+        "observation",
+        "control_fingerprint_sha256"
+      ],
+      "properties": {
+        "control_id": { "type": "string", "minLength": 1 },
+        "layers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "enum": ["syntax", "checker", "resolver", "factory"] }
+        },
+        "input": { "$ref": "#/$defs/control_input" },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" },
+        "control_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "source_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "git_blob_sha1"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "git_blob_sha1": { "$ref": "#/$defs/sha1" }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "suite",
+        "upstream_case",
+        "id",
+        "source",
+        "required_slices",
+        "foundation_route",
+        "execution_state",
+        "runtime_admission",
+        "candidate_fingerprint_sha256"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "maximum": 931 },
+        "suite": { "enum": ["compiler", "conformance", "project"] },
+        "upstream_case": { "type": "integer", "minimum": 0 },
+        "id": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source_identity" },
+        "required_slices": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "H2.1a",
+              "H2.1b",
+              "H2.1c",
+              "H2.1d",
+              "H2.1e",
+              "H2.2a",
+              "H2.2b",
+              "H2.2c",
+              "H2.2d",
+              "H2.3a",
+              "H2.3b",
+              "H2.3c",
+              "H2.3d",
+              "H2.4a",
+              "H2.4b",
+              "H2.5a",
+              "H2.5b",
+              "H2.5c",
+              "H2.5d",
+              "H2.5e",
+              "H2.5f",
+              "H2.5g",
+              "H2.5h"
+            ]
+          }
+        },
+        "foundation_route": {
+          "enum": ["runner-executable", "project-foundation-only"]
+        },
+        "execution_state": { "const": "not-run" },
+        "runtime_admission": { "const": false },
+        "candidate_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "suite": { "const": "project" } },
+            "required": ["suite"]
+          },
+          "then": {
+            "properties": {
+              "foundation_route": { "const": "project-foundation-only" }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "suite": { "enum": ["compiler", "conformance"] }
+            },
+            "required": ["suite"]
+          },
+          "then": {
+            "properties": {
+              "foundation_route": { "const": "runner-executable" }
+            }
+          }
+        }
+      ]
+    }
+  }
+}
