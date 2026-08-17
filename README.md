@@ -527,8 +527,8 @@ False positives are a hard gate: 0 on every merge. Escape
 ceilings: untagged 0, recovery 0. Non-2XXX family
 map: frozen, 15 families / 433 rows.
 
-M8 readiness: 9/10 gates ready.
-Ready: m7-gate, shadow-tiers, scope-frozen, rust-function-dispositions, emitter-inventory, emitter-dependency-closure, runtime-coverage, differential-fuzzer, m7-family-rollup. Pending: performance-baseline.
+M8 readiness: 10/10 gates ready.
+Ready: m7-gate, shadow-tiers, scope-frozen, rust-function-dispositions, emitter-inventory, emitter-dependency-closure, runtime-coverage, differential-fuzzer, performance-baseline, m7-family-rollup. Pending: none.
 <!-- STATUS:END -->
 
 The generated table is the all-corpus visibility view. Completion is judged
