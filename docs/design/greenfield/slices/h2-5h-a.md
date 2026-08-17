@@ -62,6 +62,31 @@ reuses. The H2.5h-a design branch performs these steps in order:
    lifecycle transitions (the paused Functional-CI tail is not a
    prerequisite under the recorded Option A review).
 
+Prerequisite-transition progress:
+
+- Step 1 **verified (2026-08-17)**: every qualified H2.5g row in the
+  architecture map names the immutable final validation ref `0653e10d`
+  with the merge ref `507a96ac` recorded as delivery lineage only
+  (architecture map §1), and the ancestry proofs
+  (`507a96ac` ⊂ `0653e10d` ⊂ current main) re-ran green.
+- Step 2 **complete (2026-08-18)**: the complete pinned owner graph is
+  frozen at `ratchets/h2-5h-a-owner-graph.v1.json` (generator
+  `crates/oracle/h2-5h-a-owner-graph.mjs` `--write|--check`, contract
+  `.github/ci/contracts/h2-5h-a-owner-graph.schema.json`, registered in
+  the artifact-contract table): both owner declarations re-validated
+  from the frozen owner inventory, parser-exact classified reference
+  closures (300 pinned local functions, 98 factory methods, the six
+  resolver methods matching the foundation coverage, five helper
+  factories, 132 external utilities, 242 frozen enum value/name pairs),
+  the destructuring-flattener (18 functions) and tagged-template (2)
+  shared-module closures, five composition edges (including the two
+  pinned `yield*` synthesis sites through which ES2015 loop conversion
+  feeds the Generators state machine), and seventeen
+  census-surface-to-architecture-row assignments verified against both
+  the census and the architecture map. Assignment is not disposition:
+  the applicability manifest remains step 5's output.
+
+
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must
 also preserve the single unsplit `cargo xtask acceptance` command and update
 the complete hosted action union, protected engine adapter/profile registry,
