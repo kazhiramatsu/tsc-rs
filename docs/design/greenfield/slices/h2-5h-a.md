@@ -137,6 +137,11 @@ the ready packet.
 
 ## First mandatory design packet: global comment scope
 
+Step-1 progress: the complete pinned scope graph and the current-Rust
+delta are frozen in
+[the comment-scope study](h2-5h-a-comment-scope.md); the witness
+generator and the implementation packets remain open.
+
 Before the ES2015 or Generators owner graph may authorize production work, the
 slice must close `E-COMMENT-SCOPE-H`. This is an architecture prerequisite,
 not an opportunistic printer fix. The pinned tsc study must trace the set,
