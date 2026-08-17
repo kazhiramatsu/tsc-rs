@@ -1,0 +1,551 @@
+{
+  "schema": 1,
+  "kind": "h2-architecture-dispositions",
+  "status": "frozen-architecture-dispositions",
+  "phase": "H2.5h-a",
+  "slice_id": "H2.5h-a",
+  "plan_step": "prerequisite-transition-step-5-manifest",
+  "generator": {
+    "path": "crates/oracle/h2-5h-a-dispositions.mjs",
+    "sha256": "ac62b18118c50830d47f86d34ceb981a4d76f631fe6649d4af36a8d3b103391b"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
+    "sha256": "32bbafdaa90d21bf857f2416ebdb0870d1e4584c2e0f81cdffb471f7f74ade12"
+  },
+  "lineage": {
+    "owner_graph": {
+      "path": "ratchets/h2-5h-a-owner-graph.v1.json",
+      "sha256": "58df96707a46e5d60e903b6234f8d5ab68312a9113f7feaf3bc3e5f629c1dfc8"
+    },
+    "owner_graph_fingerprint_sha256": "3e57e55b3afd8c8c548e4d1b4a7f82b6c07562556675d4a288135a59328dbc14",
+    "gap_matrix": {
+      "path": "ratchets/h2-5h-a-gap-matrix.v1.json",
+      "sha256": "cb04139e5a0c03635a60e438f876b4f5eff7674594c27d4a68fbf6893885ee99"
+    },
+    "gap_matrix_fingerprint_sha256": "3db4f6fe900c02d698e45a51f514445903a1db63e66d591e66bbdae82bee5cf8",
+    "architecture_map": {
+      "path": "docs/design/greenfield/emitter-architecture.md",
+      "sha256": "dd21658450c7672e0008eb364c9ab911f5239ebb9c5a20d98f9910dd4c8f70bd"
+    },
+    "interpretation": "prerequisite-transition step 5 (manifest half): every architecture row dispositioned exactly once against the frozen owner graph and local-gap matrix; a row added to or removed from the map makes this manifest stale; it authorizes no production edit and activates nothing"
+  },
+  "rows": [
+    {
+      "index": 0,
+      "row_id": "E-ENTRY",
+      "disposition": "premise-unchanged",
+      "rationale": "the no-emit/emit typed entries are unchanged; widening target admission happens at the transformer-registration guard owned by E-ORDER-H",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "8d58896d0fbd96d9ef3ed9c611a4c143b9070c15ad88434a6c91738849c14d67"
+    },
+    {
+      "index": 1,
+      "row_id": "E-PROTOCOL",
+      "disposition": "premise-unchanged",
+      "rationale": "host/resolver/artifact/sink/outcome ownership boundaries are unchanged; resolver query growth is owned by the E-RESOLVER-* rows",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "58c039a25857e93531263347ca107fcedb4198e10c58005f379b3f59ed5e8488"
+    },
+    {
+      "index": 2,
+      "row_id": "E-PLAN-SCRIPT",
+      "disposition": "premise-unchanged",
+      "rationale": "selection/root/mode/path planning is target-independent",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "06a463f97a0deb1e66eb6375493fcd90191842157fb0bc74ca00ecc6ebd4c1f9"
+    },
+    {
+      "index": 3,
+      "row_id": "E-PLAN-FUTURE",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "H2.6/H2.7 own future planning products; no H2.5h reachability",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "e36345b786a2d68b09048db25d537779c6614c944304a666cff06ba5dc11b851"
+    },
+    {
+      "index": 4,
+      "row_id": "E-OUTPUT-SCRIPT",
+      "disposition": "premise-unchanged",
+      "rationale": "the JavaScript write path is unchanged by downlevel output",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "a9c378c16150906c31cbc0f3ddea3269b9138f0b776d99e96df68ca6d2efb269"
+    },
+    {
+      "index": 5,
+      "row_id": "E-OUTPUT-FUTURE",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "H2.6/H2.7 own future output products; no H2.5h reachability",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "2908822559be29994536132bb416690268428cb2bede4f14abc1ff4377343b1f"
+    },
+    {
+      "index": 6,
+      "row_id": "E-MAPS",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "the owners set source-map ranges on synthesized nodes but range storage already lives in E-METADATA-BASE; map emission stays dormant under its H2.6 owner",
+      "surfaces": [
+        "source-map-apis"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "d1e319aa80c9a29474238e5acd7c8e922b0cf416e56df340cef118142662a04f"
+    },
+    {
+      "index": 7,
+      "row_id": "E-ARENA",
+      "disposition": "premise-unchanged",
+      "rationale": "generic arena construction covers the owners' 98 factory methods",
+      "surfaces": [
+        "factory-construction"
+      ],
+      "capabilities": [
+        "node-construction"
+      ],
+      "row_fingerprint_sha256": "273920e66ca4bde9f09ceafd23a39c5427a792a71d9a4d3acaa4792153008b4d"
+    },
+    {
+      "index": 8,
+      "row_id": "E-RESOLVER-IDENTITY-G",
+      "disposition": "premise-unchanged",
+      "rationale": "the identity-anchoring rule is unchanged; every new resolver consumer follows it and is enumerated by its implementation packet",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "f44fde01a093e9747cfc40fb4652649d165362f79a07d4bbfaed9ab9e9619215"
+    },
+    {
+      "index": 9,
+      "row_id": "E-CONTEXT",
+      "disposition": "premise-unchanged",
+      "rationale": "the lexical environment (start/resume/end, hoisting, suspension) exists and is consumed as-is",
+      "surfaces": [
+        "lexical-environment"
+      ],
+      "capabilities": [
+        "lexical-environment"
+      ],
+      "row_fingerprint_sha256": "6e82cf75705f6fc87f7904ccda93c92a37021b74d70d900fbc89042c4bcedfdc"
+    },
+    {
+      "index": 10,
+      "row_id": "E-SYNTAX-FACTS",
+      "disposition": "modified-requalify",
+      "rationale": "template token flags and extended-Unicode identifier facts must persist through clone/incremental reuse for the EA-GAP-FLAGS classifier",
+      "surfaces": [
+        "syntax-guards",
+        "transform-flag-recomputation"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "a12954aed2ca08348b55b555f3c449823fe72c558890bb1af69364eb8bbf77c0"
+    },
+    {
+      "index": 11,
+      "row_id": "E-METADATA-BASE",
+      "disposition": "modified-requalify",
+      "rationale": "the new transforms write comment/source-map ranges and original-node chains onto synthesized nodes; the row extends rather than infers from text",
+      "surfaces": [
+        "transform-flag-recomputation",
+        "source-map-apis"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "5775d4c989ba8843535c6cbeff4872efded20c11b80b8d20036bc92c8f0dc1bc"
+    },
+    {
+      "index": 12,
+      "row_id": "E-METADATA-G",
+      "disposition": "premise-unchanged",
+      "rationale": "the H2.5g typed metadata facts are consumed unchanged",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "ae85a747ad8762a1f25ec384f9e162177e5f82e21fb96884ed5621b687470900"
+    },
+    {
+      "index": 13,
+      "row_id": "E-METADATA-G-CLASS",
+      "disposition": "modified-requalify",
+      "rationale": "ES2015 class lowering must preserve the PropertyDeclaration->Parameter provenance chain and class_this/assigned_name transport across its wrappers",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "37785f8cd60929d6ab7aab0ac9c2865cfc9d4ec6498862f4fb11ea85e23d8151"
+    },
+    {
+      "index": 14,
+      "row_id": "E-JSX-FACTORY-G",
+      "disposition": "premise-unchanged",
+      "rationale": "JSX is lowered upstream of ES2015; the owner census contains zero JSX factory calls",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "7ac0ceb37fc4498965a587579f4be63eb217b372cc7167aa70eef4e990c6faf2"
+    },
+    {
+      "index": 15,
+      "row_id": "E-CAPTURE-BASE",
+      "disposition": "modified-requalify",
+      "rationale": "converted-loop capture plans extend the existing scoped local plans",
+      "surfaces": [
+        "loop-partition-machinery",
+        "destructuring-module"
+      ],
+      "capabilities": [
+        "loop-conversion-capture"
+      ],
+      "row_fingerprint_sha256": "a6afa037a01121a8cd7856139a8e20d0678d975d84614d580145c02c2a9b9907"
+    },
+    {
+      "index": 16,
+      "row_id": "E-CAPTURE-CLASS-G",
+      "disposition": "modified-requalify",
+      "rationale": "every ES2015 class/wrapper consumer must preserve the three independent ordered lanes",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "d3bb934cee02410017d4f3d0f9c745fce982b6b09ae1c0c25702bb5c9eb446ca"
+    },
+    {
+      "index": 17,
+      "row_id": "E-CLASS-PENDING-G",
+      "disposition": "modified-requalify",
+      "rationale": "class-definition pending effects must survive ES2015 wrapper placement",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "8300f9d98357f2bf3cbcf597ce29d35962a431bd0e146c74c1a23eca1f36a954"
+    },
+    {
+      "index": 18,
+      "row_id": "E-DECORATOR-INITIALIZERS-G",
+      "disposition": "modified-requalify",
+      "rationale": "member addInitializer queues must survive ES2015 wrapper placement",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "8e1d461c79a2d30546fc939585acb031a4abf1b0dba6bb1b7a5272c5eed82507"
+    },
+    {
+      "index": 19,
+      "row_id": "E-DECORATOR-CLASS-INITIALIZERS-G",
+      "disposition": "modified-requalify",
+      "rationale": "the exactly-once class-decorator finalizer must survive ES2015 wrapper placement",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "8fb0d0b0051c09d19475bc1395b444fcc25fea7b7512027ebc8448204210726c"
+    },
+    {
+      "index": 20,
+      "row_id": "E-DECORATOR-PARAMETER-PROPERTY-G",
+      "disposition": "modified-requalify",
+      "rationale": "constructor-local parameter-property materialization must hold in the ES5 target route",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "0cad6fb37c5c04eddbfbaca03e3067516c2c52c2952717ca4dc682741fe1a2b2"
+    },
+    {
+      "index": 21,
+      "row_id": "E-ORDER-G",
+      "disposition": "premise-unchanged",
+      "rationale": "the closed pass order before ES2015 is unchanged",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "97037c154e9c34faf1632d379c3e64affcf8767b493ec2edf98f1639b2f176ae"
+    },
+    {
+      "index": 22,
+      "row_id": "E-ORDER-H",
+      "disposition": "activate",
+      "rationale": "the joint ES2015->Generators registration, hook chains, and pass-order edges become live production structure",
+      "surfaces": [
+        "hook-composition",
+        "yield-star-synthesis"
+      ],
+      "capabilities": [
+        "pass-registration-boundary",
+        "substitution-notification-hooks"
+      ],
+      "row_fingerprint_sha256": "d632c2cd0527b881a4095c26ea11109e9458e582c7f3998e50c5b3763026b290"
+    },
+    {
+      "index": 23,
+      "row_id": "E-RESOLVER-BASE",
+      "disposition": "premise-unchanged",
+      "rationale": "the emit-resolver protocol boundary is unchanged",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "3ee769789f11032613c53b102cfd7f1e0c5d3385098695b8d73e41b8ad554078"
+    },
+    {
+      "index": 24,
+      "row_id": "E-RESOLVER-CAPTURE-BASE",
+      "disposition": "modified-requalify",
+      "rationale": "existing capture queries gain converted-loop consumers",
+      "surfaces": [
+        "resolver-collision-capture-queries"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "d7f3d8b64a731e236eaf9b9479ea6e8617b50086555bd235b3e0bd8980f19f71"
+    },
+    {
+      "index": 25,
+      "row_id": "E-RESOLVER-CAPTURE-H",
+      "disposition": "activate",
+      "rationale": "the six owner queries become live (three are declared today as typed fail-closed defaults; answers are gated by the foundation's direct controls)",
+      "surfaces": [
+        "resolver-collision-capture-queries"
+      ],
+      "capabilities": [
+        "resolver-collision-capture-queries"
+      ],
+      "row_fingerprint_sha256": "67823bb48d6ce6a2f08a9bcceeb43951e566e9d1a30434b7d0729d90f3643086"
+    },
+    {
+      "index": 26,
+      "row_id": "E-CHECKER-FACTS-BASE",
+      "disposition": "premise-unchanged",
+      "rationale": "the checker-fact transport boundary is unchanged",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "e672c78054dbe944023838cb0325befe2f0b7d62bd3763686ac482d72341206c"
+    },
+    {
+      "index": 27,
+      "row_id": "E-CHECKER-FACTS-H",
+      "disposition": "activate",
+      "rationale": "the loop NodeCheckFlags set must be answered exactly against the frozen direct-control observations",
+      "surfaces": [
+        "resolver-node-check-flags"
+      ],
+      "capabilities": [
+        "resolver-collision-capture-queries"
+      ],
+      "row_fingerprint_sha256": "28ceab22e2535dc04d260e21e42bdcaa9420e45642f0523ed75f01ce5e074856"
+    },
+    {
+      "index": 28,
+      "row_id": "E-NAMES-BASE",
+      "disposition": "modified-requalify",
+      "rationale": "loop variables and unique names gain new producers",
+      "surfaces": [
+        "name-generation"
+      ],
+      "capabilities": [
+        "name-generation-deferred"
+      ],
+      "row_fingerprint_sha256": "d896217389937f50d00b02e248f5bcc958ba15ff63ac760979e39d8d650099dd"
+    },
+    {
+      "index": 29,
+      "row_id": "E-NAMES-CLASS-G",
+      "disposition": "modified-requalify",
+      "rationale": "class-name lowering at the ES5 boundary consumes the class-name facts",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "cbc63141229fd8ccb27fafa10b48ad873052484858a035445ea9ec100f12300f"
+    },
+    {
+      "index": 30,
+      "row_id": "E-NAMES-H",
+      "disposition": "activate",
+      "rationale": "the deferred-resolution vs eager-reservation equivalence argument becomes a live obligation",
+      "surfaces": [
+        "name-generation"
+      ],
+      "capabilities": [
+        "name-generation-deferred"
+      ],
+      "row_fingerprint_sha256": "b321e425082af84ae1facaaf4376a88bbd15678ef4255432a8ac7447913c604b"
+    },
+    {
+      "index": 31,
+      "row_id": "E-HELPERS-BASE",
+      "disposition": "modified-requalify",
+      "rationale": "four helper texts (extends/values/spreadArray/generator) join the existing read helper",
+      "surfaces": [
+        "helper-factory"
+      ],
+      "capabilities": [
+        "helper-emission"
+      ],
+      "row_fingerprint_sha256": "5fd6c5537f2967532942db5cabd173aa06d78d5a2607963228d7aa4040cd5bcd"
+    },
+    {
+      "index": 32,
+      "row_id": "E-HELPERS-PROVENANCE-G",
+      "disposition": "premise-unchanged",
+      "rationale": "the helper provenance rule is unchanged",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "b4cc61a1bb202dc8ca56a1557826f3969577418f63fc9389021b0dff82b8c6ec"
+    },
+    {
+      "index": 33,
+      "row_id": "E-HELPERS-H",
+      "disposition": "activate",
+      "rationale": "the owner helper graph becomes live",
+      "surfaces": [
+        "helper-factory"
+      ],
+      "capabilities": [
+        "helper-emission"
+      ],
+      "row_fingerprint_sha256": "dc2f20f9e37b5baaa6a250b5d56817840a17dcd1cd43758371d546e076d37d97"
+    },
+    {
+      "index": 34,
+      "row_id": "E-PRINTER-BASE",
+      "disposition": "premise-unchanged",
+      "rationale": "downlevel output uses ES5 shapes the printer already prints",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "cbae737d1e30e80c04744b81db6b50e588512ee14334eb63c7433b7f4a6aae67"
+    },
+    {
+      "index": 35,
+      "row_id": "E-PRINTER-G",
+      "disposition": "premise-unchanged",
+      "rationale": "the H2.5g printer facts are consumed unchanged",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "546520baa08aa32d248eaf8602ee3e5633bfaf48561528c8669473038e60f1e8"
+    },
+    {
+      "index": 36,
+      "row_id": "E-COMMENTS-G",
+      "disposition": "premise-unchanged",
+      "rationale": "the qualified comment projections keep their H2.5g scope",
+      "surfaces": [],
+      "capabilities": [],
+      "row_fingerprint_sha256": "9b98becab22c86db04d6c8a160270ddd86a4373e3e3cbb34e3e6c9419c1f7a7a"
+    },
+    {
+      "index": 37,
+      "row_id": "E-COMMENT-SCOPE-H",
+      "disposition": "activate",
+      "rationale": "the threaded comment-scope triple is implemented by comment-scope packets 2-6 before any ES2015/Generators production work; the study and ten-family witnesses are frozen",
+      "surfaces": [
+        "comment-apis"
+      ],
+      "capabilities": [
+        "comment-scope-threading"
+      ],
+      "row_fingerprint_sha256": "dfed96558eb2cd1f475652ec70679d8bc62e5b097b9e89482aed8a25217fa53d"
+    },
+    {
+      "index": 38,
+      "row_id": "E-COMMENTS-H",
+      "disposition": "activate",
+      "rationale": "comment relocation for synthesized wrappers rides the threaded scope",
+      "surfaces": [
+        "comment-apis"
+      ],
+      "capabilities": [
+        "comment-scope-threading"
+      ],
+      "row_fingerprint_sha256": "a0ca610e436227aa802c450108385e8c6ce3b9eba85fc651ea43b39aa199cc5f"
+    },
+    {
+      "index": 39,
+      "row_id": "E-POSITIONS",
+      "disposition": "modified-requalify",
+      "rationale": "PartiallyEmittedExpression and outer-expression wrappers gain new producers whose position preservation must requalify",
+      "surfaces": [
+        "outer-expression-wrappers"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "43c3db5a35c40a5a99687619b9c1176fcf0680a63d9710452b3277c9eec6ad29"
+    },
+    {
+      "index": 40,
+      "row_id": "E-STRINGS",
+      "disposition": "modified-requalify",
+      "rationale": "createTemplateCooked and tagged-template lowering extend the string-spelling obligations",
+      "surfaces": [
+        "tagged-template-module"
+      ],
+      "capabilities": [
+        "tagged-template-lowering"
+      ],
+      "row_fingerprint_sha256": "faa35a9804733eacc56cd203bde70fc8596f118a41006696677fb687bb31cdee"
+    },
+    {
+      "index": 41,
+      "row_id": "EA-GAP-FLAGS",
+      "disposition": "activate",
+      "rationale": "the shared full transform-flag classifier is a named deliverable",
+      "surfaces": [
+        "transform-flag-recomputation"
+      ],
+      "capabilities": [
+        "transform-flag-recomputation"
+      ],
+      "row_fingerprint_sha256": "33686b1f5f22f40e9d56e04f78bbb2eddadf7cc34ab843ee64baaae62353a053"
+    },
+    {
+      "index": 42,
+      "row_id": "EA-GAP-CAPTURE",
+      "disposition": "activate",
+      "rationale": "the complete ES2015 capture model (hierarchy, this/arguments/new.target/super, converted loops, catch scopes, captured bindings) is a named deliverable",
+      "surfaces": [
+        "loop-partition-machinery",
+        "resolver-collision-capture-queries"
+      ],
+      "capabilities": [
+        "loop-conversion-capture",
+        "resolver-collision-capture-queries"
+      ],
+      "row_fingerprint_sha256": "05a4280e8f17d93901a9f59971538faf771c91454cb3f8091ff06c01ca1db950"
+    },
+    {
+      "index": 43,
+      "row_id": "EA-GAP-COMPOSITION",
+      "disposition": "activate",
+      "rationale": "the owner graph resolved the SCC question: one joint H2.5h-b runtime slice; hook composition, generated-binding finalization, wrapper provenance, comment transitions, and typed helper IR are named deliverables",
+      "surfaces": [
+        "yield-star-synthesis",
+        "hook-composition"
+      ],
+      "capabilities": [
+        "generator-state-machine",
+        "destructuring-flattener-es2015"
+      ],
+      "row_fingerprint_sha256": "c9e8f9775c6d35435baa05dca6226cb4ddb2dd938393644184337b020c51bdbe"
+    },
+    {
+      "index": 44,
+      "row_id": "EA-GAP-MAPS-DECLS",
+      "disposition": "future-owned-fail-closed",
+      "rationale": "the pinned graph shows range-setting only; no shared provenance fact forces an H2.5h requalification, so the row stays with H2.6/H2.7",
+      "surfaces": [
+        "source-map-apis"
+      ],
+      "capabilities": [],
+      "row_fingerprint_sha256": "85bc90bfb73b5995dded6313fc9e6ac650a8ff99088ab94f488f91d714df3c96"
+    }
+  ],
+  "summary": {
+    "rows": 45,
+    "premise_unchanged": 16,
+    "modified_requalify": 15,
+    "activate": 10,
+    "future_owned_fail_closed": 4,
+    "proven_unreachable": 0,
+    "undispositioned": 0,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0
+  },
+  "dispositions_fingerprint_sha256": "9ab5b85ee49d7b71e7662f994b5804b42ae287a581d155f3eaea22143dc3edf4"
+}

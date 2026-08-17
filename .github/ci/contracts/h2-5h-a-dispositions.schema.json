@@ -1,0 +1,193 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-5h-a-dispositions.schema.json",
+  "title": "tsc-rs H2.5h-a architecture-row disposition manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "slice_id",
+    "plan_step",
+    "generator",
+    "contract",
+    "lineage",
+    "rows",
+    "summary",
+    "dispositions_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h2-architecture-dispositions" },
+    "status": { "const": "frozen-architecture-dispositions" },
+    "phase": { "const": "H2.5h-a" },
+    "slice_id": { "const": "H2.5h-a" },
+    "plan_step": { "const": "prerequisite-transition-step-5-manifest" },
+    "generator": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": { "const": "crates/oracle/h2-5h-a-dispositions.mjs" }
+          },
+          "required": ["path"]
+        }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": {
+              "const": ".github/ci/contracts/h2-5h-a-dispositions.schema.json"
+            }
+          },
+          "required": ["path"]
+        }
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "owner_graph",
+        "owner_graph_fingerprint_sha256",
+        "gap_matrix",
+        "gap_matrix_fingerprint_sha256",
+        "architecture_map",
+        "interpretation"
+      ],
+      "properties": {
+        "owner_graph": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "ratchets/h2-5h-a-owner-graph.v1.json" }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "owner_graph_fingerprint_sha256": { "$ref": "#/$defs/sha256" },
+        "gap_matrix": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "ratchets/h2-5h-a-gap-matrix.v1.json" }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "gap_matrix_fingerprint_sha256": { "$ref": "#/$defs/sha256" },
+        "architecture_map": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": {
+                  "const": "docs/design/greenfield/emitter-architecture.md"
+                }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "interpretation": {
+          "const": "prerequisite-transition step 5 (manifest half): every architecture row dispositioned exactly once against the frozen owner graph and local-gap matrix; a row added to or removed from the map makes this manifest stale; it authorizes no production edit and activates nothing"
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 45,
+      "maxItems": 45,
+      "items": { "$ref": "#/$defs/row" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows",
+        "premise_unchanged",
+        "modified_requalify",
+        "activate",
+        "future_owned_fail_closed",
+        "proven_unreachable",
+        "undispositioned",
+        "rust_runs",
+        "runtime_admissions_delta"
+      ],
+      "properties": {
+        "rows": { "const": 45 },
+        "premise_unchanged": { "const": 16 },
+        "modified_requalify": { "const": 15 },
+        "activate": { "const": 10 },
+        "future_owned_fail_closed": { "const": 4 },
+        "proven_unreachable": { "const": 0 },
+        "undispositioned": { "const": 0 },
+        "rust_runs": { "const": 0 },
+        "runtime_admissions_delta": { "const": 0 }
+      }
+    },
+    "dispositions_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "row_id",
+        "disposition",
+        "rationale",
+        "surfaces",
+        "capabilities",
+        "row_fingerprint_sha256"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0, "maximum": 44 },
+        "row_id": {
+          "type": "string",
+          "pattern": "^E[A]?-[A-Z0-9-]+$"
+        },
+        "disposition": {
+          "enum": [
+            "premise-unchanged",
+            "modified-requalify",
+            "activate",
+            "future-owned-fail-closed",
+            "proven-unreachable"
+          ]
+        },
+        "rationale": { "type": "string", "minLength": 1 },
+        "surfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "capabilities": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "row_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
