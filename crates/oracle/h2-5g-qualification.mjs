@@ -856,6 +856,108 @@ function hasCommentedOptionalChainTypeAssertion(text) {
   );
 }
 
+// --write observation reuse: pin-only envelope changes must not re-run
+// 18,054 TypeScript observations. A stored case record is adopted verbatim
+// only when every observation-driving input is byte-identical: the global
+// records (vendored TypeScript bundle/implementation, the eight vendor
+// inputs, the execution contract, the owner closure) and the per-case
+// identity (fixture bytes, merged settings, selection, roots, per-unit
+// text hashes). Anything else falls back to a fresh observation for that
+// case. --check deliberately keeps the full re-observation: the CI
+// freshness proof re-runs every observation and byte-compares, so an
+// unsound reuse cannot survive the next gate run.
+let reusedObservations = 0;
+
+function reusableStoredCases(
+  typescriptRecord,
+  inputsRecord,
+  executionContract,
+  ownerRows,
+) {
+  if (MODE !== "--write") return null;
+  const targetPath = path.join(WORKSPACE, TARGET_RELATIVE_PATH);
+  if (!fs.existsSync(targetPath)) return null;
+  let stored;
+  try {
+    stored = JSON.parse(fs.readFileSync(targetPath, "utf8"));
+  } catch {
+    return null;
+  }
+  if (
+    stored.schema !== 1 ||
+    stored.status !== "qualified-typescript-oracle" ||
+    stored.phase !== "H2.5g-es2016-target" ||
+    !hasValidFingerprint(stored, "qualification_fingerprint_sha256") ||
+    canonical(stored.typescript) !== canonical(typescriptRecord) ||
+    canonical(stored.inputs) !== canonical(inputsRecord) ||
+    canonical(stored.execution_contract) !== canonical(executionContract) ||
+    canonical(stored.owner_closure) !== canonical(ownerRows)
+  ) {
+    return null;
+  }
+  return new Map(stored.cases.map((entry) => [entry.case_id, entry]));
+}
+
+function storedCaseReusable(stored, suite, row, loaded, settings, selection) {
+  if (
+    stored.suite !== suite ||
+    stored.selection_origin !== row.selection_origin ||
+    stored.expansion_case !== row.expansion_case ||
+    stored.source.sha256 !== loaded.source.sha256 ||
+    !hasValidFingerprint(stored, "case_fingerprint_sha256")
+  ) {
+    return false;
+  }
+  const cwd = currentDirectory(settings);
+  const settingsRecord = [...settings].map(([name, value]) => ({ name, value }));
+  const roots = selection.program_root_unit_ids.map((id) =>
+    ts.getNormalizedAbsolutePath(loaded.units[id].name, cwd),
+  );
+  const virtualConfig =
+    loaded.virtualConfig === null
+      ? null
+      : {
+          path: ts.getNormalizedAbsolutePath(loaded.virtualConfig.name, cwd),
+          utf8_sha256: sha256(Buffer.from(loaded.virtualConfig.text, "utf8")),
+        };
+  // Mirrors createProgramCase exactly: iteration in vfs_write_order,
+  // last target wins per link path.
+  const symlinkByPath = new Map();
+  for (const id of selection.vfs_write_order) {
+    const unit = loaded.units[id];
+    const target = ts.getNormalizedAbsolutePath(unit.name, cwd);
+    for (const rawLink of documentSymlinks(unit.file_options)) {
+      symlinkByPath.set(ts.getNormalizedAbsolutePath(rawLink, cwd), target);
+    }
+  }
+  const vfsSymlinks = [...symlinkByPath].map(([link_path, target_path]) => ({
+    link_path,
+    target_path,
+  }));
+  if (
+    stored.input.current_directory !== cwd ||
+    canonical(stored.input.settings) !== canonical(settingsRecord) ||
+    canonical(stored.input.roots) !== canonical(roots) ||
+    canonical(stored.input.vfs_symlinks) !== canonical(vfsSymlinks) ||
+    (stored.input.virtual_config === null) !== (virtualConfig === null) ||
+    (virtualConfig !== null &&
+      (stored.input.virtual_config.path !== virtualConfig.path ||
+        stored.input.virtual_config.utf8_sha256 !== virtualConfig.utf8_sha256)) ||
+    stored.input.files.length !== selection.vfs_write_order.length
+  ) {
+    return false;
+  }
+  return selection.vfs_write_order.every((id, index) => {
+    const unit = loaded.units[id];
+    const record = stored.input.files[index];
+    return (
+      record.unit === id &&
+      record.path === ts.getNormalizedAbsolutePath(unit.name, cwd) &&
+      record.utf8_sha256 === sha256(Buffer.from(unit.text, "utf8"))
+    );
+  });
+}
+
 function analyzeCase(
   loaded,
   selection,
@@ -1061,6 +1163,7 @@ function buildSuite(
   expansion,
   selectionOrigins,
   loadedBySource,
+  reuseByCaseId,
 ) {
   const rows = moduleCandidates(classification, selectionOrigins);
   return rows.map((row) => {
@@ -1097,6 +1200,15 @@ function buildSuite(
     );
     const selection =
       loaded.configContext?.selection ?? explicitRootSelection(loaded, settings, options);
+    const stored = reuseByCaseId?.get(row.id);
+    if (
+      stored !== undefined &&
+      storedCaseReusable(stored, suite, row, loaded, settings, selection)
+    ) {
+      reusedObservations += 1;
+      reportObservationProgress(row.id);
+      return stored;
+    }
     const makeProgram = () => createProgramCase(loaded, selection, settings, options);
     const ownerReachability = OWNER_KEYS;
     const analysis = analyzeCase(
@@ -1217,6 +1329,37 @@ function buildArtifact() {
       disposition_before_h2_5g: row.disposition,
     };
   });
+  const typescriptRecord = {
+    version: ts.version,
+    source_commit: SOURCE_COMMIT,
+    bundle: pathHash(TYPESCRIPT_BUNDLE),
+    implementation: pathHash(TYPESCRIPT_IMPLEMENTATION),
+  };
+  const inputsRecord = {
+    compiler_classification: pathHash(COMPILER_CLASSIFICATION),
+    conformance_classification: pathHash(CONFORMANCE_CLASSIFICATION),
+    compiler_expansion: pathHash(COMPILER_EXPANSION),
+    compiler_config_plans: pathHash(COMPILER_CONFIG_PLANS),
+    conformance_expansion: pathHash(CONFORMANCE_EXPANSION),
+    vfs_directory_overlay: pathHash(VFS_DIRECTORY_OVERLAY),
+    owner_inventory: pathHash(OWNER_RELATIVE_PATH),
+    global_candidate_dispositions: pathHash(GLOBAL_DISPOSITIONS_RELATIVE_PATH),
+  };
+  const executionContract = {
+    source_reachability: "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    module_selection: "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    admission: admissionContract(),
+    typescript_repetitions: 2,
+    rust_repetitions: 2,
+    normalization: "none",
+    deferred_boundary: "typed failure before first sink write",
+  };
+  const reuseByCaseId = reusableStoredCases(
+    typescriptRecord,
+    inputsRecord,
+    executionContract,
+    ownerRows,
+  );
   const configPlanBySource = new Map(
     compilerConfigPlans.fixtures.map((entry) => [entry.source.index, entry]),
   );
@@ -1265,6 +1408,7 @@ function buildArtifact() {
       compilerExpansion,
       selectionOrigins,
       compilerLoadedBySource,
+      reuseByCaseId,
     ),
     ...buildSuite(
       "conformance",
@@ -1272,6 +1416,7 @@ function buildArtifact() {
       conformanceExpansion,
       selectionOrigins,
       conformanceLoadedBySource,
+      reuseByCaseId,
     ),
   ].sort((left, right) => left.suite.localeCompare(right.suite) || left.case_id.localeCompare(right.case_id));
   requireCondition(cases.length === 9_027, `unexpected H2.5g denominator ${cases.length}`);
@@ -1390,12 +1535,7 @@ function buildArtifact() {
       schema: 1,
       status: "qualified-typescript-oracle",
       phase: "H2.5g-es2016-target",
-      typescript: {
-        version: ts.version,
-        source_commit: SOURCE_COMMIT,
-        bundle: pathHash(TYPESCRIPT_BUNDLE),
-        implementation: pathHash(TYPESCRIPT_IMPLEMENTATION),
-      },
+      typescript: typescriptRecord,
       generator: pathHash(GENERATOR_RELATIVE_PATH),
       contract: pathHash(CONTRACT_RELATIVE_PATH),
       origin: {
@@ -1410,25 +1550,8 @@ function buildArtifact() {
         candidate_denominator: selectionOrigins.size,
         future_deferred_rows: globalRows.length - candidateRows.length,
       },
-      inputs: {
-        compiler_classification: pathHash(COMPILER_CLASSIFICATION),
-        conformance_classification: pathHash(CONFORMANCE_CLASSIFICATION),
-        compiler_expansion: pathHash(COMPILER_EXPANSION),
-        compiler_config_plans: pathHash(COMPILER_CONFIG_PLANS),
-        conformance_expansion: pathHash(CONFORMANCE_EXPANSION),
-        vfs_directory_overlay: pathHash(VFS_DIRECTORY_OVERLAY),
-        owner_inventory: pathHash(OWNER_RELATIVE_PATH),
-        global_candidate_dispositions: pathHash(GLOBAL_DISPOSITIONS_RELATIVE_PATH),
-      },
-      execution_contract: {
-        source_reachability: "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
-        module_selection: "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
-        admission: admissionContract(),
-        typescript_repetitions: 2,
-        rust_repetitions: 2,
-        normalization: "none",
-        deferred_boundary: "typed failure before first sink write",
-      },
+      inputs: inputsRecord,
+      execution_contract: executionContract,
       owner_closure: ownerRows,
       cases,
       summary,
@@ -1547,7 +1670,7 @@ if (MODE === "--upgrade-observation-layout") {
   if (MODE === "--write") {
   fs.writeFileSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH), rendered);
   process.stdout.write(
-    `wrote ${TARGET_RELATIVE_PATH}: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases}\n`,
+    `wrote ${TARGET_RELATIVE_PATH}: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} reused_observations=${reusedObservations}\n`,
   );
   } else if (MODE === "--check") {
     requireCondition(

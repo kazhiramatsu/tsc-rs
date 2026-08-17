@@ -299,7 +299,7 @@ const anchorSpecs = [
   [
     "program-session-run",
     "crates/compiler/src/lib.rs",
-    "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(false, &mut no_emit_canary)\n    }",
+    "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(\n            false,\n            LibraryPrefixCompletion::Complete,\n            &mut no_emit_canary,\n        )\n    }",
   ],
   [
     "program-session-emit",

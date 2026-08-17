@@ -243,7 +243,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/checker/src/lib.rs",
         "line": 73,
-        "source_sha256": "ea0ef6c22ef5384430515643ae03ccbaa9401d512fc45ea585fe26137bc77ad4",
+        "source_sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f",
         "evidence": "pub struct InputFile {"
       },
       {
@@ -293,8 +293,8 @@
         "from": "PreparedSourceFile.snapshot",
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
-        "line": 1373,
-        "source_sha256": "fce92b10f1a9323a76053a822ab314e22953c1152783447a8cbe1465ab618788",
+        "line": 1405,
+        "source_sha256": "dc5d6810bb9ae2038c9af912ef18500cf7554860c5f160011d177a4624290c16",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -302,8 +302,8 @@
         "to": "SourceFile.snapshot",
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
-        "line": 1608,
-        "source_sha256": "ea0ef6c22ef5384430515643ae03ccbaa9401d512fc45ea585fe26137bc77ad4",
+        "line": 1636,
+        "source_sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f",
         "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain("
       },
       {
@@ -311,8 +311,8 @@
         "to": "SourceFile.snapshot",
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
-        "line": 1692,
-        "source_sha256": "ea0ef6c22ef5384430515643ae03ccbaa9401d512fc45ea585fe26137bc77ad4",
+        "line": 1720,
+        "source_sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f",
         "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
       },
       {
@@ -343,8 +343,8 @@
         "from": "prepared/config/auxiliary snapshots",
         "to": "CLI diagnostic snapshot map",
         "path": "crates/compiler/src/cli.rs",
-        "line": 1110,
-        "source_sha256": "4bb276cd55d1c64eaf5a2ad30145d46bebf85c8614e2378100ca023113eaaec1",
+        "line": 1114,
+        "source_sha256": "b05a748416462f5852224cb473c3cb6db71b74223efc5b59655ea404b2ac042a",
         "evidence": "    let host = FormatDiagnosticsHost::from_snapshots(current_directory, source_texts);"
       }
     ],
@@ -352,7 +352,7 @@
     "zero_copy_counter_contract": {
       "path": "crates/compiler/tests/integration/program_session_contract.rs",
       "line": 229,
-      "source_sha256": "4bf3327f42048c075b110df2d581bb610d71a11d2f9cfb4b7071afe8cf9b6722",
+      "source_sha256": "b1be18716e19e1d1a9175fb9ac1d058670510e8170e3e077ba654881f2478192",
       "evidence": "fn l0_work_counters_and_sorted_batch_syntax_diagnostics() {"
     },
     "position_index": {

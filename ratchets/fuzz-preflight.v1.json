@@ -4,7 +4,7 @@
   "source_references": [
     {
       "path": "ratchets/fuzz-domain.v1.toml",
-      "sha256": "9455644c66d6c7518cf5174eb793fa4b7833fa9bd63c0fc57ee3132ae2469727"
+      "sha256": "695e0cae2df3dac76e0b8bd051e4cea3844b2de24bae3cfebd8e0d0b6e98ac03"
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
@@ -12,7 +12,7 @@
     },
     {
       "path": "m8-evidence.json",
-      "sha256": "5bc173da94829b474f519695c35751d35761a916412fb63f910046e32887e1f6"
+      "sha256": "13cce4b1fdeb45f85f530e94b33df679ccc34cb6bb1f3917fb08dcfde95ff674"
     },
     {
       "path": "m8-emitter-inventory.json",
@@ -40,7 +40,7 @@
     },
     {
       "path": "crates/checker/src/lib.rs",
-      "sha256": "ea0ef6c22ef5384430515643ae03ccbaa9401d512fc45ea585fe26137bc77ad4"
+      "sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f"
     },
     {
       "path": "crates/diagnostics/src/lib.rs",

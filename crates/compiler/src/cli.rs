@@ -897,7 +897,11 @@ fn execute_prepared(
         );
     }
     let outcome = ProgramSession::new(prepared)
-        .run_with_no_emit_canary(false, route.canary)
+        .run_with_no_emit_canary(
+            false,
+            tsc_checker::LibraryPrefixCompletion::Complete,
+            route.canary,
+        )
         .map_err(|error| CliError::Driver(error.to_string()))?;
     // Config-owned non-fatal option rows are supplied separately from the
     // prepared program. Insert them at the same bucket boundary as

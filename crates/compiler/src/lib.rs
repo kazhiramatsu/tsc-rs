@@ -28,7 +28,8 @@ use tsc_checker::{
     AuthoritativeNotFoundModule, AuthoritativePackageId, AuthoritativeResolutionDiagnosticModule,
     AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
     AuthoritativeSourceToken, AuthoritativeUntypedModule, CheckResult, InputFile,
-    OwnedHarnessLibBundle, ProgramSnapshot, UnsupportedAuthoritativeResolution,
+    LibraryPrefixCompletion, OwnedHarnessLibBundle, ProgramSnapshot,
+    UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_emitter::{
@@ -690,7 +691,11 @@ impl ProgramSession {
     pub fn run(self) -> Result<NoEmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::NoEmit)?;
         let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
-        self.run_with_no_emit_canary(false, &mut no_emit_canary)
+        self.run_with_no_emit_canary(
+            false,
+            LibraryPrefixCompletion::Complete,
+            &mut no_emit_canary,
+        )
     }
 
     /// Prepare a bounded, exact-match library prefix for harness repetitions.
@@ -879,15 +884,40 @@ impl ProgramSession {
     pub fn run_for_harness_with_lib_cache(self) -> Result<NoEmitOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::NoEmit)?;
         let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
-        self.run_with_no_emit_canary(true, &mut no_emit_canary)
+        self.run_with_no_emit_canary(true, LibraryPrefixCompletion::Complete, &mut no_emit_canary)
+    }
+
+    /// Conformance-runner execution: the lib-cache harness path with the
+    /// library-prefix completion pass elided.
+    ///
+    /// The runner compares only [`NoEmitOutcome::conformance_diagnostics`]
+    /// and [`NoEmitOutcome::syntactic_diagnostics`], which are assembled
+    /// from the fixture projections before the whole-Program completion
+    /// pass and therefore cannot observe it. Without `skipDefaultLibCheck`
+    /// that pass checks the standard library prefix (~1s per program), so
+    /// eliding it is pure cost removal for this consumer. Any session whose
+    /// whole-Program semantic surface is itself compared — the production
+    /// CLI, qualification suites, and every emit path — must keep
+    /// [`Self::run`]/[`Self::run_for_harness_with_lib_cache`].
+    /// tsrs-native: consumer-scoped execution mode; no tsc counterpart.
+    #[doc(hidden)]
+    pub fn run_for_conformance_harness(self) -> Result<NoEmitOutcome, DriverError> {
+        self.require_mode(PreparedProgramMode::NoEmit)?;
+        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();
+        self.run_with_no_emit_canary(
+            true,
+            LibraryPrefixCompletion::FixtureObservedOnly,
+            &mut no_emit_canary,
+        )
     }
 
     pub(crate) fn run_with_no_emit_canary(
         self,
         harness_lib_cache: bool,
+        library_prefix: LibraryPrefixCompletion,
         no_emit_canary: &mut no_emit_canary::NoEmitCanary,
     ) -> Result<NoEmitOutcome, DriverError> {
-        self.run_inner(harness_lib_cache, no_emit_canary)
+        self.run_inner(harness_lib_cache, library_prefix, no_emit_canary)
     }
 
     fn require_mode(&self, expected: PreparedProgramMode) -> Result<(), DriverError> {
@@ -902,6 +932,7 @@ impl ProgramSession {
     fn run_inner(
         self,
         harness_lib_cache: bool,
+        library_prefix: LibraryPrefixCompletion,
         _no_emit_canary: &mut no_emit_canary::NoEmitCanary,
     ) -> Result<NoEmitOutcome, DriverError> {
         let inputs = project_checker_inputs(&self.prepared)?;
@@ -919,6 +950,7 @@ impl ProgramSession {
                 self.prepared.compiler_options(),
                 &inputs.current_directory,
                 &provider,
+                library_prefix,
             )
         } else {
             check_program_with_authoritative_modules_at(
