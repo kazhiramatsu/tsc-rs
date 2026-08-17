@@ -65,7 +65,7 @@
       ],
       "properties": {
         "foundation_slice_id": { "const": "H2.5h-a" },
-        "runtime_activation_slice_id": { "const": "H2.5h-b" },
+        "runtime_activation_slice_id": { "const": "H2.5h-b+" },
         "activation": { "const": "target below ES2015" },
         "activation_mode": { "const": "joint" },
         "ordered_owner_keys": {
@@ -111,136 +111,116 @@
       "type": "array",
       "minItems": 2,
       "maxItems": 2,
-      "prefixItems": [
-        {
-          "allOf": [
-            { "$ref": "#/$defs/owner" },
-            {
-              "properties": {
-                "index": { "const": 0 },
-                "key": { "const": "transform-es2015" },
-                "declaration": {
-                  "allOf": [
-                    { "$ref": "#/$defs/declaration" },
-                    {
-                      "properties": {
-                        "name": { "const": "transformES2015" }
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/owner" },
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "index": { "const": 0 },
+                  "key": { "const": "transform-es2015" },
+                  "declaration": {
+                    "allOf": [
+                      { "$ref": "#/$defs/declaration" },
+                      {
+                        "properties": {
+                          "name": { "const": "transformES2015" }
+                        }
                       }
-                    }
-                  ]
-                }
-              }
-            }
-          ]
-        },
-        {
-          "allOf": [
-            { "$ref": "#/$defs/owner" },
-            {
-              "properties": {
-                "index": { "const": 1 },
-                "key": { "const": "transform-generators" },
-                "declaration": {
-                  "allOf": [
-                    { "$ref": "#/$defs/declaration" },
-                    {
-                      "properties": {
-                        "name": { "const": "transformGenerators" }
+                    ]
+                  }
+                },
+                "required": ["index", "key", "declaration"]
+              },
+              {
+                "properties": {
+                  "index": { "const": 1 },
+                  "key": { "const": "transform-generators" },
+                  "declaration": {
+                    "allOf": [
+                      { "$ref": "#/$defs/declaration" },
+                      {
+                        "properties": {
+                          "name": { "const": "transformGenerators" }
+                        }
                       }
-                    }
-                  ]
-                }
+                    ]
+                  }
+                },
+                "required": ["index", "key", "declaration"]
               }
-            }
-          ]
-        }
-      ],
-      "items": false
+            ]
+          }
+        ]
+      }
     },
     "runtime_contract": { "$ref": "#/$defs/runtime_contract" },
     "direct_controls": {
       "type": "array",
       "minItems": 6,
       "maxItems": 6,
-      "prefixItems": [
-        {
-          "allOf": [
-            { "$ref": "#/$defs/direct_control" },
-            {
-              "properties": {
-                "control_id": { "const": "syntax-transform-flag-matrix" },
-                "layers": { "const": ["syntax"] }
-              }
-            }
-          ]
-        },
-        {
-          "allOf": [
-            { "$ref": "#/$defs/direct_control" },
-            {
-              "properties": {
-                "control_id": {
-                  "const": "checker-colliding-block-scope"
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/direct_control" },
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "control_id": { "const": "syntax-transform-flag-matrix" },
+                  "layers": { "const": ["syntax"] }
                 },
-                "layers": { "const": ["checker", "resolver"] }
-              }
-            }
-          ]
-        },
-        {
-          "allOf": [
-            { "$ref": "#/$defs/direct_control" },
-            {
-              "properties": {
-                "control_id": {
-                  "const": "checker-captured-loop-bindings"
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "checker-colliding-block-scope"
+                  },
+                  "layers": { "const": ["checker", "resolver"] }
                 },
-                "layers": { "const": ["checker", "resolver"] }
-              }
-            }
-          ]
-        },
-        {
-          "allOf": [
-            { "$ref": "#/$defs/direct_control" },
-            {
-              "properties": {
-                "control_id": {
-                  "const": "checker-arguments-and-catch-reference"
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "checker-captured-loop-bindings"
+                  },
+                  "layers": { "const": ["checker", "resolver"] }
                 },
-                "layers": { "const": ["checker", "resolver"] }
-              }
-            }
-          ]
-        },
-        {
-          "allOf": [
-            { "$ref": "#/$defs/direct_control" },
-            {
-              "properties": {
-                "control_id": {
-                  "const": "factory-generated-name-lexical-environment"
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "checker-arguments-and-catch-reference"
+                  },
+                  "layers": { "const": ["checker", "resolver"] }
                 },
-                "layers": { "const": ["factory"] }
-              }
-            }
-          ]
-        },
-        {
-          "allOf": [
-            { "$ref": "#/$defs/direct_control" },
-            {
-              "properties": {
-                "control_id": {
-                  "const": "factory-es2015-generator-helper-graph"
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "factory-generated-name-lexical-environment"
+                  },
+                  "layers": { "const": ["factory"] }
                 },
-                "layers": { "const": ["factory"] }
+                "required": ["control_id", "layers"]
+              },
+              {
+                "properties": {
+                  "control_id": {
+                    "const": "factory-es2015-generator-helper-graph"
+                  },
+                  "layers": { "const": ["factory"] }
+                },
+                "required": ["control_id", "layers"]
               }
-            }
-          ]
-        }
-      ],
-      "items": false
+            ]
+          }
+        ]
+      }
     },
     "control_coverage": {
       "type": "object",
@@ -259,17 +239,17 @@
           ]
         },
         "factory_operations": {
-          "type": "array",
-          "minItems": 10,
-          "uniqueItems": true,
-          "items": { "type": "string", "minLength": 1 },
-          "allOf": [
-            { "contains": { "const": "extends-helper" } },
-            { "contains": { "const": "generated-name-a" } },
-            { "contains": { "const": "generator-helper" } },
-            { "contains": { "const": "read-helper" } },
-            { "contains": { "const": "spread-array-helper" } },
-            { "contains": { "const": "values-helper" } }
+          "const": [
+            "extends-helper",
+            "generated-name-a",
+            "generated-name-b",
+            "generator-helper",
+            "hoisted-lexical-environment",
+            "read-helper",
+            "spread-array-helper",
+            "unique-name-a",
+            "unique-name-b",
+            "values-helper"
           ]
         }
       }
@@ -341,8 +321,16 @@
             ]
           }
         }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "frozen-dormant-semantic-foundation" }
+        },
+        "required": ["status"]
       },
-      "else": {
+      "then": {
         "properties": {
           "lineage": {
             "allOf": [
@@ -361,8 +349,8 @@
               {
                 "properties": {
                   "parent_completed_runtime_slices": { "const": 22 },
-                  "runtime_admissions_before": { "const": 9191 },
-                  "runtime_admissions_after": { "const": 9191 },
+                  "runtime_admissions_before": { "const": 9196 },
+                  "runtime_admissions_after": { "const": 9196 },
                   "executed_candidates_before": { "const": 9715 },
                   "executed_candidates_after": { "const": 9715 }
                 }
@@ -456,7 +444,7 @@
       "properties": {
         "selected_slice": { "const": "H2.5h" },
         "foundation_slice_id": { "const": "H2.5h-a" },
-        "runtime_activation_slice_id": { "const": "H2.5h-b" },
+        "runtime_activation_slice_id": { "const": "H2.5h-b+" },
         "closed_through_slice": { "const": "H2.5g" },
         "closed_runtime_slices": {
           "const": [
@@ -600,7 +588,7 @@
       ],
       "properties": {
         "foundation_slice_id": { "const": "H2.5h-a" },
-        "runtime_activation_slice_id": { "const": "H2.5h-b" },
+        "runtime_activation_slice_id": { "const": "H2.5h-b+" },
         "production_state": { "const": "dormant" },
         "transformer_registration": { "const": "not-registered" },
         "active_runtime_slices": {
@@ -641,13 +629,13 @@
         },
         "runtime_admissions_before": {
           "type": ["integer", "null"],
-          "minimum": 9191,
-          "maximum": 9191
+          "minimum": 9196,
+          "maximum": 9196
         },
         "runtime_admissions_after": {
           "type": ["integer", "null"],
-          "minimum": 9191,
-          "maximum": 9191
+          "minimum": 9196,
+          "maximum": 9196
         },
         "runtime_admissions_delta": { "const": 0 },
         "executed_candidates_before": {
@@ -755,8 +743,14 @@
               "boolean": { "type": "boolean" },
               "declaration": { "type": "null" }
             }
+          }
+        },
+        {
+          "if": {
+            "properties": { "kind": { "const": "declaration" } },
+            "required": ["kind"]
           },
-          "else": {
+          "then": {
             "properties": { "boolean": { "type": "null" } }
           }
         }
@@ -834,8 +828,89 @@
         },
         "children": {
           "type": "array",
-          "items": { "$ref": "#/$defs/factory_tree" }
+          "items": { "$ref": "#/$defs/factory_tree_depth2" }
         }
+      }
+    },
+    "factory_tree_depth2": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text",
+        "transform_flags",
+        "emit_flags",
+        "generated",
+        "children"
+      ],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "text": { "type": ["string", "null"] },
+        "transform_flags": { "type": "integer" },
+        "emit_flags": { "type": "integer" },
+        "generated": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generated_identity" }
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/factory_tree_depth3" }
+        }
+      }
+    },
+    "factory_tree_depth3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text",
+        "transform_flags",
+        "emit_flags",
+        "generated",
+        "children"
+      ],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "text": { "type": ["string", "null"] },
+        "transform_flags": { "type": "integer" },
+        "emit_flags": { "type": "integer" },
+        "generated": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generated_identity" }
+          ]
+        },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/factory_tree_depth4" }
+        }
+      }
+    },
+    "factory_tree_depth4": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "text",
+        "transform_flags",
+        "emit_flags",
+        "generated",
+        "children"
+      ],
+      "properties": {
+        "kind": { "type": "string", "minLength": 1 },
+        "text": { "type": ["string", "null"] },
+        "transform_flags": { "type": "integer" },
+        "emit_flags": { "type": "integer" },
+        "generated": {
+          "oneOf": [
+            { "type": "null" },
+            { "$ref": "#/$defs/generated_identity" }
+          ]
+        },
+        "children": { "const": [] }
       }
     },
     "factory_node": {
@@ -1091,10 +1166,7 @@
               "H2.5g",
               "H2.5h"
             ]
-          },
-          "contains": { "const": "H2.5h" },
-          "minContains": 1,
-          "maxContains": 1
+          }
         },
         "foundation_route": {
           "enum": ["runner-executable", "project-foundation-only"]
@@ -1113,8 +1185,16 @@
             "properties": {
               "foundation_route": { "const": "project-foundation-only" }
             }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "suite": { "enum": ["compiler", "conformance"] }
+            },
+            "required": ["suite"]
           },
-          "else": {
+          "then": {
             "properties": {
               "foundation_route": { "const": "runner-executable" }
             }

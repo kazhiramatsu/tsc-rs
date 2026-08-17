@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 
 import {
-  H2_5G_ARTIFACT_CONTRACTS,
+  ARTIFACT_SCHEMA_CONTRACTS,
   classifyPaths,
   loadPolicy,
   pathsDigest,
@@ -200,10 +200,10 @@ ${ownerFunction}${targetFunctions}`,
   return repinRustFixture({ xtaskSource, moduleSources });
 }
 
-test("H2.5g artifact-to-schema mapping is fixed and immutable", () => {
-  assert.equal(Object.isFrozen(H2_5G_ARTIFACT_CONTRACTS), true);
+test("artifact-to-schema mapping is fixed and immutable", () => {
+  assert.equal(Object.isFrozen(ARTIFACT_SCHEMA_CONTRACTS), true);
   assert.deepEqual(
-    H2_5G_ARTIFACT_CONTRACTS.map(({ schema, artifact }) => [schema, artifact]),
+    ARTIFACT_SCHEMA_CONTRACTS.map(({ schema, artifact }) => [schema, artifact]),
     [
       [
         ".github/ci/contracts/h2-5g-qualification.schema.json",
@@ -216,6 +216,10 @@ test("H2.5g artifact-to-schema mapping is fixed and immutable", () => {
       [
         ".github/ci/contracts/h2-5g-profile.schema.json",
         "ratchets/h2-5g-profile.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-5h-a-foundation.schema.json",
+        "ratchets/h2-5h-a-foundation.v1.json",
       ],
     ],
   );

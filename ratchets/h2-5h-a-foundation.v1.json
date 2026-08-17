@@ -22,7 +22,7 @@
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-foundation.schema.json",
-    "sha256": "a81fcaeedf7524ba56225358493f9aa03d0d1e59a0975221e459ddeed9b30c56"
+    "sha256": "393e831bad061e53227a05f544a1b8378345398b99b9a143456117199c587ae1"
   },
   "lineage": {
     "state": "closed-h2-5g-parent",
@@ -21294,5 +21294,5 @@
     "unexecuted_candidates": 932,
     "undispositioned_candidates": 0
   },
-  "foundation_fingerprint_sha256": "c71abdf0b6be870b7e43676bdcfeeefaceb7a5d40348864a2467ca024b27be49"
+  "foundation_fingerprint_sha256": "66c415e7965d3c13947a514f4ec3ff225fc10995d49bf388ba60b5cc723fb830"
 }
