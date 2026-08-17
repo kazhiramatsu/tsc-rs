@@ -22,6 +22,18 @@ current H2 implementation maps.
 2. Commit the slice on that branch (one slice = one branch; commit
    messages follow the existing `m4 5.x: ...` style with gates in the
    body).
+   **Size-based merge cadence (user directive, 2026-08-17):** few-line
+   follow-ups and endgame repairs do NOT get their own PR/full gate.
+   They accumulate as commits on a closure-train branch, each gated in
+   the edit loop by a lightweight targeted test written with the change
+   (the focused-test discipline of `noemit-cli.md` §11, generalized).
+   The full local gate runs once when the train reaches a substantive
+   size (multi-file substance, a subsystem boundary, a dependent
+   needing `main`, or roughly daily), and that train merges as ONE
+   slice (precedent: PR #445's cumulative closure). Slice-early large
+   changes keep the per-slice full gate as always. Batching reduces
+   merge count, never gate strength: whatever merges still passes the
+   complete local gate at its final head.
 3. **Merge criteria** — all gates green on the branch:
    `cargo xtask ci` (fmt --check, clippy -D warnings, build, tests,
    relpin, accepted-state lineage + trusted `origin/main` comparison,
@@ -38,10 +50,13 @@ current H2 implementation maps.
    relative links/anchors plus generated-block boundaries. Any non-Markdown
    path—or any workflow, policy, schema, golden, generated artifact, or
    generated-status change—uses the complete gate above.
-4. **Merge via GitHub PR** (`gh` CLI): when the slice is done and
-   the required local gate (or the documentation-only checks above) is
-   green, push the branch and open a PR whose body carries the local gate
-   summary (conformance rates + FP=0, escapes, tests). GitHub Actions runs only
+4. **Merge via GitHub PR** (`gh` CLI): push the branch early and open
+   the PR as soon as a merge candidate exists so the hosted acceptance
+   check runs in parallel with the local gate (user directive,
+   2026-08-17; wall cost drops from the sum to the max of the two).
+   Before merging, the PR body must carry the completed local gate
+   summary (conformance rates + FP=0, escapes, tests) recorded at the
+   final candidate head. GitHub Actions runs only
    the fixed `ts-tests` acceptance entrypoint; it does not repeat the complete
    local gate.
    Monitor the PR and fix failures as additional commits on the same branch.
@@ -75,13 +90,18 @@ current H2 implementation maps.
    production, or `cargo xtask ci`. Cargo build parallelism remains capped at
    two. The workflow runs for pull requests, merge groups, pushes to `main`,
    and manual dispatch. Local `cargo xtask ci --baseline <trusted-base>`
-   remains required before opening and merging except for the exact Markdown-
-   only rule above; its result and trusted baseline are recorded in the PR
-   body. Manually dispatched approved-runner performance workflows are
+   remains required before merging except for the exact Markdown-only
+   rule above (opening the PR earlier to overlap the hosted check is
+   expected); its result and trusted baseline are recorded in the PR
+   body before the merge. Manually dispatched approved-runner performance workflows are
    separate qualification tools, not ordinary GitHub CI.
 
 ## Verification quick reference
 
+- **Merge cadence:** few-line changes ride closure trains — verify each
+  with its own lightweight targeted test, and run the full gate once per
+  substantive train (see branch-workflow item 2). Every merge candidate
+  still passes the complete gate at its final head.
 - **Markdown-only changes:** if and only if every trusted-base diff path is
   `*.md` and README's generated `STATUS` block is unchanged, run no
   Cargo/Node/full-corpus CI. Use `git diff --check` and review links, anchors,
