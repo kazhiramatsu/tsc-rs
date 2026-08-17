@@ -294,13 +294,28 @@ format before its implementation phase begins.
   merge tree or one of the enumerated reviewed repairs in this branch, and
   the H2.5g profile is re-minted at the validation ref.
 - **Reviewed performance note**: the timed full-conformance observation
-  (dev runner profile) is re-reviewed at a 180-second wall ceiling. The
-  measured cost (~156s at 100.0000% parity, previously ~22.8s) is a
-  checker-side regression introduced by the candidate's links rework
-  (speculative symbol-type publications became transaction-local); the
-  README readiness block records `performance-baseline` as pending, and
-  restoring the prior class by retaining provably idempotent publications
-  is mandated as the first item of the next gate-maintenance slice.
+  (dev runner profile) was temporarily re-reviewed at a 180-second wall
+  ceiling when the H2.5g candidate raised the measured cost from ~22.8s
+  to ~156s at unchanged 100.0000% parity. The links-rework attribution
+  recorded with that review was falsified by an instrumented census in
+  the first gate-maintenance slice: speculative symbol-type discard
+  volume is nearly identical on both sides of the candidate (38,543
+  pre-candidate vs 35,811 at HEAD across the full corpus, rollback
+  discards zero), far too small to carry the regression, so no
+  idempotence-retention rework is warranted. The actual cost was the
+  candidate's new authoritative whole-Program completion pass
+  (`getSemanticDiagnostics(undefined)` fidelity) checking the standard
+  library prefix once per H0-routed conformance program — exactly 124
+  `conformance/node` module-resolution programs at a discrete ~1.08s
+  each, ≈134s of the ≈133s regression, with every remaining program
+  under 10ms. That slice typed the pass as `LibraryPrefixCompletion`
+  on authoritative sessions: the conformance runner elides it (its
+  compared surfaces are assembled before the pass, so the elision is
+  unobservable there by construction), while the production CLI,
+  qualification suites, and every emit path keep the complete pass.
+  The ceiling is re-reviewed at 45 seconds over a measured ~22s, and
+  `performance-baseline` becomes admissible again (ceiling ≤ 60s) but
+  stays pending until a fresh performance artifact is minted.
 
 #### Post-H2.5g roadmap review decision (Option A, 2026-08-17)
 

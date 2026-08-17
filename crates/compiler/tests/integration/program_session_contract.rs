@@ -3049,3 +3049,57 @@ fn physical_resolved_file_identity_projects_its_validated_source_id() {
         .expect("physical resolution identity is validated before the checker projection");
     assert!(outcome.semantic_diagnostics().is_empty());
 }
+
+/// The conformance-runner session elides exactly the library-prefix
+/// completion pass: a library-owned check error that only a library
+/// check publishes appears on the Complete whole-Program surface and is
+/// absent from the FixtureObservedOnly one, while both per-file getter
+/// projections — the surfaces the conformance runner compares — stay
+/// byte-identical.
+#[test]
+fn conformance_harness_session_elides_only_the_library_prefix_completion() {
+    let broken_lib = format!("{MINIMAL_GLOBALS}interface BrokenLib {{ m(): MissingGlobal; }}\n");
+    let build = || {
+        prepared_program(
+            &[
+                ("/lib.d.ts", broken_lib.as_str()),
+                ("/main.ts", "const value: number = 1;\n"),
+            ],
+            1,
+            PreparationDiagnostics::default(),
+            |_| {},
+        )
+    };
+
+    let complete = ProgramSession::new(build())
+        .run_for_harness_with_lib_cache()
+        .expect("complete harness session");
+    let fixture_observed = ProgramSession::new(build())
+        .run_for_conformance_harness()
+        .expect("conformance harness session");
+
+    assert!(
+        complete
+            .semantic_diagnostics()
+            .iter()
+            .any(|diagnostic| diagnostic.code() == 2304
+                && diagnostic.file_name.as_deref() == Some("/lib.d.ts")),
+        "the complete pass checks the library prefix and publishes its 2304"
+    );
+    assert!(
+        fixture_observed
+            .semantic_diagnostics()
+            .iter()
+            .all(|diagnostic| diagnostic.file_name.as_deref() != Some("/lib.d.ts")),
+        "the fixture-observed view carries no library-check-only rows"
+    );
+    assert_eq!(
+        complete.conformance_diagnostics(),
+        fixture_observed.conformance_diagnostics(),
+        "the per-file conformance projection is assembled before the completion pass"
+    );
+    assert_eq!(
+        complete.syntactic_diagnostics(),
+        fixture_observed.syntactic_diagnostics()
+    );
+}

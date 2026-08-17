@@ -1244,10 +1244,31 @@ pub fn check_program_with_owned_libs_at(
     .result
 }
 
+/// How an authoritative session completes the whole-Program semantic view
+/// (`program.getSemanticDiagnostics(undefined)`).
+///
+/// tsc checks every Program source the skip predicate admits — the default
+/// library prefix included — before that getter returns. `Complete` is that
+/// production CLI surface. `FixtureObservedOnly` assembles the same
+/// whole-Program view purely from state already observed while checking the
+/// fixture sources: no library-prefix check pass runs, so library-owned rows
+/// that only a library check would publish stay absent from the assembled
+/// view. It exists for harness sessions whose consumers read only the
+/// per-file getter projections (the conformance runner compares
+/// `conformance_diagnostics`/`syntactic_diagnostics`, which are assembled
+/// before this pass and therefore cannot observe it); any consumer of the
+/// whole-Program surface itself must use `Complete`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LibraryPrefixCompletion {
+    Complete,
+    FixtureObservedOnly,
+}
+
 struct AuthoritativeRun<'a> {
     provider: &'a dyn AuthoritativeModuleProvider,
     lib_metadata: Vec<AuthoritativeSourceMetadata>,
     file_metadata: Vec<AuthoritativeSourceMetadata>,
+    library_prefix: LibraryPrefixCompletion,
 }
 
 struct CheckExecution {
@@ -1282,6 +1303,7 @@ pub fn check_program_with_authoritative_modules_at(
         false,
         None,
         None,
+        LibraryPrefixCompletion::Complete,
     )
 }
 
@@ -1311,6 +1333,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit(
         false,
         Some(&mut operation),
         None,
+        LibraryPrefixCompletion::Complete,
     )
 }
 
@@ -1343,6 +1366,7 @@ pub fn check_program_with_authoritative_modules_at_for_emit_with_harness_lib_bun
         true,
         Some(&mut operation),
         Some(bundle),
+        LibraryPrefixCompletion::Complete,
     )
 }
 
@@ -1364,6 +1388,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached(
     options: &CompilerOptions,
     current_directory: &str,
     provider: &dyn AuthoritativeModuleProvider,
+    library_prefix: LibraryPrefixCompletion,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     let cache_enabled = std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_none_or(|value| value != "0");
     check_program_with_authoritative_modules_at_cache_mode(
@@ -1377,6 +1402,7 @@ pub fn check_program_with_authoritative_modules_at_harness_cached(
         cache_enabled,
         None,
         None,
+        library_prefix,
     )
 }
 
@@ -1392,6 +1418,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
     cache_enabled: bool,
     emit_operation: Option<&mut CheckedEmitOperation<'_>>,
     prepared_owned_bundle: Option<&OwnedHarnessLibBundle>,
+    library_prefix: LibraryPrefixCompletion,
 ) -> Result<CheckResult, AuthoritativeModuleFailure> {
     validate_authoritative_metadata(libs, lib_metadata, "library")?;
     validate_authoritative_metadata(files, file_metadata, "program")?;
@@ -1421,6 +1448,7 @@ fn check_program_with_authoritative_modules_at_cache_mode(
         provider,
         lib_metadata: effective_lib_metadata,
         file_metadata: file_metadata.to_vec(),
+        library_prefix,
     };
     let mut observe_phase = |_| {};
     let execution = if cache_enabled {
@@ -1934,17 +1962,28 @@ fn check_program_with_prebound_libs_at_observed(
             // library check may still publish a diagnostic owned by a
             // declaration in a merged fixture symbol.
             let all_program_file_ids = state.binder.file_ids().collect::<Vec<_>>();
-            for &file in &all_program_file_ids {
-                if state.skip_type_checking_file(file) {
-                    continue;
+            // The completion pass is the expensive half: without
+            // `skipDefaultLibCheck`, checking the standard library prefix
+            // costs ~1s per program. `FixtureObservedOnly` sessions skip it
+            // because their consumers read only the per-file projections
+            // assembled above, which this pass cannot alter; the assembly
+            // below still runs so the whole-Program view stays present,
+            // carrying exactly the rows fixture checking already observed.
+            if authoritative_run
+                .is_some_and(|run| run.library_prefix == LibraryPrefixCompletion::Complete)
+            {
+                for &file in &all_program_file_ids {
+                    if state.skip_type_checking_file(file) {
+                        continue;
+                    }
+                    let global_start = state.visible_global_diagnostics.len();
+                    state.check_source_file(file.index());
+                    global_checker_diagnostics_by_file[file.index()].extend(
+                        state.visible_global_diagnostics[global_start..]
+                            .iter()
+                            .cloned(),
+                    );
                 }
-                let global_start = state.visible_global_diagnostics.len();
-                state.check_source_file(file.index());
-                global_checker_diagnostics_by_file[file.index()].extend(
-                    state.visible_global_diagnostics[global_start..]
-                        .iter()
-                        .cloned(),
-                );
             }
 
             let mut diagnostics = Vec::new();

@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "ba895483f27c1379c9a6fc3e79fe586f2986e69e8993e3454e669a45f9e7e6af";
+  "feff9702441f3c4129ab3bcc3938a838fdcabb9180caa6d69d92d0c203cd0f44";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -78,7 +78,7 @@ const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
   ["profile", "ratchets/h2-5f-profile.v1.json", "68c3c6ed51afa36a668aaf6fa338df2da87d6cbaad4740be25e8733be1a45b73"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "3ae2983861c3a916a9e70865870e8d17d21d551ce775f4c7331e9ade27beec15"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "3ed5517657bb310ad0d0927c06d2a75888d4d3172fe9e8e4eb31799d6ddeb637"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
   ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "d5593648869817dde318c26156d4b025298fbdf411fe67a5c89fc6df8e5a715d"],
   ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "72773d747b0da690f7614dbd16755e5904aa617cc8e0b0f6573edbb84c342fad"],
@@ -266,6 +266,11 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/harness/tests/integration/h2_transition.rs",
   "crates/harness/tests/integration/h2_1a_profile.rs",
   "crates/harness/tests/integration/transpile_suite_inventory.rs",
+  // Diagnostic conformance-runner orchestration: drives the T0 harness
+  // over ProgramSession's no-emit surface and is outside the H2 emit
+  // runtime (emit acceptance routes through the harness emit drivers,
+  // not this runner).
+  "crates/conformance/src/h0_memory.rs",
 ]);
 
 function fail(message) {

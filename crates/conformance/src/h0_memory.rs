@@ -307,7 +307,11 @@ pub(crate) fn run(
     }
 
     let prepared = prepared_builder.build()?;
-    let outcome = ProgramSession::new(prepared).run_for_harness_with_lib_cache()?;
+    // The runner consumes only the per-file getter projections below, so the
+    // session elides the library-prefix completion pass (its cost without
+    // `skipDefaultLibCheck` is ~1s of standard-library checking per program;
+    // the compared surfaces are assembled before that pass by construction).
+    let outcome = ProgramSession::new(prepared).run_for_conformance_harness()?;
     let syntactic = outcome.syntactic_diagnostics().to_vec();
     let all = outcome.conformance_diagnostics().to_vec();
     Ok(H0MemoryCase { all, syntactic })
