@@ -38,6 +38,7 @@ pub(crate) struct EvidenceConfig {
     artifact_dir: String,
     runtime_coverage: RuntimeConfig,
     workspace_tests: WorkspaceTestsConfig,
+    conformance_runner: ConformanceRunnerConfig,
     fuzzer: FuzzerConfig,
     performance: PerformanceConfig,
 }
@@ -49,6 +50,16 @@ pub(crate) struct EvidenceConfig {
 /// available parallelism always bounds it.
 #[derive(Clone, Debug, Deserialize)]
 struct WorkspaceTestsConfig {
+    max_workers: usize,
+}
+
+/// Reviewed CPU policy for the conformance grading pipeline's checker
+/// workers. Grading order and every compared surface stay sequential; the
+/// ceiling only bounds how many checker executions run ahead.
+/// `TSRS_CONFORMANCE_WORKERS` may clamp below it and available
+/// parallelism always bounds it.
+#[derive(Clone, Debug, Deserialize)]
+struct ConformanceRunnerConfig {
     max_workers: usize,
 }
 
@@ -1811,6 +1822,7 @@ fn produce_ci_conformance_outputs(
         workspace,
         [&paths.all, &paths.two_xxx, &paths.syntactic],
         &paths.families,
+        super::conformance_checker_workers(workspace)?,
         |summary| {
             let path = match summary.band.as_str() {
                 "all" => &paths.all,
@@ -2387,6 +2399,9 @@ fn read_config(workspace: &Path) -> Result<EvidenceConfig, Box<dyn Error>> {
     }
     if config.workspace_tests.max_workers == 0 {
         return Err("m8-evidence.json workspace_tests.max_workers must be at least 1".into());
+    }
+    if config.conformance_runner.max_workers == 0 {
+        return Err("m8-evidence.json conformance_runner.max_workers must be at least 1".into());
     }
     Ok(config)
 }

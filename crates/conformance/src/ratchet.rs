@@ -4184,6 +4184,7 @@ pub fn check_with_history_proof(
             files: Vec::new(),
             out_json: workspace.join("target/conformance/bootstrap-check.json"),
             band: DiagnosticBand::All,
+            checker_workers: 1,
         };
         let run = if t4_active(comparator_state) {
             super::run_conformance_collect_with_t4(&options, None, None)?
@@ -4281,6 +4282,7 @@ pub fn update(workspace: &Path, transition: Option<&str>) -> ConformanceResult<(
         files: Vec::new(),
         out_json: workspace.join("target/conformance/mismatches.json"),
         band: DiagnosticBand::All,
+        checker_workers: 1,
     };
     let run = if t4_active(built_comparator_state) {
         super::run_conformance_collect_with_t4(

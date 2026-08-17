@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "80ba0ff3c513645fc8c66bcbe1390e2985007590312d29bcd236078e5f4a2a6b";
+  "798fae41d527fb5568b89d42d25985346ebcdcb3bc41abd89e75a1f4472e4060";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -78,7 +78,7 @@ const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
   ["profile", "ratchets/h2-5f-profile.v1.json", "68c3c6ed51afa36a668aaf6fa338df2da87d6cbaad4740be25e8733be1a45b73"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "0aa4719e7ef0cfa72ebe5d47d5c4aef7350343c54b8607aee489f378fa2019e8"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "69305d22687ea302d5bb2204d931be9731c74a1f80d6499834dd53483d7d7454"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
   ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "d5593648869817dde318c26156d4b025298fbdf411fe67a5c89fc6df8e5a715d"],
   ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "72773d747b0da690f7614dbd16755e5904aa617cc8e0b0f6573edbb84c342fad"],
@@ -277,6 +277,14 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   // runtime (emit acceptance routes through the harness emit drivers,
   // not this runner).
   "crates/conformance/src/h0_memory.rs",
+  "crates/conformance/src/bounded_pipeline.rs",
+  "crates/conformance/src/families.rs",
+  "crates/conformance/src/lib.rs",
+  "crates/conformance/src/ratchet.rs",
+  "crates/conformance/tests/unit/bounded_pipeline/tests.rs",
+  "crates/conformance/tests/unit/lib/tests.rs",
+  // Recovery-census gate infrastructure over the diagnostic corpus.
+  "crates/xtask/src/recovery_census.rs",
 ]);
 
 function fail(message) {

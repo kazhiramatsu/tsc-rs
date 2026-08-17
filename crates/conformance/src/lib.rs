@@ -20,6 +20,7 @@ use tsc_checker::{
 use tsc_diagnostics::{compute_line_map, Diagnostic, MessageChain};
 use tsc_oracle::{OracleDiag, OracleMessageChain, OraclePool};
 
+mod bounded_pipeline;
 pub mod families;
 pub mod goldens_diff;
 mod h0_memory;
@@ -286,6 +287,13 @@ pub struct ConformanceOptions {
     pub files: Vec<PathBuf>,
     pub out_json: PathBuf,
     pub band: DiagnosticBand,
+    /// Bounded checker workers for the grading pipeline schedule. The
+    /// gating caller passes the reviewed `m8-evidence.json` ceiling
+    /// (clamped down by `TSRS_CONFORMANCE_WORKERS` and available
+    /// parallelism); probes and the sequential schedule pass 1. Grading
+    /// itself — including scope-exclusion accounting and every event the
+    /// consumer sees — stays strictly in corpus order regardless.
+    pub checker_workers: usize,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -757,6 +765,7 @@ pub fn run_ci_conformance(
     workspace: &Path,
     out_jsons: [&Path; 3],
     families_report_out: &Path,
+    checker_workers: usize,
     mut completed_view: impl FnMut(&ConformanceSummary),
 ) -> ConformanceResult<CiConformanceSummaries> {
     let options = ConformanceOptions {
@@ -765,6 +774,7 @@ pub fn run_ci_conformance(
         files: Vec::new(),
         out_json: out_jsons[0].to_owned(),
         band: DiagnosticBand::All,
+        checker_workers,
     };
 
     let preparation = families::prepare_report(workspace)?;
@@ -1761,6 +1771,10 @@ struct MeasuredConformance {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum MeasurementSchedule {
+    /// Inline execution on the calling thread. Production measurement no
+    /// longer selects this; it stays as the parity oracle the fused-parity
+    /// unit test grades the pipeline schedule against.
+    #[cfg_attr(not(test), allow(dead_code))]
     Sequential,
     CiCheckerGradingPipeline,
 }
@@ -1776,7 +1790,11 @@ fn measure_conformance(
     force_t4_measurement: bool,
     report_identity_mode: ReportIdentityMode,
 ) -> ConformanceResult<MeasuredConformance> {
-    measure_conformance_with(
+    // Every production measurement uses the grading pipeline schedule: the
+    // fused-parity unit test pins its outputs byte-equal to the sequential
+    // schedule, `options.checker_workers` bounds how far checker execution
+    // runs ahead, and grading remains strictly in corpus order either way.
+    measure_conformance_with_schedule(
         options,
         views,
         set_gate,
@@ -1785,6 +1803,7 @@ fn measure_conformance(
         planned_t4_empty_related_information,
         force_t4_measurement,
         report_identity_mode,
+        MeasurementSchedule::CiCheckerGradingPipeline,
         current_case_tsrs,
     )
 }
@@ -1929,6 +1948,7 @@ fn observe_case_across_views(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn produce_ci_grading_events(
     workspace: &Path,
     fixtures: &[PathBuf],
@@ -1936,19 +1956,27 @@ fn produce_ci_grading_events(
     goldens_root: &Path,
     mut scope: ScopeManifest,
     sender: SyncSender<CiGradingEvent>,
-    mut execute_case: impl FnMut(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>,
+    checker_workers: usize,
+    execute_case: impl Fn(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs> + Sync,
 ) -> Result<ScopeManifest, String> {
+    // Stage 1 (sequential): goldens, expansion, and drift checks for the
+    // whole selection, preserving today's error order. The prepared
+    // programs are the only whole-corpus retention this stage adds; the
+    // checker outputs below stay bounded by the ordered stream.
+    struct PreparedCase {
+        program: tsc_harness::ProgramJson,
+        golden_case: Arc<GoldenCase>,
+    }
+    struct PreparedFixture {
+        fixture_key: Arc<str>,
+        golden_schema: u32,
+        cases: Vec<PreparedCase>,
+    }
+    let mut prepared = Vec::with_capacity(fixtures.len());
     for fixture in fixtures {
         let fixture_key = fixture_key(workspace, fixture).map_err(|error| error.to_string())?;
         let golden = read_golden(goldens_root, &fixture_key).map_err(|error| error.to_string())?;
         let fixture_key = Arc::<str>::from(fixture_key);
-        sender
-            .send(CiGradingEvent::Fixture {
-                fixture_key: Arc::clone(&fixture_key),
-                golden_schema: golden.schema,
-            })
-            .map_err(|_| "CI grading consumer stopped before fixture validation".to_owned())?;
-
         let programs = tsc_harness::expand_fixture_file(fixture, vendor_lib_dir)
             .map_err(|error| error.to_string())?;
         let expanded_keys = programs
@@ -1968,33 +1996,101 @@ fn produce_ci_grading_events(
             .into_iter()
             .map(|case| (case.matrix_key.clone(), Arc::new(case)))
             .collect::<BTreeMap<_, _>>();
-
+        let mut cases = Vec::with_capacity(programs.len());
         for program in programs {
             let matrix_key = program.matrix_key.clone();
             let golden_case = golden_by_matrix
                 .get(&matrix_key)
                 .map(Arc::clone)
                 .ok_or_else(|| format!("missing golden case {fixture_key} [{matrix_key}]"))?;
-            let case_tsrs = execute_case(&fixture_key, &program, vendor_lib_dir)
-                .map_err(|error| error.to_string())?;
+            cases.push(PreparedCase {
+                program,
+                golden_case,
+            });
+        }
+        prepared.push(PreparedFixture {
+            fixture_key,
+            golden_schema,
+            cases,
+        });
+    }
+
+    // Stage 2 (bounded workers) + stage 3 (in-order emit on this thread):
+    // checkers run ahead across fixtures while grading events — including
+    // the order-sensitive scope-exclusion accounting — are emitted in
+    // exactly the sequential interleave: every fixture's event precedes its
+    // cases, and fixture N+1 never starts before fixture N finished.
+    let units = prepared
+        .iter()
+        .enumerate()
+        .flat_map(|(fixture_index, fixture)| {
+            (0..fixture.cases.len()).map(move |case_index| (fixture_index, case_index))
+        })
+        .collect::<Vec<_>>();
+    let mut fixtures_announced = 0usize;
+    let announce_through = |fixtures_announced: &mut usize,
+                            fixture_index: usize|
+     -> Result<(), String> {
+        while *fixtures_announced <= fixture_index {
+            let fixture = &prepared[*fixtures_announced];
+            sender
+                .send(CiGradingEvent::Fixture {
+                    fixture_key: Arc::clone(&fixture.fixture_key),
+                    golden_schema: fixture.golden_schema,
+                })
+                .map_err(|_| "CI grading consumer stopped before fixture validation".to_owned())?;
+            *fixtures_announced += 1;
+        }
+        Ok(())
+    };
+    bounded_pipeline::ordered_for_each(
+        &units,
+        checker_workers,
+        |_, &(fixture_index, case_index)| {
+            let fixture = &prepared[fixture_index];
+            let case = &fixture.cases[case_index];
+            // Stringify checker errors on the worker: the boxed error type
+            // is not Send, and the sequential emit below re-raises it in
+            // corpus order anyway.
+            execute_case(&fixture.fixture_key, &case.program, vendor_lib_dir)
+                .map_err(|error| error.to_string())
+        },
+        |unit_index, case_tsrs| {
+            let (fixture_index, case_index) = units[unit_index];
+            announce_through(&mut fixtures_announced, fixture_index)?;
+            let fixture = &prepared[fixture_index];
+            let case = &fixture.cases[case_index];
+            let case_tsrs = case_tsrs?;
             let excluded_indices = scope
-                .exclusions_for_case(&fixture_key, &program.matrix_key, &golden_case.oracle)
+                .exclusions_for_case(
+                    &fixture.fixture_key,
+                    &case.program.matrix_key,
+                    &case.golden_case.oracle,
+                )
                 .map_err(|error| error.to_string())?;
             sender
                 .send(CiGradingEvent::Case {
-                    fixture_key: Arc::clone(&fixture_key),
-                    golden_schema,
-                    program,
-                    golden_case,
+                    fixture_key: Arc::clone(&fixture.fixture_key),
+                    golden_schema: fixture.golden_schema,
+                    program: case.program.clone(),
+                    golden_case: Arc::clone(&case.golden_case),
                     case_tsrs,
                     excluded_indices,
                 })
-                .map_err(|_| "CI grading consumer stopped before checker completion".to_owned())?;
-        }
+                .map_err(|_| "CI grading consumer stopped before checker completion".to_owned())
+        },
+    )?;
+    // Fixtures with no expanded programs still announce, in order, after
+    // every earlier fixture's cases — exactly as the sequential loop did.
+    if !prepared.is_empty() {
+        announce_through(&mut fixtures_announced, prepared.len() - 1)?;
     }
     Ok(scope)
 }
 
+// Test-only seam: the fused-parity test drives the sequential schedule
+// through this face to prove the pipeline schedule byte-equal.
+#[cfg_attr(not(test), allow(dead_code))]
 #[allow(clippy::too_many_arguments)]
 fn measure_conformance_with(
     options: &ConformanceOptions,
@@ -2005,8 +2101,9 @@ fn measure_conformance_with(
     planned_t4_empty_related_information: Option<&rendered::T4OracleEmptyRelatedInformation>,
     force_t4_measurement: bool,
     report_identity_mode: ReportIdentityMode,
-    execute_case: impl FnMut(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>
-        + Send,
+    execute_case: impl Fn(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>
+        + Send
+        + Sync,
 ) -> ConformanceResult<MeasuredConformance> {
     measure_conformance_with_schedule(
         options,
@@ -2033,8 +2130,9 @@ fn measure_conformance_with_schedule(
     force_t4_measurement: bool,
     report_identity_mode: ReportIdentityMode,
     schedule: MeasurementSchedule,
-    mut execute_case: impl FnMut(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>
-        + Send,
+    execute_case: impl Fn(&str, &tsc_harness::ProgramJson, &Path) -> ConformanceResult<CaseTsrs>
+        + Send
+        + Sync,
 ) -> ConformanceResult<MeasuredConformance> {
     if views.is_empty() {
         return Err("conformance measurement requires at least one fixed view".into());
@@ -2159,6 +2257,7 @@ fn measure_conformance_with_schedule(
                 // with the previous case's grading while bounding retained
                 // checker output independently of corpus size.
                 let (sender, receiver) = sync_channel(1);
+                let checker_workers = options.checker_workers;
                 let producer = thread_scope.spawn(move || {
                     produce_ci_grading_events(
                         workspace,
@@ -2167,6 +2266,7 @@ fn measure_conformance_with_schedule(
                         goldens_root,
                         pipeline_scope,
                         sender,
+                        checker_workers,
                         execute_case,
                     )
                 });

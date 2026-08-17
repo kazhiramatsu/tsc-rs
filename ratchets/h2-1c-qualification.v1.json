@@ -48,7 +48,7 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "a93a22a00c18c0952dd8c9fb2e8e962cedddf60b0482a79f302de4daf921bd3f"
+      "sha256": "0336308c30c8a11798b1062670cc594ed53cec198643c580d47294d6dc9f7051"
     }
   },
   "execution_contract": {
@@ -1765,5 +1765,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "179f3732255cc47a91b4135d9bcf692d87649359f54077055b5f506636783990"
+  "qualification_fingerprint_sha256": "cc52c5fbe617322e2cb1924174719c3f481a417971a4de843724aa55053c2ef3"
 }

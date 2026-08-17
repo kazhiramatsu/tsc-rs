@@ -191,6 +191,7 @@ fn fused_and_pipelined_fixed_views_match_single_view_grading_and_execute_each_ca
         files: Vec::new(),
         out_json: test_git::temp_dir("fused-conformance-parity").join("unused.json"),
         band: DiagnosticBand::All,
+        checker_workers: 2,
     };
     let executions = AtomicUsize::new(0);
     let fused = measure_conformance_with(
@@ -405,6 +406,7 @@ fn ci_pipeline_joins_checker_producer_before_returning_its_error() {
         files: Vec::new(),
         out_json: out_json.clone(),
         band: DiagnosticBand::All,
+        checker_workers: 1,
     };
     let producer_dropped = Arc::new(AtomicBool::new(false));
     let attempts = Arc::new(AtomicUsize::new(0));
@@ -431,7 +433,16 @@ fn ci_pipeline_joins_checker_producer_before_returning_its_error() {
         Err(error) => error,
     };
 
-    assert_eq!(attempts.load(Ordering::Relaxed), 1);
+    // The ordered stream lets the single worker run ahead through its
+    // bounded result channel before the in-order consume raises the first
+    // error, so the attempt count is a small bound rather than exactly one:
+    // at one worker the channel holds at most two results plus one
+    // in-flight execution beyond the failing case.
+    let attempted = attempts.load(Ordering::Relaxed);
+    assert!(
+        (1..=4).contains(&attempted),
+        "expected bounded checker lookahead, executed {attempted} cases"
+    );
     assert!(producer_dropped.load(Ordering::Acquire));
     assert!(error.to_string().contains("injected CI checker failure"));
     assert!(!out_json.exists());
