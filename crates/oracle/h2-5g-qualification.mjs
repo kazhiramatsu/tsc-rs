@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -43,6 +44,10 @@ const EXPECTED_NODE = "25.2.1";
 const VIRTUAL_SOURCE_ROOT = "/.src";
 const MAX_TRANSFORM_DEPTH = 256;
 const PROGRESS_INTERVAL = 256;
+const CHECK_SHARDS_ENV = "TSRS_H2_5G_CHECK_SHARDS";
+const DEFAULT_CHECK_SHARDS = 4;
+const MAX_CHECK_SHARDS = 8;
+const INTERNAL_CHECK_SHARD_MODE = "--internal-check-shard";
 const OPTION_LINE_PATTERN = /^\/{2}\s*@(\w+)\s*:\s*([^\r\n]*)/;
 const LINK_LINE_PATTERN =
   /^\/{2}\s*@link\s*:\s*([^\r\n]*)\s*->\s*([^\r\n]*)/;
@@ -108,11 +113,34 @@ const OPTION_INDEX = new Map(
 );
 let observedCases = 0;
 
+// --check sharding: the freshness proof still observes every one of the
+// 9,027 cases and byte-compares the complete rendered artifact; shards only
+// change which OS process performs each observation. A child process
+// (shardAssignment) observes the cases whose enumeration ordinal is
+// congruent to its shard index and streams the records back; the parent
+// (shardAdoption) replays every child record through the unchanged per-case
+// guards and the unchanged whole-artifact byte comparison. --write is
+// untouched and stays serial with per-case observation reuse.
+let shardAssignment = null;
+let shardAdoption = null;
+let shardOrdinal = 0;
+
+function observationTarget() {
+  return shardAssignment === null ? 9_027 : shardAssignment.assigned;
+}
+
+function progressLabel() {
+  return shardAssignment === null
+    ? "H2.5g TypeScript observations"
+    : `H2.5g TypeScript observations [shard ${shardAssignment.index + 1}/${shardAssignment.count}]`;
+}
+
 function reportObservationProgress(caseId) {
   observedCases += 1;
-  if (observedCases % PROGRESS_INTERVAL === 0 || observedCases === 9_027) {
+  const target = observationTarget();
+  if (observedCases % PROGRESS_INTERVAL === 0 || observedCases === target) {
     process.stderr.write(
-      `H2.5g TypeScript observations: ${observedCases}/9027 (${caseId})\n`,
+      `${progressLabel()}: ${observedCases}/${target} (${caseId})\n`,
     );
   }
 }
@@ -1184,7 +1212,7 @@ function buildSuite(
   reuseByCaseId,
 ) {
   const rows = moduleCandidates(classification, selectionOrigins);
-  return rows.map((row) => {
+  const records = rows.map((row) => {
     const fixture = fixtureFor(suite, expansion, row);
     const loaded = loadedBySource.get(fixture.source);
     requireCondition(loaded !== undefined, `${row.id} missed fixture preflight`);
@@ -1227,6 +1255,22 @@ function buildSuite(
       reportObservationProgress(row.id);
       return stored;
     }
+    if (shardAdoption !== null) {
+      const adopted = shardAdoption.get(row.id);
+      requireCondition(
+        adopted !== undefined,
+        `${row.id} is missing from the shard observations`,
+      );
+      reportObservationProgress(row.id);
+      return adopted;
+    }
+    if (shardAssignment !== null) {
+      const ordinal = shardOrdinal;
+      shardOrdinal += 1;
+      if (ordinal % shardAssignment.count !== shardAssignment.index) {
+        return null;
+      }
+    }
     const makeProgram = () => createProgramCase(loaded, selection, settings, options);
     const ownerReachability = OWNER_KEYS;
     const analysis = analyzeCase(
@@ -1263,6 +1307,7 @@ function buildSuite(
       "case_fingerprint_sha256",
     );
   });
+  return records.filter((record) => record !== null);
 }
 
 function suiteOptionStates(
@@ -1437,6 +1482,13 @@ function buildArtifact() {
       reuseByCaseId,
     ),
   ].sort((left, right) => left.suite.localeCompare(right.suite) || left.case_id.localeCompare(right.case_id));
+  if (shardAssignment !== null) {
+    requireCondition(
+      cases.length === shardAssignment.assigned && shardOrdinal === 9_027,
+      `shard ${shardAssignment.index} observed ${cases.length}/${shardAssignment.assigned} of ${shardOrdinal} enumerated cases`,
+    );
+    return { shard_cases: cases };
+  }
   requireCondition(cases.length === 9_027, `unexpected H2.5g denominator ${cases.length}`);
   requireCondition(new Set(cases.map((entry) => entry.case_id)).size === cases.length, "duplicate H2.5g case");
   const admitted = cases.filter((entry) => entry.disposition === "admitted-for-execution");
@@ -1582,8 +1634,126 @@ function render(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
+function checkShardCount() {
+  const raw = process.env[CHECK_SHARDS_ENV];
+  if (raw === undefined) return DEFAULT_CHECK_SHARDS;
+  const value = Number(raw);
+  requireCondition(
+    Number.isInteger(value) && value >= 1 && value <= MAX_CHECK_SHARDS,
+    `${CHECK_SHARDS_ENV} must be an integer from 1 to ${MAX_CHECK_SHARDS}`,
+  );
+  return value;
+}
+
+function parseShardArguments(argv) {
+  requireCondition(
+    argv.length === 5,
+    "internal shard mode requires a shard index and count",
+  );
+  const index = Number(argv[3]);
+  const count = Number(argv[4]);
+  requireCondition(
+    Number.isInteger(count) &&
+      count >= 2 &&
+      count <= MAX_CHECK_SHARDS &&
+      Number.isInteger(index) &&
+      index >= 0 &&
+      index < count,
+    "invalid internal shard selection",
+  );
+  return { index, count, assigned: Math.floor((9_026 - index) / count) + 1 };
+}
+
+function observeShardInChildProcess(index, count) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      process.execPath,
+      [GENERATOR_PATH, INTERNAL_CHECK_SHARD_MODE, String(index), String(count)],
+      { cwd: WORKSPACE, stdio: ["ignore", "pipe", "inherit"] },
+    );
+    const chunks = [];
+    child.stdout.on("data", (chunk) => chunks.push(chunk));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(`observation shard ${index} exited with ${code}`));
+        return;
+      }
+      try {
+        const payload = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+        requireCondition(
+          payload !== null &&
+            typeof payload === "object" &&
+            payload.schema === 1 &&
+            payload.shard_index === index &&
+            payload.shard_count === count &&
+            Array.isArray(payload.shard_cases),
+          `observation shard ${index} returned an invalid payload`,
+        );
+        resolve(payload.shard_cases);
+      } catch (error) {
+        reject(error);
+      }
+    });
+  });
+}
+
+async function runShardedCheck(count) {
+  const shardCases = await Promise.all(
+    Array.from({ length: count }, (_, index) =>
+      observeShardInChildProcess(index, count),
+    ),
+  );
+  const adoption = new Map();
+  for (const cases of shardCases) {
+    for (const record of cases) {
+      requireCondition(
+        record !== null &&
+          typeof record === "object" &&
+          typeof record.case_id === "string" &&
+          !adoption.has(record.case_id),
+        "shard observations overlap or are malformed",
+      );
+      adoption.set(record.case_id, record);
+    }
+  }
+  requireCondition(
+    adoption.size === 9_027,
+    `sharded check observed ${adoption.size}/9027 cases`,
+  );
+  shardAdoption = adoption;
+  const artifact = buildArtifact();
+  const rendered = render(artifact);
+  requireCondition(
+    fs.existsSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH)) &&
+      fs.readFileSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH), "utf8") ===
+        rendered,
+    `stale ${TARGET_RELATIVE_PATH}; run h2-5g-qualification.mjs --write and review`,
+  );
+  process.stdout.write(
+    `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} check_shards=${count}\n`,
+  );
+}
+
 validateRuntime();
-if (MODE === "--upgrade-observation-layout") {
+if (MODE === INTERNAL_CHECK_SHARD_MODE) {
+  shardAssignment = parseShardArguments(process.argv);
+  const shard = buildArtifact();
+  requireCondition(
+    shard !== null && Array.isArray(shard.shard_cases),
+    "internal shard mode did not produce shard observations",
+  );
+  process.stdout.write(
+    render({
+      schema: 1,
+      shard_index: shardAssignment.index,
+      shard_count: shardAssignment.count,
+      shard_cases: shard.shard_cases,
+    }),
+  );
+} else if (MODE === "--check" && checkShardCount() > 1) {
+  await runShardedCheck(checkShardCount());
+} else if (MODE === "--upgrade-observation-layout") {
   const artifact = readJson(TARGET_RELATIVE_PATH);
   requireCondition(
     artifact.generator.sha256 === EXPANDED_RUN_LAYOUT_GENERATOR_SHA256 &&
