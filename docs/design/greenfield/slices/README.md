@@ -45,7 +45,7 @@ invitation to fill in the answer during implementation.
 | [FCI-8a-f local shadow and hosted research/bootstrap/backend/shadow](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on FCI-7c.2; FCI-8b/8c are separate read-only protected-host/provider research and every letter requires its own ready packet | No production, bootstrap, workflow, or provider-backend edits; FCI-8a/8e append separately owned host/provider API partitions and FCI-8f freezes their exact union without reopening FCI-7c.2. |
 | [FCI-9a-b activation](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on all FCI-8 proofs and separate activation approvals | No activation or workflow edits. |
 | [FCI-10 cleanup](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on both FCI-9 activations and a missing ready packet | No cleanup edits. |
-| [H2.5h-a](h2-5h-a.md) | **Next active slice** (H2.5g closure and the 2026-08-17 roadmap review recorded; the paused Functional-CI tail is no longer a dependency) | Author and ready-check its own packet before implementation; the handoff below remains the design entry. |
+| [H2.5h-a](h2-5h-a.md) | **Active slice — packet machine-checked ready (2026-08-18)** (prerequisite steps 1-7 complete; the paused Functional-CI tail was not a dependency) | Production follows the packet ladder under per-packet design gates: comment-scope packets CS-2..CS-6 first, then the H2.5h-b implementation packets against the frozen graph/matrix/witnesses. |
 
 The packet-control bootstrap added the shared versioned packet schema/checker
 and completed its pre-closure purpose: FCI-1a through FCI-5b and the FCI-5c.1

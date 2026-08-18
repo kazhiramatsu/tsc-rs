@@ -1,13 +1,14 @@
 # H2.5h-a — ES2015/Generators architecture and design packet
 
-Readiness: **packet manifest, machine-tracked (status: `design`,
+Readiness: **packet machine-checked ready (status: `ready`,
 2026-08-18)** — envelope `ratchets/fci-readiness/h2-5h-a.v1.json` under
 the frozen shared slice-readiness schema/checker; prerequisite-transition
-steps 1-4 are complete and step 5's manifest half is frozen
-(the disposition artifact below). The `ready` flip requires step 6
-(ES2015/Generators witness freeze) and step 7 (packet checker green);
-production work requires per-packet design gates as listed in the packet
-ladder.
+steps 1-7 are all complete: the disposition manifest, the step-6
+ES2015/Generators witness freeze (W-H2.5H), and the step-7 checker run
+and envelope flip recorded below. Production work still requires the
+per-packet design gates listed in the packet ladder: the comment-scope
+packets CS-2..CS-6 come first, and no ES2015/Generators production
+work may precede CS-6 green.
 
 This is the concrete handoff for the first post-FCI emitter/H2 design-gated
 work. It is not an implementation specification yet and authorizes no
@@ -136,6 +137,46 @@ Prerequisite-transition progress:
   (`ratchets/fci-readiness/h2-5h-a.v1.json`, status `design`) and the
   bootstrap authorization (`allowedPacketIds += h2-5h-a`) are live.
   Remaining for `ready`: step 6 and step 7 below.
+- Step 6 **complete (2026-08-18)**: the W-H2.5H ES2015/Generators
+  witness set is frozen at
+  `ratchets/h2-5h-a-es2015-generators-witnesses.v1.json` (generator
+  `crates/oracle/h2-5h-a-es2015-generators-witnesses.mjs`
+  `--write|--check`, contract
+  `.github/ci/contracts/h2-5h-a-es2015-generators-witnesses.schema.json`,
+  registered as artifact-contract row 9): nine witness families over
+  the owner-graph census surfaces, thirty-two oracle-captured cases in
+  the four mandated roles (10 positive / 9 adjacent-negative controls
+  / 7 composition / 6 fault), each observed twice in fresh
+  pinned-TypeScript processes (64 oracle runs). Machine-checked
+  invariants: all five owner-graph composition edges cited and
+  covered, with both pinned yield* synthesis sites re-derived from the
+  implementation bytes (enclosing functions
+  `generateCallToConvertedLoopInitializer` /
+  `generateCallToConvertedLoop`) and each named by its covering
+  composition case; an exact 14+3 partition of the seventeen census
+  surfaces, the three excluded surfaces recorded with their owning
+  authority (comment-apis under the frozen comment-scope witnesses,
+  source-map-apis under EA-GAP-MAPS-DECLS, outer-expression-wrappers
+  under the comment-scope/E-POSITIONS lineage); the three
+  resolver-family cases byte-identical to the foundation
+  direct-control inputs, options, and stored writes; the six fault
+  cases pinning their exact diagnostic codes (2802, 2304, 2548, 2349,
+  2354, 1100+2496) together with the emit-under-fault bytes; and
+  per-family pairwise-distinct outputs. The initializer-call
+  composition witness freezes the upstream-faithful unassigned
+  `out_index_1` read exactly as the pinned oracle emits it — oracle
+  bytes are the authority, never a hand-derived correction.
+- Step 7 **complete (2026-08-18)**: the envelope flipped `design` ->
+  `ready` on the witness-machine train — packet-document digest
+  re-pinned after this record, the three witness-machine paths added
+  to `allowedPaths`, the witness `--check` and the readiness check
+  appended to the proof commands, and the trusted base advanced to the
+  branch base `a2343fcf` — and the complete packet checker below ran
+  green at one head. The paused Functional-CI tail was not a
+  prerequisite (recorded Option A review). Production authorization
+  remains per-packet: CS-2..CS-6 precede any ES2015/Generators
+  production work, and the H2.5h-b implementation packets are authored
+  after this freeze against the frozen graph/matrix/witnesses.
 
 ## Packet ladder and checker
 
@@ -158,14 +199,17 @@ substitutes for a per-packet gate.
    already frozen: the scope-graph study and the ten-family witness
    artifact. No ES2015/Generators production work may precede CS-6
    green.
-2. **W-H2.5H — step-6 witness machine**: oracle-produced positive,
-   adjacent-negative, composition, and fault witnesses for the
-   ES2015/Generators surface, extending the comment-scope witness
-   mechanism; witness families are enumerated per owner-graph surface
-   (loop conversion incl. the two pinned `yield*` sites, class
-   lowering lanes, destructuring flattener family, tagged templates,
-   helper graph, name generation, resolver queries against the
-   foundation's direct controls, hook chains, enum-pair guards).
+2. **W-H2.5H — step-6 witness machine, complete (2026-08-18)**:
+   oracle-produced positive, adjacent-negative, composition, and fault
+   witnesses for the ES2015/Generators surface, extending the
+   comment-scope witness mechanism; witness families are enumerated
+   per owner-graph surface (loop conversion incl. the two pinned
+   `yield*` sites, class lowering lanes, destructuring flattener
+   family, tagged templates, helper graph, name generation, resolver
+   queries against the foundation's direct controls, hook chains,
+   enum-pair guards). Frozen ahead of CS-2 as the step-6 readiness
+   prerequisite (step-6 record above); the ladder position here
+   governs production delivery order, not the freeze order.
 3. **B-1 .. — H2.5h-b implementation packets** (single joint runtime
    slice per the step-4 SCC decision): authored after W-H2.5H against
    the frozen graph/matrix/witnesses, each with its own design-gate
@@ -179,15 +223,17 @@ node crates/oracle/h2-5h-a-comment-scope-witnesses.mjs --check
 node crates/oracle/h2-5h-a-owner-graph.mjs --check
 node crates/oracle/h2-5h-a-gap-matrix.mjs --check
 node crates/oracle/h2-5h-a-dispositions.mjs --check
+node crates/oracle/h2-5h-a-es2015-generators-witnesses.mjs --check
 node .github/ci/qualification.mjs check
 node .github/ci/slice-readiness.mjs --check h2-5h-a
 ```
 
-green at one head, with the last command legal only once the envelope
-status is `ready` (after step 6). The five artifact `--check`s and the
-qualification registry run inside every full local gate already; the
-readiness flip is the only manual transition and requires the step-6
-witness artifact registered and green first.
+green at one head, first satisfied on the witness-machine train
+(step 7 above). The six artifact `--check`s and the qualification
+registry run inside every full local gate already, and the registry
+revalidates every `ready` envelope including this packet's document
+digest — any later edit to this document therefore requires an
+envelope re-pin in the same change.
 
 
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must
@@ -206,11 +252,12 @@ is not evidence.
 
 The readiness checker command and expected counts/hashes are owned by the
 versioned packet-control bootstrap and the active packet, not by this handoff.
-This page remains a design draft until the complete H2.5h-a packet replaces
-it under the mandatory design gate. An agent that encounters this page may
-perform the read-only inventory steps above on the H2.5h-a design branch,
-and never creates ES2015 or Generator runtime code before the packet is
-machine-checked ready.
+The packet is machine-checked ready as of 2026-08-18; every production
+packet in the ladder still passes the mandatory design gate in its own
+packet document before its first production edit. An agent that encounters
+this page may extend the frozen inventory read-only, and never creates
+ES2015 or Generator runtime code before CS-6 is green and the H2.5h-b
+packet documents exist under the design gate.
 
 ## Mandatory architecture inputs
 

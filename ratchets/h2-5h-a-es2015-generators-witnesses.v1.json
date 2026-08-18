@@ -1,0 +1,2786 @@
+{
+  "schema": 1,
+  "kind": "h2-es2015-generators-witnesses",
+  "status": "frozen-es2015-generators-witnesses",
+  "phase": "H2.5h-a",
+  "slice_id": "H2.5h-a",
+  "sub_packet": "W-H2.5H",
+  "plan_step": "step-6-witness-freeze",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-5h-a-es2015-generators-witnesses.mjs",
+    "sha256": "dc47a2f6109472a988a5a091133906b7c124e0299be0d51a7241a82ab105cbae"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-5h-a-es2015-generators-witnesses.schema.json",
+    "sha256": "6f33709e964d4dd482e5d6b57a6b91dbfe7c9d020a46971bafdd55da4428bf9d"
+  },
+  "lineage": {
+    "foundation": {
+      "path": "ratchets/h2-5h-a-foundation.v1.json",
+      "sha256": "aa011296394bad0e55c635713ba7d6ac50fe415d319b57853f28bec916f80e43"
+    },
+    "foundation_fingerprint_sha256": "14e0df81edf1bca2b502fc59a4df10e4121d019d6af230957afd03b04506ae0c",
+    "owner_graph": {
+      "path": "ratchets/h2-5h-a-owner-graph.v1.json",
+      "sha256": "daf000fb260403f2701c9cbb2e858bab04b299d8208eb7b62b9683601016aaf2"
+    },
+    "owner_graph_fingerprint_sha256": "b7974cae1b9e64dff0b77214c67d6d1c9430e3e4190c0e2b446a62ecd4520a1f",
+    "handoff": {
+      "path": "docs/design/greenfield/slices/h2-5h-a.md",
+      "sha256": "373a4c4c852fa1a09bb31b1b4a01a83c189e3298034122aade46be747b5ed0be"
+    },
+    "interpretation": "W-H2.5H step 6 freezes oracle-captured ES2015/Generators lowering bytes; it authorizes no production edit and activates nothing"
+  },
+  "yield_star_sites": [
+    {
+      "site_index": 0,
+      "owner_relative_offset": 101107,
+      "enclosing_function": "generateCallToConvertedLoopInitializer",
+      "covering_case_id": "loop-conversion-capture--composition-initializer-call"
+    },
+    {
+      "site_index": 1,
+      "owner_relative_offset": 101796,
+      "enclosing_function": "generateCallToConvertedLoop",
+      "covering_case_id": "loop-conversion-capture--composition-body-call"
+    }
+  ],
+  "excluded_surfaces": [
+    {
+      "surface_id": "comment-apis",
+      "reason": "comment relocation semantics are owned by the frozen E-COMMENT-SCOPE-H witness artifact, not re-witnessed here"
+    },
+    {
+      "surface_id": "source-map-apis",
+      "reason": "source-map provenance is future-owned-fail-closed under EA-GAP-MAPS-DECLS (H2.6/H2.7) per the disposition manifest"
+    },
+    {
+      "surface_id": "outer-expression-wrappers",
+      "reason": "printer position/comment anchoring is not independently distinguishable through pure-source emit-level witnesses; its rows are revalidated by the comment-scope study and E-POSITIONS lineage"
+    }
+  ],
+  "families": [
+    {
+      "family_id": "loop-conversion-capture",
+      "surfaces": [
+        "lexical-environment",
+        "loop-partition-machinery",
+        "yield-star-synthesis"
+      ],
+      "description": "captured block-scoped loop bindings force loop conversion; inside a generator the converted initializer/body calls are re-emitted through the two pinned yield* synthesis sites and lowered by the Generators state machine; with downlevelIteration off the same surface degrades to the indexed loop under a typed diagnostic. The initializer-call output is upstream-faithful including its unassigned out_index_1 read: bytes are the pinned oracle's, never a hand-derived correction",
+      "cases": [
+        {
+          "case_id": "loop-conversion-capture--positive-captured-forof",
+          "role": "positive",
+          "description": "for-of over a declared array with a closure capturing the loop binding extracts the loop body into a converted loop function",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKZGVjbGFyZSBjb25zdCBpdGVtczogbnVtYmVyW107CmZvciAoY29uc3QgZWxlbWVudCBvZiBpdGVtcykgewogIHNpbmsoKCkgPT4gZWxlbWVudCk7Cn0K",
+                "utf8_sha256": "f495420fbaea812338d643d63566889b9f53f148aeb9297cb26472f69504b4c2",
+                "utf8_bytes": 132
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__values",
+              "expectation": "present"
+            },
+            {
+              "token": "_loop_1",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX192YWx1ZXMgPSAodGhpcyAmJiB0aGlzLl9fdmFsdWVzKSB8fCBmdW5jdGlvbihvKSB7CiAgICB2YXIgcyA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgU3ltYm9sLml0ZXJhdG9yLCBtID0gcyAmJiBvW3NdLCBpID0gMDsKICAgIGlmIChtKSByZXR1cm4gbS5jYWxsKG8pOwogICAgaWYgKG8gJiYgdHlwZW9mIG8ubGVuZ3RoID09PSAibnVtYmVyIikgcmV0dXJuIHsKICAgICAgICBuZXh0OiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGlmIChvICYmIGkgPj0gby5sZW5ndGgpIG8gPSB2b2lkIDA7CiAgICAgICAgICAgIHJldHVybiB7IHZhbHVlOiBvICYmIG9baSsrXSwgZG9uZTogIW8gfTsKICAgICAgICB9CiAgICB9OwogICAgdGhyb3cgbmV3IFR5cGVFcnJvcihzID8gIk9iamVjdCBpcyBub3QgaXRlcmFibGUuIiA6ICJTeW1ib2wuaXRlcmF0b3IgaXMgbm90IGRlZmluZWQuIik7Cn07CnZhciBlXzEsIF9hOwp2YXIgX2xvb3BfMSA9IGZ1bmN0aW9uIChlbGVtZW50KSB7CiAgICBzaW5rKGZ1bmN0aW9uICgpIHsgcmV0dXJuIGVsZW1lbnQ7IH0pOwp9Owp0cnkgewogICAgZm9yICh2YXIgaXRlbXNfMSA9IF9fdmFsdWVzKGl0ZW1zKSwgaXRlbXNfMV8xID0gaXRlbXNfMS5uZXh0KCk7ICFpdGVtc18xXzEuZG9uZTsgaXRlbXNfMV8xID0gaXRlbXNfMS5uZXh0KCkpIHsKICAgICAgICB2YXIgZWxlbWVudCA9IGl0ZW1zXzFfMS52YWx1ZTsKICAgICAgICBfbG9vcF8xKGVsZW1lbnQpOwogICAgfQp9CmNhdGNoIChlXzFfMSkgeyBlXzEgPSB7IGVycm9yOiBlXzFfMSB9OyB9CmZpbmFsbHkgewogICAgdHJ5IHsKICAgICAgICBpZiAoaXRlbXNfMV8xICYmICFpdGVtc18xXzEuZG9uZSAmJiAoX2EgPSBpdGVtc18xLnJldHVybikpIF9hLmNhbGwoaXRlbXNfMSk7CiAgICB9CiAgICBmaW5hbGx5IHsgaWYgKGVfMSkgdGhyb3cgZV8xLmVycm9yOyB9Cn0K",
+                "callback_utf8_sha256": "28a6581268dbae7c2d43ed69a66687232bcbe835cbff0c541f3ea4428b33d242",
+                "callback_utf8_bytes": 960,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "28a6581268dbae7c2d43ed69a66687232bcbe835cbff0c541f3ea4428b33d242",
+                "materialized_utf8_bytes": 960,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__values",
+                "occurrences": 3
+              },
+              {
+                "token": "_loop_1",
+                "occurrences": 2
+              }
+            ],
+            "observation_fingerprint_sha256": "f94d0742b27e6794ca493979e28676626ccbb85a5e37c15e3f984dddec455810"
+          },
+          "case_fingerprint_sha256": "a99ab6793b31fbe7d440d4f8c71472b31da594d9d0f4be7e14f148938c109173"
+        },
+        {
+          "case_id": "loop-conversion-capture--adjacent-negative-uncaptured",
+          "role": "adjacent-negative-control",
+          "description": "the same for-of without a capturing closure keeps the body inline: no converted loop function is created",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKZGVjbGFyZSBjb25zdCBpdGVtczogbnVtYmVyW107CmZvciAoY29uc3QgZWxlbWVudCBvZiBpdGVtcykgewogIHNpbmsoZWxlbWVudCk7Cn0K",
+                "utf8_sha256": "fdd834821f2b49b1ea1983fdb60367a88410a6278e9a4f6ad11937d103ecb661",
+                "utf8_bytes": 126
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__values",
+              "expectation": "present"
+            },
+            {
+              "token": "_loop_1",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX192YWx1ZXMgPSAodGhpcyAmJiB0aGlzLl9fdmFsdWVzKSB8fCBmdW5jdGlvbihvKSB7CiAgICB2YXIgcyA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgU3ltYm9sLml0ZXJhdG9yLCBtID0gcyAmJiBvW3NdLCBpID0gMDsKICAgIGlmIChtKSByZXR1cm4gbS5jYWxsKG8pOwogICAgaWYgKG8gJiYgdHlwZW9mIG8ubGVuZ3RoID09PSAibnVtYmVyIikgcmV0dXJuIHsKICAgICAgICBuZXh0OiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGlmIChvICYmIGkgPj0gby5sZW5ndGgpIG8gPSB2b2lkIDA7CiAgICAgICAgICAgIHJldHVybiB7IHZhbHVlOiBvICYmIG9baSsrXSwgZG9uZTogIW8gfTsKICAgICAgICB9CiAgICB9OwogICAgdGhyb3cgbmV3IFR5cGVFcnJvcihzID8gIk9iamVjdCBpcyBub3QgaXRlcmFibGUuIiA6ICJTeW1ib2wuaXRlcmF0b3IgaXMgbm90IGRlZmluZWQuIik7Cn07CnZhciBlXzEsIF9hOwp0cnkgewogICAgZm9yICh2YXIgaXRlbXNfMSA9IF9fdmFsdWVzKGl0ZW1zKSwgaXRlbXNfMV8xID0gaXRlbXNfMS5uZXh0KCk7ICFpdGVtc18xXzEuZG9uZTsgaXRlbXNfMV8xID0gaXRlbXNfMS5uZXh0KCkpIHsKICAgICAgICB2YXIgZWxlbWVudCA9IGl0ZW1zXzFfMS52YWx1ZTsKICAgICAgICBzaW5rKGVsZW1lbnQpOwogICAgfQp9CmNhdGNoIChlXzFfMSkgeyBlXzEgPSB7IGVycm9yOiBlXzFfMSB9OyB9CmZpbmFsbHkgewogICAgdHJ5IHsKICAgICAgICBpZiAoaXRlbXNfMV8xICYmICFpdGVtc18xXzEuZG9uZSAmJiAoX2EgPSBpdGVtc18xLnJldHVybikpIF9hLmNhbGwoaXRlbXNfMSk7CiAgICB9CiAgICBmaW5hbGx5IHsgaWYgKGVfMSkgdGhyb3cgZV8xLmVycm9yOyB9Cn0K",
+                "callback_utf8_sha256": "4fe300497783025820d9fea77d9c87efd6a245c87639d4dae9edbe010c245549",
+                "callback_utf8_bytes": 876,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "4fe300497783025820d9fea77d9c87efd6a245c87639d4dae9edbe010c245549",
+                "materialized_utf8_bytes": 876,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__values",
+                "occurrences": 3
+              },
+              {
+                "token": "_loop_1",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "c900496ec7ccf151726f69211b48e7b71ef75b43b38e3215175341d11e4475ed"
+          },
+          "case_fingerprint_sha256": "0190a44c2f09519b8f67ad3aeab8a83fb21c7bcfc84333e4f12f8257fe3fd306"
+        },
+        {
+          "case_id": "loop-conversion-capture--composition-body-call",
+          "role": "composition",
+          "description": "a generator for-loop with a captured binding and yield in the body synthesizes yield* around the converted body call (pinned site generateCallToConvertedLoop) and the Generators state machine lowers the delegation",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [
+            "yield-star-synthesis",
+            "pass-order"
+          ],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKZnVuY3Rpb24qIHNlcXVlbmNlKCkgewogIGZvciAobGV0IGN1cnNvciA9IDA7IGN1cnNvciA8IDM7IGN1cnNvcisrKSB7CiAgICBzaW5rKCgpID0+IGN1cnNvcik7CiAgICB5aWVsZCBjdXJzb3I7CiAgfQp9Cg==",
+                "utf8_sha256": "ce7a1edb9852e601d6b926a6ed9b1f0ffe9662383a5935a280de5edd635997fc",
+                "utf8_bytes": 163
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__generator",
+              "expectation": "present"
+            },
+            {
+              "token": "_loop_1",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKZnVuY3Rpb24gc2VxdWVuY2UoKSB7CiAgICB2YXIgX2xvb3BfMSwgY3Vyc29yOwogICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYSkgewogICAgICAgIHN3aXRjaCAoX2EubGFiZWwpIHsKICAgICAgICAgICAgY2FzZSAwOgogICAgICAgICAgICAgICAgX2xvb3BfMSA9IGZ1bmN0aW9uIChjdXJzb3IpIHsKICAgICAgICAgICAgICAgICAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9iKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHN3aXRjaCAoX2IubGFiZWwpIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNhc2UgMDoKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzaW5rKGZ1bmN0aW9uICgpIHsgcmV0dXJuIGN1cnNvcjsgfSk7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgY3Vyc29yXTsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNhc2UgMToKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBfYi5zZW50KCk7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIFsyIC8qcmV0dXJuKi9dOwogICAgICAgICAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICAgICAgfSk7CiAgICAgICAgICAgICAgICB9OwogICAgICAgICAgICAgICAgY3Vyc29yID0gMDsKICAgICAgICAgICAgICAgIF9hLmxhYmVsID0gMTsKICAgICAgICAgICAgY2FzZSAxOgogICAgICAgICAgICAgICAgaWYgKCEoY3Vyc29yIDwgMykpIHJldHVybiBbMyAvKmJyZWFrKi8sIDRdOwogICAgICAgICAgICAgICAgcmV0dXJuIFs1IC8qeWllbGQqKi8sIF9sb29wXzEoY3Vyc29yKV07CiAgICAgICAgICAgIGNhc2UgMjoKICAgICAgICAgICAgICAgIF9hLnNlbnQoKTsKICAgICAgICAgICAgICAgIF9hLmxhYmVsID0gMzsKICAgICAgICAgICAgY2FzZSAzOgogICAgICAgICAgICAgICAgY3Vyc29yKys7CiAgICAgICAgICAgICAgICByZXR1cm4gWzMgLypicmVhayovLCAxXTsKICAgICAgICAgICAgY2FzZSA0OiByZXR1cm4gWzIgLypyZXR1cm4qL107CiAgICAgICAgfQogICAgfSk7Cn0K",
+                "callback_utf8_sha256": "60e57c5d9a13f2bfb0c07aa0d0ffc107edf385d6dc72a08248b39eeecd8e338b",
+                "callback_utf8_bytes": 3003,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "60e57c5d9a13f2bfb0c07aa0d0ffc107edf385d6dc72a08248b39eeecd8e338b",
+                "materialized_utf8_bytes": 3003,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__generator",
+                "occurrences": 4
+              },
+              {
+                "token": "_loop_1",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "b94763e6da1f93fd3c10f27855b131c43913d4deb441ddaa8d62091750d985b4"
+          },
+          "case_fingerprint_sha256": "0f868ce2699c6db7ba70315d0b29fbf47e29066f4e830029b2bf0916812312fe"
+        },
+        {
+          "case_id": "loop-conversion-capture--composition-initializer-call",
+          "role": "composition",
+          "description": "a generator for-loop whose initializer both captures its own binding and yields converts the initializer into a nested generator called through yield* (pinned site generateCallToConvertedLoopInitializer) with loop out-parameters",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [
+            "yield-star-synthesis",
+            "pass-order"
+          ],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKZnVuY3Rpb24qIHNlZWRlZCgpOiBHZW5lcmF0b3I8bnVtYmVyLCB2b2lkLCBudW1iZXI+IHsKICBmb3IgKGxldCBzZWVkID0gKHNpbmsoKCkgPT4gc2VlZCksIHlpZWxkIDEpLCBpbmRleCA9IDA7IGluZGV4IDwgMzsgaW5kZXgrKykgewogICAgeWllbGQgaW5kZXg7CiAgfQp9Cg==",
+                "utf8_sha256": "7f3f3ca76d372c78403a2cb52752c2600fdd57f03e023016ed2331f3b250ef77",
+                "utf8_bytes": 202
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "_loop_init_1",
+              "expectation": "present"
+            },
+            {
+              "token": "out_seed_1",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKZnVuY3Rpb24gc2VlZGVkKCkgewogICAgdmFyIF9sb29wX2luaXRfMSwgb3V0X3NlZWRfMSwgb3V0X2luZGV4XzEsIHNlZWQsIGluZGV4OwogICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYSkgewogICAgICAgIHN3aXRjaCAoX2EubGFiZWwpIHsKICAgICAgICAgICAgY2FzZSAwOgogICAgICAgICAgICAgICAgX2xvb3BfaW5pdF8xID0gZnVuY3Rpb24gKCkgewogICAgICAgICAgICAgICAgICAgIHZhciBzZWVkLCBpbmRleDsKICAgICAgICAgICAgICAgICAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9hKSB7CiAgICAgICAgICAgICAgICAgICAgICAgIHN3aXRjaCAoX2EubGFiZWwpIHsKICAgICAgICAgICAgICAgICAgICAgICAgICAgIGNhc2UgMDoKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBzaW5rKGZ1bmN0aW9uICgpIHsgcmV0dXJuIHNlZWQ7IH0pOwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiBbNCAvKnlpZWxkKi8sIDFdOwogICAgICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAxOgogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNlZWQgPSAoX2Euc2VudCgpKSwgaW5kZXggPSAwOwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIG91dF9zZWVkXzEgPSBzZWVkOwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiBbMiAvKnJldHVybiovXTsKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIH0pOwogICAgICAgICAgICAgICAgfTsKICAgICAgICAgICAgICAgIHJldHVybiBbNSAvKnlpZWxkKiovLCBfbG9vcF9pbml0XzEoKV07CiAgICAgICAgICAgIGNhc2UgMToKICAgICAgICAgICAgICAgIF9hLnNlbnQoKTsKICAgICAgICAgICAgICAgIHNlZWQgPSBvdXRfc2VlZF8xLCBpbmRleCA9IG91dF9pbmRleF8xOwogICAgICAgICAgICAgICAgX2EubGFiZWwgPSAyOwogICAgICAgICAgICBjYXNlIDI6CiAgICAgICAgICAgICAgICBpZiAoIShpbmRleCA8IDMpKSByZXR1cm4gWzMgLypicmVhayovLCA1XTsKICAgICAgICAgICAgICAgIHJldHVybiBbNCAvKnlpZWxkKi8sIGluZGV4XTsKICAgICAgICAgICAgY2FzZSAzOgogICAgICAgICAgICAgICAgX2Euc2VudCgpOwogICAgICAgICAgICAgICAgX2EubGFiZWwgPSA0OwogICAgICAgICAgICBjYXNlIDQ6CiAgICAgICAgICAgICAgICBpbmRleCsrOwogICAgICAgICAgICAgICAgcmV0dXJuIFszIC8qYnJlYWsqLywgMl07CiAgICAgICAgICAgIGNhc2UgNTogcmV0dXJuIFsyIC8qcmV0dXJuKi9dOwogICAgICAgIH0KICAgIH0pOwp9Cg==",
+                "callback_utf8_sha256": "5e7945ae16ec7071a7c9562611aa35fdbc6b7824aa10b08f1da4bdbb652fd74f",
+                "callback_utf8_bytes": 3253,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "5e7945ae16ec7071a7c9562611aa35fdbc6b7824aa10b08f1da4bdbb652fd74f",
+                "materialized_utf8_bytes": 3253,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "_loop_init_1",
+                "occurrences": 3
+              },
+              {
+                "token": "out_seed_1",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "4c798d11d4b96334444ff6ded9ad9be82d86100bdbef81fc4e80ec4e44e52dba"
+          },
+          "case_fingerprint_sha256": "b05a8b132251fa18cad661679d6562b23544bd5edaf03923db0164297083006f"
+        },
+        {
+          "case_id": "loop-conversion-capture--fault-downlevel-iteration-off",
+          "role": "fault",
+          "description": "for-of over a Set without downlevelIteration reports the typed diagnostic and still emits the indexed fallback loop",
+          "option_overrides": {
+            "downlevelIteration": false
+          },
+          "expected_reported_codes": [
+            2802
+          ],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCBiYWc6IFNldDxudW1iZXI+Owpmb3IgKGNvbnN0IGVudHJ5IG9mIGJhZykgewogIHZvaWQgZW50cnk7Cn0K",
+                "utf8_sha256": "8281e35044b4c1af1abe560aab9d041a0b75e22676da5f5427fe3c08c2c24182",
+                "utf8_bytes": 75
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": false,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__values",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 2802,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 52,
+                "length": 3
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmb3IgKHZhciBfaSA9IDAsIGJhZ18xID0gYmFnOyBfaSA8IGJhZ18xLmxlbmd0aDsgX2krKykgewogICAgdmFyIGVudHJ5ID0gYmFnXzFbX2ldOwogICAgdm9pZCBlbnRyeTsKfQo=",
+                "callback_utf8_sha256": "f54b5e8a03b5fa73ba74ff80b00cd6aabd36f585c30659fd62eefc0626ef325e",
+                "callback_utf8_bytes": 116,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f54b5e8a03b5fa73ba74ff80b00cd6aabd36f585c30659fd62eefc0626ef325e",
+                "materialized_utf8_bytes": 116,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__values",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "b2a6a23b99cce9ee36305ebcf912318fa9d59a15e9979a271ade5441328da83c"
+          },
+          "case_fingerprint_sha256": "5529880b826f47ac97e9aee2a8043bbb63a702c803da5087ff5660b16a90d8c2"
+        }
+      ],
+      "family_fingerprint_sha256": "a91276f30210683dfbcdb365adab15417326d1de2be5e7c797f9c6a87712afec"
+    },
+    {
+      "family_id": "class-lowering-lanes",
+      "surfaces": [
+        "class-lowering-reach"
+      ],
+      "description": "class lowering lanes: heritage via the extends helper, accessor pairs through defineProperty, static members, and super member calls; the prototype-pattern control takes none of these lanes; a generator method routes the method body through the Generators state machine inside the class IIFE; an unresolved base still lowers under the checker fault",
+      "cases": [
+        {
+          "case_id": "class-lowering-lanes--positive-lanes",
+          "role": "positive",
+          "description": "derived class with static property, get/set accessor pair, prototype method, and super call exercises the class lowering lanes",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y2xhc3MgQmFzZSB7CiAgc3RhdGljIG9yaWdpbiA9IDA7CiAgZ2V0IHNpemUoKTogbnVtYmVyIHsgcmV0dXJuIDE7IH0KICBzZXQgc2l6ZShuZXh0OiBudW1iZXIpIHsgdm9pZCBuZXh0OyB9CiAgZGVzY3JpYmUoKTogc3RyaW5nIHsgcmV0dXJuICJiYXNlIjsgfQp9CmNsYXNzIERlcml2ZWQgZXh0ZW5kcyBCYXNlIHsKICBkZXNjcmliZSgpOiBzdHJpbmcgeyByZXR1cm4gYGRlcml2ZWQgJHtzdXBlci5kZXNjcmliZSgpfWA7IH0KfQo=",
+                "utf8_sha256": "ffa6055d7871762b81613f8cbe309e6b1bf55c75f09d60b3e1e129b021c87823",
+                "utf8_bytes": 245
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__extends",
+              "expectation": "present"
+            },
+            {
+              "token": "extendStatics",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19leHRlbmRzID0gKHRoaXMgJiYgdGhpcy5fX2V4dGVuZHMpIHx8IChmdW5jdGlvbiAoKSB7CiAgICB2YXIgZXh0ZW5kU3RhdGljcyA9IGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgZXh0ZW5kU3RhdGljcyA9IE9iamVjdC5zZXRQcm90b3R5cGVPZiB8fAogICAgICAgICAgICAoeyBfX3Byb3RvX186IFtdIH0gaW5zdGFuY2VvZiBBcnJheSAmJiBmdW5jdGlvbiAoZCwgYikgeyBkLl9fcHJvdG9fXyA9IGI7IH0pIHx8CiAgICAgICAgICAgIGZ1bmN0aW9uIChkLCBiKSB7IGZvciAodmFyIHAgaW4gYikgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChiLCBwKSkgZFtwXSA9IGJbcF07IH07CiAgICAgICAgcmV0dXJuIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICB9OwogICAgcmV0dXJuIGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgaWYgKHR5cGVvZiBiICE9PSAiZnVuY3Rpb24iICYmIGIgIT09IG51bGwpCiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoIkNsYXNzIGV4dGVuZHMgdmFsdWUgIiArIFN0cmluZyhiKSArICIgaXMgbm90IGEgY29uc3RydWN0b3Igb3IgbnVsbCIpOwogICAgICAgIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICAgICAgZnVuY3Rpb24gX18oKSB7IHRoaXMuY29uc3RydWN0b3IgPSBkOyB9CiAgICAgICAgZC5wcm90b3R5cGUgPSBiID09PSBudWxsID8gT2JqZWN0LmNyZWF0ZShiKSA6IChfXy5wcm90b3R5cGUgPSBiLnByb3RvdHlwZSwgbmV3IF9fKCkpOwogICAgfTsKfSkoKTsKdmFyIEJhc2UgPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7CiAgICBmdW5jdGlvbiBCYXNlKCkgewogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KEJhc2UucHJvdG90eXBlLCAic2l6ZSIsIHsKICAgICAgICBnZXQ6IGZ1bmN0aW9uICgpIHsgcmV0dXJuIDE7IH0sCiAgICAgICAgc2V0OiBmdW5jdGlvbiAobmV4dCkgeyB2b2lkIG5leHQ7IH0sCiAgICAgICAgZW51bWVyYWJsZTogZmFsc2UsCiAgICAgICAgY29uZmlndXJhYmxlOiB0cnVlCiAgICB9KTsKICAgIEJhc2UucHJvdG90eXBlLmRlc2NyaWJlID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gImJhc2UiOyB9OwogICAgQmFzZS5vcmlnaW4gPSAwOwogICAgcmV0dXJuIEJhc2U7Cn0oKSk7CnZhciBEZXJpdmVkID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKF9zdXBlcikgewogICAgX19leHRlbmRzKERlcml2ZWQsIF9zdXBlcik7CiAgICBmdW5jdGlvbiBEZXJpdmVkKCkgewogICAgICAgIHJldHVybiBfc3VwZXIgIT09IG51bGwgJiYgX3N1cGVyLmFwcGx5KHRoaXMsIGFyZ3VtZW50cykgfHwgdGhpczsKICAgIH0KICAgIERlcml2ZWQucHJvdG90eXBlLmRlc2NyaWJlID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gImRlcml2ZWQgIi5jb25jYXQoX3N1cGVyLnByb3RvdHlwZS5kZXNjcmliZS5jYWxsKHRoaXMpKTsgfTsKICAgIHJldHVybiBEZXJpdmVkOwp9KEJhc2UpKTsK",
+                "callback_utf8_sha256": "9a0f98ba04c870a66f5e011f48324acec5e136637904c89d662b9a27a8ba6043",
+                "callback_utf8_bytes": 1479,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "9a0f98ba04c870a66f5e011f48324acec5e136637904c89d662b9a27a8ba6043",
+                "materialized_utf8_bytes": 1479,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__extends",
+                "occurrences": 3
+              },
+              {
+                "token": "extendStatics",
+                "occurrences": 4
+              }
+            ],
+            "observation_fingerprint_sha256": "61661bcae900353b36f92b5cff0d54ddc9d7cd158894e7531423e7d64458b006"
+          },
+          "case_fingerprint_sha256": "9de9383be1e7c26c7d78faa148bf1758613313a814068894a9ddc67ce3762707"
+        },
+        {
+          "case_id": "class-lowering-lanes--adjacent-negative-prototype",
+          "role": "adjacent-negative-control",
+          "description": "an ES5 constructor-function/prototype pattern is byte-preserved without any class lane",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZnVuY3Rpb24gU2hhcGUodGhpczogeyBlZGdlczogbnVtYmVyIH0sIGVkZ2VzOiBudW1iZXIpIHsKICB0aGlzLmVkZ2VzID0gZWRnZXM7Cn0KU2hhcGUucHJvdG90eXBlLmNvdW50ID0gZnVuY3Rpb24gKHRoaXM6IHsgZWRnZXM6IG51bWJlciB9KSB7CiAgcmV0dXJuIHRoaXMuZWRnZXM7Cn07Cg==",
+                "utf8_sha256": "05fdb71ad9e50c4f1cd62d9aa277f1d7cb1dab1a219215e21a4fa757fc66f2bf",
+                "utf8_bytes": 166
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__extends",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiBTaGFwZShlZGdlcykgewogICAgdGhpcy5lZGdlcyA9IGVkZ2VzOwp9ClNoYXBlLnByb3RvdHlwZS5jb3VudCA9IGZ1bmN0aW9uICgpIHsKICAgIHJldHVybiB0aGlzLmVkZ2VzOwp9Owo=",
+                "callback_utf8_sha256": "d38ed00ac4c34924f4592f80fef0c4f8bb4d2eeb9e3135df253c362fe1191329",
+                "callback_utf8_bytes": 128,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "d38ed00ac4c34924f4592f80fef0c4f8bb4d2eeb9e3135df253c362fe1191329",
+                "materialized_utf8_bytes": 128,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__extends",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "0e459b84bc87ad94a4d66f62c190dff5bb86ec6e26c3c1cb5705ac13a6654faf"
+          },
+          "case_fingerprint_sha256": "77690d5a9106b73f4146682842db582bfcdcae9836002970227166ff9b3ab8a0"
+        },
+        {
+          "case_id": "class-lowering-lanes--composition-generator-method",
+          "role": "composition",
+          "description": "a class generator method lowers the method body through the Generators state machine inside the ES2015 class IIFE",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [
+            "pass-order"
+          ],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y2xhc3MgU3RyZWFtZXIgewogICpjaHVua3MobGltaXQ6IG51bWJlcikgewogICAgZm9yIChsZXQgaW5kZXggPSAwOyBpbmRleCA8IGxpbWl0OyBpbmRleCsrKSB7CiAgICAgIHlpZWxkIGluZGV4OwogICAgfQogIH0KfQo=",
+                "utf8_sha256": "4510f0af5563d28fd20a67d642dda96f51ff78821398cbe1085f5421d16e4758",
+                "utf8_bytes": 125
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__generator",
+              "expectation": "present"
+            },
+            {
+              "token": "__extends",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKdmFyIFN0cmVhbWVyID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKCkgewogICAgZnVuY3Rpb24gU3RyZWFtZXIoKSB7CiAgICB9CiAgICBTdHJlYW1lci5wcm90b3R5cGUuY2h1bmtzID0gZnVuY3Rpb24gKGxpbWl0KSB7CiAgICAgICAgdmFyIGluZGV4OwogICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2EpIHsKICAgICAgICAgICAgc3dpdGNoIChfYS5sYWJlbCkgewogICAgICAgICAgICAgICAgY2FzZSAwOgogICAgICAgICAgICAgICAgICAgIGluZGV4ID0gMDsKICAgICAgICAgICAgICAgICAgICBfYS5sYWJlbCA9IDE7CiAgICAgICAgICAgICAgICBjYXNlIDE6CiAgICAgICAgICAgICAgICAgICAgaWYgKCEoaW5kZXggPCBsaW1pdCkpIHJldHVybiBbMyAvKmJyZWFrKi8sIDRdOwogICAgICAgICAgICAgICAgICAgIHJldHVybiBbNCAvKnlpZWxkKi8sIGluZGV4XTsKICAgICAgICAgICAgICAgIGNhc2UgMjoKICAgICAgICAgICAgICAgICAgICBfYS5zZW50KCk7CiAgICAgICAgICAgICAgICAgICAgX2EubGFiZWwgPSAzOwogICAgICAgICAgICAgICAgY2FzZSAzOgogICAgICAgICAgICAgICAgICAgIGluZGV4Kys7CiAgICAgICAgICAgICAgICAgICAgcmV0dXJuIFszIC8qYnJlYWsqLywgMV07CiAgICAgICAgICAgICAgICBjYXNlIDQ6IHJldHVybiBbMiAvKnJldHVybiovXTsKICAgICAgICAgICAgfQogICAgICAgIH0pOwogICAgfTsKICAgIHJldHVybiBTdHJlYW1lcjsKfSgpKTsK",
+                "callback_utf8_sha256": "f88c9dfd7346715447e6f6e394a1d93705029a4c50cbcb81b78c65130ab84522",
+                "callback_utf8_bytes": 2670,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "f88c9dfd7346715447e6f6e394a1d93705029a4c50cbcb81b78c65130ab84522",
+                "materialized_utf8_bytes": 2670,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__generator",
+                "occurrences": 3
+              },
+              {
+                "token": "__extends",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "db4e508739fee8f6e7ea802599ea658f0c19fecb157779f9e4e6f0fc8eb4aa2c"
+          },
+          "case_fingerprint_sha256": "b236b11941df49deb7ffc8cdb701cd812ff67bc4f1d192fea89784d539bb5613"
+        },
+        {
+          "case_id": "class-lowering-lanes--fault-missing-base",
+          "role": "fault",
+          "description": "extending an unresolved identifier reports the checker fault and still emits the extends-helper lowering against the missing name",
+          "option_overrides": {},
+          "expected_reported_codes": [
+            2304
+          ],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y2xhc3MgT3JwaGFuIGV4dGVuZHMgTWlzc2luZ0Jhc2UgewogIHRhZygpOiBudW1iZXIgeyByZXR1cm4gMTsgfQp9Cg==",
+                "utf8_sha256": "3e8697597ae4e4aa3d45ecd1bff91f08acfa8a1b13760c7a86b28a9be0297bf1",
+                "utf8_bytes": 67
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__extends",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 2304,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 21,
+                "length": 11
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19leHRlbmRzID0gKHRoaXMgJiYgdGhpcy5fX2V4dGVuZHMpIHx8IChmdW5jdGlvbiAoKSB7CiAgICB2YXIgZXh0ZW5kU3RhdGljcyA9IGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgZXh0ZW5kU3RhdGljcyA9IE9iamVjdC5zZXRQcm90b3R5cGVPZiB8fAogICAgICAgICAgICAoeyBfX3Byb3RvX186IFtdIH0gaW5zdGFuY2VvZiBBcnJheSAmJiBmdW5jdGlvbiAoZCwgYikgeyBkLl9fcHJvdG9fXyA9IGI7IH0pIHx8CiAgICAgICAgICAgIGZ1bmN0aW9uIChkLCBiKSB7IGZvciAodmFyIHAgaW4gYikgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChiLCBwKSkgZFtwXSA9IGJbcF07IH07CiAgICAgICAgcmV0dXJuIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICB9OwogICAgcmV0dXJuIGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgaWYgKHR5cGVvZiBiICE9PSAiZnVuY3Rpb24iICYmIGIgIT09IG51bGwpCiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoIkNsYXNzIGV4dGVuZHMgdmFsdWUgIiArIFN0cmluZyhiKSArICIgaXMgbm90IGEgY29uc3RydWN0b3Igb3IgbnVsbCIpOwogICAgICAgIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICAgICAgZnVuY3Rpb24gX18oKSB7IHRoaXMuY29uc3RydWN0b3IgPSBkOyB9CiAgICAgICAgZC5wcm90b3R5cGUgPSBiID09PSBudWxsID8gT2JqZWN0LmNyZWF0ZShiKSA6IChfXy5wcm90b3R5cGUgPSBiLnByb3RvdHlwZSwgbmV3IF9fKCkpOwogICAgfTsKfSkoKTsKdmFyIE9ycGhhbiA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uIChfc3VwZXIpIHsKICAgIF9fZXh0ZW5kcyhPcnBoYW4sIF9zdXBlcik7CiAgICBmdW5jdGlvbiBPcnBoYW4oKSB7CiAgICAgICAgcmV0dXJuIF9zdXBlciAhPT0gbnVsbCAmJiBfc3VwZXIuYXBwbHkodGhpcywgYXJndW1lbnRzKSB8fCB0aGlzOwogICAgfQogICAgT3JwaGFuLnByb3RvdHlwZS50YWcgPSBmdW5jdGlvbiAoKSB7IHJldHVybiAxOyB9OwogICAgcmV0dXJuIE9ycGhhbjsKfShNaXNzaW5nQmFzZSkpOwo=",
+                "callback_utf8_sha256": "6ee6074e6c88546955ec63e3ccff3a0415f18c0a36a2aabf5f7f1f296b950a91",
+                "callback_utf8_bytes": 1049,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "6ee6074e6c88546955ec63e3ccff3a0415f18c0a36a2aabf5f7f1f296b950a91",
+                "materialized_utf8_bytes": 1049,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__extends",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "eb7e821f1b60e69a8932fc898e79dcfdc6f7a993b5cf76798114ab7975a71f80"
+          },
+          "case_fingerprint_sha256": "e5e6e00208a8aec4d1f6fbd3348cb7f4486532c5fe4a83344cc6b8c53cb85946"
+        }
+      ],
+      "family_fingerprint_sha256": "9374c087886d304de8883aa90034383ea98b13e2a4dc0ab772db67f04a1ee7df"
+    },
+    {
+      "family_id": "destructuring-flattener",
+      "surfaces": [
+        "destructuring-module",
+        "factory-construction"
+      ],
+      "description": "the shared destructuring flattener: binding patterns with defaults and nesting, assignment-pattern swaps, and object rest through the read/rest helpers; the flattener's temps interleave with generator hoisting when the pattern consumes a yielded value; a non-iterable right-hand side keeps the flattened emit under the typed diagnostic",
+      "cases": [
+        {
+          "case_id": "destructuring-flattener--positive-patterns",
+          "role": "positive",
+          "description": "tuple binding with default and nested object member, array assignment swap, and object rest flatten through the read/rest helpers",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCBwYWlyOiBbbnVtYmVyLCB7IGRlcHRoOiBudW1iZXIgfV07CmNvbnN0IFtmaXJzdCA9IDUsIHsgZGVwdGggfV0gPSBwYWlyOwpkZWNsYXJlIGxldCBsZWZ0OiBudW1iZXIsIHJpZ2h0OiBudW1iZXI7CltsZWZ0LCByaWdodF0gPSBbcmlnaHQsIGxlZnRdOwpjb25zdCB7IGE6IHJlbmFtZWQsIC4uLnJlc3QgfSA9IHsgYTogMSwgYjogMiB9Owp2b2lkIGZpcnN0OyB2b2lkIGRlcHRoOyB2b2lkIHJlbmFtZWQ7IHZvaWQgcmVzdDsK",
+                "utf8_sha256": "26c13aed0a6f304c185f885d4082c758ec0860c5f4b7adcbf178b92fa7c7de82",
+                "utf8_bytes": 255
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__read",
+              "expectation": "present"
+            },
+            {
+              "token": "__rest",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07CnZhciBfX3JlYWQgPSAodGhpcyAmJiB0aGlzLl9fcmVhZCkgfHwgZnVuY3Rpb24gKG8sIG4pIHsKICAgIHZhciBtID0gdHlwZW9mIFN5bWJvbCA9PT0gImZ1bmN0aW9uIiAmJiBvW1N5bWJvbC5pdGVyYXRvcl07CiAgICBpZiAoIW0pIHJldHVybiBvOwogICAgdmFyIGkgPSBtLmNhbGwobyksIHIsIGFyID0gW10sIGU7CiAgICB0cnkgewogICAgICAgIHdoaWxlICgobiA9PT0gdm9pZCAwIHx8IG4tLSA+IDApICYmICEociA9IGkubmV4dCgpKS5kb25lKSBhci5wdXNoKHIudmFsdWUpOwogICAgfQogICAgY2F0Y2ggKGVycm9yKSB7IGUgPSB7IGVycm9yOiBlcnJvciB9OyB9CiAgICBmaW5hbGx5IHsKICAgICAgICB0cnkgewogICAgICAgICAgICBpZiAociAmJiAhci5kb25lICYmIChtID0gaVsicmV0dXJuIl0pKSBtLmNhbGwoaSk7CiAgICAgICAgfQogICAgICAgIGZpbmFsbHkgeyBpZiAoZSkgdGhyb3cgZS5lcnJvcjsgfQogICAgfQogICAgcmV0dXJuIGFyOwp9Owp2YXIgX2E7CnZhciBfYiA9IF9fcmVhZChwYWlyLCAyKSwgX2MgPSBfYlswXSwgZmlyc3QgPSBfYyA9PT0gdm9pZCAwID8gNSA6IF9jLCBkZXB0aCA9IF9iWzFdLmRlcHRoOwpfYSA9IF9fcmVhZChbcmlnaHQsIGxlZnRdLCAyKSwgbGVmdCA9IF9hWzBdLCByaWdodCA9IF9hWzFdOwp2YXIgX2QgPSB7IGE6IDEsIGI6IDIgfSwgcmVuYW1lZCA9IF9kLmEsIHJlc3QgPSBfX3Jlc3QoX2QsIFsiYSJdKTsKdm9pZCBmaXJzdDsKdm9pZCBkZXB0aDsKdm9pZCByZW5hbWVkOwp2b2lkIHJlc3Q7Cg==",
+                "callback_utf8_sha256": "c27bbe21af64c5e4da604a6e7686b2f0fe99c19ad9573c95b01713a24a9335f4",
+                "callback_utf8_bytes": 1270,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "c27bbe21af64c5e4da604a6e7686b2f0fe99c19ad9573c95b01713a24a9335f4",
+                "materialized_utf8_bytes": 1270,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__read",
+                "occurrences": 4
+              },
+              {
+                "token": "__rest",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "d0c72ce82c1f1d243848cf0d3db2265a931388d4adffaa9f9d711b28867e575e"
+          },
+          "case_fingerprint_sha256": "3e57aef222a4b677cf5df20ef6bc93a6650ceb80b8f01741ca6c4a41638b5c1e"
+        },
+        {
+          "case_id": "destructuring-flattener--adjacent-negative-plain",
+          "role": "adjacent-negative-control",
+          "description": "plain indexed element reads take no flattener path",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCBwYWlyOiBbbnVtYmVyLCBudW1iZXJdOwpjb25zdCBmaXJzdFBsYWluID0gcGFpclswXTsKY29uc3Qgc2Vjb25kUGxhaW4gPSBwYWlyWzFdOwp2b2lkIGZpcnN0UGxhaW47IHZvaWQgc2Vjb25kUGxhaW47Cg==",
+                "utf8_sha256": "2b1605c5c00fcae069f138fca2804fffa9d64f0153e606b8aaa35f499d7a51bb",
+                "utf8_bytes": 130
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__read",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgZmlyc3RQbGFpbiA9IHBhaXJbMF07CnZhciBzZWNvbmRQbGFpbiA9IHBhaXJbMV07CnZvaWQgZmlyc3RQbGFpbjsKdm9pZCBzZWNvbmRQbGFpbjsK",
+                "callback_utf8_sha256": "b123d8aeb2489c42f0e5878f2a6ad46990e9446513ba4bb1528203af6333eb67",
+                "callback_utf8_bytes": 102,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "b123d8aeb2489c42f0e5878f2a6ad46990e9446513ba4bb1528203af6333eb67",
+                "materialized_utf8_bytes": 102,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__read",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "9630253969281a1c50b904c50eb23bb3cc621f3dcab4eb3e52ef097b1f67ac2d"
+          },
+          "case_fingerprint_sha256": "f3f19e4fe3c03b00d4ec41913fdd564bb0910ca22aa3e433f18325e592f0d41b"
+        },
+        {
+          "case_id": "destructuring-flattener--composition-inside-generator",
+          "role": "composition",
+          "description": "destructuring the value received from yield routes the flattener through the Generators state machine (read helper applied to the resumed value)",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [
+            "destructuring-shared-module",
+            "pass-order"
+          ],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZnVuY3Rpb24qIHNwbGl0dGVyKCk6IEdlbmVyYXRvcjxudW1iZXIsIHZvaWQsIFtudW1iZXIsIG51bWJlcl0+IHsKICBjb25zdCBbaGVhZCwgdGFpbF0gPSB5aWVsZCAxOwogIHlpZWxkIGhlYWQgKyB0YWlsOwp9Cg==",
+                "utf8_sha256": "f6f9c9750e23ad65978bec4cc3b2c03a64985b9b8985b5c7fc86ad6cfebe87d8",
+                "utf8_bytes": 121
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__read",
+              "expectation": "present"
+            },
+            {
+              "token": "__generator",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKdmFyIF9fcmVhZCA9ICh0aGlzICYmIHRoaXMuX19yZWFkKSB8fCBmdW5jdGlvbiAobywgbikgewogICAgdmFyIG0gPSB0eXBlb2YgU3ltYm9sID09PSAiZnVuY3Rpb24iICYmIG9bU3ltYm9sLml0ZXJhdG9yXTsKICAgIGlmICghbSkgcmV0dXJuIG87CiAgICB2YXIgaSA9IG0uY2FsbChvKSwgciwgYXIgPSBbXSwgZTsKICAgIHRyeSB7CiAgICAgICAgd2hpbGUgKChuID09PSB2b2lkIDAgfHwgbi0tID4gMCkgJiYgIShyID0gaS5uZXh0KCkpLmRvbmUpIGFyLnB1c2goci52YWx1ZSk7CiAgICB9CiAgICBjYXRjaCAoZXJyb3IpIHsgZSA9IHsgZXJyb3I6IGVycm9yIH07IH0KICAgIGZpbmFsbHkgewogICAgICAgIHRyeSB7CiAgICAgICAgICAgIGlmIChyICYmICFyLmRvbmUgJiYgKG0gPSBpWyJyZXR1cm4iXSkpIG0uY2FsbChpKTsKICAgICAgICB9CiAgICAgICAgZmluYWxseSB7IGlmIChlKSB0aHJvdyBlLmVycm9yOyB9CiAgICB9CiAgICByZXR1cm4gYXI7Cn07CmZ1bmN0aW9uIHNwbGl0dGVyKCkgewogICAgdmFyIF9hLCBoZWFkLCB0YWlsOwogICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYikgewogICAgICAgIHN3aXRjaCAoX2IubGFiZWwpIHsKICAgICAgICAgICAgY2FzZSAwOiByZXR1cm4gWzQgLyp5aWVsZCovLCAxXTsKICAgICAgICAgICAgY2FzZSAxOgogICAgICAgICAgICAgICAgX2EgPSBfX3JlYWQuYXBwbHkodm9pZCAwLCBbX2Iuc2VudCgpLCAyXSksIGhlYWQgPSBfYVswXSwgdGFpbCA9IF9hWzFdOwogICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgaGVhZCArIHRhaWxdOwogICAgICAgICAgICBjYXNlIDI6CiAgICAgICAgICAgICAgICBfYi5zZW50KCk7CiAgICAgICAgICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qL107CiAgICAgICAgfQogICAgfSk7Cn0K",
+                "callback_utf8_sha256": "393fe7512e533973d3b3af32469f46a7fd01b722b293f8b5136204bd9d737552",
+                "callback_utf8_bytes": 2838,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "393fe7512e533973d3b3af32469f46a7fd01b722b293f8b5136204bd9d737552",
+                "materialized_utf8_bytes": 2838,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__read",
+                "occurrences": 3
+              },
+              {
+                "token": "__generator",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "6b9673ba8a958164b44461426fd0d8ce26241c9d9a7822412b1fdefb0b38018e"
+          },
+          "case_fingerprint_sha256": "8ce0904f43c5923805ebd8e90644bae124d89d850790227553e610b95e7657d7"
+        },
+        {
+          "case_id": "destructuring-flattener--fault-not-iterable",
+          "role": "fault",
+          "description": "array-destructuring a number reports the typed diagnostic and still emits the flattened read-helper call",
+          "option_overrides": {},
+          "expected_reported_codes": [
+            2548
+          ],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y29uc3QgW2Jyb2tlbl0gPSAwOwp2b2lkIGJyb2tlbjsK",
+                "utf8_sha256": "67b6aa48dbe9ae65425dbaf4b1d037c2066708c2dd0300b044cd66b2d7b671e3",
+                "utf8_bytes": 33
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__read",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 2548,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 6,
+                "length": 8
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19yZWFkID0gKHRoaXMgJiYgdGhpcy5fX3JlYWQpIHx8IGZ1bmN0aW9uIChvLCBuKSB7CiAgICB2YXIgbSA9IHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgb1tTeW1ib2wuaXRlcmF0b3JdOwogICAgaWYgKCFtKSByZXR1cm4gbzsKICAgIHZhciBpID0gbS5jYWxsKG8pLCByLCBhciA9IFtdLCBlOwogICAgdHJ5IHsKICAgICAgICB3aGlsZSAoKG4gPT09IHZvaWQgMCB8fCBuLS0gPiAwKSAmJiAhKHIgPSBpLm5leHQoKSkuZG9uZSkgYXIucHVzaChyLnZhbHVlKTsKICAgIH0KICAgIGNhdGNoIChlcnJvcikgeyBlID0geyBlcnJvcjogZXJyb3IgfTsgfQogICAgZmluYWxseSB7CiAgICAgICAgdHJ5IHsKICAgICAgICAgICAgaWYgKHIgJiYgIXIuZG9uZSAmJiAobSA9IGlbInJldHVybiJdKSkgbS5jYWxsKGkpOwogICAgICAgIH0KICAgICAgICBmaW5hbGx5IHsgaWYgKGUpIHRocm93IGUuZXJyb3I7IH0KICAgIH0KICAgIHJldHVybiBhcjsKfTsKdmFyIF9hID0gX19yZWFkKDAsIDEpLCBicm9rZW4gPSBfYVswXTsKdm9pZCBicm9rZW47Cg==",
+                "callback_utf8_sha256": "1420a0bde2eab96cc10efb784c14ef2848fe2225434576e0b54d355f73578455",
+                "callback_utf8_bytes": 556,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "1420a0bde2eab96cc10efb784c14ef2848fe2225434576e0b54d355f73578455",
+                "materialized_utf8_bytes": 556,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__read",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "4a1093061b3b82e0450e4ffc8268beac661c109ef2e844ecbc2be35e59c92f17"
+          },
+          "case_fingerprint_sha256": "dcbf4dab478d02f64e97aa7f4303a263caec1030aa11c59cda3090115daa6981"
+        }
+      ],
+      "family_fingerprint_sha256": "acb14dee449955adfa12c4df43033fc4f86a9fe4c073cc412098392920d9f431"
+    },
+    {
+      "family_id": "tagged-template-lowering",
+      "surfaces": [
+        "tagged-template-module"
+      ],
+      "description": "the shared tagged-template module: cooked/raw divergence through the template-object helper, the untagged concat control, hoisted tag/template temps across a yield inside a generator, and an uncallable tag still lowering under the checker fault",
+      "cases": [
+        {
+          "case_id": "tagged-template-lowering--positive-raw-cooked",
+          "role": "positive",
+          "description": "a tagged template whose literal contains an escape sequence pins the cooked/raw divergence in the template-object helper call",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0YWcoc3RyaW5nczogVGVtcGxhdGVTdHJpbmdzQXJyYXksIC4uLnZhbHVlczogbnVtYmVyW10pOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYW1vdW50OiBudW1iZXI7CmNvbnN0IHJlbmRlcmVkID0gdGFnYHByZWZpeFxuJHthbW91bnR9c3VmZml4YDsKdm9pZCByZW5kZXJlZDsK",
+                "utf8_sha256": "9d5e76a6470d73d61353ceef390c0b3e98574ccb66c5099856d90260f35492a2",
+                "utf8_bytes": 174
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__makeTemplateObject",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19tYWtlVGVtcGxhdGVPYmplY3QgPSAodGhpcyAmJiB0aGlzLl9fbWFrZVRlbXBsYXRlT2JqZWN0KSB8fCBmdW5jdGlvbiAoY29va2VkLCByYXcpIHsKICAgIGlmIChPYmplY3QuZGVmaW5lUHJvcGVydHkpIHsgT2JqZWN0LmRlZmluZVByb3BlcnR5KGNvb2tlZCwgInJhdyIsIHsgdmFsdWU6IHJhdyB9KTsgfSBlbHNlIHsgY29va2VkLnJhdyA9IHJhdzsgfQogICAgcmV0dXJuIGNvb2tlZDsKfTsKdmFyIHJlbmRlcmVkID0gdGFnKF9fbWFrZVRlbXBsYXRlT2JqZWN0KFsicHJlZml4XG4iLCAic3VmZml4Il0sIFsicHJlZml4XFxuIiwgInN1ZmZpeCJdKSwgYW1vdW50KTsKdm9pZCByZW5kZXJlZDsK",
+                "callback_utf8_sha256": "7a0ef631f534043d1fcb95320aebd6a3113fe68fc582fda3b4e297fbac4628ab",
+                "callback_utf8_bytes": 357,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "7a0ef631f534043d1fcb95320aebd6a3113fe68fc582fda3b4e297fbac4628ab",
+                "materialized_utf8_bytes": 357,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__makeTemplateObject",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "129996e5eb2e4e797499e6217d1331e0267bebcb10a3b5f803e4780ea3acba4c"
+          },
+          "case_fingerprint_sha256": "bd8372082e678192f65b55ebc5f76e1a7c487f01a21299b7e8fcbbbf62f5a8f3"
+        },
+        {
+          "case_id": "tagged-template-lowering--adjacent-negative-untagged",
+          "role": "adjacent-negative-control",
+          "description": "the same untagged template lowers to string concatenation without the template-object helper",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCBhbW91bnQ6IG51bWJlcjsKY29uc3QgcmVuZGVyZWQgPSBgcHJlZml4XG4ke2Ftb3VudH1zdWZmaXhgOwp2b2lkIHJlbmRlcmVkOwo=",
+                "utf8_sha256": "1ea75fc879417afd5134c4c51110fcf04c94c0ee0a447b0f3d3f75cb9ff7bee1",
+                "utf8_bytes": 89
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__makeTemplateObject",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgcmVuZGVyZWQgPSAicHJlZml4XG4iLmNvbmNhdChhbW91bnQsICJzdWZmaXgiKTsKdm9pZCByZW5kZXJlZDsK",
+                "callback_utf8_sha256": "5a386b5e5b46e32a456f31060e671bc12eef0b8bdd387f503677864078ced5d6",
+                "callback_utf8_bytes": 81,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "5a386b5e5b46e32a456f31060e671bc12eef0b8bdd387f503677864078ced5d6",
+                "materialized_utf8_bytes": 81,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__makeTemplateObject",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "09f346770032becf20ae3b0aacafe57b5d9a7bd2cf7e0f32722bbf985e36c020"
+          },
+          "case_fingerprint_sha256": "90048ae079de9a4171bcb2065781e3c5f31ad94476c063680d6f66024490708e"
+        },
+        {
+          "case_id": "tagged-template-lowering--composition-yield-substitution",
+          "role": "composition",
+          "description": "a tagged template with yield in a substitution hoists the tag callee and template object into temps spread across the state-machine labels",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [
+            "tagged-template-shared-module",
+            "pass-order"
+          ],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB0YWcoc3RyaW5nczogVGVtcGxhdGVTdHJpbmdzQXJyYXksIC4uLnZhbHVlczogbnVtYmVyW10pOiBzdHJpbmc7CmZ1bmN0aW9uKiByZW5kZXJlcigpOiBHZW5lcmF0b3I8bnVtYmVyLCBzdHJpbmcsIG51bWJlcj4gewogIHJldHVybiB0YWdgdmFsdWUgJHt5aWVsZCAxfSBlbmRgOwp9Cg==",
+                "utf8_sha256": "dece31b22cb3195be43eab5a745ec0c284f9a2cc327052e1e07f0db81e786288",
+                "utf8_bytes": 178
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__makeTemplateObject",
+              "expectation": "present"
+            },
+            {
+              "token": "__generator",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19tYWtlVGVtcGxhdGVPYmplY3QgPSAodGhpcyAmJiB0aGlzLl9fbWFrZVRlbXBsYXRlT2JqZWN0KSB8fCBmdW5jdGlvbiAoY29va2VkLCByYXcpIHsKICAgIGlmIChPYmplY3QuZGVmaW5lUHJvcGVydHkpIHsgT2JqZWN0LmRlZmluZVByb3BlcnR5KGNvb2tlZCwgInJhdyIsIHsgdmFsdWU6IHJhdyB9KTsgfSBlbHNlIHsgY29va2VkLnJhdyA9IHJhdzsgfQogICAgcmV0dXJuIGNvb2tlZDsKfTsKdmFyIF9fZ2VuZXJhdG9yID0gKHRoaXMgJiYgdGhpcy5fX2dlbmVyYXRvcikgfHwgZnVuY3Rpb24gKHRoaXNBcmcsIGJvZHkpIHsKICAgIHZhciBfID0geyBsYWJlbDogMCwgc2VudDogZnVuY3Rpb24oKSB7IGlmICh0WzBdICYgMSkgdGhyb3cgdFsxXTsgcmV0dXJuIHRbMV07IH0sIHRyeXM6IFtdLCBvcHM6IFtdIH0sIGYsIHksIHQsIGcgPSBPYmplY3QuY3JlYXRlKCh0eXBlb2YgSXRlcmF0b3IgPT09ICJmdW5jdGlvbiIgPyBJdGVyYXRvciA6IE9iamVjdCkucHJvdG90eXBlKTsKICAgIHJldHVybiBnLm5leHQgPSB2ZXJiKDApLCBnWyJ0aHJvdyJdID0gdmVyYigxKSwgZ1sicmV0dXJuIl0gPSB2ZXJiKDIpLCB0eXBlb2YgU3ltYm9sID09PSAiZnVuY3Rpb24iICYmIChnW1N5bWJvbC5pdGVyYXRvcl0gPSBmdW5jdGlvbigpIHsgcmV0dXJuIHRoaXM7IH0pLCBnOwogICAgZnVuY3Rpb24gdmVyYihuKSB7IHJldHVybiBmdW5jdGlvbiAodikgeyByZXR1cm4gc3RlcChbbiwgdl0pOyB9OyB9CiAgICBmdW5jdGlvbiBzdGVwKG9wKSB7CiAgICAgICAgaWYgKGYpIHRocm93IG5ldyBUeXBlRXJyb3IoIkdlbmVyYXRvciBpcyBhbHJlYWR5IGV4ZWN1dGluZy4iKTsKICAgICAgICB3aGlsZSAoZyAmJiAoZyA9IDAsIG9wWzBdICYmIChfID0gMCkpLCBfKSB0cnkgewogICAgICAgICAgICBpZiAoZiA9IDEsIHkgJiYgKHQgPSBvcFswXSAmIDIgPyB5WyJyZXR1cm4iXSA6IG9wWzBdID8geVsidGhyb3ciXSB8fCAoKHQgPSB5WyJyZXR1cm4iXSkgJiYgdC5jYWxsKHkpLCAwKSA6IHkubmV4dCkgJiYgISh0ID0gdC5jYWxsKHksIG9wWzFdKSkuZG9uZSkgcmV0dXJuIHQ7CiAgICAgICAgICAgIGlmICh5ID0gMCwgdCkgb3AgPSBbb3BbMF0gJiAyLCB0LnZhbHVlXTsKICAgICAgICAgICAgc3dpdGNoIChvcFswXSkgewogICAgICAgICAgICAgICAgY2FzZSAwOiBjYXNlIDE6IHQgPSBvcDsgYnJlYWs7CiAgICAgICAgICAgICAgICBjYXNlIDQ6IF8ubGFiZWwrKzsgcmV0dXJuIHsgdmFsdWU6IG9wWzFdLCBkb25lOiBmYWxzZSB9OwogICAgICAgICAgICAgICAgY2FzZSA1OiBfLmxhYmVsKys7IHkgPSBvcFsxXTsgb3AgPSBbMF07IGNvbnRpbnVlOwogICAgICAgICAgICAgICAgY2FzZSA3OiBvcCA9IF8ub3BzLnBvcCgpOyBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICAgICAgZGVmYXVsdDoKICAgICAgICAgICAgICAgICAgICBpZiAoISh0ID0gXy50cnlzLCB0ID0gdC5sZW5ndGggPiAwICYmIHRbdC5sZW5ndGggLSAxXSkgJiYgKG9wWzBdID09PSA2IHx8IG9wWzBdID09PSAyKSkgeyBfID0gMDsgY29udGludWU7IH0KICAgICAgICAgICAgICAgICAgICBpZiAob3BbMF0gPT09IDMgJiYgKCF0IHx8IChvcFsxXSA+IHRbMF0gJiYgb3BbMV0gPCB0WzNdKSkpIHsgXy5sYWJlbCA9IG9wWzFdOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gNiAmJiBfLmxhYmVsIDwgdFsxXSkgeyBfLmxhYmVsID0gdFsxXTsgdCA9IG9wOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0ICYmIF8ubGFiZWwgPCB0WzJdKSB7IF8ubGFiZWwgPSB0WzJdOyBfLm9wcy5wdXNoKG9wKTsgYnJlYWs7IH0KICAgICAgICAgICAgICAgICAgICBpZiAodFsyXSkgXy5vcHMucG9wKCk7CiAgICAgICAgICAgICAgICAgICAgXy50cnlzLnBvcCgpOyBjb250aW51ZTsKICAgICAgICAgICAgfQogICAgICAgICAgICBvcCA9IGJvZHkuY2FsbCh0aGlzQXJnLCBfKTsKICAgICAgICB9IGNhdGNoIChlKSB7IG9wID0gWzYsIGVdOyB5ID0gMDsgfSBmaW5hbGx5IHsgZiA9IHQgPSAwOyB9CiAgICAgICAgaWYgKG9wWzBdICYgNSkgdGhyb3cgb3BbMV07IHJldHVybiB7IHZhbHVlOiBvcFswXSA/IG9wWzFdIDogdm9pZCAwLCBkb25lOiB0cnVlIH07CiAgICB9Cn07CmZ1bmN0aW9uIHJlbmRlcmVyKCkgewogICAgdmFyIF9hLCBfYjsKICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2MpIHsKICAgICAgICBzd2l0Y2ggKF9jLmxhYmVsKSB7CiAgICAgICAgICAgIGNhc2UgMDoKICAgICAgICAgICAgICAgIF9hID0gdGFnOwogICAgICAgICAgICAgICAgX2IgPSBbX19tYWtlVGVtcGxhdGVPYmplY3QoWyJ2YWx1ZSAiLCAiIGVuZCJdLCBbInZhbHVlICIsICIgZW5kIl0pXTsKICAgICAgICAgICAgICAgIHJldHVybiBbNCAvKnlpZWxkKi8sIDFdOwogICAgICAgICAgICBjYXNlIDE6IHJldHVybiBbMiAvKnJldHVybiovLCBfYS5hcHBseSh2b2lkIDAsIF9iLmNvbmNhdChbX2Muc2VudCgpXSkpXTsKICAgICAgICB9CiAgICB9KTsKfQo=",
+                "callback_utf8_sha256": "c14dab83240230c54c03e15103c9342571b01b81f4beb40a1aecf37b56bbf0c7",
+                "callback_utf8_bytes": 2537,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "c14dab83240230c54c03e15103c9342571b01b81f4beb40a1aecf37b56bbf0c7",
+                "materialized_utf8_bytes": 2537,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__makeTemplateObject",
+                "occurrences": 3
+              },
+              {
+                "token": "__generator",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "9bb81587fc64a068407c9ac438c93dbc7d624590b171a6bf40d34d2cfebf1e11"
+          },
+          "case_fingerprint_sha256": "74d1d11f6e112033d2c68471d4ac498b7f11d6002e8b2ab62e3d1bf542319777"
+        },
+        {
+          "case_id": "tagged-template-lowering--fault-uncallable-tag",
+          "role": "fault",
+          "description": "tagging with a non-callable value reports the checker fault and still emits the template-object lowering",
+          "option_overrides": {},
+          "expected_reported_codes": [
+            2349
+          ],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBjb25zdCBub3RDYWxsYWJsZTogbnVtYmVyOwpjb25zdCByZW5kZXJlZCA9IG5vdENhbGxhYmxlYGJyb2tlbmA7CnZvaWQgcmVuZGVyZWQ7Cg==",
+                "utf8_sha256": "d92f94f14924adc95115c40077223969cbae2aa9a9031597f20b81aaa1259071",
+                "utf8_bytes": 88
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__makeTemplateObject",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 2349,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 52,
+                "length": 11
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19tYWtlVGVtcGxhdGVPYmplY3QgPSAodGhpcyAmJiB0aGlzLl9fbWFrZVRlbXBsYXRlT2JqZWN0KSB8fCBmdW5jdGlvbiAoY29va2VkLCByYXcpIHsKICAgIGlmIChPYmplY3QuZGVmaW5lUHJvcGVydHkpIHsgT2JqZWN0LmRlZmluZVByb3BlcnR5KGNvb2tlZCwgInJhdyIsIHsgdmFsdWU6IHJhdyB9KTsgfSBlbHNlIHsgY29va2VkLnJhdyA9IHJhdzsgfQogICAgcmV0dXJuIGNvb2tlZDsKfTsKdmFyIHJlbmRlcmVkID0gbm90Q2FsbGFibGUoX19tYWtlVGVtcGxhdGVPYmplY3QoWyJicm9rZW4iXSwgWyJicm9rZW4iXSkpOwp2b2lkIHJlbmRlcmVkOwo=",
+                "callback_utf8_sha256": "1411ac01233a340a7daea8a47677f86a9a71fe7d5f44c2baa6cba88581755b92",
+                "callback_utf8_bytes": 332,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "1411ac01233a340a7daea8a47677f86a9a71fe7d5f44c2baa6cba88581755b92",
+                "materialized_utf8_bytes": 332,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__makeTemplateObject",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "4d3cbb2d78e7823ffcd7af44408f0436ed8c1aaa5859f48b138b4667fcabeef5"
+          },
+          "case_fingerprint_sha256": "9d6de26f03b4a050e08d70dc2bf2cd189ee4dc4e6e54809c0767ae1003f58512"
+        }
+      ],
+      "family_fingerprint_sha256": "0f092028495cdeb64ad20ef98a659c3754fe58a6321c414604298914a4d125e4"
+    },
+    {
+      "family_id": "helper-graph",
+      "surfaces": [
+        "helper-factory"
+      ],
+      "description": "the five-helper graph of the foundation's factory control observed at emit level: all helper bodies inline exactly once in dependency order; noEmitHelpers suppresses the bodies while the references remain; importHelpers on a module without a resolvable tslib reports the typed helper fault and emits the tslib import instead of inline bodies",
+      "cases": [
+        {
+          "case_id": "helper-graph--positive-all-five",
+          "role": "positive",
+          "description": "extends + for-of + spread + tuple read + generator delegation inline all five helper bodies once",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y2xhc3MgSGVscGVyQmFzZSB7fQpjbGFzcyBIZWxwZXJEZXJpdmVkIGV4dGVuZHMgSGVscGVyQmFzZSB7fQpkZWNsYXJlIGNvbnN0IGl0ZXJhYmxlOiBJdGVyYWJsZTxudW1iZXI+Owpmb3IgKGNvbnN0IGl0ZW0gb2YgaXRlcmFibGUpIHsgdm9pZCBpdGVtOyB9CmNvbnN0IGNvcGllZCA9IFsuLi5pdGVyYWJsZV07CmNvbnN0IFtmaXJzdENvcGllZF0gPSBjb3BpZWQ7CmZ1bmN0aW9uKiBwcm9kdWNlZCgpIHsgeWllbGQqIGl0ZXJhYmxlOyB9CnZvaWQgZmlyc3RDb3BpZWQ7IHZvaWQgcHJvZHVjZWQ7Cg==",
+                "utf8_sha256": "aba8ca57d3acd206d4952f8da51d40575714704176c9f4845261452ac636f6cb",
+                "utf8_bytes": 283
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "extendStatics",
+              "expectation": "present"
+            },
+            {
+              "token": "__values",
+              "expectation": "present"
+            },
+            {
+              "token": "__read",
+              "expectation": "present"
+            },
+            {
+              "token": "__spreadArray",
+              "expectation": "present"
+            },
+            {
+              "token": "__generator",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19leHRlbmRzID0gKHRoaXMgJiYgdGhpcy5fX2V4dGVuZHMpIHx8IChmdW5jdGlvbiAoKSB7CiAgICB2YXIgZXh0ZW5kU3RhdGljcyA9IGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgZXh0ZW5kU3RhdGljcyA9IE9iamVjdC5zZXRQcm90b3R5cGVPZiB8fAogICAgICAgICAgICAoeyBfX3Byb3RvX186IFtdIH0gaW5zdGFuY2VvZiBBcnJheSAmJiBmdW5jdGlvbiAoZCwgYikgeyBkLl9fcHJvdG9fXyA9IGI7IH0pIHx8CiAgICAgICAgICAgIGZ1bmN0aW9uIChkLCBiKSB7IGZvciAodmFyIHAgaW4gYikgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChiLCBwKSkgZFtwXSA9IGJbcF07IH07CiAgICAgICAgcmV0dXJuIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICB9OwogICAgcmV0dXJuIGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgaWYgKHR5cGVvZiBiICE9PSAiZnVuY3Rpb24iICYmIGIgIT09IG51bGwpCiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoIkNsYXNzIGV4dGVuZHMgdmFsdWUgIiArIFN0cmluZyhiKSArICIgaXMgbm90IGEgY29uc3RydWN0b3Igb3IgbnVsbCIpOwogICAgICAgIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICAgICAgZnVuY3Rpb24gX18oKSB7IHRoaXMuY29uc3RydWN0b3IgPSBkOyB9CiAgICAgICAgZC5wcm90b3R5cGUgPSBiID09PSBudWxsID8gT2JqZWN0LmNyZWF0ZShiKSA6IChfXy5wcm90b3R5cGUgPSBiLnByb3RvdHlwZSwgbmV3IF9fKCkpOwogICAgfTsKfSkoKTsKdmFyIF9fZ2VuZXJhdG9yID0gKHRoaXMgJiYgdGhpcy5fX2dlbmVyYXRvcikgfHwgZnVuY3Rpb24gKHRoaXNBcmcsIGJvZHkpIHsKICAgIHZhciBfID0geyBsYWJlbDogMCwgc2VudDogZnVuY3Rpb24oKSB7IGlmICh0WzBdICYgMSkgdGhyb3cgdFsxXTsgcmV0dXJuIHRbMV07IH0sIHRyeXM6IFtdLCBvcHM6IFtdIH0sIGYsIHksIHQsIGcgPSBPYmplY3QuY3JlYXRlKCh0eXBlb2YgSXRlcmF0b3IgPT09ICJmdW5jdGlvbiIgPyBJdGVyYXRvciA6IE9iamVjdCkucHJvdG90eXBlKTsKICAgIHJldHVybiBnLm5leHQgPSB2ZXJiKDApLCBnWyJ0aHJvdyJdID0gdmVyYigxKSwgZ1sicmV0dXJuIl0gPSB2ZXJiKDIpLCB0eXBlb2YgU3ltYm9sID09PSAiZnVuY3Rpb24iICYmIChnW1N5bWJvbC5pdGVyYXRvcl0gPSBmdW5jdGlvbigpIHsgcmV0dXJuIHRoaXM7IH0pLCBnOwogICAgZnVuY3Rpb24gdmVyYihuKSB7IHJldHVybiBmdW5jdGlvbiAodikgeyByZXR1cm4gc3RlcChbbiwgdl0pOyB9OyB9CiAgICBmdW5jdGlvbiBzdGVwKG9wKSB7CiAgICAgICAgaWYgKGYpIHRocm93IG5ldyBUeXBlRXJyb3IoIkdlbmVyYXRvciBpcyBhbHJlYWR5IGV4ZWN1dGluZy4iKTsKICAgICAgICB3aGlsZSAoZyAmJiAoZyA9IDAsIG9wWzBdICYmIChfID0gMCkpLCBfKSB0cnkgewogICAgICAgICAgICBpZiAoZiA9IDEsIHkgJiYgKHQgPSBvcFswXSAmIDIgPyB5WyJyZXR1cm4iXSA6IG9wWzBdID8geVsidGhyb3ciXSB8fCAoKHQgPSB5WyJyZXR1cm4iXSkgJiYgdC5jYWxsKHkpLCAwKSA6IHkubmV4dCkgJiYgISh0ID0gdC5jYWxsKHksIG9wWzFdKSkuZG9uZSkgcmV0dXJuIHQ7CiAgICAgICAgICAgIGlmICh5ID0gMCwgdCkgb3AgPSBbb3BbMF0gJiAyLCB0LnZhbHVlXTsKICAgICAgICAgICAgc3dpdGNoIChvcFswXSkgewogICAgICAgICAgICAgICAgY2FzZSAwOiBjYXNlIDE6IHQgPSBvcDsgYnJlYWs7CiAgICAgICAgICAgICAgICBjYXNlIDQ6IF8ubGFiZWwrKzsgcmV0dXJuIHsgdmFsdWU6IG9wWzFdLCBkb25lOiBmYWxzZSB9OwogICAgICAgICAgICAgICAgY2FzZSA1OiBfLmxhYmVsKys7IHkgPSBvcFsxXTsgb3AgPSBbMF07IGNvbnRpbnVlOwogICAgICAgICAgICAgICAgY2FzZSA3OiBvcCA9IF8ub3BzLnBvcCgpOyBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICAgICAgZGVmYXVsdDoKICAgICAgICAgICAgICAgICAgICBpZiAoISh0ID0gXy50cnlzLCB0ID0gdC5sZW5ndGggPiAwICYmIHRbdC5sZW5ndGggLSAxXSkgJiYgKG9wWzBdID09PSA2IHx8IG9wWzBdID09PSAyKSkgeyBfID0gMDsgY29udGludWU7IH0KICAgICAgICAgICAgICAgICAgICBpZiAob3BbMF0gPT09IDMgJiYgKCF0IHx8IChvcFsxXSA+IHRbMF0gJiYgb3BbMV0gPCB0WzNdKSkpIHsgXy5sYWJlbCA9IG9wWzFdOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gNiAmJiBfLmxhYmVsIDwgdFsxXSkgeyBfLmxhYmVsID0gdFsxXTsgdCA9IG9wOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0ICYmIF8ubGFiZWwgPCB0WzJdKSB7IF8ubGFiZWwgPSB0WzJdOyBfLm9wcy5wdXNoKG9wKTsgYnJlYWs7IH0KICAgICAgICAgICAgICAgICAgICBpZiAodFsyXSkgXy5vcHMucG9wKCk7CiAgICAgICAgICAgICAgICAgICAgXy50cnlzLnBvcCgpOyBjb250aW51ZTsKICAgICAgICAgICAgfQogICAgICAgICAgICBvcCA9IGJvZHkuY2FsbCh0aGlzQXJnLCBfKTsKICAgICAgICB9IGNhdGNoIChlKSB7IG9wID0gWzYsIGVdOyB5ID0gMDsgfSBmaW5hbGx5IHsgZiA9IHQgPSAwOyB9CiAgICAgICAgaWYgKG9wWzBdICYgNSkgdGhyb3cgb3BbMV07IHJldHVybiB7IHZhbHVlOiBvcFswXSA/IG9wWzFdIDogdm9pZCAwLCBkb25lOiB0cnVlIH07CiAgICB9Cn07CnZhciBfX3ZhbHVlcyA9ICh0aGlzICYmIHRoaXMuX192YWx1ZXMpIHx8IGZ1bmN0aW9uKG8pIHsKICAgIHZhciBzID0gdHlwZW9mIFN5bWJvbCA9PT0gImZ1bmN0aW9uIiAmJiBTeW1ib2wuaXRlcmF0b3IsIG0gPSBzICYmIG9bc10sIGkgPSAwOwogICAgaWYgKG0pIHJldHVybiBtLmNhbGwobyk7CiAgICBpZiAobyAmJiB0eXBlb2Ygby5sZW5ndGggPT09ICJudW1iZXIiKSByZXR1cm4gewogICAgICAgIG5leHQ6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgaWYgKG8gJiYgaSA+PSBvLmxlbmd0aCkgbyA9IHZvaWQgMDsKICAgICAgICAgICAgcmV0dXJuIHsgdmFsdWU6IG8gJiYgb1tpKytdLCBkb25lOiAhbyB9OwogICAgICAgIH0KICAgIH07CiAgICB0aHJvdyBuZXcgVHlwZUVycm9yKHMgPyAiT2JqZWN0IGlzIG5vdCBpdGVyYWJsZS4iIDogIlN5bWJvbC5pdGVyYXRvciBpcyBub3QgZGVmaW5lZC4iKTsKfTsKdmFyIF9fcmVhZCA9ICh0aGlzICYmIHRoaXMuX19yZWFkKSB8fCBmdW5jdGlvbiAobywgbikgewogICAgdmFyIG0gPSB0eXBlb2YgU3ltYm9sID09PSAiZnVuY3Rpb24iICYmIG9bU3ltYm9sLml0ZXJhdG9yXTsKICAgIGlmICghbSkgcmV0dXJuIG87CiAgICB2YXIgaSA9IG0uY2FsbChvKSwgciwgYXIgPSBbXSwgZTsKICAgIHRyeSB7CiAgICAgICAgd2hpbGUgKChuID09PSB2b2lkIDAgfHwgbi0tID4gMCkgJiYgIShyID0gaS5uZXh0KCkpLmRvbmUpIGFyLnB1c2goci52YWx1ZSk7CiAgICB9CiAgICBjYXRjaCAoZXJyb3IpIHsgZSA9IHsgZXJyb3I6IGVycm9yIH07IH0KICAgIGZpbmFsbHkgewogICAgICAgIHRyeSB7CiAgICAgICAgICAgIGlmIChyICYmICFyLmRvbmUgJiYgKG0gPSBpWyJyZXR1cm4iXSkpIG0uY2FsbChpKTsKICAgICAgICB9CiAgICAgICAgZmluYWxseSB7IGlmIChlKSB0aHJvdyBlLmVycm9yOyB9CiAgICB9CiAgICByZXR1cm4gYXI7Cn07CnZhciBfX3NwcmVhZEFycmF5ID0gKHRoaXMgJiYgdGhpcy5fX3NwcmVhZEFycmF5KSB8fCBmdW5jdGlvbiAodG8sIGZyb20sIHBhY2spIHsKICAgIGlmIChwYWNrIHx8IGFyZ3VtZW50cy5sZW5ndGggPT09IDIpIGZvciAodmFyIGkgPSAwLCBsID0gZnJvbS5sZW5ndGgsIGFyOyBpIDwgbDsgaSsrKSB7CiAgICAgICAgaWYgKGFyIHx8ICEoaSBpbiBmcm9tKSkgewogICAgICAgICAgICBpZiAoIWFyKSBhciA9IEFycmF5LnByb3RvdHlwZS5zbGljZS5jYWxsKGZyb20sIDAsIGkpOwogICAgICAgICAgICBhcltpXSA9IGZyb21baV07CiAgICAgICAgfQogICAgfQogICAgcmV0dXJuIHRvLmNvbmNhdChhciB8fCBBcnJheS5wcm90b3R5cGUuc2xpY2UuY2FsbChmcm9tKSk7Cn07CnZhciBlXzEsIF9hOwp2YXIgSGVscGVyQmFzZSA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsKICAgIGZ1bmN0aW9uIEhlbHBlckJhc2UoKSB7CiAgICB9CiAgICByZXR1cm4gSGVscGVyQmFzZTsKfSgpKTsKdmFyIEhlbHBlckRlcml2ZWQgPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoX3N1cGVyKSB7CiAgICBfX2V4dGVuZHMoSGVscGVyRGVyaXZlZCwgX3N1cGVyKTsKICAgIGZ1bmN0aW9uIEhlbHBlckRlcml2ZWQoKSB7CiAgICAgICAgcmV0dXJuIF9zdXBlciAhPT0gbnVsbCAmJiBfc3VwZXIuYXBwbHkodGhpcywgYXJndW1lbnRzKSB8fCB0aGlzOwogICAgfQogICAgcmV0dXJuIEhlbHBlckRlcml2ZWQ7Cn0oSGVscGVyQmFzZSkpOwp0cnkgewogICAgZm9yICh2YXIgaXRlcmFibGVfMSA9IF9fdmFsdWVzKGl0ZXJhYmxlKSwgaXRlcmFibGVfMV8xID0gaXRlcmFibGVfMS5uZXh0KCk7ICFpdGVyYWJsZV8xXzEuZG9uZTsgaXRlcmFibGVfMV8xID0gaXRlcmFibGVfMS5uZXh0KCkpIHsKICAgICAgICB2YXIgaXRlbSA9IGl0ZXJhYmxlXzFfMS52YWx1ZTsKICAgICAgICB2b2lkIGl0ZW07CiAgICB9Cn0KY2F0Y2ggKGVfMV8xKSB7IGVfMSA9IHsgZXJyb3I6IGVfMV8xIH07IH0KZmluYWxseSB7CiAgICB0cnkgewogICAgICAgIGlmIChpdGVyYWJsZV8xXzEgJiYgIWl0ZXJhYmxlXzFfMS5kb25lICYmIChfYSA9IGl0ZXJhYmxlXzEucmV0dXJuKSkgX2EuY2FsbChpdGVyYWJsZV8xKTsKICAgIH0KICAgIGZpbmFsbHkgeyBpZiAoZV8xKSB0aHJvdyBlXzEuZXJyb3I7IH0KfQp2YXIgY29waWVkID0gX19zcHJlYWRBcnJheShbXSwgX19yZWFkKGl0ZXJhYmxlKSwgZmFsc2UpOwp2YXIgX2IgPSBfX3JlYWQoY29waWVkLCAxKSwgZmlyc3RDb3BpZWQgPSBfYlswXTsKZnVuY3Rpb24gcHJvZHVjZWQoKSB7IHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2EpIHsKICAgIHN3aXRjaCAoX2EubGFiZWwpIHsKICAgICAgICBjYXNlIDA6IHJldHVybiBbNSAvKnlpZWxkKiovLCBfX3ZhbHVlcyhpdGVyYWJsZSldOwogICAgICAgIGNhc2UgMToKICAgICAgICAgICAgX2Euc2VudCgpOwogICAgICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qL107CiAgICB9Cn0pOyB9CnZvaWQgZmlyc3RDb3BpZWQ7CnZvaWQgcHJvZHVjZWQ7Cg==",
+                "callback_utf8_sha256": "6c233c3abf53d550556938e9738257de2ba04d68905830b843566b633e09ec80",
+                "callback_utf8_bytes": 5170,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "6c233c3abf53d550556938e9738257de2ba04d68905830b843566b633e09ec80",
+                "materialized_utf8_bytes": 5170,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "extendStatics",
+                "occurrences": 4
+              },
+              {
+                "token": "__values",
+                "occurrences": 4
+              },
+              {
+                "token": "__read",
+                "occurrences": 4
+              },
+              {
+                "token": "__spreadArray",
+                "occurrences": 3
+              },
+              {
+                "token": "__generator",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "e8c27000d524cc0d4e31bdd4f3333b050dd9774ef69a182d3ebdd49bf6b31987"
+          },
+          "case_fingerprint_sha256": "5aada6df48014bf9a533b50a947ad8eaac8078f7bb340d2fa4d661d98d4a84fd"
+        },
+        {
+          "case_id": "helper-graph--adjacent-negative-no-emit-helpers",
+          "role": "adjacent-negative-control",
+          "description": "noEmitHelpers keeps every helper reference while suppressing the inline helper bodies",
+          "option_overrides": {
+            "noEmitHelpers": true
+          },
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y2xhc3MgSGVscGVyQmFzZSB7fQpjbGFzcyBIZWxwZXJEZXJpdmVkIGV4dGVuZHMgSGVscGVyQmFzZSB7fQpkZWNsYXJlIGNvbnN0IGl0ZXJhYmxlOiBJdGVyYWJsZTxudW1iZXI+Owpmb3IgKGNvbnN0IGl0ZW0gb2YgaXRlcmFibGUpIHsgdm9pZCBpdGVtOyB9Cg==",
+                "utf8_sha256": "e263646b3d9da36e3a4c34f5f622ea45d3065c9d6dfbac179c109e31ca9a8f5b",
+                "utf8_bytes": 148
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": true,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "__extends",
+              "expectation": "present"
+            },
+            {
+              "token": "extendStatics",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgZV8xLCBfYTsKdmFyIEhlbHBlckJhc2UgPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7CiAgICBmdW5jdGlvbiBIZWxwZXJCYXNlKCkgewogICAgfQogICAgcmV0dXJuIEhlbHBlckJhc2U7Cn0oKSk7CnZhciBIZWxwZXJEZXJpdmVkID0gLyoqIEBjbGFzcyAqLyAoZnVuY3Rpb24gKF9zdXBlcikgewogICAgX19leHRlbmRzKEhlbHBlckRlcml2ZWQsIF9zdXBlcik7CiAgICBmdW5jdGlvbiBIZWxwZXJEZXJpdmVkKCkgewogICAgICAgIHJldHVybiBfc3VwZXIgIT09IG51bGwgJiYgX3N1cGVyLmFwcGx5KHRoaXMsIGFyZ3VtZW50cykgfHwgdGhpczsKICAgIH0KICAgIHJldHVybiBIZWxwZXJEZXJpdmVkOwp9KEhlbHBlckJhc2UpKTsKdHJ5IHsKICAgIGZvciAodmFyIGl0ZXJhYmxlXzEgPSBfX3ZhbHVlcyhpdGVyYWJsZSksIGl0ZXJhYmxlXzFfMSA9IGl0ZXJhYmxlXzEubmV4dCgpOyAhaXRlcmFibGVfMV8xLmRvbmU7IGl0ZXJhYmxlXzFfMSA9IGl0ZXJhYmxlXzEubmV4dCgpKSB7CiAgICAgICAgdmFyIGl0ZW0gPSBpdGVyYWJsZV8xXzEudmFsdWU7CiAgICAgICAgdm9pZCBpdGVtOwogICAgfQp9CmNhdGNoIChlXzFfMSkgeyBlXzEgPSB7IGVycm9yOiBlXzFfMSB9OyB9CmZpbmFsbHkgewogICAgdHJ5IHsKICAgICAgICBpZiAoaXRlcmFibGVfMV8xICYmICFpdGVyYWJsZV8xXzEuZG9uZSAmJiAoX2EgPSBpdGVyYWJsZV8xLnJldHVybikpIF9hLmNhbGwoaXRlcmFibGVfMSk7CiAgICB9CiAgICBmaW5hbGx5IHsgaWYgKGVfMSkgdGhyb3cgZV8xLmVycm9yOyB9Cn0K",
+                "callback_utf8_sha256": "9b9a3cecd91d0907e69affda63669a4f035388618010a5650580057522b1f1e1",
+                "callback_utf8_bytes": 798,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "9b9a3cecd91d0907e69affda63669a4f035388618010a5650580057522b1f1e1",
+                "materialized_utf8_bytes": 798,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "__extends",
+                "occurrences": 1
+              },
+              {
+                "token": "extendStatics",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "91f9d4be99196ecb13ee1a3d85cbaec530007cf4c6bc59912717de581fd4e19a"
+          },
+          "case_fingerprint_sha256": "e891a39a711bdc9f08ae7c357b06314e5b032d6e7d9accf6f60d2f97da302f03"
+        },
+        {
+          "case_id": "helper-graph--fault-import-helpers-missing-tslib",
+          "role": "fault",
+          "description": "importHelpers on a module without tslib reports the typed helper fault and emits the tslib import in place of inline bodies",
+          "option_overrides": {
+            "importHelpers": true
+          },
+          "expected_reported_codes": [
+            2354
+          ],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZXhwb3J0IGNsYXNzIEhlbHBlckJhc2Uge30KZXhwb3J0IGNsYXNzIEhlbHBlckRlcml2ZWQgZXh0ZW5kcyBIZWxwZXJCYXNlIHt9Cg==",
+                "utf8_sha256": "66337478102be574ded38eaddde92abfd53490c5d2f5c9523b20ef99ce76f61b",
+                "utf8_bytes": 76
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": true,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "tslib",
+              "expectation": "present"
+            },
+            {
+              "token": "extendStatics",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 2354,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 54,
+                "length": 18
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "aW1wb3J0IHsgX19leHRlbmRzIH0gZnJvbSAidHNsaWIiOwp2YXIgSGVscGVyQmFzZSA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsKICAgIGZ1bmN0aW9uIEhlbHBlckJhc2UoKSB7CiAgICB9CiAgICByZXR1cm4gSGVscGVyQmFzZTsKfSgpKTsKZXhwb3J0IHsgSGVscGVyQmFzZSB9Owp2YXIgSGVscGVyRGVyaXZlZCA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uIChfc3VwZXIpIHsKICAgIF9fZXh0ZW5kcyhIZWxwZXJEZXJpdmVkLCBfc3VwZXIpOwogICAgZnVuY3Rpb24gSGVscGVyRGVyaXZlZCgpIHsKICAgICAgICByZXR1cm4gX3N1cGVyICE9PSBudWxsICYmIF9zdXBlci5hcHBseSh0aGlzLCBhcmd1bWVudHMpIHx8IHRoaXM7CiAgICB9CiAgICByZXR1cm4gSGVscGVyRGVyaXZlZDsKfShIZWxwZXJCYXNlKSk7CmV4cG9ydCB7IEhlbHBlckRlcml2ZWQgfTsK",
+                "callback_utf8_sha256": "fa6abdc67e2beec6e8b648e5941dce5897decd0d2768b4f57d10efe48ee41324",
+                "callback_utf8_bytes": 438,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "fa6abdc67e2beec6e8b648e5941dce5897decd0d2768b4f57d10efe48ee41324",
+                "materialized_utf8_bytes": 438,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "tslib",
+                "occurrences": 1
+              },
+              {
+                "token": "extendStatics",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "8bee220d77fbc272fcc0c9b135929ebfdccafb3d7fc34202bf13679348b57c8c"
+          },
+          "case_fingerprint_sha256": "2113ef03327dfde304ae5bc42d6ec826e53c80f7c71656f26ed5dc6a939a8139"
+        }
+      ],
+      "family_fingerprint_sha256": "d368495b07f4ee9d519a942c481c96af14d48a672401dd8f2c198dde4b1044d4"
+    },
+    {
+      "family_id": "name-generation",
+      "surfaces": [
+        "factory-construction",
+        "name-generation"
+      ],
+      "description": "deferred generated-name allocation observed at emit level: source-occupied _a/_b/_i/_super push the allocator to later names for error temps and the class-expression binding, while the free control uses the first names; the cross-owner case interleaves ES2015 loop-conversion names with Generators state temps in one allocation sequence",
+      "cases": [
+        {
+          "case_id": "name-generation--positive-occupied-allocator",
+          "role": "positive",
+          "description": "source declarations occupying _a/_b/_i/_super force the allocator past them for the class-expression temp and iteration error temps",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "bGV0IF9hID0gMSwgX2IgPSAyLCBfaSA9IDMsIF9zdXBlciA9IDQ7CmNvbnN0IEhvbGRlciA9IGNsYXNzIHsgc3RhdGljIG1hcmtlciA9IF9hICsgX2IgKyBfaSArIF9zdXBlcjsgfTsKZGVjbGFyZSBjb25zdCBlbnRyaWVzOiBudW1iZXJbXTsKZm9yIChjb25zdCBlbnRyeSBvZiBlbnRyaWVzKSB7IHZvaWQgKCgpID0+IGVudHJ5KTsgfQp2b2lkIEhvbGRlcjsK",
+                "utf8_sha256": "f7704d4c2b94db6ab83d5f4e877f3293fb410203fe42c16002be1ba62eaafd12",
+                "utf8_bytes": 204
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "_super",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19zZXRGdW5jdGlvbk5hbWUgPSAodGhpcyAmJiB0aGlzLl9fc2V0RnVuY3Rpb25OYW1lKSB8fCBmdW5jdGlvbiAoZiwgbmFtZSwgcHJlZml4KSB7CiAgICBpZiAodHlwZW9mIG5hbWUgPT09ICJzeW1ib2wiKSBuYW1lID0gbmFtZS5kZXNjcmlwdGlvbiA/ICJbIi5jb25jYXQobmFtZS5kZXNjcmlwdGlvbiwgIl0iKSA6ICIiOwogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7Cn07CnZhciBfX3ZhbHVlcyA9ICh0aGlzICYmIHRoaXMuX192YWx1ZXMpIHx8IGZ1bmN0aW9uKG8pIHsKICAgIHZhciBzID0gdHlwZW9mIFN5bWJvbCA9PT0gImZ1bmN0aW9uIiAmJiBTeW1ib2wuaXRlcmF0b3IsIG0gPSBzICYmIG9bc10sIGkgPSAwOwogICAgaWYgKG0pIHJldHVybiBtLmNhbGwobyk7CiAgICBpZiAobyAmJiB0eXBlb2Ygby5sZW5ndGggPT09ICJudW1iZXIiKSByZXR1cm4gewogICAgICAgIG5leHQ6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgaWYgKG8gJiYgaSA+PSBvLmxlbmd0aCkgbyA9IHZvaWQgMDsKICAgICAgICAgICAgcmV0dXJuIHsgdmFsdWU6IG8gJiYgb1tpKytdLCBkb25lOiAhbyB9OwogICAgICAgIH0KICAgIH07CiAgICB0aHJvdyBuZXcgVHlwZUVycm9yKHMgPyAiT2JqZWN0IGlzIG5vdCBpdGVyYWJsZS4iIDogIlN5bWJvbC5pdGVyYXRvciBpcyBub3QgZGVmaW5lZC4iKTsKfTsKdmFyIGVfMSwgX2M7CnZhciBfZDsKdmFyIF9hID0gMSwgX2IgPSAyLCBfaSA9IDMsIF9zdXBlciA9IDQ7CnZhciBIb2xkZXIgPSAoX2QgPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7CiAgICAgICAgZnVuY3Rpb24gY2xhc3NfMSgpIHsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIGNsYXNzXzE7CiAgICB9KCkpLAogICAgX19zZXRGdW5jdGlvbk5hbWUoX2QsICJIb2xkZXIiKSwKICAgIF9kLm1hcmtlciA9IF9hICsgX2IgKyBfaSArIF9zdXBlciwKICAgIF9kKTsKdmFyIF9sb29wXzEgPSBmdW5jdGlvbiAoZW50cnkpIHsKICAgIHZvaWQgKGZ1bmN0aW9uICgpIHsgcmV0dXJuIGVudHJ5OyB9KTsKfTsKdHJ5IHsKICAgIGZvciAodmFyIGVudHJpZXNfMSA9IF9fdmFsdWVzKGVudHJpZXMpLCBlbnRyaWVzXzFfMSA9IGVudHJpZXNfMS5uZXh0KCk7ICFlbnRyaWVzXzFfMS5kb25lOyBlbnRyaWVzXzFfMSA9IGVudHJpZXNfMS5uZXh0KCkpIHsKICAgICAgICB2YXIgZW50cnkgPSBlbnRyaWVzXzFfMS52YWx1ZTsKICAgICAgICBfbG9vcF8xKGVudHJ5KTsKICAgIH0KfQpjYXRjaCAoZV8xXzEpIHsgZV8xID0geyBlcnJvcjogZV8xXzEgfTsgfQpmaW5hbGx5IHsKICAgIHRyeSB7CiAgICAgICAgaWYgKGVudHJpZXNfMV8xICYmICFlbnRyaWVzXzFfMS5kb25lICYmIChfYyA9IGVudHJpZXNfMS5yZXR1cm4pKSBfYy5jYWxsKGVudHJpZXNfMSk7CiAgICB9CiAgICBmaW5hbGx5IHsgaWYgKGVfMSkgdGhyb3cgZV8xLmVycm9yOyB9Cn0Kdm9pZCBIb2xkZXI7Cg==",
+                "callback_utf8_sha256": "65a9db33f53644a9a710119925f43de0c1df9f30a85074c1d355257e11949b88",
+                "callback_utf8_bytes": 1558,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "65a9db33f53644a9a710119925f43de0c1df9f30a85074c1d355257e11949b88",
+                "materialized_utf8_bytes": 1558,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "_super",
+                "occurrences": 2
+              }
+            ],
+            "observation_fingerprint_sha256": "c01bd9dabf590bc10e02ad9d1de1de4844af286b30bdbc0cb8a5fba7ad42125e"
+          },
+          "case_fingerprint_sha256": "22ca7c7ab3375b78c12713ace7a2a1974467e0a022df108d0833c66cf53f7e49"
+        },
+        {
+          "case_id": "name-generation--adjacent-negative-free-allocator",
+          "role": "adjacent-negative-control",
+          "description": "the same shapes without occupied names let the allocator use the first generated names",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y29uc3QgSG9sZGVyID0gY2xhc3MgeyBzdGF0aWMgbWFya2VyID0gMDsgfTsKZGVjbGFyZSBjb25zdCBlbnRyaWVzOiBudW1iZXJbXTsKZm9yIChjb25zdCBlbnRyeSBvZiBlbnRyaWVzKSB7IHZvaWQgKCgpID0+IGVudHJ5KTsgfQp2b2lkIEhvbGRlcjsK",
+                "utf8_sha256": "aea98622e00e160e9e91f052d70f9594d5fb8dbd1604cb6000fd067f599e9a49",
+                "utf8_bytes": 144
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "_super",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19zZXRGdW5jdGlvbk5hbWUgPSAodGhpcyAmJiB0aGlzLl9fc2V0RnVuY3Rpb25OYW1lKSB8fCBmdW5jdGlvbiAoZiwgbmFtZSwgcHJlZml4KSB7CiAgICBpZiAodHlwZW9mIG5hbWUgPT09ICJzeW1ib2wiKSBuYW1lID0gbmFtZS5kZXNjcmlwdGlvbiA/ICJbIi5jb25jYXQobmFtZS5kZXNjcmlwdGlvbiwgIl0iKSA6ICIiOwogICAgcmV0dXJuIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShmLCAibmFtZSIsIHsgY29uZmlndXJhYmxlOiB0cnVlLCB2YWx1ZTogcHJlZml4ID8gIiIuY29uY2F0KHByZWZpeCwgIiAiLCBuYW1lKSA6IG5hbWUgfSk7Cn07CnZhciBfX3ZhbHVlcyA9ICh0aGlzICYmIHRoaXMuX192YWx1ZXMpIHx8IGZ1bmN0aW9uKG8pIHsKICAgIHZhciBzID0gdHlwZW9mIFN5bWJvbCA9PT0gImZ1bmN0aW9uIiAmJiBTeW1ib2wuaXRlcmF0b3IsIG0gPSBzICYmIG9bc10sIGkgPSAwOwogICAgaWYgKG0pIHJldHVybiBtLmNhbGwobyk7CiAgICBpZiAobyAmJiB0eXBlb2Ygby5sZW5ndGggPT09ICJudW1iZXIiKSByZXR1cm4gewogICAgICAgIG5leHQ6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgaWYgKG8gJiYgaSA+PSBvLmxlbmd0aCkgbyA9IHZvaWQgMDsKICAgICAgICAgICAgcmV0dXJuIHsgdmFsdWU6IG8gJiYgb1tpKytdLCBkb25lOiAhbyB9OwogICAgICAgIH0KICAgIH07CiAgICB0aHJvdyBuZXcgVHlwZUVycm9yKHMgPyAiT2JqZWN0IGlzIG5vdCBpdGVyYWJsZS4iIDogIlN5bWJvbC5pdGVyYXRvciBpcyBub3QgZGVmaW5lZC4iKTsKfTsKdmFyIGVfMSwgX2E7CnZhciBfYjsKdmFyIEhvbGRlciA9IChfYiA9IC8qKiBAY2xhc3MgKi8gKGZ1bmN0aW9uICgpIHsKICAgICAgICBmdW5jdGlvbiBjbGFzc18xKCkgewogICAgICAgIH0KICAgICAgICByZXR1cm4gY2xhc3NfMTsKICAgIH0oKSksCiAgICBfX3NldEZ1bmN0aW9uTmFtZShfYiwgIkhvbGRlciIpLAogICAgX2IubWFya2VyID0gMCwKICAgIF9iKTsKdmFyIF9sb29wXzEgPSBmdW5jdGlvbiAoZW50cnkpIHsKICAgIHZvaWQgKGZ1bmN0aW9uICgpIHsgcmV0dXJuIGVudHJ5OyB9KTsKfTsKdHJ5IHsKICAgIGZvciAodmFyIGVudHJpZXNfMSA9IF9fdmFsdWVzKGVudHJpZXMpLCBlbnRyaWVzXzFfMSA9IGVudHJpZXNfMS5uZXh0KCk7ICFlbnRyaWVzXzFfMS5kb25lOyBlbnRyaWVzXzFfMSA9IGVudHJpZXNfMS5uZXh0KCkpIHsKICAgICAgICB2YXIgZW50cnkgPSBlbnRyaWVzXzFfMS52YWx1ZTsKICAgICAgICBfbG9vcF8xKGVudHJ5KTsKICAgIH0KfQpjYXRjaCAoZV8xXzEpIHsgZV8xID0geyBlcnJvcjogZV8xXzEgfTsgfQpmaW5hbGx5IHsKICAgIHRyeSB7CiAgICAgICAgaWYgKGVudHJpZXNfMV8xICYmICFlbnRyaWVzXzFfMS5kb25lICYmIChfYSA9IGVudHJpZXNfMS5yZXR1cm4pKSBfYS5jYWxsKGVudHJpZXNfMSk7CiAgICB9CiAgICBmaW5hbGx5IHsgaWYgKGVfMSkgdGhyb3cgZV8xLmVycm9yOyB9Cn0Kdm9pZCBIb2xkZXI7Cg==",
+                "callback_utf8_sha256": "c7b894df63035ab605d798c916eca099f90845c5b419f9893dafd594e127839b",
+                "callback_utf8_bytes": 1498,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "c7b894df63035ab605d798c916eca099f90845c5b419f9893dafd594e127839b",
+                "materialized_utf8_bytes": 1498,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "_super",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "4eb2045f1bc19c75276391194bee1dd98391870fa4f9106c7547e3dbbe245827"
+          },
+          "case_fingerprint_sha256": "683d6f3407c4883f6918433c27bda8b23ebce4053ea89c6358bea35b30eaa08a"
+        },
+        {
+          "case_id": "name-generation--composition-cross-owner-allocation",
+          "role": "composition",
+          "description": "a generator for-of with capture and occupied _a/_b interleaves loop-conversion names, iteration temps, and state-machine temps in one cross-owner allocation order (including the for-of yield* synthesis site)",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [
+            "pass-order",
+            "yield-star-synthesis"
+          ],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "bGV0IF9hID0gMSwgX2IgPSAyOwpkZWNsYXJlIGNvbnN0IGVudHJpZXM6IG51bWJlcltdOwpmdW5jdGlvbiogaW50ZXJsZWF2ZWQoKSB7CiAgZm9yIChjb25zdCBlbnRyeSBvZiBlbnRyaWVzKSB7CiAgICB2b2lkICgoKSA9PiBlbnRyeSk7CiAgICB5aWVsZCBlbnRyeTsKICB9Cn0Kdm9pZCBfYTsgdm9pZCBfYjsK",
+                "utf8_sha256": "7f0e81abbcc2b156ac071beb75f475d91d00d938fbaf3feedbf265830e0d3b3a",
+                "utf8_bytes": 177
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "_loop_1",
+              "expectation": "present"
+            },
+            {
+              "token": "__generator",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKdmFyIF9fdmFsdWVzID0gKHRoaXMgJiYgdGhpcy5fX3ZhbHVlcykgfHwgZnVuY3Rpb24obykgewogICAgdmFyIHMgPSB0eXBlb2YgU3ltYm9sID09PSAiZnVuY3Rpb24iICYmIFN5bWJvbC5pdGVyYXRvciwgbSA9IHMgJiYgb1tzXSwgaSA9IDA7CiAgICBpZiAobSkgcmV0dXJuIG0uY2FsbChvKTsKICAgIGlmIChvICYmIHR5cGVvZiBvLmxlbmd0aCA9PT0gIm51bWJlciIpIHJldHVybiB7CiAgICAgICAgbmV4dDogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBpZiAobyAmJiBpID49IG8ubGVuZ3RoKSBvID0gdm9pZCAwOwogICAgICAgICAgICByZXR1cm4geyB2YWx1ZTogbyAmJiBvW2krK10sIGRvbmU6ICFvIH07CiAgICAgICAgfQogICAgfTsKICAgIHRocm93IG5ldyBUeXBlRXJyb3IocyA/ICJPYmplY3QgaXMgbm90IGl0ZXJhYmxlLiIgOiAiU3ltYm9sLml0ZXJhdG9yIGlzIG5vdCBkZWZpbmVkLiIpOwp9Owp2YXIgX2EgPSAxLCBfYiA9IDI7CmZ1bmN0aW9uIGludGVybGVhdmVkKCkgewogICAgdmFyIF9sb29wXzEsIGVudHJpZXNfMSwgZW50cmllc18xXzEsIGVudHJ5LCBlXzFfMTsKICAgIHZhciBlXzEsIF9jOwogICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfZCkgewogICAgICAgIHN3aXRjaCAoX2QubGFiZWwpIHsKICAgICAgICAgICAgY2FzZSAwOgogICAgICAgICAgICAgICAgX2xvb3BfMSA9IGZ1bmN0aW9uIChlbnRyeSkgewogICAgICAgICAgICAgICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2UpIHsKICAgICAgICAgICAgICAgICAgICAgICAgc3dpdGNoIChfZS5sYWJlbCkgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAwOgogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHZvaWQgKGZ1bmN0aW9uICgpIHsgcmV0dXJuIGVudHJ5OyB9KTsKICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICByZXR1cm4gWzQgLyp5aWVsZCovLCBlbnRyeV07CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBjYXNlIDE6CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgX2Uuc2VudCgpOwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiBbMiAvKnJldHVybiovXTsKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIH0pOwogICAgICAgICAgICAgICAgfTsKICAgICAgICAgICAgICAgIF9kLmxhYmVsID0gMTsKICAgICAgICAgICAgY2FzZSAxOgogICAgICAgICAgICAgICAgX2QudHJ5cy5wdXNoKFsxLCA2LCA3LCA4XSk7CiAgICAgICAgICAgICAgICBlbnRyaWVzXzEgPSBfX3ZhbHVlcyhlbnRyaWVzKSwgZW50cmllc18xXzEgPSBlbnRyaWVzXzEubmV4dCgpOwogICAgICAgICAgICAgICAgX2QubGFiZWwgPSAyOwogICAgICAgICAgICBjYXNlIDI6CiAgICAgICAgICAgICAgICBpZiAoISFlbnRyaWVzXzFfMS5kb25lKSByZXR1cm4gWzMgLypicmVhayovLCA1XTsKICAgICAgICAgICAgICAgIGVudHJ5ID0gZW50cmllc18xXzEudmFsdWU7CiAgICAgICAgICAgICAgICByZXR1cm4gWzUgLyp5aWVsZCoqLywgX2xvb3BfMShlbnRyeSldOwogICAgICAgICAgICBjYXNlIDM6CiAgICAgICAgICAgICAgICBfZC5zZW50KCk7CiAgICAgICAgICAgICAgICBfZC5sYWJlbCA9IDQ7CiAgICAgICAgICAgIGNhc2UgNDoKICAgICAgICAgICAgICAgIGVudHJpZXNfMV8xID0gZW50cmllc18xLm5leHQoKTsKICAgICAgICAgICAgICAgIHJldHVybiBbMyAvKmJyZWFrKi8sIDJdOwogICAgICAgICAgICBjYXNlIDU6IHJldHVybiBbMyAvKmJyZWFrKi8sIDhdOwogICAgICAgICAgICBjYXNlIDY6CiAgICAgICAgICAgICAgICBlXzFfMSA9IF9kLnNlbnQoKTsKICAgICAgICAgICAgICAgIGVfMSA9IHsgZXJyb3I6IGVfMV8xIH07CiAgICAgICAgICAgICAgICByZXR1cm4gWzMgLypicmVhayovLCA4XTsKICAgICAgICAgICAgY2FzZSA3OgogICAgICAgICAgICAgICAgdHJ5IHsKICAgICAgICAgICAgICAgICAgICBpZiAoZW50cmllc18xXzEgJiYgIWVudHJpZXNfMV8xLmRvbmUgJiYgKF9jID0gZW50cmllc18xLnJldHVybikpIF9jLmNhbGwoZW50cmllc18xKTsKICAgICAgICAgICAgICAgIH0KICAgICAgICAgICAgICAgIGZpbmFsbHkgeyBpZiAoZV8xKSB0aHJvdyBlXzEuZXJyb3I7IH0KICAgICAgICAgICAgICAgIHJldHVybiBbNyAvKmVuZGZpbmFsbHkqL107CiAgICAgICAgICAgIGNhc2UgODogcmV0dXJuIFsyIC8qcmV0dXJuKi9dOwogICAgICAgIH0KICAgIH0pOwp9CnZvaWQgX2E7CnZvaWQgX2I7Cg==",
+                "callback_utf8_sha256": "41ff924bc44f1d0f505193742b759f5b3d389bb09d3ae6de51b90d2394a8c028",
+                "callback_utf8_bytes": 4207,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "41ff924bc44f1d0f505193742b759f5b3d389bb09d3ae6de51b90d2394a8c028",
+                "materialized_utf8_bytes": 4207,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "_loop_1",
+                "occurrences": 3
+              },
+              {
+                "token": "__generator",
+                "occurrences": 4
+              }
+            ],
+            "observation_fingerprint_sha256": "7b530f954a7d84406298f1d09327ec9630fd397384a6a1e6e044f5762682e77e"
+          },
+          "case_fingerprint_sha256": "c94363dafb96a6539317ddbca7b96114f1519916c1fdccd66e58131f1f3daa6d"
+        }
+      ],
+      "family_fingerprint_sha256": "f88b22045f661d14c38751dcc20a8eb17f4ed5b5e12db85a4ddcb545dd844f8b"
+    },
+    {
+      "family_id": "resolver-foundation-controls",
+      "surfaces": [
+        "resolver-collision-capture-queries",
+        "resolver-node-check-flags"
+      ],
+      "description": "emit-level converses of the foundation's resolver direct controls, input-byte-identical to the frozen controls with the emitted bytes proven equal to the foundation's stored writes: colliding block-scoped names rename, captured loop bindings extract the converted loop, and the strict-mode arguments/catch control emits under its recorded grammar faults; the calm control renames nothing",
+      "cases": [
+        {
+          "case_id": "resolver-foundation-controls--positive-collision-rename",
+          "role": "positive",
+          "description": "the foundation collision control's shadowing let is renamed in the emitted bytes (isDeclarationWithCollidingName converse)",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": "checker-colliding-block-scope",
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB1c2UodmFsdWU6IHVua25vd24pOiB2b2lkOwpmdW5jdGlvbiBjb2xsaXNpb25TY29wZSgpIHsKICB2YXIgY29sbGlzaW9uVmFsdWUgPSAwOwogIHsKICAgIGxldCBjb2xsaXNpb25WYWx1ZSA9IDE7CiAgICB1c2UoY29sbGlzaW9uVmFsdWUpOwogIH0KfQo=",
+                "utf8_sha256": "b9e93e72c1226f4a7b8dcc9dccdd3e6c9be5e06c85e77271841399b978a1d0ef",
+                "utf8_bytes": 161
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "collisionValue_1",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiBjb2xsaXNpb25TY29wZSgpIHsKICAgIHZhciBjb2xsaXNpb25WYWx1ZSA9IDA7CiAgICB7CiAgICAgICAgdmFyIGNvbGxpc2lvblZhbHVlXzEgPSAxOwogICAgICAgIHVzZShjb2xsaXNpb25WYWx1ZV8xKTsKICAgIH0KfQo=",
+                "callback_utf8_sha256": "48196bd6c96955204453f8610d761eb25fdccb562f44bfccc787ad47faffaf0c",
+                "callback_utf8_bytes": 149,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "48196bd6c96955204453f8610d761eb25fdccb562f44bfccc787ad47faffaf0c",
+                "materialized_utf8_bytes": 149,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "collisionValue_1",
+                "occurrences": 2
+              }
+            ],
+            "observation_fingerprint_sha256": "72dc090837c4c0c1324eb924c3be3d159f27356f4623f3cda07e94611cd4f5b6"
+          },
+          "case_fingerprint_sha256": "ca124edd7bc5097e4c4a010b9b598b99386da83573f479939ea3381b98badb69"
+        },
+        {
+          "case_id": "resolver-foundation-controls--positive-captured-loop",
+          "role": "positive",
+          "description": "the foundation captured-loop control extracts the converted loop function (isBindingCapturedByNode/hasNodeCheckFlag converse)",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": "checker-captured-loop-bindings",
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB1c2UodmFsdWU6IHVua25vd24pOiB2b2lkOwpmb3IgKGxldCBjYXB0dXJlZFZhbHVlID0gMDsgY2FwdHVyZWRWYWx1ZSA8IDI7IGNhcHR1cmVkVmFsdWUrKykgewogIHVzZSgoKSA9PiBjYXB0dXJlZFZhbHVlKTsKfQo=",
+                "utf8_sha256": "78315144e6178fea4c38f1967d8a743bfc57b4a581bb1d31180c9ad50cc60ec1",
+                "utf8_bytes": 140
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "_loop_1",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX2xvb3BfMSA9IGZ1bmN0aW9uIChjYXB0dXJlZFZhbHVlKSB7CiAgICB1c2UoZnVuY3Rpb24gKCkgeyByZXR1cm4gY2FwdHVyZWRWYWx1ZTsgfSk7Cn07CmZvciAodmFyIGNhcHR1cmVkVmFsdWUgPSAwOyBjYXB0dXJlZFZhbHVlIDwgMjsgY2FwdHVyZWRWYWx1ZSsrKSB7CiAgICBfbG9vcF8xKGNhcHR1cmVkVmFsdWUpOwp9Cg==",
+                "callback_utf8_sha256": "806f8ac3c6634a5685bb5f9aca1ba4631aa71f82e974f5340b06bda4724ff6fe",
+                "callback_utf8_bytes": 202,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "806f8ac3c6634a5685bb5f9aca1ba4631aa71f82e974f5340b06bda4724ff6fe",
+                "materialized_utf8_bytes": 202,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "_loop_1",
+                "occurrences": 2
+              }
+            ],
+            "observation_fingerprint_sha256": "b0683b5d9d1ba69065ffed540274068226bbff8dcced30b5601b22fef2a73e66"
+          },
+          "case_fingerprint_sha256": "56e7e285fe2d1f73fecfd3bbf813704d195389e12f69657c0f325ed479a02ce1"
+        },
+        {
+          "case_id": "resolver-foundation-controls--adjacent-negative-no-collision",
+          "role": "adjacent-negative-control",
+          "description": "a non-shadowing block and an uncaptured var loop emit without renames or loop extraction",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiB1c2UodmFsdWU6IHVua25vd24pOiB2b2lkOwpmdW5jdGlvbiBjYWxtU2NvcGUoKSB7CiAgdmFyIGNhbG1WYWx1ZSA9IDA7CiAgewogICAgdXNlKGNhbG1WYWx1ZSk7CiAgfQp9CmZvciAodmFyIHBsYWluSW5kZXggPSAwOyBwbGFpbkluZGV4IDwgMjsgcGxhaW5JbmRleCsrKSB7CiAgdXNlKHBsYWluSW5kZXgpOwp9Cg==",
+                "utf8_sha256": "80c05a6a30e3a32050c8d34a2306cf1d99e3c16c7443c2719da869e812db1fa4",
+                "utf8_bytes": 196
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "calmValue",
+              "expectation": "present"
+            },
+            {
+              "token": "_loop_1",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiBjYWxtU2NvcGUoKSB7CiAgICB2YXIgY2FsbVZhbHVlID0gMDsKICAgIHsKICAgICAgICB1c2UoY2FsbVZhbHVlKTsKICAgIH0KfQpmb3IgKHZhciBwbGFpbkluZGV4ID0gMDsgcGxhaW5JbmRleCA8IDI7IHBsYWluSW5kZXgrKykgewogICAgdXNlKHBsYWluSW5kZXgpOwp9Cg==",
+                "callback_utf8_sha256": "b7dc8c2c4ae70a6064419234de65cf7ea65a8b57c11832b81a51272e1b52a66c",
+                "callback_utf8_bytes": 178,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "b7dc8c2c4ae70a6064419234de65cf7ea65a8b57c11832b81a51272e1b52a66c",
+                "materialized_utf8_bytes": 178,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "calmValue",
+                "occurrences": 2
+              },
+              {
+                "token": "_loop_1",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "f05331874b70c509cadc70a28902b7ffa3b8c829c34766324407de3b02a19c2e"
+          },
+          "case_fingerprint_sha256": "dff08b02316034382d0d0a2d33f2a0201f06d13a456d02b5fe34c5ed8e3f4fd8"
+        },
+        {
+          "case_id": "resolver-foundation-controls--fault-arguments-and-catch",
+          "role": "fault",
+          "description": "the foundation arguments/catch control emits its generator catch delegation under the recorded strict-mode grammar faults",
+          "option_overrides": {},
+          "expected_reported_codes": [
+            1100,
+            2496
+          ],
+          "composition_edges": [],
+          "foundation_control": "checker-arguments-and-catch-reference",
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZnVuY3Rpb24gbG9jYWxBcmd1bWVudHMoYXJndW1lbnRzOiBudW1iZXIpIHsgcmV0dXJuIGFyZ3VtZW50czsgfQpmdW5jdGlvbiBsZXhpY2FsQXJndW1lbnRzKCkgeyByZXR1cm4gKCkgPT4gYXJndW1lbnRzOyB9CmZ1bmN0aW9uKiBjYXRjaGVzKCkgewogIHRyeSB7IHlpZWxkIDE7IH0KICBjYXRjaCAoY2F1Z2h0VmFsdWUpIHsgeWllbGQgY2F1Z2h0VmFsdWU7IH0KfQo=",
+                "utf8_sha256": "135bc190d877f9ce662072ccf095523286c7606bedf7546ea11a84d259291237",
+                "utf8_bytes": 209
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "caughtValue",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 1100,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 24,
+                "length": 9
+              },
+              {
+                "phase": "pre-emit",
+                "code": 2496,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 108,
+                "length": 9
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKZnVuY3Rpb24gbG9jYWxBcmd1bWVudHMoYXJndW1lbnRzKSB7IHJldHVybiBhcmd1bWVudHM7IH0KZnVuY3Rpb24gbGV4aWNhbEFyZ3VtZW50cygpIHsgcmV0dXJuIGZ1bmN0aW9uICgpIHsgcmV0dXJuIGFyZ3VtZW50czsgfTsgfQpmdW5jdGlvbiBjYXRjaGVzKCkgewogICAgdmFyIGNhdWdodFZhbHVlXzE7CiAgICByZXR1cm4gX19nZW5lcmF0b3IodGhpcywgZnVuY3Rpb24gKF9hKSB7CiAgICAgICAgc3dpdGNoIChfYS5sYWJlbCkgewogICAgICAgICAgICBjYXNlIDA6CiAgICAgICAgICAgICAgICBfYS50cnlzLnB1c2goWzAsIDIsICwgNF0pOwogICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgMV07CiAgICAgICAgICAgIGNhc2UgMToKICAgICAgICAgICAgICAgIF9hLnNlbnQoKTsKICAgICAgICAgICAgICAgIHJldHVybiBbMyAvKmJyZWFrKi8sIDRdOwogICAgICAgICAgICBjYXNlIDI6CiAgICAgICAgICAgICAgICBjYXVnaHRWYWx1ZV8xID0gX2Euc2VudCgpOwogICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgY2F1Z2h0VmFsdWVfMV07CiAgICAgICAgICAgIGNhc2UgMzoKICAgICAgICAgICAgICAgIF9hLnNlbnQoKTsKICAgICAgICAgICAgICAgIHJldHVybiBbMyAvKmJyZWFrKi8sIDRdOwogICAgICAgICAgICBjYXNlIDQ6IHJldHVybiBbMiAvKnJldHVybiovXTsKICAgICAgICB9CiAgICB9KTsKfQo=",
+                "callback_utf8_sha256": "091d12ec090b4dea7067b2c3e236265c8fa91e2a5c3b66693981156ca6a3ad29",
+                "callback_utf8_bytes": 2627,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "091d12ec090b4dea7067b2c3e236265c8fa91e2a5c3b66693981156ca6a3ad29",
+                "materialized_utf8_bytes": 2627,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "caughtValue",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "b692e7d14b8a73351777c8e2026a79d4cc9273d870cc5b13d28fbbf8fa151039"
+          },
+          "case_fingerprint_sha256": "7047362c2b7ea20ae700cae4cb4ff914e7034e948548117301b831f72a16e53a"
+        }
+      ],
+      "family_fingerprint_sha256": "6646431b526f8b47abcd04a4f93b7380aa2f5411318ba188440c2bfcbc4b5466"
+    },
+    {
+      "family_id": "hook-chains",
+      "surfaces": [
+        "hook-composition"
+      ],
+      "description": "chained onSubstituteNode/onEmitNode effects observed at emit level: generator var hoisting splits an assignment across state labels; an ES2015 block-scope rename survives into the Generators state machine only because both owners' hooks delegate in the pinned order; the plain-function control renames in place without a state machine",
+      "cases": [
+        {
+          "case_id": "hook-chains--positive-generator-hoisting",
+          "role": "positive",
+          "description": "a generator-local var is hoisted out of the state machine and a compound assignment across yield splits into a pre-yield temp and post-resume write",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZnVuY3Rpb24qIGFjY3VtdWxhdGUoKTogR2VuZXJhdG9yPG51bWJlciwgbnVtYmVyLCBudW1iZXI+IHsKICB2YXIgcnVubmluZ1RvdGFsID0gMDsKICBydW5uaW5nVG90YWwgKz0geWllbGQgcnVubmluZ1RvdGFsOwogIHJldHVybiBydW5uaW5nVG90YWw7Cn0K",
+                "utf8_sha256": "43e0d8b28f1de28ed8b57aa4fac366aab3896d91f16994482a5fbda0fa08ffcc",
+                "utf8_bytes": 147
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "runningTotal",
+              "expectation": "present"
+            },
+            {
+              "token": "__generator",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKZnVuY3Rpb24gYWNjdW11bGF0ZSgpIHsKICAgIHZhciBydW5uaW5nVG90YWwsIF9hOwogICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYikgewogICAgICAgIHN3aXRjaCAoX2IubGFiZWwpIHsKICAgICAgICAgICAgY2FzZSAwOgogICAgICAgICAgICAgICAgcnVubmluZ1RvdGFsID0gMDsKICAgICAgICAgICAgICAgIF9hID0gcnVubmluZ1RvdGFsOwogICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgcnVubmluZ1RvdGFsXTsKICAgICAgICAgICAgY2FzZSAxOgogICAgICAgICAgICAgICAgcnVubmluZ1RvdGFsID0gX2EgKyBfYi5zZW50KCk7CiAgICAgICAgICAgICAgICByZXR1cm4gWzIgLypyZXR1cm4qLywgcnVubmluZ1RvdGFsXTsKICAgICAgICB9CiAgICB9KTsKfQo=",
+                "callback_utf8_sha256": "3afd1a949b8e8fb0c73cb354dc5faff3654c2cb8b06354340d23fc10a9bdaa71",
+                "callback_utf8_bytes": 2324,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "3afd1a949b8e8fb0c73cb354dc5faff3654c2cb8b06354340d23fc10a9bdaa71",
+                "materialized_utf8_bytes": 2324,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "runningTotal",
+                "occurrences": 6
+              },
+              {
+                "token": "__generator",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "5974894b79739bd8e8a1775ae2d6d324ea716b80210509faa4268fa65358feb0"
+          },
+          "case_fingerprint_sha256": "d7ac4beb76b49ad80d9c0590221928a87bcb4ab6c73937dcc6b83405b1f08ea3"
+        },
+        {
+          "case_id": "hook-chains--adjacent-negative-blockscope-rename-plain",
+          "role": "adjacent-negative-control",
+          "description": "the same shadowing rename in a plain function stays in place without any state machine",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZnVuY3Rpb24gd2Fsa2VyKCk6IG51bWJlciB7CiAgdmFyIHNoYWRvd2VkID0gMDsKICB7CiAgICBsZXQgc2hhZG93ZWQgPSAxMDsKICAgIHZvaWQgc2hhZG93ZWQ7CiAgfQogIHJldHVybiBzaGFkb3dlZDsKfQo=",
+                "utf8_sha256": "f14c4edc1c2c2c5f9a841a7dd76ddadd1de7a02593c15743bfd2f6a4df30df41",
+                "utf8_bytes": 119
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "shadowed_1",
+              "expectation": "present"
+            },
+            {
+              "token": "__generator",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiB3YWxrZXIoKSB7CiAgICB2YXIgc2hhZG93ZWQgPSAwOwogICAgewogICAgICAgIHZhciBzaGFkb3dlZF8xID0gMTA7CiAgICAgICAgdm9pZCBzaGFkb3dlZF8xOwogICAgfQogICAgcmV0dXJuIHNoYWRvd2VkOwp9Cg==",
+                "callback_utf8_sha256": "de8384e516552452bb7bb6ba56512f4649cdaf7fc941ea99c4c0131f182efe30",
+                "callback_utf8_bytes": 145,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "de8384e516552452bb7bb6ba56512f4649cdaf7fc941ea99c4c0131f182efe30",
+                "materialized_utf8_bytes": 145,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "shadowed_1",
+                "occurrences": 2
+              },
+              {
+                "token": "__generator",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "7eb06da3675e809631debe685d03d1c456168be8f468e043fa01aed0668a0840"
+          },
+          "case_fingerprint_sha256": "2292fdea8c3212b57b4f33ed5e6f9b0ace18bdee7d79367a345d302d7c1422b4"
+        },
+        {
+          "case_id": "hook-chains--composition-blockscope-rename-in-generator",
+          "role": "composition",
+          "description": "an ES2015 block-scope rename inside a generator body survives into the hoisted state-machine bytes through the chained substitution order",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [
+            "substitution-chain",
+            "pass-order"
+          ],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZnVuY3Rpb24qIHdhbGtlcigpOiBHZW5lcmF0b3I8bnVtYmVyLCBudW1iZXIsIHZvaWQ+IHsKICB2YXIgc2hhZG93ZWQgPSAwOwogIHsKICAgIGxldCBzaGFkb3dlZCA9IDEwOwogICAgeWllbGQgc2hhZG93ZWQ7CiAgfQogIHJldHVybiBzaGFkb3dlZDsKfQo=",
+                "utf8_sha256": "8a9b3ac67f46809c795fe6e2e703863b4e38417d8e1fba1362b4004c24b37be9",
+                "utf8_bytes": 146
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "shadowed_1",
+              "expectation": "present"
+            },
+            {
+              "token": "__generator",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKZnVuY3Rpb24gd2Fsa2VyKCkgewogICAgdmFyIHNoYWRvd2VkLCBzaGFkb3dlZF8xOwogICAgcmV0dXJuIF9fZ2VuZXJhdG9yKHRoaXMsIGZ1bmN0aW9uIChfYSkgewogICAgICAgIHN3aXRjaCAoX2EubGFiZWwpIHsKICAgICAgICAgICAgY2FzZSAwOgogICAgICAgICAgICAgICAgc2hhZG93ZWQgPSAwOwogICAgICAgICAgICAgICAgc2hhZG93ZWRfMSA9IDEwOwogICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgc2hhZG93ZWRfMV07CiAgICAgICAgICAgIGNhc2UgMToKICAgICAgICAgICAgICAgIF9hLnNlbnQoKTsKICAgICAgICAgICAgICAgIHJldHVybiBbMiAvKnJldHVybiovLCBzaGFkb3dlZF07CiAgICAgICAgfQogICAgfSk7Cn0K",
+                "callback_utf8_sha256": "7ec60789e8d1300a511265b413943345ac8fd1542f187bc8fc15470485d70363",
+                "callback_utf8_bytes": 2292,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "7ec60789e8d1300a511265b413943345ac8fd1542f187bc8fc15470485d70363",
+                "materialized_utf8_bytes": 2292,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "shadowed_1",
+                "occurrences": 3
+              },
+              {
+                "token": "__generator",
+                "occurrences": 3
+              }
+            ],
+            "observation_fingerprint_sha256": "cf166feb9499d06692ca474249a1c0cc1db024c227c2c791463b46fb7438890a"
+          },
+          "case_fingerprint_sha256": "9f633a2d5ba316c349dcac8a8ec23c3fd6da6b3d834bd39fc3525d0c0367917f"
+        }
+      ],
+      "family_fingerprint_sha256": "9f871815e0be91382289307033ec7177d1fc1aa8dd607948a95ac3779fa01b2a"
+    },
+    {
+      "family_id": "enum-pair-guards",
+      "surfaces": [
+        "syntax-guards",
+        "transform-flag-recomputation"
+      ],
+      "description": "transform-flag guards select subtrees: in a mixed file only the ES2015-flagged arrow is rewritten while the ES5 subtrees are preserved, and a fully-ES5 file passes through with no helper or generated temp at all",
+      "cases": [
+        {
+          "case_id": "enum-pair-guards--positive-mixed-subtrees",
+          "role": "positive",
+          "description": "a mixed file rewrites the arrow subtree and preserves the var/function subtrees",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "dmFyIGxlZ2FjeUNvdW50ZXIgPSAwOwpmdW5jdGlvbiBsZWdhY3lJbmNyZW1lbnQoKSB7IGxlZ2FjeUNvdW50ZXIgKz0gMTsgcmV0dXJuIGxlZ2FjeUNvdW50ZXI7IH0KY29uc3QgbW9kZXJuSW5jcmVtZW50ID0gKCkgPT4gbGVnYWN5SW5jcmVtZW50KCk7CnZvaWQgbW9kZXJuSW5jcmVtZW50Owo=",
+                "utf8_sha256": "1ab39a598c341e7708411b54bbda04cebe640404d32d89ad4cd2fafdcb28e634",
+                "utf8_bytes": 167
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "legacyIncrement",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgbGVnYWN5Q291bnRlciA9IDA7CmZ1bmN0aW9uIGxlZ2FjeUluY3JlbWVudCgpIHsgbGVnYWN5Q291bnRlciArPSAxOyByZXR1cm4gbGVnYWN5Q291bnRlcjsgfQp2YXIgbW9kZXJuSW5jcmVtZW50ID0gZnVuY3Rpb24gKCkgeyByZXR1cm4gbGVnYWN5SW5jcmVtZW50KCk7IH07CnZvaWQgbW9kZXJuSW5jcmVtZW50Owo=",
+                "callback_utf8_sha256": "4f97d8d21481b9e91854ae495a1937246c207a713a4b16854d255e6c66f9f12b",
+                "callback_utf8_bytes": 197,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "4f97d8d21481b9e91854ae495a1937246c207a713a4b16854d255e6c66f9f12b",
+                "materialized_utf8_bytes": 197,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "legacyIncrement",
+                "occurrences": 2
+              }
+            ],
+            "observation_fingerprint_sha256": "f15665fc20389d66de03cd86696444a7527ce7bb1add3dbc86216fce7adac9d7"
+          },
+          "case_fingerprint_sha256": "7618d533b54a88e555c0dd0eb4dae35e60a87d3a7a02a8f01d4e0a0173124a41"
+        },
+        {
+          "case_id": "enum-pair-guards--adjacent-negative-plain-es5",
+          "role": "adjacent-negative-control",
+          "description": "a fully-ES5 file passes through with the prologue only: no double-underscore helper or temp appears",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "composition_edges": [],
+          "foundation_control": null,
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "dmFyIHBsYWluVmFsdWUgPSAwOwpmdW5jdGlvbiBwbGFpbkluY3JlbWVudCgpIHsgcGxhaW5WYWx1ZSArPSAxOyByZXR1cm4gcGxhaW5WYWx1ZTsgfQpwbGFpbkluY3JlbWVudCgpOwo=",
+                "utf8_sha256": "f256e0fd870713354bad186d1cec7ccf4f6bafe07d98b1e122d32928eb91606c",
+                "utf8_bytes": 104
+              }
+            ],
+            "compiler_options": {
+              "alwaysStrict": true,
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "importHelpers": false,
+              "module": 99,
+              "newLine": 1,
+              "noEmitHelpers": false,
+              "target": 1,
+              "useDefineForClassFields": false,
+              "useUnknownInCatchVariables": false
+            }
+          },
+          "markers": [
+            {
+              "token": "plainIncrement",
+              "expectation": "present"
+            },
+            {
+              "token": "__",
+              "expectation": "absent"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgcGxhaW5WYWx1ZSA9IDA7CmZ1bmN0aW9uIHBsYWluSW5jcmVtZW50KCkgeyBwbGFpblZhbHVlICs9IDE7IHJldHVybiBwbGFpblZhbHVlOyB9CnBsYWluSW5jcmVtZW50KCk7Cg==",
+                "callback_utf8_sha256": "9defe283a5ba9a6287a13616eb79e7ab3eb1bd90c3f0d8e9d55322d6b4d246f8",
+                "callback_utf8_bytes": 118,
+                "write_byte_order_mark": false,
+                "materialized_utf8_sha256": "9defe283a5ba9a6287a13616eb79e7ab3eb1bd90c3f0d8e9d55322d6b4d246f8",
+                "materialized_utf8_bytes": 118,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ]
+              }
+            ],
+            "marker_occurrences": [
+              {
+                "token": "plainIncrement",
+                "occurrences": 2
+              },
+              {
+                "token": "__",
+                "occurrences": 0
+              }
+            ],
+            "observation_fingerprint_sha256": "733e0f7b0df9251cb9cb46d97e5f608f9d3d7e786a755284837dbed9b9ffaf7c"
+          },
+          "case_fingerprint_sha256": "26d24764906a7d2c62bd0a9989a4150e7bd908ce334d885e2046167065bdba76"
+        }
+      ],
+      "family_fingerprint_sha256": "71206b11a3120bf5479c0b3fc4a8141d50493173a6fb028bd8a36e81b4b16583"
+    }
+  ],
+  "summary": {
+    "families": 9,
+    "cases": 32,
+    "positive_cases": 10,
+    "adjacent_negative_controls": 9,
+    "composition_cases": 7,
+    "fault_cases": 6,
+    "composition_edges_covered": [
+      "destructuring-shared-module",
+      "pass-order",
+      "substitution-chain",
+      "tagged-template-shared-module",
+      "yield-star-synthesis"
+    ],
+    "required_surfaces_covered": [
+      "class-lowering-reach",
+      "destructuring-module",
+      "factory-construction",
+      "helper-factory",
+      "hook-composition",
+      "lexical-environment",
+      "loop-partition-machinery",
+      "name-generation",
+      "resolver-collision-capture-queries",
+      "resolver-node-check-flags",
+      "syntax-guards",
+      "tagged-template-module",
+      "transform-flag-recomputation",
+      "yield-star-synthesis"
+    ],
+    "excluded_surfaces": [
+      "comment-apis",
+      "source-map-apis",
+      "outer-expression-wrappers"
+    ],
+    "foundation_control_cross_checks": 3,
+    "typescript_oracle_runs": 64,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0
+  },
+  "witnesses_fingerprint_sha256": "0c31ef17ee275b12cba0ed4521f13105eb75c1d01e76a68f5b65391555419404"
+}
