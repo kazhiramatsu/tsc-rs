@@ -86,3 +86,7 @@ mod tests;
 #[cfg(test)]
 #[path = "../tests/unit/token_cursor/tests.rs"]
 mod token_cursor_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/comment_scope/tests.rs"]
+mod comment_scope_tests;
