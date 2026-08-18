@@ -33,9 +33,9 @@
     "foundation_fingerprint_sha256": "14e0df81edf1bca2b502fc59a4df10e4121d019d6af230957afd03b04506ae0c",
     "comment_scope_witnesses": {
       "path": "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
-      "sha256": "07986a2873b7bd9872e8872494667d2d27d4674ae3506df554ed97190df02c27"
+      "sha256": "e0a1acf5334be55148e0eaeae2c77674d94a5f31411a762b4f67ceb77bd30251"
     },
-    "witnesses_fingerprint_sha256": "189dabe8c3c2cc6a46635effdb254f9bb41a02d77dccc718b828ee5a3eb47b21",
+    "witnesses_fingerprint_sha256": "d4fb12ef7ab1080d4668b3ec6fc23563087d457e97746527b0e6fdb26180386f",
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
       "sha256": "0336308c30c8a11798b1062670cc594ed53cec198643c580d47294d6dc9f7051"
@@ -3817,5 +3817,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "owner_graph_fingerprint_sha256": "3e57e55b3afd8c8c548e4d1b4a7f82b6c07562556675d4a288135a59328dbc14"
+  "owner_graph_fingerprint_sha256": "b7974cae1b9e64dff0b77214c67d6d1c9430e3e4190c0e2b446a62ecd4520a1f"
 }

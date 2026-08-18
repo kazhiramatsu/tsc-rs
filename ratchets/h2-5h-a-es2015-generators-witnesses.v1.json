@@ -34,12 +34,12 @@
     "foundation_fingerprint_sha256": "14e0df81edf1bca2b502fc59a4df10e4121d019d6af230957afd03b04506ae0c",
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "58df96707a46e5d60e903b6234f8d5ab68312a9113f7feaf3bc3e5f629c1dfc8"
+      "sha256": "daf000fb260403f2701c9cbb2e858bab04b299d8208eb7b62b9683601016aaf2"
     },
-    "owner_graph_fingerprint_sha256": "3e57e55b3afd8c8c548e4d1b4a7f82b6c07562556675d4a288135a59328dbc14",
+    "owner_graph_fingerprint_sha256": "b7974cae1b9e64dff0b77214c67d6d1c9430e3e4190c0e2b446a62ecd4520a1f",
     "handoff": {
       "path": "docs/design/greenfield/slices/h2-5h-a.md",
-      "sha256": "b29f7d0144aee9e5977e3ca84b992a72b328ce671a5502689eb1d6a61a1c281f"
+      "sha256": "373a4c4c852fa1a09bb31b1b4a01a83c189e3298034122aade46be747b5ed0be"
     },
     "interpretation": "W-H2.5H step 6 freezes oracle-captured ES2015/Generators lowering bytes; it authorizes no production edit and activates nothing"
   },
@@ -2782,5 +2782,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "witnesses_fingerprint_sha256": "b076dfde6e1f9b05b56bdb0b087107abfc0d9450e86bd25c8a5cfb60834c3b77"
+  "witnesses_fingerprint_sha256": "0c31ef17ee275b12cba0ed4521f13105eb75c1d01e76a68f5b65391555419404"
 }
