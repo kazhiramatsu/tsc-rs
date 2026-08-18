@@ -25,7 +25,8 @@
   "fci-5a",
   "fci-5b",
   "fci-5c.1",
-  "h2-5h-a"
+  "h2-5h-a",
+  "h2-5h-a-cs-2"
  ],
  "forbiddenTransitions": [
   "h2-5g-authority",

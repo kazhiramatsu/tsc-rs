@@ -1,0 +1,67 @@
+{
+ "schemaVersion": 1,
+ "packetId": "h2-5h-a-cs-2",
+ "status": "ready",
+ "trustedBase": "6cf96880f5f69394d79546c7b924e7288dd53780",
+ "packet": {
+  "path": "docs/design/greenfield/slices/h2-5h-a-cs-2.md",
+  "sha256": "e44e2c6c31d27e48000cbb51c18ed40b25a328e9ff79200c00fd58601aec35a1"
+ },
+ "predecessors": [
+  {
+   "packetId": "h2-5h-a",
+   "receiptSha256": "9e8cbb1cb9c928256f4c0e7457e4a9e929dba9d614f1076d7aede516b73e6b9a"
+  }
+ ],
+ "allowedPaths": [
+  "crates/emitter/src/comment_cursor.rs",
+  "crates/emitter/src/printer.rs",
+  "crates/emitter/tests/unit",
+  "crates/emitter/tests/source_comment_topology_contract.rs",
+  "crates/oracle/h2-5h-a-gap-matrix.mjs",
+  "crates/oracle/h2-5h-a-dispositions.mjs",
+  "ratchets/h2-5g-profile.v1.json",
+  "ratchets/h2-5h-a-foundation.v1.json",
+  "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
+  "ratchets/h2-5h-a-owner-graph.v1.json",
+  "ratchets/h2-5h-a-gap-matrix.v1.json",
+  "ratchets/h2-5h-a-dispositions.v1.json",
+  "ratchets/h2-5h-a-es2015-generators-witnesses.v1.json",
+  "docs/design/greenfield/emitter-architecture.md",
+  "docs/design/greenfield/slices/h2-5h-a.md",
+  "docs/design/greenfield/slices/h2-5h-a-cs-2.md",
+  "docs/design/greenfield/slices/README.md",
+  "ratchets/fci-readiness/h2-5h-a.v1.json",
+  "ratchets/fci-readiness/h2-5h-a-cs-2.v1.json",
+  "ratchets/fci-packet-bootstrap.v1.json"
+ ],
+ "forbiddenPrefixes": [
+  "crates/emitter/src/builtins",
+  "crates/emitter/src/transform.rs",
+  "crates/compiler",
+  "crates/checker",
+  "crates/binder",
+  "crates/syntax",
+  "crates/types",
+  "crates/diags",
+  "crates/harness",
+  "crates/conformance",
+  "crates/xtask",
+  ".github/workflows"
+ ],
+ "proof": {
+  "commands": [
+   "cargo test -p tsc-emitter",
+   "node crates/oracle/h2-5h-a-foundation.mjs --check",
+   "node crates/oracle/h2-5h-a-comment-scope-witnesses.mjs --check",
+   "node crates/oracle/h2-5h-a-owner-graph.mjs --check",
+   "node crates/oracle/h2-5h-a-gap-matrix.mjs --check",
+   "node crates/oracle/h2-5h-a-dispositions.mjs --check",
+   "node crates/oracle/h2-5h-a-es2015-generators-witnesses.mjs --check",
+   "node .github/ci/qualification.mjs check",
+   "node .github/ci/slice-readiness.mjs --check h2-5h-a-cs-2",
+   "cargo xtask ci --baseline 6cf96880f5f69394d79546c7b924e7288dd53780"
+  ],
+  "evidencePath": "ratchets/h2-5h-a-gap-matrix.v1.json"
+ }
+}
