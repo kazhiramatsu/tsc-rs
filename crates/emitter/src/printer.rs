@@ -617,6 +617,7 @@ impl EmitContext {
     /// falling back to the inherited scope when the phase claims nothing.
     ///
     /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
     /// tsc-span: _tsc.js:121007-121032
     const fn with_claimed_container(self, container: Option<CommentRange>) -> Self {
         match container {
