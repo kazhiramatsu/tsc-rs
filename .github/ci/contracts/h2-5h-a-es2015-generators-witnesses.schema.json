@@ -1,0 +1,749 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-5h-a-es2015-generators-witnesses.schema.json",
+  "title": "tsc-rs H2.5h-a W-H2.5H frozen ES2015/Generators witness set",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "slice_id",
+    "sub_packet",
+    "plan_step",
+    "typescript",
+    "generator",
+    "contract",
+    "lineage",
+    "yield_star_sites",
+    "excluded_surfaces",
+    "families",
+    "summary",
+    "witnesses_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h2-es2015-generators-witnesses" },
+    "status": { "const": "frozen-es2015-generators-witnesses" },
+    "phase": { "const": "H2.5h-a" },
+    "slice_id": { "const": "H2.5h-a" },
+    "sub_packet": { "const": "W-H2.5H" },
+    "plan_step": { "const": "step-6-witness-freeze" },
+    "typescript": { "$ref": "#/$defs/typescript" },
+    "generator": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": {
+              "const": "crates/oracle/h2-5h-a-es2015-generators-witnesses.mjs"
+            }
+          },
+          "required": ["path"]
+        }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        { "$ref": "#/$defs/path_hash" },
+        {
+          "properties": {
+            "path": {
+              "const": ".github/ci/contracts/h2-5h-a-es2015-generators-witnesses.schema.json"
+            }
+          },
+          "required": ["path"]
+        }
+      ]
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "foundation",
+        "foundation_fingerprint_sha256",
+        "owner_graph",
+        "owner_graph_fingerprint_sha256",
+        "handoff",
+        "interpretation"
+      ],
+      "properties": {
+        "foundation": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "ratchets/h2-5h-a-foundation.v1.json" }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "foundation_fingerprint_sha256": { "$ref": "#/$defs/sha256" },
+        "owner_graph": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "ratchets/h2-5h-a-owner-graph.v1.json" }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "owner_graph_fingerprint_sha256": { "$ref": "#/$defs/sha256" },
+        "handoff": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": {
+                  "const": "docs/design/greenfield/slices/h2-5h-a.md"
+                }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "interpretation": {
+          "const": "W-H2.5H step 6 freezes oracle-captured ES2015/Generators lowering bytes; it authorizes no production edit and activates nothing"
+        }
+      }
+    },
+    "yield_star_sites": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/yield_star_site" },
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "site_index": { "const": 0 },
+                  "enclosing_function": {
+                    "const": "generateCallToConvertedLoopInitializer"
+                  },
+                  "covering_case_id": {
+                    "const": "loop-conversion-capture--composition-initializer-call"
+                  }
+                },
+                "required": [
+                  "site_index",
+                  "enclosing_function",
+                  "covering_case_id"
+                ]
+              },
+              {
+                "properties": {
+                  "site_index": { "const": 1 },
+                  "enclosing_function": {
+                    "const": "generateCallToConvertedLoop"
+                  },
+                  "covering_case_id": {
+                    "const": "loop-conversion-capture--composition-body-call"
+                  }
+                },
+                "required": [
+                  "site_index",
+                  "enclosing_function",
+                  "covering_case_id"
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "excluded_surfaces": {
+      "const": [
+        {
+          "surface_id": "comment-apis",
+          "reason": "comment relocation semantics are owned by the frozen E-COMMENT-SCOPE-H witness artifact, not re-witnessed here"
+        },
+        {
+          "surface_id": "source-map-apis",
+          "reason": "source-map provenance is future-owned-fail-closed under EA-GAP-MAPS-DECLS (H2.6/H2.7) per the disposition manifest"
+        },
+        {
+          "surface_id": "outer-expression-wrappers",
+          "reason": "printer position/comment anchoring is not independently distinguishable through pure-source emit-level witnesses; its rows are revalidated by the comment-scope study and E-POSITIONS lineage"
+        }
+      ]
+    },
+    "families": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": {
+        "allOf": [
+          { "$ref": "#/$defs/family" },
+          {
+            "oneOf": [
+              {
+                "properties": {
+                  "family_id": { "const": "loop-conversion-capture" },
+                  "cases": { "minItems": 5, "maxItems": 5 }
+                },
+                "required": ["family_id", "cases"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "class-lowering-lanes" },
+                  "cases": { "minItems": 4, "maxItems": 4 }
+                },
+                "required": ["family_id", "cases"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "destructuring-flattener" },
+                  "cases": { "minItems": 4, "maxItems": 4 }
+                },
+                "required": ["family_id", "cases"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "tagged-template-lowering" },
+                  "cases": { "minItems": 4, "maxItems": 4 }
+                },
+                "required": ["family_id", "cases"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "helper-graph" },
+                  "cases": { "minItems": 3, "maxItems": 3 }
+                },
+                "required": ["family_id", "cases"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "name-generation" },
+                  "cases": { "minItems": 3, "maxItems": 3 }
+                },
+                "required": ["family_id", "cases"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "resolver-foundation-controls" },
+                  "cases": { "minItems": 4, "maxItems": 4 }
+                },
+                "required": ["family_id", "cases"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "hook-chains" },
+                  "cases": { "minItems": 3, "maxItems": 3 }
+                },
+                "required": ["family_id", "cases"]
+              },
+              {
+                "properties": {
+                  "family_id": { "const": "enum-pair-guards" },
+                  "cases": { "minItems": 2, "maxItems": 2 }
+                },
+                "required": ["family_id", "cases"]
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "families",
+        "cases",
+        "positive_cases",
+        "adjacent_negative_controls",
+        "composition_cases",
+        "fault_cases",
+        "composition_edges_covered",
+        "required_surfaces_covered",
+        "excluded_surfaces",
+        "foundation_control_cross_checks",
+        "typescript_oracle_runs",
+        "rust_runs",
+        "runtime_admissions_delta"
+      ],
+      "properties": {
+        "families": { "const": 9 },
+        "cases": { "const": 32 },
+        "positive_cases": { "const": 10 },
+        "adjacent_negative_controls": { "const": 9 },
+        "composition_cases": { "const": 7 },
+        "fault_cases": { "const": 6 },
+        "composition_edges_covered": {
+          "const": [
+            "destructuring-shared-module",
+            "pass-order",
+            "substitution-chain",
+            "tagged-template-shared-module",
+            "yield-star-synthesis"
+          ]
+        },
+        "required_surfaces_covered": {
+          "const": [
+            "class-lowering-reach",
+            "destructuring-module",
+            "factory-construction",
+            "helper-factory",
+            "hook-composition",
+            "lexical-environment",
+            "loop-partition-machinery",
+            "name-generation",
+            "resolver-collision-capture-queries",
+            "resolver-node-check-flags",
+            "syntax-guards",
+            "tagged-template-module",
+            "transform-flag-recomputation",
+            "yield-star-synthesis"
+          ]
+        },
+        "excluded_surfaces": {
+          "const": ["comment-apis", "source-map-apis", "outer-expression-wrappers"]
+        },
+        "foundation_control_cross_checks": { "const": 3 },
+        "typescript_oracle_runs": { "const": 64 },
+        "rust_runs": { "const": 0 },
+        "runtime_admissions_delta": { "const": 0 }
+      }
+    },
+    "witnesses_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": {
+          "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+        },
+        "bundle": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "vendor/typescript-6.0.3/lib/typescript.js" }
+              },
+              "required": ["path"]
+            }
+          ]
+        },
+        "implementation": {
+          "allOf": [
+            { "$ref": "#/$defs/path_hash" },
+            {
+              "properties": {
+                "path": { "const": "vendor/typescript-6.0.3/lib/_tsc.js" }
+              },
+              "required": ["path"]
+            }
+          ]
+        }
+      }
+    },
+    "yield_star_site": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "site_index",
+        "owner_relative_offset",
+        "enclosing_function",
+        "covering_case_id"
+      ],
+      "properties": {
+        "site_index": { "enum": [0, 1] },
+        "owner_relative_offset": { "type": "integer", "minimum": 1 },
+        "enclosing_function": {
+          "enum": [
+            "generateCallToConvertedLoopInitializer",
+            "generateCallToConvertedLoop"
+          ]
+        },
+        "covering_case_id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "root", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": { "const": "/project/input.ts" },
+        "root": { "const": true },
+        "utf8_base64": { "type": "string", "minLength": 1 },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "compiler_options": {
+      "oneOf": [
+        {
+          "const": {
+            "alwaysStrict": true,
+            "downlevelIteration": true,
+            "ignoreDeprecations": "6.0",
+            "importHelpers": false,
+            "module": 99,
+            "newLine": 1,
+            "noEmitHelpers": false,
+            "target": 1,
+            "useDefineForClassFields": false,
+            "useUnknownInCatchVariables": false
+          }
+        },
+        {
+          "const": {
+            "alwaysStrict": true,
+            "downlevelIteration": false,
+            "ignoreDeprecations": "6.0",
+            "importHelpers": false,
+            "module": 99,
+            "newLine": 1,
+            "noEmitHelpers": false,
+            "target": 1,
+            "useDefineForClassFields": false,
+            "useUnknownInCatchVariables": false
+          }
+        },
+        {
+          "const": {
+            "alwaysStrict": true,
+            "downlevelIteration": true,
+            "ignoreDeprecations": "6.0",
+            "importHelpers": false,
+            "module": 99,
+            "newLine": 1,
+            "noEmitHelpers": true,
+            "target": 1,
+            "useDefineForClassFields": false,
+            "useUnknownInCatchVariables": false
+          }
+        },
+        {
+          "const": {
+            "alwaysStrict": true,
+            "downlevelIteration": true,
+            "ignoreDeprecations": "6.0",
+            "importHelpers": true,
+            "module": 99,
+            "newLine": 1,
+            "noEmitHelpers": false,
+            "target": 1,
+            "useDefineForClassFields": false,
+            "useUnknownInCatchVariables": false
+          }
+        }
+      ]
+    },
+    "option_overrides": {
+      "oneOf": [
+        { "const": {} },
+        { "const": { "downlevelIteration": false } },
+        { "const": { "noEmitHelpers": true } },
+        { "const": { "importHelpers": true } }
+      ]
+    },
+    "case_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_directory", "roots", "files", "compiler_options"],
+      "properties": {
+        "current_directory": { "const": "/project" },
+        "roots": { "const": ["/project/input.ts"] },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/input_file" }
+        },
+        "compiler_options": { "$ref": "#/$defs/compiler_options" }
+      }
+    },
+    "marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "expectation"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1 },
+        "expectation": { "enum": ["present", "absent", "recorded"] }
+      }
+    },
+    "marker_occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "occurrences"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1 },
+        "occurrences": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "code", "category", "file", "start", "length"],
+      "properties": {
+        "phase": { "const": "pre-emit" },
+        "code": { "type": "integer", "minimum": 1 },
+        "category": { "const": "Error" },
+        "file": {
+          "oneOf": [{ "const": "/project/input.ts" }, { "type": "null" }]
+        },
+        "start": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        },
+        "length": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "type": "null" }]
+        }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files"
+      ],
+      "properties": {
+        "index": { "const": 0 },
+        "path": { "const": "/project/input.js" },
+        "callback_utf8_base64": { "type": "string" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "write_byte_order_mark": { "const": false },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "on_error_callback_present": { "type": "boolean" },
+        "source_files": { "const": ["/project/input.ts"] }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "emit_skipped",
+        "writes",
+        "marker_occurrences",
+        "observation_fingerprint_sha256"
+      ],
+      "properties": {
+        "reported_diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_diagnostics": { "const": [] },
+        "emit_skipped": { "const": false },
+        "writes": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": { "$ref": "#/$defs/write" }
+        },
+        "marker_occurrences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/marker_occurrence" }
+        },
+        "observation_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "witness_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "role",
+        "description",
+        "option_overrides",
+        "expected_reported_codes",
+        "composition_edges",
+        "foundation_control",
+        "input",
+        "markers",
+        "repetitions",
+        "observation",
+        "case_fingerprint_sha256"
+      ],
+      "properties": {
+        "case_id": { "type": "string", "minLength": 1 },
+        "role": {
+          "enum": [
+            "positive",
+            "adjacent-negative-control",
+            "composition",
+            "fault"
+          ]
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "option_overrides": { "$ref": "#/$defs/option_overrides" },
+        "expected_reported_codes": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 1 },
+          "uniqueItems": true
+        },
+        "composition_edges": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "pass-order",
+              "yield-star-synthesis",
+              "substitution-chain",
+              "destructuring-shared-module",
+              "tagged-template-shared-module"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "foundation_control": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "enum": [
+                "checker-colliding-block-scope",
+                "checker-captured-loop-bindings",
+                "checker-arguments-and-catch-reference"
+              ]
+            }
+          ]
+        },
+        "input": { "$ref": "#/$defs/case_input" },
+        "markers": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/marker" }
+        },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" },
+        "case_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "role": { "const": "fault" } },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": {
+              "expected_reported_codes": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "role": {
+                "enum": [
+                  "positive",
+                  "adjacent-negative-control",
+                  "composition"
+                ]
+              }
+            },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": {
+              "expected_reported_codes": { "const": [] }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": { "role": { "const": "composition" } },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": {
+              "composition_edges": { "minItems": 1 }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "role": {
+                "enum": ["positive", "adjacent-negative-control", "fault"]
+              }
+            },
+            "required": ["role"]
+          },
+          "then": {
+            "properties": {
+              "composition_edges": { "const": [] }
+            }
+          }
+        }
+      ]
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "surfaces",
+        "description",
+        "cases",
+        "family_fingerprint_sha256"
+      ],
+      "properties": {
+        "family_id": { "type": "string", "minLength": 1 },
+        "surfaces": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "class-lowering-reach",
+              "destructuring-module",
+              "factory-construction",
+              "helper-factory",
+              "hook-composition",
+              "lexical-environment",
+              "loop-partition-machinery",
+              "name-generation",
+              "resolver-collision-capture-queries",
+              "resolver-node-check-flags",
+              "syntax-guards",
+              "tagged-template-module",
+              "transform-flag-recomputation",
+              "yield-star-synthesis"
+            ]
+          }
+        },
+        "description": { "type": "string", "minLength": 1 },
+        "cases": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 5,
+          "items": { "$ref": "#/$defs/witness_case" }
+        },
+        "family_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
