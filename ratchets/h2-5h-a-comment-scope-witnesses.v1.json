@@ -29,16 +29,16 @@
   "lineage": {
     "foundation": {
       "path": "ratchets/h2-5h-a-foundation.v1.json",
-      "sha256": "aa011296394bad0e55c635713ba7d6ac50fe415d319b57853f28bec916f80e43"
+      "sha256": "faff2aa401ad20bc4d84a740249a78bd2d7f58dbdf3afee1ef816f00c0274e52"
     },
-    "foundation_fingerprint_sha256": "14e0df81edf1bca2b502fc59a4df10e4121d019d6af230957afd03b04506ae0c",
+    "foundation_fingerprint_sha256": "b7b02b0c5277951a6d0fd8dc45d1fbf8e417e70dc7a51f31e16f98e593fea1c5",
     "scope_study": {
       "path": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md",
       "sha256": "70582706258f4235de5bd2233a8726516b1165e68fb40076184632b30c9b9609"
     },
     "handoff": {
       "path": "docs/design/greenfield/slices/h2-5h-a.md",
-      "sha256": "373a4c4c852fa1a09bb31b1b4a01a83c189e3298034122aade46be747b5ed0be"
+      "sha256": "4b79e4ab0ec2737b2885542fbc5da23c5118fe6e1e931e61dde02e8d82e241b8"
     },
     "interpretation": "E-COMMENT-SCOPE-H step 1 freezes oracle-captured comment-scope bytes; it authorizes no production edit and activates nothing"
   },
@@ -2600,5 +2600,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "witnesses_fingerprint_sha256": "d4fb12ef7ab1080d4668b3ec6fc23563087d457e97746527b0e6fdb26180386f"
+  "witnesses_fingerprint_sha256": "c066907c3180c0e9d3a98a7dce0bed2057af1c111875d97211849c890daf1360"
 }

@@ -190,7 +190,13 @@ was finalized; the post-implementation inventory is CS-6's gate.
 
 **Allowed files:** `crates/emitter/src/comment_cursor.rs`,
 `crates/emitter/src/printer.rs`,
-`crates/emitter/tests/unit/**` (new scope unit contracts),
+`crates/emitter/tests/unit/lib/tests.rs` (the scope unit contracts join
+the emitter's already-registered unit module: the H2.5g profile pins its
+runtime-input closure at exactly 236 paths, so a **new** test file would
+change that frozen identity — a profile-identity change this packet does
+not own),
+`.github/ci/contracts/h2-5h-a-dispositions.schema.json` (the disposition
+count consts pinned by §8.2),
 `crates/emitter/tests/source_comment_topology_contract.rs` (only if a
 threading assertion needs a named helper; expected strings are never
 edited), plus the §8 evidence/mint surface:
@@ -345,7 +351,10 @@ stale aborts the packet for a design amendment.
    writer API named in §4), keeping the matrix breakable by a premature
    writer landing; the note records packets 3–6 as the remaining owners.
    All other capabilities: pin-line re-mint only.
-2. **Dispositions** (`crates/oracle/h2-5h-a-dispositions.mjs`): rows 34
+2. **Dispositions** (`crates/oracle/h2-5h-a-dispositions.mjs`, and the
+   count consts in
+   `.github/ci/contracts/h2-5h-a-dispositions.schema.json`, which the
+   registered artifact-contract table enforces): rows 34
    (`E-PRINTER-BASE`) and 35 (`E-PRINTER-G`) `premise-unchanged` →
    `modified-requalify` with rationale “the private printer context
    carrier is reshaped by the comment-scope packets (CS-2); invariants

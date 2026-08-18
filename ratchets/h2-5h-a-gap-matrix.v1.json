@@ -7,7 +7,7 @@
   "plan_step": "prerequisite-transition-step-3",
   "generator": {
     "path": "crates/oracle/h2-5h-a-gap-matrix.mjs",
-    "sha256": "452bb01ceb0dee97538618cb25c8da6f7545003ef2e17a5aeb09299d1232df98"
+    "sha256": "4eee5dc24e7661deeac204d86d262499979bbb4f107c1e7a0028057895de914b"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
@@ -16,12 +16,12 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "daf000fb260403f2701c9cbb2e858bab04b299d8208eb7b62b9683601016aaf2"
+      "sha256": "7e228d705c2de5323a1a7168f2b5182c8136d1681b4f82428835d21ca4db6c80"
     },
-    "owner_graph_fingerprint_sha256": "b7974cae1b9e64dff0b77214c67d6d1c9430e3e4190c0e2b446a62ecd4520a1f",
+    "owner_graph_fingerprint_sha256": "e828aeccb400a97dfeec5c2433d828a4011f9da88505dd5285cfd3ef40d3e108",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "dd21658450c7672e0008eb364c9ab911f5239ebb9c5a20d98f9910dd4c8f70bd"
+      "sha256": "0022e2499a0cb8e16d572b6e4cfd7f4af6c293142e954c4e6c267eaeaad9d381"
     },
     "interpretation": "prerequisite-transition step 3 records the current Rust capability states against the frozen owner graph; a landed implementation breaks its pinned absence and forces re-disposition; it edits no production code and activates nothing"
   },
@@ -288,7 +288,7 @@
           "symbol": "CommentCursor",
           "file": {
             "path": "crates/emitter/src/comment_cursor.rs",
-            "sha256": "be9db619edc2d2c43d9b43eaac66b2b816fc038cb8f56faf783839fffa1c49d2"
+            "sha256": "3a3339c24a0ef0b0ff2f5d5e0a76fdef3f2b56ab231e077c0099e95b759e1037"
           }
         },
         {
@@ -296,30 +296,62 @@
           "symbol": "token_owned_comment_phase_prefix",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "ece1dc03ed594ecc64c87607cb3e8bc37d25fb2fef7032986307cc5aee791b16"
+            "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+          }
+        },
+        {
+          "path": "crates/emitter/src/comment_cursor.rs",
+          "symbol": "struct CommentEmissionScope",
+          "file": {
+            "path": "crates/emitter/src/comment_cursor.rs",
+            "sha256": "3a3339c24a0ef0b0ff2f5d5e0a76fdef3f2b56ab231e077c0099e95b759e1037"
+          }
+        },
+        {
+          "path": "crates/emitter/src/comment_cursor.rs",
+          "symbol": "fn claim_container_unit",
+          "file": {
+            "path": "crates/emitter/src/comment_cursor.rs",
+            "sha256": "3a3339c24a0ef0b0ff2f5d5e0a76fdef3f2b56ab231e077c0099e95b759e1037"
+          }
+        },
+        {
+          "path": "crates/emitter/src/printer.rs",
+          "symbol": "struct EmitContext",
+          "file": {
+            "path": "crates/emitter/src/printer.rs",
+            "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+          }
+        },
+        {
+          "path": "crates/emitter/src/printer.rs",
+          "symbol": "fn file_root",
+          "file": {
+            "path": "crates/emitter/src/printer.rs",
+            "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
           }
         }
       ],
       "absences": [
         {
           "path": "crates/emitter/src/printer.rs",
-          "symbol": "declaration_list_container_end",
+          "symbol": "claim_declaration_list_container",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "ece1dc03ed594ecc64c87607cb3e8bc37d25fb2fef7032986307cc5aee791b16"
+            "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
           }
         },
         {
           "path": "crates/emitter/src/comment_cursor.rs",
-          "symbol": "container_end",
+          "symbol": "claim_declaration_list_container",
           "file": {
             "path": "crates/emitter/src/comment_cursor.rs",
-            "sha256": "be9db619edc2d2c43d9b43eaac66b2b816fc038cb8f56faf783839fffa1c49d2"
+            "sha256": "3a3339c24a0ef0b0ff2f5d5e0a76fdef3f2b56ab231e077c0099e95b759e1037"
           }
         }
       ],
-      "note": "closed by E-COMMENT-SCOPE-H implementation packets 2-6 before any ES2015/Generators production work",
-      "capability_fingerprint_sha256": "30cead11ba0edcaec9adba863403682d5f75db6ee15cffda5fe9fd665fa6470e"
+      "note": "CS-2 landed the threaded scope at the root and core pipeline; the declaration-list writer and the route migrations remain with packets CS-3..CS-6 before any ES2015/Generators production work",
+      "capability_fingerprint_sha256": "90214509bfe02c85c4dc7ab92cb54149f2453accbc144f4ec27b90df610c362d"
     },
     {
       "index": 8,
@@ -506,5 +538,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "f9a1b788555653ed340be4df9bd9f6c05be7fce924e2269a65cc72bf192b4d4b"
+  "gap_matrix_fingerprint_sha256": "47b010c218acb96c0442cbf97237373725905120c387694f054dec1f9644a89c"
 }

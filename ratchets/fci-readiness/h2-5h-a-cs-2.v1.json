@@ -5,7 +5,7 @@
  "trustedBase": "6cf96880f5f69394d79546c7b924e7288dd53780",
  "packet": {
   "path": "docs/design/greenfield/slices/h2-5h-a-cs-2.md",
-  "sha256": "2871d9acd81eabff75cdfa1e2054a7a96a32dc133685d3f53ec484d6159ac077"
+  "sha256": "140080790eae0510942a08d8f6f45daa3ada5f03af36d35f3d317a990a1b2584"
  },
  "predecessors": [
   {
@@ -16,7 +16,8 @@
  "allowedPaths": [
   "crates/emitter/src/comment_cursor.rs",
   "crates/emitter/src/printer.rs",
-  "crates/emitter/tests/unit",
+  "crates/emitter/tests/unit/lib/tests.rs",
+  ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
   "crates/emitter/tests/source_comment_topology_contract.rs",
   "crates/oracle/h2-5h-a-gap-matrix.mjs",
   "crates/oracle/h2-5h-a-dispositions.mjs",
