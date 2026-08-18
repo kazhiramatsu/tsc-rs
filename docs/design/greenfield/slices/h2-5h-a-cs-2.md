@@ -402,6 +402,25 @@ stale aborts the packet for a design amendment.
    omission rows stay byte-identical — a changed anchor text or a
    changed omission row is a genuine H1 boundary regression and aborts
    the packet.
+5c. **H1/H2.1a authority pin chain** — the same gate run surfaced the
+   two artifacts downstream of 5b, also added by amendment:
+   `ratchets/h1-emit-qualification.v1.json` (one leaf: its
+   `authorities.rust_omissions.sha256`) and
+   `ratchets/h2-1a-profile.v1.json` (three leaves: the same H1 authority
+   hash, `runtime_inputs[7]` = the new `crates/emitter/src/printer.rs`
+   hash, and the profile fingerprint). Nothing else may move: no
+   admitted/exact counts, no runtime-input membership, no evidence rows.
+   **Method for every later comment-scope packet** (CS-3..CS-6 will
+   stale the same chain): classify staleness rather than fixing it
+   blind — run each candidate `--check` in a worktree at the trusted
+   base and again on the branch, and rebind only what is *fresh at base
+   and stale now*. Applying that method here also recorded a
+   **pre-existing condition, not introduced by this packet**: twenty
+   historical profile checks (`h2-1b`..`h2-5f`) already fail at the
+   trusted base `6cf96880` with `historical bytes changed`/`stale`, so
+   they are lineage scripts the local gate does not run and must not be
+   "repaired" by a production packet — doing so would rewrite frozen
+   historical evidence.
 6. **Readiness artifacts:** re-pin `ratchets/fci-readiness/h2-5h-a.v1.json`
    `packet.sha256` (doc amendment); add
    `ratchets/fci-readiness/h2-5h-a-cs-2.v1.json` (status `ready`,

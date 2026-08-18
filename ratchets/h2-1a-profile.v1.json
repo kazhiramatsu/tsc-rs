@@ -88,7 +88,7 @@
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "ece1dc03ed594ecc64c87607cb3e8bc37d25fb2fef7032986307cc5aee791b16"
+      "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
     },
     {
       "path": "crates/emitter/src/transform.rs",
@@ -157,7 +157,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "449763c309e5ad77f811a3d3d084468c719ce247032c5163715d373766572ac1"
+      "sha256": "160f7f75c0fbf36a24ad65ce1eebc97c1f0a4522ca4d3540491b356ca47fdc99"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -180,5 +180,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "7aaefe0d9970c14e95939dcce0e82e3a633700dc9de61645c5517b8b16b2135e"
+  "profile_fingerprint_sha256": "aacbd554c5da3aabf03c7db9cec1903efad44d29be13790df5d84c73cb49336b"
 }
