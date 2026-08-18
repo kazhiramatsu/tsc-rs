@@ -197,6 +197,7 @@ change that frozen identity — a profile-identity change this packet does
 not own),
 `.github/ci/contracts/h2-5h-a-dispositions.schema.json` (the disposition
 count consts pinned by §8.2),
+`ratchets/h1-rust-omissions.v1.json` (positional anchor rebind, §8.5b),
 `crates/emitter/tests/source_comment_topology_contract.rs` (only if a
 threading assertion needs a named helper; expected strings are never
 edited), plus the §8 evidence/mint surface:
@@ -383,6 +384,24 @@ stale aborts the packet for a design amendment.
    `h2-5h-a-comment-scope-witnesses` → `h2-5h-a-owner-graph` →
    `h2-5h-a-gap-matrix` → `h2-5h-a-dispositions` →
    `h2-5h-a-es2015-generators-witnesses`.
+5b. **H1 Rust omission inventory**
+   (`ratchets/h1-rust-omissions.v1.json`, generator
+   `crates/oracle/h1-rust-omission-inventory.mjs`) — **amendment added
+   2026-08-18 after the full gate reported it stale**, which is the
+   packet's fail-closed rule working as designed. This artifact anchors
+   H1 production-boundary declarations by path + line + column + exact
+   text + file hash, so any edit above an anchored line in
+   `crates/emitter/src/printer.rs` stales it. The reviewed re-mint diff
+   must be exactly nine leaves and nothing else: the three printer.rs
+   anchors (`emitter-printer-factory`, `emitter-source-map-recorder`,
+   `emitter-changed-import-printer`) each shifting **+59** lines with
+   the one new `printer.rs` file hash, plus the inventory fingerprint,
+   the scope byte count, and the scope tree hash. Every anchor `text`
+   and `text_sha256`, all 14 prerequisite treatments, the 22 checker
+   emit elisions, and the zero production-boundary/option-projection
+   omission rows stay byte-identical — a changed anchor text or a
+   changed omission row is a genuine H1 boundary regression and aborts
+   the packet.
 6. **Readiness artifacts:** re-pin `ratchets/fci-readiness/h2-5h-a.v1.json`
    `packet.sha256` (doc amendment); add
    `ratchets/fci-readiness/h2-5h-a-cs-2.v1.json` (status `ready`,
