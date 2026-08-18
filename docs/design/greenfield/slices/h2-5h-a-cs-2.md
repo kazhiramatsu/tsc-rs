@@ -129,16 +129,17 @@ re-derives all of them from the vendored bundle.
 
 | tsc object / field / sentinel / transition | Rust type & module (target state after CS-2) | Producer | Owner / updater | Consumer | Lifetime & invalidation | Identity / provenance observable? |
 |---|---|---|---|---|---|---|
-| `containerPos` (`-1` sentinel) | `CommentEmissionScope::container_pos: Option<CommentCursor>`, `crates/emitter/src/comment_cursor.rs` | `claim_container` (from an established owner range) | the scope value itself (immutable; a new value per claim) | leading owned-prefix guards (§5 reader rows) | one emission subtree; replaced by the child's claimed copy, never mutated | no — guard input only |
-| `containerEnd` (`-1` sentinel) | `CommentEmissionScope::container_end: Option<CommentCursor>` | `claim_container` | immutable value | `retains_end` trailing guards | as above | no |
-| `declarationListContainerEnd` (`-1` sentinel; sole writer = `VariableDeclarationList`) | `CommentEmissionScope::declaration_list_container_end: Option<CommentCursor>` | **none in CS-2** (dormant; CS-4 adds `claim_declaration_list_container` at the list route) | immutable value | `retains_end` includes it in the guard disjunction (always `None` here) | as above | no |
+| `containerPos` (`-1` sentinel) | `CommentEmissionScope::container_pos()` view (`Option<CommentCursor>`), `crates/emitter/src/comment_cursor.rs` | `claim_container_unit` (from an established or inherited container) | the scope value itself (immutable; a new value per claim) | leading owned-prefix guards (§5 reader rows) | one emission subtree; replaced by the child's claimed copy, never mutated | no — guard input only |
+| `containerEnd` (`-1` sentinel) | `CommentEmissionScope::container_end()` view (`Option<CommentCursor>`) | `claim_container_unit` | immutable value | `retains_end` trailing guards | as above | no |
+| `containerPos`+`containerEnd` claimed pair (storage) | `CommentEmissionScope::container: Option<CommentRange>` — the H2.5g projection claims both sides as one unit, including the qualified inert states (synthesized or zero-width inherited ranges) that suppress the parent-end fallback while matching no guard; the paired unit is the exact carrier of that qualified behavior, and the two `-1` sentinels are the `None` views over it. **CS-3 splits this storage into independent per-side values when the per-side claim conditions land** (the view API is the stable consumer surface); until then a per-side split would have no producer and no witness coverage | `claim_container_unit` | immutable value | `container_unit()` round-trips the exact stored value into the deferred-comment stores | as above | no |
+| `declarationListContainerEnd` (`-1` sentinel; sole writer = `VariableDeclarationList`) | `CommentEmissionScope::declaration_list_container_end: Option<CommentCursor>` (first-class field) | **none in CS-2** (dormant; CS-4 adds `claim_declaration_list_container` at the list route) | immutable value | `retains_end` includes it in the guard disjunction (always `None` here) | as above | no |
 | save/restore of the triple around a child (both tsc carriers) | structural value threading: the parent's `EmitContext` is unchanged by the child's claims; the parent-scope value is what reaches a node's trailing phase | n/a | n/a | every route that today threads `declaration_context`/`expression_context` copies | scope of the borrow | no |
 | iterative binary trampoline carrier | none — the Rust printer emits `BinaryExpression` through the same recursive dispatch (`emit_transformed_node_worker`), so the dual topology is one mechanism by construction | n/a | n/a | n/a | n/a | n/a |
 | ambient container + syntax pair (`pipelineEmit` context) | `EmitContext { comments: CommentEmissionScope, syntax: ExpressionSyntaxContext }`, private in `crates/emitter/src/printer.rs`; replaces `ExpressionEmissionContext` (its `comment_container: Option<CommentRange>` field is deleted) | `EmitContext::file_root()` at the source-file root; `EmitContext::detached_transitional(...)` at the four legacy contextless APIs and the JSON route | immutable; `for_child`/`with_grammar` preserve `comments` while replacing `syntax`; `with_comments` installs a claimed scope | the whole dispatch (21 `expression_context:` signatures at the base) | one emission subtree | no |
 | initial `-1/-1/-1` printer state | `CommentEmissionScope::empty()` (`pub(crate) const`), called only by the two `EmitContext` constructors | root construction | n/a | n/a | printer invocation | no |
-| claim condition (established owner range, `pos !== end`, nonzero) | `Printer::established_container_claim(owner) -> Option<(CommentCursor, CommentCursor)>` — the renamed `comment_phase_established_container`, returning the pair instead of a `CommentRange` | per-node comment-phase owner (`ExpressionCommentPhaseOwner`) | n/a | the eight claim sites (§5) | per node | no |
-| trailing guard (`end !== containerEnd && end !== declarationListContainerEnd`) | `CommentEmissionScope::retains_end(owner: CommentCursor) -> bool` (true = the enclosing container owns this end; caller suppresses); replaces the deleted `Printer::comment_container_retains_end` | n/a | n/a | the four trailing-guard sites (§5) | per check | no |
-| leading guard (`pos !== containerPos` projection) | unchanged H2.5g projections (`token_owned_comment_phase_prefix`, `parent_comment_container_owned_prefix[_for_owner]`), now reading the range they need from the threaded scope via `container_span()` | n/a | n/a | leading-prefix sites (§5) | per check | no |
+| claim condition (established owner range, `pos !== end`, nonzero) | `Printer::comment_phase_established_container(owner) -> Option<CommentRange>` unchanged; its result (or the inherited active range) is applied with `EmitContext::with_claimed_container(active)` = `claim_container_unit` when `Some`, inherited scope when `None` — the exact `Option::or`-then-replace composition of today, with `declaration_list_container_end` preserved through every claim (constant `None` here) | per-node comment-phase owner (`ExpressionCommentPhaseOwner`) | n/a | the eight claim sites (§5) | per node | no |
+| trailing guard (`end !== containerEnd && end !== declarationListContainerEnd`) | `CommentEmissionScope::retains_end(end: CommentCursor) -> bool` (true = the enclosing container or active declaration list owns this end; caller suppresses); replaces the deleted `Printer::comment_container_retains_end`, whose source/`Original`/nonempty checks are subsumed by the `container_end()` view returning `None` for every inert state | n/a | n/a | the four trailing-guard sites (§5) | per check | no |
+| leading guard (`pos !== containerPos` projection) | unchanged H2.5g projections (`token_owned_comment_phase_prefix`, `parent_comment_container_owned_prefix[_for_owner]`), fed the ambient container as a range via `container_unit()` where a route threads it | n/a | n/a | leading-prefix sites (§5) | per check | no |
 
 Representation notes fixed by this packet: both new types are
 `#[must_use]`, `Clone, Copy, Debug, Eq, PartialEq`, and neither derives
@@ -146,12 +147,17 @@ nor implements `Default` (the handoff forbids a `Default` nested scope;
 `ExpressionSyntaxContext` keeps its existing `Default` because it is not
 comment scope). `CommentCursor` equality already carries the source
 identity, so every cross-source comparison is fail-safe without new
-error variants. `claim_container` sets `container_pos` and
-`container_end` **as a pair** and preserves
-`declaration_list_container_end` — exactly tsc's non-list claim shape;
-the per-side independent skip conditions of
-`emit-leading-comments-of-node` are route semantics and land with the
-route migrations (CS-3/CS-4), not here.
+error variants. `claim_container_unit` replaces the claimed unit and
+preserves `declaration_list_container_end` — exactly tsc's non-list
+claim shape projected onto the H2.5g paired carrier; the per-side
+independent skip conditions of `emit-leading-comments-of-node` are
+route semantics and land with the route migrations (CS-3/CS-4), not
+here, because in the current qualified projection no reachable claim
+sets one side without the other. The inert claimed states (synthesized
+or zero-width ranges accepted from the inherited/deferred chain) are
+qualified H2.5g behavior that tsc's claim gate would reject; they stay
+representable and greppable inside the unit until CS-3 retires them
+under the frozen witnesses.
 
 ## 5. Current local-gap matrix
 
@@ -168,13 +174,13 @@ the pinned hash (grep census re-runnable with
 | root construction of the ambient scope | `ExpressionEmissionContext::NORMAL` at `print_transformed_source_file` 1308 | `partial-or-stale` — root is indistinguishable from the nine non-root constructions | step 4a: `EmitContext::file_root()`, sole zero-scope root |
 | contextless nested entries | `NORMAL` at `emit_required_node` 7827, `emit_child_after_token` 7850, `emit_node_id` 8092 (also serving `print_json_source_file` 1119), `emit_identifier_name` 8165 | `partial-or-stale` — scope-dropping APIs; deletion owner CS-5, route migration CS-3/CS-4 | step 4b: constructed via `EmitContext::detached_transitional()` so every drop site is greppable; behavior unchanged |
 | wrapper re-entry constructions (fresh syntax, preserved computed container) | `NORMAL.with_comment_container(active…)` at 8267/8274/8312/8473/8527 (+`with_comment_container` composition at 8368/8397) | `partial-or-stale` | step 4c: `EmitContext::for_wrapper(scope)` = fresh `NORMAL` syntax + explicit claimed scope; same values threaded |
-| claim composition `established.or(inherited)` | 2541-2544 (`VariableStatement`), 2578-2581 (`VariableDeclarationList`), 2648-2651 (`VariableDeclaration`); `active_expression_comment_container` 10085 feeding 8237/8264/8296/8353/8382/8457/8496; `inherited_expression_comment_container` 10072 | `partial-or-stale` — wholesale `Option::or` on one range | step 4c: `claim_established(scope, owner)` = pair-claim on the inherited scope; equivalence proof in §6 step 4 |
-| trailing dedupe guard | `comment_container_retains_end` 10059; call sites 5576 (`child_trailing_comments_escape_active_container`), 9171 (deferred trailing), 11155, 11207 (list-end comments) | `partial-or-stale` — checks one range's end; no declaration-list disjunct | step 4d: `CommentEmissionScope::retains_end`; old fn deleted (no dual API) |
-| leading owned-prefix guards | `parent_comment_container_owned_prefix` 9205 / `_for_owner` 9061 with call sites 4866/4945/8852/9126; `token_owned_comment_phase_prefix` 9014 | `already-exact` for their qualified H2.5g cases; parameter source switches to the threaded scope (`container_span()`), logic untouched | step 4e |
+| claim composition `established.or(inherited)` | 2541-2544 (`VariableStatement`), 2578-2581 (`VariableDeclarationList`), 2648-2651 (`VariableDeclaration`); `active_expression_comment_container` 10085 feeding 8237/8264/8296/8353/8382/8457/8496; `inherited_expression_comment_container` 10072 | `partial-or-stale` — wholesale `Option::or` on one range with no third-value transit | step 4c: `EmitContext::with_claimed_container(active)` applies `claim_container_unit` when `Some` and keeps the inherited scope when `None`; equivalence proof in §6 step 4 |
+| trailing dedupe guard | `comment_container_retains_end` 10059; call sites 5576 (`child_trailing_comments_escape_active_container`; a present-but-inert container also suppresses the parent-end fallback there — preserved via `container_unit()` presence), 9171 (deferred per-node trailing — stays on `CommentRange`, no scope involvement), 11155, 11207 (list-end comments) | `partial-or-stale` — checks one range's end; no declaration-list disjunct | step 4d: `CommentEmissionScope::retains_end` for ambient sites; the per-node deferred check at 9171 uses the shared view helper `CommentEmissionScope::container_end_of(range)` over its `CommentRange` (per-node owner state, not ambient scope) — one source of truth, no dual guard |
+| leading owned-prefix guards | `parent_comment_container_owned_prefix` 9205 / `_for_owner` 9061 with call sites 4866/4945/8852/9126; `token_owned_comment_phase_prefix` 9014 | `already-exact` for their qualified H2.5g cases; ambient callers feed them `container_unit()`, logic untouched | step 4e |
 | pass-through container parameters | `emit_child_boundary_comments_before_terminator` (5595, used 2563/…), `emit_leading_comments_for_delimited_list_start_in_container[_with_space]` 8818/8834, list/element end-comment workers 11120/11167, `emit_delimited_expression_list` 5936/6037, `emit_call_arguments` 7791/7804, `emit_child_after_token_with_context_and_source_extent` 7919/7926, `emit_required_node_with_context_and_source_extent` 8004, 3175 | `partial-or-stale` — ambient state travels as `Option<CommentRange>` | step 4f: every ambient-container parameter becomes `CommentEmissionScope`; per-node owner ranges stay `CommentRange` (the type split is the review surface) |
-| deferred-expression container plumbing | `DeferredExpressionSourceComments.container` (`ExpressionCommentContainer`), `expression_comment_container_range` 9093, `inherited_expression_comment_container` 10072 | `partial-or-stale` — resolves to the same single range | step 4c: resolved pair feeds `claim_container`; enum untouched (its variants are per-node owners, not ambient state) |
+| deferred-expression container plumbing | `DeferredExpressionSourceComments.container` (`ExpressionCommentContainer`), `expression_comment_container_range` 9093, `inherited_expression_comment_container` 10072 | `partial-or-stale` — resolves to the same single range | step 4c: the resolved active range feeds `with_claimed_container`; enum untouched (its variants are per-node owners, not ambient state) |
 | `declarationListContainerEnd` writer + independent per-side claim conditions | none (asserted absences in the frozen gap matrix) | `missing` — **legal deferral**: outside CS-2's admitted scope; earliest owners CS-4 (writer, statement/declaration routes) and CS-3 (per-side expression claims); reachability guard = the field has no producer and `retains_end`'s third disjunct is constant-`None` (typed, not a silent fallback); adjacent-negative control = witness family `declaration-list-trailing-dedupe` stays oracle-only until CS-4 wires it | tracked in the amended gap matrix (§8) |
-| `obsolete` after this packet | `ExpressionEmissionContext` (name), `with_comment_container`, `comment_phase_established_container` (range-returning form), `comment_container_retains_end` | `obsolete` — replacements named above; all former consumers are the sites in this table | deleted in the same commit; the workspace grep for the four names returning zero matches is part of acceptance |
+| `obsolete` after this packet | `ExpressionEmissionContext` (name), `with_comment_container`, `comment_container_retains_end` | `obsolete` — replacements named above (`EmitContext`, `with_claimed_container`/`with_comments`, `retains_end`+`container_end_of`); all former consumers are the sites in this table; `comment_phase_established_container` survives unchanged as the claim producer | deleted in the same commit; the workspace grep for the three names returning zero matches is part of acceptance |
 
 No `shared-prerequisite` rows exist: every dependency of this packet is
 already frozen. This matrix was generated before the Rust design below
@@ -208,16 +214,20 @@ observations; only pin lines may differ, except the reviewed §8 rows).
 Steps, in dependency order — each with its completion check:
 
 1. **`CommentEmissionScope` in `comment_cursor.rs`.** Add the struct and
-   the API of §4 (`empty`, `claim_container`,
-   `retains_end`, `container_pos`, `container_span`), `#[must_use]`, no
-   `Default`, doc comments citing `printer-scope-state`,
-   `emit-leading-comments-of-node`, `emit-trailing-comments-of-node`,
+   the API of §4 (`empty`, `claim_container_unit`, `container_unit`,
+   `container_pos`, `container_end`, `container_end_of`, `retains_end`),
+   `#[must_use]`, no `Default`, doc comments citing
+   `printer-scope-state`, `emit-leading-comments-of-node`,
+   `emit-trailing-comments-of-node`,
    `for-each-trailing-comment-to-emit` span IDs. Unit contracts in the
    same change: an empty scope retains no end; a claimed scope retains
-   exactly its claimed end cursor (source + position both required);
-   claiming preserves an (artificially constructed) declaration-list
-   value while replacing the pair; `container_span` returns the claimed
-   pair. Check: `cargo test -p tsc-emitter comment` green.
+   exactly its claimed end cursor (source + position both required); a
+   synthesized or zero-width claimed unit stays present
+   (`container_unit()` `Some`) while both views and the guard return
+   nothing; claiming preserves an (artificially constructed)
+   declaration-list value while replacing the unit; the guard accepts a
+   declaration-list end with no claimed unit. Check:
+   `cargo test -p tsc-emitter comment` green.
 2. **`EmitContext` in `printer.rs`.** Rename
    `ExpressionEmissionContext` → `EmitContext`; replace the
    `comment_container` field with `comments: CommentEmissionScope`; drop
@@ -237,23 +247,30 @@ Steps, in dependency order — each with its completion check:
 4. **Site adaptation** (the §5 rows, all in `printer.rs`):
    a. root (done in step 3);
    b. the four contextless APIs construct `detached_transitional()`;
-   c. claim sites: `established_container_claim(owner)` returns the
-      cursor pair; composition becomes
-      `match claim { Some((pos, end)) => inherited.claim_container(pos, end), None => inherited }`
-      — equivalence with the replaced `Option::or`: today's established
-      range wholesale-replaces the single container, the pair-claim
-      replaces both fields derived from the same range, and the third
-      field it preserves is constant `None` in this packet because no
-      writer exists; therefore every reachable value is identical;
-   d. trailing guards call `scope.retains_end(cursor)`; the deleted
-      helper's source/nonempty checks are subsumed by cursor equality
-      and by claims existing only for nonempty `Original` ranges
-      (`pos != end` guaranteed at the single claim producer);
-   e. leading owned-prefix helpers read `container_span()`;
-   f. ambient pass-through parameters retype to `CommentEmissionScope`.
+   c. claim sites: `comment_phase_established_container(owner)` is
+      unchanged; every `established.or(inherited)` +
+      `with_comment_container(active)` composition becomes
+      `context.with_claimed_container(active)` =
+      `claim_container_unit(range)` when `Some`, the inherited scope
+      when `None` — equivalence with the replaced form: every computed
+      `active` value includes the inherited container as its final
+      fallback, so `None` occurs only when the inherited container was
+      also absent, the claimed unit stores the identical `CommentRange`
+      value, and the preserved third field is constant `None` in this
+      packet because no writer exists; therefore every reachable value
+      is identical;
+   d. ambient trailing guards call `scope.retains_end(cursor)` and gate
+      fallback suppression on `container_unit()` presence (preserving
+      the qualified inert-container behavior); the per-node deferred
+      check keeps its `CommentRange` and uses `container_end_of`;
+   e. leading owned-prefix helpers keep their `CommentRange` parameters;
+      ambient callers feed them `container_unit()`;
+   f. ambient pass-through parameters retype to `CommentEmissionScope`;
+      the deferred-comment stores receive `container_unit()`, which
+      round-trips the exact stored value.
    Postcondition/check: workspace grep zero for
-   `ExpressionEmissionContext`, `with_comment_container`,
-   `comment_phase_established_container`, `comment_container_retains_end`;
+   `ExpressionEmissionContext`, `with_comment_container`, and
+   `comment_container_retains_end`;
    `cargo test -p tsc-emitter` fully green with **zero expected-string
    edits** — the reshape is proven byte-identical by the existing suite,
    then by the corpus gate.
@@ -321,7 +338,7 @@ stale aborts the packet for a design amendment.
    `CommentCursor`/`token_owned_comment_phase_prefix` with asserted
    absences `declaration_list_container_end` in `printer.rs` and
    `container_end` in `comment_cursor.rs`): state stays `partial`;
-   anchors gain `struct CommentEmissionScope` + `fn claim_container`
+   anchors gain `struct CommentEmissionScope` + `fn claim_container_unit`
    (comment_cursor.rs) and `struct EmitContext` + `fn file_root`
    (printer.rs); the two absences flip to: `claim_declaration_list_container`
    absent from `printer.rs` **and** from `comment_cursor.rs` (the CS-4
@@ -371,11 +388,11 @@ stale aborts the packet for a design amendment.
   oracle/foundation, token-cursor, contracts) with zero expected-value
   edits.
 - **Deleted-API audit:**
-  `grep -rn "ExpressionEmissionContext\|with_comment_container\|comment_phase_established_container\|comment_container_retains_end" crates` returns
-  nothing; `grep -c "detached_transitional" crates/emitter/src/printer.rs`
+  `grep -rn "ExpressionEmissionContext\|with_comment_container\|comment_container_retains_end" crates`
+  returns nothing;
+  `grep -c "detached_transitional" crates/emitter/src/printer.rs`
   equals the reviewed transitional-site count recorded in the PR body
-  (constructor + four APIs + JSON route commentary), establishing the
-  CS-5 deletion inventory.
+  (constructor + four APIs), establishing the CS-5 deletion inventory.
 - **Packet checker** (all run individually, exit captured):
   the eight `h2-5h-a.md` checker commands plus
   `node .github/ci/slice-readiness.mjs --check h2-5h-a-cs-2`.
@@ -397,11 +414,11 @@ stale aborts the packet for a design amendment.
 
 | Upstream owner / invariant | Rust target | Focused test | Evidence |
 |---|---|---|---|
-| `printer-scope-state` triple + `-1` sentinel | `CommentEmissionScope` fields | scope unit contracts | gap-matrix anchors (§8.1) |
-| `emit-leading-comments-of-node` claim (paired, CS-2-reachable form) | `claim_container` + `established_container_claim` | claim/preserve unit contracts + topology suite | witness artifact `scope_graph` |
+| `printer-scope-state` triple + `-1` sentinel | `CommentEmissionScope` fields/views | scope unit contracts | gap-matrix anchors (§8.1) |
+| `emit-leading-comments-of-node` claim (paired, CS-2-reachable form) | `claim_container_unit` + `with_claimed_container` over `comment_phase_established_container` | claim/preserve unit contracts + topology suite | witness artifact `scope_graph` |
 | `emit-trailing-comments-of-node` restore-before-trailing | structural value threading (parent scope reaches trailing checks) | `variable declaration` topology tests unchanged; declaration-family sites 2543/2580/2650 | §5 rows |
 | `for-each-trailing-comment-to-emit` guard disjunction | `retains_end` | retains-end unit contracts + list/element end-comment suite unchanged | §5 guard row |
-| `for-each-leading-comment-to-emit` guard | unchanged H2.5g projections over `container_span` | topology + delimited-list suites unchanged | §5 prefix row |
+| `for-each-leading-comment-to-emit` guard | unchanged H2.5g projections over `container_unit` | topology + delimited-list suites unchanged | §5 prefix row |
 | both tsc carriers = one Rust route | recursive dispatch only | existing binary/topology tests | §4 row |
 | root-only initial scope | `file_root` single caller | grep audit in §9 | envelope proof |
 | E-PRINTER-BASE invariants (hooks, no checker dependency, immutable planning) | untouched `before/after_emit_node`, `substitute_node`, `EmissionPlan` call graph | `active_transform_contract`, `dependency_direction_contract` | architecture map note (§8.3) |
