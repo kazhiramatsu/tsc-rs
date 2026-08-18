@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "a09a2a094a7442b7afa417d730aec1d2359eaf629a71c65678c29791b6836118"
+      "sha256": "64ffb3db289ca2579f7b71d11627f87fc7b0326ff6c4c783b49ba6377e78a1f8"
     },
-    "owner_graph_fingerprint_sha256": "f67fbb40ca96cf371ef6364898cca6507f2010c584ff5877fa376e24466c0326",
+    "owner_graph_fingerprint_sha256": "6b595ede6b8900ba598ce1c0acfd09a537dc30d3ec72638d7a0cf1b309e63577",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "0022e2499a0cb8e16d572b6e4cfd7f4af6c293142e954c4e6c267eaeaad9d381"
@@ -296,7 +296,7 @@
           "symbol": "token_owned_comment_phase_prefix",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+            "sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
           }
         },
         {
@@ -320,7 +320,7 @@
           "symbol": "struct EmitContext",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+            "sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
           }
         },
         {
@@ -328,7 +328,7 @@
           "symbol": "fn file_root",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+            "sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
           }
         }
       ],
@@ -338,7 +338,7 @@
           "symbol": "claim_declaration_list_container",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+            "sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
           }
         },
         {
@@ -351,7 +351,7 @@
         }
       ],
       "note": "CS-2 landed the threaded scope at the root and core pipeline; the declaration-list writer and the route migrations remain with packets CS-3..CS-6 before any ES2015/Generators production work",
-      "capability_fingerprint_sha256": "90214509bfe02c85c4dc7ab92cb54149f2453accbc144f4ec27b90df610c362d"
+      "capability_fingerprint_sha256": "6b7eff87e4552e099abf36dace1189ed2de503110aa1f52a2a4112de1bfe4cea"
     },
     {
       "index": 8,
@@ -538,5 +538,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "6e02df4a02cccac0d5e496637eb2a752bfb460e85fc39d1d877684eecff77dc7"
+  "gap_matrix_fingerprint_sha256": "e3b3eec81b2ee5fce100c423cc2c0a8a0476690a432e8c7548a14f96b9cd73c8"
 }

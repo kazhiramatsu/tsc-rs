@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "051918ee4aaf5760d7945ee49b2afcf4c6ad17cde4f50d510f6a379cb9dc0909"
+    "sha256": "30e485bc07dac2e25e09e04a0d61b3c3e1b9b6efb0984f5eee22143384c0811d"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-owner-inventory.schema.json",
@@ -29,7 +29,7 @@
     },
     "h1_rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "03a8e370bb8f3b97925f33f72ff4d8794d39d674d74c0be5c3073b22aa71ec03"
+      "sha256": "59d09815233016692a435b9bf624e764940989e8c40dd805b0bd60d77a8302e1"
     }
   },
   "closure_model": "complete H2 one-shot compiler owner-root universe plus exact source-symbol references between roots; each runtime slice regenerates the transitive helper closure and may suffix-split independent SCCs before admission",
@@ -2224,9 +2224,9 @@
       "anchor": {
         "id": "emitter-printer-factory",
         "path": "crates/emitter/src/printer.rs",
-        "line": 825,
+        "line": 826,
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+        "file_sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
       },
       "upstream_owners": [
         "printer"
@@ -2237,9 +2237,9 @@
       "anchor": {
         "id": "emitter-source-map-recorder",
         "path": "crates/emitter/src/printer.rs",
-        "line": 788,
+        "line": 789,
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+        "file_sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
       },
       "upstream_owners": [
         "source-map-generator",
@@ -2362,5 +2362,5 @@
     "undispositioned_owners": 0,
     "unmapped_rust_converse_rows": 0
   },
-  "inventory_fingerprint_sha256": "1df8800f086a4d834fc4fb827dbf46d72f7fdcde8d0beac858f2104d62c4d7e6"
+  "inventory_fingerprint_sha256": "e3c74e370559df1a9465cc59891ab6753e94df814ef4d28931ce20d581d437c2"
 }

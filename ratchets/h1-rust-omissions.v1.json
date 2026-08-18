@@ -42,8 +42,8 @@
     "file_count": 264,
     "rust_source_files": 243,
     "cargo_manifests": 21,
-    "bytes": 16293574,
-    "tree_sha256": "0f91fad152ee9dacce39419c3b875f8648f1594b529e52a788042c70910a0661"
+    "bytes": 16293657,
+    "tree_sha256": "097d446e0761938a1fff555adc42ff0fabbbec8342619815e0f27b3698d51cbb"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -489,11 +489,11 @@
       {
         "id": "emitter-printer-factory",
         "path": "crates/emitter/src/printer.rs",
-        "line": 825,
+        "line": 826,
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+        "file_sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
       },
       {
         "id": "emitter-position-domains",
@@ -507,11 +507,11 @@
       {
         "id": "emitter-source-map-recorder",
         "path": "crates/emitter/src/printer.rs",
-        "line": 788,
+        "line": 789,
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+        "file_sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
       },
       {
         "id": "emitter-resolver-protocol",
@@ -561,11 +561,11 @@
       {
         "id": "emitter-changed-import-printer",
         "path": "crates/emitter/src/printer.rs",
-        "line": 2088,
+        "line": 2089,
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "b3fbb270516a3cfa3e1637e55b20dd5fce8c448f8b887dde8b0d3612c54f314a"
+        "file_sha256": "9c3fdf49ba0f8725211c526c2fadad5ff83af518f4163f65a2d560518efe7b01"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -1155,5 +1155,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "48e008f2b623c5871ff2e2a487df86758eb816567410beb4d230ef7faaeb5db7"
+  "inventory_fingerprint_sha256": "b9cea8d4b93e5b49095b7e6cf0e9e0c1d51238f8ea9b6eb3921659647734a511"
 }
