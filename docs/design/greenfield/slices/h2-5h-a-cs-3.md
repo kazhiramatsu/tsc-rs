@@ -181,7 +181,10 @@ Steps (each with its completion check):
    Unit contracts: one row per predicate case — both-claimed,
    JsxText-unflagged (neither), JsxText+NoLeading (pos claimed),
    JsxText+NoTrailing (end claimed), flag-suppressed-but-claimed,
-   synthesized none, zero-width none, at-zero-start none.
+   synthesized none, zero-width none, and at-zero-start-with-positive-end
+   claiming both (for an `Original` nonempty range the outer gate is
+   always satisfied through the `end > 0` side, so `pos == 0` never
+   suppresses a claim).
 3. **Scope-level composition**: `active_expression_comment_scope` +
    `EmitContext::with_comments` application at 8422/8451; `for_wrapper`
    takes the composed scope; the 5633 presence gate reads
