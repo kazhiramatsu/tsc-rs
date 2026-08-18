@@ -153,7 +153,7 @@ struct DeferredExpressionSourceComments {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ExpressionCommentContainer {
     Node(TransformNode),
-    Range(CommentRange),
+    Scope(CommentEmissionScope),
 }
 
 #[derive(Debug, Default)]
@@ -195,20 +195,25 @@ impl DeferredExpressionSourceCommentsState {
 }
 
 impl DeferredExpressionSourceComments {
+    /// A parent deferring its comment phase hands the child the enclosing
+    /// scope it would have guarded against. With no active container the
+    /// parent itself is the container, claimed lazily at consumption —
+    /// through the same per-side producer as every eager claim.
     const fn container_for_parent(
         parent: TransformNode,
-        inherited: Option<CommentRange>,
+        inherited: CommentEmissionScope,
     ) -> Option<ExpressionCommentContainer> {
-        match inherited {
-            Some(range) => Some(ExpressionCommentContainer::Range(range)),
-            None => Some(ExpressionCommentContainer::Node(parent)),
+        if inherited.container_pos().is_some() || inherited.container_end().is_some() {
+            Some(ExpressionCommentContainer::Scope(inherited))
+        } else {
+            Some(ExpressionCommentContainer::Node(parent))
         }
     }
 
     const fn leading_only(
         parent: TransformNode,
         token: TokenEmission,
-        inherited: Option<CommentRange>,
+        inherited: CommentEmissionScope,
     ) -> Self {
         Self {
             container: Self::container_for_parent(parent, inherited),
@@ -220,7 +225,7 @@ impl DeferredExpressionSourceComments {
     const fn leading_and_trailing(
         parent: TransformNode,
         token: TokenEmission,
-        inherited: Option<CommentRange>,
+        inherited: CommentEmissionScope,
     ) -> Self {
         Self {
             container: Self::container_for_parent(parent, inherited),
@@ -232,7 +237,7 @@ impl DeferredExpressionSourceComments {
     const fn without_preceding_token(
         parent: TransformNode,
         extent: DeferredSourceCommentExtent,
-        inherited: Option<CommentRange>,
+        inherited: CommentEmissionScope,
     ) -> Self {
         Self {
             container: Self::container_for_parent(parent, inherited),
@@ -241,12 +246,9 @@ impl DeferredExpressionSourceComments {
         }
     }
 
-    const fn nested(container: Option<CommentRange>, extent: DeferredSourceCommentExtent) -> Self {
+    const fn nested(scope: CommentEmissionScope, extent: DeferredSourceCommentExtent) -> Self {
         Self {
-            container: match container {
-                Some(range) => Some(ExpressionCommentContainer::Range(range)),
-                None => None,
-            },
+            container: Some(ExpressionCommentContainer::Scope(scope)),
             preceding_token: None,
             extent,
         }
@@ -572,13 +574,13 @@ impl EmitContext {
         }
     }
 
-    /// A wrapper re-entry: the enclosing comment scope with the wrapper's
-    /// own computed container claimed, under fresh syntax obligations.
-    /// The wrapper's parentheses discharge every grammar and ASI duty of
-    /// the edge it replaces, so only the comment half survives it.
-    const fn for_wrapper(self, container: Option<CommentRange>) -> Self {
+    /// A wrapper re-entry: the composed active comment scope under fresh
+    /// syntax obligations. The wrapper's parentheses discharge every
+    /// grammar and ASI duty of the edge it replaces, so only the comment
+    /// half survives it.
+    const fn for_wrapper(self, comments: CommentEmissionScope) -> Self {
         self.for_child(ExpressionSyntaxContext::NORMAL)
-            .with_claimed_container(container)
+            .with_comments(comments)
     }
 
     const fn grammar(self) -> ExpressionGrammarContext {
@@ -611,25 +613,6 @@ impl EmitContext {
             syntax: self.syntax,
             comments,
         }
-    }
-
-    /// Apply the container a comments phase established for this node,
-    /// falling back to the inherited scope when the phase claims nothing.
-    ///
-    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
-    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
-    /// tsc-span: _tsc.js:121007-121032
-    const fn with_claimed_container(self, container: Option<CommentRange>) -> Self {
-        match container {
-            Some(container) => self.with_comments(self.comments.claim_container_unit(container)),
-            None => self,
-        }
-    }
-
-    /// The claimed container in its stored range form, for the deferred
-    /// comment stores and the leading owned-prefix helpers.
-    const fn container_unit(self) -> Option<CommentRange> {
-        self.comments.container_unit()
     }
 
     /// The threaded comment scope, for the routes that carry ambient
@@ -2598,9 +2581,14 @@ impl Printer {
                 // Thread that ownership explicitly so a ranged initializer
                 // cannot claim the statement's trailing boundary first.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let declaration_context = expression_context.with_claimed_container(
-                    Self::comment_phase_established_container(owner)
-                        .or(expression_context.container_unit()),
+                let declaration_context = expression_context.with_comments(
+                    match Self::statement_paired_container_claim(owner) {
+                        Some(range) => expression_context.comments().claim_sides(
+                            CommentEmissionScope::container_pos_of(range),
+                            CommentEmissionScope::container_end_of(range),
+                        ),
+                        None => expression_context.comments(),
+                    },
                 );
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
@@ -2635,9 +2623,14 @@ impl Printer {
                 // A parsed list replaces the inherited container; a
                 // synthesized list keeps the statement container alive.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let declaration_context = expression_context.with_claimed_container(
-                    Self::comment_phase_established_container(owner)
-                        .or(expression_context.container_unit()),
+                let declaration_context = expression_context.with_comments(
+                    match Self::statement_paired_container_claim(owner) {
+                        Some(range) => expression_context.comments().claim_sides(
+                            CommentEmissionScope::container_pos_of(range),
+                            CommentEmissionScope::container_end_of(range),
+                        ),
+                        None => expression_context.comments(),
+                    },
                 );
                 let flags = NodeFlags::from_bits(record.flags);
                 if flags.contains(NodeFlags::AWAIT_USING) {
@@ -2680,7 +2673,7 @@ impl Printer {
                     self.emit_leading_comments_for_delimited_list_start_in_container(
                         transformation,
                         declaration,
-                        declaration_context.container_unit(),
+                        declaration_context.comments(),
                         writer,
                     )?;
                     self.emit_node_id_with_context(
@@ -2705,9 +2698,14 @@ impl Printer {
                 // As above, only a declaration with its own source range
                 // replaces the ambient variable-statement container.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let initializer_context = expression_context.with_claimed_container(
-                    Self::comment_phase_established_container(owner)
-                        .or(expression_context.container_unit()),
+                let initializer_context = expression_context.with_comments(
+                    match Self::statement_paired_container_claim(owner) {
+                        Some(range) => expression_context.comments().claim_sides(
+                            CommentEmissionScope::container_pos_of(range),
+                            CommentEmissionScope::container_end_of(range),
+                        ),
+                        None => expression_context.comments(),
+                    },
                 );
                 let name = data
                     .name
@@ -5630,7 +5628,7 @@ impl Printer {
         child: TransformNode,
         active_scope: CommentEmissionScope,
     ) -> Result<bool, PrinterError> {
-        if active_scope.container_unit().is_some() {
+        if active_scope.container_end().is_some() {
             let child_range = self.comment_range_for_node(transformation, child)?;
             if let SourceRange::Original(range) = child_range.range() {
                 return Ok(!active_scope
@@ -7973,14 +7971,14 @@ impl Printer {
                 DeferredExpressionSourceComments::leading_only(
                     parent,
                     token,
-                    expression_context.container_unit(),
+                    expression_context.comments(),
                 )
             }
             DeferredSourceCommentExtent::LeadingAndTrailing => {
                 DeferredExpressionSourceComments::leading_and_trailing(
                     parent,
                     token,
-                    expression_context.container_unit(),
+                    expression_context.comments(),
                 )
             }
         };
@@ -8058,7 +8056,7 @@ impl Printer {
         let deferred = DeferredExpressionSourceComments::without_preceding_token(
             parent_node,
             extent,
-            expression_context.container_unit(),
+            expression_context.comments(),
         );
         let outcome = self.emit_node_id_with_context_and_source_comments(
             transformation,
@@ -8291,7 +8289,7 @@ impl Printer {
                             transformation,
                             substituted,
                         )?;
-                        let active_container = self.active_expression_comment_container(
+                        let active_scope = self.active_expression_comment_scope(
                             transformation,
                             deferred_source_comments.as_ref(),
                             expression_context,
@@ -8308,7 +8306,7 @@ impl Printer {
                         let inner_owner = self
                             .expression_comment_phase_owner_for_node(transformation, substituted)?;
                         let inner_comments = DeferredExpressionSourceComments::nested(
-                            active_container,
+                            active_scope,
                             DeferredSourceCommentExtent::LeadingAndTrailing,
                         );
                         let inner_source_leading_phase = self
@@ -8318,16 +8316,16 @@ impl Printer {
                                 inner_owner,
                                 writer,
                             )?;
-                        let inner_active_container = self.active_expression_comment_container(
+                        let inner_active_scope = self.active_expression_comment_scope(
                             transformation,
                             Some(&inner_comments),
-                            expression_context.for_wrapper(active_container),
+                            expression_context.for_wrapper(active_scope),
                             inner_owner,
                         )?;
                         self.emit_substituted_node_with_comments(
                             transformation,
                             substituted,
-                            expression_context.for_wrapper(inner_active_container),
+                            expression_context.for_wrapper(inner_active_scope),
                             inner_source_leading_phase,
                             writer,
                         )?;
@@ -8348,7 +8346,7 @@ impl Printer {
                     GrammarParentheses::Synthetic => {
                         let owner = self
                             .expression_comment_phase_owner_for_node(transformation, substituted)?;
-                        let active_container = self.active_expression_comment_container(
+                        let active_scope = self.active_expression_comment_scope(
                             transformation,
                             deferred_source_comments.as_ref(),
                             expression_context,
@@ -8364,7 +8362,7 @@ impl Printer {
                         self.emit_substituted_node_with_comments(
                             transformation,
                             substituted,
-                            expression_context.for_wrapper(active_container),
+                            expression_context.for_wrapper(active_scope),
                             source_leading_phase,
                             writer,
                         )?;
@@ -8404,7 +8402,7 @@ impl Printer {
                 } else {
                     let owner =
                         self.expression_comment_phase_owner_for_node(transformation, substituted)?;
-                    let active_container = self.active_expression_comment_container(
+                    let active_scope = self.active_expression_comment_scope(
                         transformation,
                         deferred_source_comments.as_ref(),
                         expression_context,
@@ -8419,7 +8417,7 @@ impl Printer {
                     self.emit_substituted_node_with_comments(
                         transformation,
                         substituted,
-                        expression_context.with_claimed_container(active_container),
+                        expression_context.with_comments(active_scope),
                         source_leading_phase,
                         writer,
                     )?;
@@ -8433,7 +8431,7 @@ impl Printer {
             } else {
                 let owner =
                     self.expression_comment_phase_owner_for_node(transformation, substituted)?;
-                let active_container = self.active_expression_comment_container(
+                let active_scope = self.active_expression_comment_scope(
                     transformation,
                     deferred_source_comments.as_ref(),
                     expression_context,
@@ -8448,7 +8446,7 @@ impl Printer {
                 self.emit_substituted_node_with_comments(
                     transformation,
                     substituted,
-                    expression_context.with_claimed_container(active_container),
+                    expression_context.with_comments(active_scope),
                     source_leading_phase,
                     writer,
                 )?;
@@ -8508,7 +8506,7 @@ impl Printer {
             ParenthesizedNoAsiExpression::SyntheticWhole { wrapper } => {
                 let owner =
                     self.expression_comment_phase_owner_for_node(transformation, wrapper)?;
-                let active_container = self.active_expression_comment_container(
+                let active_scope = self.active_expression_comment_scope(
                     transformation,
                     deferred_source_comments,
                     expression_context,
@@ -8524,7 +8522,7 @@ impl Printer {
                 self.emit_substituted_node_with_comments(
                     transformation,
                     wrapper,
-                    expression_context.for_wrapper(active_container),
+                    expression_context.for_wrapper(active_scope),
                     source_leading_phase,
                     writer,
                 )?;
@@ -8547,7 +8545,7 @@ impl Printer {
                     metadata_owner,
                     token_owner,
                 )?;
-                let active_container = self.active_expression_comment_container(
+                let active_scope = self.active_expression_comment_scope(
                     transformation,
                     deferred_source_comments,
                     expression_context,
@@ -8578,7 +8576,7 @@ impl Printer {
                     metadata_owner,
                     open,
                     inner,
-                    expression_context.for_wrapper(active_container),
+                    expression_context.for_wrapper(active_scope),
                     writer,
                 )?;
                 self.emit_token_with_comments(
@@ -8847,7 +8845,7 @@ impl Printer {
         self.emit_leading_comments_for_delimited_list_start_in_container_with_space(
             transformation,
             node,
-            None,
+            CommentEmissionScope::empty(),
             TokenLeadingSpace::None,
             writer,
         )
@@ -8863,7 +8861,7 @@ impl Printer {
         self.emit_leading_comments_for_delimited_list_start_in_container_with_space(
             transformation,
             node,
-            None,
+            CommentEmissionScope::empty(),
             leading_space,
             writer,
         )
@@ -8873,13 +8871,13 @@ impl Printer {
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
-        active_container: Option<CommentRange>,
+        active_scope: CommentEmissionScope,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_leading_comments_for_delimited_list_start_in_container_with_space(
             transformation,
             node,
-            active_container,
+            active_scope,
             TokenLeadingSpace::None,
             writer,
         )
@@ -8889,7 +8887,7 @@ impl Printer {
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
-        active_container: Option<CommentRange>,
+        active_scope: CommentEmissionScope,
         leading_space: TokenLeadingSpace,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -8901,16 +8899,11 @@ impl Printer {
             writer,
         )?;
         let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-        let container_owned = active_container
-            .map(|container| {
-                self.parent_comment_container_owned_prefix_for_owner(
-                    transformation,
-                    container,
-                    owner,
-                )
-            })
-            .transpose()?
-            .flatten();
+        let container_owned = self.parent_comment_container_owned_prefix_for_owner(
+            transformation,
+            active_scope.container_pos(),
+            owner,
+        )?;
         self.emit_leading_comments_for_node_worker(
             transformation,
             node,
@@ -8938,11 +8931,12 @@ impl Printer {
         // is observable in recovery exponentiation lowered to `Math.pow`,
         // where the same source comment is intentionally printed at both the
         // parent boundary and the synthesized argument-list boundary.
-        let active_container = self.comment_range_for_node(transformation, parent)?;
+        let parent_owner = self.expression_comment_phase_owner_for_node(transformation, parent)?;
+        let (pos, end) = Self::established_container_sides(parent_owner);
         self.emit_leading_comments_for_delimited_list_start_in_container(
             transformation,
             node,
-            Some(active_container),
+            CommentEmissionScope::empty().claim_sides(pos, end),
             writer,
         )
     }
@@ -9115,7 +9109,7 @@ impl Printer {
     fn parent_comment_container_owned_prefix_for_owner(
         &self,
         transformation: &TransformationResult<'_>,
-        container_range: CommentRange,
+        container_pos: Option<CommentCursor>,
         owner: ExpressionCommentPhaseOwner,
     ) -> Result<Option<CommentResume>, PrinterError> {
         let source_id = owner.range.source();
@@ -9128,9 +9122,7 @@ impl Printer {
         //
         // tsc-port: forEachLeadingCommentToEmit @6.0.3
         // tsc-span: _tsc.js:121219-121233
-        if CommentEmissionScope::container_pos_of(container_range)
-            != Some(CommentCursor::new(source_id, owner_range.start()))
-        {
+        if container_pos != Some(CommentCursor::new(source_id, owner_range.start())) {
             return Ok(None);
         }
         let source = transformation.arena().source(source_id)?.syntax();
@@ -9144,19 +9136,6 @@ impl Printer {
             )
             .map_err(Self::comment_resume_error)?,
         ))
-    }
-
-    fn expression_comment_container_range(
-        &self,
-        transformation: &TransformationResult<'_>,
-        container: ExpressionCommentContainer,
-    ) -> Result<CommentRange, PrinterError> {
-        match container {
-            ExpressionCommentContainer::Node(node) => {
-                self.comment_range_for_node(transformation, node)
-            }
-            ExpressionCommentContainer::Range(range) => Ok(range),
-        }
     }
 
     fn emit_deferred_expression_leading_comments(
@@ -9176,12 +9155,12 @@ impl Printer {
             .flatten();
         let container_owned = deferred
             .container
-            .map(|container| self.expression_comment_container_range(transformation, container))
+            .map(|container| self.deferred_container_scope(transformation, container))
             .transpose()?
-            .map(|container| {
+            .map(|scope| {
                 self.parent_comment_container_owned_prefix_for_owner(
                     transformation,
-                    container,
+                    scope.container_pos(),
                     owner,
                 )
             })
@@ -9221,10 +9200,11 @@ impl Printer {
         }
         if deferred
             .container
-            .map(|container| self.expression_comment_container_range(transformation, container))
+            .map(|container| self.deferred_container_scope(transformation, container))
             .transpose()?
-            .and_then(CommentEmissionScope::container_end_of)
-            == Some(CommentCursor::new(owner.range.source(), owner_range.end()))
+            .is_some_and(|scope| {
+                scope.retains_end(CommentCursor::new(owner.range.source(), owner_range.end()))
+            })
         {
             return Ok(Some(TrailingSourceCommentOwnership::RetainedByParent));
         }
@@ -9261,7 +9241,11 @@ impl Printer {
     ) -> Result<Option<CommentResume>, PrinterError> {
         let parent_range = self.comment_range_for_node(transformation, parent)?;
         let owner = self.expression_comment_phase_owner_for_node(transformation, child)?;
-        self.parent_comment_container_owned_prefix_for_owner(transformation, parent_range, owner)
+        self.parent_comment_container_owned_prefix_for_owner(
+            transformation,
+            CommentEmissionScope::container_pos_of(parent_range),
+            owner,
+        )
     }
 
     fn furthest_comment_resume(
@@ -10098,7 +10082,11 @@ impl Printer {
         })
     }
 
-    fn comment_phase_established_container(
+    /// The statement-family claim: the full range pair when the owner has
+    /// a nonempty original range, flags not consulted. This is the H2.5g
+    /// paired projection those routes stay on until their own migration
+    /// packet lands the per-side producer there.
+    fn statement_paired_container_claim(
         owner: ExpressionCommentPhaseOwner,
     ) -> Option<CommentRange> {
         match owner.range.range() {
@@ -10107,32 +10095,76 @@ impl Printer {
         }
     }
 
-    fn inherited_expression_comment_container(
-        &self,
-        transformation: &TransformationResult<'_>,
-        deferred: Option<&DeferredExpressionSourceComments>,
-        expression_context: EmitContext,
-    ) -> Result<Option<CommentRange>, PrinterError> {
-        deferred
-            .and_then(|deferred| deferred.container)
-            .map(|container| self.expression_comment_container_range(transformation, container))
-            .transpose()
-            .map(|container| container.or(expression_context.container_unit()))
+    /// tsc's per-side claim conditions over one comment-phase owner.
+    ///
+    /// For a range this representation can express, a side goes unclaimed
+    /// only for `JsxText` without that side's suppression flag — a
+    /// suppression flag claims while suppressing the emission itself —
+    /// and a synthesized or zero-width range claims nothing at all, so
+    /// the enclosing scope stays active. The `pos < 0` arms of the
+    /// upstream predicate are unreachable here: `SourceRange` is either
+    /// `Original` with both positions or `Synthesized`, and the outer
+    /// `(pos > 0 || end > 0)` gate is always satisfied by a nonempty
+    /// original range through its end.
+    ///
+    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
+    /// tsc-span: _tsc.js:121007-121032
+    fn established_container_sides(
+        owner: ExpressionCommentPhaseOwner,
+    ) -> (Option<CommentCursor>, Option<CommentCursor>) {
+        let pos = CommentEmissionScope::container_pos_of(owner.range);
+        let end = CommentEmissionScope::container_end_of(owner.range);
+        let jsx_text = owner.kind == SyntaxKind::JsxText;
+        let claim_pos = if jsx_text && !owner.flags.intersects(EmitFlags::NO_LEADING_COMMENTS) {
+            None
+        } else {
+            pos
+        };
+        let claim_end = if jsx_text && !owner.flags.intersects(EmitFlags::NO_TRAILING_COMMENTS) {
+            None
+        } else {
+            end
+        };
+        (claim_pos, claim_end)
     }
 
-    fn active_expression_comment_container(
+    /// The enclosing scope one deferred container denotes: the scope the
+    /// parent captured, or the parent itself claimed lazily — through the
+    /// same per-side producer as every eager claim — when no container
+    /// was active at capture time.
+    fn deferred_container_scope(
+        &self,
+        transformation: &TransformationResult<'_>,
+        container: ExpressionCommentContainer,
+    ) -> Result<CommentEmissionScope, PrinterError> {
+        Ok(match container {
+            ExpressionCommentContainer::Scope(scope) => scope,
+            ExpressionCommentContainer::Node(parent) => {
+                let parent_owner =
+                    self.expression_comment_phase_owner_for_node(transformation, parent)?;
+                let (pos, end) = Self::established_container_sides(parent_owner);
+                CommentEmissionScope::empty().claim_sides(pos, end)
+            }
+        })
+    }
+
+    /// The active scope for one expression comment phase: the inherited
+    /// (deferred or ambient) scope with the owner's own per-side claim
+    /// applied on top.
+    fn active_expression_comment_scope(
         &self,
         transformation: &TransformationResult<'_>,
         deferred: Option<&DeferredExpressionSourceComments>,
         expression_context: EmitContext,
         owner: ExpressionCommentPhaseOwner,
-    ) -> Result<Option<CommentRange>, PrinterError> {
-        Ok(Self::comment_phase_established_container(owner).or(self
-            .inherited_expression_comment_container(
-                transformation,
-                deferred,
-                expression_context,
-            )?))
+    ) -> Result<CommentEmissionScope, PrinterError> {
+        let inherited = match deferred.and_then(|deferred| deferred.container) {
+            Some(container) => self.deferred_container_scope(transformation, container)?,
+            None => expression_context.comments(),
+        };
+        let (pos, end) = Self::established_container_sides(owner);
+        Ok(inherited.claim_sides(pos, end))
     }
 
     fn comment_range_end_cursor(
@@ -12601,3 +12633,164 @@ impl fmt::Display for PrinterError {
 }
 
 impl Error for PrinterError {}
+
+#[cfg(test)]
+mod comment_scope_predicate_tests {
+    //! One contract per row of the per-side claim predicate table
+    //! (`emitLeadingCommentsOfNode`, `_tsc.js:121007-121032`): a side of an
+    //! `Original` nonempty range goes unclaimed only for `JsxText` without
+    //! that side's suppression flag, a suppression flag claims while
+    //! suppressing, and unclaimable ranges leave the enclosing scope
+    //! active.
+
+    use tsc_syntax::{parse_source_file, SyntaxKind};
+
+    use super::{
+        CommentCursor, CommentEmissionScope, CommentRange, EmitFlags, ExpressionCommentPhaseOwner,
+        Printer, SourceRange,
+    };
+    use crate::{SourceBytePosition, SourceByteRange, TransformArena, TransformSourceId};
+
+    struct PredicateFixture {
+        parsed: tsc_syntax::SourceFile,
+        source: TransformSourceId,
+    }
+
+    fn fixture() -> PredicateFixture {
+        let parsed = parse_source_file(
+            "predicate.ts",
+            "/* a */ value; other;\n",
+            Default::default(),
+            None,
+        );
+        let mut arena = TransformArena::new();
+        let source = arena.add_source(&parsed, None);
+        PredicateFixture { parsed, source }
+    }
+
+    impl PredicateFixture {
+        fn cursor(&self, value: u32) -> CommentCursor {
+            CommentCursor::new(
+                self.source,
+                SourceBytePosition::new(value, self.parsed.positions()).expect("source position"),
+            )
+        }
+
+        fn owner(
+            &self,
+            start: u32,
+            end: u32,
+            flags: EmitFlags,
+            kind: SyntaxKind,
+        ) -> ExpressionCommentPhaseOwner {
+            ExpressionCommentPhaseOwner {
+                range: CommentRange::new(
+                    self.source,
+                    SourceRange::Original(
+                        SourceByteRange::new(start, end, self.parsed.positions())
+                            .expect("source range"),
+                    ),
+                ),
+                flags,
+                kind,
+                relocated_trailing: false,
+            }
+        }
+
+        fn synthesized_owner(
+            &self,
+            flags: EmitFlags,
+            kind: SyntaxKind,
+        ) -> ExpressionCommentPhaseOwner {
+            ExpressionCommentPhaseOwner {
+                range: CommentRange::new(self.source, SourceRange::Synthesized),
+                flags,
+                kind,
+                relocated_trailing: false,
+            }
+        }
+    }
+
+    #[test]
+    fn ordinary_original_range_claims_both_sides() {
+        let fixture = fixture();
+        let owner = fixture.owner(8, 14, EmitFlags::NONE, SyntaxKind::Identifier);
+        assert_eq!(
+            Printer::established_container_sides(owner),
+            (Some(fixture.cursor(8)), Some(fixture.cursor(14))),
+        );
+    }
+
+    #[test]
+    fn at_zero_start_with_positive_end_claims_both_sides() {
+        let fixture = fixture();
+        let owner = fixture.owner(0, 14, EmitFlags::NONE, SyntaxKind::Identifier);
+        assert_eq!(
+            Printer::established_container_sides(owner),
+            (Some(fixture.cursor(0)), Some(fixture.cursor(14))),
+        );
+    }
+
+    #[test]
+    fn suppression_flags_claim_while_suppressing_emission() {
+        let fixture = fixture();
+        for flags in [
+            EmitFlags::NO_LEADING_COMMENTS,
+            EmitFlags::NO_TRAILING_COMMENTS,
+            EmitFlags::NO_LEADING_COMMENTS | EmitFlags::NO_TRAILING_COMMENTS,
+        ] {
+            let owner = fixture.owner(8, 14, flags, SyntaxKind::Identifier);
+            assert_eq!(
+                Printer::established_container_sides(owner),
+                (Some(fixture.cursor(8)), Some(fixture.cursor(14))),
+                "a suppression flag suppresses emission, never the claim",
+            );
+        }
+    }
+
+    #[test]
+    fn jsx_text_without_flags_claims_neither_side() {
+        let fixture = fixture();
+        let owner = fixture.owner(8, 14, EmitFlags::NONE, SyntaxKind::JsxText);
+        assert_eq!(Printer::established_container_sides(owner), (None, None));
+    }
+
+    #[test]
+    fn jsx_text_claims_exactly_the_flagged_side() {
+        let fixture = fixture();
+        let leading = fixture.owner(8, 14, EmitFlags::NO_LEADING_COMMENTS, SyntaxKind::JsxText);
+        assert_eq!(
+            Printer::established_container_sides(leading),
+            (Some(fixture.cursor(8)), None),
+        );
+        let trailing = fixture.owner(8, 14, EmitFlags::NO_TRAILING_COMMENTS, SyntaxKind::JsxText);
+        assert_eq!(
+            Printer::established_container_sides(trailing),
+            (None, Some(fixture.cursor(14))),
+        );
+    }
+
+    #[test]
+    fn synthesized_and_zero_width_ranges_claim_nothing_so_the_scope_inherits() {
+        let fixture = fixture();
+        let synthesized = fixture.synthesized_owner(EmitFlags::NONE, SyntaxKind::Identifier);
+        assert_eq!(
+            Printer::established_container_sides(synthesized),
+            (None, None)
+        );
+        let zero_width = fixture.owner(14, 14, EmitFlags::NONE, SyntaxKind::Identifier);
+        assert_eq!(
+            Printer::established_container_sides(zero_width),
+            (None, None)
+        );
+
+        let outer = CommentEmissionScope::empty()
+            .claim_sides(Some(fixture.cursor(0)), Some(fixture.cursor(21)));
+        let (pos, end) = Printer::established_container_sides(synthesized);
+        assert_eq!(
+            outer.claim_sides(pos, end),
+            outer,
+            "the enclosing scope stays active"
+        );
+    }
+}
