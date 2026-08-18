@@ -188,18 +188,34 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/printer.rs",
         symbol: "token_owned_comment_phase_prefix",
       }),
+      Object.freeze({
+        path: "crates/emitter/src/comment_cursor.rs",
+        symbol: "struct CommentEmissionScope",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/comment_cursor.rs",
+        symbol: "fn claim_container_unit",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/printer.rs",
+        symbol: "struct EmitContext",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/printer.rs",
+        symbol: "fn file_root",
+      }),
     ]),
     absences: Object.freeze([
       Object.freeze({
         path: "crates/emitter/src/printer.rs",
-        symbol: "declaration_list_container_end",
+        symbol: "claim_declaration_list_container",
       }),
       Object.freeze({
         path: "crates/emitter/src/comment_cursor.rs",
-        symbol: "container_end",
+        symbol: "claim_declaration_list_container",
       }),
     ]),
-    note: "closed by E-COMMENT-SCOPE-H implementation packets 2-6 before any ES2015/Generators production work",
+    note: "CS-2 landed the threaded scope at the root and core pipeline; the declaration-list writer and the route migrations remain with packets CS-3..CS-6 before any ES2015/Generators production work",
   }),
   Object.freeze({
     capability_id: "resolver-collision-capture-queries",

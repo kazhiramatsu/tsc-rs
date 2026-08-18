@@ -46,6 +46,7 @@ invitation to fill in the answer during implementation.
 | [FCI-9a-b activation](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on all FCI-8 proofs and separate activation approvals | No activation or workflow edits. |
 | [FCI-10 cleanup](../functional-ci-evidence.md#14-migration-stages-and-packets) | Blocked on both FCI-9 activations and a missing ready packet | No cleanup edits. |
 | [H2.5h-a](h2-5h-a.md) | **Active slice — packet machine-checked ready (2026-08-18)** (prerequisite steps 1-7 complete; the paused Functional-CI tail was not a dependency) | Production follows the packet ladder under per-packet design gates: comment-scope packets CS-2..CS-6 first, then the H2.5h-b implementation packets against the frozen graph/matrix/witnesses. |
+| [H2.5h-a / CS-2 comment-scope root and core pipeline](h2-5h-a-cs-2.md) | Active production packet (design gate ready, 2026-08-18); envelope `h2-5h-a-cs-2` | Introduces the immutable `CommentEmissionScope`/`EmitContext` triple at the printer root and core pipeline, byte-identical; the `declaration_list_container_end` writer and route migrations stay with CS-3..CS-5. |
 
 The packet-control bootstrap added the shared versioned packet schema/checker
 and completed its pre-closure purpose: FCI-1a through FCI-5b and the FCI-5c.1

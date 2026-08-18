@@ -1,0 +1,93 @@
+{
+ "schemaVersion": 1,
+ "packetId": "h2-5h-a-cs-2",
+ "status": "ready",
+ "trustedBase": "6cf96880f5f69394d79546c7b924e7288dd53780",
+ "packet": {
+  "path": "docs/design/greenfield/slices/h2-5h-a-cs-2.md",
+  "sha256": "3b0efdeb6a866650a230ef72cbfa40dee845f106bcd4fd8af99e4366b0bd3c75"
+ },
+ "predecessors": [
+  {
+   "packetId": "h2-5h-a",
+   "receiptSha256": "9e8cbb1cb9c928256f4c0e7457e4a9e929dba9d614f1076d7aede516b73e6b9a"
+  }
+ ],
+ "allowedPaths": [
+  "crates/emitter/src/comment_cursor.rs",
+  "crates/emitter/src/printer.rs",
+  "crates/emitter/tests/unit/lib/tests.rs",
+  ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
+  "crates/emitter/tests/source_comment_topology_contract.rs",
+  "crates/oracle/h2-5h-a-gap-matrix.mjs",
+  "crates/oracle/h2-5h-a-dispositions.mjs",
+  "ratchets/h1-rust-omissions.v1.json",
+  "ratchets/h2-1a-profile.v1.json",
+  "ratchets/h1-emit-qualification.v1.json",
+  "ratchets/h2-5g-profile.v1.json",
+  "crates/oracle/h2-1a-profile.mjs",
+  "crates/oracle/h2-1b-qualification.mjs",
+  "crates/oracle/h2-3c-qualification.mjs",
+  "crates/oracle/h2-3d-qualification.mjs",
+  "crates/oracle/h2-5g-profile.mjs",
+  "crates/oracle/h2-transition.mjs",
+  ".github/ci/contracts/h2-5g-profile.schema.json",
+  "ratchets/h2-1a-qualification.v1.json",
+  "ratchets/h2-1b-qualification.v1.json",
+  "ratchets/h2-1c-qualification.v1.json",
+  "ratchets/h2-1e-qualification.v1.json",
+  "ratchets/h2-2c-qualification.v1.json",
+  "ratchets/h2-2d-qualification.v1.json",
+  "ratchets/h2-3a-qualification.v1.json",
+  "ratchets/h2-3c-qualification.v1.json",
+  "ratchets/h2-3d-qualification.v1.json",
+  "ratchets/h2-5d-qualification.v1.json",
+  "ratchets/h2-5e-qualification.v1.json",
+  "ratchets/h2-5f-qualification.v1.json",
+  "ratchets/h2-candidate-dispositions.v1.json",
+  "ratchets/h2-owner-inventory.v1.json",
+  "ratchets/h2-profile-transition.v1.json",
+  "ratchets/h2-5h-a-foundation.v1.json",
+  "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
+  "ratchets/h2-5h-a-owner-graph.v1.json",
+  "ratchets/h2-5h-a-gap-matrix.v1.json",
+  "ratchets/h2-5h-a-dispositions.v1.json",
+  "ratchets/h2-5h-a-es2015-generators-witnesses.v1.json",
+  "docs/design/greenfield/emitter-architecture.md",
+  "docs/design/greenfield/slices/h2-5h-a.md",
+  "docs/design/greenfield/slices/h2-5h-a-cs-2.md",
+  "docs/design/greenfield/slices/README.md",
+  "ratchets/fci-readiness/h2-5h-a.v1.json",
+  "ratchets/fci-readiness/h2-5h-a-cs-2.v1.json",
+  "ratchets/fci-packet-bootstrap.v1.json"
+ ],
+ "forbiddenPrefixes": [
+  "crates/emitter/src/builtins",
+  "crates/emitter/src/transform.rs",
+  "crates/compiler",
+  "crates/checker",
+  "crates/binder",
+  "crates/syntax",
+  "crates/types",
+  "crates/diags",
+  "crates/harness",
+  "crates/conformance",
+  "crates/xtask",
+  ".github/workflows"
+ ],
+ "proof": {
+  "commands": [
+   "cargo test -p tsc-rs-emitter",
+   "node crates/oracle/h2-5h-a-foundation.mjs --check",
+   "node crates/oracle/h2-5h-a-comment-scope-witnesses.mjs --check",
+   "node crates/oracle/h2-5h-a-owner-graph.mjs --check",
+   "node crates/oracle/h2-5h-a-gap-matrix.mjs --check",
+   "node crates/oracle/h2-5h-a-dispositions.mjs --check",
+   "node crates/oracle/h2-5h-a-es2015-generators-witnesses.mjs --check",
+   "node .github/ci/qualification.mjs check",
+   "node .github/ci/slice-readiness.mjs --check h2-5h-a-cs-2",
+   "cargo xtask ci --baseline 6cf96880f5f69394d79546c7b924e7288dd53780"
+  ],
+  "evidencePath": "ratchets/h2-5h-a-gap-matrix.v1.json"
+ }
+}

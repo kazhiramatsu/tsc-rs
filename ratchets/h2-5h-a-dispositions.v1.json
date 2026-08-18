@@ -7,26 +7,26 @@
   "plan_step": "prerequisite-transition-step-5-manifest",
   "generator": {
     "path": "crates/oracle/h2-5h-a-dispositions.mjs",
-    "sha256": "ac62b18118c50830d47f86d34ceb981a4d76f631fe6649d4af36a8d3b103391b"
+    "sha256": "b1601ad1ded1aa5521b8207e7bf2a30e9f6ae1bf21a4f44edcd8c48308ea5272"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
-    "sha256": "32bbafdaa90d21bf857f2416ebdb0870d1e4584c2e0f81cdffb471f7f74ade12"
+    "sha256": "c552558856b189906975d0bafa14920e2286d6ec04d91a1ebcde03cdc4e74376"
   },
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "daf000fb260403f2701c9cbb2e858bab04b299d8208eb7b62b9683601016aaf2"
+      "sha256": "4a2b9d799b539056f5e633485af79bc605625a37782a3a7aaf47782ed58297fb"
     },
-    "owner_graph_fingerprint_sha256": "b7974cae1b9e64dff0b77214c67d6d1c9430e3e4190c0e2b446a62ecd4520a1f",
+    "owner_graph_fingerprint_sha256": "0042a591a1f0c312eef997be0f760345b99b578e6fd04bacc6283bdc4586686c",
     "gap_matrix": {
       "path": "ratchets/h2-5h-a-gap-matrix.v1.json",
-      "sha256": "c6ee2462151c5306e05c6bec4eda877b33afda11668d0ef2e51e3333843cfa43"
+      "sha256": "58aca26f9e6e7d4011a12e90f691ff8d390a9797d22f571f0b44a2ddb9b31712"
     },
-    "gap_matrix_fingerprint_sha256": "f9a1b788555653ed340be4df9bd9f6c05be7fce924e2269a65cc72bf192b4d4b",
+    "gap_matrix_fingerprint_sha256": "6fc16c6b59a306c2c0357dc2d6cfc31da459660046dcfd981e2897dc38ab3ce6",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "dd21658450c7672e0008eb364c9ab911f5239ebb9c5a20d98f9910dd4c8f70bd"
+      "sha256": "0022e2499a0cb8e16d572b6e4cfd7f4af6c293142e954c4e6c267eaeaad9d381"
     },
     "interpretation": "prerequisite-transition step 5 (manifest half): every architecture row dispositioned exactly once against the frozen owner graph and local-gap matrix; a row added to or removed from the map makes this manifest stale; it authorizes no production edit and activates nothing"
   },
@@ -407,20 +407,28 @@
     {
       "index": 34,
       "row_id": "E-PRINTER-BASE",
-      "disposition": "premise-unchanged",
-      "rationale": "downlevel output uses ES5 shapes the printer already prints",
-      "surfaces": [],
-      "capabilities": [],
-      "row_fingerprint_sha256": "cbae737d1e30e80c04744b81db6b50e588512ee14334eb63c7433b7f4a6aae67"
+      "disposition": "modified-requalify",
+      "rationale": "downlevel output uses ES5 shapes the printer already prints, but the row's named private context carrier is reshaped into the threaded EmitContext by the comment-scope packets (CS-2 landed the root and core pipeline); its hook-composition, no-checker-dependency, and immutable-planning invariants are preserved and requalify at the CS-6 final validation ref",
+      "surfaces": [
+        "comment-apis"
+      ],
+      "capabilities": [
+        "comment-scope-threading"
+      ],
+      "row_fingerprint_sha256": "56a2d7dd504fdfb9656f69def0ff9c1b0809e7a23e638580f68f59fb2df097af"
     },
     {
       "index": 35,
       "row_id": "E-PRINTER-G",
-      "disposition": "premise-unchanged",
-      "rationale": "the H2.5g printer facts are consumed unchanged",
-      "surfaces": [],
-      "capabilities": [],
-      "row_fingerprint_sha256": "546520baa08aa32d248eaf8602ee3e5633bfaf48561528c8669473038e60f1e8"
+      "disposition": "modified-requalify",
+      "rationale": "the H2.5g printer facts are consumed unchanged, but the row's named ExpressionEmissionContext additions are reshaped by the same comment-scope packets and requalify with them",
+      "surfaces": [
+        "comment-apis"
+      ],
+      "capabilities": [
+        "comment-scope-threading"
+      ],
+      "row_fingerprint_sha256": "afedc33ab376e5d36cbc80c6463349d7f941141ae41112b2c3fdc988067779ad"
     },
     {
       "index": 36,
@@ -538,8 +546,8 @@
   ],
   "summary": {
     "rows": 45,
-    "premise_unchanged": 16,
-    "modified_requalify": 15,
+    "premise_unchanged": 14,
+    "modified_requalify": 17,
     "activate": 10,
     "future_owned_fail_closed": 4,
     "proven_unreachable": 0,
@@ -547,5 +555,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "dispositions_fingerprint_sha256": "3c06c122025771c1532266e896eb8ed84221f1f546965908db0ea140872a316b"
+  "dispositions_fingerprint_sha256": "654a9b5066a259dfafac26bd8189958abbe6b2a758792f70c5d06c704b68e56a"
 }

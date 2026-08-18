@@ -8,7 +8,9 @@ use tsc_syntax::{
 };
 use tsc_types::{NodeFlags, ScriptTarget, TokenFlags};
 
-use crate::comment_cursor::{CommentCursor, CommentResume, CommentResumeError};
+use crate::comment_cursor::{
+    CommentCursor, CommentEmissionScope, CommentResume, CommentResumeError,
+};
 use crate::token_cursor::{
     FixedToken, TokenAnchor, TokenCommentBoundary, TokenCursor, TokenEmission, TokenLeadingSpace,
     TokenWriteKind,
@@ -530,21 +532,54 @@ impl ExpressionSyntaxContext {
     }
 }
 
-/// The syntax obligations of one expression edge and the ambient source
-/// comment container have different lifetimes. A child selects fresh grammar
-/// and ASI requirements while inheriting the container established by its
-/// enclosing comments phase.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-struct ExpressionEmissionContext {
+/// The syntax obligations of one expression edge and the ambient comment
+/// scope have different lifetimes. A child selects fresh grammar and ASI
+/// requirements while inheriting the complete comment scope established by
+/// its enclosing comments phase.
+///
+/// This is the Rust counterpart of tsc's per-node printer context: the
+/// comment half is the threaded [`CommentEmissionScope`] triple, replacing
+/// the closure variables that tsc saves and restores around every commented
+/// node. There is no `Default`; a zero scope is created only by
+/// [`EmitContext::file_root`] and the named transitional entries below.
+#[must_use]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct EmitContext {
     syntax: ExpressionSyntaxContext,
-    comment_container: Option<CommentRange>,
+    comments: CommentEmissionScope,
 }
 
-impl ExpressionEmissionContext {
-    const NORMAL: Self = Self {
-        syntax: ExpressionSyntaxContext::NORMAL,
-        comment_container: None,
-    };
+impl EmitContext {
+    /// The printer root: normal syntax obligations and the initial
+    /// `-1/-1/-1` comment scope. This is tsc's `createPrinter` state and is
+    /// constructed exactly once per emitted source file.
+    const fn file_root() -> Self {
+        Self {
+            syntax: ExpressionSyntaxContext::NORMAL,
+            comments: CommentEmissionScope::empty(),
+        }
+    }
+
+    /// A nested route that does not yet accept its parent's context.
+    ///
+    /// Every caller is a comment-scope route migration still owed by the
+    /// packets after CS-2; the name keeps the remaining sites greppable so
+    /// none can be forgotten when the contextless APIs are deleted.
+    const fn detached_transitional() -> Self {
+        Self {
+            syntax: ExpressionSyntaxContext::NORMAL,
+            comments: CommentEmissionScope::empty(),
+        }
+    }
+
+    /// A wrapper re-entry: the enclosing comment scope with the wrapper's
+    /// own computed container claimed, under fresh syntax obligations.
+    /// The wrapper's parentheses discharge every grammar and ASI duty of
+    /// the edge it replaces, so only the comment half survives it.
+    const fn for_wrapper(self, container: Option<CommentRange>) -> Self {
+        self.for_child(ExpressionSyntaxContext::NORMAL)
+            .with_claimed_container(container)
+    }
 
     const fn grammar(self) -> ExpressionGrammarContext {
         self.syntax.grammar
@@ -560,22 +595,47 @@ impl ExpressionEmissionContext {
                 grammar,
                 no_asi_left_edge: self.syntax.no_asi_left_edge,
             },
-            comment_container: self.comment_container,
+            comments: self.comments,
         }
     }
 
     const fn for_child(self, syntax: ExpressionSyntaxContext) -> Self {
         Self {
             syntax,
-            comment_container: self.comment_container,
+            comments: self.comments,
         }
     }
 
-    const fn with_comment_container(self, comment_container: Option<CommentRange>) -> Self {
+    const fn with_comments(self, comments: CommentEmissionScope) -> Self {
         Self {
             syntax: self.syntax,
-            comment_container,
+            comments,
         }
+    }
+
+    /// Apply the container a comments phase established for this node,
+    /// falling back to the inherited scope when the phase claims nothing.
+    ///
+    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: ce6bf342a94094cccc4bf56debcb99390c8e232705263609dfcf068589284ebb
+    /// tsc-span: _tsc.js:121007-121032
+    const fn with_claimed_container(self, container: Option<CommentRange>) -> Self {
+        match container {
+            Some(container) => self.with_comments(self.comments.claim_container_unit(container)),
+            None => self,
+        }
+    }
+
+    /// The claimed container in its stored range form, for the deferred
+    /// comment stores and the leading owned-prefix helpers.
+    const fn container_unit(self) -> Option<CommentRange> {
+        self.comments.container_unit()
+    }
+
+    /// The threaded comment scope, for the routes that carry ambient
+    /// comment state without the syntax half.
+    const fn comments(self) -> CommentEmissionScope {
+        self.comments
     }
 }
 
@@ -1305,7 +1365,7 @@ impl Printer {
             self.emit_transformed_node(
                 transformation,
                 emitted,
-                ExpressionEmissionContext::NORMAL,
+                EmitContext::file_root(),
                 &mut writer,
             )?;
             self.emit_trailing_comments_for_node(transformation, emitted, &mut writer)?;
@@ -1445,7 +1505,7 @@ impl Printer {
         &self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let mut deferred_source_comments = DeferredExpressionSourceCommentsState::default();
@@ -1467,7 +1527,7 @@ impl Printer {
         &self,
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         deferred_source_comments: &mut DeferredExpressionSourceCommentsState,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -2538,10 +2598,10 @@ impl Printer {
                 // Thread that ownership explicitly so a ranged initializer
                 // cannot claim the statement's trailing boundary first.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let comment_container = Self::comment_phase_established_container(owner)
-                    .or(expression_context.comment_container);
-                let declaration_context =
-                    expression_context.with_comment_container(comment_container);
+                let declaration_context = expression_context.with_claimed_container(
+                    Self::comment_phase_established_container(owner)
+                        .or(expression_context.container_unit()),
+                );
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
                 }
@@ -2564,7 +2624,7 @@ impl Printer {
                         transformation,
                         node,
                         declaration_list,
-                        declaration_context.comment_container,
+                        declaration_context.comments(),
                         writer,
                     )?;
                 }
@@ -2575,10 +2635,10 @@ impl Printer {
                 // A parsed list replaces the inherited container; a
                 // synthesized list keeps the statement container alive.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let comment_container = Self::comment_phase_established_container(owner)
-                    .or(expression_context.comment_container);
-                let declaration_context =
-                    expression_context.with_comment_container(comment_container);
+                let declaration_context = expression_context.with_claimed_container(
+                    Self::comment_phase_established_container(owner)
+                        .or(expression_context.container_unit()),
+                );
                 let flags = NodeFlags::from_bits(record.flags);
                 if flags.contains(NodeFlags::AWAIT_USING) {
                     writer.write_keyword("await");
@@ -2620,7 +2680,7 @@ impl Printer {
                     self.emit_leading_comments_for_delimited_list_start_in_container(
                         transformation,
                         declaration,
-                        declaration_context.comment_container,
+                        declaration_context.container_unit(),
                         writer,
                     )?;
                     self.emit_node_id_with_context(
@@ -2634,7 +2694,7 @@ impl Printer {
                         transformation,
                         node,
                         declaration,
-                        declaration_context.comment_container,
+                        declaration_context.comments(),
                     )? {
                         self.emit_trailing_comments_for_node(transformation, declaration, writer)?;
                     }
@@ -2645,10 +2705,10 @@ impl Printer {
                 // As above, only a declaration with its own source range
                 // replaces the ambient variable-statement container.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let comment_container = Self::comment_phase_established_container(owner)
-                    .or(expression_context.comment_container);
-                let initializer_context =
-                    expression_context.with_comment_container(comment_container);
+                let initializer_context = expression_context.with_claimed_container(
+                    Self::comment_phase_established_container(owner)
+                        .or(expression_context.container_unit()),
+                );
                 let name = data
                     .name
                     .and_then(|name| transformation.arena().node_ref(node.source(), name))
@@ -3172,7 +3232,7 @@ impl Printer {
                     transformation,
                     node,
                     initializer_node,
-                    expression_context.comment_container,
+                    expression_context.comments(),
                 )? {
                     self.emit_trailing_comments_for_node(transformation, initializer_node, writer)?;
                 }
@@ -5568,16 +5628,13 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         parent: TransformNode,
         child: TransformNode,
-        active_container: Option<CommentRange>,
+        active_scope: CommentEmissionScope,
     ) -> Result<bool, PrinterError> {
-        if let Some(container) = active_container {
+        if active_scope.container_unit().is_some() {
             let child_range = self.comment_range_for_node(transformation, child)?;
             if let SourceRange::Original(range) = child_range.range() {
-                return Ok(!Self::comment_container_retains_end(
-                    container,
-                    child_range.source(),
-                    range.end(),
-                ));
+                return Ok(!active_scope
+                    .retains_end(CommentCursor::new(child_range.source(), range.end())));
             }
         }
         self.child_trailing_comments_escape_parent_container(transformation, parent, child)
@@ -5597,7 +5654,7 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         parent: TransformNode,
         child: TransformNode,
-        active_container: Option<CommentRange>,
+        active_scope: CommentEmissionScope,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         // `NoTrailingComments` still establishes tsc's `containerEnd`, but
@@ -5622,7 +5679,7 @@ impl Printer {
             transformation,
             parent,
             child,
-            active_container,
+            active_scope,
         )? {
             return Ok(());
         }
@@ -5643,14 +5700,14 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         parent: TransformNode,
         child: TransformNode,
-        active_container: Option<CommentRange>,
+        active_scope: CommentEmissionScope,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_child_boundary_comments_before_parent_end(
             transformation,
             parent,
             child,
-            active_container,
+            active_scope,
             writer,
         )
     }
@@ -5849,7 +5906,7 @@ impl Printer {
         multi_line: bool,
         format: DelimitedListFormat,
         item_syntax: ExpressionSyntaxContext,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let source = parent.source();
@@ -5933,7 +5990,7 @@ impl Printer {
                 self.emit_list_element_end_comments_in_container(
                     transformation,
                     child,
-                    expression_context.comment_container,
+                    expression_context.comments(),
                     writer,
                 )?;
                 let emit_delimiter = index + 1 < count || trailing_comma;
@@ -6034,7 +6091,7 @@ impl Printer {
                 self.emit_list_element_end_comments_in_container(
                     transformation,
                     child,
-                    expression_context.comment_container,
+                    expression_context.comments(),
                     writer,
                 )?;
                 let emit_delimiter = index + 1 < count || trailing_comma;
@@ -6104,7 +6161,7 @@ impl Printer {
         prefer_new_line: bool,
         allow_trailing_comma: bool,
         item_syntax: ExpressionSyntaxContext,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         writer.write_punctuation(open);
@@ -7700,7 +7757,7 @@ impl Printer {
         source: TransformSourceId,
         arguments: Option<tsc_syntax::NodeArrayId>,
         multi_line: bool,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let (ids, synthesized_array) = arguments
@@ -7788,7 +7845,7 @@ impl Printer {
                 self.emit_list_element_end_comments_in_container(
                     transformation,
                     node,
-                    expression_context.comment_container,
+                    expression_context.comments(),
                     writer,
                 )?;
             }
@@ -7801,7 +7858,7 @@ impl Printer {
                 self.emit_delimited_list_end_comments_in_container(
                     transformation,
                     TransformNode::new(source, last),
-                    expression_context.comment_container,
+                    expression_context.comments(),
                     writer,
                 )?;
             }
@@ -7824,7 +7881,7 @@ impl Printer {
             id,
             parent,
             field,
-            ExpressionEmissionContext::NORMAL,
+            EmitContext::detached_transitional(),
             writer,
         )
     }
@@ -7847,7 +7904,7 @@ impl Printer {
             parent,
             token,
             child,
-            ExpressionEmissionContext::NORMAL,
+            EmitContext::detached_transitional(),
             writer,
         )
     }
@@ -7858,7 +7915,7 @@ impl Printer {
         parent: TransformNode,
         token: TokenEmission,
         child: TransformNode,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let outcome = self.emit_child_after_token_with_context_and_source_extent(
@@ -7881,7 +7938,7 @@ impl Printer {
         parent: TransformNode,
         token: TokenEmission,
         child: TransformNode,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let outcome = self.emit_child_after_token_with_context_and_source_extent(
@@ -7907,7 +7964,7 @@ impl Printer {
         parent: TransformNode,
         token: TokenEmission,
         child: TransformNode,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         extent: DeferredSourceCommentExtent,
         writer: &mut TextWriter,
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
@@ -7916,14 +7973,14 @@ impl Printer {
                 DeferredExpressionSourceComments::leading_only(
                     parent,
                     token,
-                    expression_context.comment_container,
+                    expression_context.container_unit(),
                 )
             }
             DeferredSourceCommentExtent::LeadingAndTrailing => {
                 DeferredExpressionSourceComments::leading_and_trailing(
                     parent,
                     token,
-                    expression_context.comment_container,
+                    expression_context.container_unit(),
                 )
             }
         };
@@ -7977,7 +8034,7 @@ impl Printer {
         id: Option<NodeId>,
         parent: SyntaxKind,
         field: &'static str,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let id = id.ok_or(PrinterError::MissingTransformedChild { parent, field })?;
@@ -7993,7 +8050,7 @@ impl Printer {
         parent_node: TransformNode,
         parent: SyntaxKind,
         field: &'static str,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         extent: DeferredSourceCommentExtent,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -8001,7 +8058,7 @@ impl Printer {
         let deferred = DeferredExpressionSourceComments::without_preceding_token(
             parent_node,
             extent,
-            expression_context.comment_container,
+            expression_context.container_unit(),
         );
         let outcome = self.emit_node_id_with_context_and_source_comments(
             transformation,
@@ -8033,7 +8090,7 @@ impl Printer {
         id: Option<NodeId>,
         parent: SyntaxKind,
         field: &'static str,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         deferred_source_comments: &mut DeferredExpressionSourceCommentsState,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -8053,7 +8110,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: NodeId,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         deferred_source_comments: &mut DeferredExpressionSourceCommentsState,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -8089,7 +8146,7 @@ impl Printer {
             transformation,
             source,
             id,
-            ExpressionEmissionContext::NORMAL,
+            EmitContext::detached_transitional(),
             writer,
         )
     }
@@ -8099,7 +8156,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: NodeId,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let node = transformation
@@ -8119,7 +8176,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: NodeId,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         deferred: DeferredExpressionSourceComments,
         writer: &mut TextWriter,
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
@@ -8162,7 +8219,7 @@ impl Printer {
             transformation,
             node,
             hint,
-            ExpressionEmissionContext::NORMAL,
+            EmitContext::detached_transitional(),
             writer,
         )
     }
@@ -8172,7 +8229,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         hint: EmitHint,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let outcome = self.emit_node_with_hint_and_source_comments(
@@ -8193,7 +8250,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         node: TransformNode,
         hint: EmitHint,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         mut deferred_source_comments: Option<DeferredExpressionSourceComments>,
         writer: &mut TextWriter,
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
@@ -8264,15 +8321,13 @@ impl Printer {
                         let inner_active_container = self.active_expression_comment_container(
                             transformation,
                             Some(&inner_comments),
-                            ExpressionEmissionContext::NORMAL
-                                .with_comment_container(active_container),
+                            expression_context.for_wrapper(active_container),
                             inner_owner,
                         )?;
                         self.emit_substituted_node_with_comments(
                             transformation,
                             substituted,
-                            ExpressionEmissionContext::NORMAL
-                                .with_comment_container(inner_active_container),
+                            expression_context.for_wrapper(inner_active_container),
                             inner_source_leading_phase,
                             writer,
                         )?;
@@ -8309,8 +8364,7 @@ impl Printer {
                         self.emit_substituted_node_with_comments(
                             transformation,
                             substituted,
-                            ExpressionEmissionContext::NORMAL
-                                .with_comment_container(active_container),
+                            expression_context.for_wrapper(active_container),
                             source_leading_phase,
                             writer,
                         )?;
@@ -8365,7 +8419,7 @@ impl Printer {
                     self.emit_substituted_node_with_comments(
                         transformation,
                         substituted,
-                        expression_context.with_comment_container(active_container),
+                        expression_context.with_claimed_container(active_container),
                         source_leading_phase,
                         writer,
                     )?;
@@ -8394,7 +8448,7 @@ impl Printer {
                 self.emit_substituted_node_with_comments(
                     transformation,
                     substituted,
-                    expression_context.with_comment_container(active_container),
+                    expression_context.with_claimed_container(active_container),
                     source_leading_phase,
                     writer,
                 )?;
@@ -8446,7 +8500,7 @@ impl Printer {
         &self,
         transformation: &mut TransformationResult<'_>,
         parenthesized: ParenthesizedNoAsiExpression,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         deferred_source_comments: Option<&DeferredExpressionSourceComments>,
         writer: &mut TextWriter,
     ) -> Result<Option<TrailingSourceCommentOwnership>, PrinterError> {
@@ -8470,7 +8524,7 @@ impl Printer {
                 self.emit_substituted_node_with_comments(
                     transformation,
                     wrapper,
-                    ExpressionEmissionContext::NORMAL.with_comment_container(active_container),
+                    expression_context.for_wrapper(active_container),
                     source_leading_phase,
                     writer,
                 )?;
@@ -8524,7 +8578,7 @@ impl Printer {
                     metadata_owner,
                     open,
                     inner,
-                    ExpressionEmissionContext::NORMAL.with_comment_container(active_container),
+                    expression_context.for_wrapper(active_container),
                     writer,
                 )?;
                 self.emit_token_with_comments(
@@ -8559,7 +8613,7 @@ impl Printer {
         &self,
         transformation: &mut TransformationResult<'_>,
         substituted: TransformNode,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         source_leading_phase: SourceLeadingCommentPhaseVisit,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -8583,7 +8637,7 @@ impl Printer {
         &self,
         transformation: &mut TransformationResult<'_>,
         substituted: TransformNode,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         deferred: DeferredExpressionSourceComments,
         writer: &mut TextWriter,
     ) -> Result<ExpressionSourceCommentsOutcome, PrinterError> {
@@ -9064,16 +9118,18 @@ impl Printer {
         container_range: CommentRange,
         owner: ExpressionCommentPhaseOwner,
     ) -> Result<Option<CommentResume>, PrinterError> {
-        if container_range.source() != owner.range.source() {
-            return Ok(None);
-        }
         let source_id = owner.range.source();
-        let (SourceRange::Original(parent_range), SourceRange::Original(owner_range)) =
-            (container_range.range(), owner.range.range())
-        else {
+        let SourceRange::Original(owner_range) = owner.range.range() else {
             return Ok(None);
         };
-        if parent_range.start() != owner_range.start() || parent_range.start() == parent_range.end()
+        // tsc's leading guard: source trivia at `pos` belongs to the
+        // enclosing container when the child starts exactly where that
+        // container was claimed.
+        //
+        // tsc-port: forEachLeadingCommentToEmit @6.0.3
+        // tsc-span: _tsc.js:121219-121233
+        if CommentEmissionScope::container_pos_of(container_range)
+            != Some(CommentCursor::new(source_id, owner_range.start()))
         {
             return Ok(None);
         }
@@ -9167,13 +9223,8 @@ impl Printer {
             .container
             .map(|container| self.expression_comment_container_range(transformation, container))
             .transpose()?
-            .is_some_and(|container| {
-                Self::comment_container_retains_end(
-                    container,
-                    owner.range.source(),
-                    owner_range.end(),
-                )
-            })
+            .and_then(CommentEmissionScope::container_end_of)
+            == Some(CommentCursor::new(owner.range.source(), owner_range.end()))
         {
             return Ok(Some(TrailingSourceCommentOwnership::RetainedByParent));
         }
@@ -10056,37 +10107,24 @@ impl Printer {
         }
     }
 
-    fn comment_container_retains_end(
-        container: CommentRange,
-        owner_source: TransformSourceId,
-        owner_end: SourceBytePosition,
-    ) -> bool {
-        container.source() == owner_source
-            && matches!(
-                container.range(),
-                SourceRange::Original(range)
-                    if range.start() != range.end() && range.end() == owner_end
-            )
-    }
-
     fn inherited_expression_comment_container(
         &self,
         transformation: &TransformationResult<'_>,
         deferred: Option<&DeferredExpressionSourceComments>,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
     ) -> Result<Option<CommentRange>, PrinterError> {
         deferred
             .and_then(|deferred| deferred.container)
             .map(|container| self.expression_comment_container_range(transformation, container))
             .transpose()
-            .map(|container| container.or(expression_context.comment_container))
+            .map(|container| container.or(expression_context.container_unit()))
     }
 
     fn active_expression_comment_container(
         &self,
         transformation: &TransformationResult<'_>,
         deferred: Option<&DeferredExpressionSourceComments>,
-        expression_context: ExpressionEmissionContext,
+        expression_context: EmitContext,
         owner: ExpressionCommentPhaseOwner,
     ) -> Result<Option<CommentRange>, PrinterError> {
         Ok(Self::comment_phase_established_container(owner).or(self
@@ -11114,14 +11152,19 @@ impl Printer {
         node: TransformNode,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_list_element_end_comments_in_container(transformation, node, None, writer)
+        self.emit_list_element_end_comments_in_container(
+            transformation,
+            node,
+            CommentEmissionScope::empty(),
+            writer,
+        )
     }
 
     fn emit_list_element_end_comments_in_container(
         &self,
         transformation: &TransformationResult<'_>,
         node: TransformNode,
-        ambient_container: Option<CommentRange>,
+        ambient_scope: CommentEmissionScope,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if self.options.remove_comments
@@ -11151,9 +11194,7 @@ impl Printer {
             return Ok(());
         };
         let position = range.end().value() as usize;
-        if !ambient_container.is_some_and(|container| {
-            Self::comment_container_retains_end(container, node.source(), range.end())
-        }) {
+        if !ambient_scope.retains_end(CommentCursor::new(node.source(), range.end())) {
             emit_source_trailing_comments_of_position(source.text(), position, writer);
         }
         emit_source_leading_comments_of_position(source.text(), position, &BTreeSet::new(), writer);
@@ -11168,7 +11209,7 @@ impl Printer {
         &self,
         transformation: &TransformationResult<'_>,
         last: TransformNode,
-        ambient_container: Option<CommentRange>,
+        ambient_scope: CommentEmissionScope,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if self.options.remove_comments {
@@ -11203,9 +11244,7 @@ impl Printer {
             .iter()
             .map(|comment| (comment.start, comment.end))
             .collect::<BTreeSet<_>>();
-        if !ambient_container.is_some_and(|container| {
-            Self::comment_container_retains_end(container, original.source(), range.end())
-        }) {
+        if !ambient_scope.retains_end(CommentCursor::new(original.source(), range.end())) {
             emit_source_trailing_comments_of_position(source.text(), start, writer);
         }
         emit_source_leading_comments_of_position(source.text(), start, &excluded, writer);
