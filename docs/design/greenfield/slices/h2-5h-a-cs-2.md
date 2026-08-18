@@ -233,7 +233,9 @@ Steps, in dependency order — each with its completion check:
    nothing; claiming preserves an (artificially constructed)
    declaration-list value while replacing the unit; the guard accepts a
    declaration-list end with no claimed unit. Check:
-   `cargo test -p tsc-emitter comment` green.
+   `cargo test -p tsc-rs-emitter --lib` green (the contracts join the
+   crate's already-registered `tests/unit/lib` module; see §6's allowed
+   files for why a new file is not an option).
 2. **`EmitContext` in `printer.rs`.** Rename
    `ExpressionEmissionContext` → `EmitContext`; replace the
    `comment_container` field with `comments: CommentEmissionScope`; drop
@@ -277,7 +279,7 @@ Steps, in dependency order — each with its completion check:
    Postcondition/check: workspace grep zero for
    `ExpressionEmissionContext`, `with_comment_container`, and
    `comment_container_retains_end`;
-   `cargo test -p tsc-emitter` fully green with **zero expected-string
+   `cargo test -p tsc-rs-emitter` fully green with **zero expected-string
    edits** — the reshape is proven byte-identical by the existing suite,
    then by the corpus gate.
 5. **Evidence and doc mint sequence** (§8): gap-matrix generator reviewed
@@ -392,7 +394,7 @@ stale aborts the packet for a design amendment.
 ## 9. Acceptance
 
 - **Focused tests** (edit-loop, written with the change):
-  `cargo test -p tsc-emitter` — the new scope unit contracts plus the
+  `cargo test -p tsc-rs-emitter` — the new scope unit contracts plus the
   complete existing emitter suite (topology, factory-transform, printer
   oracle/foundation, token-cursor, contracts) with zero expected-value
   edits.
