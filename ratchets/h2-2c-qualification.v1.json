@@ -48,11 +48,11 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "0336308c30c8a11798b1062670cc594ed53cec198643c580d47294d6dc9f7051"
+      "sha256": "de35919370142ab97ff40fb0a7bff7c2dc15cc700b8ed514f2e3b536db7e6c42"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "798fae41d527fb5568b89d42d25985346ebcdcb3bc41abd89e75a1f4472e4060"
+      "sha256": "bb17d32157351726c6449bd654343bffe62de1d21d3497bbcfd984a380090a32"
     }
   },
   "execution_contract": {
@@ -1150,5 +1150,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "8fd369699ae7b0f04ff5ff8f6edfd2e3e7a0a4739c31af34d501b1b4710b7c0d"
+  "qualification_fingerprint_sha256": "89b822156cd1013d981f809f0e1449296b667e649cc941b06b69e7eb253be334"
 }

@@ -421,6 +421,35 @@ stale aborts the packet for a design amendment.
    they are lineage scripts the local gate does not run and must not be
    "repaired" by a production packet — doing so would rewrite frozen
    historical evidence.
+5d. **Executed H2 qualification ladder and transition** — the remaining
+   links the gate walks, added by the same amendment flow once the
+   classification method reached its fixpoint. Rebound (every one fresh
+   at the trusted base, stale on the branch; every one re-deriving
+   **identical admitted/candidate/deferred counts**, so the accepted
+   sets are untouched):
+   `h2-transition` (its outputs `h2-profile-transition`,
+   `h2-candidate-dispositions`, and the owner-inventory pins),
+   `h2-1a-profile` (exact=241), the executed qualification artifacts
+   `h2-1a` (295/241/54), `h2-1b` (15/10/5), `h2-1c` (8/6/2),
+   `h2-1e` (6/4/2), `h2-2c` (6/6/0), `h2-2d` (9/9/0), `h2-3a` (1/1/0),
+   `h2-3c` (4/4/0), `h2-3d` (695 future-deferred), `h2-5d` (24/23/1),
+   `h2-5e` (41/40/1), `h2-5f` (8/8/0), and the `h2-5g-profile` re-mint
+   (exact=9196). Reviewed-hash consts embedded in generator sources
+   follow the established convergence precedent (`0d3f4a77`,
+   `5a0275bc`): surgical hash-literal updates in
+   `h2-1a-profile.mjs` (transition artifact + transition generator),
+   `h2-1b-qualification.mjs` (1a-profile), `h2-3c-qualification.mjs`
+   (candidate dispositions), `h2-3d-qualification.mjs` (candidate
+   dispositions + 3c), `h2-5g-profile.mjs` (5f-qualification +
+   1a-qualification), `h2-transition.mjs` (`INPUT_HASHES` for the H1
+   omissions and emit-qualification), and the five
+   `current_exact_promotions` occurrences of the 1a-qualification hash
+   in `.github/ci/contracts/h2-5g-profile.schema.json`. The bulk
+   verifier over every changed ratchet must report **pin-only diffs**
+   (hashes/fingerprints/lines/bytes; zero added, removed, or non-pin
+   leaves) — any other leaf aborts the packet. The `h2-5g-profile`
+   re-mint stales the six H2.5h-a artifacts of §8.5 a second time; they
+   re-mint in the same order with observations byte-identical.
 6. **Readiness artifacts:** re-pin `ratchets/fci-readiness/h2-5h-a.v1.json`
    `packet.sha256` (doc amendment); add
    `ratchets/fci-readiness/h2-5h-a-cs-2.v1.json` (status `ready`,
