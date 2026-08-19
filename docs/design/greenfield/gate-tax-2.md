@@ -97,7 +97,8 @@ ALL=(h1-rust-omission-inventory h1-emit-qualification h2-transition
      h2-5h-a-owner-graph h2-5h-a-gap-matrix h2-5h-a-dispositions
      h2-5h-a-es2015-generators-witnesses)
 obs() { case "$1" in h2-5g-qualification|h2-5h-a-foundation|h2-5h-a-comment-scope-witnesses|h2-5h-a-es2015-generators-witnesses) return 0;; *) return 1;; esac; }
-art() { case "$1" in h1-rust-omission-inventory) echo ratchets/h1-rust-omissions.v1.json;; *) echo "ratchets/$1.v1.json";; esac; }
+# art() serves only the four OBS names, whose artifacts are all regular.
+art() { echo "ratchets/$1.v1.json"; }
 rc=0
 for round in 1 2 3 4 5; do
   stale=()
