@@ -2719,7 +2719,7 @@ impl Printer {
                     transformation,
                     node.source(),
                     data.modifiers,
-                    expression_context,
+                    declaration_context,
                     writer,
                 )? {
                     writer.write_space(" ");
@@ -2844,7 +2844,7 @@ impl Printer {
                     data.name,
                     SyntaxKind::VariableDeclaration,
                     "name",
-                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    initializer_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.initializer {
