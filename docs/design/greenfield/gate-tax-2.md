@@ -134,6 +134,16 @@ Never run this loop while `cargo xtask ci` is running: artifact
 writes trip the gate's stability marker and abort the running phase.
 The read-only packet checker is the only sanctioned gate overlap.
 
+**Static gate BEFORE any walk (trivial-miss discipline).** On any
+train whose diff touches Rust, run the gate's cheap static prefix —
+`cargo xtask ci --lane rust` (build, fmt, clippy, workspace audit;
+minutes) — BEFORE spending a walk. The 2026-08-19 CS-3 repair paid a
+full converge, then a full gate that died 3.5 minutes in on a
+workspace-audit layout violation, then a second full walk: a
+trivial non-bug miss must never cost a full re-observation cycle.
+The walk driver's other cheap pre-checks (const sync, envelope
+digest) run inside the loop already.
+
 ## 4. Accepted, documented costs
 
 - The gate's 5g freshness proof (20–40 min) re-runs whenever anything
