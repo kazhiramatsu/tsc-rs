@@ -711,8 +711,12 @@ function writeFileAtomic(absolutePath, contents) {
   // the artifact, which doubles as the adoption store (gate-tax 2 R4-1).
   const temporary = path.join(
     path.dirname(absolutePath),
-    `.${path.basename(absolutePath)}.${process.pid}.tmp`,
+    `.${path.basename(absolutePath)}.tmp`,
   );
+  // The name is deterministic (no pid): artifact writes are
+  // single-writer by walk discipline, and a stray temp left by a kill
+  // is overwritten by the next successful write instead of
+  // accumulating as untracked residue.
   fs.writeFileSync(temporary, contents);
   fs.renameSync(temporary, absolutePath);
 }

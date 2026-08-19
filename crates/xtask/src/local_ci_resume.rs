@@ -319,6 +319,12 @@ impl LocalCiResume {
                 })
                 .map(|binding| binding.relative.clone())
                 .collect::<Vec<_>>();
+            if stale.is_empty() {
+                // receipt_is_reusable declined transiently (an I/O error
+                // during its own re-hash) but the recheck sees valid
+                // outputs; never print an empty list.
+                return "recorded outputs could not be re-verified".to_owned();
+            }
             return format!("recorded output(s) changed on disk: {}", stale.join(", "));
         }
         let Some(previous) = &self.previous else {
