@@ -106,7 +106,7 @@ zero-width text ranges, `with_remove_comments` — measured).
 | full-pipeline byte reproduction of the 30 frozen cases | marker/topology assertions only | `missing` | this packet, step 1 |
 | permanent zero-contextless enforcement | CS-5 grep acceptance | `missing` | this packet, step 2 |
 | four-row qualification | `active-unqualified` | `partial-or-stale` | this packet, step 3 |
-| production gaps the suite surfaced (front-run first execution: **26/30 byte-identical**) | four enumerated divergences, each frozen with full byte evidence and held in the suite's shrink-only `KNOWN_DIVERGENCES` list: (1) `delimited-list-starts--adjacent-negative` — a non-final delimited-list element's trailing comment is dropped; (2) `emit-flag-suppression--positive` — `NO_NESTED_COMMENTS` does not suppress the block subtree's comments; (3)+(4) `synthetic-comments-alongside-source--{positive,adjacent-negative}` — the statement route lacks the synthetic leading/trailing comment phases | `missing` — real production work, byte-precisely specified | this packet, step 1 (fix production per case id; the list may only shrink and empties before §8) |
+| production gaps the suite surfaced (front-run first execution: 26/30; **after the front-run fixes: 29/30 byte-identical**) | three of the four fixed under the frozen bytes' authority: (1) non-final list-element end comments now emit before their delimiter through `emit_list_element_end_comments_in_container` on the single-line generic branch and the parsed call-argument branch (the multiline branch and the parameter/import engines already owned the mechanism — the first attempt double-emitted there and two frozen contracts caught it); (3)+(4) statement-position synthetic comment phases landed as composed `emit_statement_{leading,trailing}_comments` wrappers on the root statement flows only (a shared-wrapper placement double-fired the retained-arrow token adapter's own synthetic phase — caught by its frozen contract; block/case extension is train scope with witness coverage). Remaining: (2) `emit-flag-suppression--positive` — the `NO_NESTED_COMMENTS` mechanism, design-gated per §12.5 | `missing` (1 case) | this packet's train: §12.5 decision + the fix; the shrink-only list is at 1 and empties before §8 |
 
 ## 6. Implementation sequence
 
@@ -202,8 +202,19 @@ separate reviewed decision); the CS-3/4/5 prohibitions remain.
    (source maps are off and the precedent drive parses under a plain
    name with an arena `SourceFileId`), confirm on the first fixture
    run.
-4. The audit rule's exact table shape inside workspace_maintenance.rs
-   (follow the inline-tests rule's structure).
+4. ~~The audit rule's exact table shape~~ — landed (step 2,
+   emitter-scoped retired-identifier check with a two-polarity canary).
+5. **`NO_NESTED_COMMENTS` mechanism decision (the one remaining design
+   choice):** tsc implements it as printer-mutable `commentsDisabled`
+   state around the flagged node's subtree; the port's comment
+   architecture is immutable threading with no printer-global comment
+   state (the CS-2 row invariant). Two faithful options: (a) thread a
+   suppression bit through `EmitContext` — architecture-consistent but
+   every comment-phase entry point gains the consult; (b) a
+   `Cell`-based printer depth counter — minimal diff, but the first
+   printer-global comment state since CS-2. Decide at the train's
+   design-gate pass; the witness case `emit-flag-suppression--positive`
+   is the acceptance either way.
 
 ## 13. Readiness summary (draft)
 

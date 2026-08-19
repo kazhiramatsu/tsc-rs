@@ -1147,7 +1147,7 @@ impl Printer {
                     emitted_statement,
                 ));
             }
-            self.emit_leading_comments_for_node(transformation, statement, &mut writer)?;
+            self.emit_statement_leading_comments(transformation, statement, &mut writer)?;
             self.emit_node_id_with_context(
                 transformation,
                 source_id,
@@ -1155,7 +1155,7 @@ impl Printer {
                 EmitContext::file_root(),
                 &mut writer,
             )?;
-            self.emit_trailing_comments_for_node(transformation, statement, &mut writer)?;
+            self.emit_statement_trailing_comments(transformation, statement, &mut writer)?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
         }
@@ -1325,13 +1325,13 @@ impl Printer {
                     &mut writer,
                 )?;
             } else if had_previous_original_statement && emitted_has_original_range {
-                self.emit_leading_comments_for_node_after_sibling(
+                self.emit_statement_leading_comments_after_sibling(
                     transformation,
                     emitted,
                     &mut writer,
                 )?;
             } else {
-                self.emit_leading_comments_for_node(transformation, emitted, &mut writer)?;
+                self.emit_statement_leading_comments(transformation, emitted, &mut writer)?;
             }
             self.record_node_hook(
                 transformation,
@@ -1346,7 +1346,7 @@ impl Printer {
                 EmitContext::file_root(),
                 &mut writer,
             )?;
-            self.emit_trailing_comments_for_node(transformation, emitted, &mut writer)?;
+            self.emit_statement_trailing_comments(transformation, emitted, &mut writer)?;
             self.record_node_hook(
                 transformation,
                 recorder,
@@ -6555,6 +6555,15 @@ impl Printer {
                 )?;
                 let emit_delimiter = index + 1 < count || trailing_comma;
                 if emit_delimiter {
+                    // emitNodeListItems emits the item's end comments before
+                    // its delimiter, so a non-final element's same-line
+                    // trailing comment sits between the element and its comma.
+                    self.emit_list_element_end_comments_in_container(
+                        transformation,
+                        child,
+                        expression_context.comments(),
+                        writer,
+                    )?;
                     writer.write_punctuation(",");
                     pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
                         transformation,
@@ -8400,6 +8409,18 @@ impl Printer {
                     )?;
                 }
             } else {
+                if !synthesized_array {
+                    // Parsed argument arrays: the previous element's end
+                    // comments (f(1 /*t1*/, 2)) emit before its comma,
+                    // exactly as emitNodeListItems orders them; the
+                    // synthesized branch already runs this per element.
+                    self.emit_list_element_end_comments_in_container(
+                        transformation,
+                        TransformNode::new(source, ids[index - 1]),
+                        expression_context.comments(),
+                        writer,
+                    )?;
+                }
                 writer.write_punctuation(",");
                 self.emit_delimited_trailing_comments_for_node(
                     transformation,
@@ -9401,6 +9422,50 @@ impl Printer {
             None,
             writer,
         )
+    }
+
+    /// The statement-position comments phase: the source leading walk and
+    /// claims, then the node's synthetic leading comments — tsc's
+    /// emitLeadingCommentsOfNode tail order, outside the claim gate
+    /// (token and expression routes own their synthetic phases separately).
+    ///
+    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-span: _tsc.js:121030
+    fn emit_statement_leading_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_leading_comments_for_node(transformation, node, writer)?;
+        self.emit_synthetic_leading_comments_for_node(transformation, node, writer)
+    }
+
+    fn emit_statement_leading_comments_after_sibling(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_leading_comments_for_node_after_sibling(transformation, node, writer)?;
+        self.emit_synthetic_leading_comments_for_node(transformation, node, writer)
+    }
+
+    /// The statement-position trailing phase: synthetic trailing comments
+    /// first, then the source trailing walk — tsc's
+    /// emitTrailingCommentsOfNode head order, before the source-side
+    /// suppressions.
+    ///
+    /// tsc-port: emitTrailingCommentsOfNode @6.0.3
+    /// tsc-span: _tsc.js:121036
+    fn emit_statement_trailing_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_synthetic_trailing_comments_for_node(transformation, node, writer)?;
+        self.emit_trailing_comments_for_node(transformation, node, writer)
     }
 
     fn emit_leading_comments_for_delimited_list_start(
