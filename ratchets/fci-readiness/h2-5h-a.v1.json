@@ -5,7 +5,7 @@
  "trustedBase": "a2343fcfaae0c74c9dcec5d12fda5931c564be36",
  "packet": {
   "path": "docs/design/greenfield/slices/h2-5h-a.md",
-  "sha256": "4b79e4ab0ec2737b2885542fbc5da23c5118fe6e1e931e61dde02e8d82e241b8"
+  "sha256": "d18293c9b0c69607de8b21b0514a989d31d4ac08942c5ebe1d7a69443b537a34"
  },
  "predecessors": [],
  "allowedPaths": [
