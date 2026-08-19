@@ -92,10 +92,17 @@ ALL=(h1-rust-omission-inventory h1-emit-qualification h2-transition
      h2-1c-qualification h2-1e-qualification h2-2c-qualification
      h2-2d-qualification h2-3a-qualification h2-3c-qualification
      h2-3d-qualification h2-5d-qualification h2-5e-qualification
-     h2-5f-qualification h2-5g-profile h2-5g-qualification
+     h2-5f-qualification h2-5g-qualification h2-5g-profile
      h2-5h-a-foundation h2-5h-a-comment-scope-witnesses
      h2-5h-a-owner-graph h2-5h-a-gap-matrix h2-5h-a-dispositions
      h2-5h-a-es2015-generators-witnesses)
+# ORDER IS LOAD-BEARING: the 5g profile READS and pins the 5g
+# qualification artifact, so qualification must re-mint FIRST. The
+# historical converge script listed them inverted and self-healed
+# through its check-then-fix rounds; a single-pass walk with the
+# inverted order commits a torn profile->qualification edge (caught
+# live 2026-08-19: both the CS-3 and GT2 walk commits carried the
+# tear, surfaced only by the gate's own 5g-profile --check).
 obs() { case "$1" in h2-5g-qualification|h2-5h-a-foundation|h2-5h-a-comment-scope-witnesses|h2-5h-a-es2015-generators-witnesses) return 0;; *) return 1;; esac; }
 # art() serves only the four OBS names, whose artifacts are all regular.
 art() { echo "ratchets/$1.v1.json"; }
