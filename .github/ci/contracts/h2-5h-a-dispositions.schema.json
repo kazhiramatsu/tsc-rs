@@ -125,8 +125,8 @@
       ],
       "properties": {
         "rows": { "const": 45 },
-        "premise_unchanged": { "const": 14 },
-        "modified_requalify": { "const": 17 },
+        "premise_unchanged": { "const": 13 },
+        "modified_requalify": { "const": 18 },
         "activate": { "const": 10 },
         "future_owned_fail_closed": { "const": 4 },
         "proven_unreachable": { "const": 0 },

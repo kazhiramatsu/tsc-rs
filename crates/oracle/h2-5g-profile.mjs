@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "1499b87c8de2068be5aab1fdccca3f0f25d10e4f88ac61f9281697aa65551f3a";
+  "166836d28bce2d82241f0fa2dbd6174a60a9a78de8d4753d4e60853f17719e8b";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -78,7 +78,7 @@ const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
   ["profile", "ratchets/h2-5f-profile.v1.json", "68c3c6ed51afa36a668aaf6fa338df2da87d6cbaad4740be25e8733be1a45b73"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "5240d913021125724efcc8be0bb850fe634c5ac56852e260cba96598abacbfe6"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "386f2794ae65438df29b6239c5f88e9e56af7ecf0361e7b77ec7d8a57d19ca80"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
   ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "d5593648869817dde318c26156d4b025298fbdf411fe67a5c89fc6df8e5a715d"],
   ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "72773d747b0da690f7614dbd16755e5904aa617cc8e0b0f6573edbb84c342fad"],
@@ -154,6 +154,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/emitter/tests/integration/writer_position_contract.rs",
   "crates/emitter/tests/source_comment_topology_contract.rs",
   "crates/emitter/tests/unit/builtins/tests.rs",
+  "crates/emitter/tests/unit/comment_scope_predicate/tests.rs",
   "crates/emitter/tests/unit/lib/tests.rs",
   "crates/emitter/tests/unit/token_cursor/tests.rs",
   "crates/harness/src/lib.rs",
@@ -525,7 +526,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 236,
+    runtimeInputSet.size === 237,
     "H2.5g runtime input identity changed",
   );
 

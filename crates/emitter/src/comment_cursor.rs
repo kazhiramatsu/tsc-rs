@@ -67,16 +67,11 @@ impl CommentCursor {
 /// trailing ordering structurally — a node's trailing phase always
 /// consults the parent's scope value.
 ///
-/// The claimed container is stored as the paired unit the qualified
-/// H2.5g projection established: both sides claimed together, and a
-/// synthesized or zero-width inherited range accepted as a
-/// present-but-inert claim that matches no guard. tsc's claim gate
-/// rejects those ranges, and the per-side independent claim conditions
-/// split this unit into per-side values when the expression-route
-/// migration lands under the frozen witnesses; the two `-1` sentinels
-/// are the `None` view results until then. There is deliberately no
-/// `Default`: the zero scope exists only at the printer's root and its
-/// named transitional entries.
+/// The three container values are stored per side, exactly tsc's model:
+/// a claim may set one side and leave the other inherited, and a range
+/// that fails the claim gate sets neither, so the enclosing scope stays
+/// active. There is deliberately no `Default`: the zero scope exists
+/// only at the printer's root and its named transitional entries.
 ///
 /// tsc-port: containerPos/containerEnd/declarationListContainerEnd @6.0.3
 /// tsc-span: _tsc.js:116957-116959 (state); _tsc.js:121007-121052
@@ -84,7 +79,8 @@ impl CommentCursor {
 #[must_use]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct CommentEmissionScope {
-    container: Option<CommentRange>,
+    container_pos: Option<CommentCursor>,
+    container_end: Option<CommentCursor>,
     declaration_list_container_end: Option<CommentCursor>,
 }
 
@@ -94,33 +90,37 @@ impl CommentEmissionScope {
     /// routes receive the threaded value.
     pub(crate) const fn empty() -> Self {
         Self {
-            container: None,
+            container_pos: None,
+            container_end: None,
             declaration_list_container_end: None,
         }
     }
 
-    /// A container claim in the qualified paired form: the claimed unit
-    /// is replaced while the declaration-list end keeps the inherited
-    /// value, exactly the shape `emitLeadingCommentsOfNode` writes for a
-    /// non-list node.
-    pub(crate) const fn claim_container_unit(self, container: CommentRange) -> Self {
+    /// Apply one claim: each `Some` side replaces the container value,
+    /// each `None` side keeps the inherited one, and the declaration-list
+    /// end always survives — exactly the per-side writes of
+    /// `emitLeadingCommentsOfNode` for a non-list node.
+    pub(crate) const fn claim_sides(
+        self,
+        pos: Option<CommentCursor>,
+        end: Option<CommentCursor>,
+    ) -> Self {
         Self {
-            container: Some(container),
+            container_pos: match pos {
+                Some(pos) => Some(pos),
+                None => self.container_pos,
+            },
+            container_end: match end {
+                Some(end) => Some(end),
+                None => self.container_end,
+            },
             declaration_list_container_end: self.declaration_list_container_end,
         }
     }
 
-    /// The claimed unit in its stored range form, for the deferred
-    /// comment stores and the leading owned-prefix helpers. Presence
-    /// alone is meaningful: an inert claim still suppresses the
-    /// parent-end fallback at the trailing escape checks.
-    pub(crate) const fn container_unit(self) -> Option<CommentRange> {
-        self.container
-    }
-
     /// The `containerPos` view of one container range, read by the leading
-    /// guard (`pos !== containerPos`). Inert containers have no position:
-    /// tsc would never have claimed them.
+    /// guard (`pos !== containerPos`). Ranges the claim gate rejects have
+    /// no position: tsc would never have claimed them.
     pub(crate) fn container_pos_of(container: CommentRange) -> Option<CommentCursor> {
         match container.range() {
             SourceRange::Original(range) if range.start() != range.end() => {
@@ -130,9 +130,9 @@ impl CommentEmissionScope {
         }
     }
 
-    /// The `containerEnd` view of one container range, read by the trailing
-    /// guard. Shared with the per-node deferred-container check so the
-    /// ambient guard and the per-node guard cannot drift apart.
+    /// The `containerEnd` view of one container range, shared between the
+    /// ambient guard and the per-side claim producer so they cannot drift
+    /// apart.
     pub(crate) fn container_end_of(container: CommentRange) -> Option<CommentCursor> {
         match container.range() {
             SourceRange::Original(range) if range.start() != range.end() => {
@@ -142,9 +142,15 @@ impl CommentEmissionScope {
         }
     }
 
-    /// The `containerEnd` view of the claimed unit.
-    pub(crate) fn container_end(self) -> Option<CommentCursor> {
-        self.container.and_then(Self::container_end_of)
+    /// The active `containerPos`, for the leading guard.
+    pub(crate) const fn container_pos(self) -> Option<CommentCursor> {
+        self.container_pos
+    }
+
+    /// The active `containerEnd`, for the trailing guard and the
+    /// container-presence gates.
+    pub(crate) const fn container_end(self) -> Option<CommentCursor> {
+        self.container_end
     }
 
     /// tsc's trailing guard: trivia at `end` stays with the enclosing
@@ -152,7 +158,7 @@ impl CommentEmissionScope {
     /// already ends there (`end !== containerEnd && end !==
     /// declarationListContainerEnd`, inverted).
     pub(crate) fn retains_end(self, end: CommentCursor) -> bool {
-        self.container_end() == Some(end) || self.declaration_list_container_end == Some(end)
+        self.container_end == Some(end) || self.declaration_list_container_end == Some(end)
     }
 
     /// Arbitrary scope state for unit contracts only. Production code has
@@ -160,11 +166,13 @@ impl CommentEmissionScope {
     /// route migration lands, no `declaration_list_container_end` writer.
     #[cfg(test)]
     pub(crate) const fn contract_scope(
-        container: Option<CommentRange>,
+        container_pos: Option<CommentCursor>,
+        container_end: Option<CommentCursor>,
         declaration_list_container_end: Option<CommentCursor>,
     ) -> Self {
         Self {
-            container,
+            container_pos,
+            container_end,
             declaration_list_container_end,
         }
     }

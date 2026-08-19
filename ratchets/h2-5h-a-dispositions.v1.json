@@ -7,26 +7,26 @@
   "plan_step": "prerequisite-transition-step-5-manifest",
   "generator": {
     "path": "crates/oracle/h2-5h-a-dispositions.mjs",
-    "sha256": "b1601ad1ded1aa5521b8207e7bf2a30e9f6ae1bf21a4f44edcd8c48308ea5272"
+    "sha256": "07c759eecece9c824454af1649901ba2d3715caacb2a45897d84c2aaa9a20b20"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
-    "sha256": "c552558856b189906975d0bafa14920e2286d6ec04d91a1ebcde03cdc4e74376"
+    "sha256": "97c45c81accdf78dbde16a2b7208b689a23e7859638b4fa3012d6aa5bce0b2a8"
   },
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "4a2b9d799b539056f5e633485af79bc605625a37782a3a7aaf47782ed58297fb"
+      "sha256": "b20a394f9689e626005a8aebf22cbef0e9eec4e1b91b108a62b14c5778317ed0"
     },
-    "owner_graph_fingerprint_sha256": "0042a591a1f0c312eef997be0f760345b99b578e6fd04bacc6283bdc4586686c",
+    "owner_graph_fingerprint_sha256": "b354de7d4a695334725a23458124092c2af642312c3d40f5a18b4a414395bead",
     "gap_matrix": {
       "path": "ratchets/h2-5h-a-gap-matrix.v1.json",
-      "sha256": "58aca26f9e6e7d4011a12e90f691ff8d390a9797d22f571f0b44a2ddb9b31712"
+      "sha256": "f41d2a588a13b512f284717e67dad2c01aecf0ddad4fdcf14a934541fd8c25a7"
     },
-    "gap_matrix_fingerprint_sha256": "6fc16c6b59a306c2c0357dc2d6cfc31da459660046dcfd981e2897dc38ab3ce6",
+    "gap_matrix_fingerprint_sha256": "913d189dd691b383361c187ad4af04918c81e9e1365f9ebe9660604c79de90dc",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "0022e2499a0cb8e16d572b6e4cfd7f4af6c293142e954c4e6c267eaeaad9d381"
+      "sha256": "a6c9eccb4d3837d6ec14892b9e45752b026cca4bd778341c309128f09ad2b5cd"
     },
     "interpretation": "prerequisite-transition step 5 (manifest half): every architecture row dispositioned exactly once against the frozen owner graph and local-gap matrix; a row added to or removed from the map makes this manifest stale; it authorizes no production edit and activates nothing"
   },
@@ -433,11 +433,15 @@
     {
       "index": 36,
       "row_id": "E-COMMENTS-G",
-      "disposition": "premise-unchanged",
-      "rationale": "the qualified comment projections keep their H2.5g scope",
-      "surfaces": [],
-      "capabilities": [],
-      "row_fingerprint_sha256": "9b98becab22c86db04d6c8a160270ddd86a4373e3e3cbb34e3e6c9419c1f7a7a"
+      "disposition": "modified-requalify",
+      "rationale": "its qualified expression/list comment projections are re-expressed on the per-side scope by the comment-scope packets (CS-3); cursor/resume semantics preserved; requalifies at the CS-6 final validation ref",
+      "surfaces": [
+        "comment-apis"
+      ],
+      "capabilities": [
+        "comment-scope-threading"
+      ],
+      "row_fingerprint_sha256": "ecfa3f6a36aea0a0a1a68441aca4cd8a8f31a281975718c954659824677cb7d0"
     },
     {
       "index": 37,
@@ -546,8 +550,8 @@
   ],
   "summary": {
     "rows": 45,
-    "premise_unchanged": 14,
-    "modified_requalify": 17,
+    "premise_unchanged": 13,
+    "modified_requalify": 18,
     "activate": 10,
     "future_owned_fail_closed": 4,
     "proven_unreachable": 0,
@@ -555,5 +559,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "dispositions_fingerprint_sha256": "654a9b5066a259dfafac26bd8189958abbe6b2a758792f70c5d06c704b68e56a"
+  "dispositions_fingerprint_sha256": "33c19b7da023e99d6ec740c571b74ee7eab80d446ec5da58bf25bbf4d588f693"
 }

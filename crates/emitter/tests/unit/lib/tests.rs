@@ -338,30 +338,60 @@ impl ScopeFixture {
 }
 
 #[test]
-fn empty_scope_retains_no_end_and_exposes_no_views() {
+fn empty_scope_retains_no_end_and_exposes_no_sides() {
     let fixture = ranged_fixture("scope.ts");
     let scope = CommentEmissionScope::empty();
-    assert_eq!(scope.container_unit(), None);
+    assert_eq!(scope.container_pos(), None);
     assert_eq!(scope.container_end(), None);
     assert!(!scope.retains_end(fixture.cursor(14)));
 }
 
 #[test]
-fn claimed_scope_retains_exactly_its_end_cursor() {
+fn per_side_claim_replaces_some_sides_and_inherits_none_sides() {
     let fixture = ranged_fixture("scope.ts");
-    let container = fixture.range(8, 14);
-    let scope = CommentEmissionScope::empty().claim_container_unit(container);
-    assert_eq!(scope.container_unit(), Some(container));
-    assert_eq!(
-        CommentEmissionScope::container_pos_of(container),
-        Some(fixture.cursor(8)),
-    );
-    assert_eq!(scope.container_end(), Some(fixture.cursor(14)));
-    assert!(scope.retains_end(fixture.cursor(14)));
-    assert!(!scope.retains_end(fixture.cursor(8)));
+    let outer = CommentEmissionScope::empty()
+        .claim_sides(Some(fixture.cursor(0)), Some(fixture.cursor(21)));
+    assert_eq!(outer.container_pos(), Some(fixture.cursor(0)));
+    assert_eq!(outer.container_end(), Some(fixture.cursor(21)));
+    assert!(outer.retains_end(fixture.cursor(21)));
 
-    // The same byte offset in a different source is a different cursor:
-    // the guard must not match across sources.
+    // One-sided claim: the unclaimed side stays with the enclosing scope.
+    let leading_only = outer.claim_sides(Some(fixture.cursor(8)), None);
+    assert_eq!(leading_only.container_pos(), Some(fixture.cursor(8)));
+    assert_eq!(leading_only.container_end(), Some(fixture.cursor(21)));
+    let trailing_only = outer.claim_sides(None, Some(fixture.cursor(14)));
+    assert_eq!(trailing_only.container_pos(), Some(fixture.cursor(0)));
+    assert!(trailing_only.retains_end(fixture.cursor(14)));
+    assert!(!trailing_only.retains_end(fixture.cursor(21)));
+
+    // A claim with neither side is pure inheritance.
+    assert_eq!(outer.claim_sides(None, None), outer);
+}
+
+#[test]
+fn range_views_reject_synthesized_and_zero_width_ranges() {
+    let fixture = ranged_fixture("scope.ts");
+    let synthesized = CommentRange::new(fixture.source, SourceRange::Synthesized);
+    let zero_width = fixture.range(14, 14);
+    for container in [synthesized, zero_width] {
+        assert_eq!(CommentEmissionScope::container_pos_of(container), None);
+        assert_eq!(CommentEmissionScope::container_end_of(container), None);
+    }
+    // An at-zero start with a positive end is a real claimable pair: the
+    // upstream outer gate passes through the end side.
+    let at_zero = fixture.range(0, 14);
+    assert_eq!(
+        CommentEmissionScope::container_pos_of(at_zero),
+        Some(fixture.cursor(0)),
+    );
+    assert_eq!(
+        CommentEmissionScope::container_end_of(at_zero),
+        Some(fixture.cursor(14)),
+    );
+}
+
+#[test]
+fn guards_never_match_across_sources() {
     let first = parse_source_file(
         "scope.ts",
         "/* a */ value; other;\n",
@@ -378,55 +408,45 @@ fn claimed_scope_retains_exactly_its_end_cursor() {
     let first_source = arena.add_source(&first, None);
     let second_source = arena.add_source(&second, None);
     assert_ne!(first_source, second_source);
-    let first_container = CommentRange::new(
-        first_source,
-        SourceRange::Original(
-            SourceByteRange::new(8, 14, first.positions()).expect("source range"),
-        ),
+    let scope = CommentEmissionScope::empty().claim_sides(
+        Some(CommentCursor::new(
+            first_source,
+            SourceBytePosition::new(8, first.positions()).expect("source position"),
+        )),
+        Some(CommentCursor::new(
+            first_source,
+            SourceBytePosition::new(14, first.positions()).expect("source position"),
+        )),
     );
-    let cross_scope = CommentEmissionScope::empty().claim_container_unit(first_container);
     let foreign_end = CommentCursor::new(
         second_source,
         SourceBytePosition::new(14, second.positions()).expect("source position"),
     );
-    assert!(!cross_scope.retains_end(foreign_end));
+    assert!(!scope.retains_end(foreign_end));
 }
 
 #[test]
-fn synthesized_and_zero_width_claims_are_present_but_inert() {
+fn claiming_preserves_the_declaration_list_end() {
     let fixture = ranged_fixture("scope.ts");
-    let synthesized = CommentRange::new(fixture.source, SourceRange::Synthesized);
-    let zero_width = fixture.range(14, 14);
-    for container in [synthesized, zero_width] {
-        let scope = CommentEmissionScope::empty().claim_container_unit(container);
-        assert_eq!(scope.container_unit(), Some(container));
-        assert_eq!(CommentEmissionScope::container_pos_of(container), None);
-        assert_eq!(scope.container_end(), None);
-        assert!(!scope.retains_end(fixture.cursor(14)));
-        assert_eq!(CommentEmissionScope::container_end_of(container), None);
-    }
-}
-
-#[test]
-fn claiming_replaces_the_unit_and_preserves_the_declaration_list_end() {
-    let fixture = ranged_fixture("scope.ts");
-    let inherited =
-        CommentEmissionScope::contract_scope(Some(fixture.range(0, 21)), Some(fixture.cursor(14)));
-    let claimed = inherited.claim_container_unit(fixture.range(8, 13));
-    assert_eq!(claimed.container_unit(), Some(fixture.range(8, 13)));
+    let inherited = CommentEmissionScope::contract_scope(
+        Some(fixture.cursor(0)),
+        Some(fixture.cursor(21)),
+        Some(fixture.cursor(14)),
+    );
+    let claimed = inherited.claim_sides(Some(fixture.cursor(8)), Some(fixture.cursor(13)));
     assert_eq!(claimed.container_end(), Some(fixture.cursor(13)));
     assert!(claimed.retains_end(fixture.cursor(13)));
     assert!(!claimed.retains_end(fixture.cursor(21)));
-    // The declaration-list end survives the claim, exactly the non-list
+    // The declaration-list end survives every claim, exactly the non-list
     // shape of tsc's emitLeadingCommentsOfNode.
     assert!(claimed.retains_end(fixture.cursor(14)));
 }
 
 #[test]
-fn declaration_list_end_guards_without_a_claimed_unit() {
+fn declaration_list_end_guards_without_a_claimed_container() {
     let fixture = ranged_fixture("scope.ts");
-    let scope = CommentEmissionScope::contract_scope(None, Some(fixture.cursor(14)));
-    assert_eq!(scope.container_unit(), None);
+    let scope = CommentEmissionScope::contract_scope(None, None, Some(fixture.cursor(14)));
+    assert_eq!(scope.container_pos(), None);
     assert_eq!(scope.container_end(), None);
     assert!(scope.retains_end(fixture.cursor(14)));
     assert!(!scope.retains_end(fixture.cursor(13)));

@@ -141,11 +141,15 @@ Prerequisite-transition progress:
   ([CS-2](h2-5h-a-cs-2.md) §8): landing the threaded comment scope
   reshapes the private printer context carrier the `E-PRINTER-BASE`
   and `E-PRINTER-G` rows name, so both moved `premise-unchanged` ->
-  `modified-requalify` (counts now 14 premise-unchanged / 17
+  `modified-requalify` (counts then 14 premise-unchanged / 17
   modified-requalify / 10 activate / 4 future-owned-fail-closed / 0
-  proven-unreachable, undispositioned still 0 by construction). The
-  manifest remains this slice's; each production packet owns its own
-  amendment through its own design gate.
+  proven-unreachable, undispositioned still 0 by construction).
+  **Amended 2026-08-19 by the CS-3 packet** ([CS-3](h2-5h-a-cs-3.md)
+  §8): the per-side route migration re-expresses `E-COMMENTS-G`'s
+  qualified expression/list projections, so that row moved
+  `premise-unchanged` -> `modified-requalify` (counts now 13 / 18 / 10
+  / 4 / 0, undispositioned 0). The manifest remains this slice's; each
+  production packet owns its own amendment through its own design gate.
 - Step 6 **complete (2026-08-18)**: the W-H2.5H ES2015/Generators
   witness set is frozen at
   `ratchets/h2-5h-a-es2015-generators-witnesses.v1.json` (generator

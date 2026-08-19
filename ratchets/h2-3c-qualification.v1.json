@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-3c-qualification.mjs",
-    "sha256": "77d4620c0d95a7daebd1975a68e2e7bde10f0aab292b4b37564a39fa8f20d0cf"
+    "sha256": "25c310c24d610dbf66ad72011c4f736fc82714f098d251e44c7bce0e174e1af3"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-3c-qualification.schema.json",
@@ -1605,5 +1605,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "96697134a163f8a2797c7846a5301bd49193d9f27095604cc1d267120224c936"
+  "qualification_fingerprint_sha256": "d1db47a456fb2c0b4d3768bd0181a237383724f79f7ba783facdf04710f7d217"
 }
