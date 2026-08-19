@@ -1159,7 +1159,13 @@ impl Printer {
                 ));
             }
             self.emit_leading_comments_for_node(transformation, statement, &mut writer)?;
-            self.emit_node_id(transformation, source_id, expression, &mut writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                source_id,
+                expression,
+                EmitContext::file_root(),
+                &mut writer,
+            )?;
             self.emit_trailing_comments_for_node(transformation, statement, &mut writer)?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
@@ -1717,21 +1723,29 @@ impl Printer {
                 }
             }
             NodeData::JsxElement(data) => {
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.opening_element,
                     SyntaxKind::JsxElement,
                     "opening_element",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
-                self.emit_jsx_children(transformation, node.source(), data.children, writer)?;
-                self.emit_required_node(
+                self.emit_jsx_children(
+                    transformation,
+                    node.source(),
+                    data.children,
+                    expression_context,
+                    writer,
+                )?;
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.closing_element,
                     SyntaxKind::JsxElement,
                     "closing_element",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
@@ -1743,12 +1757,14 @@ impl Printer {
                     data.tag_name,
                     SyntaxKind::JsxSelfClosingElement,
                     "tag_name",
+                    expression_context,
                     writer,
                 )?;
                 self.emit_type_arguments(
                     transformation,
                     node.source(),
                     data.type_arguments,
+                    expression_context,
                     writer,
                 )?;
                 if let Some(tag_name) = data
@@ -1758,33 +1774,42 @@ impl Printer {
                     self.emit_trailing_comments_for_node(transformation, tag_name, writer)?;
                 }
                 writer.write_space(" ");
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.attributes,
                     SyntaxKind::JsxSelfClosingElement,
                     "attributes",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 writer.write_punctuation("/>");
                 Ok(())
             }
             NodeData::JsxFragment(data) => {
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.opening_fragment,
                     SyntaxKind::JsxFragment,
                     "opening_fragment",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
-                self.emit_jsx_children(transformation, node.source(), data.children, writer)?;
-                self.emit_required_node(
+                self.emit_jsx_children(
+                    transformation,
+                    node.source(),
+                    data.children,
+                    expression_context,
+                    writer,
+                )?;
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.closing_fragment,
                     SyntaxKind::JsxFragment,
                     "closing_fragment",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
@@ -1796,12 +1821,14 @@ impl Printer {
                     data.tag_name,
                     SyntaxKind::JsxOpeningElement,
                     "tag_name",
+                    expression_context,
                     writer,
                 )?;
                 self.emit_type_arguments(
                     transformation,
                     node.source(),
                     data.type_arguments,
+                    expression_context,
                     writer,
                 )?;
                 if let Some(tag_name) = data
@@ -1826,12 +1853,13 @@ impl Printer {
                 if has_attributes {
                     writer.write_space(" ");
                 }
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.attributes,
                     SyntaxKind::JsxOpeningElement,
                     "attributes",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 writer.write_punctuation(">");
@@ -1845,21 +1873,27 @@ impl Printer {
                     data.tag_name,
                     SyntaxKind::JsxClosingElement,
                     "tag_name",
+                    expression_context,
                     writer,
                 )?;
                 writer.write_punctuation(">");
                 Ok(())
             }
-            NodeData::JsxAttributes(data) => {
-                self.emit_jsx_attributes(transformation, node.source(), data.properties, writer)
-            }
+            NodeData::JsxAttributes(data) => self.emit_jsx_attributes(
+                transformation,
+                node.source(),
+                data.properties,
+                expression_context,
+                writer,
+            ),
             NodeData::JsxAttribute(data) => {
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::JsxAttribute,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.initializer {
@@ -1928,7 +1962,13 @@ impl Printer {
                             writer,
                         )?;
                     }
-                    self.emit_node_id(transformation, node.source(), dot_dot_dot, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        dot_dot_dot,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 if let Some(expression) = expression {
                     if data.dot_dot_dot_token.is_none() {
@@ -1940,7 +1980,13 @@ impl Printer {
                             writer,
                         )?;
                     }
-                    self.emit_node_id(transformation, node.source(), expression.node(), writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        expression.node(),
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 let close_anchor = expression
                     .map(|expression| {
@@ -1963,21 +2009,23 @@ impl Printer {
                 Ok(())
             }
             NodeData::JsxNamespacedName(data) => {
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.namespace,
                     SyntaxKind::JsxNamespacedName,
                     "namespace",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 writer.write_punctuation(":");
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::JsxNamespacedName,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
@@ -1989,12 +2037,13 @@ impl Printer {
                 self.write_original_without_leading_trivia_verbatim(transformation, node, writer)
             }
             NodeData::TemplateExpression(data) => {
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.head,
                     SyntaxKind::TemplateExpression,
                     "head",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 self.emit_node_array(
@@ -2002,6 +2051,7 @@ impl Printer {
                     node.source(),
                     data.template_spans,
                     "",
+                    expression_context,
                     writer,
                 )
             }
@@ -2060,19 +2110,26 @@ impl Printer {
                     // leading comments of the template-middle/tail token.
                     self.emit_leading_comments_for_node(transformation, literal, writer)?;
                 }
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.literal,
                     SyntaxKind::TemplateSpan,
                     "literal",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
             NodeData::ImportDeclaration(data) => {
                 let import_anchor =
                     self.token_after_modifiers_cursor(transformation, node, data.modifiers)?;
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 let import_keyword = self.emit_token_with_comments(
@@ -2102,7 +2159,13 @@ impl Printer {
                         prefix,
                         writer,
                     )?;
-                    self.emit_node_id(transformation, node.source(), clause_id, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        clause_id,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     writer.write_space(" ");
                     module_prefix = self.emit_space_prefixed_token_with_comments(
                         transformation,
@@ -2133,7 +2196,13 @@ impl Printer {
                     prefix,
                     writer,
                 )?;
-                self.emit_node_id(transformation, node.source(), module_id, writer)?;
+                self.emit_node_id_with_context(
+                    transformation,
+                    node.source(),
+                    module_id,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 let mut semicolon_owner = module;
                 if let Some(attributes_id) = data.attributes {
                     let attributes = transformation
@@ -2142,7 +2211,13 @@ impl Printer {
                         .ok_or(PrinterError::UnknownStatement(attributes_id.0))?;
                     writer.write_space(" ");
                     self.emit_leading_comments_for_node(transformation, attributes, writer)?;
-                    self.emit_node_id(transformation, node.source(), attributes_id, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        attributes_id,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     semicolon_owner = attributes;
                 }
                 self.emit_trailing_block_comments_before_semicolon(
@@ -2194,7 +2269,13 @@ impl Printer {
                             writer,
                         )?;
                     }
-                    self.emit_identifier_name(transformation, node.source(), name_id, writer)?;
+                    self.emit_identifier_name_with_context(
+                        transformation,
+                        node.source(),
+                        name_id,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     if data.named_bindings.is_some() {
                         let comma = self.emit_token_with_comments(
                             transformation,
@@ -2240,7 +2321,13 @@ impl Printer {
                     )?;
                 }
                 if let Some(bindings) = data.named_bindings {
-                    self.emit_node_id(transformation, node.source(), bindings, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        bindings,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 Ok(())
             }
@@ -2276,18 +2363,23 @@ impl Printer {
                         writer,
                     )?;
                 }
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::NamespaceImport,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
-            NodeData::NamedImports(data) => {
-                self.emit_named_import_or_export_list(transformation, node, data.elements, writer)
-            }
+            NodeData::NamedImports(data) => self.emit_named_import_or_export_list(
+                transformation,
+                node,
+                data.elements,
+                expression_context,
+                writer,
+            ),
             NodeData::ImportSpecifier(data) => {
                 if data.is_type_only {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
@@ -2301,6 +2393,7 @@ impl Printer {
                     data.property_name,
                     data.name,
                     SyntaxKind::ImportSpecifier,
+                    expression_context,
                     writer,
                 )
             }
@@ -2313,7 +2406,13 @@ impl Printer {
                 }
                 let export_anchor =
                     self.token_after_modifiers_cursor(transformation, node, data.modifiers)?;
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 let export_keyword = self.emit_token_with_comments(
@@ -2343,7 +2442,13 @@ impl Printer {
                         prefix,
                         writer,
                     )?;
-                    self.emit_node_id(transformation, node.source(), clause_id, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        clause_id,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     semicolon_owner = Some(clause);
                     TokenAnchor::from(self.original_node_end_cursor(transformation, clause)?)
                 } else {
@@ -2380,7 +2485,13 @@ impl Printer {
                         prefix,
                         writer,
                     )?;
-                    self.emit_node_id(transformation, node.source(), module_id, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        module_id,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     semicolon_owner = Some(module);
                 }
                 if let Some(attributes_id) = data.attributes {
@@ -2390,7 +2501,13 @@ impl Printer {
                         .ok_or(PrinterError::UnknownStatement(attributes_id.0))?;
                     writer.write_space(" ");
                     self.emit_leading_comments_for_node(transformation, attributes, writer)?;
-                    self.emit_node_id(transformation, node.source(), attributes_id, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        attributes_id,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     semicolon_owner = Some(attributes);
                 }
                 if let Some(semicolon_owner) = semicolon_owner {
@@ -2427,12 +2544,13 @@ impl Printer {
                 )
             }
             NodeData::ImportAttribute(data) => {
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::ImportAttribute,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 writer.write_punctuation(":");
@@ -2451,18 +2569,23 @@ impl Printer {
                         writer,
                     )?;
                 }
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.value,
                     SyntaxKind::ImportAttribute,
                     "value",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
-            NodeData::NamedExports(data) => {
-                self.emit_named_import_or_export_list(transformation, node, data.elements, writer)
-            }
+            NodeData::NamedExports(data) => self.emit_named_import_or_export_list(
+                transformation,
+                node,
+                data.elements,
+                expression_context,
+                writer,
+            ),
             NodeData::NamespaceExport(data) => {
                 let asterisk = self.emit_token_with_comments(
                     transformation,
@@ -2495,12 +2618,13 @@ impl Printer {
                         writer,
                     )?;
                 }
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::NamespaceExport,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
@@ -2517,13 +2641,20 @@ impl Printer {
                     data.property_name,
                     data.name,
                     SyntaxKind::ExportSpecifier,
+                    expression_context,
                     writer,
                 )
             }
             NodeData::ExportAssignment(data) => {
                 let export_anchor =
                     self.token_after_modifiers_cursor(transformation, node, data.modifiers)?;
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 let export_keyword = self.emit_token_with_comments(
@@ -2584,7 +2715,13 @@ impl Printer {
                 let (pos, end) = Self::established_container_sides(owner);
                 let declaration_context = expression_context
                     .with_comments(expression_context.comments().claim_sides(pos, end));
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 let declaration_list = data.declaration_list.and_then(|declaration_list| {
@@ -2701,12 +2838,13 @@ impl Printer {
                         parent: SyntaxKind::VariableDeclaration,
                         field: "name",
                     })?;
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::VariableDeclaration,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.initializer {
@@ -2806,24 +2944,32 @@ impl Printer {
                         field: "name",
                     })?;
                 if let Some(dot_dot_dot) = data.dot_dot_dot_token {
-                    self.emit_node_id(transformation, node.source(), dot_dot_dot, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        dot_dot_dot,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 if let Some(property_name) = data.property_name {
-                    self.emit_identifier_name(
+                    self.emit_identifier_name_with_context(
                         transformation,
                         node.source(),
                         property_name,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                     writer.write_punctuation(":");
                     writer.write_space(" ");
                 }
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::BindingElement,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.initializer {
@@ -3171,15 +3317,22 @@ impl Printer {
                 writer,
             ),
             NodeData::PropertyAssignment(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::PropertyAssignment,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 writer.write_punctuation(":");
@@ -3224,15 +3377,22 @@ impl Printer {
                 Ok(())
             }
             NodeData::ShorthandPropertyAssignment(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::ShorthandPropertyAssignment,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.object_assignment_initializer {
@@ -3266,7 +3426,14 @@ impl Printer {
                 };
                 writer.write_keyword(keyword);
                 writer.write_space(" ");
-                self.emit_node_array(transformation, node.source(), data.types, ", ", writer)
+                self.emit_node_array(
+                    transformation,
+                    node.source(),
+                    data.types,
+                    ", ",
+                    expression_context,
+                    writer,
+                )
             }
             NodeData::ExpressionWithTypeArguments(data) => {
                 // tsc emits every heritage expression through
@@ -3296,6 +3463,7 @@ impl Printer {
                         node.source(),
                         data.type_arguments,
                         ", ",
+                        expression_context,
                         writer,
                     )?;
                     writer.write_punctuation(">");
@@ -3312,33 +3480,36 @@ impl Printer {
             }
             NodeData::JSDocNullableType(data) => {
                 writer.write_punctuation("?");
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.r#type,
                     SyntaxKind::JSDocNullableType,
                     "type",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
             NodeData::JSDocNonNullableType(data) => {
                 writer.write_punctuation("!");
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.r#type,
                     SyntaxKind::JSDocNonNullableType,
                     "type",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
             NodeData::JSDocOptionalType(data) => {
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.r#type,
                     SyntaxKind::JSDocOptionalType,
                     "type",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 writer.write_punctuation("=");
@@ -3346,12 +3517,13 @@ impl Printer {
             }
             NodeData::JSDocVariadicType(data) => {
                 writer.write_punctuation("...");
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.r#type,
                     SyntaxKind::JSDocVariadicType,
                     "type",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
@@ -3384,20 +3556,44 @@ impl Printer {
                 )
             }
             NodeData::FunctionDeclaration(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 writer.write_keyword("function");
                 if let Some(asterisk) = data.asterisk_token {
-                    self.emit_node_id(transformation, node.source(), asterisk, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        asterisk,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 if let Some(name) = data.name {
                     writer.write_space(" ");
-                    self.emit_identifier_name(transformation, node.source(), name, writer)?;
+                    self.emit_identifier_name_with_context(
+                        transformation,
+                        node.source(),
+                        name,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 } else {
                     writer.write_space(" ");
                 }
-                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                self.emit_parameter_list(
+                    transformation,
+                    node.source(),
+                    data.parameters,
+                    expression_context,
+                    writer,
+                )?;
                 if let Some(body) = data.body {
                     writer.write_space(" ");
                     self.emit_node_id_with_context(
@@ -3411,31 +3607,73 @@ impl Printer {
                 Ok(())
             }
             NodeData::FunctionExpression(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 writer.write_keyword("function");
                 if let Some(asterisk) = data.asterisk_token {
-                    self.emit_node_id(transformation, node.source(), asterisk, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        asterisk,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 if let Some(name) = data.name {
                     writer.write_space(" ");
-                    self.emit_identifier_name(transformation, node.source(), name, writer)?;
+                    self.emit_identifier_name_with_context(
+                        transformation,
+                        node.source(),
+                        name,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 } else {
                     writer.write_space(" ");
                 }
-                self.emit_parameter_list(transformation, node.source(), data.parameters, writer)?;
+                self.emit_parameter_list(
+                    transformation,
+                    node.source(),
+                    data.parameters,
+                    expression_context,
+                    writer,
+                )?;
                 if let Some(body) = data.body {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        body,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 Ok(())
             }
             NodeData::ArrowFunction(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
-                self.emit_arrow_parameter_list(transformation, node, &data, writer)?;
+                self.emit_arrow_parameter_list(
+                    transformation,
+                    node,
+                    &data,
+                    expression_context,
+                    writer,
+                )?;
                 writer.write_space(" ");
                 // `emitArrowFunctionHead` emits the retained token node
                 // itself. That node passes through the ordinary comments
@@ -3447,9 +3685,12 @@ impl Printer {
                     .equals_greater_than_token
                     .and_then(|token| transformation.arena().node_ref(node.source(), token))
                 {
-                    Some(token) => {
-                        self.emit_retained_arrow_token_with_comments(transformation, token, writer)?
-                    }
+                    Some(token) => self.emit_retained_arrow_token_with_comments(
+                        transformation,
+                        token,
+                        expression_context,
+                        writer,
+                    )?,
                     None => {
                         writer.write_operator("=>");
                         TokenEmission::new(TokenCursor::Synthetic, None)
@@ -3492,18 +3733,31 @@ impl Printer {
                         parent: SyntaxKind::Parameter,
                         field: "name",
                     })?;
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 if let Some(rest) = data.dot_dot_dot_token {
-                    self.emit_node_id(transformation, node.source(), rest, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        rest,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::Parameter,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.initializer {
@@ -3547,6 +3801,7 @@ impl Printer {
                 data.heritage_clauses,
                 data.members,
                 false,
+                expression_context,
                 writer,
             ),
             NodeData::ClassExpression(data) => self.emit_class(
@@ -3558,20 +3813,28 @@ impl Printer {
                 data.heritage_clauses,
                 data.members,
                 true,
+                expression_context,
                 writer,
             ),
             NodeData::ClassStaticBlockDeclaration(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 writer.write_keyword("static");
                 writer.write_space(" ");
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.body,
                     SyntaxKind::ClassStaticBlockDeclaration,
                     "body",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
@@ -3583,15 +3846,22 @@ impl Printer {
                         parent: SyntaxKind::PropertyDeclaration,
                         field: "name",
                     })?;
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::PropertyDeclaration,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 if let Some(initializer) = data.initializer {
@@ -3628,7 +3898,13 @@ impl Printer {
                 Ok(())
             }
             NodeData::Constructor(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 writer.write_keyword("constructor");
@@ -3638,27 +3914,47 @@ impl Printer {
                     data.type_parameters,
                     data.parameters,
                     data.r#type,
+                    expression_context,
                     writer,
                 )?;
                 if let Some(body) = data.body {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        body,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 Ok(())
             }
             NodeData::MethodDeclaration(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 if let Some(asterisk) = data.asterisk_token {
-                    self.emit_node_id(transformation, node.source(), asterisk, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        asterisk,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::MethodDeclaration,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 self.emit_signature_head(
@@ -3667,26 +3963,40 @@ impl Printer {
                     data.type_parameters,
                     data.parameters,
                     data.r#type,
+                    expression_context,
                     writer,
                 )?;
                 if let Some(body) = data.body {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        body,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 Ok(())
             }
             NodeData::GetAccessor(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 writer.write_keyword("get");
                 writer.write_space(" ");
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::GetAccessor,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 self.emit_signature_head(
@@ -3695,26 +4005,40 @@ impl Printer {
                     data.type_parameters,
                     data.parameters,
                     data.r#type,
+                    expression_context,
                     writer,
                 )?;
                 if let Some(body) = data.body {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        body,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 Ok(())
             }
             NodeData::SetAccessor(data) => {
-                if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
+                if self.emit_modifiers(
+                    transformation,
+                    node.source(),
+                    data.modifiers,
+                    expression_context,
+                    writer,
+                )? {
                     writer.write_space(" ");
                 }
                 writer.write_keyword("set");
                 writer.write_space(" ");
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.name,
                     SyntaxKind::SetAccessor,
                     "name",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 self.emit_signature_head(
@@ -3723,11 +4047,18 @@ impl Printer {
                     data.type_parameters,
                     data.parameters,
                     data.r#type,
+                    expression_context,
                     writer,
                 )?;
                 if let Some(body) = data.body {
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), body, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        body,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 Ok(())
             }
@@ -3759,7 +4090,14 @@ impl Printer {
                     writer,
                 )?;
                 if let Some(initializer) = initializer {
-                    self.emit_child_after_token(transformation, node, open, initializer, writer)?;
+                    self.emit_child_after_token_with_context(
+                        transformation,
+                        node,
+                        open,
+                        initializer,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 let first_semicolon_anchor = initializer
                     .map(|initializer| self.original_node_end_cursor(transformation, initializer))
@@ -3776,11 +4114,12 @@ impl Printer {
                 )?;
                 if let Some(condition) = condition {
                     writer.write_space(" ");
-                    self.emit_child_after_token(
+                    self.emit_child_after_token_with_context(
                         transformation,
                         node,
                         first_semicolon,
                         condition,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                 }
@@ -3799,11 +4138,12 @@ impl Printer {
                 )?;
                 if let Some(incrementor) = incrementor {
                     writer.write_space(" ");
-                    self.emit_child_after_token(
+                    self.emit_child_after_token_with_context(
                         transformation,
                         node,
                         second_semicolon,
                         incrementor,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
                 }
@@ -3825,6 +4165,7 @@ impl Printer {
                     node,
                     data.statement,
                     close,
+                    expression_context,
                     writer,
                 )
             }
@@ -3856,7 +4197,14 @@ impl Printer {
                     parent: SyntaxKind::ForInStatement,
                     field: "initializer",
                 })?;
-                self.emit_child_after_token(transformation, node, open, initializer, writer)?;
+                self.emit_child_after_token_with_context(
+                    transformation,
+                    node,
+                    open,
+                    initializer,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 let in_keyword = self.emit_for_binding_keyword_with_comments(
                     transformation,
                     node,
@@ -3870,7 +4218,14 @@ impl Printer {
                     parent: SyntaxKind::ForInStatement,
                     field: "expression",
                 })?;
-                self.emit_child_after_token(transformation, node, in_keyword, expression, writer)?;
+                self.emit_child_after_token_with_context(
+                    transformation,
+                    node,
+                    in_keyword,
+                    expression,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 let close = self.emit_token_with_comments(
                     transformation,
                     node,
@@ -3884,6 +4239,7 @@ impl Printer {
                     node,
                     data.statement,
                     close,
+                    expression_context,
                     writer,
                 )
             }
@@ -3904,7 +4260,13 @@ impl Printer {
                 )?;
                 writer.write_space(" ");
                 if let Some(await_modifier) = data.await_modifier {
-                    self.emit_node_id(transformation, node.source(), await_modifier, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        await_modifier,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     writer.write_space(" ");
                 }
                 let open = self.emit_token_with_comments(
@@ -3919,7 +4281,14 @@ impl Printer {
                     parent: SyntaxKind::ForOfStatement,
                     field: "initializer",
                 })?;
-                self.emit_child_after_token(transformation, node, open, initializer, writer)?;
+                self.emit_child_after_token_with_context(
+                    transformation,
+                    node,
+                    open,
+                    initializer,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 let of_keyword = self.emit_for_binding_keyword_with_comments(
                     transformation,
                     node,
@@ -3933,7 +4302,14 @@ impl Printer {
                     parent: SyntaxKind::ForOfStatement,
                     field: "expression",
                 })?;
-                self.emit_child_after_token(transformation, node, of_keyword, expression, writer)?;
+                self.emit_child_after_token_with_context(
+                    transformation,
+                    node,
+                    of_keyword,
+                    expression,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 let close = self.emit_token_with_comments(
                     transformation,
                     node,
@@ -3947,6 +4323,7 @@ impl Printer {
                     node,
                     data.statement,
                     close,
+                    expression_context,
                     writer,
                 )
             }
@@ -3985,12 +4362,13 @@ impl Printer {
                         writer,
                     )?;
                 }
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.expression,
                     SyntaxKind::IfStatement,
                     "expression",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 let close_cursor = expression
@@ -4005,7 +4383,13 @@ impl Printer {
                     false,
                     writer,
                 )?;
-                self.emit_embedded_statement(transformation, node, data.then_statement, writer)?;
+                self.emit_embedded_statement(
+                    transformation,
+                    node,
+                    data.then_statement,
+                    expression_context,
+                    writer,
+                )?;
                 if let Some(else_statement) = data.else_statement {
                     let else_anchor = then_statement
                         .map(|then_statement| {
@@ -4037,12 +4421,19 @@ impl Printer {
                         });
                     if else_is_if {
                         writer.write_space(" ");
-                        self.emit_node_id(transformation, node.source(), else_statement, writer)
+                        self.emit_node_id_with_context(
+                            transformation,
+                            node.source(),
+                            else_statement,
+                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                            writer,
+                        )
                     } else {
                         self.emit_embedded_statement(
                             transformation,
                             node,
                             Some(else_statement),
+                            expression_context,
                             writer,
                         )
                     }
@@ -4082,12 +4473,13 @@ impl Printer {
                         writer,
                     )?;
                 }
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.expression,
                     SyntaxKind::SwitchStatement,
                     "expression",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 let close_cursor = expression
@@ -4103,18 +4495,23 @@ impl Printer {
                     writer,
                 )?;
                 writer.write_space(" ");
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.case_block,
                     SyntaxKind::SwitchStatement,
                     "case_block",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
-            NodeData::CaseBlock(data) => {
-                self.emit_case_block(transformation, node, data.clauses, writer)
-            }
+            NodeData::CaseBlock(data) => self.emit_case_block(
+                transformation,
+                node,
+                data.clauses,
+                expression_context,
+                writer,
+            ),
             NodeData::CaseClause(data) => {
                 let expression = data.expression.and_then(|expression| {
                     transformation.arena().node_ref(node.source(), expression)
@@ -4139,12 +4536,13 @@ impl Printer {
                         writer,
                     )?;
                 }
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.expression,
                     SyntaxKind::CaseClause,
                     "expression",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 let colon_cursor = expression
@@ -4165,6 +4563,7 @@ impl Printer {
                     node.source(),
                     data.statements,
                     colon,
+                    expression_context,
                     writer,
                 )
             }
@@ -4191,6 +4590,7 @@ impl Printer {
                     node.source(),
                     data.statements,
                     colon,
+                    expression_context,
                     writer,
                 )
             }
@@ -4205,7 +4605,13 @@ impl Printer {
                 )?;
                 if let Some(label) = data.label {
                     writer.write_space(" ");
-                    self.emit_identifier_name(transformation, node.source(), label, writer)?;
+                    self.emit_identifier_name_with_context(
+                        transformation,
+                        node.source(),
+                        label,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     if let Some(label) = transformation.arena().node_ref(node.source(), label) {
                         self.emit_jump_label_comments_before_terminator(
                             transformation,
@@ -4229,7 +4635,13 @@ impl Printer {
                 )?;
                 if let Some(label) = data.label {
                     writer.write_space(" ");
-                    self.emit_identifier_name(transformation, node.source(), label, writer)?;
+                    self.emit_identifier_name_with_context(
+                        transformation,
+                        node.source(),
+                        label,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     if let Some(label) = transformation.arena().node_ref(node.source(), label) {
                         self.emit_jump_label_comments_before_terminator(
                             transformation,
@@ -4246,12 +4658,13 @@ impl Printer {
                 let label = data
                     .label
                     .and_then(|label| transformation.arena().node_ref(node.source(), label));
-                self.emit_required_identifier_name(
+                self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
                     data.label,
                     SyntaxKind::LabeledStatement,
                     "label",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 let colon_cursor = label
@@ -4267,12 +4680,13 @@ impl Printer {
                     writer,
                 )?;
                 writer.write_space(" ");
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.statement,
                     SyntaxKind::LabeledStatement,
                     "statement",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
@@ -4303,7 +4717,14 @@ impl Printer {
                     false,
                     writer,
                 )?;
-                self.emit_child_after_token(transformation, node, open, expression, writer)?;
+                self.emit_child_after_token_with_context(
+                    transformation,
+                    node,
+                    open,
+                    expression,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 let close = self.emit_token_with_comments(
                     transformation,
                     node,
@@ -4317,6 +4738,7 @@ impl Printer {
                     node,
                     data.statement,
                     close,
+                    expression_context,
                     writer,
                 )
             }
@@ -4405,6 +4827,7 @@ impl Printer {
                     self.original_node_start_cursor(transformation, node)?
                         .into(),
                     data.expression,
+                    expression_context,
                     writer,
                 )?;
                 self.emit_embedded_statement_after_token(
@@ -4412,6 +4835,7 @@ impl Printer {
                     node,
                     data.statement,
                     close,
+                    expression_context,
                     writer,
                 )
             }
@@ -4441,6 +4865,7 @@ impl Printer {
                     node,
                     Some(statement),
                     do_keyword,
+                    expression_context,
                     writer,
                 )?;
                 // emitDoStatement 118654-118663: ordinary compiler
@@ -4458,6 +4883,7 @@ impl Printer {
                     self.original_node_end_cursor(transformation, statement_node)?
                         .into(),
                     data.expression,
+                    expression_context,
                     writer,
                 )?;
                 writer.write_trailing_semicolon(";");
@@ -4479,12 +4905,13 @@ impl Printer {
                         parent: SyntaxKind::TryStatement,
                         field: "try_block",
                     })?;
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     Some(try_block),
                     SyntaxKind::TryStatement,
                     "try_block",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
                 let try_block = transformation
@@ -4508,7 +4935,13 @@ impl Printer {
                         catch_clause,
                         writer,
                     )?;
-                    self.emit_node_id(transformation, node.source(), catch_clause.node(), writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        catch_clause.node(),
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     preceding_clause = catch_clause;
                 }
                 if let Some(finally_block) = data.finally_block {
@@ -4531,7 +4964,13 @@ impl Printer {
                         writer,
                     )?;
                     writer.write_space(" ");
-                    self.emit_node_id(transformation, node.source(), finally_block, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        finally_block,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                 }
                 Ok(())
             }
@@ -4567,7 +5006,13 @@ impl Printer {
                         prefix,
                         writer,
                     )?;
-                    self.emit_node_id(transformation, node.source(), variable, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        node.source(),
+                        variable,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     self.emit_token_with_comments(
                         transformation,
                         node,
@@ -4578,12 +5023,13 @@ impl Printer {
                     )?;
                     writer.write_space(" ");
                 }
-                self.emit_required_node(
+                self.emit_required_node_with_context(
                     transformation,
                     node.source(),
                     data.block,
                     SyntaxKind::CatchClause,
                     "block",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )
             }
@@ -4929,7 +5375,13 @@ impl Printer {
                     Self::furthest_comment_resume(token_owned_prefix, container_owned_prefix)?,
                     writer,
                 )?;
-                self.emit_identifier_name(transformation, node.source(), name_id, writer)?;
+                self.emit_identifier_name_with_context(
+                    transformation,
+                    node.source(),
+                    name_id,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 if break_after_dot {
                     writer.decrease_indent();
                 }
@@ -5279,7 +5731,13 @@ impl Printer {
                                 writer,
                             )?;
                         }
-                        self.emit_node_id(transformation, node.source(), statement, writer)?;
+                        self.emit_node_id_with_context(
+                            transformation,
+                            node.source(),
+                            statement,
+                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                            writer,
+                        )?;
                         self.emit_trailing_comments_for_node(
                             transformation,
                             statement_node,
@@ -5350,7 +5808,13 @@ impl Printer {
                         if has_original_range {
                             has_previous_original_statement = true;
                         }
-                        self.emit_node_id(transformation, node.source(), statement.node(), writer)?;
+                        self.emit_node_id_with_context(
+                            transformation,
+                            node.source(),
+                            statement.node(),
+                            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                            writer,
+                        )?;
                         self.emit_trailing_comments_for_node(transformation, statement, writer)?;
                         writer.write_line(false);
                     }
@@ -5418,6 +5882,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         case_block: TransformNode,
         clauses: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let source = case_block.source();
@@ -5457,7 +5922,13 @@ impl Printer {
                         writer,
                     )?;
                 }
-                self.emit_node_id(transformation, source, clause.node(), writer)?;
+                self.emit_node_id_with_context(
+                    transformation,
+                    source,
+                    clause.node(),
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 writer.write_line(false);
             }
             // Like tsc's close-brace token, this boundary is anchored at the
@@ -5474,6 +5945,7 @@ impl Printer {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn emit_case_clause_statements(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -5481,6 +5953,7 @@ impl Printer {
         source: TransformSourceId,
         statements: Option<tsc_syntax::NodeArrayId>,
         colon: TokenEmission,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let statements = statements
@@ -5509,7 +5982,13 @@ impl Printer {
                 token_owned_prefix,
                 writer,
             )?;
-            self.emit_node_id(transformation, source, first.node(), writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                first.node(),
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
             self.emit_trailing_comments_for_node(transformation, first, writer)?;
             return Ok(());
         }
@@ -5535,7 +6014,13 @@ impl Printer {
                     writer,
                 )?;
             }
-            self.emit_node_id(transformation, source, statement.node(), writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                statement.node(),
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
             self.emit_trailing_comments_for_node(transformation, statement, writer)?;
             writer.write_line(false);
         }
@@ -6276,6 +6761,7 @@ impl Printer {
         node: TransformNode,
         start_anchor: TokenAnchor,
         expression: Option<NodeId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<TokenEmission, PrinterError> {
         let parent_kind = transformation.arena().node(node)?.kind;
@@ -6302,7 +6788,14 @@ impl Printer {
             false,
             writer,
         )?;
-        self.emit_child_after_token(transformation, node, open, expression, writer)?;
+        self.emit_child_after_token_with_context(
+            transformation,
+            node,
+            open,
+            expression,
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
         self.emit_token_with_comments(
             transformation,
             node,
@@ -6318,6 +6811,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         statement: Option<tsc_syntax::NodeId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_embedded_statement_with_anchor(
@@ -6325,6 +6819,7 @@ impl Printer {
             parent,
             statement,
             EmbeddedStatementAnchor::Unspecified,
+            expression_context,
             writer,
         )
     }
@@ -6335,6 +6830,7 @@ impl Printer {
         parent: TransformNode,
         statement: Option<tsc_syntax::NodeId>,
         token: TokenEmission,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_embedded_statement_with_anchor(
@@ -6342,6 +6838,7 @@ impl Printer {
             parent,
             statement,
             EmbeddedStatementAnchor::AfterToken(token),
+            expression_context,
             writer,
         )
     }
@@ -6352,6 +6849,7 @@ impl Printer {
         parent: TransformNode,
         statement: Option<tsc_syntax::NodeId>,
         anchor: EmbeddedStatementAnchor,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let parent_kind = transformation.arena().node(parent)?.kind;
@@ -6386,7 +6884,13 @@ impl Printer {
                     writer,
                 )?;
             }
-            self.emit_node_id(transformation, parent.source(), statement, writer)
+            self.emit_node_id_with_context(
+                transformation,
+                parent.source(),
+                statement,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )
         } else {
             writer.write_line(false);
             writer.increase_indent();
@@ -6397,7 +6901,13 @@ impl Printer {
                 token_resume,
                 writer,
             )?;
-            self.emit_node_id(transformation, parent.source(), statement, writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                parent.source(),
+                statement,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
             writer.decrease_indent();
             Ok(())
         }
@@ -6437,6 +6947,7 @@ impl Printer {
         heritage_clauses: Option<tsc_syntax::NodeArrayId>,
         members: Option<tsc_syntax::NodeArrayId>,
         expression: bool,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let anonymous_default_declaration = !expression
@@ -6453,13 +6964,25 @@ impl Printer {
                             .is_some_and(|modifier| modifier.kind == SyntaxKind::DefaultKeyword)
                     })
                 });
-        if self.emit_modifiers(transformation, source, modifiers, writer)? {
+        if self.emit_modifiers(
+            transformation,
+            source,
+            modifiers,
+            expression_context,
+            writer,
+        )? {
             writer.write_space(" ");
         }
         writer.write_keyword("class");
         if let Some(name) = name {
             writer.write_space(" ");
-            self.emit_identifier_name(transformation, source, name, writer)?;
+            self.emit_identifier_name_with_context(
+                transformation,
+                source,
+                name,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
             let name = transformation
                 .arena()
                 .node_ref(source, name)
@@ -6497,7 +7020,14 @@ impl Printer {
             .is_some_and(|array| !array.nodes.is_empty());
         if has_heritage_clauses {
             writer.write_space(" ");
-            self.emit_node_array(transformation, source, heritage_clauses, " ", writer)?;
+            self.emit_node_array(
+                transformation,
+                source,
+                heritage_clauses,
+                " ",
+                expression_context,
+                writer,
+            )?;
         }
         writer.write_space(" ");
         writer.write_punctuation("{");
@@ -6531,7 +7061,13 @@ impl Printer {
                             writer,
                         )?;
                     }
-                    self.emit_node_id(transformation, source, member, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        source,
+                        member,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     self.emit_trailing_comments_for_node(transformation, member_node, writer)?;
                     writer.write_line(false);
                 }
@@ -6597,11 +7133,19 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         type_arguments: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if self.node_array_has_elements(transformation, source, type_arguments)? {
             writer.write_punctuation("<");
-            self.emit_node_array(transformation, source, type_arguments, ", ", writer)?;
+            self.emit_node_array(
+                transformation,
+                source,
+                type_arguments,
+                ", ",
+                expression_context,
+                writer,
+            )?;
             writer.write_punctuation(">");
         }
         Ok(())
@@ -6616,6 +7160,7 @@ impl Printer {
     /// tsc-port: emitSignatureHead @6.0.3
     /// tsc-hash: 1051bc6f6d403e11ae463222deba4cc157d1615716c2c426b26dea7e6804defb
     /// tsc-span: _tsc.js:118994-118998
+    #[allow(clippy::too_many_arguments)]
     fn emit_signature_head(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -6623,18 +7168,38 @@ impl Printer {
         type_parameters: Option<tsc_syntax::NodeArrayId>,
         parameters: Option<tsc_syntax::NodeArrayId>,
         r#type: Option<NodeId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if self.node_array_has_elements(transformation, source, type_parameters)? {
             writer.write_punctuation("<");
-            self.emit_node_array(transformation, source, type_parameters, ", ", writer)?;
+            self.emit_node_array(
+                transformation,
+                source,
+                type_parameters,
+                ", ",
+                expression_context,
+                writer,
+            )?;
             writer.write_punctuation(">");
         }
-        self.emit_parameter_list(transformation, source, parameters, writer)?;
+        self.emit_parameter_list(
+            transformation,
+            source,
+            parameters,
+            expression_context,
+            writer,
+        )?;
         if let Some(r#type) = r#type {
             writer.write_punctuation(":");
             writer.write_space(" ");
-            self.emit_node_id(transformation, source, r#type, writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                r#type,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
         }
         Ok(())
     }
@@ -6644,6 +7209,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         parameters: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         self.emit_parameter_list_with_parentheses(
@@ -6651,6 +7217,7 @@ impl Printer {
             source,
             parameters,
             ParameterListParentheses::Present,
+            expression_context,
             writer,
         )
     }
@@ -6667,6 +7234,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         arrow: TransformNode,
         data: &tsc_syntax::nodes::ArrowFunctionData,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let parentheses = if self.can_emit_simple_arrow_head(transformation, arrow, data)? {
@@ -6679,6 +7247,7 @@ impl Printer {
             arrow.source(),
             data.parameters,
             parentheses,
+            expression_context,
             writer,
         )
     }
@@ -6689,6 +7258,7 @@ impl Printer {
         source: TransformSourceId,
         parameters: Option<tsc_syntax::NodeArrayId>,
         parentheses: ParameterListParentheses,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         if parentheses.are_present() {
@@ -6737,7 +7307,13 @@ impl Printer {
                         writer,
                     )?;
                 }
-                self.emit_node_id(transformation, source, id, writer)?;
+                self.emit_node_id_with_context(
+                    transformation,
+                    source,
+                    id,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
                 self.emit_list_element_end_comments(transformation, parameter, writer)?;
                 if index + 1 < count {
                     writer.write_punctuation(",");
@@ -7276,6 +7852,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         parent: TransformNode,
         elements: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let source = parent.source();
@@ -7308,7 +7885,13 @@ impl Printer {
             } else {
                 self.emit_leading_comments_for_node_after_sibling(transformation, child, writer)?;
             }
-            self.emit_node_id(transformation, source, id, writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
             self.emit_list_element_end_comments(transformation, child, writer)?;
             if index + 1 < ids.len() || trailing_comma {
                 writer.write_punctuation(",");
@@ -7332,6 +7915,7 @@ impl Printer {
         property_name: Option<tsc_syntax::NodeId>,
         name: Option<tsc_syntax::NodeId>,
         parent: SyntaxKind,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let source = specifier.source();
@@ -7340,7 +7924,13 @@ impl Printer {
                 .arena()
                 .node_ref(source, property_id)
                 .ok_or(PrinterError::UnknownStatement(property_id.0))?;
-            self.emit_identifier_name(transformation, source, property_id, writer)?;
+            self.emit_identifier_name_with_context(
+                transformation,
+                source,
+                property_id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
             writer.write_space(" ");
             let as_keyword = self.emit_space_prefixed_token_with_comments(
                 transformation,
@@ -7363,7 +7953,15 @@ impl Printer {
                 )?;
             }
         }
-        self.emit_required_identifier_name(transformation, source, name, parent, "name", writer)
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            source,
+            name,
+            parent,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
     }
 
     fn emit_modifiers(
@@ -7371,6 +7969,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         modifiers: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<bool, PrinterError> {
         let Some(array) =
@@ -7400,14 +7999,26 @@ impl Printer {
             match item.kind {
                 ModifierListItemKind::Decorator => {
                     writer.write_line(false);
-                    self.emit_node_id(transformation, source, item.node, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        source,
+                        item.node,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     writer.write_line(false);
                 }
                 ModifierListItemKind::Modifier => {
                     if index != 0 && items[index - 1].kind == ModifierListItemKind::Modifier {
                         writer.write_space(" ");
                     }
-                    self.emit_node_id(transformation, source, item.node, writer)?;
+                    self.emit_node_id_with_context(
+                        transformation,
+                        source,
+                        item.node,
+                        expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                        writer,
+                    )?;
                     if items
                         .get(index + 1)
                         .is_some_and(|next| next.kind == ModifierListItemKind::Decorator)
@@ -7581,6 +8192,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         array: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let Some(array) = array.and_then(|id| transformation.arena().node_array_ref(source, id))
@@ -7600,7 +8212,13 @@ impl Printer {
             if !jsx_text {
                 self.emit_leading_comments_for_node(transformation, child, writer)?;
             }
-            self.emit_node_id(transformation, source, id, writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
             if !jsx_text {
                 self.emit_trailing_comments_for_node(transformation, child, writer)?;
             }
@@ -7613,6 +8231,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         properties: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let Some(array) =
@@ -7630,7 +8249,13 @@ impl Printer {
                 writer.write_space(" ");
             }
             self.emit_leading_comments_for_node(transformation, attribute, writer)?;
-            self.emit_node_id(transformation, source, id, writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
             self.emit_trailing_comments_for_node(transformation, attribute, writer)?;
         }
         Ok(())
@@ -7642,6 +8267,7 @@ impl Printer {
         source: TransformSourceId,
         array: Option<tsc_syntax::NodeArrayId>,
         separator: &str,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let Some(array) = array.and_then(|id| transformation.arena().node_array_ref(source, id))
@@ -7653,7 +8279,13 @@ impl Printer {
             if index != 0 {
                 writer.write(separator);
             }
-            self.emit_node_id(transformation, source, id, writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
         }
         Ok(())
     }
@@ -7851,6 +8483,11 @@ impl Printer {
         Ok(())
     }
 
+    // Caller-less since the CS-4 route threading: every emission site now
+    // passes the threaded EmitContext. Retained only as the named
+    // detached_transitional surface that CS-5 deletes together with the
+    // zero-caller audit; new callers are forbidden.
+    #[allow(dead_code)]
     fn emit_required_node(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -7876,6 +8513,11 @@ impl Printer {
     /// the child resumes after it and remains responsible for ordinary
     /// leading comments. Keeping the handoff typed prevents the same resume
     /// from being applied to an adjacent child that merely shares a source.
+    // Caller-less since the CS-4 route threading: every emission site now
+    // passes the threaded EmitContext. Retained only as the named
+    // detached_transitional surface that CS-5 deletes together with the
+    // zero-caller audit; new callers are forbidden.
+    #[allow(dead_code)]
     fn emit_child_after_token(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -7979,6 +8621,11 @@ impl Printer {
         )
     }
 
+    // Caller-less since the CS-4 route threading: every emission site now
+    // passes the threaded EmitContext. Retained only as the named
+    // detached_transitional surface that CS-5 deletes together with the
+    // zero-caller audit; new callers are forbidden.
+    #[allow(dead_code)]
     fn emit_required_identifier_name(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -7992,6 +8639,27 @@ impl Printer {
         self.emit_identifier_name(transformation, source, id, writer)
     }
 
+    #[allow(clippy::too_many_arguments)]
+    fn emit_required_identifier_name_with_context(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        id: Option<NodeId>,
+        parent: SyntaxKind,
+        field: &'static str,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let id = id.ok_or(PrinterError::MissingTransformedChild { parent, field })?;
+        self.emit_identifier_name_with_context(
+            transformation,
+            source,
+            id,
+            expression_context,
+            writer,
+        )
+    }
+
     /// tsc-port: emitJsxTagName @6.0.3
     /// tsc-hash: ccfb711b5b88cdca03af28c671c9d0a40699f53dec23a65421ffa94f988effaf
     /// tsc-span: _tsc.js:119469-119475
@@ -7999,6 +8667,7 @@ impl Printer {
     /// A plain JSX identifier is a value expression and must pass through
     /// namespace/enum substitution. Qualified and namespaced tag shapes use
     /// their ordinary unspecified emission path.
+    #[allow(clippy::too_many_arguments)]
     fn emit_required_jsx_tag_name(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -8006,9 +8675,18 @@ impl Printer {
         id: Option<NodeId>,
         parent: SyntaxKind,
         field: &'static str,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        self.emit_required_node(transformation, source, id, parent, field, writer)
+        self.emit_required_node_with_context(
+            transformation,
+            source,
+            id,
+            parent,
+            field,
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -8120,6 +8798,11 @@ impl Printer {
         Ok(())
     }
 
+    // Caller-less since the CS-4 route threading: every emission site now
+    // passes the threaded EmitContext. Retained only as the named
+    // detached_transitional surface that CS-5 deletes together with the
+    // zero-caller audit; new callers are forbidden.
+    #[allow(dead_code)]
     fn emit_node_id(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -8184,11 +8867,33 @@ impl Printer {
         )
     }
 
+    // Caller-less since the CS-4 route threading: every emission site now
+    // passes the threaded EmitContext. Retained only as the named
+    // detached_transitional surface that CS-5 deletes together with the
+    // zero-caller audit; new callers are forbidden.
+    #[allow(dead_code)]
     fn emit_identifier_name(
         &self,
         transformation: &mut TransformationResult<'_>,
         source: TransformSourceId,
         id: NodeId,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_identifier_name_with_context(
+            transformation,
+            source,
+            id,
+            EmitContext::detached_transitional(),
+            writer,
+        )
+    }
+
+    fn emit_identifier_name_with_context(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        id: NodeId,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let node = transformation
@@ -8200,13 +8905,7 @@ impl Printer {
         } else {
             EmitHint::Unspecified
         };
-        self.emit_node_with_hint(
-            transformation,
-            node,
-            hint,
-            EmitContext::detached_transitional(),
-            writer,
-        )
+        self.emit_node_with_hint(transformation, node, hint, expression_context, writer)
     }
 
     fn emit_node_with_hint(
@@ -9675,6 +10374,7 @@ impl Printer {
         &self,
         transformation: &mut TransformationResult<'_>,
         token: TransformNode,
+        expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<TokenEmission, PrinterError> {
         let record = transformation.arena().node(token)?;
@@ -9695,7 +10395,13 @@ impl Printer {
             });
         }
         self.emit_leading_comments_for_node(transformation, token, writer)?;
-        self.emit_node_id(transformation, token.source(), token.node(), writer)?;
+        self.emit_node_id_with_context(
+            transformation,
+            token.source(),
+            token.node(),
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
         let cursor = self.comment_range_end_cursor(transformation, token)?;
         let anchor =
             self.emit_trailing_comments_for_node_at_cursor(transformation, token, cursor, writer)?;
