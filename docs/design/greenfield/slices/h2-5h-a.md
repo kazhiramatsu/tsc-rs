@@ -242,11 +242,15 @@ node .github/ci/slice-readiness.mjs --check h2-5h-a
 ```
 
 green at one head, first satisfied on the witness-machine train
-(step 7 above). The six artifact `--check`s and the qualification
-registry run inside every full local gate already, and the registry
-revalidates every `ready` envelope including this packet's document
-digest — any later edit to this document therefore requires an
-envelope re-pin in the same change.
+(step 7 above). The six artifact `--check`s are the packet checker's
+own commands: the full local gate does NOT run them (its oracle phase
+validates these artifacts only through the qualification registry's
+contract table — schema subset plus fingerprint, no re-observation),
+so the once-per-slice packet-checker run above is their full
+re-observation backstop. The registry does run inside every full local
+gate and revalidates every `ready` envelope including this packet's
+document digest — any later edit to this document therefore requires
+an envelope re-pin in the same change.
 
 
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must

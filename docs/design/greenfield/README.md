@@ -39,7 +39,10 @@ H2.5h-a. It defines an independent reusable framework: pure generic `ci-core`,
 bounded-effect generic `ci-runner`, and repository-owned adapters that inject
 namespace and semantics. Follow its FCI dependency stages only through exact
 ready packets in the slice-packet index; the architecture or stage table alone
-does not authorize production work.
+does not authorize production work. The [gate-tax 2 CI slice](gate-tax-2.md)
+records the witness observation-adoption mechanism, the canonical convergence
+loop, and the resume divergence printer that service the H2.5h-a packet
+ladder's evidence chain.
 
 These roles stay separate:
 
