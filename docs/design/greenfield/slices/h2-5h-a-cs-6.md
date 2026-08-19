@@ -106,7 +106,7 @@ zero-width text ranges, `with_remove_comments` — measured).
 | full-pipeline byte reproduction of the 30 frozen cases | marker/topology assertions only | `missing` | this packet, step 1 |
 | permanent zero-contextless enforcement | CS-5 grep acceptance | `missing` | this packet, step 2 |
 | four-row qualification | `active-unqualified` | `partial-or-stale` | this packet, step 3 |
-| unknown production gaps the suite may surface | none known; the scope machinery is fully landed (CS-2..5) | `unknown-bounded` — every failure is bounded by a frozen case with full byte evidence | this packet, step 1 protocol (§6) |
+| production gaps the suite surfaced (front-run first execution: **26/30 byte-identical**) | four enumerated divergences, each frozen with full byte evidence and held in the suite's shrink-only `KNOWN_DIVERGENCES` list: (1) `delimited-list-starts--adjacent-negative` — a non-final delimited-list element's trailing comment is dropped; (2) `emit-flag-suppression--positive` — `NO_NESTED_COMMENTS` does not suppress the block subtree's comments; (3)+(4) `synthetic-comments-alongside-source--{positive,adjacent-negative}` — the statement route lacks the synthetic leading/trailing comment phases | `missing` — real production work, byte-precisely specified | this packet, step 1 (fix production per case id; the list may only shrink and empties before §8) |
 
 ## 6. Implementation sequence
 
