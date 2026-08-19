@@ -169,10 +169,47 @@ fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Erro
                     )
                     .into());
                 }
+                if package.package_name() == "tsc-rs-emitter" {
+                    if let Some((line, identifier)) = first_retired_comment_scope_identifier(&text)
+                    {
+                        return Err(format!(
+                            "{}:{line} references the retired contextless identifier `{identifier}`; every emission route threads EmitContext (h2-5h-a CS-5 deletion, pinned by CS-6)",
+                            path.display()
+                        )
+                        .into());
+                    }
+                }
             }
         }
     }
     Ok(())
+}
+
+/// The comment-scope ladder retired the printer's contextless emission
+/// surface (h2-5h-a CS-5) and CS-6 pins the deletion permanently: the
+/// detached constructor may not reappear anywhere in the emitter, and the
+/// five shim names may not be redefined — the `_with_context` family IS
+/// the emission API.
+fn first_retired_comment_scope_identifier(text: &str) -> Option<(usize, &'static str)> {
+    const RETIRED_TOKEN: &str = "detached_transitional";
+    const RETIRED_DEFINITIONS: [&str; 5] = [
+        "fn emit_required_node(",
+        "fn emit_node_id(",
+        "fn emit_identifier_name(",
+        "fn emit_required_identifier_name(",
+        "fn emit_child_after_token(",
+    ];
+    for (index, line) in text.lines().enumerate() {
+        if line.contains(RETIRED_TOKEN) {
+            return Some((index + 1, RETIRED_TOKEN));
+        }
+        for definition in RETIRED_DEFINITIONS {
+            if line.contains(definition) {
+                return Some((index + 1, definition));
+            }
+        }
+    }
+    None
 }
 
 fn first_inline_test_module_line(text: &str) -> Option<usize> {
