@@ -118,6 +118,37 @@ impl CommentEmissionScope {
         }
     }
 
+    /// Apply one claim for a `VariableDeclarationList` owner: identical to
+    /// `claim_sides`, and the claimed `end` (when present) is also written
+    /// to `declaration_list_container_end`. This is tsc's single
+    /// `declarationListContainerEnd` producer — the kind-262 arm inside the
+    /// `containerEnd` claim — so an unclaimed end side inherits the
+    /// enclosing declaration-list end exactly like the other two fields.
+    ///
+    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: 335bce58b16aff3fae7177d74be73c4496b21185476c8bfb2ee228d493762cb0
+    /// tsc-span: _tsc.js:121024-121026
+    pub(crate) const fn claim_declaration_list_sides(
+        self,
+        pos: Option<CommentCursor>,
+        end: Option<CommentCursor>,
+    ) -> Self {
+        Self {
+            container_pos: match pos {
+                Some(pos) => Some(pos),
+                None => self.container_pos,
+            },
+            container_end: match end {
+                Some(end) => Some(end),
+                None => self.container_end,
+            },
+            declaration_list_container_end: match end {
+                Some(end) => Some(end),
+                None => self.declaration_list_container_end,
+            },
+        }
+    }
+
     /// The `containerPos` view of one container range, read by the leading
     /// guard (`pos !== containerPos`). Ranges the claim gate rejects have
     /// no position: tsc would never have claimed them.
@@ -162,8 +193,10 @@ impl CommentEmissionScope {
     }
 
     /// Arbitrary scope state for unit contracts only. Production code has
-    /// exactly one zero-scope constructor and, until the declaration-list
-    /// route migration lands, no `declaration_list_container_end` writer.
+    /// exactly one zero-scope constructor and exactly one
+    /// `declaration_list_container_end` writer
+    /// (`claim_declaration_list_sides`, the `VariableDeclarationList`
+    /// claim arm).
     #[cfg(test)]
     pub(crate) const fn contract_scope(
         container_pos: Option<CommentCursor>,

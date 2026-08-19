@@ -2581,15 +2581,9 @@ impl Printer {
                 // Thread that ownership explicitly so a ranged initializer
                 // cannot claim the statement's trailing boundary first.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let declaration_context = expression_context.with_comments(
-                    match Self::statement_paired_container_claim(owner) {
-                        Some(range) => expression_context.comments().claim_sides(
-                            CommentEmissionScope::container_pos_of(range),
-                            CommentEmissionScope::container_end_of(range),
-                        ),
-                        None => expression_context.comments(),
-                    },
-                );
+                let (pos, end) = Self::established_container_sides(owner);
+                let declaration_context = expression_context
+                    .with_comments(expression_context.comments().claim_sides(pos, end));
                 if self.emit_modifiers(transformation, node.source(), data.modifiers, writer)? {
                     writer.write_space(" ");
                 }
@@ -2621,16 +2615,15 @@ impl Printer {
             }
             NodeData::VariableDeclarationList(data) => {
                 // A parsed list replaces the inherited container; a
-                // synthesized list keeps the statement container alive.
+                // synthesized list keeps the statement container alive. The
+                // list is tsc's single `declarationListContainerEnd`
+                // producer: its claimed end also arms the trailing dedupe.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
+                let (pos, end) = Self::established_container_sides(owner);
                 let declaration_context = expression_context.with_comments(
-                    match Self::statement_paired_container_claim(owner) {
-                        Some(range) => expression_context.comments().claim_sides(
-                            CommentEmissionScope::container_pos_of(range),
-                            CommentEmissionScope::container_end_of(range),
-                        ),
-                        None => expression_context.comments(),
-                    },
+                    expression_context
+                        .comments()
+                        .claim_declaration_list_sides(pos, end),
                 );
                 let flags = NodeFlags::from_bits(record.flags);
                 if flags.contains(NodeFlags::AWAIT_USING) {
@@ -2698,15 +2691,9 @@ impl Printer {
                 // As above, only a declaration with its own source range
                 // replaces the ambient variable-statement container.
                 let owner = self.expression_comment_phase_owner_for_node(transformation, node)?;
-                let initializer_context = expression_context.with_comments(
-                    match Self::statement_paired_container_claim(owner) {
-                        Some(range) => expression_context.comments().claim_sides(
-                            CommentEmissionScope::container_pos_of(range),
-                            CommentEmissionScope::container_end_of(range),
-                        ),
-                        None => expression_context.comments(),
-                    },
-                );
+                let (pos, end) = Self::established_container_sides(owner);
+                let initializer_context = expression_context
+                    .with_comments(expression_context.comments().claim_sides(pos, end));
                 let name = data
                     .name
                     .and_then(|name| transformation.arena().node_ref(node.source(), name))
@@ -10086,15 +10073,6 @@ impl Printer {
     /// a nonempty original range, flags not consulted. This is the H2.5g
     /// paired projection those routes stay on until their own migration
     /// packet lands the per-side producer there.
-    fn statement_paired_container_claim(
-        owner: ExpressionCommentPhaseOwner,
-    ) -> Option<CommentRange> {
-        match owner.range.range() {
-            SourceRange::Original(range) if range.start() != range.end() => Some(owner.range),
-            _ => None,
-        }
-    }
-
     /// tsc's per-side claim conditions over one comment-phase owner.
     ///
     /// For a range this representation can express, a side goes unclaimed
