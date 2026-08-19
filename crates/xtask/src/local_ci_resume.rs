@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::ffi::OsStr;
 use std::fs;
@@ -10,7 +10,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-const JOURNAL_SCHEMA: u32 = 1;
+const JOURNAL_SCHEMA: u32 = 2;
 const PRODUCER_VERSION: &str = "local-ci-resume-v1";
 const JOURNAL_RELATIVE_PATH: &str = "target/local-ci-resume/v1/journal.json";
 
@@ -103,9 +103,11 @@ pub(crate) struct LocalCiResume {
     workspace: PathBuf,
     journal_path: PathBuf,
     invocation: String,
+    tool_inventory: ToolInventory,
     tool_fingerprint: String,
     snapshot: WorkspaceSnapshot,
     journal: Journal,
+    previous: Option<PreviousComponents>,
     reused: usize,
     recorded: usize,
 }
@@ -133,22 +135,38 @@ impl LocalCiResume {
         }
 
         let snapshot = WorkspaceSnapshot::collect(&workspace)?;
-        let tool_fingerprint = tool_fingerprint(&workspace)?;
-        let journal = load_journal(&journal_path, &invocation).unwrap_or_else(|error| {
+        let tool_inventory = ToolInventory::collect(&workspace)?;
+        let tool_fingerprint = tool_inventory.rolled();
+        let mut journal = load_journal(&journal_path, &invocation).unwrap_or_else(|error| {
             eprintln!(
                 "local CI resume: ignoring unusable journal {}: {error}",
                 journal_path.display()
             );
             Journal::new(invocation.clone())
         });
+        // Keep the interrupted run's recorded input components for decline
+        // diagnostics, then refresh the stored components to this run: a
+        // receipt that still reuses agrees with the current values on its
+        // scoped inputs by construction, and new receipts are minted
+        // against them.
+        let previous = (!journal.phases.is_empty()).then(|| PreviousComponents {
+            tools: std::mem::take(&mut journal.tools),
+            environment: std::mem::take(&mut journal.environment),
+            snapshot: std::mem::take(&mut journal.snapshot),
+        });
+        journal.tools = tool_inventory.tools.clone();
+        journal.environment = tool_inventory.environment.clone();
+        journal.snapshot = snapshot.map();
 
         Ok(Self {
             workspace,
             journal_path,
             invocation,
+            tool_inventory,
             tool_fingerprint,
             snapshot,
             journal,
+            previous,
             reused: 0,
             recorded: 0,
         })
@@ -172,13 +190,18 @@ impl LocalCiResume {
             .collect::<Result<Vec<_>, _>>()?;
         let fingerprint = self.phase_fingerprint(name, scope, salt, &expected_outputs);
 
-        if self.journal.phases.get(name).is_some_and(|receipt| {
-            receipt_is_reusable(&self.workspace, receipt, &fingerprint, &expected_outputs)
+        if let Some(receipt) = self.journal.phases.get(name) {
+            if receipt_is_reusable(&self.workspace, receipt, &fingerprint, &expected_outputs)
                 .unwrap_or(false)
-        }) {
-            self.reused += 1;
-            println!("local CI resume: reuse {name} (exact inputs and outputs)");
-            return Ok(());
+            {
+                self.reused += 1;
+                println!("local CI resume: reuse {name} (exact inputs and outputs)");
+                return Ok(());
+            }
+            println!(
+                "local CI resume: decline {name}: {}",
+                self.describe_decline(scope, receipt, &fingerprint, &expected_outputs)
+            );
         }
 
         if self.journal.phases.remove(name).is_some() {
@@ -261,6 +284,107 @@ impl LocalCiResume {
         )
     }
 
+    /// One line naming what invalidated a stored receipt: the divergent
+    /// environment key(s), tool(s), scoped file(s), or stale output(s).
+    /// Components are diffed against the previous interrupted run's
+    /// recorded inventory; a receipt surviving from an even older run can
+    /// decline without any recorded component differing, and the fallback
+    /// line says so instead of guessing.
+    fn describe_decline(
+        &self,
+        scope: InputScope,
+        receipt: &PhaseReceipt,
+        fingerprint: &str,
+        expected_outputs: &[String],
+    ) -> String {
+        if receipt.fingerprint_sha256 == fingerprint {
+            if receipt.outputs.len() != expected_outputs.len()
+                || receipt
+                    .outputs
+                    .iter()
+                    .zip(expected_outputs)
+                    .any(|(binding, expected)| binding.relative != *expected)
+            {
+                return "the expected output list changed".to_owned();
+            }
+            let stale = receipt
+                .outputs
+                .iter()
+                .filter(|binding| {
+                    let path = self.workspace.join(&binding.relative);
+                    !(is_regular_file_without_symlink(&path).unwrap_or(false)
+                        && path_sha256(&path)
+                            .map(|sha256| sha256 == binding.sha256)
+                            .unwrap_or(false))
+                })
+                .map(|binding| binding.relative.clone())
+                .collect::<Vec<_>>();
+            return format!("recorded output(s) changed on disk: {}", stale.join(", "));
+        }
+        let Some(previous) = &self.previous else {
+            return "inputs changed (no previous component record)".to_owned();
+        };
+        let mut parts = Vec::new();
+        for (label, previous_map, current_map) in [
+            ("tool", &previous.tools, &self.tool_inventory.tools),
+            (
+                "environment",
+                &previous.environment,
+                &self.tool_inventory.environment,
+            ),
+        ] {
+            let keys = previous_map
+                .keys()
+                .chain(current_map.keys())
+                .collect::<BTreeSet<_>>();
+            for key in keys {
+                match (previous_map.get(key), current_map.get(key)) {
+                    (Some(before), Some(now)) if before == now => {}
+                    (Some(_), Some(_)) => parts.push(format!("{label} {key} changed")),
+                    (Some(_), None) => parts.push(format!("{label} {key} removed")),
+                    (None, Some(_)) => parts.push(format!("{label} {key} added")),
+                    (None, None) => {}
+                }
+            }
+        }
+        let current_files = self.snapshot.map();
+        let file_keys = previous
+            .snapshot
+            .keys()
+            .chain(current_files.keys())
+            .collect::<BTreeSet<_>>();
+        let mut changed_files = Vec::new();
+        for key in file_keys {
+            if !scope.includes(key) {
+                continue;
+            }
+            match (previous.snapshot.get(key), current_files.get(key)) {
+                (Some(before), Some(now)) if before == now => {}
+                (Some(_), Some(_)) => changed_files.push(format!("{key} changed")),
+                (Some(_), None) => changed_files.push(format!("{key} removed")),
+                (None, Some(_)) => changed_files.push(format!("{key} added")),
+                (None, None) => {}
+            }
+        }
+        const LISTED_FILES: usize = 8;
+        if !changed_files.is_empty() {
+            let extra = changed_files.len().saturating_sub(LISTED_FILES);
+            changed_files.truncate(LISTED_FILES);
+            parts.push(if extra == 0 {
+                format!("file(s) in scope: {}", changed_files.join(", "))
+            } else {
+                format!(
+                    "file(s) in scope: {}, +{extra} more",
+                    changed_files.join(", ")
+                )
+            });
+        }
+        if parts.is_empty() {
+            return "the phase definition or an earlier interrupted run's inputs changed (no recorded component differs)".to_owned();
+        }
+        parts.join("; ")
+    }
+
     fn persist(&self) -> Result<(), Box<dyn Error>> {
         write_journal(&self.journal_path, &self.journal)
     }
@@ -287,6 +411,13 @@ impl WorkspaceSnapshot {
             stability_marker: stability_marker(workspace, &paths)?,
         })
     }
+
+    fn map(&self) -> BTreeMap<String, String> {
+        self.entries
+            .iter()
+            .map(|entry| (entry.relative.clone(), entry.sha256.clone()))
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -301,6 +432,19 @@ struct Journal {
     schema: u32,
     producer_version: String,
     invocation: String,
+    /// Per-component records behind the rolled tool/environment digest and
+    /// the per-phase input hashes: program -> version-output sha256, CI
+    /// environment key -> value sha256, and repository path -> content
+    /// sha256. Stored once per journal so a later run can name exactly
+    /// which component invalidated a receipt instead of reporting only a
+    /// fingerprint mismatch. `#[serde(default)]` keeps schema-1 journals
+    /// parseable so the schema check replaces them silently.
+    #[serde(default)]
+    tools: BTreeMap<String, String>,
+    #[serde(default)]
+    environment: BTreeMap<String, String>,
+    #[serde(default)]
+    snapshot: BTreeMap<String, String>,
     phases: BTreeMap<String, PhaseReceipt>,
 }
 
@@ -310,9 +454,21 @@ impl Journal {
             schema: JOURNAL_SCHEMA,
             producer_version: PRODUCER_VERSION.to_owned(),
             invocation,
+            tools: BTreeMap::new(),
+            environment: BTreeMap::new(),
+            snapshot: BTreeMap::new(),
             phases: BTreeMap::new(),
         }
     }
+}
+
+/// The input components the previous interrupted run recorded alongside
+/// its receipts, kept in memory only for decline diagnostics.
+#[derive(Debug)]
+struct PreviousComponents {
+    tools: BTreeMap<String, String>,
+    environment: BTreeMap<String, String>,
+    snapshot: BTreeMap<String, String>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -593,46 +749,81 @@ fn path_sha256(path: &Path) -> Result<String, Box<dyn Error>> {
     Ok(format!("{:x}", hash.finalize()))
 }
 
-fn tool_fingerprint(workspace: &Path) -> Result<String, Box<dyn Error>> {
-    let mut hash = Sha256::new();
-    hash_field(&mut hash, b"os", std::env::consts::OS.as_bytes());
-    hash_field(&mut hash, b"arch", std::env::consts::ARCH.as_bytes());
-    // The xtask binary hash is deliberately NOT part of the fingerprint.
-    // Every phase's own logic lives in tracked Rust sources that the phase
-    // input scopes already hash (Verification and WorkspaceAudit include
-    // crates/xtask; the node-driver scope keeps crates/xtask explicitly),
-    // so binary identity added only double-counting plus rebuild
-    // nondeterminism: any checker edit rebuilds xtask and used to discard
-    // every receipt, including phases whose inputs were untouched.
-    for (program, arguments) in [
-        ("cargo", &["--version", "--verbose"][..]),
-        ("rustc", &["--version", "--verbose"][..]),
-        ("rustfmt", &["--version"][..]),
-        ("node", &["--version"][..]),
-        ("git", &["--version"][..]),
-    ] {
-        let output = Command::new(program)
-            .current_dir(workspace)
-            .args(arguments)
-            .output()?;
-        if !output.status.success() {
-            return Err(format!(
-                "cannot identify local CI tool {program}: {}",
-                String::from_utf8_lossy(&output.stderr).trim()
-            )
-            .into());
+/// Per-component tool and environment records. The rolled digest feeds
+/// every phase fingerprint exactly as before; the component maps are
+/// additionally stored in the journal so a decline can name the divergent
+/// key (the recorded TSRS_H2_5G_CHECK_SHARDS set-vs-unset incident was
+/// undiagnosable from the rolled digest alone).
+#[derive(Debug)]
+struct ToolInventory {
+    tools: BTreeMap<String, String>,
+    environment: BTreeMap<String, String>,
+}
+
+impl ToolInventory {
+    fn collect(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let mut tools = BTreeMap::new();
+        tools.insert(
+            "os".to_owned(),
+            sha256_bytes(std::env::consts::OS.as_bytes()),
+        );
+        tools.insert(
+            "arch".to_owned(),
+            sha256_bytes(std::env::consts::ARCH.as_bytes()),
+        );
+        // The xtask binary hash is deliberately NOT part of the inventory.
+        // Every phase's own logic lives in tracked Rust sources that the
+        // phase input scopes already hash (Verification and WorkspaceAudit
+        // include crates/xtask; the node-driver scope keeps crates/xtask
+        // explicitly), so binary identity added only double-counting plus
+        // rebuild nondeterminism: any checker edit rebuilds xtask and used
+        // to discard every receipt, including phases whose inputs were
+        // untouched.
+        for (program, arguments) in [
+            ("cargo", &["--version", "--verbose"][..]),
+            ("rustc", &["--version", "--verbose"][..]),
+            ("rustfmt", &["--version"][..]),
+            ("node", &["--version"][..]),
+            ("git", &["--version"][..]),
+        ] {
+            let output = Command::new(program)
+                .current_dir(workspace)
+                .args(arguments)
+                .output()?;
+            if !output.status.success() {
+                return Err(format!(
+                    "cannot identify local CI tool {program}: {}",
+                    String::from_utf8_lossy(&output.stderr).trim()
+                )
+                .into());
+            }
+            tools.insert(program.to_owned(), sha256_bytes(&output.stdout));
         }
-        hash_field(&mut hash, program.as_bytes(), &output.stdout);
+
+        let mut environment = BTreeMap::new();
+        for (key, value) in std::env::vars_os() {
+            if environment_affects_ci(&key) {
+                environment.insert(
+                    key.to_string_lossy().into_owned(),
+                    sha256_bytes(value.as_encoded_bytes()),
+                );
+            }
+        }
+        Ok(Self { tools, environment })
     }
 
-    let mut environment = std::env::vars_os()
-        .filter(|(key, _)| environment_affects_ci(key))
-        .collect::<Vec<_>>();
-    environment.sort_by(|left, right| left.0.cmp(&right.0));
-    for (key, value) in environment {
-        hash_field(&mut hash, key.as_encoded_bytes(), value.as_encoded_bytes());
+    fn rolled(&self) -> String {
+        let mut hash = Sha256::new();
+        hash_field(&mut hash, b"section", b"tools");
+        for (key, value) in &self.tools {
+            hash_field(&mut hash, key.as_bytes(), value.as_bytes());
+        }
+        hash_field(&mut hash, b"section", b"environment");
+        for (key, value) in &self.environment {
+            hash_field(&mut hash, key.as_bytes(), value.as_bytes());
+        }
+        format!("{:x}", hash.finalize())
     }
-    Ok(format!("{:x}", hash.finalize()))
 }
 
 fn environment_affects_ci(key: &OsStr) -> bool {
