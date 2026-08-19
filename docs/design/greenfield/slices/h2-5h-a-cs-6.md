@@ -83,7 +83,9 @@ the Rust drive must preserve that order.
 | Item | Target |
 |---|---|
 | fixture harness | new `crates/emitter/tests/integration/comment_scope_witness_contract.rs`: `include_bytes!` the artifact (h2_1a_profile precedent), serde_json parse, one `#[test]` iterating all 30 cases with per-case panic messages carrying `case_id` and a byte-diff excerpt |
-| per-case drive | decode input → `parse_source_file("/project/input.ts", …)` → `TransformArena` → case transform builder → `transform_nodes` with the builder PREPENDED to `get_script_transformers` (ES2016) → `create_printer(PrinterOptions LF).with_remove_comments(case)` → byte-compare |
+| per-case drive | the measured house precedent is `transform_and_print_at_target_with_resolver_and_mode` (active_transform_contract.rs:200): parse → `TransformArena` → `transform_nodes` with the case builder PREPENDED to `get_script_transformers(&options, &NoConstantValueResolver)` → print under `SourceFileTextMode::Canonical` (the oracle-byte-parity mode those contracts qualified) with `with_remove_comments(case)` → byte-compare against the decoded stored output |
+| compiler options | **built from the stored serialized record, never from `bootstrap_options()` defaults** — the frozen record is exactly the four keys `{module: 99 ESNext, newLine: 1 LF, removeComments, target: 3 ES2016}` (measured across all 30 cases); an unknown stored key fails closed. Review-caught: the precedent's bootstrap defaults (e.g. `always_strict`) would alter prologue emission and break byte parity |
+| structural guards | measured invariants asserted per case before comparing: exactly one input file and one root, exactly one write, `emit_skipped == false`, stored reported/emit diagnostics empty (30/30 today) |
 | transform builder: `identity` | pass-through |
 | `wrap-expression-statements-in-synthetic-arrow` | the one `x;` expression statement wraps as `factory` arrow `() => { x; }` in a fresh expression statement (createArrowFunction/createBlock/createToken equivalents on `NodeFactory`) |
 | `apply-comment-emit-flags` | `suppressLead()`/`suppressTrail()` call statements gain `EmitFlags::NO_LEADING_COMMENTS`/`NO_TRAILING_COMMENTS`; the one `Block` gains `EmitFlags::NO_NESTED_COMMENTS` (exists, metadata.rs:32) |
@@ -196,9 +198,10 @@ separate reviewed decision); the CS-3/4/5 prohibitions remain.
 1. Trusted base + authority hashes: re-pin after CS-5 merges.
 2. The exact Rust spelling of the six builders against the factory
    API (mechanical; the ingredients are measured present).
-3. Whether `parse_source_file` accepts the `/project/input.ts`
-   virtual path verbatim (or the suite normalizes the path while
-   keeping bytes identical) — settle with the first fixture run.
+3. The virtual `/project/input.ts` path — expected byte-irrelevant
+   (source maps are off and the precedent drive parses under a plain
+   name with an arena `SourceFileId`), confirm on the first fixture
+   run.
 4. The audit rule's exact table shape inside workspace_maintenance.rs
    (follow the inline-tests rule's structure).
 
