@@ -46,7 +46,7 @@ pass. Machine check (once the envelope exists):
 |---|---|---|---|
 | `E-COMMENT-SCOPE-H` | `active-unqualified` (unchanged; CS-5 lands the route fifth) | `CommentEmissionScope`, `EmitContext` | the row under implementation; its "four named detached_transitional entries" sentence retires with the code |
 | `E-PRINTER-BASE` / `E-PRINTER-G` / `E-COMMENTS-G` | `active-unqualified` (unchanged) | pipeline and cursor machinery | untouched premises; deletion cannot alter phase order |
-| gap-matrix `comment-scope-threading` | `partial` (re-anchored, §8) | anchors include the shim names | shim anchors retire; the `obsolete` set of CS-3 §5 line 151 completes its lifecycle |
+| gap-matrix `comment-scope-threading` | `partial` (note update only, §8) | per-side producer anchors (no shim references — measured) | the matrix note advances CS-5 → CS-6-remaining |
 
 ## 3. Pinned upstream map
 
@@ -69,6 +69,7 @@ derived by threading).
 | `fn emit_child_after_token` + annotation | delete |
 | `const fn detached_transitional` + its doc comment | delete |
 | `EmitContext` struct doc line "…and the named transitional entries below" (printer.rs:546) | reword to name `file_root` as the sole zero-scope constructor |
+| `comment_cursor.rs` scope-struct and `empty()` doc lines naming "named transitional (detached) entries" (:74, :89) | reword — the entries no longer exist (review-caught: the fence must include these two doc lines) |
 | `#[cfg(test)] contract_scope` on `CommentEmissionScope` | KEEP — unit-contract hook, not a production constructor |
 | `_with_context` names | **KEEP** (decided): the packet stays purely subtractive; renaming ~200 call sites adds review surface with zero semantic value, and the compound variants (`_with_context_and_source_extent`, `_and_source_comments`) keep the family lexically coherent. Cosmetic consolidation, if ever, is post-H2.9 refactor territory. |
 
@@ -89,7 +90,8 @@ constructions, and five annotation comments.
 
 ## 6. Implementation sequence
 
-Fence: `crates/emitter/src/printer.rs` only, plus the §8 evidence set.
+Fence: `crates/emitter/src/printer.rs` and the two stale
+`comment_cursor.rs` doc lines (§4), plus the §8 evidence set.
 
 1. Delete the five shims with their annotations; delete
    `detached_transitional`; reword the `EmitContext` struct doc.
@@ -113,9 +115,11 @@ aborts the packet — there is no witness that could license one).
 
 ## 8. Evidence, ratchet, and documentation amendments
 
-1. **Gap matrix**: `comment-scope-threading` anchors drop the five
-   shim names and `detached_transitional`; note records CS-5 landed,
-   CS-6 remaining.
+1. **Gap matrix**: note text records CS-5 landed, CS-6 remaining.
+   Review-measured: the generator anchors never referenced the shim
+   names or `detached_transitional` (zero matches across the three
+   5h-a generators), so NO anchor change is needed — the artifact
+   re-mints on the walk from the handoff-pin cascade alone.
 2. **Dispositions**: no row moves; manifest note records the landing.
 3. **Architecture map**: `E-COMMENT-SCOPE-H` symbol list drops "the
    four named `EmitContext::detached_transitional` entries" clause;

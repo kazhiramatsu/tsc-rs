@@ -71,7 +71,7 @@ impl CommentCursor {
 /// a claim may set one side and leave the other inherited, and a range
 /// that fails the claim gate sets neither, so the enclosing scope stays
 /// active. There is deliberately no `Default`: the zero scope exists
-/// only at the printer's root and its named transitional entries.
+/// only at the printer's root.
 ///
 /// tsc-port: containerPos/containerEnd/declarationListContainerEnd @6.0.3
 /// tsc-span: _tsc.js:116957-116959 (state); _tsc.js:121007-121052
@@ -86,8 +86,7 @@ pub(crate) struct CommentEmissionScope {
 
 impl CommentEmissionScope {
     /// The `-1/-1/-1` initial printer state. Constructed only by the
-    /// printer root and its named transitional detached entries; nested
-    /// routes receive the threaded value.
+    /// printer root; nested routes receive the threaded value.
     pub(crate) const fn empty() -> Self {
         Self {
             container_pos: None,
