@@ -7,7 +7,7 @@
   "plan_step": "prerequisite-transition-step-3",
   "generator": {
     "path": "crates/oracle/h2-5h-a-gap-matrix.mjs",
-    "sha256": "7896bb734ea3ef071a9ea58fc5e14846352267031cbd33d75f62dd0d0fc64df3"
+    "sha256": "ec2d6a6c55b43c35b14f38ab7920413ce6f6f9e2041c2cd4d477055d2080ce24"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
@@ -16,12 +16,12 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "3a12f5ff54f25c1c927825b6a89d6d7800e299ad131bb319e239f5c9c33691ef"
+      "sha256": "613d757be29284cbda33141beac4297fcf83f8c58e104b7b1669e344b777adb3"
     },
-    "owner_graph_fingerprint_sha256": "98ea57c1eb81deca80a4df5154ed503a336d6d33f74a0210a5e1a9153cb3c669",
+    "owner_graph_fingerprint_sha256": "7e448f05c0ae372eba835b02e5902bb67b62dbc0282703349d85d5cb6deedd13",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "b79f38a1e3066ed38e3fe77c587760d9664ded1b744d8ac7354eda208ef9c6b1"
+      "sha256": "753e74ff666d1042ed7b6d40d1625fe706f590afc11294f358d584fb31832a82"
     },
     "interpretation": "prerequisite-transition step 3 records the current Rust capability states against the frozen owner graph; a landed implementation breaks its pinned absence and forces re-disposition; it edits no production code and activates nothing"
   },
@@ -288,7 +288,7 @@
           "symbol": "CommentCursor",
           "file": {
             "path": "crates/emitter/src/comment_cursor.rs",
-            "sha256": "9e58f3c6177f4bf8977e476d992392a65287f5dbf5cda73c9318853638f02fe1"
+            "sha256": "980841924109a6059b89e5e6791e8df78606bb78d1dece32b056c02c6cbf5627"
           }
         },
         {
@@ -296,7 +296,7 @@
           "symbol": "token_owned_comment_phase_prefix",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "f9ed367e3939273dab6137377b787667b4366ed28e61c97043891eb0664daea5"
+            "sha256": "2ac734703803912e9fb88c14789571fe9b4489aab5b8f088ffbce9b4c6144dad"
           }
         },
         {
@@ -304,7 +304,7 @@
           "symbol": "struct CommentEmissionScope",
           "file": {
             "path": "crates/emitter/src/comment_cursor.rs",
-            "sha256": "9e58f3c6177f4bf8977e476d992392a65287f5dbf5cda73c9318853638f02fe1"
+            "sha256": "980841924109a6059b89e5e6791e8df78606bb78d1dece32b056c02c6cbf5627"
           }
         },
         {
@@ -312,7 +312,7 @@
           "symbol": "fn claim_sides",
           "file": {
             "path": "crates/emitter/src/comment_cursor.rs",
-            "sha256": "9e58f3c6177f4bf8977e476d992392a65287f5dbf5cda73c9318853638f02fe1"
+            "sha256": "980841924109a6059b89e5e6791e8df78606bb78d1dece32b056c02c6cbf5627"
           }
         },
         {
@@ -320,7 +320,7 @@
           "symbol": "fn established_container_sides",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "f9ed367e3939273dab6137377b787667b4366ed28e61c97043891eb0664daea5"
+            "sha256": "2ac734703803912e9fb88c14789571fe9b4489aab5b8f088ffbce9b4c6144dad"
           }
         },
         {
@@ -328,7 +328,7 @@
           "symbol": "struct EmitContext",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "f9ed367e3939273dab6137377b787667b4366ed28e61c97043891eb0664daea5"
+            "sha256": "2ac734703803912e9fb88c14789571fe9b4489aab5b8f088ffbce9b4c6144dad"
           }
         },
         {
@@ -336,7 +336,7 @@
           "symbol": "fn file_root",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "f9ed367e3939273dab6137377b787667b4366ed28e61c97043891eb0664daea5"
+            "sha256": "2ac734703803912e9fb88c14789571fe9b4489aab5b8f088ffbce9b4c6144dad"
           }
         },
         {
@@ -344,13 +344,13 @@
           "symbol": "fn claim_declaration_list_sides",
           "file": {
             "path": "crates/emitter/src/comment_cursor.rs",
-            "sha256": "9e58f3c6177f4bf8977e476d992392a65287f5dbf5cda73c9318853638f02fe1"
+            "sha256": "980841924109a6059b89e5e6791e8df78606bb78d1dece32b056c02c6cbf5627"
           }
         }
       ],
       "absences": [],
-      "note": "CS-2 landed the threaded scope at the root and core pipeline, CS-3 landed the per-side claim predicates on the expression/list routes, and CS-4 landed the statement/declaration-family migration with the declaration-list writer (claim_declaration_list_sides replaces the planned container claim; the statement-paired claim helper is deleted); the contextless-API deletion and the final audit remain with packets CS-5..CS-6 before any ES2015/Generators production work",
-      "capability_fingerprint_sha256": "1bf30617ac1262f09a6bf44e87ce96da93165009e640bdcb5dd35f292ebf569c"
+      "note": "CS-2 landed the threaded scope at the root and core pipeline, CS-3 landed the per-side claim predicates on the expression/list routes, and CS-4 landed the statement/declaration-family migration with the declaration-list writer (claim_declaration_list_sides replaces the planned container claim; the statement-paired claim helper is deleted); CS-5 deleted the five contextless shims and the detached_transitional constructor, leaving file_root as the printer's single zero-scope entry; the final fixture/audit gate remains with packet CS-6 before any ES2015/Generators production work",
+      "capability_fingerprint_sha256": "9a80b6169958f0c91bd912786cdebfd065d8c73358413a3f22b61b8726243af1"
     },
     {
       "index": 8,
@@ -537,5 +537,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "794f27caf30897ebbb61429872432deb4b54e62ef7a6f973335540f59ab9dd5f"
+  "gap_matrix_fingerprint_sha256": "816e05922d482627f6f79141f46730fa3799992965a5b8b17108d4fac93badb9"
 }

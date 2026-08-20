@@ -542,8 +542,9 @@ impl ExpressionSyntaxContext {
 /// This is the Rust counterpart of tsc's per-node printer context: the
 /// comment half is the threaded [`CommentEmissionScope`] triple, replacing
 /// the closure variables that tsc saves and restores around every commented
-/// node. There is no `Default`; a zero scope is created only by
-/// [`EmitContext::file_root`] and the named transitional entries below.
+/// node. There is no `Default`; [`EmitContext::file_root`] is the single
+/// zero-scope constructor, and every nested context is derived by
+/// threading.
 #[must_use]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 struct EmitContext {
@@ -556,18 +557,6 @@ impl EmitContext {
     /// `-1/-1/-1` comment scope. This is tsc's `createPrinter` state and is
     /// constructed exactly once per emitted source file.
     const fn file_root() -> Self {
-        Self {
-            syntax: ExpressionSyntaxContext::NORMAL,
-            comments: CommentEmissionScope::empty(),
-        }
-    }
-
-    /// A nested route that does not yet accept its parent's context.
-    ///
-    /// Every caller is a comment-scope route migration still owed by the
-    /// packets after CS-2; the name keeps the remaining sites greppable so
-    /// none can be forgotten when the contextless APIs are deleted.
-    const fn detached_transitional() -> Self {
         Self {
             syntax: ExpressionSyntaxContext::NORMAL,
             comments: CommentEmissionScope::empty(),
@@ -8483,59 +8472,11 @@ impl Printer {
         Ok(())
     }
 
-    // Caller-less since the CS-4 route threading: every emission site now
-    // passes the threaded EmitContext. Retained only as the named
-    // detached_transitional surface that CS-5 deletes together with the
-    // zero-caller audit; new callers are forbidden.
-    #[allow(dead_code)]
-    fn emit_required_node(
-        &self,
-        transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
-        id: Option<tsc_syntax::NodeId>,
-        parent: SyntaxKind,
-        field: &'static str,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        self.emit_required_node_with_context(
-            transformation,
-            source,
-            id,
-            parent,
-            field,
-            EmitContext::detached_transitional(),
-            writer,
-        )
-    }
-
     /// Emit a parsed child whose leading boundary was already visited by a
     /// fixed token. The token owns same-line trailing trivia at that boundary;
     /// the child resumes after it and remains responsible for ordinary
     /// leading comments. Keeping the handoff typed prevents the same resume
     /// from being applied to an adjacent child that merely shares a source.
-    // Caller-less since the CS-4 route threading: every emission site now
-    // passes the threaded EmitContext. Retained only as the named
-    // detached_transitional surface that CS-5 deletes together with the
-    // zero-caller audit; new callers are forbidden.
-    #[allow(dead_code)]
-    fn emit_child_after_token(
-        &self,
-        transformation: &mut TransformationResult<'_>,
-        parent: TransformNode,
-        token: TokenEmission,
-        child: TransformNode,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        self.emit_child_after_token_with_context(
-            transformation,
-            parent,
-            token,
-            child,
-            EmitContext::detached_transitional(),
-            writer,
-        )
-    }
-
     fn emit_child_after_token_with_context(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -8619,24 +8560,6 @@ impl Printer {
             deferred,
             writer,
         )
-    }
-
-    // Caller-less since the CS-4 route threading: every emission site now
-    // passes the threaded EmitContext. Retained only as the named
-    // detached_transitional surface that CS-5 deletes together with the
-    // zero-caller audit; new callers are forbidden.
-    #[allow(dead_code)]
-    fn emit_required_identifier_name(
-        &self,
-        transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
-        id: Option<NodeId>,
-        parent: SyntaxKind,
-        field: &'static str,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        let id = id.ok_or(PrinterError::MissingTransformedChild { parent, field })?;
-        self.emit_identifier_name(transformation, source, id, writer)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -8798,27 +8721,6 @@ impl Printer {
         Ok(())
     }
 
-    // Caller-less since the CS-4 route threading: every emission site now
-    // passes the threaded EmitContext. Retained only as the named
-    // detached_transitional surface that CS-5 deletes together with the
-    // zero-caller audit; new callers are forbidden.
-    #[allow(dead_code)]
-    fn emit_node_id(
-        &self,
-        transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
-        id: tsc_syntax::NodeId,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        self.emit_node_id_with_context(
-            transformation,
-            source,
-            id,
-            EmitContext::detached_transitional(),
-            writer,
-        )
-    }
-
     fn emit_node_id_with_context(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -8863,27 +8765,6 @@ impl Printer {
             hint,
             expression_context,
             Some(deferred),
-            writer,
-        )
-    }
-
-    // Caller-less since the CS-4 route threading: every emission site now
-    // passes the threaded EmitContext. Retained only as the named
-    // detached_transitional surface that CS-5 deletes together with the
-    // zero-caller audit; new callers are forbidden.
-    #[allow(dead_code)]
-    fn emit_identifier_name(
-        &self,
-        transformation: &mut TransformationResult<'_>,
-        source: TransformSourceId,
-        id: NodeId,
-        writer: &mut TextWriter,
-    ) -> Result<(), PrinterError> {
-        self.emit_identifier_name_with_context(
-            transformation,
-            source,
-            id,
-            EmitContext::detached_transitional(),
             writer,
         )
     }

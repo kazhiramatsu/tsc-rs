@@ -153,7 +153,12 @@ Prerequisite-transition progress:
   §8): the statement-family routes and the declaration-list writer
   landed with no disposition move (counts unchanged 13 / 18 / 10 / 4 /
   0); the gap-matrix `comment-scope-threading` absences retired to the
-  landed `claim_declaration_list_sides` anchor. The manifest remains
+  landed `claim_declaration_list_sides` anchor.
+  **Amended 2026-08-20 by the CS-5 packet** ([CS-5](h2-5h-a-cs-5.md)
+  §8): the five contextless shims and the `detached_transitional`
+  constructor deleted with no disposition move (counts unchanged 13 /
+  18 / 10 / 4 / 0); no anchor change — the matrix anchors never
+  referenced the deleted names (measured). The manifest remains
   this slice's; each production packet owns its own amendment through
   its own design gate.
 - Step 6 **complete (2026-08-18)**: the W-H2.5H ES2015/Generators
