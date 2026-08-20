@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "a05085816c131d1c779443656219e03a23db5241adb652299c896311cdc0031f";
+  "80bfd75d48b3f3c76c46ddea711242ade8fb09d1fe6e5af2c26b79f39159411f";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -78,7 +78,7 @@ const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
   ["profile", "ratchets/h2-5f-profile.v1.json", "68c3c6ed51afa36a668aaf6fa338df2da87d6cbaad4740be25e8733be1a45b73"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "8dda508bc3bedf8fef4c727a51aa34d7e6dfd1c81bba31dd722a472423719466"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "0292e5612ba878dd1b45726d1b2b8fa26e4ea59ae5be45ff8b32166426e2e2dd"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
   ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "d5593648869817dde318c26156d4b025298fbdf411fe67a5c89fc6df8e5a715d"],
   ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "72773d747b0da690f7614dbd16755e5904aa617cc8e0b0f6573edbb84c342fad"],
@@ -248,6 +248,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/emitter/tests/unit/target_bindings_tests.rs",
   "crates/harness/tests/unit/upstream_suites/execution_tests.rs",
   "crates/program/tests/unit/option_validation_tests.rs",
+  "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
 ]);
 
 // These files implement the non-authoritative acceptance impact/restart
@@ -286,6 +287,11 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/conformance/tests/unit/lib/tests.rs",
   // Recovery-census gate infrastructure over the diagnostic corpus.
   "crates/xtask/src/recovery_census.rs",
+  // Workspace-audit maintenance rules (the CS-6 permanent
+  // zero-contextless audit): gate infrastructure, not read by the fixed
+  // H2.5g acceptance command.
+  "crates/xtask/src/workspace_maintenance.rs",
+  "crates/xtask/tests/unit/workspace_maintenance/tests.rs",
 ]);
 
 function fail(message) {
@@ -526,7 +532,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 237,
+    runtimeInputSet.size === 238,
     "H2.5g runtime input identity changed",
   );
 
