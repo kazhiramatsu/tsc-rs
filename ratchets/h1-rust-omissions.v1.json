@@ -42,8 +42,8 @@
     "file_count": 264,
     "rust_source_files": 243,
     "cargo_manifests": 21,
-    "bytes": 16331834,
-    "tree_sha256": "238dcccebc65707ec56958aaff511e3768cb22649d726009fd4806459339a79c"
+    "bytes": 16332014,
+    "tree_sha256": "8428cd1fbfc24922ce37897de1fb084309135b7e030d64d3ef5f2a269da5f6dd"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -493,7 +493,7 @@
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "cc6d331f7af96047ace0c4193989ceecd5f44af8aa24e8aea70b7986f4367bb4"
+        "file_sha256": "66268aeeb1b1bc955d960f71825b5811906fd31e9dd6c291d8ea9d90eb2b0ba2"
       },
       {
         "id": "emitter-position-domains",
@@ -511,7 +511,7 @@
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "cc6d331f7af96047ace0c4193989ceecd5f44af8aa24e8aea70b7986f4367bb4"
+        "file_sha256": "66268aeeb1b1bc955d960f71825b5811906fd31e9dd6c291d8ea9d90eb2b0ba2"
       },
       {
         "id": "emitter-resolver-protocol",
@@ -565,7 +565,7 @@
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "cc6d331f7af96047ace0c4193989ceecd5f44af8aa24e8aea70b7986f4367bb4"
+        "file_sha256": "66268aeeb1b1bc955d960f71825b5811906fd31e9dd6c291d8ea9d90eb2b0ba2"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -1155,5 +1155,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "7a20472481926c46ac7e6c2fa5fd3dd16a959295b4c4e92309112d6510c05bf0"
+  "inventory_fingerprint_sha256": "58af9d9801f96ae0e05ba9490ec471f0a521e2d0fc1e0fc6bc061f3ad5209a35"
 }

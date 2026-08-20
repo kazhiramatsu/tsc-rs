@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "1270293ff5fc416b1eb523382073bcaf97b892194681883821e9d18f8217dd70"
+      "sha256": "0b20628dd4f625f4bfba548b73246a00badaae6a1ab5399df5690ff88be862c1"
     },
-    "owner_graph_fingerprint_sha256": "a7aa3086aedc1752e1458dc66ef4dc835bb3a4ae8cbd217b9276c8095a00ff52",
+    "owner_graph_fingerprint_sha256": "b73914c3e61d70def198a5eac475c483daec2fec185c5fc8e2a6c1a3a10b2a0d",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "753e74ff666d1042ed7b6d40d1625fe706f590afc11294f358d584fb31832a82"
@@ -296,7 +296,7 @@
           "symbol": "token_owned_comment_phase_prefix",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "cc6d331f7af96047ace0c4193989ceecd5f44af8aa24e8aea70b7986f4367bb4"
+            "sha256": "66268aeeb1b1bc955d960f71825b5811906fd31e9dd6c291d8ea9d90eb2b0ba2"
           }
         },
         {
@@ -320,7 +320,7 @@
           "symbol": "fn established_container_sides",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "cc6d331f7af96047ace0c4193989ceecd5f44af8aa24e8aea70b7986f4367bb4"
+            "sha256": "66268aeeb1b1bc955d960f71825b5811906fd31e9dd6c291d8ea9d90eb2b0ba2"
           }
         },
         {
@@ -328,7 +328,7 @@
           "symbol": "struct EmitContext",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "cc6d331f7af96047ace0c4193989ceecd5f44af8aa24e8aea70b7986f4367bb4"
+            "sha256": "66268aeeb1b1bc955d960f71825b5811906fd31e9dd6c291d8ea9d90eb2b0ba2"
           }
         },
         {
@@ -336,7 +336,7 @@
           "symbol": "fn file_root",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "cc6d331f7af96047ace0c4193989ceecd5f44af8aa24e8aea70b7986f4367bb4"
+            "sha256": "66268aeeb1b1bc955d960f71825b5811906fd31e9dd6c291d8ea9d90eb2b0ba2"
           }
         },
         {
@@ -350,7 +350,7 @@
       ],
       "absences": [],
       "note": "CS-2 landed the threaded scope at the root and core pipeline, CS-3 landed the per-side claim predicates on the expression/list routes, and CS-4 landed the statement/declaration-family migration with the declaration-list writer (claim_declaration_list_sides replaces the planned container claim; the statement-paired claim helper is deleted); CS-5 deleted the five contextless shims and the detached_transitional constructor, leaving file_root as the printer's single zero-scope entry; the final fixture/audit gate remains with packet CS-6 before any ES2015/Generators production work",
-      "capability_fingerprint_sha256": "8e2ce972258e11a2ffbbb3fa7791f57cc52d037823edcf65500b80efc029b541"
+      "capability_fingerprint_sha256": "947fe3167c53c76faad874ee306dfdba69cc8706edaf99246cf4459d9349709b"
     },
     {
       "index": 8,
@@ -537,5 +537,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "8578d48b2c2fc24fc77b9afc6b412b615249df87d16dd2712accdf8dc5d3c7da"
+  "gap_matrix_fingerprint_sha256": "398957482ea017503144861a250d3c46c7427a6a6eb2e7fb5ce410895a3c934a"
 }

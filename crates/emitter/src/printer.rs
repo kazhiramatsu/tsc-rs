@@ -9480,7 +9480,8 @@ impl Printer {
     /// (token and expression routes own their synthetic phases separately).
     ///
     /// tsc-port: emitLeadingCommentsOfNode @6.0.3
-    /// tsc-span: _tsc.js:121030
+    /// tsc-hash: f19ebe6d4e44cddc371b73bea80781c08de19bc1f5747b3e0118aaad0dd28eb4
+    /// tsc-span: _tsc.js:121030-121030
     fn emit_statement_leading_comments(
         &self,
         transformation: &TransformationResult<'_>,
@@ -9507,7 +9508,8 @@ impl Printer {
     /// suppressions.
     ///
     /// tsc-port: emitTrailingCommentsOfNode @6.0.3
-    /// tsc-span: _tsc.js:121036
+    /// tsc-hash: 042bc00356dfd3b1d0b40f94c72428f0ae6c43b9743cf8435b716a01fc7b6a1f
+    /// tsc-span: _tsc.js:121036-121036
     fn emit_statement_trailing_comments(
         &self,
         transformation: &TransformationResult<'_>,
