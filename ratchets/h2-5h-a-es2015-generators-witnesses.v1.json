@@ -34,17 +34,17 @@
   "lineage": {
     "foundation": {
       "path": "ratchets/h2-5h-a-foundation.v1.json",
-      "sha256": "9acdb58aa8e3623bd667b15592da903425ab521befb4770e1a6b7d7b2935d8c1"
+      "sha256": "ddcd27b991bf2e022efad59f7df0c36fff4a451dbbecf0346902e4bf5ff1343a"
     },
-    "foundation_fingerprint_sha256": "4b2184afbb8f9d3829ada0b677444e3eedfc89f45aed16b4728ae8041e2019c0",
+    "foundation_fingerprint_sha256": "608f3889edaff0f004d5d90a1202f57f84d4140f57227f8cfc2d6ba24bf90cc5",
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "3a12f5ff54f25c1c927825b6a89d6d7800e299ad131bb319e239f5c9c33691ef"
+      "sha256": "613d757be29284cbda33141beac4297fcf83f8c58e104b7b1669e344b777adb3"
     },
-    "owner_graph_fingerprint_sha256": "98ea57c1eb81deca80a4df5154ed503a336d6d33f74a0210a5e1a9153cb3c669",
+    "owner_graph_fingerprint_sha256": "7e448f05c0ae372eba835b02e5902bb67b62dbc0282703349d85d5cb6deedd13",
     "handoff": {
       "path": "docs/design/greenfield/slices/h2-5h-a.md",
-      "sha256": "4e2621ef53ebafe508dafdf43af01b994a1725dc39bb47b4f8527be7fcd4d271"
+      "sha256": "4becfac527a6a86d797816d1d7a073b50ff424151b3311cfc630168c8041375b"
     },
     "interpretation": "W-H2.5H step 6 freezes oracle-captured ES2015/Generators lowering bytes; it authorizes no production edit and activates nothing"
   },
@@ -2787,5 +2787,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "witnesses_fingerprint_sha256": "d16b4d05483bf6bbdcddafe1715bdb292126e78497fd912246980904b14b6b82"
+  "witnesses_fingerprint_sha256": "2e3780023f1248b888397b4efbf4b4b72e025895349db33017d40347b89889c8"
 }
