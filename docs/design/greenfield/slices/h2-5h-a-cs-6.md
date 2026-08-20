@@ -164,7 +164,11 @@ observation drift aborts the packet.
   oracle output, both `removeComments` polarities, all six
   transforms exercised.
 - Audit rule: canary unit test red-proves the rule; the live tree
-  passes it; CS-5's acceptance greps remain zero.
+  passes it; CS-5's acceptance greps remain zero within
+  `crates/emitter` (the audit's scope — the rule itself legitimately
+  carries the deny-list literals in `crates/xtask`, so the tree-wide
+  grep form is not the acceptance surface once this packet lands;
+  review-scoped 2026-08-20).
 - `cargo test -p tsc-rs-emitter` fully green; any changed focused
   expected value carries its `case_id` citation (production fixes
   only).
@@ -197,9 +201,12 @@ separate reviewed decision); the CS-3/4/5 prohibitions remain.
 
 1. Trusted base + authority hashes: re-pin after CS-5 merges.
 2. ~~The exact Rust spelling of the six builders~~ — landed (step 1,
-   the six transform arms of
-   `comment_scope_witness_contract.rs::apply_case_transform`; proven
-   by 30/30 byte parity).
+   the six transform arms of the match inside
+   `comment_scope_witness_contract.rs::WitnessCaseTransformer::transform_root`;
+   proven by 30/30 byte parity; review-corrected 2026-08-20 — the
+   draft's `apply_case_transform` spelling never existed in the landed
+   code, and any gap-matrix anchor must cite a real symbol such as
+   `fn drive_case`).
 3. ~~The virtual `/project/input.ts` path~~ — confirmed byte-irrelevant
    on the first fixture run (the suite parses under the arena name and
    reached full byte parity; source maps off as expected).
