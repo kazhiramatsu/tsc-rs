@@ -19,6 +19,7 @@ const OWNER_GRAPH_RELATIVE_PATH = "ratchets/h2-5h-a-owner-graph.v1.json";
 const HANDOFF_RELATIVE_PATH = "docs/design/greenfield/slices/h2-5h-a.md";
 const TYPESCRIPT_BUNDLE = "vendor/typescript-6.0.3/lib/typescript.js";
 const TYPESCRIPT_IMPLEMENTATION = "vendor/typescript-6.0.3/lib/_tsc.js";
+const TYPESCRIPT_LIB_DIRECTORY = "vendor/typescript-6.0.3/lib";
 const SOURCE_COMMIT = "050880ce59e30b356b686bd3144efe24f875ebc8";
 const EXPECTED_NODE = "25.2.1";
 const SLICE = "H2.5h-a";
@@ -835,6 +836,120 @@ function withFingerprint(value, field) {
   return { ...value, [field]: sha256(Buffer.from(canonical(value), "utf8")) };
 }
 
+function fingerprintIsValid(record, field) {
+  if (record === null || typeof record !== "object") return false;
+  const { [field]: storedFingerprint, ...rest } = record;
+  return (
+    typeof storedFingerprint === "string" &&
+    storedFingerprint === sha256(Buffer.from(canonical(rest), "utf8"))
+  );
+}
+
+function libraryInventoryRecord() {
+  // The fresh-process observations resolve default libraries from disk
+  // through the base compiler host; those .d.ts bytes drive the type
+  // check but are not covered by the bundle/implementation hashes, so
+  // the record pins the whole vendored lib inventory (gate-tax 2 R3-2).
+  const directory = path.join(WORKSPACE, TYPESCRIPT_LIB_DIRECTORY);
+  const names = fs
+    .readdirSync(directory)
+    .filter((name) => name.startsWith("lib.") && name.endsWith(".d.ts"))
+    .sort();
+  requireCondition(
+    names.length > 0,
+    "vendored TypeScript lib inventory is empty",
+  );
+  const hash = crypto.createHash("sha256");
+  for (const name of names) {
+    hash.update(name);
+    hash.update("\u0000");
+    hash.update(fs.readFileSync(path.join(directory, name)));
+    hash.update("\u0000");
+  }
+  return {
+    path: TYPESCRIPT_LIB_DIRECTORY,
+    default_libraries: names.length,
+    sha256: hash.digest("hex"),
+  };
+}
+
+function typescriptRecord() {
+  return {
+    version: ts.version,
+    source_commit: SOURCE_COMMIT,
+    bundle: pathHash(TYPESCRIPT_BUNDLE),
+    implementation: pathHash(TYPESCRIPT_IMPLEMENTATION),
+    lib: libraryInventoryRecord(),
+  };
+}
+
+function writeFileAtomic(absolutePath, contents) {
+  // Same-directory temp + rename: a kill mid-write can never truncate
+  // the artifact, which doubles as the adoption store (gate-tax 2 R4-1).
+  const temporary = path.join(
+    path.dirname(absolutePath),
+    `.${path.basename(absolutePath)}.tmp`,
+  );
+  // The name is deterministic (no pid): artifact writes are
+  // single-writer by walk discipline, and a stray temp left by a kill
+  // is overwritten by the next successful write instead of
+  // accumulating as untracked residue.
+  fs.writeFileSync(temporary, contents);
+  fs.renameSync(temporary, absolutePath);
+}
+
+let adoptedCases = 0;
+
+// Write-side observation adoption (gate-tax 2). The adoption key is
+// all-or-nothing and deliberately stricter than the 5g per-case
+// fallback: the stored generator sha must byte-match this file (the
+// case specs and transforms live here, and unlike 5g there is no
+// per-gate --check backstop, only the once-per-slice packet checker),
+// and the stored typescript record must byte-match the current one
+// including the library inventory. Only the fresh-process oracle
+// observations are adopted; every derivation, marker expectation,
+// census guard, and lineage pin re-executes against current inputs on
+// every write. --check never adopts: the packet checker's full
+// re-observation remains the slice-boundary backstop.
+function reusableStoredObservations(currentTypescriptRecord) {
+  if (mode !== "--write") return null;
+  const targetPath = path.join(WORKSPACE, TARGET_RELATIVE_PATH);
+  if (!fs.existsSync(targetPath)) return null;
+  let stored;
+  try {
+    stored = JSON.parse(fs.readFileSync(targetPath, "utf8"));
+  } catch {
+    return null;
+  }
+  if (
+    stored === null ||
+    typeof stored !== "object" ||
+    stored.schema !== 1 ||
+    stored.kind !== "h2-es2015-generators-witnesses" ||
+    !fingerprintIsValid(stored, "witnesses_fingerprint_sha256") ||
+    canonical(stored.generator) !==
+      canonical(pathHash(GENERATOR_RELATIVE_PATH)) ||
+    canonical(stored.typescript) !== canonical(currentTypescriptRecord)
+  ) {
+    return null;
+  }
+  const observations = new Map();
+  for (const family of stored.families ?? []) {
+    for (const storedCase of family.cases ?? []) {
+      if (
+        typeof storedCase.case_id === "string" &&
+        fingerprintIsValid(
+          storedCase.observation,
+          "observation_fingerprint_sha256",
+        )
+      ) {
+        observations.set(storedCase.case_id, storedCase.observation);
+      }
+    }
+  }
+  return observations;
+}
+
 function readBytes(relativePath) {
   return fs.readFileSync(path.join(WORKSPACE, relativePath));
 }
@@ -1068,17 +1183,29 @@ function observeWitnessCaseInFreshProcess(caseSpec) {
   return observation;
 }
 
-function buildWitnessCase(caseSpec, foundationControls) {
+function buildWitnessCase(caseSpec, foundationControls, adoptedObservations) {
   // Generated-name allocation and helper priority are process-global
   // printer state: every repetition runs in a fresh Node isolate, exactly
   // like the foundation's direct controls and the comment-scope witnesses.
-  const first = observeWitnessCaseInFreshProcess(caseSpec);
-  const second = observeWitnessCaseInFreshProcess(caseSpec);
-  requireCondition(
-    first.observation_fingerprint_sha256 ===
-      second.observation_fingerprint_sha256,
-    `${caseSpec.case_id} TypeScript observation is nondeterministic`,
-  );
+  const adopted = adoptedObservations?.get(caseSpec.case_id) ?? null;
+  let first;
+  if (adopted !== null) {
+    // Adoption skips only the two fresh-process oracle runs; the stored
+    // observation fingerprint stands for the repetitions=2 determinism
+    // proof, exactly as the 5g reuse does. Every marker expectation and
+    // foundation-control cross-check below still executes against the
+    // adopted record and the CURRENT foundation artifact.
+    adoptedCases += 1;
+    first = adopted;
+  } else {
+    first = observeWitnessCaseInFreshProcess(caseSpec);
+    const second = observeWitnessCaseInFreshProcess(caseSpec);
+    requireCondition(
+      first.observation_fingerprint_sha256 ===
+        second.observation_fingerprint_sha256,
+      `${caseSpec.case_id} TypeScript observation is nondeterministic`,
+    );
+  }
   for (const markerSpec of caseSpec.markers) {
     const observed = first.marker_occurrences.find(
       (entry) => entry.token === markerSpec.token,
@@ -1338,12 +1465,12 @@ function pinYieldStarSites(ownerGraph, specs) {
   });
 }
 
-function buildFamilies(foundationControls) {
+function buildFamilies(foundationControls, adoptedObservations) {
   const specs = flattenCaseSpecs();
   const casesById = new Map(
     specs.map((spec) => [
       spec.case_id,
-      buildWitnessCase(spec, foundationControls),
+      buildWitnessCase(spec, foundationControls, adoptedObservations),
     ]),
   );
   return WITNESS_FAMILY_SPECS.map((family) => {
@@ -1387,7 +1514,11 @@ function buildArtifact() {
   const ownerGraph = validateOwnerGraphLineage();
   const specs = flattenCaseSpecs();
   const yieldStarSites = pinYieldStarSites(ownerGraph, specs);
-  const families = buildFamilies(foundation.controls);
+  const typescript = typescriptRecord();
+  const families = buildFamilies(
+    foundation.controls,
+    reusableStoredObservations(typescript),
+  );
   const cases = families.flatMap((family) => family.cases);
   const roleCount = (role) =>
     cases.filter((item) => item.role === role).length;
@@ -1432,12 +1563,7 @@ function buildArtifact() {
       slice_id: SLICE,
       sub_packet: SUB_PACKET,
       plan_step: "step-6-witness-freeze",
-      typescript: {
-        version: ts.version,
-        source_commit: SOURCE_COMMIT,
-        bundle: pathHash(TYPESCRIPT_BUNDLE),
-        implementation: pathHash(TYPESCRIPT_IMPLEMENTATION),
-      },
+      typescript,
       generator: pathHash(GENERATOR_RELATIVE_PATH),
       contract: pathHash(CONTRACT_RELATIVE_PATH),
       lineage: {
@@ -1504,9 +1630,9 @@ if (mode === INTERNAL_OBSERVE_MODE) {
   const artifact = buildArtifact();
   const rendered = render(artifact);
   if (mode === "--write") {
-    fs.writeFileSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH), rendered);
+    writeFileAtomic(path.join(WORKSPACE, TARGET_RELATIVE_PATH), rendered);
     process.stdout.write(
-      `wrote ${TARGET_RELATIVE_PATH}: families=${artifact.summary.families} cases=${artifact.summary.cases} oracle_runs=${artifact.summary.typescript_oracle_runs}\n`,
+      `wrote ${TARGET_RELATIVE_PATH}: families=${artifact.summary.families} cases=${artifact.summary.cases} oracle_runs=${artifact.summary.typescript_oracle_runs} adopted_cases=${adoptedCases} oracle_runs_saved=${adoptedCases * 2}\n`,
     );
   } else {
     requireCondition(

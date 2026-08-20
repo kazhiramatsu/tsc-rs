@@ -330,7 +330,13 @@
     "typescript": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "source_commit", "bundle", "implementation"],
+      "required": [
+        "version",
+        "source_commit",
+        "bundle",
+        "implementation",
+        "lib"
+      ],
       "properties": {
         "version": { "const": "6.0.3" },
         "source_commit": {
@@ -357,6 +363,16 @@
               "required": ["path"]
             }
           ]
+        },
+        "lib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "default_libraries", "sha256"],
+          "properties": {
+            "path": { "const": "vendor/typescript-6.0.3/lib" },
+            "default_libraries": { "type": "integer", "minimum": 1 },
+            "sha256": { "$ref": "#/$defs/sha256" }
+          }
         }
       }
     },

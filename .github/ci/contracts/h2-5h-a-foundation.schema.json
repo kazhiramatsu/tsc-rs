@@ -382,14 +382,30 @@
     "typescript": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "source_commit", "bundle", "implementation"],
+      "required": [
+        "version",
+        "source_commit",
+        "bundle",
+        "implementation",
+        "lib"
+      ],
       "properties": {
         "version": { "const": "6.0.3" },
         "source_commit": {
           "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
         },
         "bundle": { "$ref": "#/$defs/path_hash" },
-        "implementation": { "$ref": "#/$defs/path_hash" }
+        "implementation": { "$ref": "#/$defs/path_hash" },
+        "lib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "default_libraries", "sha256"],
+          "properties": {
+            "path": { "const": "vendor/typescript-6.0.3/lib" },
+            "default_libraries": { "type": "integer", "minimum": 1 },
+            "sha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
       }
     },
     "lineage": {
