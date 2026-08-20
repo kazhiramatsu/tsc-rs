@@ -42,8 +42,8 @@
     "file_count": 264,
     "rust_source_files": 243,
     "cargo_manifests": 21,
-    "bytes": 16304164,
-    "tree_sha256": "8f9376c135d0d5db4be1fdd1d679bf8680083f92590d391ee87cbf5524679f0b"
+    "bytes": 16329306,
+    "tree_sha256": "db16c03c778f2e2575bf69ba4e9ae941b63ad4ab5e88d51e2c7a7d4886a096a6"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -493,7 +493,7 @@
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "0e59c01b57fdec0d8287297efa13f6adc8ea4c38bc1a5c4df30ef12d0e7ea8e4"
+        "file_sha256": "f9ed367e3939273dab6137377b787667b4366ed28e61c97043891eb0664daea5"
       },
       {
         "id": "emitter-position-domains",
@@ -511,7 +511,7 @@
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "0e59c01b57fdec0d8287297efa13f6adc8ea4c38bc1a5c4df30ef12d0e7ea8e4"
+        "file_sha256": "f9ed367e3939273dab6137377b787667b4366ed28e61c97043891eb0664daea5"
       },
       {
         "id": "emitter-resolver-protocol",
@@ -561,11 +561,11 @@
       {
         "id": "emitter-changed-import-printer",
         "path": "crates/emitter/src/printer.rs",
-        "line": 2072,
+        "line": 2123,
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "0e59c01b57fdec0d8287297efa13f6adc8ea4c38bc1a5c4df30ef12d0e7ea8e4"
+        "file_sha256": "f9ed367e3939273dab6137377b787667b4366ed28e61c97043891eb0664daea5"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -1155,5 +1155,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "d7ebeb9d2522db986250a2ca18e929cf1c4010a21c382ab207ef6898cf359b81"
+  "inventory_fingerprint_sha256": "2da056a1e2b0e80ab17dd8406afdc0f27ae70559d07234e45298adf3b7d25705"
 }
