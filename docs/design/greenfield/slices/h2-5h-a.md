@@ -148,8 +148,19 @@ Prerequisite-transition progress:
   §8): the per-side route migration re-expresses `E-COMMENTS-G`'s
   qualified expression/list projections, so that row moved
   `premise-unchanged` -> `modified-requalify` (counts now 13 / 18 / 10
-  / 4 / 0, undispositioned 0). The manifest remains this slice's; each
-  production packet owns its own amendment through its own design gate.
+  / 4 / 0, undispositioned 0).
+  **Amended 2026-08-20 by the CS-4 packet** ([CS-4](h2-5h-a-cs-4.md)
+  §8): the statement-family routes and the declaration-list writer
+  landed with no disposition move (counts unchanged 13 / 18 / 10 / 4 /
+  0); the gap-matrix `comment-scope-threading` absences retired to the
+  landed `claim_declaration_list_sides` anchor.
+  **Amended 2026-08-20 by the CS-5 packet** ([CS-5](h2-5h-a-cs-5.md)
+  §8): the five contextless shims and the `detached_transitional`
+  constructor deleted with no disposition move (counts unchanged 13 /
+  18 / 10 / 4 / 0); no anchor change — the matrix anchors never
+  referenced the deleted names (measured). The manifest remains
+  this slice's; each production packet owns its own amendment through
+  its own design gate.
 - Step 6 **complete (2026-08-18)**: the W-H2.5H ES2015/Generators
   witness set is frozen at
   `ratchets/h2-5h-a-es2015-generators-witnesses.v1.json` (generator
@@ -242,11 +253,15 @@ node .github/ci/slice-readiness.mjs --check h2-5h-a
 ```
 
 green at one head, first satisfied on the witness-machine train
-(step 7 above). The six artifact `--check`s and the qualification
-registry run inside every full local gate already, and the registry
-revalidates every `ready` envelope including this packet's document
-digest — any later edit to this document therefore requires an
-envelope re-pin in the same change.
+(step 7 above). The six artifact `--check`s are the packet checker's
+own commands: the full local gate does NOT run them (its oracle phase
+validates these artifacts only through the qualification registry's
+contract table — schema subset plus fingerprint, no re-observation),
+so the once-per-slice packet-checker run above is their full
+re-observation backstop. The registry does run inside every full local
+gate and revalidates every `ready` envelope including this packet's
+document digest — any later edit to this document therefore requires
+an envelope re-pin in the same change.
 
 
 If the ready packet adds an H2.5h ts-tests runner to hosted acceptance, it must

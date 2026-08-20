@@ -7,7 +7,7 @@
   "plan_step": "prerequisite-transition-step-5-manifest",
   "generator": {
     "path": "crates/oracle/h2-5h-a-dispositions.mjs",
-    "sha256": "07c759eecece9c824454af1649901ba2d3715caacb2a45897d84c2aaa9a20b20"
+    "sha256": "7fe9fa7a811cd5df2a2d659d5d026fe239f92be4480105a0203cefb9c27ced4a"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
@@ -16,17 +16,17 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "be5ffe01648737d805128643751abdfed1f1ba1e7c3b9499630c9af470dfde77"
+      "sha256": "613d757be29284cbda33141beac4297fcf83f8c58e104b7b1669e344b777adb3"
     },
-    "owner_graph_fingerprint_sha256": "fc64b7df5ea2e462438727c5a904fdef01f05c54b2467811ec97c6f677ff5741",
+    "owner_graph_fingerprint_sha256": "7e448f05c0ae372eba835b02e5902bb67b62dbc0282703349d85d5cb6deedd13",
     "gap_matrix": {
       "path": "ratchets/h2-5h-a-gap-matrix.v1.json",
-      "sha256": "a007d5f2fd087825e41e53ca383a30a256a049d90afba48d6a7c0af63534e9da"
+      "sha256": "af1768bada8fb1b7ee77769ad89a25b14bec438a75fd45d7c24dfcb30ed6c193"
     },
-    "gap_matrix_fingerprint_sha256": "d4c07164f6bf600bc73d222a561415f974513c2181870dce90e745577b8be3be",
+    "gap_matrix_fingerprint_sha256": "816e05922d482627f6f79141f46730fa3799992965a5b8b17108d4fac93badb9",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "a6c9eccb4d3837d6ec14892b9e45752b026cca4bd778341c309128f09ad2b5cd"
+      "sha256": "753e74ff666d1042ed7b6d40d1625fe706f590afc11294f358d584fb31832a82"
     },
     "interpretation": "prerequisite-transition step 5 (manifest half): every architecture row dispositioned exactly once against the frozen owner graph and local-gap matrix; a row added to or removed from the map makes this manifest stale; it authorizes no production edit and activates nothing"
   },
@@ -447,14 +447,14 @@
       "index": 37,
       "row_id": "E-COMMENT-SCOPE-H",
       "disposition": "activate",
-      "rationale": "the threaded comment-scope triple is implemented by comment-scope packets 2-6 before any ES2015/Generators production work; the study and ten-family witnesses are frozen",
+      "rationale": "the threaded comment-scope triple is implemented by comment-scope packets 2-6 before any ES2015/Generators production work; the study and ten-family witnesses are frozen; CS-2..CS-5 landed (root/core pipeline, per-side expression/list routes, statement-family migration + declaration-list writer, contextless/dual-API deletion), CS-6 remains",
       "surfaces": [
         "comment-apis"
       ],
       "capabilities": [
         "comment-scope-threading"
       ],
-      "row_fingerprint_sha256": "dfed96558eb2cd1f475652ec70679d8bc62e5b097b9e89482aed8a25217fa53d"
+      "row_fingerprint_sha256": "0c31e6d036d33ff3f849908bdbff95e3b70a2e2038fe0458418c714916851d55"
     },
     {
       "index": 38,
@@ -559,5 +559,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "dispositions_fingerprint_sha256": "af8a3a0227058bceb64c8a131d9b0e94902a44aee05143393c28704b1a97aeeb"
+  "dispositions_fingerprint_sha256": "52f9b2a54f0bbe631f2ab3ba0d9736e8905f0c190dc3599bde54f9694c76d0a3"
 }

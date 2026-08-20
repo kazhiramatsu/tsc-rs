@@ -260,6 +260,208 @@ fn paths_and_phase_names_cannot_escape_the_workspace() {
     assert!(validate_phase_name("semantic-evidence").is_ok());
 }
 
+fn diagnostic_resume(
+    workspace: PathBuf,
+    previous: Option<PreviousComponents>,
+    tool_inventory: ToolInventory,
+    snapshot: WorkspaceSnapshot,
+) -> LocalCiResume {
+    LocalCiResume {
+        journal_path: workspace.join("journal.json"),
+        workspace,
+        invocation: "lane=test".to_owned(),
+        tool_fingerprint: tool_inventory.rolled(),
+        tool_inventory,
+        snapshot,
+        journal: Journal::new("lane=test".to_owned()),
+        previous,
+        reused: 0,
+        recorded: 0,
+    }
+}
+
+fn string_map(entries: &[(&str, &str)]) -> BTreeMap<String, String> {
+    entries
+        .iter()
+        .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
+        .collect()
+}
+
+#[test]
+fn decline_names_the_divergent_environment_key() {
+    // The recorded incident: TSRS_H2_5G_CHECK_SHARDS set in the failed run,
+    // unset on the resume, silently zeroed reuse. The decline line must
+    // name the key.
+    let workspace = temporary_directory("decline-environment");
+    let resume = diagnostic_resume(
+        workspace.clone(),
+        Some(PreviousComponents {
+            tools: string_map(&[("node", "node-a")]),
+            environment: string_map(&[("PATH", "path-a"), ("TSRS_H2_5G_CHECK_SHARDS", "two")]),
+            snapshot: string_map(&[("crates/xtask/src/main.rs", "xtask-a")]),
+        }),
+        ToolInventory {
+            tools: string_map(&[("node", "node-a")]),
+            environment: string_map(&[("PATH", "path-a")]),
+        },
+        snapshot(&[("crates/xtask/src/main.rs", "xtask-a")]),
+    );
+    let receipt = PhaseReceipt {
+        fingerprint_sha256: "stored".to_owned(),
+        outputs: Vec::new(),
+    };
+    let message = resume.describe_decline(InputScope::All, &receipt, "current", &[]);
+    assert_eq!(message, "environment TSRS_H2_5G_CHECK_SHARDS removed");
+
+    let changed = diagnostic_resume(
+        workspace.clone(),
+        Some(PreviousComponents {
+            tools: string_map(&[("node", "node-a")]),
+            environment: string_map(&[("TSRS_H2_5G_CHECK_SHARDS", "two")]),
+            snapshot: BTreeMap::new(),
+        }),
+        ToolInventory {
+            tools: string_map(&[("node", "node-b")]),
+            environment: string_map(&[("TSRS_H2_5G_CHECK_SHARDS", "four")]),
+        },
+        snapshot(&[]),
+    );
+    let message = changed.describe_decline(InputScope::All, &receipt, "current", &[]);
+    assert_eq!(
+        message,
+        "tool node changed; environment TSRS_H2_5G_CHECK_SHARDS changed"
+    );
+    fs::remove_dir_all(workspace).unwrap();
+}
+
+#[test]
+fn decline_names_scoped_files_and_ignores_out_of_scope_changes() {
+    let workspace = temporary_directory("decline-files");
+    let previous = PreviousComponents {
+        tools: BTreeMap::new(),
+        environment: BTreeMap::new(),
+        snapshot: string_map(&[
+            ("README.md", "readme-a"),
+            ("crates/checker/src/lib.rs", "rust-a"),
+        ]),
+    };
+    let inventory = ToolInventory {
+        tools: BTreeMap::new(),
+        environment: BTreeMap::new(),
+    };
+    let resume = diagnostic_resume(
+        workspace.clone(),
+        Some(previous),
+        inventory,
+        snapshot(&[
+            ("README.md", "readme-b"),
+            ("crates/checker/src/lib.rs", "rust-b"),
+        ]),
+    );
+    let receipt = PhaseReceipt {
+        fingerprint_sha256: "stored".to_owned(),
+        outputs: Vec::new(),
+    };
+    // Markdown sits outside Verification: only the Rust divergence is named.
+    let message = resume.describe_decline(InputScope::Verification, &receipt, "current", &[]);
+    assert_eq!(
+        message,
+        "file(s) in scope: crates/checker/src/lib.rs changed"
+    );
+    let message = resume.describe_decline(InputScope::WorkspaceAudit, &receipt, "current", &[]);
+    assert_eq!(
+        message,
+        "file(s) in scope: crates/checker/src/lib.rs changed"
+    );
+    // With no divergent component inside the scope the fallback line
+    // reports honestly instead of guessing.
+    let quiet = diagnostic_resume(
+        workspace.clone(),
+        Some(PreviousComponents {
+            tools: BTreeMap::new(),
+            environment: BTreeMap::new(),
+            snapshot: string_map(&[("README.md", "readme-a")]),
+        }),
+        ToolInventory {
+            tools: BTreeMap::new(),
+            environment: BTreeMap::new(),
+        },
+        snapshot(&[("README.md", "readme-b")]),
+    );
+    let message = quiet.describe_decline(InputScope::Verification, &receipt, "current", &[]);
+    assert_eq!(
+        message,
+        "the phase definition or an earlier interrupted run's inputs changed (no recorded component differs)"
+    );
+    fs::remove_dir_all(workspace).unwrap();
+}
+
+#[test]
+fn decline_names_stale_outputs_when_inputs_match() {
+    let workspace = temporary_directory("decline-outputs");
+    let output = workspace.join("target/m8/readiness.json");
+    fs::create_dir_all(output.parent().unwrap()).unwrap();
+    fs::write(&output, b"ready-a").unwrap();
+    let expected = vec!["target/m8/readiness.json".to_owned()];
+    let receipt = PhaseReceipt {
+        fingerprint_sha256: "same".to_owned(),
+        outputs: bind_outputs(&workspace, &expected).unwrap(),
+    };
+    let resume = diagnostic_resume(
+        workspace.clone(),
+        None,
+        ToolInventory {
+            tools: BTreeMap::new(),
+            environment: BTreeMap::new(),
+        },
+        snapshot(&[]),
+    );
+    fs::write(&output, b"ready-b").unwrap();
+    let message = resume.describe_decline(InputScope::All, &receipt, "same", &expected);
+    assert_eq!(
+        message,
+        "recorded output(s) changed on disk: target/m8/readiness.json"
+    );
+    fs::remove_dir_all(workspace).unwrap();
+}
+
+#[test]
+fn schema_one_journals_are_replaced_silently_and_component_maps_round_trip() {
+    let workspace = temporary_directory("journal-schema");
+    let path = workspace.join("journal.json");
+    let mut journal = Journal::new("lane=all".to_owned());
+    journal.tools = string_map(&[("node", "node-a")]);
+    journal.environment = string_map(&[("PATH", "path-a")]);
+    journal.snapshot = string_map(&[("input.txt", "input-a")]);
+    journal.phases.insert(
+        "rustfmt".to_owned(),
+        PhaseReceipt {
+            fingerprint_sha256: "fingerprint".to_owned(),
+            outputs: Vec::new(),
+        },
+    );
+    write_journal(&path, &journal).unwrap();
+
+    let loaded = load_journal(&path, "lane=all").unwrap();
+    assert_eq!(loaded.tools, journal.tools);
+    assert_eq!(loaded.environment, journal.environment);
+    assert_eq!(loaded.snapshot, journal.snapshot);
+    assert_eq!(loaded.phases.len(), 1);
+
+    // A schema-1 journal (no component maps) parses via the defaults and
+    // is replaced silently by the schema check, never an error.
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    value["schema"] = serde_json::json!(1);
+    value.as_object_mut().unwrap().remove("tools");
+    value.as_object_mut().unwrap().remove("environment");
+    value.as_object_mut().unwrap().remove("snapshot");
+    fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+    let replaced = load_journal(&path, "lane=all").unwrap();
+    assert!(replaced.phases.is_empty());
+    assert_eq!(replaced.schema, JOURNAL_SCHEMA);
+    fs::remove_dir_all(workspace).unwrap();
+}
+
 #[test]
 fn a_failed_run_journal_reuses_an_exact_phase_and_is_cleared_on_finish() {
     let workspace = temporary_directory("round-trip");

@@ -181,6 +181,21 @@ function withFingerprint(value, field) {
   return { ...value, [field]: sha256(Buffer.from(canonical(value), "utf8")) };
 }
 
+function writeFileAtomic(absolutePath, contents) {
+  // Same-directory temp + rename: a kill mid-write can never truncate
+  // the artifact, which doubles as the reuse store (gate-tax 2 R4-1).
+  const temporary = path.join(
+    path.dirname(absolutePath),
+    `.${path.basename(absolutePath)}.tmp`,
+  );
+  // The name is deterministic (no pid): artifact writes are
+  // single-writer by walk discipline, and a stray temp left by a kill
+  // is overwritten by the next successful write instead of
+  // accumulating as untracked residue.
+  fs.writeFileSync(temporary, contents);
+  fs.renameSync(temporary, absolutePath);
+}
+
 function hasValidFingerprint(value, field) {
   const payload = { ...value };
   const expected = payload[field];
@@ -1792,7 +1807,7 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
   artifact.generator = pathHash(GENERATOR_RELATIVE_PATH);
   artifact.contract = pathHash(CONTRACT_RELATIVE_PATH);
   delete artifact.qualification_fingerprint_sha256;
-  fs.writeFileSync(
+  writeFileAtomic(
     path.join(WORKSPACE, TARGET_RELATIVE_PATH),
     render(withFingerprint(artifact, "qualification_fingerprint_sha256")),
   );
@@ -1843,7 +1858,7 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
   }
   artifact.contract = pathHash(CONTRACT_RELATIVE_PATH);
   delete artifact.qualification_fingerprint_sha256;
-  fs.writeFileSync(
+  writeFileAtomic(
     path.join(WORKSPACE, TARGET_RELATIVE_PATH),
     render(withFingerprint(artifact, "qualification_fingerprint_sha256")),
   );
@@ -1856,7 +1871,7 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
   } else {
   const rendered = render(artifact);
   if (MODE === "--write") {
-  fs.writeFileSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH), rendered);
+  writeFileAtomic(path.join(WORKSPACE, TARGET_RELATIVE_PATH), rendered);
   process.stdout.write(
     `wrote ${TARGET_RELATIVE_PATH}: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} reused_observations=${reusedObservations}\n`,
   );
