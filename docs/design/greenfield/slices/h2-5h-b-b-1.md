@@ -147,7 +147,7 @@ The upstream IS the frozen artifact chain:
 | helper texts | `crates/emitter/src/builtins/helpers.rs`: four `const *_HELPER_TEXT: &str` raw strings + `EmitHelper::with_text("typescript:<name>", …)` registrations, matching the `READ_HELPER_TEXT` precedent (:31, :112); each const carries the ledger `tsc-hash` header (d2 discipline) |
 | resolver queries | `crates/emitter/src/resolver.rs` trait `EmitResolver` (:210): add `get_referenced_declaration_with_colliding_name`, `is_declaration_with_colliding_name`, `is_binding_captured_by_node` as typed fail-closed defaults beside the three declared (:294/:332/:344); production implementations in `crates/checker/src/emit.rs` (measured: the checker-side resolver already implements the three declared queries there — `get_referenced_value_declaration` :196, `has_node_check_flag` :240, `is_arguments_local_binding` :254 — each delegating to a `CheckerState::emit_*` method; the trio follows the same bridge pattern) |
 | name generation | `crates/emitter/src/builtins/generated_bindings.rs`: extend `GeneratedBindingScopes`/`allocate_temp` with loop-variable and unique-name flag semantics plus `getGeneratedNameForNode`-class node-keyed lookups, all under eager reservation; the equivalence argument (§12.3) is a design deliverable of this packet, not an implicit judgment call |
-| transform flags | `crates/emitter/src/factory.rs`: full postorder classifier beside `propagate_child_flags`, driven by the pinned upstream tables; EA-GAP-FLAGS bans inheriting stale ES2015/Generators facets on synthesized output |
+| transform flags | `crates/emitter/src/factory.rs`: per-created-kind facet computation mirroring tsc's factory creation tables over the 98 owner-called factory methods, aggregated postorder through `propagate_child_flags`; qualification surface = the nine owner-consulted facets (§12.4, measured); EA-GAP-FLAGS bans inheriting stale ES2015/Generators facets on synthesized output |
 | hooks | `crates/emitter/src/transform.rs`: `substitution_factory` grows chained-hook composition (both-owner substitution, ES2015-only notification) with a pinned chaining order |
 
 All five targets exist today as files/symbols (gap-matrix anchors,
@@ -263,16 +263,50 @@ design-gate pass and envelope exist.
    surfaces (helpers/name-gen/resolver/flags/hooks), not the owner
    locals, and size like one CS-class foundation packet. B-1 stays ONE
    packet; the ladder table in §2 is the ratified decomposition.
-3. **E-NAMES-H equivalence argument**: prove the eager
-   scoped-reservation model reproduces tsc's deferred-resolution
-   observable spellings for every generated-name class the owners use.
-   Owner: this packet's design review. Command: oracle probes over the
-   name-generation family inputs + targeted probe fixtures
-   (`cargo xtask expand … + node crates/oracle/driver.mjs`).
-4. **EA-GAP-FLAGS classifier scope**: full `computeTransformFlags`
-   port vs the owner-called subset. Owner: design review. Command:
-   pin the upstream table spans and intersect with the owner graph's
-   external-utility rows citing flag facets.
+3. ~~E-NAMES-H equivalence argument~~ — RESOLVED at design level
+   (2026-08-20); empirical confirmation rides the B-1 focused suite
+   and the B-5 byte gate (the CS-6 §12.3 pattern). The argument has
+   three pillars, each with a pinned verifier:
+   (a) **universe equality** — tsc's deferred `isFileLevelUniqueName`
+   consults the file's complete parsed-identifier map; the Rust model
+   reserves "parsed identifiers … for the whole source"
+   (`generated_bindings.rs:41-44`, `reserved_source_names`), so both
+   sides avoid the same occupied set. Verifier: witness case
+   `name-generation--positive-occupied-allocator` (source-occupied
+   `_a/_b/_i/_super` push the allocator past them) against its
+   adjacent-negative free-allocator control.
+   (b) **scope-policy equality** — tsc resets `tempFlags` per function
+   (sibling reuse) while `generatedNames` persist down the tree; the
+   Rust model states exactly this ("generated names may be reused by
+   sibling function scopes; an active ancestor's generated bindings
+   remain reserved in descendants"). Verifier: a B-1 focused unit
+   contract per policy arm (sibling-reuse, ancestor-reservation).
+   (c) **allocation-order equality** — the eager model assigns
+   spellings at transform time; tsc assigns at print time in emission
+   order. The two coincide iff owner allocation sites emit in
+   creation order, which the H2.5g-qualified ladder already relies on
+   corpus-wide. Named assumption + detector: witness case
+   `name-generation--composition-cross-owner-allocation` interleaves
+   loop-conversion, iteration, and state-machine temps in one
+   cross-owner order (incl. the yield* site). Contingency if the
+   detector breaks at B-5: move the owner `allocate_*` calls to the
+   print boundary — the scope model supports relocation without
+   API change (allocation is already decoupled from syntax insertion,
+   `generated_bindings.rs:46-49`).
+4. ~~EA-GAP-FLAGS classifier scope~~ — RESOLVED with measured data
+   (2026-08-20): the frozen owner closure cites exactly NINE
+   TransformFlags facets (`ContainsES2015`, `ContainsGenerator`,
+   `ContainsYield`, `ContainsHoistedDeclarationOrCompletion` (both
+   owners), `ContainsLexicalThis`, `ContainsLexicalSuper`,
+   `ContainsBindingPattern`, `ContainsCapturedBlockScopeBinding`,
+   `ContainsRestOrSpread`) — not the full lattice. The B-1 classifier
+   is therefore per-created-kind facet computation mirroring tsc's
+   factory creation tables over the 98 owner-called factory methods,
+   aggregated postorder through the existing `propagate_child_flags`;
+   the nine consulted facets are the qualification surface (focused
+   table contracts), and later pipeline consumers inherit correctness
+   because the per-kind tables are tsc's own. Full-lattice port
+   remains out of scope for B-1.
 5. ~~Production checker-facts site~~ — RESOLVED (measured 2026-08-20):
    `crates/checker/src/emit.rs` is the production bridge (the three
    declared queries are implemented there at :196/:240/:254, each
@@ -296,6 +330,8 @@ Rust-map rows: 5 (§5), all target files/symbols measured present.
 Gap rows: 5 (§6). Witness families cited: 5 of 9 (closure at B-5).
 Architecture impact: five-row substrate closure, dormancy preserved,
 ladder ratification recorded in the handoff at the train.
-Undispositioned: pending §12.1 re-pin. Unresolved: §12.1 (train-start
-re-pin), §12.3 (name-generation equivalence), §12.4 (flags classifier
-scope) — items 2/5/6/7 resolved with measured pins on 2026-08-20.
+Undispositioned: pending §12.1 re-pin. Unresolved: §12.1 only (the
+train-start trusted-base + authority-hash re-pin) — items 2-7 all
+resolved with measured pins or design-level arguments on 2026-08-20;
+the §12.3(c) order assumption and §12.4 facet contracts carry named
+verifiers into the B-1 focused suite and the B-5 byte gate.
