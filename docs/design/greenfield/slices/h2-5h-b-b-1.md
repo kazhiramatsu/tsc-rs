@@ -129,18 +129,23 @@ The upstream IS the frozen artifact chain:
   to foundation direct controls), `hook-chains` (3), and
   `enum-pair-guards` (2) families as the frozen end-state its
   substrate must make reachable.
-- **Vendored tsc**: helper text declarations and
-  `computeTransformFlags`/`propagateChildFlags` tables in
-  `vendor/typescript-6.0.3/lib/_tsc.js`; exact spans + `tsc-hash`
-  slices are §12.6/§12.4 outputs (mechanical extraction commands
-  given there).
+- **Vendored tsc**: the four helper declarations, pinned (measured
+  2026-08-20, `vendor/typescript-6.0.3/lib/_tsc.js` line spans +
+  slice sha256):
+  `var extendsHelper` :26224-26246 `4806bf95cdf52c360b942088c914b5c0…`;
+  `var spreadArrayHelper` :26280-26294 `81c5e7e9f198c488db1fcecb15ee51…`;
+  `var valuesHelper` :26314-26330 `b55689c7d089871ece0fa301d9d2ef16…`;
+  `var generatorHelper` :26331-26364 `31c4f42fea9b5792466e0b6ba64b4f…`
+  (full 64-hex values in the §5 ledger headers at implementation).
+  The `computeTransformFlags`/`propagateChildFlags` table spans are
+  the §12.4 output.
 
 ## 5. Rust semantic map
 
 | Item | Target |
 |---|---|
 | helper texts | `crates/emitter/src/builtins/helpers.rs`: four `const *_HELPER_TEXT: &str` raw strings + `EmitHelper::with_text("typescript:<name>", …)` registrations, matching the `READ_HELPER_TEXT` precedent (:31, :112); each const carries the ledger `tsc-hash` header (d2 discipline) |
-| resolver queries | `crates/emitter/src/resolver.rs` trait `EmitResolver` (:210): add `get_referenced_declaration_with_colliding_name`, `is_declaration_with_colliding_name`, `is_binding_captured_by_node` as typed fail-closed defaults beside the three declared (:294/:332/:344); production checker-facts implementation site resolves at §12.5 |
+| resolver queries | `crates/emitter/src/resolver.rs` trait `EmitResolver` (:210): add `get_referenced_declaration_with_colliding_name`, `is_declaration_with_colliding_name`, `is_binding_captured_by_node` as typed fail-closed defaults beside the three declared (:294/:332/:344); production implementations in `crates/checker/src/emit.rs` (measured: the checker-side resolver already implements the three declared queries there — `get_referenced_value_declaration` :196, `has_node_check_flag` :240, `is_arguments_local_binding` :254 — each delegating to a `CheckerState::emit_*` method; the trio follows the same bridge pattern) |
 | name generation | `crates/emitter/src/builtins/generated_bindings.rs`: extend `GeneratedBindingScopes`/`allocate_temp` with loop-variable and unique-name flag semantics plus `getGeneratedNameForNode`-class node-keyed lookups, all under eager reservation; the equivalence argument (§12.3) is a design deliverable of this packet, not an implicit judgment call |
 | transform flags | `crates/emitter/src/factory.rs`: full postorder classifier beside `propagate_child_flags`, driven by the pinned upstream tables; EA-GAP-FLAGS bans inheriting stale ES2015/Generators facets on synthesized output |
 | hooks | `crates/emitter/src/transform.rs`: `substitution_factory` grows chained-hook composition (both-owner substitution, ES2015-only notification) with a pinned chaining order |
@@ -251,12 +256,13 @@ design-gate pass and envelope exist.
 ## 12. Unresolved items (DRAFT — close before the envelope flips ready)
 
 1. Trusted base + authority hashes: re-pin after CS-6 merges.
-2. **B-ladder granularity ratification** (§2): confirm B-1 carries all
-   five substrate rows in one packet vs splitting emit-side
-   (helpers/names/flags) from resolver-side. Owner: the design-review
-   pass. Command: closure counts per surface from
-   `ratchets/h2-5h-a-owner-graph.v1.json` (`owners[].local_functions`
-   grouped by §2's packet assignments).
+2. ~~B-ladder granularity ratification~~ — RESOLVED with measured
+   counts (2026-08-20): the 300 owner locals split 171
+   (`transformES2015`) / 129 (`transformGenerators`), confirming the
+   B-4/B-3 balance; B-1's five substrate rows draw on the shared
+   surfaces (helpers/name-gen/resolver/flags/hooks), not the owner
+   locals, and size like one CS-class foundation packet. B-1 stays ONE
+   packet; the ladder table in §2 is the ratified decomposition.
 3. **E-NAMES-H equivalence argument**: prove the eager
    scoped-reservation model reproduces tsc's deferred-resolution
    observable spellings for every generated-name class the owners use.
@@ -267,18 +273,21 @@ design-gate pass and envelope exist.
    port vs the owner-called subset. Owner: design review. Command:
    pin the upstream table spans and intersect with the owner graph's
    external-utility rows citing flag facets.
-5. **Production checker-facts site** for the collision/capture trio:
-   locate the production `EmitResolver` implementation (only test
-   impls exist under `crates/emitter/tests/`, measured) and the
-   `NodeCheckFlags` source feeding it. Owner: design review. Command:
-   `grep -rn "impl EmitResolver" crates/ --include='*.rs'` extended to
-   the checker/compiler crates + the foundation direct-control replay.
-6. **Helper text spans**: extract the four helper declarations'
-   exact `_tsc.js` line spans + `tsc-hash` slices. Mechanical.
-   Command: locate `var __extends|__values|__spreadArray|__generator`
-   in `vendor/typescript-6.0.3/lib/_tsc.js`, pin span + sha256.
-7. **Hook chaining order**: transcribe the `substitution-chain` edge's
-   pinned spans into the §5 chaining contract. Mechanical.
+5. ~~Production checker-facts site~~ — RESOLVED (measured 2026-08-20):
+   `crates/checker/src/emit.rs` is the production bridge (the three
+   declared queries are implemented there at :196/:240/:254, each
+   delegating to a `CheckerState::emit_*` method); the trio lands in
+   the same file plus its `CheckerState` backing methods, replayed
+   against the foundation direct controls.
+6. ~~Helper text spans~~ — RESOLVED (measured 2026-08-20): the four
+   declarations pinned in §4 with spans and slice hashes.
+7. ~~Hook chaining order~~ — RESOLVED (transcribed from the frozen
+   edge): `substitution-chain` kind `hook-chain`, from
+   `transformGenerators` to `transformES2015`, evidence "both owners
+   save previousOnSubstituteNode and delegate; ES2015 additionally
+   chains previousOnEmitNode (Generators registers substitution
+   only)" — the §5 chaining contract asserts exactly this shape and
+   order.
 
 ## 13. Readiness summary (draft)
 
@@ -287,5 +296,6 @@ Rust-map rows: 5 (§5), all target files/symbols measured present.
 Gap rows: 5 (§6). Witness families cited: 5 of 9 (closure at B-5).
 Architecture impact: five-row substrate closure, dormancy preserved,
 ladder ratification recorded in the handoff at the train.
-Undispositioned: pending §12.1 re-pin. Unresolved: §12 (7 items — 2
-mechanical, 5 review-owned).
+Undispositioned: pending §12.1 re-pin. Unresolved: §12.1 (train-start
+re-pin), §12.3 (name-generation equivalence), §12.4 (flags classifier
+scope) — items 2/5/6/7 resolved with measured pins on 2026-08-20.
