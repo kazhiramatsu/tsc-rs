@@ -196,12 +196,13 @@ separate reviewed decision); the CS-3/4/5 prohibitions remain.
 ## 12. Unresolved items (DRAFT — close before the envelope flips ready)
 
 1. Trusted base + authority hashes: re-pin after CS-5 merges.
-2. The exact Rust spelling of the six builders against the factory
-   API (mechanical; the ingredients are measured present).
-3. The virtual `/project/input.ts` path — expected byte-irrelevant
-   (source maps are off and the precedent drive parses under a plain
-   name with an arena `SourceFileId`), confirm on the first fixture
-   run.
+2. ~~The exact Rust spelling of the six builders~~ — landed (step 1,
+   the six transform arms of
+   `comment_scope_witness_contract.rs::apply_case_transform`; proven
+   by 30/30 byte parity).
+3. ~~The virtual `/project/input.ts` path~~ — confirmed byte-irrelevant
+   on the first fixture run (the suite parses under the arena name and
+   reached full byte parity; source maps off as expected).
 4. ~~The audit rule's exact table shape~~ — landed (step 2,
    emitter-scoped retired-identifier check with a two-polarity canary).
 5. ~~`NO_NESTED_COMMENTS` mechanism decision~~ — RESOLVED as (a),
@@ -217,4 +218,5 @@ input/output bytes — measured). Rust-map rows: 10 (§4), all
 ingredients present. Gap rows: 4 (§5). Witnesses: 10/10 consumed —
 the terminal form. Architecture impact: the four-row requalification
 and the sub-packet closure that unblocks H2.5h-b. Undispositioned 0.
-Unresolved: §12 (4 items, mechanical).
+Unresolved: §12.1 only (trusted-base + authority-hash re-pin at the
+train's design-gate pass; every implementation item is landed).
