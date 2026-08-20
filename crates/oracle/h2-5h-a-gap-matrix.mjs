@@ -208,18 +208,13 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/printer.rs",
         symbol: "fn file_root",
       }),
-    ]),
-    absences: Object.freeze([
-      Object.freeze({
-        path: "crates/emitter/src/printer.rs",
-        symbol: "claim_declaration_list_container",
-      }),
       Object.freeze({
         path: "crates/emitter/src/comment_cursor.rs",
-        symbol: "claim_declaration_list_container",
+        symbol: "fn claim_declaration_list_sides",
       }),
     ]),
-    note: "CS-2 landed the threaded scope at the root and core pipeline and CS-3 landed the per-side claim predicates on the expression/list routes; the declaration-list writer, the statement-family flag-aware migration, the contextless-API deletion, and the final audit remain with packets CS-4..CS-6 before any ES2015/Generators production work",
+    absences: Object.freeze([]),
+    note: "CS-2 landed the threaded scope at the root and core pipeline, CS-3 landed the per-side claim predicates on the expression/list routes, and CS-4 landed the statement/declaration-family migration with the declaration-list writer (claim_declaration_list_sides replaces the planned container claim; the statement-paired claim helper is deleted); the contextless-API deletion and the final audit remain with packets CS-5..CS-6 before any ES2015/Generators production work",
   }),
   Object.freeze({
     capability_id: "resolver-collision-capture-queries",
