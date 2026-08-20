@@ -369,6 +369,31 @@ fn per_side_claim_replaces_some_sides_and_inherits_none_sides() {
 }
 
 #[test]
+fn declaration_list_claim_arms_the_dedupe_and_inherits_like_the_others() {
+    let fixture = ranged_fixture("scope.ts");
+    let statement = CommentEmissionScope::empty()
+        .claim_sides(Some(fixture.cursor(0)), Some(fixture.cursor(21)));
+    // The list's claimed end is written to both containerEnd and
+    // declarationListContainerEnd (the kind-262 arm of the set site).
+    let list =
+        statement.claim_declaration_list_sides(Some(fixture.cursor(4)), Some(fixture.cursor(14)));
+    assert_eq!(list.container_pos(), Some(fixture.cursor(4)));
+    assert_eq!(list.container_end(), Some(fixture.cursor(14)));
+    assert!(list.retains_end(fixture.cursor(14)));
+    // A nested non-list claim replaces containerEnd but keeps the
+    // declaration-list end alive: the dedupe still retains both ends.
+    let declaration = list.claim_sides(Some(fixture.cursor(8)), Some(fixture.cursor(12)));
+    assert!(declaration.retains_end(fixture.cursor(12)));
+    assert!(declaration.retains_end(fixture.cursor(14)));
+    assert!(!declaration.retains_end(fixture.cursor(21)));
+    // An unclaimed end side inherits the enclosing values on both the
+    // container and declaration-list fields.
+    let unclaimed = list.claim_declaration_list_sides(Some(fixture.cursor(8)), None);
+    assert_eq!(unclaimed.container_end(), Some(fixture.cursor(14)));
+    assert!(unclaimed.retains_end(fixture.cursor(14)));
+}
+
+#[test]
 fn range_views_reject_synthesized_and_zero_width_ranges() {
     let fixture = ranged_fixture("scope.ts");
     let synthesized = CommentRange::new(fixture.source, SourceRange::Synthesized);

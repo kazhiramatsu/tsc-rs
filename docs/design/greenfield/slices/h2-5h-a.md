@@ -148,8 +148,14 @@ Prerequisite-transition progress:
   §8): the per-side route migration re-expresses `E-COMMENTS-G`'s
   qualified expression/list projections, so that row moved
   `premise-unchanged` -> `modified-requalify` (counts now 13 / 18 / 10
-  / 4 / 0, undispositioned 0). The manifest remains this slice's; each
-  production packet owns its own amendment through its own design gate.
+  / 4 / 0, undispositioned 0).
+  **Amended 2026-08-20 by the CS-4 packet** ([CS-4](h2-5h-a-cs-4.md)
+  §8): the statement-family routes and the declaration-list writer
+  landed with no disposition move (counts unchanged 13 / 18 / 10 / 4 /
+  0); the gap-matrix `comment-scope-threading` absences retired to the
+  landed `claim_declaration_list_sides` anchor. The manifest remains
+  this slice's; each production packet owns its own amendment through
+  its own design gate.
 - Step 6 **complete (2026-08-18)**: the W-H2.5H ES2015/Generators
   witness set is frozen at
   `ratchets/h2-5h-a-es2015-generators-witnesses.v1.json` (generator

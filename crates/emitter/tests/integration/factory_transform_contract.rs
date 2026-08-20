@@ -1476,3 +1476,85 @@ fn resolver_projection_rejects_synthetic_ids_that_alias_the_next_program_source(
         None
     );
 }
+
+struct ScopeInheritanceHookTransformer;
+
+impl Transformer for ScopeInheritanceHookTransformer {
+    fn name(&self) -> &'static str {
+        "scope-inheritance-hook"
+    }
+
+    fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
+        context.enable_substitution(SyntaxKind::Identifier)?;
+        context.enable_emit_notification(SyntaxKind::Identifier)?;
+        Ok(())
+    }
+
+    fn transform_root(
+        &mut self,
+        _context: &mut TransformationContext,
+        root: TransformRoot,
+    ) -> Result<TransformRoot, TransformError> {
+        Ok(root)
+    }
+}
+
+fn print_scope_topology(hooked: bool) -> String {
+    // Comment-scope-sensitive statement topology across the newly threaded
+    // routes: a shared-prefix leading comment, a variable-statement
+    // trailing comment, and a post-block trailing comment.
+    let parsed = parse_source_file(
+        "scope-hooks.ts",
+        concat!(
+            "declare const a: number;\n",
+            "/* lead */ a;\n",
+            "var x = a; /* tail */\n",
+            "if (a) { a; } /* after-block */\n",
+        ),
+        Default::default(),
+        None,
+    );
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    let transformers: Vec<Box<dyn Transformer>> = if hooked {
+        vec![Box::new(ScopeInheritanceHookTransformer)]
+    } else {
+        Vec::new()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        transformers,
+        false,
+    )
+    .expect("scope hook transform");
+    let printed = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed)
+            .with_source_file_text_mode(SourceFileTextMode::Canonical),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("scope hook print");
+    printed.text().to_owned()
+}
+
+#[test]
+fn hook_wrapped_nested_nodes_inherit_the_enclosing_comment_scope() {
+    // CS-4 §6 step 5: a substitution/notification-wrapped nested node must
+    // run its comment phases under the threaded enclosing scope, never a
+    // detached one. Hook wrapping therefore cannot change a single output
+    // byte, and each scope-guarded comment emits exactly once.
+    let unhooked = print_scope_topology(false);
+    let hooked = print_scope_topology(true);
+    assert_eq!(hooked, unhooked);
+    for marker in ["/* lead */", "/* tail */", "/* after-block */"] {
+        assert_eq!(
+            hooked.matches(marker).count(),
+            1,
+            "{marker} must emit exactly once:\n{hooked}",
+        );
+    }
+}
