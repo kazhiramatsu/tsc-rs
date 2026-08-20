@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "be5ffe01648737d805128643751abdfed1f1ba1e7c3b9499630c9af470dfde77"
+      "sha256": "e92145c953007b1110b0bb61b986fc6f784fbc0380065387e4f36c645faf1941"
     },
-    "owner_graph_fingerprint_sha256": "fc64b7df5ea2e462438727c5a904fdef01f05c54b2467811ec97c6f677ff5741",
+    "owner_graph_fingerprint_sha256": "bb43015a5674d5b483460f777886af0e4a139973fc39ab29bdaace2ef19a92e1",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "a6c9eccb4d3837d6ec14892b9e45752b026cca4bd778341c309128f09ad2b5cd"
@@ -296,7 +296,7 @@
           "symbol": "token_owned_comment_phase_prefix",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "bb7f0dd729f7234a342be988e075e8820bc57caeafd0aa195e983b8e6a33ad32"
+            "sha256": "0e59c01b57fdec0d8287297efa13f6adc8ea4c38bc1a5c4df30ef12d0e7ea8e4"
           }
         },
         {
@@ -320,7 +320,7 @@
           "symbol": "fn established_container_sides",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "bb7f0dd729f7234a342be988e075e8820bc57caeafd0aa195e983b8e6a33ad32"
+            "sha256": "0e59c01b57fdec0d8287297efa13f6adc8ea4c38bc1a5c4df30ef12d0e7ea8e4"
           }
         },
         {
@@ -328,7 +328,7 @@
           "symbol": "struct EmitContext",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "bb7f0dd729f7234a342be988e075e8820bc57caeafd0aa195e983b8e6a33ad32"
+            "sha256": "0e59c01b57fdec0d8287297efa13f6adc8ea4c38bc1a5c4df30ef12d0e7ea8e4"
           }
         },
         {
@@ -336,7 +336,7 @@
           "symbol": "fn file_root",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "bb7f0dd729f7234a342be988e075e8820bc57caeafd0aa195e983b8e6a33ad32"
+            "sha256": "0e59c01b57fdec0d8287297efa13f6adc8ea4c38bc1a5c4df30ef12d0e7ea8e4"
           }
         }
       ],
@@ -346,7 +346,7 @@
           "symbol": "claim_declaration_list_container",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "bb7f0dd729f7234a342be988e075e8820bc57caeafd0aa195e983b8e6a33ad32"
+            "sha256": "0e59c01b57fdec0d8287297efa13f6adc8ea4c38bc1a5c4df30ef12d0e7ea8e4"
           }
         },
         {
@@ -359,7 +359,7 @@
         }
       ],
       "note": "CS-2 landed the threaded scope at the root and core pipeline and CS-3 landed the per-side claim predicates on the expression/list routes; the declaration-list writer, the statement-family flag-aware migration, the contextless-API deletion, and the final audit remain with packets CS-4..CS-6 before any ES2015/Generators production work",
-      "capability_fingerprint_sha256": "85daf94d771803da81ba7c332badc5c452060cc3e772482b7849b3cce2251a8d"
+      "capability_fingerprint_sha256": "fcd87a7695a4d4b01f21271039dabba1dc81006f3b32cfeeb0944e920e9fa2c7"
     },
     {
       "index": 8,
@@ -546,5 +546,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "d4c07164f6bf600bc73d222a561415f974513c2181870dce90e745577b8be3be"
+  "gap_matrix_fingerprint_sha256": "85f7796053d548b2fb4299863bfbc587e5df9ec3edca8c547769927ac2f43d86"
 }
