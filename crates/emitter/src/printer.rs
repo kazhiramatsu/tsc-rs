@@ -550,6 +550,14 @@ impl ExpressionSyntaxContext {
 struct EmitContext {
     syntax: ExpressionSyntaxContext,
     comments: CommentEmissionScope,
+    /// tsc's `commentsDisabled` dynamic extent, threaded immutably: a node
+    /// carrying `NoNestedComments` hands its entire subtree a context whose
+    /// comment phases are suppressed (set in `emit_node_with_hint`; the
+    /// node's OWN phases run at the parent level and stay live).
+    ///
+    /// tsc-port: emitCommentsBeforeNode/emitCommentsAfterNode @6.0.3
+    /// tsc-span: _tsc.js:120987-121006
+    nested_comments_suppressed: bool,
 }
 
 impl EmitContext {
@@ -560,6 +568,7 @@ impl EmitContext {
         Self {
             syntax: ExpressionSyntaxContext::NORMAL,
             comments: CommentEmissionScope::empty(),
+            nested_comments_suppressed: false,
         }
     }
 
@@ -587,6 +596,7 @@ impl EmitContext {
                 no_asi_left_edge: self.syntax.no_asi_left_edge,
             },
             comments: self.comments,
+            nested_comments_suppressed: self.nested_comments_suppressed,
         }
     }
 
@@ -594,6 +604,7 @@ impl EmitContext {
         Self {
             syntax,
             comments: self.comments,
+            nested_comments_suppressed: self.nested_comments_suppressed,
         }
     }
 
@@ -601,6 +612,7 @@ impl EmitContext {
         Self {
             syntax: self.syntax,
             comments,
+            nested_comments_suppressed: self.nested_comments_suppressed,
         }
     }
 
@@ -608,6 +620,18 @@ impl EmitContext {
     /// comment state without the syntax half.
     const fn comments(self) -> CommentEmissionScope {
         self.comments
+    }
+
+    const fn with_nested_comments_suppressed(self) -> Self {
+        Self {
+            syntax: self.syntax,
+            comments: self.comments,
+            nested_comments_suppressed: true,
+        }
+    }
+
+    const fn nested_comments_suppressed(self) -> bool {
+        self.nested_comments_suppressed
     }
 }
 
@@ -1486,6 +1510,23 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        // tsc-port: emitCommentsBeforeNode/emitCommentsAfterNode @6.0.3
+        // tsc-span: _tsc.js:120987-121006
+        //
+        // NoNestedComments disables the comments pipeline for the node's
+        // subtree; the node's own leading/trailing phases run at the parent
+        // level and stay live, so only the child-facing context flips. The
+        // extent ends when this context goes out of scope - tsc's mutable
+        // enable/disable pair, threaded immutably.
+        let expression_context = if transformation
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_NESTED_COMMENTS))
+        {
+            expression_context.with_nested_comments_suppressed()
+        } else {
+            expression_context
+        };
         let mut deferred_source_comments = DeferredExpressionSourceCommentsState::default();
         self.emit_transformed_node_worker(
             transformation,
@@ -5773,7 +5814,10 @@ impl Printer {
                             &mut pending_detached_comments,
                             statement,
                         )?;
-                        if let Some(detached_resume) = detached_resume {
+                        if expression_context.nested_comments_suppressed() {
+                            // shouldEmitComments is false for the whole
+                            // subtree of a NoNestedComments owner.
+                        } else if let Some(detached_resume) = detached_resume {
                             self.emit_leading_comments_for_node_worker(
                                 transformation,
                                 statement,
@@ -5804,7 +5848,13 @@ impl Printer {
                             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                             writer,
                         )?;
-                        self.emit_trailing_comments_for_node(transformation, statement, writer)?;
+                        if !expression_context.nested_comments_suppressed() {
+                            self.emit_trailing_comments_for_node(
+                                transformation,
+                                statement,
+                                writer,
+                            )?;
+                        }
                         writer.write_line(false);
                     }
                     self.emit_comments_before_close_brace(

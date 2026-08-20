@@ -594,11 +594,7 @@ fn first_divergence(expected: &str, actual: &str) -> String {
 /// fixes cited by these case ids. The list may only SHRINK: a case that
 /// starts passing must be removed here, and any NEW divergence fails the
 /// suite immediately.
-const KNOWN_DIVERGENCES: [&str; 1] = [
-    // NO_NESTED_COMMENTS does not suppress the block subtree's comments
-    // (the one remaining design-gated mechanism, packet §12.5)
-    "emit-flag-suppression--positive",
-];
+const KNOWN_DIVERGENCES: [&str; 0] = [];
 
 #[test]
 fn every_frozen_witness_case_reproduces_the_oracle_bytes() {
