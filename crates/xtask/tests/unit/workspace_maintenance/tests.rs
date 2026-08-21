@@ -499,3 +499,41 @@ fn rust_source_ignores_comments_and_non_selector_literals() {
         );
     }
 }
+
+#[test]
+fn retired_comment_scope_identifiers_are_denied_and_the_threaded_family_is_legal() {
+    // Positive canaries: the rule fires on the constructor token and on
+    // every retired shim definition form.
+    assert_eq!(
+        first_retired_comment_scope_identifier("    EmitContext::detached_transitional()\n"),
+        Some((1, "detached_transitional")),
+    );
+    for (definition, expected) in [
+        ("    fn emit_required_node(\n", "fn emit_required_node("),
+        ("    fn emit_node_id(\n", "fn emit_node_id("),
+        ("    fn emit_identifier_name(\n", "fn emit_identifier_name("),
+        (
+            "    fn emit_required_identifier_name(\n",
+            "fn emit_required_identifier_name(",
+        ),
+        (
+            "    fn emit_child_after_token(\n",
+            "fn emit_child_after_token(",
+        ),
+    ] {
+        assert_eq!(
+            first_retired_comment_scope_identifier(definition),
+            Some((1, expected)),
+            "{definition:?}",
+        );
+    }
+    // The threaded family and its compound variants stay legal.
+    let legal = concat!(
+        "    fn emit_node_id_with_context(\n",
+        "    fn emit_required_node_with_context(\n",
+        "    fn emit_identifier_name_with_context(\n",
+        "    fn emit_child_after_token_with_context_and_source_extent(\n",
+        "    self.emit_required_identifier_name_with_context(\n",
+    );
+    assert_eq!(first_retired_comment_scope_identifier(legal), None);
+}

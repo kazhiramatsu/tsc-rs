@@ -2,6 +2,8 @@
 mod active_transform_contract;
 #[path = "integration/artifact_sink_contract.rs"]
 mod artifact_sink_contract;
+#[path = "integration/comment_scope_witness_contract.rs"]
+mod comment_scope_witness_contract;
 #[path = "integration/dependency_direction_contract.rs"]
 mod dependency_direction_contract;
 #[path = "integration/factory_transform_contract.rs"]

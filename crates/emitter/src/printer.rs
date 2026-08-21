@@ -550,6 +550,14 @@ impl ExpressionSyntaxContext {
 struct EmitContext {
     syntax: ExpressionSyntaxContext,
     comments: CommentEmissionScope,
+    /// tsc's `commentsDisabled` dynamic extent, threaded immutably: a node
+    /// carrying `NoNestedComments` hands its entire subtree a context whose
+    /// comment phases are suppressed (set in `emit_node_with_hint`; the
+    /// node's OWN phases run at the parent level and stay live).
+    ///
+    /// tsc-port: emitCommentsBeforeNode/emitCommentsAfterNode @6.0.3
+    /// tsc-span: _tsc.js:120987-121006
+    nested_comments_suppressed: bool,
 }
 
 impl EmitContext {
@@ -560,6 +568,7 @@ impl EmitContext {
         Self {
             syntax: ExpressionSyntaxContext::NORMAL,
             comments: CommentEmissionScope::empty(),
+            nested_comments_suppressed: false,
         }
     }
 
@@ -587,6 +596,7 @@ impl EmitContext {
                 no_asi_left_edge: self.syntax.no_asi_left_edge,
             },
             comments: self.comments,
+            nested_comments_suppressed: self.nested_comments_suppressed,
         }
     }
 
@@ -594,6 +604,7 @@ impl EmitContext {
         Self {
             syntax,
             comments: self.comments,
+            nested_comments_suppressed: self.nested_comments_suppressed,
         }
     }
 
@@ -601,6 +612,7 @@ impl EmitContext {
         Self {
             syntax: self.syntax,
             comments,
+            nested_comments_suppressed: self.nested_comments_suppressed,
         }
     }
 
@@ -608,6 +620,18 @@ impl EmitContext {
     /// comment state without the syntax half.
     const fn comments(self) -> CommentEmissionScope {
         self.comments
+    }
+
+    const fn with_nested_comments_suppressed(self) -> Self {
+        Self {
+            syntax: self.syntax,
+            comments: self.comments,
+            nested_comments_suppressed: true,
+        }
+    }
+
+    const fn nested_comments_suppressed(self) -> bool {
+        self.nested_comments_suppressed
     }
 }
 
@@ -1147,7 +1171,7 @@ impl Printer {
                     emitted_statement,
                 ));
             }
-            self.emit_leading_comments_for_node(transformation, statement, &mut writer)?;
+            self.emit_statement_leading_comments(transformation, statement, &mut writer)?;
             self.emit_node_id_with_context(
                 transformation,
                 source_id,
@@ -1155,7 +1179,7 @@ impl Printer {
                 EmitContext::file_root(),
                 &mut writer,
             )?;
-            self.emit_trailing_comments_for_node(transformation, statement, &mut writer)?;
+            self.emit_statement_trailing_comments(transformation, statement, &mut writer)?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
         }
@@ -1325,13 +1349,13 @@ impl Printer {
                     &mut writer,
                 )?;
             } else if had_previous_original_statement && emitted_has_original_range {
-                self.emit_leading_comments_for_node_after_sibling(
+                self.emit_statement_leading_comments_after_sibling(
                     transformation,
                     emitted,
                     &mut writer,
                 )?;
             } else {
-                self.emit_leading_comments_for_node(transformation, emitted, &mut writer)?;
+                self.emit_statement_leading_comments(transformation, emitted, &mut writer)?;
             }
             self.record_node_hook(
                 transformation,
@@ -1346,7 +1370,7 @@ impl Printer {
                 EmitContext::file_root(),
                 &mut writer,
             )?;
-            self.emit_trailing_comments_for_node(transformation, emitted, &mut writer)?;
+            self.emit_statement_trailing_comments(transformation, emitted, &mut writer)?;
             self.record_node_hook(
                 transformation,
                 recorder,
@@ -1486,6 +1510,23 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        // tsc-port: emitCommentsBeforeNode/emitCommentsAfterNode @6.0.3
+        // tsc-span: _tsc.js:120987-121006
+        //
+        // NoNestedComments disables the comments pipeline for the node's
+        // subtree; the node's own leading/trailing phases run at the parent
+        // level and stay live, so only the child-facing context flips. The
+        // extent ends when this context goes out of scope - tsc's mutable
+        // enable/disable pair, threaded immutably.
+        let expression_context = if transformation
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_NESTED_COMMENTS))
+        {
+            expression_context.with_nested_comments_suppressed()
+        } else {
+            expression_context
+        };
         let mut deferred_source_comments = DeferredExpressionSourceCommentsState::default();
         self.emit_transformed_node_worker(
             transformation,
@@ -5773,7 +5814,10 @@ impl Printer {
                             &mut pending_detached_comments,
                             statement,
                         )?;
-                        if let Some(detached_resume) = detached_resume {
+                        if expression_context.nested_comments_suppressed() {
+                            // shouldEmitComments is false for the whole
+                            // subtree of a NoNestedComments owner.
+                        } else if let Some(detached_resume) = detached_resume {
                             self.emit_leading_comments_for_node_worker(
                                 transformation,
                                 statement,
@@ -5804,7 +5848,13 @@ impl Printer {
                             expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                             writer,
                         )?;
-                        self.emit_trailing_comments_for_node(transformation, statement, writer)?;
+                        if !expression_context.nested_comments_suppressed() {
+                            self.emit_trailing_comments_for_node(
+                                transformation,
+                                statement,
+                                writer,
+                            )?;
+                        }
                         writer.write_line(false);
                     }
                     self.emit_comments_before_close_brace(
@@ -6555,6 +6605,15 @@ impl Printer {
                 )?;
                 let emit_delimiter = index + 1 < count || trailing_comma;
                 if emit_delimiter {
+                    // emitNodeListItems emits the item's end comments before
+                    // its delimiter, so a non-final element's same-line
+                    // trailing comment sits between the element and its comma.
+                    self.emit_list_element_end_comments_in_container(
+                        transformation,
+                        child,
+                        expression_context.comments(),
+                        writer,
+                    )?;
                     writer.write_punctuation(",");
                     pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
                         transformation,
@@ -8400,6 +8459,18 @@ impl Printer {
                     )?;
                 }
             } else {
+                if !synthesized_array {
+                    // Parsed argument arrays: the previous element's end
+                    // comments (f(1 /*t1*/, 2)) emit before its comma,
+                    // exactly as emitNodeListItems orders them; the
+                    // synthesized branch already runs this per element.
+                    self.emit_list_element_end_comments_in_container(
+                        transformation,
+                        TransformNode::new(source, ids[index - 1]),
+                        expression_context.comments(),
+                        writer,
+                    )?;
+                }
                 writer.write_punctuation(",");
                 self.emit_delimited_trailing_comments_for_node(
                     transformation,
@@ -9401,6 +9472,52 @@ impl Printer {
             None,
             writer,
         )
+    }
+
+    /// The statement-position comments phase: the source leading walk and
+    /// claims, then the node's synthetic leading comments — tsc's
+    /// emitLeadingCommentsOfNode tail order, outside the claim gate
+    /// (token and expression routes own their synthetic phases separately).
+    ///
+    /// tsc-port: emitLeadingCommentsOfNode @6.0.3
+    /// tsc-hash: f19ebe6d4e44cddc371b73bea80781c08de19bc1f5747b3e0118aaad0dd28eb4
+    /// tsc-span: _tsc.js:121030-121030
+    fn emit_statement_leading_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_leading_comments_for_node(transformation, node, writer)?;
+        self.emit_synthetic_leading_comments_for_node(transformation, node, writer)
+    }
+
+    fn emit_statement_leading_comments_after_sibling(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_leading_comments_for_node_after_sibling(transformation, node, writer)?;
+        self.emit_synthetic_leading_comments_for_node(transformation, node, writer)
+    }
+
+    /// The statement-position trailing phase: synthetic trailing comments
+    /// first, then the source trailing walk — tsc's
+    /// emitTrailingCommentsOfNode head order, before the source-side
+    /// suppressions.
+    ///
+    /// tsc-port: emitTrailingCommentsOfNode @6.0.3
+    /// tsc-hash: 042bc00356dfd3b1d0b40f94c72428f0ae6c43b9743cf8435b716a01fc7b6a1f
+    /// tsc-span: _tsc.js:121036-121036
+    fn emit_statement_trailing_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_synthetic_trailing_comments_for_node(transformation, node, writer)?;
+        self.emit_trailing_comments_for_node(transformation, node, writer)
     }
 
     fn emit_leading_comments_for_delimited_list_start(
