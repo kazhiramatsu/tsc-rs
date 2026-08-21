@@ -1,11 +1,11 @@
-# H2.5h-a / CS-6 — witness-driven fixture gate, permanent audit, requalification (DRAFT)
+# H2.5h-a / CS-6 — witness-driven fixture gate, permanent audit, requalification
 
 Design-gate packet for the fifth and final comment-scope production
 packet, under the mandatory implementation-ready design gate
-(../post-h1-completion-slices.md). **DRAFT front-run status:** authored
-in the `h2/5h-a-cs6` worktree on the CS-5 front-run head; trusted
-base, authority hashes, and §12 re-pin at the CS-6 train's design-gate
-pass. Machine check (once the envelope exists):
+(../post-h1-completion-slices.md). Front-run in the `h2/5h-a-cs6`
+worktree on the CS-5 front-run head while CS-4/CS-5 and gate-tax 2
+closed; re-pinned at the CS-6 train's design-gate pass on 2026-08-21
+(trusted base `3e688f5a`, the §12 items closed below). Machine check:
 `node .github/ci/slice-readiness.mjs --check h2-5h-a-cs-6`.
 
 ## 1. Identity, purpose, and boundary
@@ -43,8 +43,8 @@ pass. Machine check (once the envelope exists):
   the inverse of the CS-3 §7 rule).
 - **Prerequisites:** CS-5 merged with its envelope `ready`; gate-tax 2
   merged (the walk re-mints ride adoption).
-- **Trusted base:** re-pin at train start (DRAFT: authored at
-  `7bbbd79f` on the CS-5 branch).
+- **Trusted base:** `3e688f5a` (main after the CS-5 merge;
+  re-pinned at the train; authored at `7bbbd79f` on the CS-5 branch).
 - **Activation state:** before — the witness artifact is frozen
   evidence consumed only by marker/topology assertions; the four rows
   are `active-unqualified`; zero-contextless holds by grep only.
@@ -164,7 +164,11 @@ observation drift aborts the packet.
   oracle output, both `removeComments` polarities, all six
   transforms exercised.
 - Audit rule: canary unit test red-proves the rule; the live tree
-  passes it; CS-5's acceptance greps remain zero.
+  passes it; CS-5's acceptance greps remain zero within
+  `crates/emitter` (the audit's scope — the rule itself legitimately
+  carries the deny-list literals in `crates/xtask`, so the tree-wide
+  grep form is not the acceptance surface once this packet lands;
+  review-scoped 2026-08-20).
 - `cargo test -p tsc-rs-emitter` fully green; any changed focused
   expected value carries its `case_id` citation (production fixes
   only).
@@ -193,13 +197,22 @@ no new `EmitContext` constructors; no audit-rule scope beyond
 `crates/emitter/src` (widening the deny-list to other crates is a
 separate reviewed decision); the CS-3/4/5 prohibitions remain.
 
-## 12. Unresolved items (DRAFT — close before the envelope flips ready)
+## 12. Unresolved items (all closed at the train)
 
-1. Trusted base + authority hashes: re-pin after CS-5 merges.
+1. ~~Trusted base + authority hashes~~ — re-pinned 2026-08-21 at the
+   train's design-gate pass: trusted base
+   `3e688f5aa20997ef9e7caf0977fba774eda95766` (main after the CS-5
+   merge); the §8 artifact amendments and the chain walk re-mint the
+   authority hashes at this base; requalification ref `6acd5d43` = the
+   walk head validated by the train's first full gate (the merge
+   commit's gate summary is the ref record, §6.4).
 2. ~~The exact Rust spelling of the six builders~~ — landed (step 1,
-   the six transform arms of
-   `comment_scope_witness_contract.rs::apply_case_transform`; proven
-   by 30/30 byte parity).
+   the six transform arms of the match inside
+   `comment_scope_witness_contract.rs::WitnessCaseTransformer::transform_root`;
+   proven by 30/30 byte parity; review-corrected 2026-08-20 — the
+   draft's `apply_case_transform` spelling never existed in the landed
+   code, and any gap-matrix anchor must cite a real symbol such as
+   `fn drive_case`).
 3. ~~The virtual `/project/input.ts` path~~ — confirmed byte-irrelevant
    on the first fixture run (the suite parses under the arena name and
    reached full byte parity; source maps off as expected).
@@ -211,12 +224,12 @@ separate reviewed decision); the CS-3/4/5 prohibitions remain.
    witness-gated train item, not a blocker (the sole production setter
    is comment-inert on the corpus).
 
-## 13. Readiness summary (draft)
+## 13. Readiness summary
 
 Upstream: the frozen witness artifact end to end (30 cases, full
 input/output bytes — measured). Rust-map rows: 10 (§4), all
 ingredients present. Gap rows: 4 (§5). Witnesses: 10/10 consumed —
 the terminal form. Architecture impact: the four-row requalification
 and the sub-packet closure that unblocks H2.5h-b. Undispositioned 0.
-Unresolved: §12.1 only (trusted-base + authority-hash re-pin at the
-train's design-gate pass; every implementation item is landed).
+Unresolved: 0 (§12.1 closed at the train; §12.2-5 closed in the
+front-run).

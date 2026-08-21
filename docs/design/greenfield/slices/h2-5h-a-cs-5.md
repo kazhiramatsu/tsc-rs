@@ -1,11 +1,11 @@
-# H2.5h-a / CS-5 — contextless and dual API deletion (DRAFT)
+# H2.5h-a / CS-5 — contextless and dual API deletion
 
 Design-gate packet for the fourth comment-scope production packet,
 under the mandatory implementation-ready design gate
-(../post-h1-completion-slices.md). **DRAFT front-run status:** authored
-in the `h2/5h-a-cs5` worktree on the CS-4 front-run head; trusted
-base, authority hashes, and §12 re-pin at the CS-5 train's design-gate
-pass. Machine check (once the envelope exists):
+(../post-h1-completion-slices.md). Front-run in the `h2/5h-a-cs5`
+worktree on the CS-4 front-run head while CS-4 and gate-tax 2 closed;
+re-pinned at the CS-5 train's design-gate pass on 2026-08-20 (trusted
+base `59ee821f`, the §12 items closed below). Machine check:
 `node .github/ci/slice-readiness.mjs --check h2-5h-a-cs-5`.
 
 ## 1. Identity, purpose, and boundary
@@ -29,8 +29,10 @@ pass. Machine check (once the envelope exists):
   requalification at the final validation ref (CS-6); any
   ES2015/Generators production work.
 - **Prerequisites:** CS-4 merged with its envelope `ready`.
-- **Trusted base:** re-pin at train start (DRAFT: authored at
-  `7f120422` on the CS-4 branch).
+- **Trusted base:** `59ee821f6401b6c95cd74fdba19715f9d1234bf6` (main
+  after the CS-4 merge; re-pinned 2026-08-20 at the train's
+  design-gate pass — DRAFT authored at `7f120422` on the CS-4
+  branch).
 - **Activation state:** before — five dual pairs
   (plain + `_with_context`) exist with the plain halves caller-less
   and annotated; `detached_transitional` has zero production
@@ -161,19 +163,27 @@ As CS-4 §11, minus what no longer exists; additionally — no renames
 CS-6 scope (the permanent audit and fixture suite are not started
 here even opportunistically).
 
-## 12. Unresolved items (DRAFT — close before the envelope flips ready)
+## 12. Unresolved items (all closed at the train)
 
-1. Trusted base + authority hashes: re-pin after CS-4 merges.
-2. Confirm at the re-pinned base that no NEW caller of the five shims
-   appeared between the front-run head and the train (one grep).
-3. CS-6 handshake: agree the audit's enforcement vehicle (a unit test
-   pinning the constructor census vs a workspace-audit rule) so CS-5's
-   grep-level acceptance has a named permanent successor.
+1. ~~Trusted base + authority hashes~~ — re-pinned 2026-08-20 at the
+   train's design-gate pass: trusted base
+   `59ee821f6401b6c95cd74fdba19715f9d1234bf6` (main after the CS-4
+   merge); the §8 artifact amendments and the chain walk re-mint the
+   authority hashes at this base.
+2. ~~No NEW caller of the five shims~~ — verified at the merge head
+   `5b8f49f5`: both acceptance greps return zero matches across
+   `crates` (`detached_transitional` and the five `fn emit_*` names),
+   and the emitter crate compiles with the shims absent — a new
+   caller anywhere would fail the build.
+3. ~~CS-6 handshake~~ — decided (and already front-run on the CS-6
+   branch): the permanent successor is a workspace-audit rule in
+   `workspace_maintenance.rs` (emitter-scoped, canaried in both
+   polarities), not a unit test; the CS-6 design packet carries it.
 
-## 13. Readiness summary (draft)
+## 13. Readiness summary
 
 Deletion inventory: 5 shims + 1 constructor + 1 doc line (measured,
 §4). Gap rows: 4 (§5) — 2 owned here, 2 CS-6. Witness rows: 0
 consumed + 10 adjacent controls. Architecture impact: symbol-list
-trim on `E-COMMENT-SCOPE-H` only. Undispositioned 0. Unresolved: §12
-(3 items, all mechanical at train start).
+trim on `E-COMMENT-SCOPE-H` only. Undispositioned 0. Unresolved: 0
+(all three §12 items closed at the train).

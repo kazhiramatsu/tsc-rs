@@ -14,33 +14,38 @@
     "implementation": {
       "path": "vendor/typescript-6.0.3/lib/_tsc.js",
       "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    "lib": {
+      "path": "vendor/typescript-6.0.3/lib",
+      "default_libraries": 108,
+      "sha256": "fef3faa275a0e8111b1185a3f33018b38cf5b72c58159846d10a92ddc12d4fd3"
     }
   },
   "generator": {
     "path": "crates/oracle/h2-5h-a-foundation.mjs",
-    "sha256": "7d224339d1a001f92cb4929d113100827d60b77fc735af0125c78d2618edb3bb"
+    "sha256": "8a4222cf6defcc7374ae658c662f5d3fd630d8771f19cf94b125b0b730a0feb5"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-foundation.schema.json",
-    "sha256": "393e831bad061e53227a05f544a1b8378345398b99b9a143456117199c587ae1"
+    "sha256": "a948e60200c295194edbda931f9dae260c6b30738217b49ca34f535aa89de53a"
   },
   "lineage": {
     "state": "closed-h2-5g-parent",
     "parent_phase": "H2.5g",
     "parent_profile": {
       "path": "ratchets/h2-5g-profile.v1.json",
-      "sha256": "ac9f4ad1aa3ea6cff768f1c68d1c78eaa06bdf7c7ea512f329ca1a85c8300a2d"
+      "sha256": "71bb5117d4d1009f099f887bc7f975d522fd1e59f1a90a49a1fbee57787d6730"
     },
     "interpretation": "H2.5h-a freezes candidate identity and semantic controls without activating either H2.5h production transformer"
   },
   "inputs": {
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "1cd9b6254b646b0829c2f7e20109635966709775436d0fffa642264c39b52a1b"
+      "sha256": "1c51b90de9974141f8ef3b8ee7e86983946ba0ff37354d84142352a0d05b096e"
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "c986286a3e16444948efab63dd1eba623c802a11d912084134397097cdfa5a0a"
+      "sha256": "42fb8b6d88e6e51bbbcb836e3f59c6d573b681cb4527f289d55fc5375b2dba5d"
     }
   },
   "selection_contract": {
@@ -21294,5 +21299,5 @@
     "unexecuted_candidates": 932,
     "undispositioned_candidates": 0
   },
-  "foundation_fingerprint_sha256": "c43c29530d0f25cf470b4b51eae648bb89054a50ad0e02a326ed730ce82c1e16"
+  "foundation_fingerprint_sha256": "07400bdc0f9a583dfa6c349a8b261cefb891e33b29bb00c3ba52f1c68aca94f1"
 }

@@ -174,7 +174,7 @@ const CAPABILITY_ROWS = Object.freeze([
   }),
   Object.freeze({
     capability_id: "comment-scope-threading",
-    state: "partial",
+    state: "exists",
     requirement:
       "the containerPos/containerEnd/declarationListContainerEnd triple as an immutable threaded scope (frozen study + ten-family witnesses)",
     surfaces: Object.freeze(["comment-apis"]),
@@ -208,18 +208,17 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/printer.rs",
         symbol: "fn file_root",
       }),
-    ]),
-    absences: Object.freeze([
-      Object.freeze({
-        path: "crates/emitter/src/printer.rs",
-        symbol: "claim_declaration_list_container",
-      }),
       Object.freeze({
         path: "crates/emitter/src/comment_cursor.rs",
-        symbol: "claim_declaration_list_container",
+        symbol: "fn claim_declaration_list_sides",
+      }),
+      Object.freeze({
+        path: "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
+        symbol: "fn drive_case",
       }),
     ]),
-    note: "CS-2 landed the threaded scope at the root and core pipeline and CS-3 landed the per-side claim predicates on the expression/list routes; the declaration-list writer, the statement-family flag-aware migration, the contextless-API deletion, and the final audit remain with packets CS-4..CS-6 before any ES2015/Generators production work",
+    absences: Object.freeze([]),
+    note: "CS-2 landed the threaded scope at the root and core pipeline, CS-3 landed the per-side claim predicates on the expression/list routes, and CS-4 landed the statement/declaration-family migration with the declaration-list writer (claim_declaration_list_sides replaces the planned container claim; the statement-paired claim helper is deleted); CS-5 deleted the five contextless shims and the detached_transitional constructor, leaving file_root as the printer's single zero-scope entry; CS-6 landed the 30-case witness-driven fixture gate (byte parity against the frozen artifact, both removeComments polarities, six transforms) and the permanent zero-contextless workspace audit — the sub-packet is closed, requalified at 6acd5d43, and ES2015/Generators production (H2.5h-b) is unblocked",
   }),
   Object.freeze({
     capability_id: "resolver-collision-capture-queries",

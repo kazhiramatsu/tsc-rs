@@ -1,12 +1,11 @@
-# H2.5h-a / CS-4 — comment-scope statement-family routes and the declaration-list writer (DRAFT)
+# H2.5h-a / CS-4 — comment-scope statement-family routes and the declaration-list writer
 
 Design-gate packet for the third comment-scope production packet, under
 the mandatory implementation-ready design gate
-(../post-h1-completion-slices.md). **DRAFT front-run status:** authored
-in the `h2/5h-a-cs4` worktree while CS-3 and gate-tax 2 close; the
-trusted base, authority hashes, and the §12 items must be re-pinned at
-the CS-4 train's design-gate pass before the envelope flips `ready`.
-Machine check (once the envelope exists):
+(../post-h1-completion-slices.md). Front-run in the `h2/5h-a-cs4`
+worktree while CS-3 and gate-tax 2 closed; re-pinned at the CS-4
+train's design-gate pass on 2026-08-20 (trusted base `54bbbc03`, the
+§12 items closed below). Machine check:
 `node .github/ci/slice-readiness.mjs --check h2-5h-a-cs-4`.
 
 ## 1. Identity, purpose, and boundary
@@ -37,8 +36,9 @@ Machine check (once the envelope exists):
 - **Prerequisites:** CS-3 merged with its envelope `ready`; gate-tax 2
   merged (walk adoption — the packet's re-mints ride it); the
   ten-family witness artifact frozen.
-- **Trusted base:** re-pin at train start (DRAFT: authored at
-  `acf41f78` on the CS-3 branch).
+- **Trusted base:** `54bbbc0398872131558b4618939637acc7210898` (main
+  after the gate-tax 2 merge; re-pinned 2026-08-20 at the train's
+  design-gate pass — DRAFT authored at `acf41f78` on the CS-3 branch).
 - **Activation state:** before — the statement family claims both
   sides flaglessly from one range; `declaration_list_container_end`
   exists in the scope triple but has no production writer (the
@@ -277,14 +277,18 @@ other than the `VariableDeclarationList` arm.
    arm is unreachable for `Variable*`), so step 2's only behavioral
    delta is the intended declaration-list dedupe activation, owned by
    the `declaration-list-trailing-dedupe` witness family.
-4. Trusted base + authority hashes: re-pin after CS-3 and gate-tax 2
-   merge.
+4. ~~Trusted base + authority hashes~~ — re-pinned 2026-08-20 at the
+   train's design-gate pass: trusted base
+   `54bbbc0398872131558b4618939637acc7210898` (main after the
+   gate-tax 2 merge; CS-3 merged @7cc97478 is contained); the §8
+   artifact amendments and the chain walk re-mint the authority
+   hashes at this base.
 
-## 13. Readiness summary (draft)
+## 13. Readiness summary
 
 Upstream rows: the two remaining scope-graph spans at predicate
 precision (§3). Rust-map rows: 7 (§4). Gap rows: 6 (§5) — 4 owned
 here, 1 CS-5, 1 legal deferral. Witness rows: 3 consumed + 7 adjacent
 controls. Architecture impact: none beyond the recorded
-`E-COMMENT-SCOPE-H` progress note. Undispositioned 0. Unresolved: §12
-(4 items, all mechanical at train start).
+`E-COMMENT-SCOPE-H` progress note. Undispositioned 0. Unresolved: 0
+(all four §12 items closed; item 4 re-pinned at the train).
