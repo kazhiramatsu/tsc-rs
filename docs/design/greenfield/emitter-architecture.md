@@ -574,6 +574,20 @@ not semantic facts.
 
 ### `EA-GAP-COMPOSITION` — ES2015 and Generators
 
+**Substrate landed (B-1, 2026-08-21 at `ad62e4a5`; B-2, 2026-08-22 at `f6c18ff4`,
+[B-2 packet](slices/h2-5h-b-b-2.md)):** B-1 landed the five shared
+capability rows (helpers, resolver queries, eager name generation, the
+nine-facet flags classifier, hook chaining); B-2 landed the 18-function
+destructuring-flattener shared module
+(`crates/emitter/src/builtins/flatten_destructuring.rs`, both
+`FlattenLevel` arms behind the `FlattenHost` consumer seam, qualified by
+focused oracle projections). Both are dormant until the B-3/B-4/B-5
+owners; the active ObjectRestSpread production path deliberately remains
+`es2018.rs`'s independent plan-based lowering until a byte-identity-gated
+re-base at the H2.5h-b closure.
+
+The original obligations, for the remaining scope:
+
 ES2015 and Generators are not current transformer entries. Their owner graph
 must determine whether one runtime slice is truly dependency-closed. If the
 graph contains independent owner SCCs, H2.5h receives further suffixes before

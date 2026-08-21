@@ -330,7 +330,7 @@ set. `es2018.rs` and every other production file are out of fence.
    contains object rest (the upstream ES2018 trigger,
    `_tsc.js:102058`); every ObjectRest fixture's flatten site
    contains a rest element, so driver and oracle route identically.
-   The 26 oracle fixtures (exact sources; expected bytes frozen in the
+   The 27 oracle fixtures (exact sources; expected bytes frozen in the
    suite from the probe output):
    level All, target ES5 — `var { a } = obj;` · `var { a, b } = obj;`
    · `var { b = 1 } = obj;` · `var { [k]: c } = obj;` ·
@@ -340,16 +340,19 @@ set. `es2018.rs` and every other production file are out of fence.
    `var [x] = arr;` · `var [x, , y = 2, ...zs] = arr;` ·
    `var [] = init();` · `var { a: [b, { c = 3 }] } = obj;` ·
    `({ a, b } = obj);` · `r = ({ a } = obj);` · `({ x } = x);` ·
-   `({} = {} = obj);` · `[x, y = 1] = arr;`;
+   `({} = {} = obj);` · `[x, y = 1] = arr;` · `y = ([,,] = x);` (the
+   crash edge's needsValue sibling: the bare-value return);
    level All + downlevelIteration — `var [x, y] = pair;` ·
    `var [x, ...r] = arr;` · `var [] = init();`;
    level ObjectRest, target ES2017 — `var { a, ...rest } = obj;` ·
    `var { [k]: c, ...rest } = obj;` · `({ a, ...r } = o);` ·
    `var { [k()]: c } = o;` (the effectful-initializer rebind
    witness, level All at ES5).
-   Fault-shaped typed-error contracts (not oracle-mintable):
-   `[,,] = x;` (the §4.3 crash edge) and the
-   missing-property-name/mistyped-shape arms driven directly.
+   Fault-shaped typed-error contracts (not oracle-mintable — the oracle
+   crashes): `[,,] = x;` (the §4.3 crash edge) and
+   `({ m() { } } = o);` (a method element has no
+   binding-or-assignment target, so the property-name must-exist
+   assert is the upstream failure point).
    The exact probe (frozen; also recorded in the PR):
 
    ```js
@@ -387,8 +390,8 @@ set. `es2018.rs` and every other production file are out of fence.
    ```
 
    Oracle bytes are the entire expectation (no hand-authored output).
-   Check: focused suite green (26 byte-equal projections + the typed
-   fault contracts + provenance assertions); `cargo test -p
+   Check: focused suite green (27 byte-equal projections + the typed
+   fault contracts); `cargo test -p
    tsc-rs-emitter` fully green with zero expected-string changes
    outside the new suite.
 4. **Train items.** §8 amendments, chain walk (b2-walk.sh = the
@@ -532,7 +535,7 @@ Upstream: the frozen owner-graph/gap-matrix/witness/dispositions chain
 (§1) plus the §4 vendored pins (18 family + 28 addenda slices, all
 hashed). Rust-map rows: 12 (§5), targets measured present or new
 within fence. Gap rows: 1 (§6). Witness families cited: 1 of 9
-(qualifies at B-5; focused projections are this packet's surface — 26
+(qualifies at B-5; focused projections are this packet's surface — 27
 oracle fixtures + typed fault contracts).
 Architecture impact: `EA-GAP-COMPOSITION` substrate progress recorded
 (disposition unchanged `activate`), `E-CAPTURE-BASE`
