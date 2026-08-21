@@ -38,6 +38,7 @@ mod es2017;
 mod es2018;
 mod es2021;
 mod es_next;
+mod flatten_destructuring;
 mod generated_bindings;
 mod helpers;
 mod jsx;
