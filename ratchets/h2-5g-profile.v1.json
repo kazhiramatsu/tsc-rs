@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "cd0780fbc8cd870cc9cbb779cbed37f109833c88a066f6e4f686ef28a365809a"
+    "sha256": "21cab42c66c1eea85a7a552c583b2e31bcf2c0a74498d11c6878826954ea9c88"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "c6a113124e698050d24e11725821d7f86cad5fae7d7e77aa1555fc00363d5da0"
+    "sha256": "f607335ff6eb0c39aff1aced1c0f9d9ef410740609c483b1d271912d7b2c7180"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -32,7 +32,7 @@
       },
       "qualification": {
         "path": "ratchets/h2-5f-qualification.v1.json",
-        "sha256": "5b799f4e98195d05a43bf120db9cdc3d0deae20b9af3a189211daf7488021167"
+        "sha256": "a0ce9db06755a0dfe2ec5a9dbaf604d04b56248788ce134689aaecb3c0ecfe70"
       },
       "owner_controls": {
         "path": "ratchets/h2-5f-owner-controls.v1.json",
@@ -67,7 +67,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-5g-qualification.v1.json",
-    "sha256": "108d51b426fb402c60c976776ab7c1d4553f88c7d560b58c805e9172f0190983"
+    "sha256": "736d9fee0a0c079cc48cd6f76dfe84b01109a0fdf99b921ed3ed562c95d69c95"
   },
   "current_exact_promotions": [
     {
@@ -81,7 +81,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "44bfd339c8589b345f88a0a51ac7cc2b77d2d3b69c4cbcf95a9c447ad095823d"
+        "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
       }
     },
     {
@@ -95,7 +95,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "44bfd339c8589b345f88a0a51ac7cc2b77d2d3b69c4cbcf95a9c447ad095823d"
+        "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
       }
     },
     {
@@ -109,7 +109,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "44bfd339c8589b345f88a0a51ac7cc2b77d2d3b69c4cbcf95a9c447ad095823d"
+        "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
       }
     },
     {
@@ -123,7 +123,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "44bfd339c8589b345f88a0a51ac7cc2b77d2d3b69c4cbcf95a9c447ad095823d"
+        "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
       }
     },
     {
@@ -137,7 +137,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "44bfd339c8589b345f88a0a51ac7cc2b77d2d3b69c4cbcf95a9c447ad095823d"
+        "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
       }
     }
   ],
@@ -536,7 +536,7 @@
     },
     {
       "path": "crates/checker/src/links.rs",
-      "sha256": "dce6a58a31bc481654d6afbbb1d67911fed65c63f3e5da2bef799a7a9dd7aaea"
+      "sha256": "21f07d1db1bc51de30f4a13a902c965e427d84ceb574c9ef585c5197c184e653"
     },
     {
       "path": "crates/checker/src/literals.rs",
@@ -1265,7 +1265,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "5f25431019a8787951fb33e3d3ce9137cd97a7fca79bd0e6086ee50a10bd4c1d"
+      "sha256": "97055b59e11822dfc5300d1eecd721d241b39db164dc7ccb9aaec8ff195fd23e"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -1290,5 +1290,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "e50e188b471c09ad103cb8d4fd86b4b9ed81bb09e039be3dfd2adbf3b014f98d"
+  "profile_fingerprint_sha256": "960ffc46a1ed39c85ceb3cc0ce8c8499c6af6c75912b1e20c5cf998a75dda64a"
 }

@@ -2099,6 +2099,8 @@ impl LinksTables {
     /// the ContainsCapturedBlockScopeBinding flag OR, so it follows that
     /// flag's speculation protocol: candidate-context writes are dropped
     /// and only the authoritative pass publishes.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
     pub fn push_captured_block_scope_binding(
         &mut self,
         speculation_depth: u32,
