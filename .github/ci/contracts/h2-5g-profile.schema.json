@@ -56,7 +56,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
+            "sha256": "ba4a2ae361719afb64a36d8f80c78104f900cf0b792f5c2b367967235b8087b8"
           }
         },
         {
@@ -70,7 +70,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
+            "sha256": "ba4a2ae361719afb64a36d8f80c78104f900cf0b792f5c2b367967235b8087b8"
           }
         },
         {
@@ -84,7 +84,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
+            "sha256": "ba4a2ae361719afb64a36d8f80c78104f900cf0b792f5c2b367967235b8087b8"
           }
         },
         {
@@ -98,7 +98,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
+            "sha256": "ba4a2ae361719afb64a36d8f80c78104f900cf0b792f5c2b367967235b8087b8"
           }
         },
         {
@@ -112,15 +112,15 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "750fbf3bb56151e662ea83f6834a4a938830f40851137cf1ec79557c4e6133ff"
+            "sha256": "ba4a2ae361719afb64a36d8f80c78104f900cf0b792f5c2b367967235b8087b8"
           }
         }
       ]
     },
     "runtime_inputs": {
       "type": "array",
-      "minItems": 241,
-      "maxItems": 241,
+      "minItems": 243,
+      "maxItems": 243,
       "items": { "$ref": "#/$defs/path_hash" }
     },
     "admitted_profile": {

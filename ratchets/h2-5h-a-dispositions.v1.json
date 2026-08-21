@@ -7,7 +7,7 @@
   "plan_step": "prerequisite-transition-step-5-manifest",
   "generator": {
     "path": "crates/oracle/h2-5h-a-dispositions.mjs",
-    "sha256": "0c6ad6fee5fb8f481888fa1a46fc8a543d8fbe093493b540d87980c7eb5dd206"
+    "sha256": "bab45b6c1d3351b406004a0b6b342ae82b913b868ca624c096a243e943d5a598"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
@@ -16,17 +16,17 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "b0deb0ea0e3fe238ca536f95eee9e340b3ad6c6a488dca0a193105bb61bcf386"
+      "sha256": "f28d51770b0ea476a51053e438d186b66939f7b658f1455ad0c0f8729eed69f8"
     },
-    "owner_graph_fingerprint_sha256": "7bd5a77227d2f6e1599d6d72fa6ff257f218218d08048a1085396b99f5ccfc65",
+    "owner_graph_fingerprint_sha256": "e43871cfedeb4a049f93a5f3a03f0083af7dc037f58e3b51b22cb0d51e4b3294",
     "gap_matrix": {
       "path": "ratchets/h2-5h-a-gap-matrix.v1.json",
-      "sha256": "47ffa610f964d181658d75bf51a212050cbe5405671e26e4c88a455baa52a9e1"
+      "sha256": "8717fe0c59b7bd0a992b92ee55cb1cc00122df0f422639f5118b1707576227e8"
     },
-    "gap_matrix_fingerprint_sha256": "28693af8d8b783abd7c899d13fa1572d9e40ee1339f0263fb83dcb154747b55b",
+    "gap_matrix_fingerprint_sha256": "f3fb764a35faa9ea93a2e65cd36a4500a618b38f0be464ea6e4d3f5c534a5ab8",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "129c09bb36627466aefe81f986d1bdbb8730f4a6b8f35c4938f906ce253b8c21"
+      "sha256": "4ba9f5ec6c911fb369dbd09ea02e47d0a61be6801d2142c96915b167924035b7"
     },
     "interpretation": "prerequisite-transition step 5 (manifest half): every architecture row dispositioned exactly once against the frozen owner graph and local-gap matrix; a row added to or removed from the map makes this manifest stale; it authorizes no production edit and activates nothing"
   },
@@ -525,7 +525,7 @@
       "index": 43,
       "row_id": "EA-GAP-COMPOSITION",
       "disposition": "activate",
-      "rationale": "the owner graph resolved the SCC question: one joint H2.5h-b runtime slice; hook composition, generated-binding finalization, wrapper provenance, comment transitions, and typed helper IR are named deliverables",
+      "rationale": "the owner graph resolved the SCC question: one joint H2.5h-b runtime slice; hook composition, generated-binding finalization, wrapper provenance, comment transitions, and typed helper IR are named deliverables; B-1 landed the shared substrate and B-2 the 18-function destructuring-flattener shared module (dormant until the B-4/B-5 owners)",
       "surfaces": [
         "yield-star-synthesis",
         "hook-composition"
@@ -534,7 +534,7 @@
         "generator-state-machine",
         "destructuring-flattener-es2015"
       ],
-      "row_fingerprint_sha256": "c9e8f9775c6d35435baa05dca6226cb4ddb2dd938393644184337b020c51bdbe"
+      "row_fingerprint_sha256": "a123249564e6cc413bd18ce386c1794b47c675307fcee5991b4be244c72b6a32"
     },
     {
       "index": 44,
@@ -559,5 +559,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "dispositions_fingerprint_sha256": "abbd33a7cb7c70162ba76098ff0a519b6ab2fe858e2799f356679e2f4dcec24b"
+  "dispositions_fingerprint_sha256": "5177e753ff4c6e13ae19c477d45a7bb2edb927aa7921d29d4cffa30f03b9ac45"
 }

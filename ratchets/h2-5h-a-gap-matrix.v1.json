@@ -7,21 +7,21 @@
   "plan_step": "prerequisite-transition-step-3",
   "generator": {
     "path": "crates/oracle/h2-5h-a-gap-matrix.mjs",
-    "sha256": "8ef8ae53f026f0bf3f195a56feb33a782d68e1803c94228bff7db16028114ad5"
+    "sha256": "938947ee52e9e16b55eb33a5822a5c74fcb235d9443fa97c273343d31c7aadca"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
-    "sha256": "87cb426dc1a782a755809355a1e70d9d5bf06b3f3d208deb5562c9d6bf47c14b"
+    "sha256": "d30af07ae028cc5112072c6749965aeb505f7db71c74ed343d76da00c7c3157f"
   },
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "b0deb0ea0e3fe238ca536f95eee9e340b3ad6c6a488dca0a193105bb61bcf386"
+      "sha256": "f28d51770b0ea476a51053e438d186b66939f7b658f1455ad0c0f8729eed69f8"
     },
-    "owner_graph_fingerprint_sha256": "7bd5a77227d2f6e1599d6d72fa6ff257f218218d08048a1085396b99f5ccfc65",
+    "owner_graph_fingerprint_sha256": "e43871cfedeb4a049f93a5f3a03f0083af7dc037f58e3b51b22cb0d51e4b3294",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "129c09bb36627466aefe81f986d1bdbb8730f4a6b8f35c4938f906ce253b8c21"
+      "sha256": "4ba9f5ec6c911fb369dbd09ea02e47d0a61be6801d2142c96915b167924035b7"
     },
     "interpretation": "prerequisite-transition step 3 records the current Rust capability states against the frozen owner graph; a landed implementation breaks its pinned absence and forces re-disposition; it edits no production code and activates nothing"
   },
@@ -44,13 +44,13 @@
           "symbol": "older targets belong to later target-ladder slices",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
+            "sha256": "d24a3cbf75b41e76a880474d4eab82cf77169bde58cc1f972a5788c6d3a3ae4d"
           }
         }
       ],
       "absences": [],
       "note": "the dormant seam this packet eventually activates; activation stays with H2.5h-b+",
-      "capability_fingerprint_sha256": "ed7cfd62804c50d279ad11f73471692d6358abfe2631860a700fbf6a9ced86b1"
+      "capability_fingerprint_sha256": "3436bc3091e091348f5471e34976a66151507b1d6e98555339a5712beeae8098"
     },
     {
       "index": 1,
@@ -558,12 +558,12 @@
           "symbol": "converted_loop",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
+            "sha256": "d24a3cbf75b41e76a880474d4eab82cf77169bde58cc1f972a5788c6d3a3ae4d"
           }
         }
       ],
       "note": "the yield* composition edge makes this inseparable from the Generators consumer (SCC evidence)",
-      "capability_fingerprint_sha256": "097e1bbedbcb3b46b41bf60d9eed424d648bbf80b62a63935c512e601abf7c43"
+      "capability_fingerprint_sha256": "57a13619348a4068d30f2e50560747d3310e0c11cb973d644eb9407752c2ca87"
     },
     {
       "index": 10,
@@ -591,7 +591,7 @@
     {
       "index": 11,
       "capability_id": "destructuring-flattener-es2015",
-      "state": "partial",
+      "state": "exists",
       "requirement": "the 18-function shared flattener family for binding patterns and destructuring assignments at the ES5 boundary (FlattenLevel All)",
       "surfaces": [
         "destructuring-module"
@@ -601,6 +601,30 @@
         "E-CAPTURE-BASE"
       ],
       "anchors": [
+        {
+          "path": "crates/emitter/src/builtins/flatten_destructuring.rs",
+          "symbol": "fn flatten_destructuring_binding",
+          "file": {
+            "path": "crates/emitter/src/builtins/flatten_destructuring.rs",
+            "sha256": "d7b8b63fe24a2cad97d510645eeae98db0d19f817fc23ef605a5c8195a179c43"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/flatten_destructuring.rs",
+          "symbol": "fn flatten_destructuring_assignment",
+          "file": {
+            "path": "crates/emitter/src/builtins/flatten_destructuring.rs",
+            "sha256": "d7b8b63fe24a2cad97d510645eeae98db0d19f817fc23ef605a5c8195a179c43"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins.rs",
+          "symbol": "mod flatten_destructuring;",
+          "file": {
+            "path": "crates/emitter/src/builtins.rs",
+            "sha256": "d24a3cbf75b41e76a880474d4eab82cf77169bde58cc1f972a5788c6d3a3ae4d"
+          }
+        },
         {
           "path": "crates/emitter/src/builtins/es2018.rs",
           "symbol": "flatten_destructuring_assignment",
@@ -618,18 +642,9 @@
           }
         }
       ],
-      "absences": [
-        {
-          "path": "crates/emitter/src/builtins.rs",
-          "symbol": "flatten_destructuring",
-          "file": {
-            "path": "crates/emitter/src/builtins.rs",
-            "sha256": "e5e8f6f3eb027d6e25d65ab218797ec12d3384228b279f30c493bb55a28c185d"
-          }
-        }
-      ],
-      "note": "the ObjectRestSpread flatten level is ported inside the ES2018 lowering; the shared ES5-level family (FlattenLevel All: binding patterns, array patterns, defaults) and its extraction as a shared module remain outstanding",
-      "capability_fingerprint_sha256": "24be3b2d02801d3d6697d46eda7d53739d41391c1c47f0799897aaab52cd0283"
+      "absences": [],
+      "note": "B-2 landed the 18-function shared family (both FlattenLevel arms behind the FlattenHost consumer seam) as crates/emitter/src/builtins/flatten_destructuring.rs, qualified by focused oracle projections; the module is dormant until the B-4/B-5 owners consume it; the ObjectRestSpread PRODUCTION path deliberately remains the independent plan-based lowering inside es2018.rs (re-basing it onto the shared family is a byte-identity-gated H2.5h-b-closure concern, B-2 packet section 12.3)",
+      "capability_fingerprint_sha256": "66e0f41ac061bd40b3760aa6e51010e395a805810fbfcf9b88124358a6afb14c"
     },
     {
       "index": 12,
@@ -656,12 +671,12 @@
   ],
   "summary": {
     "capabilities": 13,
-    "exists": 9,
-    "partial": 1,
+    "exists": 10,
+    "partial": 0,
     "missing": 3,
-    "pinned_rust_files": 17,
+    "pinned_rust_files": 18,
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "28693af8d8b783abd7c899d13fa1572d9e40ee1339f0263fb83dcb154747b55b"
+  "gap_matrix_fingerprint_sha256": "f3fb764a35faa9ea93a2e65cd36a4500a618b38f0be464ea6e4d3f5c534a5ab8"
 }

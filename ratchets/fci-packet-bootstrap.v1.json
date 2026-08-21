@@ -31,7 +31,8 @@
   "h2-5h-a-cs-4",
   "h2-5h-a-cs-5",
   "h2-5h-a-cs-6",
-  "h2-5h-b-b-1"
+  "h2-5h-b-b-1",
+  "h2-5h-b-b-2"
  ],
  "forbiddenTransitions": [
   "h2-5g-authority",

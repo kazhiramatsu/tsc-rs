@@ -254,7 +254,8 @@ substitutes for a per-packet gate.
      pinned hook chain. **LANDED at `ad62e4a5` (2026-08-21).**
    - **B-2 — destructuring flattener (foundation)**: the 18-function
      shared family at FlattenLevel All (the ObjectRestSpread level
-     already lives in `es2018.rs`).
+     already lives in `es2018.rs`). **LANDED at `f6c18ff4`
+     (2026-08-22).**
    - **B-3 — Generators state machine (foundation, dormant)**: labels,
      try/catch protocol, instruction encoding via
      `createGeneratorHelper`; consumer-first per the pinned

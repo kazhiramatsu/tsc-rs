@@ -354,12 +354,24 @@ const CAPABILITY_ROWS = Object.freeze([
   }),
   Object.freeze({
     capability_id: "destructuring-flattener-es2015",
-    state: "partial",
+    state: "exists",
     requirement:
       "the 18-function shared flattener family for binding patterns and destructuring assignments at the ES5 boundary (FlattenLevel All)",
     surfaces: Object.freeze(["destructuring-module"]),
     architecture_rows: Object.freeze(["EA-GAP-COMPOSITION", "E-CAPTURE-BASE"]),
     anchors: Object.freeze([
+      Object.freeze({
+        path: "crates/emitter/src/builtins/flatten_destructuring.rs",
+        symbol: "fn flatten_destructuring_binding",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/flatten_destructuring.rs",
+        symbol: "fn flatten_destructuring_assignment",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins.rs",
+        symbol: "mod flatten_destructuring;",
+      }),
       Object.freeze({
         path: "crates/emitter/src/builtins/es2018.rs",
         symbol: "flatten_destructuring_assignment",
@@ -369,13 +381,8 @@ const CAPABILITY_ROWS = Object.freeze([
         symbol: "flatten_destructuring_binding",
       }),
     ]),
-    absences: Object.freeze([
-      Object.freeze({
-        path: "crates/emitter/src/builtins.rs",
-        symbol: "flatten_destructuring",
-      }),
-    ]),
-    note: "the ObjectRestSpread flatten level is ported inside the ES2018 lowering; the shared ES5-level family (FlattenLevel All: binding patterns, array patterns, defaults) and its extraction as a shared module remain outstanding",
+    absences: Object.freeze([]),
+    note: "B-2 landed the 18-function shared family (both FlattenLevel arms behind the FlattenHost consumer seam) as crates/emitter/src/builtins/flatten_destructuring.rs, qualified by focused oracle projections; the module is dormant until the B-4/B-5 owners consume it; the ObjectRestSpread PRODUCTION path deliberately remains the independent plan-based lowering inside es2018.rs (re-basing it onto the shared family is a byte-identity-gated H2.5h-b-closure concern, B-2 packet section 12.3)",
   }),
   Object.freeze({
     capability_id: "tagged-template-lowering",
