@@ -5,7 +5,7 @@
  "trustedBase": "e8aa883bb9c07b9cfe0bf1990b0fadd30d7fdb8b",
  "packet": {
   "path": "docs/design/greenfield/slices/h2-5h-b-b-1.md",
-  "sha256": "75ec93642c7e4fe9dd7af831fd4b96c41cd19f7ac1450321c25204e030702eff"
+  "sha256": "296082d677940160e24f85831e2d830699c9cfb5abee69fbd0705cec001e1f0d"
  },
  "predecessors": [
   {
@@ -21,6 +21,7 @@
   "crates/emitter/src/transform.rs",
   "crates/checker/src/emit.rs",
   "crates/checker/src/modules.rs",
+  "crates/emitter/tests/unit/helpers/tests.rs",
   "crates/emitter/tests/contracts.rs",
   "crates/harness/tests/integration/h2_1a_profile.rs",
   "crates/harness/tests/integration/h2_transition.rs",

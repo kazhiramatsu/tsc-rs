@@ -130,14 +130,17 @@ The upstream IS the frozen artifact chain:
   to foundation direct controls), `hook-chains` (3), and
   `enum-pair-guards` (2) families as the frozen end-state its
   substrate must make reachable.
-- **Vendored tsc**: the four helper declarations, pinned (measured
-  2026-08-20, `vendor/typescript-6.0.3/lib/_tsc.js` line spans +
-  slice sha256):
-  `var extendsHelper` :26224-26246 `4806bf95cdf52c360b942088c914b5c0…`;
-  `var spreadArrayHelper` :26280-26294 `81c5e7e9f198c488db1fcecb15ee51…`;
-  `var valuesHelper` :26314-26330 `b55689c7d089871ece0fa301d9d2ef16…`;
-  `var generatorHelper` :26331-26364 `31c4f42fea9b5792466e0b6ba64b4f…`
-  (full 64-hex values in the §5 ledger headers at implementation).
+- **Vendored tsc**: the four helper declarations, pinned
+  (`vendor/typescript-6.0.3/lib/_tsc.js` line spans + slice sha256 in
+  the ledger d2 recipe — 1-indexed inclusive lines, newlines included;
+  the draft's 2026-08-20 values were measured without the final line's
+  newline and were corrected at implementation to the d2 values):
+  `var extendsHelper` :26224-26246 `6b5178969d2205e2…`;
+  `var spreadArrayHelper` :26280-26294 `41436a6b055f8314…`;
+  `var valuesHelper` :26314-26330 `7f2f157873cc2dfc…`;
+  `var generatorHelper` :26331-26364 `8e304cf0731f4092…`
+  (full 64-hex values in the §5 ledger headers, verified by the
+  ledger check and the byte-parity unit suite).
   The `computeTransformFlags`/`propagateChildFlags` table spans are
   the §12.4 output.
 
