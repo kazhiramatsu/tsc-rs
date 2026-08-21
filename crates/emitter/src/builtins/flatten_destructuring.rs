@@ -1599,6 +1599,11 @@ fn get_target_of_binding_or_assignment_element<H: FlattenHost>(
             };
             get_target_of_binding_or_assignment_element(host, expression)
         }
+        // The remaining `isObjectLiteralElementLike` kinds fall out of the
+        // upstream switch and return undefined (`_tsc.js:27779`).
+        NodeData::MethodDeclaration(_) | NodeData::GetAccessor(_) | NodeData::SetAccessor(_) => {
+            Ok(None)
+        }
         _ => Ok(Some(element)),
     }
 }

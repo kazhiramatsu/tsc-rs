@@ -695,3 +695,23 @@ fn all_omitted_unused_assignment_is_a_typed_error() {
 fn all_omitted_used_assignment_returns_the_bare_value() {
     assert_eq!(project_all("y = ([,,] = x);\n"), "y = (x);\n");
 }
+
+/// An object-literal method element has no binding-or-assignment target
+/// (`getTargetOfBindingOrAssignmentElement` returns undefined for the
+/// remaining `isObjectLiteralElementLike` kinds), so
+/// `getPropertyNameOfBindingOrAssignmentElement`'s must-exist assert is
+/// the upstream failure point; the port fails closed at the same spot.
+#[test]
+fn method_element_in_assignment_pattern_is_a_typed_error() {
+    let error = project_error("({ m() { } } = o);\n", FlattenLevel::All);
+    assert!(
+        matches!(
+            error,
+            TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::MethodDeclaration,
+                field: "property name",
+            }
+        ),
+        "unexpected error: {error:?}"
+    );
+}
