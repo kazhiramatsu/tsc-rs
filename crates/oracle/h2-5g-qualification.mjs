@@ -48,6 +48,8 @@ const CHECK_SHARDS_ENV = "TSRS_H2_5G_CHECK_SHARDS";
 const DEFAULT_CHECK_SHARDS = 4;
 const MAX_CHECK_SHARDS = 8;
 const INTERNAL_CHECK_SHARD_MODE = "--internal-check-shard";
+const CHECK_RECEIPT_RELATIVE_PATH = "target/h2-5g/check-receipt.v1.json";
+const TYPESCRIPT_LIB_DIRECTORY = "vendor/typescript-6.0.3/lib";
 const OPTION_LINE_PATTERN = /^\/{2}\s*@(\w+)\s*:\s*([^\r\n]*)/;
 const LINK_LINE_PATTERN =
   /^\/{2}\s*@link\s*:\s*([^\r\n]*)\s*->\s*([^\r\n]*)/;
@@ -120,10 +122,19 @@ let observedCases = 0;
 // congruent to its shard index and streams the records back; the parent
 // (shardAdoption) replays every child record through the unchanged per-case
 // guards and the unchanged whole-artifact byte comparison. --write is
-// untouched and stays serial with per-case observation reuse.
+// untouched and stays serial with per-case observation reuse. The
+// gate-tax 3 receipt attempt runs before any shard child is spawned;
+// shards only ever perform full observations.
 let shardAssignment = null;
 let shardAdoption = null;
 let shardOrdinal = 0;
+
+// --check receipt attempt (gate-tax 3): while set, buildSuite adopts
+// stored records through the per-case guards and a CheckReceiptMiss
+// abort happens strictly before any TypeScript observation.
+let checkReceiptAttempt = false;
+
+class CheckReceiptMiss extends Error {}
 
 function observationTarget() {
   return shardAssignment === null ? 9_027 : shardAssignment.assigned;
@@ -906,10 +917,183 @@ function hasCommentedOptionalChainTypeAssertion(text) {
 // inputs, the execution contract, the owner closure) and the per-case
 // identity (fixture bytes, merged settings, selection, roots, per-unit
 // text hashes). Anything else falls back to a fresh observation for that
-// case. --check deliberately keeps the full re-observation: the CI
-// freshness proof re-runs every observation and byte-compares, so an
-// unsound reuse cannot survive the next gate run.
+// case.
+//
+// --check consults the gate-tax 3 receipt instead of always paying the
+// full re-observation: a machine-local, self-fingerprinted record under
+// target/ that only a green full-re-observation --check mints. On a hit
+// the stored records are adopted through the same per-case guards and
+// the unchanged assembly plus whole-artifact byte comparison still run;
+// only the observeTypeScript runs are skipped. On ANY miss — receipt
+// absent/invalid, workspace path, node version, generator bytes, the
+// vendored lib inventory, the global observation records, the
+// observation-content roll, or one stale case — the attempt aborts
+// before any observation and the full re-observation runs unchanged,
+// minting a fresh receipt on success. The gate-tax 2 keystone survives
+// amended (gate-tax-3.md §3): observation content enters the trusted
+// state only through a local full re-observation.
 let reusedObservations = 0;
+
+// `owner_inventory` and `global_candidate_dispositions` are pin-carrying
+// ratchet artifacts: an upstream pin-only rebind changes their file bytes
+// without changing anything an observation can see. Their
+// observation-relevant projections are compared exactly instead — the
+// owner closure rows canonically, and the selection they drive through
+// the per-case identity (case-id membership, the 9,027-count guards, and
+// every per-case fixture/settings/selection hash). The vendored
+// TypeScript records and the vendor expansion inputs stay byte-compared:
+// they are the oracle itself and are never pin-rebound.
+function observationInputs(inputs) {
+  const {
+    owner_inventory: _ownerInventory,
+    global_candidate_dispositions: _globalDispositions,
+    ...rest
+  } = inputs;
+  return rest;
+}
+
+function libraryInventoryRecord() {
+  // The observations resolve default libraries from disk through the
+  // real compiler host; those .d.ts bytes drive the type check but are
+  // not covered by the bundle/implementation hashes (gate-tax 2 R3-2,
+  // applied to the 5g receipt key by gate-tax 3).
+  const directory = path.join(WORKSPACE, TYPESCRIPT_LIB_DIRECTORY);
+  const names = fs
+    .readdirSync(directory)
+    .filter((name) => name.startsWith("lib.") && name.endsWith(".d.ts"))
+    .sort();
+  requireCondition(
+    names.length > 0,
+    "vendored TypeScript lib inventory is empty",
+  );
+  const hash = crypto.createHash("sha256");
+  for (const name of names) {
+    hash.update(name);
+    hash.update("\u0000");
+    hash.update(fs.readFileSync(path.join(directory, name)));
+    hash.update("\u0000");
+  }
+  return {
+    path: TYPESCRIPT_LIB_DIRECTORY,
+    default_libraries: names.length,
+    sha256: hash.digest("hex"),
+  };
+}
+
+function checkReceiptGlobalSha(
+  typescriptRecord,
+  inputsRecord,
+  executionContract,
+  ownerRows,
+) {
+  return sha256(
+    Buffer.from(
+      canonical({
+        typescript: typescriptRecord,
+        observation_inputs: observationInputs(inputsRecord),
+        execution_contract: executionContract,
+        owner_closure: ownerRows,
+        library_inventory: libraryInventoryRecord(),
+      }),
+      "utf8",
+    ),
+  );
+}
+
+function casesObservationSha(caseFingerprints) {
+  const hash = crypto.createHash("sha256");
+  for (const fingerprint of [...caseFingerprints].sort()) {
+    hash.update(fingerprint);
+    hash.update("\u0000");
+  }
+  return hash.digest("hex");
+}
+
+// Validates every receipt key term except the observation-content roll,
+// which reusableStoredCases owns (it holds the stored-artifact parse).
+// Throws CheckReceiptMiss naming the first divergent term.
+function loadCheckReceipt(
+  typescriptRecord,
+  inputsRecord,
+  executionContract,
+  ownerRows,
+) {
+  let bytes;
+  try {
+    bytes = fs.readFileSync(
+      path.join(WORKSPACE, CHECK_RECEIPT_RELATIVE_PATH),
+      "utf8",
+    );
+  } catch {
+    throw new CheckReceiptMiss("absent");
+  }
+  let receipt;
+  try {
+    receipt = JSON.parse(bytes);
+  } catch {
+    throw new CheckReceiptMiss("invalid");
+  }
+  if (
+    receipt === null ||
+    typeof receipt !== "object" ||
+    receipt.schema !== 1 ||
+    receipt.kind !== "h2-5g-qualification-check-receipt" ||
+    !hasValidFingerprint(receipt, "receipt_fingerprint_sha256")
+  ) {
+    throw new CheckReceiptMiss("invalid");
+  }
+  if (receipt.workspace !== fs.realpathSync(WORKSPACE)) {
+    throw new CheckReceiptMiss("workspace");
+  }
+  if (receipt.node !== process.version) {
+    throw new CheckReceiptMiss("node");
+  }
+  if (receipt.generator_sha256 !== pathHash(GENERATOR_RELATIVE_PATH).sha256) {
+    throw new CheckReceiptMiss("generator");
+  }
+  if (
+    receipt.global_records_sha256 !==
+    checkReceiptGlobalSha(
+      typescriptRecord,
+      inputsRecord,
+      executionContract,
+      ownerRows,
+    )
+  ) {
+    throw new CheckReceiptMiss("global-records");
+  }
+  return receipt;
+}
+
+function mintCheckReceipt(artifact) {
+  const absolute = path.join(WORKSPACE, CHECK_RECEIPT_RELATIVE_PATH);
+  fs.mkdirSync(path.dirname(absolute), { recursive: true });
+  writeFileAtomic(
+    absolute,
+    render(
+      withFingerprint(
+        {
+          schema: 1,
+          kind: "h2-5g-qualification-check-receipt",
+          minted_by: "full-re-observation-check",
+          workspace: fs.realpathSync(WORKSPACE),
+          node: process.version,
+          generator_sha256: artifact.generator.sha256,
+          global_records_sha256: checkReceiptGlobalSha(
+            artifact.typescript,
+            artifact.inputs,
+            artifact.execution_contract,
+            artifact.owner_closure,
+          ),
+          cases_observation_sha256: casesObservationSha(
+            artifact.cases.map((entry) => entry.case_fingerprint_sha256),
+          ),
+        },
+        "receipt_fingerprint_sha256",
+      ),
+    ),
+  );
+}
 
 function reusableStoredCases(
   typescriptRecord,
@@ -917,32 +1101,27 @@ function reusableStoredCases(
   executionContract,
   ownerRows,
 ) {
-  if (MODE !== "--write") return null;
+  if (MODE !== "--write" && !checkReceiptAttempt) return null;
+  const receipt = checkReceiptAttempt
+    ? loadCheckReceipt(
+        typescriptRecord,
+        inputsRecord,
+        executionContract,
+        ownerRows,
+      )
+    : null;
   const targetPath = path.join(WORKSPACE, TARGET_RELATIVE_PATH);
-  if (!fs.existsSync(targetPath)) return null;
+  if (!fs.existsSync(targetPath)) {
+    if (checkReceiptAttempt) throw new CheckReceiptMiss("stored-artifact");
+    return null;
+  }
   let stored;
   try {
     stored = JSON.parse(fs.readFileSync(targetPath, "utf8"));
   } catch {
+    if (checkReceiptAttempt) throw new CheckReceiptMiss("stored-artifact");
     return null;
   }
-  // `owner_inventory` and `global_candidate_dispositions` are pin-carrying
-  // ratchet artifacts: an upstream pin-only rebind changes their file bytes
-  // without changing anything an observation can see. Their
-  // observation-relevant projections are compared exactly instead — the
-  // owner closure rows canonically below, and the selection they drive
-  // through the per-case identity (case-id membership, the 9,027-count
-  // guards, and every per-case fixture/settings/selection hash). The
-  // vendored TypeScript records and the vendor expansion inputs stay
-  // byte-compared: they are the oracle itself and are never pin-rebound.
-  const observationInputs = (inputs) => {
-    const {
-      owner_inventory: _ownerInventory,
-      global_candidate_dispositions: _globalDispositions,
-      ...rest
-    } = inputs;
-    return rest;
-  };
   if (
     stored.schema !== 1 ||
     stored.status !== "qualified-typescript-oracle" ||
@@ -954,7 +1133,20 @@ function reusableStoredCases(
     canonical(stored.execution_contract) !== canonical(executionContract) ||
     canonical(stored.owner_closure) !== canonical(ownerRows)
   ) {
+    if (checkReceiptAttempt) throw new CheckReceiptMiss("global-records");
     return null;
+  }
+  if (receipt !== null) {
+    const fingerprints = Array.isArray(stored.cases)
+      ? stored.cases.map((entry) => entry?.case_fingerprint_sha256)
+      : null;
+    if (
+      fingerprints === null ||
+      fingerprints.some((value) => typeof value !== "string") ||
+      receipt.cases_observation_sha256 !== casesObservationSha(fingerprints)
+    ) {
+      throw new CheckReceiptMiss("observation-content");
+    }
   }
   return new Map(stored.cases.map((entry) => [entry.case_id, entry]));
 }
@@ -1269,6 +1461,11 @@ function buildSuite(
       reusedObservations += 1;
       reportObservationProgress(row.id);
       return stored;
+    }
+    if (checkReceiptAttempt) {
+      // gate-tax 3: the receipt path never observes; one stale case
+      // falls the whole check back to the full re-observation.
+      throw new CheckReceiptMiss(`case ${row.id}`);
     }
     if (shardAdoption !== null) {
       const adopted = shardAdoption.get(row.id);
@@ -1745,9 +1942,39 @@ async function runShardedCheck(count) {
         rendered,
     `stale ${TARGET_RELATIVE_PATH}; run h2-5g-qualification.mjs --write and review`,
   );
+  mintCheckReceipt(artifact);
   process.stdout.write(
-    `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} check_shards=${count}\n`,
+    `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} check_shards=${count} check_receipt=minted\n`,
   );
+}
+
+// The gate-tax 3 receipt attempt: adopt-and-verify without observation,
+// or return null after printing the divergent key term so the caller
+// runs the unchanged full re-observation.
+function attemptReceiptCheck() {
+  checkReceiptAttempt = true;
+  try {
+    const artifact = buildArtifact();
+    requireCondition(
+      reusedObservations === 9_027,
+      `check receipt adopted ${reusedObservations}/9027 cases`,
+    );
+    process.stderr.write(
+      "H2.5g check receipt: hit; adopted 9,027 stored observations under the full per-case guards\n",
+    );
+    return artifact;
+  } catch (error) {
+    if (!(error instanceof CheckReceiptMiss)) throw error;
+    observedCases = 0;
+    reusedObservations = 0;
+    shardOrdinal = 0;
+    process.stderr.write(
+      `H2.5g check receipt: miss (${error.message}); running the full re-observation\n`,
+    );
+    return null;
+  } finally {
+    checkReceiptAttempt = false;
+  }
 }
 
 validateRuntime();
@@ -1766,8 +1993,35 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
       shard_cases: shard.shard_cases,
     }),
   );
-} else if (MODE === "--check" && checkShardCount() > 1) {
-  await runShardedCheck(checkShardCount());
+} else if (MODE === "--check") {
+  const receiptArtifact = attemptReceiptCheck();
+  if (receiptArtifact !== null) {
+    const rendered = render(receiptArtifact);
+    requireCondition(
+      fs.existsSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH)) &&
+        fs.readFileSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH), "utf8") ===
+          rendered,
+      `stale ${TARGET_RELATIVE_PATH}; run h2-5g-qualification.mjs --write and review`,
+    );
+    process.stdout.write(
+      `H2.5g qualification is fresh: candidates=${receiptArtifact.summary.candidates} admitted=${receiptArtifact.summary.admitted_cases} deferred=${receiptArtifact.summary.deferred_cases} check_receipt=hit reused_observations=${reusedObservations}\n`,
+    );
+  } else if (checkShardCount() > 1) {
+    await runShardedCheck(checkShardCount());
+  } else {
+    const artifact = buildArtifact();
+    const rendered = render(artifact);
+    requireCondition(
+      fs.existsSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH)) &&
+        fs.readFileSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH), "utf8") ===
+          rendered,
+      `stale ${TARGET_RELATIVE_PATH}; run h2-5g-qualification.mjs --write and review`,
+    );
+    mintCheckReceipt(artifact);
+    process.stdout.write(
+      `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} check_receipt=minted\n`,
+    );
+  }
 } else if (MODE === "--upgrade-observation-layout") {
   const artifact = readJson(TARGET_RELATIVE_PATH);
   requireCondition(
@@ -1875,15 +2129,6 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
   process.stdout.write(
     `wrote ${TARGET_RELATIVE_PATH}: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} reused_observations=${reusedObservations}\n`,
   );
-  } else if (MODE === "--check") {
-    requireCondition(
-      fs.existsSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH)) &&
-        fs.readFileSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH), "utf8") === rendered,
-      `stale ${TARGET_RELATIVE_PATH}; run h2-5g-qualification.mjs --write and review`,
-    );
-    process.stdout.write(
-      `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases}\n`,
-    );
   } else if (MODE === undefined) {
     process.stdout.write(rendered);
   } else {

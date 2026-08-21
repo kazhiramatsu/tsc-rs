@@ -13,6 +13,10 @@ resume/re-run lens, holistic consolidation). The consolidated scope
 below is the authoritative outcome; superseded alternatives
 (check-side adoption, NodeRuntimeOracle ratchet narrowing) were
 adjudicated and dropped — do not resurrect them without a new review.
+(That review happened: gate-tax 3, ratified 2026-08-21, lands a
+check-side **receipt** — a mechanism different in kind from the
+dropped adoption; see `gate-tax-3.md` §0 for the distinction and §3
+for the amended keystone.)
 
 ## 1. Scope
 
@@ -60,7 +64,7 @@ adjudicated and dropped — do not resurrect them without a new review.
 
 | | adoption key | full re-observation backstop |
 |---|---|---|
-| `h2-5g-qualification` | loose (no own-generator term; pin-carrying inputs projected) | EVERY full local gate (freshness proof) |
+| `h2-5g-qualification` | loose (no own-generator term; pin-carrying inputs projected) | EVERY full local gate (freshness proof) — superseded by the gate-tax 3 receipt (`gate-tax-3.md` §3) |
 | H2.5h-a witnesses/foundation | strict (own generator sha + typescript record + lib digest) | once per slice (packet checker) |
 
 Both are deliberate: the backstop frequency licenses the key
@@ -158,7 +162,10 @@ digest) run inside the loop already.
   pin diff, i.e. once per CS train — and is phase-granular: a crash
   mid-proof re-pays it entirely. Check-side adoption would delete the
   keystone that makes write-side adoption sound; the proper fix is the
-  post-H2.9 evidence-DAG sub-node receipts.
+  post-H2.9 evidence-DAG sub-node receipts. (gate-tax 3 pulled that
+  sub-node receipt forward for exactly this step: the proof now
+  re-runs only when an observation-relevant byte changed, not on
+  every pin diff — `gate-tax-3.md`.)
 - Fresh observation (generator/typescript/lib-key change) has no
   mid-run checkpoint; bounded at ~10–20 min per witness set, ~57 min
   for 5g, and rare. Deferred to the kill-safe-checkpoint requirement

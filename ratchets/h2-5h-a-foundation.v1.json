@@ -34,7 +34,7 @@
     "parent_phase": "H2.5g",
     "parent_profile": {
       "path": "ratchets/h2-5g-profile.v1.json",
-      "sha256": "221640ef46891122b5d4a2e9e7b321cd0d128f1be24f1b81af5b0220c1265b7d"
+      "sha256": "71bb5117d4d1009f099f887bc7f975d522fd1e59f1a90a49a1fbee57787d6730"
     },
     "interpretation": "H2.5h-a freezes candidate identity and semantic controls without activating either H2.5h production transformer"
   },
@@ -21299,5 +21299,5 @@
     "unexecuted_candidates": 932,
     "undispositioned_candidates": 0
   },
-  "foundation_fingerprint_sha256": "42ae119980a3c24c39c5c3ed95b792116d7bff3fb958ac1b249d671759bb769b"
+  "foundation_fingerprint_sha256": "07400bdc0f9a583dfa6c349a8b261cefb891e33b29bb00c3ba52f1c68aca94f1"
 }
