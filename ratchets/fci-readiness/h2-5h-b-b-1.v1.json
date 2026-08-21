@@ -41,6 +41,7 @@
   "crates/oracle/h2-3d-qualification.mjs",
   "crates/oracle/h2-5g-profile.mjs",
   ".github/ci/contracts/h2-5g-profile.schema.json",
+  ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
   "ratchets/h1-rust-omissions.v1.json",
   "ratchets/h1-emit-qualification.v1.json",
   "ratchets/h2-profile-transition.v1.json",

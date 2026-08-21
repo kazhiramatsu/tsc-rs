@@ -31,7 +31,7 @@
     },
     "rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "9d86e147458100cf5d308dd75e541d9390600ccbcefb27007424fb5e4ebd3669"
+      "sha256": "50341aff6c5d0b21fc9f3d24d209abcb64ebb2ac9892d3c9cc5168688dfd684a"
     },
     "suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -56,7 +56,7 @@
     "pending_rows": 0,
     "production_boundary_omissions": 0,
     "option_projection_omissions": 0,
-    "explicit_checker_emit_elisions": 22
+    "explicit_checker_emit_elisions": 21
   },
   "upstream_closure": {
     "suites": [

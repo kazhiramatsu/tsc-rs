@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "907a15e51ca81cb6b722f418f2a7460f6a3b7990eccea930220045a02d14aa36";
+  "44bfd339c8589b345f88a0a51ac7cc2b77d2d3b69c4cbcf95a9c447ad095823d";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -78,7 +78,7 @@ const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
   ["profile", "ratchets/h2-5f-profile.v1.json", "68c3c6ed51afa36a668aaf6fa338df2da87d6cbaad4740be25e8733be1a45b73"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "7e421cc983a280fb4a0e45e87d683a6ace205bd2d37b52a731801ad4ef18832e"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "5b799f4e98195d05a43bf120db9cdc3d0deae20b9af3a189211daf7488021167"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
   ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "d5593648869817dde318c26156d4b025298fbdf411fe67a5c89fc6df8e5a715d"],
   ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "72773d747b0da690f7614dbd16755e5904aa617cc8e0b0f6573edbb84c342fad"],
@@ -249,6 +249,9 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/harness/tests/unit/upstream_suites/execution_tests.rs",
   "crates/program/tests/unit/option_validation_tests.rs",
   "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
+  "crates/emitter/tests/unit/factory_classifier/tests.rs",
+  "crates/emitter/tests/unit/helpers/tests.rs",
+  "crates/emitter/tests/unit/hook_chaining/tests.rs",
 ]);
 
 // These files implement the non-authoritative acceptance impact/restart
@@ -532,7 +535,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 238,
+    runtimeInputSet.size === 241,
     "H2.5g runtime input identity changed",
   );
 

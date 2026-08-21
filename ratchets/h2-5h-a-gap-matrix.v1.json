@@ -7,21 +7,21 @@
   "plan_step": "prerequisite-transition-step-3",
   "generator": {
     "path": "crates/oracle/h2-5h-a-gap-matrix.mjs",
-    "sha256": "53a97696b12802d3e01ea95df851e706c9b98bfda2a5296a35de1fa55dc21984"
+    "sha256": "8ef8ae53f026f0bf3f195a56feb33a782d68e1803c94228bff7db16028114ad5"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
-    "sha256": "e182d7c8876326f8339f108131880b56e4fb9f1fa5302db43bc436695b1aad64"
+    "sha256": "87cb426dc1a782a755809355a1e70d9d5bf06b3f3d208deb5562c9d6bf47c14b"
   },
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "bff6931b4d3947a2710649257669b4b8589de631c786dc91afcaccbb347f64a2"
+      "sha256": "2b506e3e268a65e16973d009047ab14527ecb6874895d0fc0787363b6a413f71"
     },
-    "owner_graph_fingerprint_sha256": "c7816479c18b29df7459c3da85f8b601383880f5006db16840ef187cd638d527",
+    "owner_graph_fingerprint_sha256": "2bffd027423be4170d3f2bba2128b8f94386602e24f2f8a79d7e5f1c87b4ed37",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "52b5654522090f996aee02f8044753af9cf4b708ba38ec6dab0611716481b691"
+      "sha256": "129c09bb36627466aefe81f986d1bdbb8730f4a6b8f35c4938f906ce253b8c21"
     },
     "interpretation": "prerequisite-transition step 3 records the current Rust capability states against the frozen owner graph; a landed implementation breaks its pinned absence and forces re-disposition; it edits no production code and activates nothing"
   },
@@ -69,7 +69,7 @@
           "symbol": "pub struct LexicalEnvironment",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
           }
         },
         {
@@ -77,7 +77,7 @@
           "symbol": "lexical_environment_stack",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
           }
         },
         {
@@ -85,13 +85,13 @@
           "symbol": "lexical_environment_suspended",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
           }
         }
       ],
       "absences": [],
       "note": null,
-      "capability_fingerprint_sha256": "2c4e2f006228064c638dd014a5fe361878d5f6ad08dc685300227f0049265cfc"
+      "capability_fingerprint_sha256": "e1095d5a123ad1f1a9961091663934f6f527891c1bb7a282207dfe25a828698f"
     },
     {
       "index": 2,
@@ -110,7 +110,7 @@
           "symbol": "pub fn create_node",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
+            "sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
           }
         },
         {
@@ -118,18 +118,18 @@
           "symbol": "pub fn create_node_array",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
+            "sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
           }
         }
       ],
       "absences": [],
       "note": null,
-      "capability_fingerprint_sha256": "11c5984f5bda4307e265cef97f1e47e456c5622599785df374899ed3ec5f1198"
+      "capability_fingerprint_sha256": "65bb8c84936e46ad2cfd0dc0913aa3b5bb58b4173a0e43e15608c901924ba05d"
     },
     {
       "index": 3,
       "capability_id": "transform-flag-recomputation",
-      "state": "partial",
+      "state": "exists",
       "requirement": "full postorder transform-flag classification usable for freshly synthesized ES2015/Generators output; EA-GAP-FLAGS bans inheriting old ES2015/Generator/Yield bits through a partial mask",
       "surfaces": [
         "transform-flag-recomputation"
@@ -144,18 +144,42 @@
           "symbol": "pub fn propagate_child_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
+            "sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
+          }
+        },
+        {
+          "path": "crates/emitter/src/factory.rs",
+          "symbol": "fn classify_created_node_flags",
+          "file": {
+            "path": "crates/emitter/src/factory.rs",
+            "sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
+          }
+        },
+        {
+          "path": "crates/emitter/src/factory.rs",
+          "symbol": "fn classify_created_token_flags",
+          "file": {
+            "path": "crates/emitter/src/factory.rs",
+            "sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
+          }
+        },
+        {
+          "path": "crates/emitter/tests/unit/factory_classifier/tests.rs",
+          "symbol": "fn yield_and_generator_rows_classify_and_exclude_at_the_function_boundary",
+          "file": {
+            "path": "crates/emitter/tests/unit/factory_classifier/tests.rs",
+            "sha256": "db04d792bf2670866e647c7eda3c4688d19a66f5267331befc2d8e0445fd3bb3"
           }
         }
       ],
       "absences": [],
-      "note": "propagation exists; the shared full classifier for changed nodes is the outstanding EA-GAP-FLAGS deliverable",
-      "capability_fingerprint_sha256": "532b3012ba1651db2573f0887596af9106f50b13ba8ce4ef09c39c9c4007abae"
+      "note": "B-1 landed the EA-GAP-FLAGS postorder classifier: per-created-kind facet tables ported from the owner-called creators, aggregated through propagate_child_flags; the eight TransformFlags facets of the nine-facet qualification surface carry table contracts (the ninth is the resolver-side NodeCheckFlags fact)",
+      "capability_fingerprint_sha256": "af512819af8934f14cff2cdd2a8c16f8bb2cebff23d3fe8de3d22aa15fc24633"
     },
     {
       "index": 4,
       "capability_id": "substitution-notification-hooks",
-      "state": "partial",
+      "state": "exists",
       "requirement": "chained onSubstituteNode for both owners and chained onEmitNode for ES2015 (Generators registers substitution only)",
       "surfaces": [
         "hook-composition"
@@ -169,18 +193,50 @@
           "symbol": "pub fn substitution_factory",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+          }
+        },
+        {
+          "path": "crates/emitter/src/transform.rs",
+          "symbol": "pub fn substitute_node",
+          "file": {
+            "path": "crates/emitter/src/transform.rs",
+            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+          }
+        },
+        {
+          "path": "crates/emitter/src/transform.rs",
+          "symbol": "pub fn before_emit_node",
+          "file": {
+            "path": "crates/emitter/src/transform.rs",
+            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+          }
+        },
+        {
+          "path": "crates/emitter/src/transform.rs",
+          "symbol": "pub fn after_emit_node",
+          "file": {
+            "path": "crates/emitter/src/transform.rs",
+            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+          }
+        },
+        {
+          "path": "crates/emitter/tests/unit/hook_chaining/tests.rs",
+          "symbol": "fn substitution_delegates_previous_first_in_registration_order",
+          "file": {
+            "path": "crates/emitter/tests/unit/hook_chaining/tests.rs",
+            "sha256": "a1b73ecd7ea0f5840b6c20936d0b6af865540ff5252f294e98097d3a82b755b3"
           }
         }
       ],
       "absences": [],
-      "note": "substitution machinery exists; ES2015-grade notification chaining parity is dispositioned by the step-5 manifest under E-ORDER-H",
-      "capability_fingerprint_sha256": "d7d1f87925fec646523ee26ec4ff762b20e6f4ef17d7898605360a472c4d67e2"
+      "note": "B-1 pinned the chain: previous-first onSubstituteNode delegation with registration order [transformES2015, transformGenerators] is the forward substitution walk, notification is the forward-before/reverse-after wrap with the first-registered transformer outermost, and the order contracts prove the enablement split (ES2015 substitution+notification, Generators substitution only)",
+      "capability_fingerprint_sha256": "f4ab72336c71ac7a2a2da51a5b41fb989fc3c0199c20899fc926e8b8d41f8079"
     },
     {
       "index": 5,
       "capability_id": "helper-emission",
-      "state": "partial",
+      "state": "exists",
       "requirement": "the five owner helper factories: extends, values, read, spreadArray, generator",
       "surfaces": [
         "helper-factory"
@@ -195,25 +251,23 @@
           "symbol": "typescript:read",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
           }
-        }
-      ],
-      "absences": [
+        },
         {
           "path": "crates/emitter/src/builtins/helpers.rs",
           "symbol": "typescript:extends",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
           }
         },
         {
           "path": "crates/emitter/src/builtins/helpers.rs",
-          "symbol": "__extends",
+          "symbol": "typescript:values",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
           }
         },
         {
@@ -221,7 +275,7 @@
           "symbol": "typescript:spreadArray",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
           }
         },
         {
@@ -229,17 +283,26 @@
           "symbol": "typescript:generator",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "1186a228b2f37eade13919581b70d3cbb3fac6060c0c36ec95ae4455ff2aa630"
+            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
+          }
+        },
+        {
+          "path": "crates/emitter/tests/unit/helpers/tests.rs",
+          "symbol": "fn helper_texts_match_the_vendored_declarations",
+          "file": {
+            "path": "crates/emitter/tests/unit/helpers/tests.rs",
+            "sha256": "c5501cae3f83808c36794cd6b5e4084a616b1b1849e16732f35777d840aeacbf"
           }
         }
       ],
-      "note": "read helper exists from the H2.5g ladder; extends/values/spreadArray/generator helper texts are absent (asyncValues/asyncGenerator are different helpers)",
-      "capability_fingerprint_sha256": "bd0fe40499c50104beb4b3bc62b4a283cb189d4a6cccd46fe9c1b76346be5af9"
+      "absences": [],
+      "note": "B-1 landed the four absent texts byte-pinned to the vendored declarations by the proven typescript:read dedent recipe (ledger d2 hashes + the byte-parity unit suite that proves the recipe against read first); metadata mirrors upstream (extends priority 0, generator priority 6)",
+      "capability_fingerprint_sha256": "50819bf8da3789a9655284895b3f51e4a9707adb50534faa1464cbe02fbee8e3"
     },
     {
       "index": 6,
       "capability_id": "name-generation-deferred",
-      "state": "partial",
+      "state": "exists",
       "requirement": "createUniqueName/createTempVariable/createLoopVariable and getGeneratedNameForNode/getInternalName/getLocalName semantics (deferred resolution at print time)",
       "surfaces": [
         "name-generation"
@@ -254,7 +317,7 @@
           "symbol": "GeneratedBindingScopes",
           "file": {
             "path": "crates/emitter/src/builtins/generated_bindings.rs",
-            "sha256": "5f88460467ca1983b2cccb884626aafd91f605e931aab6b9ee183752467cd319"
+            "sha256": "2c4f03d0faaaf21d9e4c80cbf11622cd6fdd73fb2f3f0fa934eca548bbd54789"
           }
         },
         {
@@ -262,13 +325,37 @@
           "symbol": "allocate_temp",
           "file": {
             "path": "crates/emitter/src/builtins/generated_bindings.rs",
-            "sha256": "5f88460467ca1983b2cccb884626aafd91f605e931aab6b9ee183752467cd319"
+            "sha256": "2c4f03d0faaaf21d9e4c80cbf11622cd6fdd73fb2f3f0fa934eca548bbd54789"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/generated_bindings.rs",
+          "symbol": "fn allocate_loop_variable",
+          "file": {
+            "path": "crates/emitter/src/builtins/generated_bindings.rs",
+            "sha256": "2c4f03d0faaaf21d9e4c80cbf11622cd6fdd73fb2f3f0fa934eca548bbd54789"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/generated_bindings.rs",
+          "symbol": "fn allocate_source_numbered_for_node",
+          "file": {
+            "path": "crates/emitter/src/builtins/generated_bindings.rs",
+            "sha256": "2c4f03d0faaaf21d9e4c80cbf11622cd6fdd73fb2f3f0fa934eca548bbd54789"
+          }
+        },
+        {
+          "path": "crates/emitter/tests/unit/generated_bindings/tests.rs",
+          "symbol": "fn sibling_scopes_reuse_the_loop_variable_spelling",
+          "file": {
+            "path": "crates/emitter/tests/unit/generated_bindings/tests.rs",
+            "sha256": "96d75e4701cbb4749c09401bf303d1077c5135d8228e5945a91092ce9381251e"
           }
         }
       ],
       "absences": [],
-      "note": "the Rust model is eager scoped reservation, not tsc's deferred resolution; E-NAMES-H owns the equivalence argument the step-5 manifest must disposition",
-      "capability_fingerprint_sha256": "9f524c4ee6b36fb0fa3e0bf0767ba20f87bbb61b4cdcfd384617b34673d7c450"
+      "note": "B-1 completed the eager scoped-reservation model (the TempFlags._i loop-variable preference and the generateNameCached-equivalent node-keyed memo) and recorded the reviewed E-NAMES-H deferred-vs-eager equivalence argument (packet h2-5h-b-b-1.md item 12.3: universe, scope policy, allocation order) with per-policy-arm contracts; empirical closure rides the B-5 byte gate",
+      "capability_fingerprint_sha256": "21839c89a117ddce9fc5a3108ae0416b7ebaa9bc9177b712f27f4cf0a2c3909c"
     },
     {
       "index": 7,
@@ -363,7 +450,7 @@
     {
       "index": 8,
       "capability_id": "resolver-collision-capture-queries",
-      "state": "partial",
+      "state": "exists",
       "requirement": "the six emit-resolver queries the owners call: getReferencedDeclarationWithCollidingName, isDeclarationWithCollidingName, isArgumentsLocalBinding, isBindingCapturedByNode, getReferencedValueDeclaration, hasNodeCheckFlag(loop set)",
       "surfaces": [
         "resolver-collision-capture-queries",
@@ -379,7 +466,7 @@
           "symbol": "fn is_arguments_local_binding",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
           }
         },
         {
@@ -387,7 +474,7 @@
           "symbol": "fn get_referenced_value_declaration",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
           }
         },
         {
@@ -395,30 +482,61 @@
           "symbol": "fn has_node_check_flag",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
-          }
-        }
-      ],
-      "absences": [
-        {
-          "path": "crates/emitter/src/resolver.rs",
-          "symbol": "colliding_name",
-          "file": {
-            "path": "crates/emitter/src/resolver.rs",
-            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
           }
         },
         {
           "path": "crates/emitter/src/resolver.rs",
-          "symbol": "binding_captured",
+          "symbol": "fn get_referenced_declaration_with_colliding_name",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+          }
+        },
+        {
+          "path": "crates/emitter/src/resolver.rs",
+          "symbol": "fn is_declaration_with_colliding_name",
+          "file": {
+            "path": "crates/emitter/src/resolver.rs",
+            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+          }
+        },
+        {
+          "path": "crates/emitter/src/resolver.rs",
+          "symbol": "fn is_binding_captured_by_node",
+          "file": {
+            "path": "crates/emitter/src/resolver.rs",
+            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+          }
+        },
+        {
+          "path": "crates/checker/src/modules.rs",
+          "symbol": "fn emit_get_referenced_declaration_with_colliding_name",
+          "file": {
+            "path": "crates/checker/src/modules.rs",
+            "sha256": "a8ad3d857959a1fb01b8067722d9d763140eb1531ac6bdd4b2088f941db1d805"
+          }
+        },
+        {
+          "path": "crates/checker/src/emit.rs",
+          "symbol": "fn is_binding_captured_by_node",
+          "file": {
+            "path": "crates/checker/src/emit.rs",
+            "sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
+          }
+        },
+        {
+          "path": "crates/checker/tests/unit/emit/tests.rs",
+          "symbol": "fn resolver_queries_replay_the_foundation_direct_controls",
+          "file": {
+            "path": "crates/checker/tests/unit/emit/tests.rs",
+            "sha256": "98427923f9e2c52df7ff2533e9733a58b3d1f52b879a9082244f4e741294d680"
           }
         }
       ],
-      "note": "the EmitResolver trait already declares three of the six (typed fail-closed defaults; is_arguments_local_binding is implemented for async capture); the collision/capture pair is absent and checker-side answer parity for the loop NodeCheckFlags set must be dispositioned against the foundation's six direct controls",
-      "capability_fingerprint_sha256": "4a8e4fac23d5872f118a473b271500a1bc2b781a0920a2f1bb4a40f57d6963b9"
+      "absences": [],
+      "note": "B-1 landed the collision/capture trio as typed fail-closed trait defaults with production implementations at the checker bridge (CheckerSession in emit.rs delegating to the modules.rs ports; checkNestedBlockScopedBinding's capturedBlockScopeBindings list materialized for isBindingCapturedByNode); all 43 resolver queries recorded by the foundation's three checker+resolver direct controls replay equal through the production bridge",
+      "capability_fingerprint_sha256": "039435718b29df9a1d453b3d7daa192cafe1f91f763fcccd42569c5928836e0f"
     },
     {
       "index": 9,
@@ -538,12 +656,12 @@
   ],
   "summary": {
     "capabilities": 13,
-    "exists": 4,
-    "partial": 6,
+    "exists": 9,
+    "partial": 1,
     "missing": 3,
-    "pinned_rust_files": 10,
+    "pinned_rust_files": 17,
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "50f774b6603a3d14e34d502167d99962c0593b31baed3fbfdbf89c7ccebf53ae"
+  "gap_matrix_fingerprint_sha256": "f74265d9b0db4f57108466f6771a3b587e5241113a060e5e9c25e831271d790f"
 }

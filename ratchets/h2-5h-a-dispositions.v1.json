@@ -7,7 +7,7 @@
   "plan_step": "prerequisite-transition-step-5-manifest",
   "generator": {
     "path": "crates/oracle/h2-5h-a-dispositions.mjs",
-    "sha256": "c62768e8dab068c75fdb2f113f0d38eec51e3ead6d0cd6e469874dcff3d0d989"
+    "sha256": "0c6ad6fee5fb8f481888fa1a46fc8a543d8fbe093493b540d87980c7eb5dd206"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-dispositions.schema.json",
@@ -16,17 +16,17 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "bff6931b4d3947a2710649257669b4b8589de631c786dc91afcaccbb347f64a2"
+      "sha256": "2b506e3e268a65e16973d009047ab14527ecb6874895d0fc0787363b6a413f71"
     },
-    "owner_graph_fingerprint_sha256": "c7816479c18b29df7459c3da85f8b601383880f5006db16840ef187cd638d527",
+    "owner_graph_fingerprint_sha256": "2bffd027423be4170d3f2bba2128b8f94386602e24f2f8a79d7e5f1c87b4ed37",
     "gap_matrix": {
       "path": "ratchets/h2-5h-a-gap-matrix.v1.json",
-      "sha256": "611289af099c948e2cc4174f9a9ba33fbb1aa3129a6a001d80a1adc9afc74597"
+      "sha256": "3e2183c6eaf509b966854e2ed715c43f1cb8cf268279a1b63aecf34e6eab6723"
     },
-    "gap_matrix_fingerprint_sha256": "50f774b6603a3d14e34d502167d99962c0593b31baed3fbfdbf89c7ccebf53ae",
+    "gap_matrix_fingerprint_sha256": "f74265d9b0db4f57108466f6771a3b587e5241113a060e5e9c25e831271d790f",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "52b5654522090f996aee02f8044753af9cf4b708ba38ec6dab0611716481b691"
+      "sha256": "129c09bb36627466aefe81f986d1bdbb8730f4a6b8f35c4938f906ce253b8c21"
     },
     "interpretation": "prerequisite-transition step 5 (manifest half): every architecture row dispositioned exactly once against the frozen owner graph and local-gap matrix; a row added to or removed from the map makes this manifest stale; it authorizes no production edit and activates nothing"
   },
@@ -266,7 +266,7 @@
       "index": 22,
       "row_id": "E-ORDER-H",
       "disposition": "activate",
-      "rationale": "the joint ES2015->Generators registration, hook chains, and pass-order edges become live production structure",
+      "rationale": "the joint ES2015->Generators registration and pass-order edges become live production structure; B-1 pinned the hook chain (previous-first substitution delegation, forward-before/reverse-after notification wrap, ES2015-only notification enablement) with order contracts",
       "surfaces": [
         "hook-composition",
         "yield-star-synthesis"
@@ -275,7 +275,7 @@
         "pass-registration-boundary",
         "substitution-notification-hooks"
       ],
-      "row_fingerprint_sha256": "d632c2cd0527b881a4095c26ea11109e9458e582c7f3998e50c5b3763026b290"
+      "row_fingerprint_sha256": "fde768b2630e5012cafa75b2c4d7963bc60f59ce03accac478f85f86f050805d"
     },
     {
       "index": 23,
@@ -301,14 +301,14 @@
       "index": 25,
       "row_id": "E-RESOLVER-CAPTURE-H",
       "disposition": "activate",
-      "rationale": "the six owner queries become live (three are declared today as typed fail-closed defaults; answers are gated by the foundation's direct controls)",
+      "rationale": "the six owner queries become live; B-1 declared the collision/capture trio as typed fail-closed defaults and landed the production implementations at the checker bridge, replayed 43/43 against the foundation's direct controls",
       "surfaces": [
         "resolver-collision-capture-queries"
       ],
       "capabilities": [
         "resolver-collision-capture-queries"
       ],
-      "row_fingerprint_sha256": "67823bb48d6ce6a2f08a9bcceeb43951e566e9d1a30434b7d0729d90f3643086"
+      "row_fingerprint_sha256": "15a3dd414dfc438b75c4417e8e26389534eb48f480178e3fb1ef19f7301d37f8"
     },
     {
       "index": 26,
@@ -323,14 +323,14 @@
       "index": 27,
       "row_id": "E-CHECKER-FACTS-H",
       "disposition": "activate",
-      "rationale": "the loop NodeCheckFlags set must be answered exactly against the frozen direct-control observations",
+      "rationale": "the loop NodeCheckFlags set is answered exactly against the frozen direct-control observations (B-1 replay incl. the materialized capturedBlockScopeBindings list behind isBindingCapturedByNode)",
       "surfaces": [
         "resolver-node-check-flags"
       ],
       "capabilities": [
         "resolver-collision-capture-queries"
       ],
-      "row_fingerprint_sha256": "28ceab22e2535dc04d260e21e42bdcaa9420e45642f0523ed75f01ce5e074856"
+      "row_fingerprint_sha256": "b89819a376bb5dd31e53689d3ffddfcba05349698b5aae3c4f7753754e106b17"
     },
     {
       "index": 28,
@@ -360,14 +360,14 @@
       "index": 30,
       "row_id": "E-NAMES-H",
       "disposition": "activate",
-      "rationale": "the deferred-resolution vs eager-reservation equivalence argument becomes a live obligation",
+      "rationale": "the deferred-resolution vs eager-reservation equivalence argument is recorded and reviewed (B-1 packet item 12.3, three pillars with named verifiers) with per-policy-arm contracts; empirical closure rides the B-5 byte gate",
       "surfaces": [
         "name-generation"
       ],
       "capabilities": [
         "name-generation-deferred"
       ],
-      "row_fingerprint_sha256": "b321e425082af84ae1facaaf4376a88bbd15678ef4255432a8ac7447913c604b"
+      "row_fingerprint_sha256": "b86a3d50bd42c011b42daa664f0f7f11f8716f94d055a6e3c87f8a397073c95f"
     },
     {
       "index": 31,
@@ -395,14 +395,14 @@
       "index": 33,
       "row_id": "E-HELPERS-H",
       "disposition": "activate",
-      "rationale": "the owner helper graph becomes live",
+      "rationale": "the owner helper graph becomes live; B-1 landed the four absent helper texts byte-pinned to the vendored declarations with the d2 ledger hashes and the byte-parity suite",
       "surfaces": [
         "helper-factory"
       ],
       "capabilities": [
         "helper-emission"
       ],
-      "row_fingerprint_sha256": "dc2f20f9e37b5baaa6a250b5d56817840a17dcd1cd43758371d546e076d37d97"
+      "row_fingerprint_sha256": "887713c66da128300f303fd48f0bc9d239cbad84c611022c23b3a8634ff61558"
     },
     {
       "index": 34,
@@ -497,14 +497,14 @@
       "index": 41,
       "row_id": "EA-GAP-FLAGS",
       "disposition": "activate",
-      "rationale": "the shared full transform-flag classifier is a named deliverable",
+      "rationale": "the shared full transform-flag classifier landed in B-1 (per-created-kind facet tables aggregated through propagate_child_flags, table contracts on the nine-facet qualification surface)",
       "surfaces": [
         "transform-flag-recomputation"
       ],
       "capabilities": [
         "transform-flag-recomputation"
       ],
-      "row_fingerprint_sha256": "33686b1f5f22f40e9d56e04f78bbb2eddadf7cc34ab843ee64baaae62353a053"
+      "row_fingerprint_sha256": "0b87b543b2eafd548cfef2c6adbb294322fc414247373157e127adb02dcb4f61"
     },
     {
       "index": 42,
@@ -559,5 +559,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "dispositions_fingerprint_sha256": "392a32bad4c771a85b77f70b512dbef1ee0455350eb88e91bf2d58d43327b55c"
+  "dispositions_fingerprint_sha256": "2a07441365efb9dc338fa8bd35a65bcb3c427d81449870123ec17f7e1f595c5e"
 }
