@@ -33,16 +33,16 @@
     "foundation_fingerprint_sha256": "42ae119980a3c24c39c5c3ed95b792116d7bff3fb958ac1b249d671759bb769b",
     "comment_scope_witnesses": {
       "path": "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
-      "sha256": "2a5e2003e4b004105bf2a478791334c7d0cfc3e94924030398792bae1206eccc"
+      "sha256": "811f8032639baa6ed2a0a68aa2f437128d87c3cf6c7f7b9f0b67c2767c31cb5f"
     },
-    "witnesses_fingerprint_sha256": "9216bf7e7ca90d8cf15ddc892e1bbb9c471a7b0b2af647cb50694200f5aa65d5",
+    "witnesses_fingerprint_sha256": "c20edfb8fa29c5122fa5c9b14ba611d9217ef3197165952f9e076f07d39ac021",
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
       "sha256": "42fb8b6d88e6e51bbbcb836e3f59c6d573b681cb4527f289d55fc5375b2dba5d"
     },
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "753e74ff666d1042ed7b6d40d1625fe706f590afc11294f358d584fb31832a82"
+      "sha256": "52b5654522090f996aee02f8044753af9cf4b708ba38ec6dab0611716481b691"
     },
     "interpretation": "prerequisite-transition step 2 freezes the complete pinned owner reference closure; it assigns architecture rows but dispositions nothing, authorizes no production edit, and activates nothing"
   },
@@ -3817,5 +3817,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "owner_graph_fingerprint_sha256": "b73914c3e61d70def198a5eac475c483daec2fec185c5fc8e2a6c1a3a10b2a0d"
+  "owner_graph_fingerprint_sha256": "7c7612acc2fe66a781782ab76d4b638998893c01edfd81cf499b72962ba6d2b4"
 }
