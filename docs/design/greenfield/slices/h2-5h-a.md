@@ -240,10 +240,34 @@ substitutes for a per-packet gate.
    enum-pair guards). Frozen ahead of CS-2 as the step-6 readiness
    prerequisite (step-6 record above); the ladder position here
    governs production delivery order, not the freeze order.
-3. **B-1 .. — H2.5h-b implementation packets** (single joint runtime
-   slice per the step-4 SCC decision): authored after W-H2.5H against
-   the frozen graph/matrix/witnesses, each with its own design-gate
-   packet document; the activation split is not revisited.
+3. **B-1 .. B-5 — H2.5h-b implementation packets** (single joint
+   runtime slice per the step-4 SCC decision; the activation split is
+   not revisited). The B-1 design pass ratified the ladder
+   ([B-1 packet](h2-5h-b-b-1.md) §2); every packet before the last is
+   corpus-inert:
+   - **B-1 — shared substrate (foundation)**: the five capability rows
+     both owners consume — helper texts byte-pinned to the vendored
+     declarations, the resolver collision/capture trio at the checker
+     bridge, eager name-generation completion carrying the reviewed
+     E-NAMES-H equivalence argument, the EA-GAP-FLAGS postorder
+     classifier over the nine-facet qualification surface, and the
+     pinned hook chain. **LANDED at `ad62e4a5` (2026-08-21).**
+   - **B-2 — destructuring flattener (foundation)**: the 18-function
+     shared family at FlattenLevel All (the ObjectRestSpread level
+     already lives in `es2018.rs`).
+   - **B-3 — Generators state machine (foundation, dormant)**: labels,
+     try/catch protocol, instruction encoding via
+     `createGeneratorHelper`; consumer-first per the pinned
+     `yield-star-synthesis` edge.
+   - **B-4 — ES2015 visitors (foundation)**: class lowering lanes,
+     captured `this`/`arguments`/`new.target`, parameters, and loop
+     conversion WITH the two pinned `yield*` synthesis sites feeding
+     B-3's machine.
+   - **B-5 — runtime flip**: tagged-template lowering, the joint
+     `[transformES2015, transformGenerators]` registration
+     (`languageVersion < ES2015`), the 32-case witness fixture gate
+     (the CS-6 analog: frozen bytes are the entire expectation), and
+     requalification.
 
 **Packet checker** (step 7; also the envelope's proof commands): all of
 

@@ -189,3 +189,87 @@ fn generated_private_names_reserve_ancestors_but_reuse_in_siblings() {
     );
     let _ = scopes.exit(source, sibling);
 }
+
+// ================================================================
+// H2.5h-b B-1: the E-NAMES-H policy-arm contracts (packet §12.3(b))
+// and the loop-variable / node-keyed completion surface.
+// ================================================================
+
+#[test]
+fn loop_variable_prefers_the_dedicated_slot_once_per_scope() {
+    let mut scopes = GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::Reserve);
+    let (source, body) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(scopes.allocate_loop_variable(false), "_i");
+    assert_eq!(scopes.allocate_loop_variable(false), "_a");
+    assert_eq!(scopes.allocate_temp(), "_b");
+    let _ = scopes.exit(source, body);
+}
+
+#[test]
+fn occupied_loop_slot_falls_through_to_the_temp_sequence() {
+    let mut scopes = GeneratedBindingScopes::new(
+        ["_i".to_owned()].into_iter().collect(),
+        AncestorBindingPolicy::Reserve,
+    );
+    assert_eq!(scopes.allocate_loop_variable(false), "_a");
+}
+
+#[test]
+fn sibling_scopes_reuse_the_loop_variable_spelling() {
+    // §12.3(b) sibling-reuse arm: tsc resets tempFlags per function, so
+    // sibling function scopes may both own `_i`.
+    let mut scopes = GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::Reserve);
+    let (source, first) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(scopes.allocate_loop_variable(false), "_i");
+    let _ = scopes.exit(source, first);
+    let (source, sibling) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(scopes.allocate_loop_variable(false), "_i");
+    let _ = scopes.exit(source, sibling);
+}
+
+#[test]
+fn active_ancestor_bindings_stay_reserved_in_descendants() {
+    // §12.3(b) ancestor-reservation arm: an active ancestor's generated
+    // bindings remain reserved while a descendant scope allocates.
+    let mut scopes = GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::Reserve);
+    let (source, outer) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(scopes.allocate_temp(), "_a");
+    assert_eq!(scopes.allocate_loop_variable(false), "_i");
+    let (outer_id, inner) = scopes.enter(GeneratedBindingOwner::FunctionBody);
+    assert_eq!(scopes.allocate_loop_variable(false), "_b");
+    assert_eq!(scopes.allocate_temp(), "_c");
+    let _ = scopes.exit(outer_id, inner);
+    let _ = scopes.exit(source, outer);
+}
+
+#[test]
+fn node_keyed_allocation_is_stable_per_node_and_advances_per_source_name() {
+    let mut scopes = GeneratedBindingScopes::new(BTreeSet::new(), AncestorBindingPolicy::Reserve);
+    assert_eq!(
+        scopes.allocate_source_numbered_for_node((0, 1), "loop_init"),
+        "loop_init_1",
+    );
+    assert_eq!(
+        scopes.allocate_source_numbered_for_node((0, 1), "loop_init"),
+        "loop_init_1",
+    );
+    assert_eq!(
+        scopes.allocate_source_numbered_for_node((0, 2), "loop_init"),
+        "loop_init_2",
+    );
+}
+
+#[test]
+fn source_occupied_allocator_pushes_past_the_reserved_names() {
+    // §12.3(a) universe-equality direction: parsed identifiers occupy the
+    // allocator exactly as tsc's file-level unique-name predicate does.
+    let mut scopes = GeneratedBindingScopes::new(
+        ["_a", "_b", "_i", "_super"]
+            .into_iter()
+            .map(str::to_owned)
+            .collect(),
+        AncestorBindingPolicy::Reserve,
+    );
+    assert_eq!(scopes.allocate_temp(), "_c");
+    assert_eq!(scopes.allocate_loop_variable(false), "_d");
+}

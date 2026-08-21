@@ -109,13 +109,13 @@
       ],
       "properties": {
         "capabilities": { "const": 13 },
-        "exists": { "const": 4 },
-        "partial": { "const": 6 },
+        "exists": { "const": 9 },
+        "partial": { "const": 1 },
         "missing": { "const": 3 },
         "pinned_rust_files": {
           "type": "integer",
           "minimum": 5,
-          "maximum": 12
+          "maximum": 20
         },
         "rust_runs": { "const": 0 },
         "runtime_admissions_delta": { "const": 0 }

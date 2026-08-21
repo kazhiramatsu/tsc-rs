@@ -224,6 +224,45 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    fn get_referenced_declaration_with_colliding_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetReferencedDeclarationWithCollidingName,
+            node,
+            |state, reference| {
+                let declaration =
+                    state.emit_get_referenced_declaration_with_colliding_name(reference)?;
+                Ok(declaration.map(|declaration| project_resolver_node(state, declaration)))
+            },
+        )
+    }
+
+    fn is_declaration_with_colliding_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsDeclarationWithCollidingName,
+            node,
+            |state, declaration| state.emit_is_declaration_with_colliding_name(declaration),
+        )
+    }
+
+    fn is_binding_captured_by_node(
+        &self,
+        node: EmitResolverNode,
+        declaration: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node_and_location(
+            EmitResolverMethod::IsBindingCapturedByNode,
+            node,
+            declaration,
+            CheckerState::emit_is_binding_captured_by_node,
+        )
+    }
+
     fn get_type_reference_serialization_kind(
         &self,
         node: EmitResolverNode,

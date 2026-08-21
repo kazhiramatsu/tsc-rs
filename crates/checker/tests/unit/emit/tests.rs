@@ -690,3 +690,252 @@ fn emit_resolver_reanchors_decorator_metadata_imports_to_the_class_scope() {
         );
     });
 }
+
+// ====================================================================
+// H2.5h-b B-1: foundation direct-control replay for the six-query
+// resolver surface. The frozen H2.5h-a foundation artifact records the
+// vendored TypeScript oracle's resolver answers over three
+// checker+resolver control programs; this contract replays every
+// recorded query against the production CheckerSession bridge and
+// demands equality, so the colliding-name/capture trio lands against
+// oracle-observed expectations rather than authored ones.
+// ====================================================================
+
+const FOUNDATION_ARTIFACT_RELATIVE: &str = "../../ratchets/h2-5h-a-foundation.v1.json";
+
+fn foundation_artifact() -> Value {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join(FOUNDATION_ARTIFACT_RELATIVE);
+    serde_json::from_slice(&std::fs::read(&path).expect("foundation artifact readable"))
+        .expect("foundation artifact is valid JSON")
+}
+
+fn replay_syntax_kind(name: &str) -> SyntaxKind {
+    match name {
+        "Identifier" => SyntaxKind::Identifier,
+        "VariableDeclaration" => SyntaxKind::VariableDeclaration,
+        "VariableDeclarationList" => SyntaxKind::VariableDeclarationList,
+        "ForStatement" => SyntaxKind::ForStatement,
+        "BinaryExpression" => SyntaxKind::BinaryExpression,
+        "PostfixUnaryExpression" => SyntaxKind::PostfixUnaryExpression,
+        "Block" => SyntaxKind::Block,
+        other => panic!("unmapped control subject kind {other}"),
+    }
+}
+
+fn replay_check_flag_bits(name: &str) -> u32 {
+    match name {
+        "LoopWithCapturedBlockScopedBinding" => 4096,
+        "ContainsCapturedBlockScopeBinding" => 8192,
+        "CapturedBlockScopedBinding" => 16384,
+        "BlockScopedBindingInLoop" => 32768,
+        "NeedsLoopOutParameter" => 65536,
+        other => panic!("unmapped control check flag {other}"),
+    }
+}
+
+fn locate_control_node(source: &tsc_syntax::SourceFile, subject: &Value) -> NodeId {
+    let kind = replay_syntax_kind(subject["kind"].as_str().expect("subject kind"));
+    let start = u32::try_from(subject["start"].as_u64().expect("subject start")).expect("start");
+    let end = u32::try_from(subject["end"].as_u64().expect("subject end")).expect("end");
+    let matches = source
+        .arena
+        .node_ids()
+        .filter(|id| {
+            let node = source.arena.node(*id);
+            node.kind == kind
+                && node.end == end
+                && u32::try_from(tsc_syntax::skip_trivia(
+                    source.text(),
+                    usize::try_from(node.pos).expect("pos fits usize"),
+                ))
+                .expect("trivia start fits u32")
+                    == start
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        matches.len(),
+        1,
+        "control subject {kind:?} {start}-{end} must match exactly one node"
+    );
+    matches[0]
+}
+
+fn control_compiler_options(options: &Value) -> CompilerOptions {
+    CompilerOptions {
+        target: options["target"].as_i64().map(|value| value as i32),
+        module: options["module"].as_i64().map(|value| value as i32),
+        always_strict: options["alwaysStrict"].as_bool(),
+        downlevel_iteration: options["downlevelIteration"].as_bool(),
+        ignore_deprecations: options["ignoreDeprecations"].as_str().map(str::to_owned),
+        import_helpers: options["importHelpers"].as_bool(),
+        new_line: options["newLine"].as_i64().map(|value| value as i32),
+        no_emit_helpers: options["noEmitHelpers"].as_bool(),
+        use_define_for_class_fields: options["useDefineForClassFields"].as_bool(),
+        use_unknown_in_catch_variables: options["useUnknownInCatchVariables"].as_bool(),
+        ..CompilerOptions::default()
+    }
+}
+
+#[test]
+fn resolver_queries_replay_the_foundation_direct_controls() {
+    let artifact = foundation_artifact();
+    let controls = artifact["direct_controls"]
+        .as_array()
+        .expect("direct controls");
+    let replayed_controls = [
+        "checker-colliding-block-scope",
+        "checker-captured-loop-bindings",
+        "checker-arguments-and-catch-reference",
+    ];
+    let mut replayed_queries = 0usize;
+    for control in controls {
+        let control_id = control["control_id"].as_str().expect("control id");
+        if !replayed_controls.contains(&control_id) {
+            continue;
+        }
+        let files = control["input"]["files"].as_array().expect("control files");
+        assert_eq!(files.len(), 1, "{control_id} is a single-file control");
+        let file = &files[0];
+        let file_path = file["path"].as_str().expect("file path");
+        let text = String::from_utf8(base64_decode(
+            file["utf8_base64"].as_str().expect("file bytes"),
+        ))
+        .expect("control source is UTF-8");
+        let options = control_compiler_options(&control["input"]["compiler_options"]);
+
+        let domain = IdentityDomain::reclaiming();
+        let source = Arc::new(
+            tsc_syntax::parse_source_file_from_snapshot_in_identity_domain(
+                file_path.to_owned(),
+                TextSnapshot::new(text, DocumentVersion::new("1")),
+                ParseOptions::default(),
+                None,
+                &domain,
+            )
+            .expect("control source parses"),
+        );
+        let worker = BinderWorker::bind_in_identity_domain(&source, &options, &domain)
+            .expect("control source binds");
+        let document = Arc::new(BoundDocument::new(
+            Arc::new(ParsedDocument::new(Arc::clone(&source))),
+            worker.into_bind_data(),
+        ));
+        let snapshot = ProgramSnapshot::new(vec![document], 0).expect("control snapshot");
+        let mut state = CheckerState::from_snapshot(&snapshot, &options);
+        state.check_source_file(0);
+        let session = CheckerSession::from_checked_state(state);
+
+        session.with_emit_resolver(|resolver| {
+            for query in control["observation"]["resolver_queries"]
+                .as_array()
+                .expect("resolver queries")
+            {
+                let method = query["method"].as_str().expect("query method");
+                let subject = &query["subject"];
+                assert_eq!(subject["file"].as_str(), Some(file_path));
+                let subject_node =
+                    EmitResolverNode::from_raw_source(0, locate_control_node(&source, subject));
+                let result = &query["result"];
+                let describe = || {
+                    format!(
+                        "{control_id} {method} {}-{}",
+                        subject["start"], subject["end"]
+                    )
+                };
+                match method {
+                    "isDeclarationWithCollidingName" => {
+                        let expected = result["boolean"].as_bool().expect("boolean result");
+                        let actual = resolver
+                            .is_declaration_with_colliding_name(subject_node)
+                            .unwrap_or_else(|error| panic!("{}: {error}", describe()));
+                        assert_eq!(actual, expected, "{}", describe());
+                    }
+                    "isArgumentsLocalBinding" => {
+                        let expected = result["boolean"].as_bool().expect("boolean result");
+                        let actual = resolver
+                            .is_arguments_local_binding(subject_node)
+                            .unwrap_or_else(|error| panic!("{}: {error}", describe()));
+                        assert_eq!(actual, expected, "{}", describe());
+                    }
+                    "hasNodeCheckFlag" => {
+                        let flag =
+                            replay_check_flag_bits(query["argument"].as_str().expect("flag name"));
+                        let expected = result["boolean"].as_bool().expect("boolean result");
+                        let actual = resolver
+                            .has_node_check_flag(subject_node, flag)
+                            .unwrap_or_else(|error| panic!("{}: {error}", describe()));
+                        assert_eq!(actual, expected, "{}", describe());
+                    }
+                    "isBindingCapturedByNode" => {
+                        let declaration = EmitResolverNode::from_raw_source(
+                            0,
+                            locate_control_node(&source, &query["secondary_subject"]),
+                        );
+                        let expected = result["boolean"].as_bool().expect("boolean result");
+                        let actual = resolver
+                            .is_binding_captured_by_node(subject_node, declaration)
+                            .unwrap_or_else(|error| panic!("{}: {error}", describe()));
+                        assert_eq!(actual, expected, "{}", describe());
+                    }
+                    "getReferencedDeclarationWithCollidingName"
+                    | "getReferencedValueDeclaration" => {
+                        let expected = if result["kind"].as_str() == Some("declaration") {
+                            Some(locate_control_node(&source, &result["declaration"]))
+                        } else {
+                            None
+                        };
+                        let actual = if method == "getReferencedValueDeclaration" {
+                            resolver.get_referenced_value_declaration(subject_node)
+                        } else {
+                            resolver.get_referenced_declaration_with_colliding_name(subject_node)
+                        }
+                        .unwrap_or_else(|error| panic!("{}: {error}", describe()));
+                        assert_eq!(
+                            actual.map(|declaration| declaration.node()),
+                            expected,
+                            "{}",
+                            describe()
+                        );
+                    }
+                    other => panic!("unmapped control resolver method {other}"),
+                }
+                replayed_queries += 1;
+            }
+        });
+    }
+    assert_eq!(
+        replayed_queries, 43,
+        "the three controls carry 43 recorded resolver queries"
+    );
+}
+
+// Minimal base64 decoder for the control payloads (standard alphabet,
+// '=' padding) so the dev-dependency surface stays unchanged.
+fn base64_decode(encoded: &str) -> Vec<u8> {
+    fn value(byte: u8) -> u32 {
+        match byte {
+            b'A'..=b'Z' => u32::from(byte - b'A'),
+            b'a'..=b'z' => u32::from(byte - b'a') + 26,
+            b'0'..=b'9' => u32::from(byte - b'0') + 52,
+            b'+' => 62,
+            b'/' => 63,
+            other => panic!("unexpected base64 byte {other}"),
+        }
+    }
+    let bytes = encoded.trim_end_matches('=').as_bytes();
+    let mut out = Vec::with_capacity(bytes.len() * 3 / 4);
+    for chunk in bytes.chunks(4) {
+        let mut accumulator = 0u32;
+        for (index, byte) in chunk.iter().enumerate() {
+            accumulator |= value(*byte) << (18 - 6 * index);
+        }
+        out.push((accumulator >> 16) as u8);
+        if chunk.len() > 2 {
+            out.push((accumulator >> 8) as u8);
+        }
+        if chunk.len() > 3 {
+            out.push(accumulator as u8);
+        }
+    }
+    out
+}

@@ -457,11 +457,6 @@ const anchorSpecs = [
     "pub struct ProgramSnapshot {",
   ],
   [
-    "captured-block-scope-bindings-elided",
-    "crates/checker/src/expr.rs",
-    "links.capturedBlockScopeBindings pushIfUnique",
-  ],
-  [
     "constructor-capture-this-elided",
     "crates/checker/src/functions.rs",
     "captureLexicalThis is emit-only (no-op)",
@@ -730,7 +725,6 @@ for (const [option, rustField] of optionSpecs) {
 const optionProjectionOmissions = [];
 
 const checkerElisionSpecs = [
-  ["captured-block-scope-bindings", "captured-block-scope-bindings-elided", "inactive-at-ESNext", "profile-control"],
   ["constructor-capture-lexical-this", "constructor-capture-this-elided", "adjacent-class-field", "profile-control"],
   ["async-mark-linked-references", "async-linked-references-elided", "dormant-declaration", "typed-deferred"],
   ["decorator-mark-linked-references", "decorator-linked-references-elided", "dormant-declaration/decorator", "typed-deferred"],

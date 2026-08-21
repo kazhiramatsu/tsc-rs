@@ -34,18 +34,18 @@
     "parent_phase": "H2.5g",
     "parent_profile": {
       "path": "ratchets/h2-5g-profile.v1.json",
-      "sha256": "71bb5117d4d1009f099f887bc7f975d522fd1e59f1a90a49a1fbee57787d6730"
+      "sha256": "0c49a44228cfd04ac0ba1cd8e3bbf0b9a37d242b0945836a39dbe5e34b20a007"
     },
     "interpretation": "H2.5h-a freezes candidate identity and semantic controls without activating either H2.5h production transformer"
   },
   "inputs": {
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "1c51b90de9974141f8ef3b8ee7e86983946ba0ff37354d84142352a0d05b096e"
+      "sha256": "720785e9b0f0ae18b6f01097338cefbab36ebd109aad6f95ee3f506e709933b6"
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "42fb8b6d88e6e51bbbcb836e3f59c6d573b681cb4527f289d55fc5375b2dba5d"
+      "sha256": "f690b776c71fda18f7c5d21468e235cafa934bf72fa4ed1604d3e2916ad43039"
     }
   },
   "selection_contract": {
@@ -21299,5 +21299,5 @@
     "unexecuted_candidates": 932,
     "undispositioned_candidates": 0
   },
-  "foundation_fingerprint_sha256": "07400bdc0f9a583dfa6c349a8b261cefb891e33b29bb00c3ba52f1c68aca94f1"
+  "foundation_fingerprint_sha256": "e5abf3153f4c688defa0d8d2a50aa8d006379d287445fc2dd54d83ff4f426a85"
 }

@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "b45fc194a33d267c6554ac3f0e55f8fcc55fd8ddfa6df1e198540da7a6bea062"
+    "sha256": "da0ce9afd1d12a894c876db34581cb39205458a5609df1364a75cf81ef7bba77"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-owner-inventory.schema.json",
@@ -29,7 +29,7 @@
     },
     "h1_rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "9d86e147458100cf5d308dd75e541d9390600ccbcefb27007424fb5e4ebd3669"
+      "sha256": "7d024c33c43627e1f0b9f2e79bd1151985056ec17a34460cfb168e30de272d5c"
     }
   },
   "closure_model": "complete H2 one-shot compiler owner-root universe plus exact source-symbol references between roots; each runtime slice regenerates the transitive helper closure and may suffix-split independent SCCs before admission",
@@ -2213,7 +2213,7 @@
         "path": "crates/emitter/src/transform.rs",
         "line": 894,
         "text_sha256": "ee73c8006515252e70d72539adf77b69e552e86480b442b60a9aece45010ca0a",
-        "file_sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+        "file_sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
       },
       "upstream_owners": [
         "transform-runtime"
@@ -2326,7 +2326,7 @@
         "path": "crates/checker/src/emit.rs",
         "line": 102,
         "text_sha256": "a3574a190846d6bbe3db3311fedd3678739660afbe2f1b146111edcceccbb1cd",
-        "file_sha256": "7f9d25f8b398d65a76f6f017ca3f9338e9500f9cfca907a25fa8797a5872dbc0"
+        "file_sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
       },
       "upstream_owners": [
         "transform-class-fields",
@@ -2362,5 +2362,5 @@
     "undispositioned_owners": 0,
     "unmapped_rust_converse_rows": 0
   },
-  "inventory_fingerprint_sha256": "1f8251e640c073ad98f09ddc0a2307d2d94721417ca490926480282a8924e97c"
+  "inventory_fingerprint_sha256": "be4c6a55128f8206eca9e9da3d083cfd2c56e4f098b580711246e953e114dede"
 }

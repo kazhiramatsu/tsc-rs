@@ -541,6 +541,454 @@ impl TransformArena {
         Ok(child_flags
             | (self.transform_flags(name) & TransformFlags::PROPERTY_NAME_PROPAGATING_FLAGS))
     }
+
+    /// The EA-GAP-FLAGS postorder classifier: the transform flags a freshly
+    /// synthesized node carries, computed from tsc's factory creation
+    /// tables — field-aware child aggregation through
+    /// [`Self::propagate_child_flags`] (name fields drop the identifier's
+    /// possible-top-level-await bit, function-like bodies drop it wholesale)
+    /// plus the per-created-kind facet additions. Kinds outside the table
+    /// carry pure child aggregation, exactly like their upstream creators.
+    ///
+    /// `declared_flags` is the NodeFlags word the caller will publish on the
+    /// created node (`Let`/`Const` discriminate the variable-list facets).
+    /// The private-identifier-in-expression facet is deliberately absent:
+    /// [`private_identifier_expression_flags`] already adds it inside
+    /// `create_node`. Owner-called creators whose tsc bodies add only bits
+    /// outside this port's facet lattice inherit the aggregation fallback.
+    /// tsc-port: createIdentifier @6.0.3
+    /// tsc-hash: dd1baeac5d32597682b2f4f1acf9729f109bc958a82c19a446911a4bc94e709d
+    /// tsc-span: _tsc.js:21609-21625
+    /// tsc-port: createBinaryExpression @6.0.3
+    /// tsc-hash: cb3f974e1006db9345bc4a2144f1ee6daae9ac0241cb0f6bffd6e476b3db09cb
+    /// tsc-span: _tsc.js:22785-22811
+    /// tsc-port: createVariableDeclarationList @6.0.3
+    /// tsc-hash: 324d5fd5f464f3047fb5d2b3c5761cd3a469334262e88077a32c862a5c1051d8
+    /// tsc-span: _tsc.js:23287-23299
+    /// tsc-port: createFunctionExpression @6.0.3
+    /// tsc-hash: 6bb6a6e8f55a98f4b9aac262fd2462253655a1dcc80052f7e29afe280998790f
+    /// tsc-span: _tsc.js:22676-22697
+    /// tsc-port: createArrowFunction @6.0.3
+    /// tsc-hash: 86ab9adbb9da5a28bf8a8dad687363b83f315bfa06def479590c1f305a367d72
+    /// tsc-span: _tsc.js:22701-22719
+    /// tsc-port: createYieldExpression @6.0.3
+    /// tsc-hash: 5b8b52de29c67a91327401c6ab7f3a3d71d4c150fe95ef171af7d64087ea2a5f
+    /// tsc-span: _tsc.js:22907-22914
+    /// tsc-port: createSpreadElement @6.0.3
+    /// tsc-hash: c8947fee51b004c691da2d44736f0f207f4c7c48c5be9a7b0e01ceea7d0d9a43
+    /// tsc-span: _tsc.js:22918-22923
+    /// tsc-port: createObjectBindingPattern @6.0.3
+    /// tsc-hash: 23d7a5579cd4dfaa4635b01de2c532bbaeabc4068a99d8ababa9f708fc61c827
+    /// tsc-span: _tsc.js:22407-22415
+    /// tsc-port: createBindingElement @6.0.3
+    /// tsc-hash: 53d5a02d4d99e09ae5b8f52777e56e6bdb06131543f763f573cf767b5735b7df
+    /// tsc-span: _tsc.js:22428-22437
+    /// tsc-port: createForOfStatement @6.0.3
+    /// tsc-hash: 7d1c85363e35295cece0d7cd397221ccc26f8142cd9971516ee6e943186cedd1
+    /// tsc-span: _tsc.js:23157-23170
+    /// tsc-port: createMethodDeclaration @6.0.3
+    /// tsc-hash: ab2bb8f981f84e6971291e817bb111793868f0254f394570ed3056fc5bc28544
+    /// tsc-span: _tsc.js:21924-21951
+    /// tsc-port: createConstructorDeclaration @6.0.3
+    /// tsc-hash: c5eefe07225bf0585ce38867bc66134c557c7da79684697fa32e2cc899276163
+    /// tsc-span: _tsc.js:21982-22001
+    /// tsc-port: createParameterDeclaration @6.0.3
+    /// tsc-hash: 31cde0f942a7460844092dcd2b95e2e97bafbcd5a2dcc6f4f5e0a1b7f5f11ef5
+    /// tsc-span: _tsc.js:21838-21853
+    #[allow(dead_code)] // consumers arrive with the B-3/B-4 owners
+    pub(crate) fn classify_created_node_flags(
+        &self,
+        node: TransformNode,
+        declared_flags: NodeFlags,
+    ) -> Result<TransformFlags, TransformError> {
+        use tsc_syntax::observable_fields::{for_each_observable_field, ObservableField};
+
+        let record = self.node(node)?;
+        let kind = record.kind;
+        let mut node_fields: Vec<(&'static str, NodeId)> = Vec::new();
+        let mut array_fields: Vec<(&'static str, NodeArrayId)> = Vec::new();
+        for_each_observable_field(record, |field, value| match value {
+            ObservableField::Node(id) => node_fields.push((field, id)),
+            ObservableField::NodeArray(id) => array_fields.push((field, id)),
+            ObservableField::Bool(_) | ObservableField::String(_) => {}
+        });
+
+        let function_like = matches!(
+            kind,
+            SyntaxKind::ArrowFunction
+                | SyntaxKind::FunctionExpression
+                | SyntaxKind::FunctionDeclaration
+                | SyntaxKind::MethodDeclaration
+                | SyntaxKind::Constructor
+                | SyntaxKind::GetAccessor
+                | SyntaxKind::SetAccessor
+        );
+        let child_of = |id: NodeId| TransformNode {
+            source: node.source,
+            node: id,
+        };
+        let kind_of = |id: NodeId| -> Result<SyntaxKind, TransformError> {
+            let child = child_of(id);
+            Ok(self.node(child)?.kind)
+        };
+
+        let mut flags = TransformFlags::NONE;
+        for (field, id) in &node_fields {
+            let mut child_flags = self.propagate_child_flags(child_of(*id))?;
+            if matches!(*field, "name" | "propertyName") && kind_of(*id)? == SyntaxKind::Identifier
+            {
+                child_flags = child_flags & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+            }
+            if function_like && *field == "body" {
+                child_flags = child_flags & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+            }
+            flags |= child_flags;
+        }
+        for (_, id) in &array_fields {
+            flags |= self.array_transform_flags(TransformNodeArray {
+                source: node.source,
+                array: *id,
+            });
+        }
+
+        let has_node_field = |name: &str| node_fields.iter().any(|(field, _)| *field == name);
+        let modifiers_include = |wanted: SyntaxKind| -> Result<bool, TransformError> {
+            let Some((_, array)) = array_fields.iter().find(|(field, _)| *field == "modifiers")
+            else {
+                return Ok(false);
+            };
+            let elements = self
+                .node_array(TransformNodeArray {
+                    source: node.source,
+                    array: *array,
+                })?
+                .nodes
+                .clone();
+            for element in elements {
+                if kind_of(element)? == wanted {
+                    return Ok(true);
+                }
+            }
+            Ok(false)
+        };
+        let is_super_keyword = |id: Option<NodeId>| -> Result<bool, TransformError> {
+            Ok(match id {
+                Some(id) => kind_of(id)? == SyntaxKind::SuperKeyword,
+                None => false,
+            })
+        };
+        let is_super_property = |id: Option<NodeId>| -> Result<bool, TransformError> {
+            let Some(id) = id else { return Ok(false) };
+            if !matches!(
+                kind_of(id)?,
+                SyntaxKind::PropertyAccessExpression | SyntaxKind::ElementAccessExpression
+            ) {
+                return Ok(false);
+            }
+            let inner = match &self.node(child_of(id))?.data {
+                NodeData::PropertyAccessExpression(data) => data.expression,
+                NodeData::ElementAccessExpression(data) => data.expression,
+                _ => None,
+            };
+            is_super_keyword(inner)
+        };
+        let function_facets = |is_async: bool, is_generator: bool| {
+            if is_async && is_generator {
+                TransformFlags::CONTAINS_ES_2018
+            } else if is_async {
+                TransformFlags::CONTAINS_ES_2017
+            } else if is_generator {
+                TransformFlags::CONTAINS_GENERATOR
+            } else {
+                TransformFlags::NONE
+            }
+        };
+
+        let additions = match &record.data {
+            NodeData::Identifier(data) => {
+                if data.escaped_text == "await" {
+                    TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::NumericLiteral(data) => {
+                if data.text.starts_with("0b")
+                    || data.text.starts_with("0B")
+                    || data.text.starts_with("0o")
+                    || data.text.starts_with("0O")
+                {
+                    TransformFlags::CONTAINS_ES_2015
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::StringLiteral(data) => {
+                if data.has_extended_unicode_escape == Some(true) {
+                    TransformFlags::CONTAINS_ES_2015
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::PropertyAccessExpression(data) => {
+                if is_super_keyword(data.expression)? {
+                    TransformFlags::CONTAINS_ES_2017 | TransformFlags::CONTAINS_ES_2018
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::ElementAccessExpression(data) => {
+                if is_super_keyword(data.expression)? {
+                    TransformFlags::CONTAINS_ES_2017 | TransformFlags::CONTAINS_ES_2018
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::CallExpression(data) => {
+                let mut extra = TransformFlags::NONE;
+                if is_super_property(data.expression)? {
+                    extra |= TransformFlags::CONTAINS_LEXICAL_THIS;
+                }
+                if let Some(expression) = data.expression {
+                    if kind_of(expression)? == SyntaxKind::ImportKeyword {
+                        extra |= TransformFlags::CONTAINS_DYNAMIC_IMPORT;
+                    }
+                }
+                extra
+            }
+            NodeData::NewExpression(_) => TransformFlags::CONTAINS_ES_2020,
+            NodeData::TaggedTemplateExpression(data) => {
+                let mut extra = TransformFlags::CONTAINS_ES_2015;
+                if data.question_dot_token.is_some() {
+                    extra |= TransformFlags::CONTAINS_ES_2018;
+                }
+                extra
+            }
+            NodeData::TemplateExpression(_) => TransformFlags::CONTAINS_ES_2015,
+            NodeData::ComputedPropertyName(_) => {
+                TransformFlags::CONTAINS_ES_2015 | TransformFlags::CONTAINS_COMPUTED_PROPERTY_NAME
+            }
+            NodeData::BinaryExpression(data) => {
+                let operator = match data.operator_token {
+                    Some(token) => kind_of(token)?,
+                    None => SyntaxKind::Unknown,
+                };
+                let left_kind = match data.left {
+                    Some(left) => kind_of(left)?,
+                    None => SyntaxKind::Unknown,
+                };
+                let assignment_pattern_flags =
+                    |left: Option<NodeId>| -> Result<TransformFlags, TransformError> {
+                        let Some(left) = left else {
+                            return Ok(TransformFlags::NONE);
+                        };
+                        Ok(
+                            if self
+                                .transform_flags(child_of(left))
+                                .contains(TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD)
+                            {
+                                TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD
+                            } else {
+                                TransformFlags::NONE
+                            },
+                        )
+                    };
+                match operator {
+                    SyntaxKind::QuestionQuestionToken => TransformFlags::CONTAINS_ES_2020,
+                    SyntaxKind::EqualsToken if left_kind == SyntaxKind::ObjectLiteralExpression => {
+                        TransformFlags::CONTAINS_ES_2015
+                            | TransformFlags::CONTAINS_ES_2018
+                            | TransformFlags::CONTAINS_DESTRUCTURING_ASSIGNMENT
+                            | assignment_pattern_flags(data.left)?
+                    }
+                    SyntaxKind::EqualsToken if left_kind == SyntaxKind::ArrayLiteralExpression => {
+                        TransformFlags::CONTAINS_ES_2015
+                            | TransformFlags::CONTAINS_DESTRUCTURING_ASSIGNMENT
+                            | assignment_pattern_flags(data.left)?
+                    }
+                    SyntaxKind::AsteriskAsteriskToken | SyntaxKind::AsteriskAsteriskEqualsToken => {
+                        TransformFlags::CONTAINS_ES_2016
+                    }
+                    SyntaxKind::BarBarEqualsToken
+                    | SyntaxKind::AmpersandAmpersandEqualsToken
+                    | SyntaxKind::QuestionQuestionEqualsToken => TransformFlags::CONTAINS_ES_2021,
+                    _ => TransformFlags::NONE,
+                }
+            }
+            NodeData::PrefixUnaryExpression(data) => {
+                if matches!(
+                    data.operator,
+                    SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+                ) && data
+                    .operand
+                    .map(kind_of)
+                    .transpose()?
+                    .is_some_and(|kind| kind == SyntaxKind::Identifier)
+                {
+                    TransformFlags::CONTAINS_UPDATE_EXPRESSION_FOR_IDENTIFIER
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::PostfixUnaryExpression(data) => {
+                if data
+                    .operand
+                    .map(kind_of)
+                    .transpose()?
+                    .is_some_and(|kind| kind == SyntaxKind::Identifier)
+                {
+                    TransformFlags::CONTAINS_UPDATE_EXPRESSION_FOR_IDENTIFIER
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::AwaitExpression(_) => {
+                TransformFlags::CONTAINS_ES_2017
+                    | TransformFlags::CONTAINS_ES_2018
+                    | TransformFlags::CONTAINS_AWAIT
+            }
+            NodeData::YieldExpression(_) => {
+                TransformFlags::CONTAINS_ES_2015
+                    | TransformFlags::CONTAINS_ES_2018
+                    | TransformFlags::CONTAINS_YIELD
+            }
+            NodeData::SpreadElement(_) => {
+                TransformFlags::CONTAINS_ES_2015 | TransformFlags::CONTAINS_REST_OR_SPREAD
+            }
+            NodeData::SpreadAssignment(_) => {
+                TransformFlags::CONTAINS_ES_2018 | TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD
+            }
+            NodeData::ShorthandPropertyAssignment(_) => TransformFlags::CONTAINS_ES_2015,
+            NodeData::ObjectBindingPattern(_) => {
+                let mut extra =
+                    TransformFlags::CONTAINS_ES_2015 | TransformFlags::CONTAINS_BINDING_PATTERN;
+                if flags.contains(TransformFlags::CONTAINS_REST_OR_SPREAD) {
+                    extra |= TransformFlags::CONTAINS_ES_2018
+                        | TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD;
+                }
+                extra
+            }
+            NodeData::ArrayBindingPattern(_) => {
+                TransformFlags::CONTAINS_ES_2015 | TransformFlags::CONTAINS_BINDING_PATTERN
+            }
+            NodeData::BindingElement(data) => {
+                let mut extra = TransformFlags::CONTAINS_ES_2015;
+                if data.dot_dot_dot_token.is_some() {
+                    extra |= TransformFlags::CONTAINS_REST_OR_SPREAD;
+                }
+                extra
+            }
+            NodeData::Parameter(data) => {
+                if data.dot_dot_dot_token.is_some() || data.initializer.is_some() {
+                    TransformFlags::CONTAINS_ES_2015
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::VariableDeclarationList(_) => {
+                let mut extra = TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
+                if declared_flags.intersects(NodeFlags::BLOCK_SCOPED) {
+                    extra |= TransformFlags::CONTAINS_ES_2015
+                        | TransformFlags::CONTAINS_BLOCK_SCOPED_BINDING;
+                }
+                if declared_flags.intersects(NodeFlags::USING) {
+                    extra |= TransformFlags::CONTAINS_ES_NEXT;
+                }
+                extra
+            }
+            NodeData::ReturnStatement(_) => {
+                TransformFlags::CONTAINS_ES_2018
+                    | TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION
+            }
+            NodeData::BreakStatement(_) | NodeData::ContinueStatement(_) => {
+                TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION
+            }
+            NodeData::CatchClause(data) => {
+                if data.variable_declaration.is_none() {
+                    TransformFlags::CONTAINS_ES_2019
+                } else {
+                    TransformFlags::NONE
+                }
+            }
+            NodeData::ForOfStatement(data) => {
+                let mut extra = TransformFlags::CONTAINS_ES_2015;
+                if data.await_modifier.is_some() {
+                    extra |= TransformFlags::CONTAINS_ES_2018;
+                }
+                extra
+            }
+            NodeData::ClassExpression(_) | NodeData::ClassDeclaration(_) => {
+                TransformFlags::CONTAINS_ES_2015
+            }
+            NodeData::ArrowFunction(_) => {
+                let mut extra = TransformFlags::CONTAINS_ES_2015;
+                if modifiers_include(SyntaxKind::AsyncKeyword)? {
+                    extra |=
+                        TransformFlags::CONTAINS_ES_2017 | TransformFlags::CONTAINS_LEXICAL_THIS;
+                }
+                extra
+            }
+            NodeData::FunctionExpression(_) | NodeData::FunctionDeclaration(_) => {
+                let is_async = modifiers_include(SyntaxKind::AsyncKeyword)?;
+                let is_generator = has_node_field("asteriskToken");
+                function_facets(is_async, is_generator)
+                    | TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION
+            }
+            NodeData::MethodDeclaration(_) => {
+                let is_async = modifiers_include(SyntaxKind::AsyncKeyword)?;
+                let is_generator = has_node_field("asteriskToken");
+                function_facets(is_async, is_generator) | TransformFlags::CONTAINS_ES_2015
+            }
+            NodeData::Constructor(_) => TransformFlags::CONTAINS_ES_2015,
+            NodeData::GetAccessor(_) | NodeData::SetAccessor(_) => TransformFlags::NONE,
+            _ => TransformFlags::NONE,
+        };
+        Ok(flags | additions)
+    }
+}
+
+/// tsc-port: createToken @6.0.3
+/// tsc-hash: c78e317d4226871f44d628bcae0862e3c7c7a3b4d67c798042153e85455dc041
+/// tsc-span: _tsc.js:21710-21766
+///
+/// The per-kind facet a freshly created bare token carries (the
+/// EA-GAP-FLAGS token half). Kinds outside tsc's switch carry none.
+#[allow(dead_code)] // consumers arrive with the B-3/B-4 owners
+pub(crate) const fn classify_created_token_flags(kind: SyntaxKind) -> TransformFlags {
+    match kind {
+        SyntaxKind::AsyncKeyword => TransformFlags::from_bits(
+            TransformFlags::CONTAINS_ES_2017.bits() | TransformFlags::CONTAINS_ES_2018.bits(),
+        ),
+        SyntaxKind::UsingKeyword => TransformFlags::CONTAINS_ES_NEXT,
+        SyntaxKind::PublicKeyword
+        | SyntaxKind::PrivateKeyword
+        | SyntaxKind::ProtectedKeyword
+        | SyntaxKind::ReadonlyKeyword
+        | SyntaxKind::AbstractKeyword
+        | SyntaxKind::DeclareKeyword
+        | SyntaxKind::ConstKeyword
+        | SyntaxKind::AnyKeyword
+        | SyntaxKind::NumberKeyword
+        | SyntaxKind::BigIntKeyword
+        | SyntaxKind::NeverKeyword
+        | SyntaxKind::ObjectKeyword
+        | SyntaxKind::InKeyword
+        | SyntaxKind::OutKeyword
+        | SyntaxKind::OverrideKeyword
+        | SyntaxKind::StringKeyword
+        | SyntaxKind::BooleanKeyword
+        | SyntaxKind::SymbolKeyword
+        | SyntaxKind::VoidKeyword
+        | SyntaxKind::UnknownKeyword
+        | SyntaxKind::UndefinedKeyword => TransformFlags::CONTAINS_TYPE_SCRIPT,
+        SyntaxKind::SuperKeyword => TransformFlags::from_bits(
+            TransformFlags::CONTAINS_ES_2015.bits() | TransformFlags::CONTAINS_LEXICAL_SUPER.bits(),
+        ),
+        SyntaxKind::StaticKeyword => TransformFlags::CONTAINS_ES_2015,
+        SyntaxKind::AccessorKeyword => TransformFlags::CONTAINS_CLASS_FIELDS,
+        SyntaxKind::ThisKeyword => TransformFlags::CONTAINS_LEXICAL_THIS,
+        _ => TransformFlags::NONE,
+    }
 }
 
 fn named_declaration_name(node: &Node) -> Option<NodeId> {
@@ -635,6 +1083,19 @@ pub struct NodeFactory<'arena> {
 }
 
 impl<'arena> NodeFactory<'arena> {
+    /// Immutable view of the owning arena, for post-creation queries such
+    /// as the EA-GAP-FLAGS classifier.
+    #[allow(dead_code)] // production consumers arrive with the B-3/B-4 owners
+    pub(crate) fn arena(&self) -> &TransformArena {
+        self.arena
+    }
+
+    /// Mutable view of the owning arena, for publishing classified flags.
+    #[allow(dead_code)] // production consumers arrive with the B-3/B-4 owners
+    pub(crate) fn arena_mut(&mut self) -> &mut TransformArena {
+        self.arena
+    }
+
     pub(crate) fn new(arena: &'arena mut TransformArena) -> Self {
         Self { arena }
     }
@@ -1885,3 +2346,7 @@ const fn binary_operator_precedence(operator: SyntaxKind) -> i8 {
         _ => PRECEDENCE_INVALID,
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/factory_classifier/tests.rs"]
+mod factory_classifier_tests;

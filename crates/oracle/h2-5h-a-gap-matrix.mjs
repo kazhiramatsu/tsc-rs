@@ -89,7 +89,7 @@ const CAPABILITY_ROWS = Object.freeze([
   }),
   Object.freeze({
     capability_id: "transform-flag-recomputation",
-    state: "partial",
+    state: "exists",
     requirement:
       "full postorder transform-flag classification usable for freshly synthesized ES2015/Generators output; EA-GAP-FLAGS bans inheriting old ES2015/Generator/Yield bits through a partial mask",
     surfaces: Object.freeze(["transform-flag-recomputation"]),
@@ -99,13 +99,25 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/factory.rs",
         symbol: "pub fn propagate_child_flags",
       }),
+      Object.freeze({
+        path: "crates/emitter/src/factory.rs",
+        symbol: "fn classify_created_node_flags",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/factory.rs",
+        symbol: "fn classify_created_token_flags",
+      }),
+      Object.freeze({
+        path: "crates/emitter/tests/unit/factory_classifier/tests.rs",
+        symbol: "fn yield_and_generator_rows_classify_and_exclude_at_the_function_boundary",
+      }),
     ]),
     absences: Object.freeze([]),
-    note: "propagation exists; the shared full classifier for changed nodes is the outstanding EA-GAP-FLAGS deliverable",
+    note: "B-1 landed the EA-GAP-FLAGS postorder classifier: per-created-kind facet tables ported from the owner-called creators, aggregated through propagate_child_flags; the eight TransformFlags facets of the nine-facet qualification surface carry table contracts (the ninth is the resolver-side NodeCheckFlags fact)",
   }),
   Object.freeze({
     capability_id: "substitution-notification-hooks",
-    state: "partial",
+    state: "exists",
     requirement:
       "chained onSubstituteNode for both owners and chained onEmitNode for ES2015 (Generators registers substitution only)",
     surfaces: Object.freeze(["hook-composition"]),
@@ -115,13 +127,29 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/transform.rs",
         symbol: "pub fn substitution_factory",
       }),
+      Object.freeze({
+        path: "crates/emitter/src/transform.rs",
+        symbol: "pub fn substitute_node",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/transform.rs",
+        symbol: "pub fn before_emit_node",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/transform.rs",
+        symbol: "pub fn after_emit_node",
+      }),
+      Object.freeze({
+        path: "crates/emitter/tests/unit/hook_chaining/tests.rs",
+        symbol: "fn substitution_delegates_previous_first_in_registration_order",
+      }),
     ]),
     absences: Object.freeze([]),
-    note: "substitution machinery exists; ES2015-grade notification chaining parity is dispositioned by the step-5 manifest under E-ORDER-H",
+    note: "B-1 pinned the chain: previous-first onSubstituteNode delegation with registration order [transformES2015, transformGenerators] is the forward substitution walk, notification is the forward-before/reverse-after wrap with the first-registered transformer outermost, and the order contracts prove the enablement split (ES2015 substitution+notification, Generators substitution only)",
   }),
   Object.freeze({
     capability_id: "helper-emission",
-    state: "partial",
+    state: "exists",
     requirement:
       "the five owner helper factories: extends, values, read, spreadArray, generator",
     surfaces: Object.freeze(["helper-factory"]),
@@ -131,15 +159,13 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/builtins/helpers.rs",
         symbol: "typescript:read",
       }),
-    ]),
-    absences: Object.freeze([
       Object.freeze({
         path: "crates/emitter/src/builtins/helpers.rs",
         symbol: "typescript:extends",
       }),
       Object.freeze({
         path: "crates/emitter/src/builtins/helpers.rs",
-        symbol: "__extends",
+        symbol: "typescript:values",
       }),
       Object.freeze({
         path: "crates/emitter/src/builtins/helpers.rs",
@@ -149,12 +175,17 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/builtins/helpers.rs",
         symbol: "typescript:generator",
       }),
+      Object.freeze({
+        path: "crates/emitter/tests/unit/helpers/tests.rs",
+        symbol: "fn helper_texts_match_the_vendored_declarations",
+      }),
     ]),
-    note: "read helper exists from the H2.5g ladder; extends/values/spreadArray/generator helper texts are absent (asyncValues/asyncGenerator are different helpers)",
+    absences: Object.freeze([]),
+    note: "B-1 landed the four absent texts byte-pinned to the vendored declarations by the proven typescript:read dedent recipe (ledger d2 hashes + the byte-parity unit suite that proves the recipe against read first); metadata mirrors upstream (extends priority 0, generator priority 6)",
   }),
   Object.freeze({
     capability_id: "name-generation-deferred",
-    state: "partial",
+    state: "exists",
     requirement:
       "createUniqueName/createTempVariable/createLoopVariable and getGeneratedNameForNode/getInternalName/getLocalName semantics (deferred resolution at print time)",
     surfaces: Object.freeze(["name-generation"]),
@@ -168,9 +199,21 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/builtins/generated_bindings.rs",
         symbol: "allocate_temp",
       }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/generated_bindings.rs",
+        symbol: "fn allocate_loop_variable",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/generated_bindings.rs",
+        symbol: "fn allocate_source_numbered_for_node",
+      }),
+      Object.freeze({
+        path: "crates/emitter/tests/unit/generated_bindings/tests.rs",
+        symbol: "fn sibling_scopes_reuse_the_loop_variable_spelling",
+      }),
     ]),
     absences: Object.freeze([]),
-    note: "the Rust model is eager scoped reservation, not tsc's deferred resolution; E-NAMES-H owns the equivalence argument the step-5 manifest must disposition",
+    note: "B-1 completed the eager scoped-reservation model (the TempFlags._i loop-variable preference and the generateNameCached-equivalent node-keyed memo) and recorded the reviewed E-NAMES-H deferred-vs-eager equivalence argument (packet h2-5h-b-b-1.md item 12.3: universe, scope policy, allocation order) with per-policy-arm contracts; empirical closure rides the B-5 byte gate",
   }),
   Object.freeze({
     capability_id: "comment-scope-threading",
@@ -222,7 +265,7 @@ const CAPABILITY_ROWS = Object.freeze([
   }),
   Object.freeze({
     capability_id: "resolver-collision-capture-queries",
-    state: "partial",
+    state: "exists",
     requirement:
       "the six emit-resolver queries the owners call: getReferencedDeclarationWithCollidingName, isDeclarationWithCollidingName, isArgumentsLocalBinding, isBindingCapturedByNode, getReferencedValueDeclaration, hasNodeCheckFlag(loop set)",
     surfaces: Object.freeze([
@@ -246,18 +289,33 @@ const CAPABILITY_ROWS = Object.freeze([
         path: "crates/emitter/src/resolver.rs",
         symbol: "fn has_node_check_flag",
       }),
-    ]),
-    absences: Object.freeze([
       Object.freeze({
         path: "crates/emitter/src/resolver.rs",
-        symbol: "colliding_name",
+        symbol: "fn get_referenced_declaration_with_colliding_name",
       }),
       Object.freeze({
         path: "crates/emitter/src/resolver.rs",
-        symbol: "binding_captured",
+        symbol: "fn is_declaration_with_colliding_name",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/resolver.rs",
+        symbol: "fn is_binding_captured_by_node",
+      }),
+      Object.freeze({
+        path: "crates/checker/src/modules.rs",
+        symbol: "fn emit_get_referenced_declaration_with_colliding_name",
+      }),
+      Object.freeze({
+        path: "crates/checker/src/emit.rs",
+        symbol: "fn is_binding_captured_by_node",
+      }),
+      Object.freeze({
+        path: "crates/checker/tests/unit/emit/tests.rs",
+        symbol: "fn resolver_queries_replay_the_foundation_direct_controls",
       }),
     ]),
-    note: "the EmitResolver trait already declares three of the six (typed fail-closed defaults; is_arguments_local_binding is implemented for async capture); the collision/capture pair is absent and checker-side answer parity for the loop NodeCheckFlags set must be dispositioned against the foundation's six direct controls",
+    absences: Object.freeze([]),
+    note: "B-1 landed the collision/capture trio as typed fail-closed trait defaults with production implementations at the checker bridge (CheckerSession in emit.rs delegating to the modules.rs ports; checkNestedBlockScopedBinding's capturedBlockScopeBindings list materialized for isBindingCapturedByNode); all 43 resolver queries recorded by the foundation's three checker+resolver direct controls replay equal through the production bridge",
   }),
   Object.freeze({
     capability_id: "loop-conversion-capture",

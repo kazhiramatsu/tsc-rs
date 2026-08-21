@@ -8,7 +8,7 @@
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "f8a8eadb7c8a1b3f8b4bcb5dad304129f3d4b26f9a086512d101c2da6bc501c2"
+    "sha256": "8fbdc995f88f9ed5b262765fd5492251d8ad175d04c84b0e593866163a7edde3"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
@@ -42,14 +42,14 @@
     "file_count": 264,
     "rust_source_files": 243,
     "cargo_manifests": 21,
-    "bytes": 16332014,
-    "tree_sha256": "8428cd1fbfc24922ce37897de1fb084309135b7e030d64d3ef5f2a269da5f6dd"
+    "bytes": 16374553,
+    "tree_sha256": "22e897b468a2462ec702f6b404ccdf2a872e872adb2f478c0462b3c22236b3fc"
   },
   "summary": {
     "production_boundary_omissions": 0,
     "absence_proofs": 1,
     "option_projection_omissions": 0,
-    "explicit_checker_emit_elisions": 22,
+    "explicit_checker_emit_elisions": 21,
     "existing_prerequisites": 14
   },
   "existing_prerequisites": [
@@ -207,12 +207,6 @@
   "production_boundary_omissions": [],
   "option_projection_omissions": [],
   "checker_emit_elisions": [
-    {
-      "id": "captured-block-scope-bindings",
-      "anchor": "captured-block-scope-bindings-elided",
-      "disposition": "inactive-at-ESNext",
-      "closure": "profile-control"
-    },
     {
       "id": "constructor-capture-lexical-this",
       "anchor": "constructor-capture-this-elided",
@@ -430,16 +424,16 @@
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
+        "file_sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
       },
       {
         "id": "emitter-node-factory",
         "path": "crates/emitter/src/factory.rs",
-        "line": 633,
+        "line": 1081,
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "85c1215768e658c074a9defa08504e31dbda4f87c1b3e44ee9aa335b332b695f"
+        "file_sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
       },
       {
         "id": "emitter-transform-flags",
@@ -448,7 +442,7 @@
         "column": 1,
         "text": "pub struct TransformFlags(i32);",
         "text_sha256": "7c653a426ba14a23c6ac44c6c084daceaab7fd4dd8e74b8b181e04bb2a0fa9f6",
-        "file_sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+        "file_sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
       },
       {
         "id": "emitter-emit-metadata",
@@ -466,7 +460,7 @@
         "column": 1,
         "text": "pub struct TransformationContext {",
         "text_sha256": "a5d206c9a41608a94d45968e79501af02c879c7e8679fe82d310c007ef891c32",
-        "file_sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+        "file_sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
       },
       {
         "id": "emitter-transform-nodes",
@@ -475,7 +469,7 @@
         "column": 1,
         "text": "pub fn transform_nodes<'transformers>(\n    arena: TransformArena,",
         "text_sha256": "ee73c8006515252e70d72539adf77b69e552e86480b442b60a9aece45010ca0a",
-        "file_sha256": "74c560217017a0af1e025a0a02eac186c8ad3c3978ee708e31321cd07832e550"
+        "file_sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
       },
       {
         "id": "emitter-text-writer",
@@ -516,11 +510,11 @@
       {
         "id": "emitter-resolver-protocol",
         "path": "crates/emitter/src/resolver.rs",
-        "line": 210,
+        "line": 218,
         "column": 1,
         "text": "pub trait EmitResolver {",
         "text_sha256": "ae109ea619b5241506500e367bb7aae9e5f56333941a673b9fbaf5c412e8f0fd",
-        "file_sha256": "5d33b8a3bab2271fcbad0e0dfa77e5772024e2652ac749aca2c751c32b5ace6e"
+        "file_sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
       },
       {
         "id": "emitter-script-transformer-selection",
@@ -574,7 +568,7 @@
         "column": 1,
         "text": "pub struct CheckerSession<'program> {",
         "text_sha256": "c116253f653dd9a956605df77c212d4cdf2f1de1f490f223842fce7f005920ca",
-        "file_sha256": "7f9d25f8b398d65a76f6f017ca3f9338e9500f9cfca907a25fa8797a5872dbc0"
+        "file_sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
       },
       {
         "id": "checker-emit-resolver-adapter",
@@ -583,25 +577,25 @@
         "column": 1,
         "text": "impl EmitResolver for CheckerSession<'_> {",
         "text_sha256": "a3574a190846d6bbe3db3311fedd3678739660afbe2f1b146111edcceccbb1cd",
-        "file_sha256": "7f9d25f8b398d65a76f6f017ca3f9338e9500f9cfca907a25fa8797a5872dbc0"
+        "file_sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
       },
       {
         "id": "checker-value-alias-producer",
         "path": "crates/checker/src/modules.rs",
-        "line": 636,
+        "line": 822,
         "column": 5,
         "text": "pub(crate) fn emit_is_value_alias_declaration(",
         "text_sha256": "df1c2306bb3ade145585e2643e6444cdefa71cb6fa5e7607eaafbc121c57f4c9",
-        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
+        "file_sha256": "a8ad3d857959a1fb01b8067722d9d763140eb1531ac6bdd4b2088f941db1d805"
       },
       {
         "id": "checker-referenced-alias-producer",
         "path": "crates/checker/src/modules.rs",
-        "line": 766,
+        "line": 952,
         "column": 5,
         "text": "pub(crate) fn emit_is_referenced_alias_declaration(",
         "text_sha256": "13ff591fc4def3e7f9b8c6325ea63baf7939970e1cdeac1f9f3efa84aa3d6fb8",
-        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
+        "file_sha256": "a8ad3d857959a1fb01b8067722d9d763140eb1531ac6bdd4b2088f941db1d805"
       },
       {
         "id": "active-transform-oracle",
@@ -919,15 +913,6 @@
         "file_sha256": "0367bd0712a0d1e53315b8399806ba93cc108729871253f5311305e8aa2b48da"
       },
       {
-        "id": "captured-block-scope-bindings-elided",
-        "path": "crates/checker/src/expr.rs",
-        "line": 1425,
-        "column": 32,
-        "text": "links.capturedBlockScopeBindings pushIfUnique",
-        "text_sha256": "8c2536d77577cef4abf5c3766059493d48b998360e215d32ab95452f087ff2c7",
-        "file_sha256": "ef34a46c7dd2ee2a7ec22d14c62ba1df3e31cce3ece67fd90e510015c86b8561"
-      },
-      {
         "id": "constructor-capture-this-elided",
         "path": "crates/checker/src/functions.rs",
         "line": 2935,
@@ -957,20 +942,20 @@
       {
         "id": "import-equals-linked-references-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 9001,
+        "line": 9187,
         "column": 52,
         "text": "markLinkedReferences'\n    /// declaration-emit traversal remains outside this checker slice",
         "text_sha256": "79b39f17b3cc5cfa26c699e287d8bbb1fed82b3cab81b0d321f6d0234fe88d06",
-        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
+        "file_sha256": "a8ad3d857959a1fb01b8067722d9d763140eb1531ac6bdd4b2088f941db1d805"
       },
       {
         "id": "export-linked-aliases-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 9232,
+        "line": 9418,
         "column": 9,
         "text": "collectLinkedAliases remains declaration-emit bookkeeping",
         "text_sha256": "cb431b3f060205621a432fa23e1325d3e9708de7e5a7771977711ddfe20b9c07",
-        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
+        "file_sha256": "a8ad3d857959a1fb01b8067722d9d763140eb1531ac6bdd4b2088f941db1d805"
       },
       {
         "id": "property-access-linked-references-elided",
@@ -1110,11 +1095,11 @@
       {
         "id": "export-assignment-linked-aliases-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 9310,
+        "line": 9496,
         "column": 9,
         "text": "collectLinkedAliases (emit) and the JSDoc type-annotation arm remain",
         "text_sha256": "f83ee48bb2d7a1d1eb3cfbc3f2c2e6941fb2703524638c4c0a5ff6d1114fd0b6",
-        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
+        "file_sha256": "a8ad3d857959a1fb01b8067722d9d763140eb1531ac6bdd4b2088f941db1d805"
       },
       {
         "id": "standard-class-fields-option-check",
@@ -1128,11 +1113,11 @@
       {
         "id": "external-helper-producer-present",
         "path": "crates/checker/src/modules.rs",
-        "line": 5609,
+        "line": 5795,
         "column": 5,
         "text": "pub(crate) fn check_external_emit_helpers(",
         "text_sha256": "e127a45e63e86b553a6030b1b4e9a7c4f9a4388a49143d7aa0267cf5b6df8884",
-        "file_sha256": "b5dc35573c6635b382512dafc4af430606181a7ab97505c24507e7f3e8816549"
+        "file_sha256": "a8ad3d857959a1fb01b8067722d9d763140eb1531ac6bdd4b2088f941db1d805"
       },
       {
         "id": "jsx-alias-producer-present",
@@ -1155,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "58af9d9801f96ae0e05ba9490ec471f0a521e2d0fc1e0fc6bc061f3ad5209a35"
+  "inventory_fingerprint_sha256": "0016273511671b7c3d966d3b7a82b3a08f6afe465dbbf6beeb0fbd66ea745927"
 }

@@ -1278,3 +1278,7 @@ impl From<EmitResolverError> for TransformError {
         Self::Resolver(value)
     }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/hook_chaining/tests.rs"]
+mod hook_chaining_tests;
