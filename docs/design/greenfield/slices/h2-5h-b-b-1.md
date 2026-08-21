@@ -1,15 +1,13 @@
-# H2.5h-b / B-1 — shared substrate: helpers, resolver queries, name generation, transform flags, hook chaining (DRAFT)
+# H2.5h-b / B-1 — shared substrate: helpers, resolver queries, name generation, transform flags, hook chaining
 
 Design-gate packet for the FIRST H2.5h-b implementation packet, under
 the mandatory implementation-ready design gate
-(../post-h1-completion-slices.md). **DRAFT front-run status:** authored
-in the `h2/5h-b-b1` worktree on the CS-6 front-run head (`01e2a8bd`);
-trusted base, authority hashes, and the §12 re-pin land at the B-1
-train's design-gate pass, which runs only after CS-6 merges (the
-standing prohibition "no ES2015/Generators production work may precede
-CS-6 green" holds — this document is design, and it authorizes no
-production edit until its own gate passes). Machine check (once the
-envelope exists): `node .github/ci/slice-readiness.mjs --check
+(../post-h1-completion-slices.md). Authored front-run in the
+`h2/5h-b-b1` worktree on the CS-6 front-run head (`01e2a8bd`), reviewed
+twice (2026-08-20, citation audit clean); the design-gate pass landed
+at the B-1 train start (2026-08-21) after CS-6 merged: trusted base and
+the §12.1 re-pin are final, and the envelope authorizes the §7 fence.
+Machine check: `node .github/ci/slice-readiness.mjs --check
 h2-5h-b-b-1`.
 
 ## 1. Identity, purpose, and boundary
@@ -55,10 +53,13 @@ h2-5h-b-b-1`.
   output-byte change.
 - **Prerequisites:** CS-6 merged with its envelope `ready`
   (E-COMMENT-SCOPE-H closed, the four requalified rows
-  `active-qualified`); gate-tax 2 merged (walk re-mints ride
-  adoption) — merged 2026-08-20 @54bbbc03.
-- **Trusted base:** re-pin at train start (DRAFT: authored at
-  `01e2a8bd` on the CS-6 branch).
+  `active-qualified`) — merged 2026-08-21 @6ee3de18; gate-tax 2 merged
+  (walk re-mints ride adoption) — merged 2026-08-20 @54bbbc03;
+  gate-tax 3 merged (the 5g check-side receipt: pin-only walks keep
+  the gate's freshness proof at seconds) — merged 2026-08-21
+  @e8aa883b.
+- **Trusted base:** `e8aa883bb9c07b9cfe0bf1990b0fadd30d7fdb8b` (main
+  after the gate-tax 3 merge), re-pinned at the train start.
 - **Activation state:** before — five gap rows `partial`
   (`helper-emission`, `name-generation-deferred`,
   `resolver-collision-capture-queries`, `transform-flag-recomputation`,
@@ -253,9 +254,16 @@ converts an unknown branch into success; the CS-3/4/5/6 prohibitions
 remain. This document authorizes no production edit until its own
 design-gate pass and envelope exist.
 
-## 12. Unresolved items (DRAFT — close before the envelope flips ready)
+## 12. Unresolved items (all closed at the train start)
 
-1. Trusted base + authority hashes: re-pin after CS-6 merges.
+1. ~~Trusted base + authority hashes~~ — re-pinned 2026-08-21 at the
+   train's design-gate pass: trusted base
+   `e8aa883bb9c07b9cfe0bf1990b0fadd30d7fdb8b` (main after the CS-6 and
+   gate-tax 3 merges); the §4 authority chain (owner graph, gap
+   matrix, witness artifact) is the frozen post-CS-6 state carried at
+   that base, and §3's lifecycle values read from the dispositions
+   manifest there; the §8 amendments re-mint these artifacts through
+   this packet's own gate at the train end.
 2. ~~B-ladder granularity ratification~~ — RESOLVED with measured
    counts (2026-08-20): the 300 owner locals split 171
    (`transformES2015`) / 129 (`transformGenerators`), confirming the
@@ -323,15 +331,15 @@ design-gate pass and envelope exist.
    only)" — the §5 chaining contract asserts exactly this shape and
    order.
 
-## 13. Readiness summary (draft)
+## 13. Readiness summary
 
 Upstream: the frozen owner-graph/gap-matrix/witness chain (§4).
 Rust-map rows: 5 (§5), all target files/symbols measured present.
 Gap rows: 5 (§6). Witness families cited: 5 of 9 (closure at B-5).
 Architecture impact: five-row substrate closure, dormancy preserved,
 ladder ratification recorded in the handoff at the train.
-Undispositioned: pending §12.1 re-pin. Unresolved: §12.1 only (the
-train-start trusted-base + authority-hash re-pin) — items 2-7 all
-resolved with measured pins or design-level arguments on 2026-08-20;
-the §12.3(c) order assumption and §12.4 facet contracts carry named
-verifiers into the B-1 focused suite and the B-5 byte gate.
+Undispositioned: 0. Unresolved: 0 — §12.1 re-pinned at the train
+start (2026-08-21); items 2-7 resolved with measured pins or
+design-level arguments on 2026-08-20; the §12.3(c) order assumption
+and §12.4 facet contracts carry named verifiers into the B-1 focused
+suite and the B-5 byte gate.
