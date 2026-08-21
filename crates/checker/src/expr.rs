@@ -1422,9 +1422,11 @@ impl<'a> CheckerState<'a> {
                                 part,
                                 NodeCheckFlags::CONTAINS_CAPTURED_BLOCK_SCOPE_BINDING,
                             );
-                            // links.capturedBlockScopeBindings pushIfUnique:
-                            // consumed only by emit (isBindingCapturedByNode)
-                            // — the list itself is elided with the emitter.
+                            self.links.push_captured_block_scope_binding(
+                                self.speculation_depth,
+                                part,
+                                symbol,
+                            );
                             let initializer = match self.data_of(container) {
                                 NodeData::ForStatement(data) => data.initializer,
                                 _ => None,

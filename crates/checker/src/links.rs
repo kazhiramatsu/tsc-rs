@@ -122,6 +122,12 @@ pub struct NodeLinks {
     /// TypeChecked bit lands with M4 5.4; later stages OR in their own
     /// bits (a flags word accumulates, unlike the write-once slots).
     pub check_flags: tsc_types::NodeCheckFlags,
+    /// tsc links.capturedBlockScopeBindings
+    /// (checkNestedBlockScopedBinding 72267-72268): the block-scoped
+    /// symbols a for-statement part captures, recorded beside the
+    /// ContainsCapturedBlockScopeBinding flag and consumed only by the
+    /// emit resolver's isBindingCapturedByNode.
+    pub captured_block_scope_bindings: Vec<SymbolId>,
     /// tsc links.containsArgumentsReference
     /// (containsArgumentsReference 59689): syntax-and-binding-stable
     /// result of the function-body traversal.
@@ -198,6 +204,9 @@ pub struct SymbolLinks {
     /// tsc links.isDiscriminantProperty cache (isDiscriminantProperty
     /// 69562).
     pub is_discriminant_property: Option<bool>,
+    /// tsc links.isDeclarationWithCollidingName cache
+    /// (isSymbolOfDeclarationWithCollidingName 87924).
+    pub is_declaration_with_colliding_name: Option<bool>,
     /// tsc links.isConstructorDeclaredProperty
     /// (isConstructorDeclaredProperty 56145): the syntax/annotation-stable
     /// classification of JS assignment-declared instance properties.
@@ -2085,6 +2094,31 @@ impl LinksTables {
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
     }
 
+    /// tsc `pushIfUnique(links.capturedBlockScopeBindings ||= [], symbol)`
+    /// (checkNestedBlockScopedBinding 72267-72268). The write sits beside
+    /// the ContainsCapturedBlockScopeBinding flag OR, so it follows that
+    /// flag's speculation protocol: candidate-context writes are dropped
+    /// and only the authoritative pass publishes.
+    pub fn push_captured_block_scope_binding(
+        &mut self,
+        speculation_depth: u32,
+        id: NodeId,
+        symbol: SymbolId,
+    ) {
+        if speculation_depth != 0 {
+            return;
+        }
+        Self::assert_writable(speculation_depth);
+        let bindings = &mut self
+            .node
+            .entry(id)
+            .or_default()
+            .captured_block_scope_bindings;
+        if !bindings.contains(&symbol) {
+            bindings.push(symbol);
+        }
+    }
+
     /// tsrs-native: links-table setter (tsc plain flags mutation).
     /// `nodeLinks.flags &= ~bits` — the sanctioned clears: tsc's
     /// InCheckIdentifier re-entrance latch (getNarrowedTypeOfSymbol
@@ -2438,6 +2472,27 @@ impl LinksTables {
         }
         Self::assert_writable(speculation_depth);
         self.symbol.entry(id).or_default().is_discriminant_property = Some(value);
+    }
+
+    /// tsrs-native: links-table setter for tsc's
+    /// `links.isDeclarationWithCollidingName` memo write
+    /// (isSymbolOfDeclarationWithCollidingName 87936/87949/87951). The
+    /// verdict reads bound names and published check flags; the emit
+    /// resolver computes it outside any speculative context.
+    pub fn set_symbol_is_declaration_with_colliding_name(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: bool,
+    ) {
+        if speculation_depth != 0 {
+            return;
+        }
+        Self::assert_writable(speculation_depth);
+        self.symbol
+            .entry(id)
+            .or_default()
+            .is_declaration_with_colliding_name = Some(value);
     }
 
     /// tsrs-native: SymbolLinks write adapter for tsc's direct

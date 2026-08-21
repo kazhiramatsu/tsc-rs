@@ -63,11 +63,14 @@ pub enum EmitResolverMethod {
     GetReferencedImportDeclarationAtLocation,
     GetJsxFactoryImportDeclaration,
     GetJsxFactoryExportContainer,
+    GetReferencedDeclarationWithCollidingName,
     GetReferencedValueDeclaration,
     GetReferencedValueDeclarations,
     GetTypeReferenceSerializationKind,
     HasNodeCheckFlag,
     IsArgumentsLocalBinding,
+    IsBindingCapturedByNode,
+    IsDeclarationWithCollidingName,
     IsExternalOrCommonJsModule,
     IsInstantiatedModule,
     IsUniqueLocalName,
@@ -107,11 +110,16 @@ impl EmitResolverMethod {
             }
             Self::GetJsxFactoryImportDeclaration => "getJsxFactoryImportDeclaration",
             Self::GetJsxFactoryExportContainer => "getJsxFactoryExportContainer",
+            Self::GetReferencedDeclarationWithCollidingName => {
+                "getReferencedDeclarationWithCollidingName"
+            }
             Self::GetReferencedValueDeclaration => "getReferencedValueDeclaration",
             Self::GetReferencedValueDeclarations => "getReferencedValueDeclarations",
             Self::GetTypeReferenceSerializationKind => "getTypeReferenceSerializationKind",
             Self::HasNodeCheckFlag => "hasNodeCheckFlag",
             Self::IsArgumentsLocalBinding => "isArgumentsLocalBinding",
+            Self::IsBindingCapturedByNode => "isBindingCapturedByNode",
+            Self::IsDeclarationWithCollidingName => "isDeclarationWithCollidingName",
             Self::IsExternalOrCommonJsModule => "isExternalOrCommonJsModule",
             Self::IsInstantiatedModule => "isInstantiatedModule",
             Self::IsUniqueLocalName => "isUniqueLocalName",
@@ -297,6 +305,50 @@ pub trait EmitResolver {
     ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::GetReferencedValueDeclaration,
+            node,
+        ))
+    }
+
+    /// The declaration an identifier references, when that declaration is a
+    /// block-scoped binding whose name collides during ES2015 down-level
+    /// emission. The ES2015 transformer substitutes such references with the
+    /// declaration's generated name.
+    fn get_referenced_declaration_with_colliding_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetReferencedDeclarationWithCollidingName,
+            node,
+        ))
+    }
+
+    /// Whether a declaration is a block-scoped binding whose name collides
+    /// during ES2015 down-level emission (an outer value binding with the
+    /// same spelling, or a captured loop binding that must be renamed when
+    /// its loop body is converted).
+    fn is_declaration_with_colliding_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsDeclarationWithCollidingName,
+            node,
+        ))
+    }
+
+    /// Whether `node` (a for-statement part) captured the block-scoped
+    /// binding introduced by `declaration` into a function. Loop conversion
+    /// consults this to decide which loop parts ride the synthesized loop
+    /// body function.
+    fn is_binding_captured_by_node(
+        &self,
+        node: EmitResolverNode,
+        declaration: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        let _ = declaration;
+        Err(unavailable(
+            EmitResolverMethod::IsBindingCapturedByNode,
             node,
         ))
     }
