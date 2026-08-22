@@ -119,8 +119,8 @@
     },
     "runtime_inputs": {
       "type": "array",
-      "minItems": 245,
-      "maxItems": 245,
+      "minItems": 247,
+      "maxItems": 247,
       "items": { "$ref": "#/$defs/path_hash" }
     },
     "admitted_profile": {

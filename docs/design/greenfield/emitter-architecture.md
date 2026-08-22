@@ -572,6 +572,16 @@ Rust frames/plans or an explicitly approved extension and add the missing
 resolver collision/capture queries. Printable names and parent guessing are
 not semantic facts.
 
+**Substrate landed (B-4, 2026-08-23):** the complete capture model shipped
+corpus-inert as the dormant `Es2015Transformer`
+(`crates/emitter/src/builtins/es2015.rs` — hierarchy facts, captured
+`this`/`arguments`/`new.target`/`super`, converted loops with
+out-parameters and both pinned `yield*` synthesis sites, catch scopes,
+print-time collision renames over the B-1 resolver queries), qualified by
+123 byte-equal focused oracle projections through the real
+`[transformES2015, transformGenerators]` chain; runtime activation stays
+with the B-5 flip.
+
 ### `EA-GAP-COMPOSITION` — ES2015 and Generators
 
 **Substrate landed (B-1, 2026-08-21 at `ad62e4a5`; B-2, 2026-08-22 at `f6c18ff4`,
@@ -589,8 +599,18 @@ focused oracle projections); B-3 landed the complete
 encoding via `createGeneratorHelper`, catch-rename print-time
 substitution, the label-literal finalize-write — qualified by 72
 byte-equal focused oracle projections, consumer-first per the pinned
-`yield-star-synthesis` edge). All are dormant until the B-4/B-5
-owners; the active ObjectRestSpread production path deliberately remains
+`yield-star-synthesis` edge). B-4 (2026-08-23 at `366c0425`,
+[B-4 packet](slices/h2-5h-b-b-4.md)) landed the complete
+`transformES2015` owner (the 171-function set as
+`crates/emitter/src/builtins/es2015.rs` behind the real
+`Es2015Transformer` seam) — the FIRST production `FlattenHost`, the
+producer half of the `yield-star-synthesis` edge (both delegation
+calls stamped `EmitFlags::ITERATOR`), and the dormant ES2015 side of
+the pinned hook chain — qualified by 123 byte-equal focused oracle
+projections through the real `[transformES2015, transformGenerators]`
+chain. All are dormant until the B-5
+owner (tagged-template shared module + the joint registration flip);
+the active ObjectRestSpread production path deliberately remains
 `es2018.rs`'s independent plan-based lowering until a byte-identity-gated
 re-base at the H2.5h-b closure.
 
