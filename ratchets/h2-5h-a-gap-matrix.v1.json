@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "71080c2097b9dd1352e1739934e7aa376b4ed1fb671362dc925a61173d4fa2b2"
+      "sha256": "832c5c65398ef8d9b576d6f533ff279ecd6729e5b1cab3df8390387704eaa85a"
     },
-    "owner_graph_fingerprint_sha256": "0d60bcb84bde5e4fece15fb06380e0da14f8878ae0a0a5c0fdbc27801dc2ae2f",
+    "owner_graph_fingerprint_sha256": "70d75194dc8f82ed84ef4c4ceea7fcc3d45eb028605bca800aa868b4af5a5674",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "0d02b6dc62229269cf6f7e73870f3613de8c4e55fc40770d7103d0f664d49024"
@@ -584,7 +584,7 @@
           "symbol": "fn transform_generators",
           "file": {
             "path": "crates/emitter/src/builtins/generators.rs",
-            "sha256": "2069c4aee8a6b6f6043c90f4b89bbaa0c812c9794a2f9db74cf8e65e65f835fc"
+            "sha256": "2a0975f778aee4d7476a302568a0cda62130cc1fbb04ba8d67cb0b38c5b9b7fb"
           }
         },
         {
@@ -592,7 +592,7 @@
           "symbol": "fn transform_generator_function_body",
           "file": {
             "path": "crates/emitter/src/builtins/generators.rs",
-            "sha256": "2069c4aee8a6b6f6043c90f4b89bbaa0c812c9794a2f9db74cf8e65e65f835fc"
+            "sha256": "2a0975f778aee4d7476a302568a0cda62130cc1fbb04ba8d67cb0b38c5b9b7fb"
           }
         },
         {
@@ -600,13 +600,13 @@
           "symbol": "fn build_statements",
           "file": {
             "path": "crates/emitter/src/builtins/generators.rs",
-            "sha256": "2069c4aee8a6b6f6043c90f4b89bbaa0c812c9794a2f9db74cf8e65e65f835fc"
+            "sha256": "2a0975f778aee4d7476a302568a0cda62130cc1fbb04ba8d67cb0b38c5b9b7fb"
           }
         }
       ],
       "absences": [],
       "note": "B-3 landed the complete owner (129 pinned local functions) as the dormant GeneratorsTransformer behind transform_generators, qualified by 72 byte-equal focused oracle projections; registration stays with the B-5 runtime flip; the yield-star consumer obligations (EmitFlags Iterator skip + the YieldStar opcode) landed and the producer sites arrive with B-4",
-      "capability_fingerprint_sha256": "62c04ddbfa003d21094b348f84667e2a4094f1ad2c552a2c84a419299c421116"
+      "capability_fingerprint_sha256": "9db394f65015de5d15c75596b1ec842377f111e2fa44c647336f8e64ec3253a9"
     },
     {
       "index": 11,
@@ -698,5 +698,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "1d519401f7ee05512b28e13da99371d10449faefeba7fa671c318a050d7aecdd"
+  "gap_matrix_fingerprint_sha256": "d54a3f6d213744fc08462be641ee8a0e2ea8714275bd6f7e4ef199bfd373d109"
 }

@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "5f1fdd5f56f5edde4c7c6572ac52f4c62e864ad5692e31dd116aaa5594e6da00"
+    "sha256": "6bc27aa0b261120aca081e0dbcd83f434d59fedff0572ae8728fd03faaf518b0"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-owner-inventory.schema.json",
@@ -29,7 +29,7 @@
     },
     "h1_rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "f8393e5d81d93280fc09876ca391a9bbcb01d34b1ab40b0d4b624d8746236c75"
+      "sha256": "50c62c23834949c83c252f26239d66129069863db03e6ab65209d5441ef1d4eb"
     }
   },
   "closure_model": "complete H2 one-shot compiler owner-root universe plus exact source-symbol references between roots; each runtime slice regenerates the transitive helper closure and may suffix-split independent SCCs before admission",
@@ -2362,5 +2362,5 @@
     "undispositioned_owners": 0,
     "unmapped_rust_converse_rows": 0
   },
-  "inventory_fingerprint_sha256": "c88268001f87d2aed41ea5dbc4241bf33d38207d9399fe7fa24bfbf09acbcf22"
+  "inventory_fingerprint_sha256": "7b2df132252c4b682aa551845859c7ac98e05a6216c91680f85238a39a98a385"
 }

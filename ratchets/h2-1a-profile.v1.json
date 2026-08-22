@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-1a-profile.mjs",
-    "sha256": "6adafa2e142cf4f06dad07d82fa0d0879cf729c484b9f467f12ba71bd50f412a"
+    "sha256": "95fb5b2ea98e7a6d6a2d8bd792f3d5d17a0031cf9e9ebc98083e8e1049e5ff52"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-1a-profile.schema.json",
@@ -28,7 +28,7 @@
     "historical": {
       "profile_transition": {
         "path": "ratchets/h2-profile-transition.v1.json",
-        "sha256": "cf12d8188fa21553ece756d79810fd7b19f281dd751a0ff9f6a68b2d6d6e5476"
+        "sha256": "3f7a630e6cac9ddb91c173b5941524b2d6aeb53d8467cdae7c35a619084a04c6"
       },
       "runtime_baseline": {
         "path": "ratchets/h2-runtime-baseline.v1.json",
@@ -36,7 +36,7 @@
       },
       "transition_generator": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "5f1fdd5f56f5edde4c7c6572ac52f4c62e864ad5692e31dd116aaa5594e6da00"
+        "sha256": "6bc27aa0b261120aca081e0dbcd83f434d59fedff0572ae8728fd03faaf518b0"
       },
       "baseline_generator": {
         "path": "crates/oracle/h2-baseline.mjs",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-1a-qualification.v1.json",
-    "sha256": "8fe8bcf71a9108385e90fc2f9bf142af2abd9b57e45e6f77f1f8f84cd54f1697"
+    "sha256": "54f70e11942cf29e2b7b509a87116db38b60555484270bb8d9ecea29bf4ea5c7"
   },
   "runtime_inputs": [
     {
@@ -157,7 +157,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "0e7551103cd37f7cc6ec734e127f095f6951aa33f83f5c7533c544e7a151f4af"
+      "sha256": "17be42e769a1a79f8bd9576d59c4fbbf4695899c0c4176fbff99e9ded12fe118"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -180,5 +180,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "a189dd4c955ed12d666847aeefeb896ebe3e93cd22ed69e915a361f56f7d096d"
+  "profile_fingerprint_sha256": "67006a03002daaf56ed1c6a661be7bca4cc07e5aa8e6711bcd38c0a9dc91f00f"
 }
