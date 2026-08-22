@@ -42,10 +42,12 @@ impl EmitResolver for FixtureResolver {
         };
         let mut best: Option<(u32, NodeId)> = None;
         for (name, start, end, declaration) in &self.catches {
-            if name == text && position >= start && position < end {
-                if best.map(|(s, _)| *start > s).unwrap_or(true) {
-                    best = Some((*start, *declaration));
-                }
+            if name == text
+                && position >= start
+                && position < end
+                && best.map(|(s, _)| *start > s).unwrap_or(true)
+            {
+                best = Some((*start, *declaration));
             }
         }
         Ok(best.map(|(_, declaration)| EmitResolverNode::new(node.source(), declaration)))
