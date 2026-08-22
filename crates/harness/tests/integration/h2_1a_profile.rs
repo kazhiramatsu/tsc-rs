@@ -124,7 +124,7 @@ fn h2_1a_profile_is_content_addressed_and_closes_the_transition() {
     let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.1a profile JSON");
     assert_eq!(
         sha256(RECORDED),
-        "27fe5177bdd0760f6ebc4977c5007bd940b9b1e3e5b65d5c9f36d4ec84b0c415"
+        "03492063ebbaf66ff56068d926e0e1d6e0a30953b3c72e5a2a53ad4e2c8fd56e"
     );
     assert_eq!(artifact["schema"], 1);
     assert_eq!(artifact["kind"], "h2-runtime-profile");
@@ -179,7 +179,7 @@ fn h2_1a_profile_is_content_addressed_and_closes_the_transition() {
         (
             "profile_transition",
             "ratchets/h2-profile-transition.v1.json",
-            "b6c1ea3ec0d3b865ab16f737f93ecff9268f3a2f505555d3b551c1eecbaf0269",
+            "cf12d8188fa21553ece756d79810fd7b19f281dd751a0ff9f6a68b2d6d6e5476",
         ),
         (
             "runtime_baseline",
