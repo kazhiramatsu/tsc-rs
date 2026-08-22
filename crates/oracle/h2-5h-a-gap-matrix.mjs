@@ -319,7 +319,7 @@ const CAPABILITY_ROWS = Object.freeze([
   }),
   Object.freeze({
     capability_id: "loop-conversion-capture",
-    state: "missing",
+    state: "exists",
     requirement:
       "converted-loop extraction with captured block-scoped bindings, out-parameters, this/arguments/new.target capture, and yield* re-emission for generator-containing bodies",
     surfaces: Object.freeze([
@@ -327,14 +327,22 @@ const CAPABILITY_ROWS = Object.freeze([
       "yield-star-synthesis",
     ]),
     architecture_rows: Object.freeze(["EA-GAP-CAPTURE", "E-CAPTURE-BASE"]),
-    anchors: Object.freeze([]),
-    absences: Object.freeze([
+    anchors: Object.freeze([
       Object.freeze({
-        path: "crates/emitter/src/builtins.rs",
-        symbol: "converted_loop",
+        path: "crates/emitter/src/builtins/es2015.rs",
+        symbol: "fn transform_es2015",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/es2015.rs",
+        symbol: "fn convert_iteration_statement_body_if_necessary",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/es2015.rs",
+        symbol: "fn generate_call_to_converted_loop_snapshot",
       }),
     ]),
-    note: "the yield* composition edge makes this inseparable from the Generators consumer (SCC evidence)",
+    absences: Object.freeze([]),
+    note: "B-4 landed the complete owner (171 pinned local functions) as the dormant Es2015Transformer behind transform_es2015 - class lowering lanes, captured this/arguments/new.target, parameters, block-scoped bindings, loop conversion with BOTH pinned yield* synthesis sites (the EmitFlags Iterator producer half), spread, templates, object-literal chunking, for-of both modes, the first production FlattenHost - qualified by 123 byte-equal focused oracle projections through the real [transformES2015, transformGenerators] chain; registration and tagged-template lowering stay with B-5",
   }),
   Object.freeze({
     capability_id: "generator-state-machine",

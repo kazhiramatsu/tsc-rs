@@ -3334,18 +3334,39 @@ impl Printer {
                     expression_context,
                     writer,
                 ),
-            NodeData::ObjectLiteralExpression(data) => self.emit_delimited_expression_list(
-                transformation,
-                node,
-                data.properties,
-                "{",
-                "}",
-                multi_line,
-                DelimitedListFormat::LITERAL,
-                ExpressionSyntaxContext::NORMAL,
-                expression_context,
-                writer,
-            ),
+            NodeData::ObjectLiteralExpression(data) => {
+                // tsc-port: emitObjectLiteralExpression @6.0.3 (the
+                // Indented arm)
+                // tsc-span: _tsc.js:118208-118222
+                // `const indentedFlag = getEmitFlags(node) & Indented` —
+                // the class arm above already ports the same protocol;
+                // the sole object-literal producer is the (dormant)
+                // ES2015 computed-name chunking, so the arm is
+                // corpus-inert (B-4 packet §12.11; ratchet-enforced).
+                let indented = transformation
+                    .arena()
+                    .metadata(node)
+                    .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::INDENTED));
+                if indented {
+                    writer.increase_indent();
+                }
+                let outcome = self.emit_delimited_expression_list(
+                    transformation,
+                    node,
+                    data.properties,
+                    "{",
+                    "}",
+                    multi_line,
+                    DelimitedListFormat::LITERAL,
+                    ExpressionSyntaxContext::NORMAL,
+                    expression_context,
+                    writer,
+                );
+                if indented {
+                    writer.decrease_indent();
+                }
+                outcome
+            }
             NodeData::PropertyAssignment(data) => {
                 if self.emit_modifiers(
                     transformation,

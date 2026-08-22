@@ -264,7 +264,8 @@ substitutes for a per-packet gate.
    - **B-4 — ES2015 visitors (foundation)**: class lowering lanes,
      captured `this`/`arguments`/`new.target`, parameters, and loop
      conversion WITH the two pinned `yield*` synthesis sites feeding
-     B-3's machine.
+     B-3's machine. **LANDED at `366c0425`
+     (2026-08-23, [B-4 packet](h2-5h-b-b-4.md)).**
    - **B-5 — runtime flip**: tagged-template lowering, the joint
      `[transformES2015, transformGenerators]` registration
      (`languageVersion < ES2015`), the 32-case witness fixture gate

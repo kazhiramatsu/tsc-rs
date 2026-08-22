@@ -109,9 +109,9 @@
       ],
       "properties": {
         "capabilities": { "const": 13 },
-        "exists": { "const": 11 },
+        "exists": { "const": 12 },
         "partial": { "const": 0 },
-        "missing": { "const": 2 },
+        "missing": { "const": 1 },
         "pinned_rust_files": {
           "type": "integer",
           "minimum": 5,

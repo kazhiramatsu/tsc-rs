@@ -34,6 +34,7 @@ const MODULE_NODE_NEXT: i32 = 199;
 const MODULE_PRESERVE: i32 = 200;
 
 mod class_fields;
+mod es2015;
 mod es2017;
 mod es2018;
 mod es2021;
@@ -13649,8 +13650,65 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
                 flags |= TransformFlags::CONTAINS_ES_2015;
                 flags |= TransformFlags::CONTAINS_LEXICAL_SUPER;
             }
+            // createToken StaticKeyword row (_tsc.js:21751-21753) — the
+            // ES2015 class-member modifier facet (B-4 completion; zero
+            // active readers of CONTAINS_ES_2015, ratchet-enforced).
+            SyntaxKind::StaticKeyword => flags |= TransformFlags::CONTAINS_ES_2015,
             _ => {}
         },
+        // --- B-4 parsed-tree ES2015 facet completion (packet §12.4).
+        // Each arm mirrors its vendored factory row; corpus-inert: zero
+        // active readers of CONTAINS_ES_2015 (the sole consult site is the
+        // dormant ES2015 gate) and the full-corpus ratchet enforces byte
+        // identity.
+        NodeData::NumericLiteral(_) => {
+            // createNumericLiteral BinaryOrOctalSpecifier row
+            // (_tsc.js:21508-21514) over the parse record's
+            // numeric_literal_flags word (the scanner's TokenFlags
+            // carrier; 384 = BinaryOrOctalSpecifier).
+            if node.numeric_literal_flags & 384 != 0 {
+                flags |= TransformFlags::CONTAINS_ES_2015;
+            }
+        }
+        NodeData::StringLiteral(data) => {
+            // createStringLiteral hasExtendedUnicodeEscape row
+            // (_tsc.js:21529-21534).
+            if data.has_extended_unicode_escape == Some(true) {
+                flags |= TransformFlags::CONTAINS_ES_2015;
+            }
+        }
+        NodeData::TemplateExpression(_) => {
+            // createTemplateExpression row (_tsc.js:22833-22837).
+            flags |= TransformFlags::CONTAINS_ES_2015;
+        }
+        NodeData::NoSubstitutionTemplateLiteral(_)
+        | NodeData::TemplateHead(_)
+        | NodeData::TemplateMiddle(_)
+        | NodeData::TemplateTail(_) => {
+            // getTransformFlagsOfTemplateLiteralLike (_tsc.js:22862-22868);
+            // the parse records carry no templateFlags word, so the
+            // invalid-escape ES2018 half is unrepresentable here — it is
+            // consulted only by the B-5 tagged-template module through
+            // rawText.
+            flags |= TransformFlags::CONTAINS_ES_2015;
+        }
+        NodeData::ComputedPropertyName(_) => {
+            // createComputedPropertyName row (_tsc.js:21815-21819).
+            flags |= TransformFlags::CONTAINS_ES_2015;
+            flags |= TransformFlags::CONTAINS_COMPUTED_PROPERTY_NAME;
+        }
+        NodeData::ShorthandPropertyAssignment(_) => {
+            // createShorthandPropertyAssignment row (_tsc.js:24160-24166).
+            flags |= TransformFlags::CONTAINS_ES_2015;
+        }
+        NodeData::MetaProperty(data) => {
+            // createMetaProperty keyword rows (_tsc.js:23009-23026).
+            match data.keyword_token {
+                SyntaxKind::NewKeyword => flags |= TransformFlags::CONTAINS_ES_2015,
+                SyntaxKind::ImportKeyword => flags |= TransformFlags::CONTAINS_ES_2020,
+                _ => {}
+            }
+        }
         NodeData::Parameter(data) => {
             if data.question_token.is_some() || data.r#type.is_some() {
                 flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
@@ -13832,6 +13890,11 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
             }
         }
         NodeData::TaggedTemplateExpression(data) => {
+            // createTaggedTemplateExpression row (_tsc.js:22635-22646):
+            // ES2015 always (the invalid-escape ES2018 half rides
+            // templateFlags, unrepresentable on parse records — B-5's
+            // tagged-template module reads rawText for it).
+            flags |= TransformFlags::CONTAINS_ES_2015;
             if data.type_arguments.is_some() {
                 flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
             }
@@ -13901,6 +13964,50 @@ fn local_contextual_target_flags(
     node: &Node,
 ) -> Result<TransformFlags, TransformError> {
     match &node.data {
+        NodeData::CallExpression(data) => {
+            // createBaseCallExpression super-property row
+            // (_tsc.js:22574-22576): a call whose callee is a super
+            // property carries ContainsLexicalThis (B-4 completion;
+            // zero active readers of the bit — every other hit is a
+            // write site — and the corpus ratchet enforces).
+            let is_super_property_callee = data.expression.is_some_and(|callee| {
+                let Some(callee) = arena.node_ref(source, callee) else {
+                    return false;
+                };
+                let Ok(record) = arena.node(callee) else {
+                    return false;
+                };
+                let receiver = match &record.data {
+                    NodeData::PropertyAccessExpression(access) => access.expression,
+                    NodeData::ElementAccessExpression(access) => access.expression,
+                    _ => None,
+                };
+                receiver
+                    .and_then(|receiver| arena.node_ref(source, receiver))
+                    .and_then(|receiver| arena.node(receiver).ok())
+                    .is_some_and(|receiver| receiver.kind == SyntaxKind::SuperKeyword)
+            });
+            if is_super_property_callee {
+                return Ok(TransformFlags::CONTAINS_LEXICAL_THIS);
+            }
+            Ok(TransformFlags::NONE)
+        }
+        NodeData::Identifier(_) => {
+            // createIdentifier extended-unicode row (_tsc.js:21621-21623;
+            // NodeFlags 256). The parse records keep the COOKED text and
+            // stamp no flag, so the facet derives from the token's SOURCE
+            // spelling (the printer's own spelling channel): an `\u{`
+            // escape in the identifier slice is exactly the scanner's
+            // hasExtendedUnicodeEscape carrier.
+            let syntax = arena.source(source)?.syntax();
+            let text = syntax.text();
+            let start = node.pos as usize;
+            let end = (node.end as usize).min(text.len());
+            if start < end && text[start..end].contains("\\u{") {
+                return Ok(TransformFlags::CONTAINS_ES_2015);
+            }
+            Ok(TransformFlags::NONE)
+        }
         NodeData::Parameter(data) => Ok(
             if parameter_emit_role(arena, source, data)? == ParameterEmitRole::ExplicitThis {
                 // createParameterDeclaration marks an explicit `this`
@@ -13952,8 +14059,26 @@ fn local_contextual_target_flags(
             };
             if operator == SyntaxKind::EqualsToken {
                 if let Some(left) = data.left.and_then(|left| arena.node_ref(source, left)) {
+                    // createBinaryExpression destructuring rows
+                    // (_tsc.js:22785-22812): `=` over an object-literal
+                    // target is ES2015|ES2018|DestructuringAssignment;
+                    // over an array-literal target ES2015|
+                    // DestructuringAssignment; both propagate the
+                    // assignment-pattern ObjectRestOrSpread facet (the
+                    // ES2015 bits are the B-4 parsed-tree completion —
+                    // zero active readers, ratchet-enforced).
                     if arena.node(left)?.kind == SyntaxKind::ObjectLiteralExpression {
+                        flags |= TransformFlags::CONTAINS_ES_2015;
                         flags |= TransformFlags::CONTAINS_ES_2018;
+                        flags |= TransformFlags::CONTAINS_DESTRUCTURING_ASSIGNMENT;
+                        if arena
+                            .transform_flags(left)
+                            .contains(TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD)
+                        {
+                            flags |= TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD;
+                        }
+                    } else if arena.node(left)?.kind == SyntaxKind::ArrayLiteralExpression {
+                        flags |= TransformFlags::CONTAINS_ES_2015;
                         flags |= TransformFlags::CONTAINS_DESTRUCTURING_ASSIGNMENT;
                         if arena
                             .transform_flags(left)
