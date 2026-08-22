@@ -5269,7 +5269,10 @@ impl GeneratorsVisitor<'_, '_> {
             }),
             flags,
         )?;
-        let literal = self.context.factory()?.set_multi_line(literal, multi_line)?;
+        let literal = self
+            .context
+            .factory()?
+            .set_multi_line(literal, multi_line)?;
         Ok(literal)
     }
 
@@ -5291,7 +5294,10 @@ impl GeneratorsVisitor<'_, '_> {
             }),
             flags,
         )?;
-        let literal = self.context.factory()?.set_multi_line(literal, multi_line)?;
+        let literal = self
+            .context
+            .factory()?
+            .set_multi_line(literal, multi_line)?;
         Ok(literal)
     }
 

@@ -71,8 +71,8 @@ fn build_fixture_resolver(arena: &TransformArena, source: TransformSourceId) -> 
                 else {
                     continue;
                 };
-                let declaration_record = &syntax.arena.nodes()
-                    [(declaration.0 - node_base) as usize];
+                let declaration_record =
+                    &syntax.arena.nodes()[(declaration.0 - node_base) as usize];
                 let NodeData::VariableDeclaration(variable) = &declaration_record.data else {
                     continue;
                 };
@@ -129,8 +129,10 @@ fn project(source_text: &str) -> String {
 #[test]
 fn projects_empty() {
     assert_eq!(
-        project(r#"function* g() { }
-"#),
+        project(
+            r#"function* g() { }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -168,8 +170,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_yield_one() {
     assert_eq!(
-        project(r#"function* g() { yield 1; }
-"#),
+        project(
+            r#"function* g() { yield 1; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -212,8 +216,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_yield_bare() {
     assert_eq!(
-        project(r#"function* g() { yield; }
-"#),
+        project(
+            r#"function* g() { yield; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -256,8 +262,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_yield_value_use() {
     assert_eq!(
-        project(r#"function* g() { var a = yield 1; use(a); }
-"#),
+        project(
+            r#"function* g() { var a = yield 1; use(a); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -301,8 +309,10 @@ function g() { var a; return __generator(this, function (_a) {
 #[test]
 fn projects_yield_star() {
     assert_eq!(
-        project(r#"function* g() { yield* h(); }
-"#),
+        project(
+            r#"function* g() { yield* h(); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -356,8 +366,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_two_yields() {
     assert_eq!(
-        project(r#"function* g() { yield 1; yield 2; }
-"#),
+        project(
+            r#"function* g() { yield 1; yield 2; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -403,8 +415,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_return_value() {
     assert_eq!(
-        project(r#"function* g() { yield 1; return 2; }
-"#),
+        project(
+            r#"function* g() { yield 1; return 2; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -447,8 +461,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_return_bare() {
     assert_eq!(
-        project(r#"function* g() { return; yield 1; }
-"#),
+        project(
+            r#"function* g() { return; yield 1; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -491,8 +507,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_throw_stmt() {
     assert_eq!(
-        project(r#"function* g() { yield 1; throw new Error("e"); }
-"#),
+        project(
+            r#"function* g() { yield 1; throw new Error("e"); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -535,8 +553,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_if_else() {
     assert_eq!(
-        project(r#"function* g() { if (c) { yield 1; } else { yield 2; } done(); }
-"#),
+        project(
+            r#"function* g() { if (c) { yield 1; } else { yield 2; } done(); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -588,8 +608,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_do_loop() {
     assert_eq!(
-        project(r#"function* g() { do { yield 1; } while (c); }
-"#),
+        project(
+            r#"function* g() { do { yield 1; } while (c); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -636,8 +658,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_while_loop() {
     assert_eq!(
-        project(r#"function* g() { while (c) { yield 1; } }
-"#),
+        project(
+            r#"function* g() { while (c) { yield 1; } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -683,8 +707,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_for_loop() {
     assert_eq!(
-        project(r#"function* g() { for (var i = 0; i < n; i++) { yield i; } }
-"#),
+        project(
+            r#"function* g() { for (var i = 0; i < n; i++) { yield i; } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -736,8 +762,10 @@ function g() { var i; return __generator(this, function (_a) {
 #[test]
 fn projects_for_in() {
     assert_eq!(
-        project(r#"function* g() { for (var k in o) { yield k; } }
-"#),
+        project(
+            r#"function* g() { for (var k in o) { yield k; } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -796,8 +824,10 @@ function g() { var _a, _b, _c, _i, k; return __generator(this, function (_d) {
 #[test]
 fn projects_continue_break() {
     assert_eq!(
-        project(r#"function* g() { while (c) { if (a) continue; if (b) break; yield 1; } }
-"#),
+        project(
+            r#"function* g() { while (c) { if (a) continue; if (b) break; yield 1; } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -847,8 +877,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_labeled_break() {
     assert_eq!(
-        project(r#"function* g() { outer: while (c) { while (d) { yield 1; break outer; } } }
-"#),
+        project(
+            r#"function* g() { outer: while (c) { while (d) { yield 1; break outer; } } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -898,8 +930,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_try_catch() {
     assert_eq!(
-        project(r#"function* g() { try { yield 1; } catch (e) { handle(e); } }
-"#),
+        project(
+            r#"function* g() { try { yield 1; } catch (e) { handle(e); } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -949,8 +983,10 @@ function g() { var e_1; return __generator(this, function (_a) {
 #[test]
 fn projects_try_catch_use() {
     assert_eq!(
-        project(r#"function* g() { try { yield 1; } catch (e) { yield e; } tail(e2); }
-"#),
+        project(
+            r#"function* g() { try { yield 1; } catch (e) { yield e; } tail(e2); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1004,8 +1040,10 @@ function g() { var e_1; return __generator(this, function (_a) {
 #[test]
 fn projects_try_finally() {
     assert_eq!(
-        project(r#"function* g() { try { yield 1; } finally { cleanup(); } }
-"#),
+        project(
+            r#"function* g() { try { yield 1; } finally { cleanup(); } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1054,8 +1092,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_try_catch_finally() {
     assert_eq!(
-        project(r#"function* g() { try { yield 1; } catch (e) { handle(e); } finally { cleanup(); } }
-"#),
+        project(
+            r#"function* g() { try { yield 1; } catch (e) { handle(e); } finally { cleanup(); } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1108,8 +1148,10 @@ function g() { var e_1; return __generator(this, function (_a) {
 #[test]
 fn projects_switch_yield() {
     assert_eq!(
-        project(r#"function* g() { switch (t) { case a: yield 1; break; case yield 2: done(); break; default: other(); } }
-"#),
+        project(
+            r#"function* g() { switch (t) { case a: yield 1; break; case yield 2: done(); break; default: other(); } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1170,8 +1212,10 @@ function g() { var _a; return __generator(this, function (_b) {
 #[test]
 fn projects_with_stmt() {
     assert_eq!(
-        project(r#"function* g() { with (o) { yield m; } }
-"#),
+        project(
+            r#"function* g() { with (o) { yield m; } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1222,8 +1266,10 @@ function g() { var _a; return __generator(this, function (_b) {
 #[test]
 fn projects_logical_and() {
     assert_eq!(
-        project(r#"function* g() { var r = a() && (yield 1); use(r); }
-"#),
+        project(
+            r#"function* g() { var r = a() && (yield 1); use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1273,8 +1319,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_conditional() {
     assert_eq!(
-        project(r#"function* g() { var r = c ? (yield 1) : (yield 2); use(r); }
-"#),
+        project(
+            r#"function* g() { var r = c ? (yield 1) : (yield 2); use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1327,8 +1375,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_comma_expr() {
     assert_eq!(
-        project(r#"function* g() { var r = (a(), yield 1, b()); use(r); }
-"#),
+        project(
+            r#"function* g() { var r = (a(), yield 1, b()); use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1374,8 +1424,10 @@ function g() { var r; return __generator(this, function (_a) {
 #[test]
 fn projects_binary_cache() {
     assert_eq!(
-        project(r#"function* g() { var r = a() + (yield 1); use(r); }
-"#),
+        project(
+            r#"function* g() { var r = a() + (yield 1); use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1421,8 +1473,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_compound_assign() {
     assert_eq!(
-        project(r#"function* g() { o.p += yield 1; }
-"#),
+        project(
+            r#"function* g() { o.p += yield 1; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1468,8 +1522,10 @@ function g() { var _a, _b; return __generator(this, function (_c) {
 #[test]
 fn projects_elem_access() {
     assert_eq!(
-        project(r#"function* g() { var r = o[yield 1]; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = o[yield 1]; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1515,8 +1571,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_array_literal() {
     assert_eq!(
-        project(r#"function* g() { var r = [a(), yield 1, b()]; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = [a(), yield 1, b()]; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1562,8 +1620,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_object_literal() {
     assert_eq!(
-        project(r#"function* g() { var r = { x: a(), y: yield 1, z: b() }; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = { x: a(), y: yield 1, z: b() }; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1609,8 +1669,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_call_args() {
     assert_eq!(
-        project(r#"function* g() { f(a(), yield 1, b()); }
-"#),
+        project(
+            r#"function* g() { f(a(), yield 1, b()); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1656,8 +1718,10 @@ function g() { var _a, _b; return __generator(this, function (_c) {
 #[test]
 fn projects_method_call_args() {
     assert_eq!(
-        project(r#"function* g() { o.m(a(), yield 1); }
-"#),
+        project(
+            r#"function* g() { o.m(a(), yield 1); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1703,8 +1767,10 @@ function g() { var _a, _b, _c; return __generator(this, function (_d) {
 #[test]
 fn projects_new_args() {
     assert_eq!(
-        project(r#"function* g() { var r = new C(a(), yield 1); use(r); }
-"#),
+        project(
+            r#"function* g() { var r = new C(a(), yield 1); use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1751,8 +1817,10 @@ function g() { var r, _a, _b; return __generator(this, function (_c) {
 #[test]
 fn projects_hoisted_fn() {
     assert_eq!(
-        project(r#"function* g() { yield 1; function inner() { return 2; } use(inner); }
-"#),
+        project(
+            r#"function* g() { yield 1; function inner() { return 2; } use(inner); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1796,8 +1864,10 @@ function g() { function inner() { return 2; } return __generator(this, function 
 #[test]
 fn projects_plain_vars() {
     assert_eq!(
-        project(r#"function* g() { var a = 1, b = f(); yield a + b; }
-"#),
+        project(
+            r#"function* g() { var a = 1, b = f(); yield a + b; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1842,8 +1912,10 @@ function g() { var a, b; return __generator(this, function (_a) {
 #[test]
 fn projects_nested_fn() {
     assert_eq!(
-        project(r#"function* g() { var h = function () { return 1; }; yield h(); }
-"#),
+        project(
+            r#"function* g() { var h = function () { return 1; }; yield h(); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1888,8 +1960,10 @@ function g() { var h; return __generator(this, function (_a) {
 #[test]
 fn projects_nested_generator() {
     assert_eq!(
-        project(r#"function* g() { function* inner() { yield 1; } yield* inner(); }
-"#),
+        project(
+            r#"function* g() { function* inner() { yield 1; } yield* inner(); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1950,8 +2024,10 @@ function g() { function inner() { return __generator(this, function (_a) {
 #[test]
 fn projects_script_loop_in_yield_stmt() {
     assert_eq!(
-        project(r#"function* g() { while (yield 1) { for (var i = 0; i < n; i++) { if (i) break; } } }
-"#),
+        project(
+            r#"function* g() { while (yield 1) { for (var i = 0; i < n; i++) { if (i) break; } } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -1999,9 +2075,11 @@ function g() { var i; return __generator(this, function (_a) {
 #[test]
 fn projects_non_generator_untouched() {
     assert_eq!(
-        project(r#"function f() { return 1; }
+        project(
+            r#"function f() { return 1; }
 function* g() { yield f(); }
-"#),
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2045,8 +2123,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_use_strict_directive() {
     assert_eq!(
-        project(r#"function* g() { "use strict"; yield 1; }
-"#),
+        project(
+            r#"function* g() { "use strict"; yield 1; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2092,8 +2172,10 @@ function g() {
 #[test]
 fn projects_params() {
     assert_eq!(
-        project(r#"function* g(a, b) { yield a + b; }
-"#),
+        project(
+            r#"function* g(a, b) { yield a + b; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2136,9 +2218,11 @@ function g(a, b) { return __generator(this, function (_a) {
 #[test]
 fn projects_fn_expr_generator() {
     assert_eq!(
-        project(r#"var h = function* () { yield 1; };
+        project(
+            r#"var h = function* () { yield 1; };
 use(h);
-"#),
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2182,9 +2266,11 @@ use(h);
 #[test]
 fn projects_named_fn_expr_generator() {
     assert_eq!(
-        project(r#"var h = function* gen() { yield 1; };
+        project(
+            r#"var h = function* gen() { yield 1; };
 use(h);
-"#),
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2228,8 +2314,10 @@ use(h);
 #[test]
 fn projects_accessor_nested_generator() {
     assert_eq!(
-        project(r#"function* g() { yield 1; var o = { get p() { function* h() { yield 2; } return h; } }; use(o); }
-"#),
+        project(
+            r#"function* g() { yield 1; var o = { get p() { function* h() { yield 2; } return h; } }; use(o); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2281,8 +2369,10 @@ function g() { var o; return __generator(this, function (_a) {
 #[test]
 fn projects_for_bare() {
     assert_eq!(
-        project(r#"function* g() { for (;;) { yield 1; if (c) break; } }
-"#),
+        project(
+            r#"function* g() { for (;;) { yield 1; if (c) break; } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2329,8 +2419,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_script_do_in_yield_stmt() {
     assert_eq!(
-        project(r#"function* g() { while (yield 1) { do { x(); } while (d); } }
-"#),
+        project(
+            r#"function* g() { while (yield 1) { do { x(); } while (d); } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2377,8 +2469,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_script_switch_in_yield_stmt() {
     assert_eq!(
-        project(r#"function* g() { while (yield 1) { switch (x) { case 1: break; default: other(); } } }
-"#),
+        project(
+            r#"function* g() { while (yield 1) { switch (x) { case 1: break; default: other(); } } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2426,8 +2520,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_script_labeled_in_yield_stmt() {
     assert_eq!(
-        project(r#"function* g() { while (yield 1) { inner: while (d) { break inner; } } }
-"#),
+        project(
+            r#"function* g() { while (yield 1) { inner: while (d) { break inner; } } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2474,8 +2570,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_labeled_block_break() {
     assert_eq!(
-        project(r#"function* g() { lbl: { yield 1; break lbl; done(); } tail(); }
-"#),
+        project(
+            r#"function* g() { lbl: { yield 1; break lbl; done(); } tail(); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2521,8 +2619,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_if_no_else() {
     assert_eq!(
-        project(r#"function* g() { if (c) { yield 1; } done(); }
-"#),
+        project(
+            r#"function* g() { if (c) { yield 1; } done(); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2570,8 +2670,10 @@ function g() { return __generator(this, function (_a) {
 #[test]
 fn projects_nested_try() {
     assert_eq!(
-        project(r#"function* g() { try { try { yield 1; } finally { inner(); } } catch (e) { handle(e); } }
-"#),
+        project(
+            r#"function* g() { try { try { yield 1; } finally { inner(); } } catch (e) { handle(e); } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2628,8 +2730,10 @@ function g() { var e_1; return __generator(this, function (_a) {
 #[test]
 fn projects_catch_generated_reuse() {
     assert_eq!(
-        project(r#"function* g() { try { yield 1; } catch (e) { use(e); } try { yield 2; } catch (e) { use2(e); } }
-"#),
+        project(
+            r#"function* g() { try { yield 1; } catch (e) { use(e); } try { yield 2; } catch (e) { use2(e); } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2689,8 +2793,10 @@ function g() { var e_1, e_2; return __generator(this, function (_a) {
 #[test]
 fn projects_throw_in_try() {
     assert_eq!(
-        project(r#"function* g() { try { yield 1; throw bad(); } catch (e) { handle(e); } }
-"#),
+        project(
+            r#"function* g() { try { yield 1; throw bad(); } catch (e) { handle(e); } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2740,8 +2846,10 @@ function g() { var e_1; return __generator(this, function (_a) {
 #[test]
 fn projects_continue_in_for_yield_incr() {
     assert_eq!(
-        project(r#"function* g() { for (var i = 0; i < n; i++) { if (skip(i)) continue; yield i; } }
-"#),
+        project(
+            r#"function* g() { for (var i = 0; i < n; i++) { if (skip(i)) continue; yield i; } }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2795,8 +2903,10 @@ function g() { var i; return __generator(this, function (_a) {
 #[test]
 fn projects_logical_or() {
     assert_eq!(
-        project(r#"function* g() { var r = a() || (yield 1); use(r); }
-"#),
+        project(
+            r#"function* g() { var r = a() || (yield 1); use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2846,8 +2956,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_yield_in_condition_only() {
     assert_eq!(
-        project(r#"function* g() { var r = (yield 1) ? a() : b(); use(r); }
-"#),
+        project(
+            r#"function* g() { var r = (yield 1) ? a() : b(); use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2891,8 +3003,10 @@ function g() { var r; return __generator(this, function (_a) {
 #[test]
 fn projects_elem_access_target_assign() {
     assert_eq!(
-        project(r#"function* g() { o[k()] = yield 1; }
-"#),
+        project(
+            r#"function* g() { o[k()] = yield 1; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2938,8 +3052,10 @@ function g() { var _a, _b; return __generator(this, function (_c) {
 #[test]
 fn projects_prop_access_target_assign() {
     assert_eq!(
-        project(r#"function* g() { o.p = yield 1; }
-"#),
+        project(
+            r#"function* g() { o.p = yield 1; }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -2984,8 +3100,10 @@ function g() { var _a; return __generator(this, function (_b) {
 #[test]
 fn projects_yield_star_in_expr() {
     assert_eq!(
-        project(r#"function* g() { var r = 1 + (yield* h()); use(r); }
-"#),
+        project(
+            r#"function* g() { var r = 1 + (yield* h()); use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3042,8 +3160,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_var_multi_split() {
     assert_eq!(
-        project(r#"function* g() { var a = p(), b = yield 1, c = q(); use(a, b, c); }
-"#),
+        project(
+            r#"function* g() { var a = p(), b = yield 1, c = q(); use(a, b, c); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3089,8 +3209,10 @@ function g() { var a, b, c; return __generator(this, function (_a) {
 #[test]
 fn projects_obj_accessor_initial_chunk() {
     assert_eq!(
-        project(r#"function* g() { var r = { get p() { return 1; }, y: yield 1 }; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = { get p() { return 1; }, y: yield 1 }; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3136,8 +3258,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_obj_accessor_post_yield() {
     assert_eq!(
-        project(r#"function* g() { var r = { y: yield 1, get p() { return 1; } }; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = { y: yield 1, get p() { return 1; } }; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3183,8 +3307,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_obj_accessor_pair_post_yield() {
     assert_eq!(
-        project(r#"function* g() { var r = { y: yield 1, get p() { return q; }, set p(v) { s(v); } }; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = { y: yield 1, get p() { return q; }, set p(v) { s(v); } }; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3230,8 +3356,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_obj_method_post_yield() {
     assert_eq!(
-        project(r#"function* g() { var r = { y: yield 1, m: function () { return 2; } }; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = { y: yield 1, m: function () { return 2; } }; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3277,8 +3405,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_obj_string_numeric_after_yield() {
     assert_eq!(
-        project(r#"function* g() { var r = { y: yield 1, "s p": a(), 1: b() }; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = { y: yield 1, "s p": a(), 1: b() }; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3324,7 +3454,8 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_multiline_obj() {
     assert_eq!(
-        project(r#"function* g() {
+        project(
+            r#"function* g() {
   var r = {
     x: a(),
     y: yield 1,
@@ -3332,7 +3463,8 @@ fn projects_multiline_obj() {
   };
   use(r);
 }
-"#),
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3385,10 +3517,12 @@ function g() {
 #[test]
 fn projects_multiline_body() {
     assert_eq!(
-        project(r#"function* g() {
+        project(
+            r#"function* g() {
   yield 1;
 }
-"#),
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3433,8 +3567,10 @@ function g() {
 #[test]
 fn projects_array_leading_hole() {
     assert_eq!(
-        project(r#"function* g() { var r = [, yield 1]; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = [, yield 1]; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3480,8 +3616,10 @@ function g() { var r, _a; return __generator(this, function (_b) {
 #[test]
 fn projects_array_yield_first() {
     assert_eq!(
-        project(r#"function* g() { var r = [yield 1, a()]; use(r); }
-"#),
+        project(
+            r#"function* g() { var r = [yield 1, a()]; use(r); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3525,8 +3663,10 @@ function g() { var r; return __generator(this, function (_a) {
 #[test]
 fn projects_call_yield_first_arg() {
     assert_eq!(
-        project(r#"function* g() { f(yield 1, a()); }
-"#),
+        project(
+            r#"function* g() { f(yield 1, a()); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3571,8 +3711,10 @@ function g() { var _a; return __generator(this, function (_b) {
 #[test]
 fn projects_elem_call_args() {
     assert_eq!(
-        project(r#"function* g() { o[m()](a(), yield 1); }
-"#),
+        project(
+            r#"function* g() { o[m()](a(), yield 1); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3618,8 +3760,10 @@ function g() { var _a, _b, _c; return __generator(this, function (_d) {
 #[test]
 fn projects_paren_call_target() {
     assert_eq!(
-        project(r#"function* g() { (0, o.m)(a(), yield 1); }
-"#),
+        project(
+            r#"function* g() { (0, o.m)(a(), yield 1); }
+"#
+        ),
         r#"var __generator = (this && this.__generator) || function (thisArg, body) {
     var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === "function" ? Iterator : Object).prototype);
     return g.next = verb(0), g["throw"] = verb(1), g["return"] = verb(2), typeof Symbol === "function" && (g[Symbol.iterator] = function() { return this; }), g;
@@ -3662,7 +3806,6 @@ function g() { var _a, _b; return __generator(this, function (_c) {
     );
 }
 
-
 // --- Fault-shaped typed-error contracts (§7.3): not oracle-mintable —
 // the upstream pipeline shields these arms (ES2015 lowers generator
 // methods; ES2019 lowers optional catch bindings). ---
@@ -3675,7 +3818,10 @@ fn project_error(source_text: &str) -> TransformError {
     let outcome = transform_nodes(
         arena,
         vec![TransformRoot::SourceFile(source)],
-        vec![transform_generators(tsc_types::ScriptTarget::ES5, &resolver)],
+        vec![transform_generators(
+            tsc_types::ScriptTarget::ES5,
+            &resolver,
+        )],
         false,
     );
     match outcome {
@@ -3688,9 +3834,11 @@ fn project_error(source_text: &str) -> TransformError {
 /// reaching the machine un-lowered.
 #[test]
 fn generator_method_is_a_typed_error() {
-    let error = project_error("var o = { *m() { yield 1; } };
+    let error = project_error(
+        "var o = { *m() { yield 1; } };
 use(o);
-");
+",
+    );
     assert!(
         matches!(error, TransformError::UnexpectedChildKind { .. }),
         "unexpected error: {error:?}"
@@ -3701,8 +3849,10 @@ use(o);
 /// optional catch binding is lowered before the machine upstream.
 #[test]
 fn binding_less_catch_is_a_typed_error() {
-    let error = project_error("function* g() { try { yield 1; } catch { h(); } }
-");
+    let error = project_error(
+        "function* g() { try { yield 1; } catch { h(); } }
+",
+    );
     assert!(
         matches!(error, TransformError::RequiredChildRemoved { .. }),
         "unexpected error: {error:?}"
