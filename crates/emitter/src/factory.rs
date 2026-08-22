@@ -40,6 +40,8 @@ pub(crate) enum EmitHelperName {
     DisposeResources,
     EsDecorate,
     RunInitializers,
+    Generator,
+    Values,
 }
 
 impl EmitHelperName {
@@ -68,6 +70,8 @@ impl EmitHelperName {
             Self::DisposeResources => "__disposeResources",
             Self::EsDecorate => "__esDecorate",
             Self::RunInitializers => "__runInitializers",
+            Self::Generator => "__generator",
+            Self::Values => "__values",
         }
     }
 }
@@ -301,6 +305,34 @@ impl TransformArena {
             });
         };
         data.escaped_text = tsc_syntax::escape_leading_underscores(text);
+        data.text.clear();
+        data.text.push_str(text);
+        Ok(())
+    }
+
+    /// The label-literal analog of [`Self::set_generated_identifier_text`]:
+    /// a text-only completion of a deliberately-deferred synthesized
+    /// numeric literal. The Generators machine mints upstream's
+    /// `Number.MAX_SAFE_INTEGER` label placeholders and
+    /// `updateLabelExpressions` (its sole caller) assigns the final case
+    /// numbers here once the build resolves them
+    /// (`docs/design/greenfield/slices/h2-5h-b-b-3.md` §12.4).
+    pub(crate) fn set_numeric_literal_text(
+        &mut self,
+        node: TransformNode,
+        text: &str,
+    ) -> Result<(), TransformError> {
+        let record = self
+            .source_mut(node.source)?
+            .source
+            .arena
+            .node_mut(node.node);
+        let NodeData::NumericLiteral(data) = &mut record.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::NumericLiteral,
+                actual: record.kind,
+            });
+        };
         data.text.clear();
         data.text.push_str(text);
         Ok(())

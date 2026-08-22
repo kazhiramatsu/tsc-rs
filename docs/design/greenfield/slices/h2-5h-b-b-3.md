@@ -471,6 +471,10 @@ kinds, `isBlock`, `isVariableDeclarationList`, `isIdentifier`,
   switch, and labeled enders. All
   become typed `TransformError` fail-closed arms, never silent
   fallbacks.
+- **Implicit array trailing comma.** `createArrayLiteralExpression`
+  adds `hasTrailingComma` when the LAST element is an omitted
+  expression (`_tsc.js:22441-22449`, the `[,]` print shape) — the
+  machine's chunked array rebuilds thread the rule.
 - **Oracle behavior corpus** (probe recipe §7.3; 72 fixtures): the
   empty-generator switch-less body; single/bare/starred yields;
   resume values through `sent()`; the dead-op rule; if/do/while/for
@@ -518,7 +522,7 @@ where caller-less.
 | state temp | allocated as `TargetBinding::allocate` at `transform_generator_function_body` entry (upstream `createTempVariable(void 0)` — NOT hoisted); every `state` reference mints a fresh identifier via `create_generated_identifier` (es2018.rs:3966 precedent); the `__generator` callback `FunctionExpression` carries `EmitFlags::REUSE_TEMP_VARIABLE_SCOPE` and the finalize walk (below) keeps the shared temp alphabet |
 | reuse-scope finalize arm | `crates/emitter/src/builtins/target_bindings.rs`: the finalize/collect walk (`is_function_scope_kind` gate at :573) additionally consults the node's `EmitFlags::REUSE_TEMP_VARIABLE_SCOPE` — a flagged function-scope node does NOT open a fresh generated-name scope. Corpus-inert by construction: the flag's only current producer is es2017's awaiter body (es2017.rs:1777), and T0=100.0000% at the trusted base proves no corpus fixture distinguishes the arms (a distinguishing fixture would already mismatch tsc today, §12.3); the arm gains its own unit contracts in the target-bindings suite |
 | temp/name allocation | hoisted temps `allocate_temp` (+ `context.hoist_variable_declaration`), `declareLocal(text)` → `TargetBinding::allocate_numbered` (`e_1` family), `createLoopVariable` → the dormant `GeneratedBindingScopes::allocate_loop_variable` (first production caller; `_i` family), all under the E-NAMES-H eager model with doc-order finalization |
-| parsed-tree generator facet | `crates/emitter/src/builtins.rs` `local_transform_flags`: the `FunctionDeclaration` (:13711), `FunctionExpression` (:13721), and `MethodDeclaration` arms gain the exact factory conditional (`isAsyncGenerator ? CONTAINS_ES_2018 : isAsync ? CONTAINS_ES_2017 : isGenerator ? CONTAINS_GENERATOR : NONE` — the vendored `createFunctionExpression` flag row `_tsc.js:22685-22688`, already ported as `function_facets` factory.rs:695-705); async-ness from the modifier list, generator-ness from `asterisk_token.is_some()`; existing bits in those arms are NOT removed. Corpus-inert: zero readers of `CONTAINS_GENERATOR` outside the factory classifier (measured — the only non-test hit is factory.rs:701), and the corpus ratchet is the enforcement |
+| parsed-tree generator facet | `crates/emitter/src/builtins.rs` `local_transform_flags`: the `FunctionDeclaration` (:13711), `FunctionExpression` (:13721), and `MethodDeclaration` arms gain the exact factory conditional (`isAsyncGenerator ? CONTAINS_ES_2018 : isAsync ? CONTAINS_ES_2017 : isGenerator ? CONTAINS_GENERATOR : NONE` — the vendored `createFunctionExpression` flag row `_tsc.js:22685-22688`, already ported as `function_facets` factory.rs:695-705); async-ness from the modifier list, generator-ness from `asterisk_token.is_some()`; existing bits in those arms are NOT removed. The SAME completion applies to the completion statements: `createContinueStatement`/`createBreakStatement` stamp `ContainsHoistedDeclarationOrCompletion` (`_tsc.js:23177`/`:23188`) and the parsed-tree initializer lacked the arm — without it the machine's generator-body dispatch never descends to `if (a) continue;` shapes (measured live: the visit-phase inline-break projections). Corpus-inert both ways: zero readers of `CONTAINS_GENERATOR` outside the factory classifier (factory.rs:701, write side) and ZERO readers of `CONTAINS_HOISTED_DECLARATION_OR_COMPLETION` in any active transform (measured — every non-generators hit is a write site), and the corpus ratchet is the enforcement |
 | helper identifiers | `EmitHelperName::{Generator, Values}` variants + `text()` arms `"__generator"`/`"__values"` (`crates/emitter/src/factory.rs:19/:45`); calls built as `request_emit_helper(helpers::generator()/values())` + `create_unscoped_helper_identifier` (es2017.rs:1738-1793 `create_awaiter_call` template) |
 | call binding | module-internal `create_call_binding(host, expression, language_version, cache_identifiers) -> (target, this_arg)` porting §4.2 (`skipOuterExpressions` at All + `shouldBeCapturedInTempVariable`); the two super arms are post-ES2015-unreachable at the machine's pipeline position and port as typed fail-closed errors with the pinned justification (upstream reaches them only from pre-ES2015 super positions that transformES2015 has already rewritten) |
 | apply/concat/bind shapes | module-internal constructors over `create_node`: `createFunctionApplyCall` (`target.apply(thisArg, args)`), `createArrayConcatCall` (`temp.concat([…])`), the `new (target.bind.apply(C, [void 0, …]))()` new-decomposition, `createPostfixIncrement`, `createLessThan`, `createLogicalNot` — the es2017/es2018 `create_property_access` + `create_call` idiom (es2017.rs:677 precedent); parenthesization is factory-automatic (`apply_parenthesizer_rules`, factory.rs:1113) |
@@ -554,8 +558,9 @@ reviewed re-disposition (row 10 `missing` → `exists`, counts
 
 Fence: `crates/emitter/src/builtins/generators.rs` (new),
 `crates/emitter/src/builtins.rs` (the `mod generators;` line + the
-three `local_transform_flags` facet arms ONLY; the target rejection
-at :144-150 is read-only), `crates/emitter/src/factory.rs` (the two
+function-like facet arms and the completion-statement facet arm of
+the parsed-tree flag initializer ONLY; the target rejection at
+:144-150 is read-only), `crates/emitter/src/factory.rs` (the two
 `EmitHelperName` variants + `text()` arms + the
 `TransformArena::set_numeric_literal_text` finalize-write ONLY),
 `crates/emitter/src/builtins/target_bindings.rs` (the
