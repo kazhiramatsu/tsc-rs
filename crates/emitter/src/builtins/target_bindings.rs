@@ -11,7 +11,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 
 use crate::{
-    transform::GeneratedBindingId, TransformArena, TransformError, TransformNode,
+    transform::GeneratedBindingId, EmitFlags, TransformArena, TransformError, TransformNode,
     TransformSourceId, TransformationContext,
 };
 
@@ -570,7 +570,20 @@ fn collect_binding_name_events(
     events: &mut Vec<BindingNameEvent>,
 ) -> Result<(), TransformError> {
     let record = arena.node(node)?.clone();
-    if !scope_root && is_function_scope_kind(record.kind) {
+    // `EmitFlags.ReuseTempVariableScope` (metadata.rs:40): tsc's
+    // `createTempVariable` scope stack skips push/pop for flagged
+    // function-likes, so their temps continue the enclosing alphabet. The
+    // Generators machine stamps it on the `__generator` callback (the
+    // upstream `build` does, `_tsc.js:109697-109725`); es2017's awaiter
+    // body is the other producer. Skipping the scope special-case here
+    // reproduces the upstream skip symmetrically
+    // (`docs/design/greenfield/slices/h2-5h-b-b-3.md` §12.3).
+    let reuses_enclosing_temp_scope = arena.metadata(node).is_some_and(|metadata| {
+        metadata
+            .flags()
+            .contains(EmitFlags::REUSE_TEMP_VARIABLE_SCOPE)
+    });
+    if !scope_root && is_function_scope_kind(record.kind) && !reuses_enclosing_temp_scope {
         // tsc changes its generated-name scope after visiting the
         // function-like declaration surface. In particular, a computed method
         // name belongs to the enclosing class-evaluation scope, while its

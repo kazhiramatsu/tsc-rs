@@ -39,11 +39,11 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 265,
-    "rust_source_files": 244,
+    "file_count": 266,
+    "rust_source_files": 245,
     "cargo_manifests": 21,
-    "bytes": 16469114,
-    "tree_sha256": "bdc2574ba639e73ffc4496dcb53ccb04ba5d2294aa43be19de6887acb5af1967"
+    "bytes": 16734072,
+    "tree_sha256": "19fb9ab7f68c709de14354349dfdc8acc310e73d352a570c189f46fd38f665e9"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -420,20 +420,20 @@
       {
         "id": "emitter-transform-arena",
         "path": "crates/emitter/src/factory.rs",
-        "line": 152,
+        "line": 156,
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
+        "file_sha256": "f0a61adf086332da9abf638e7e438a297af17606c4a14bd82caa38681e6854c9"
       },
       {
         "id": "emitter-node-factory",
         "path": "crates/emitter/src/factory.rs",
-        "line": 1081,
+        "line": 1113,
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "ca9859bfd30a09c09d165b5c507e4c741f3babd48dbf0fa0a9206aff14612630"
+        "file_sha256": "f0a61adf086332da9abf638e7e438a297af17606c4a14bd82caa38681e6854c9"
       },
       {
         "id": "emitter-transform-flags",
@@ -519,38 +519,38 @@
       {
         "id": "emitter-script-transformer-selection",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 101,
+        "line": 102,
         "column": 1,
         "text": "pub fn get_script_transformers<'resolver>(",
         "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
-        "file_sha256": "d24a3cbf75b41e76a880474d4eab82cf77169bde58cc1f972a5788c6d3a3ae4d"
+        "file_sha256": "9340af96962a5a0c5f9cd60ac339791ebc7b88350121769504599b0a4f79025c"
       },
       {
         "id": "emitter-transform-typescript",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 337,
+        "line": 338,
         "column": 1,
         "text": "pub fn transform_type_script<'resolver>(",
         "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
-        "file_sha256": "d24a3cbf75b41e76a880474d4eab82cf77169bde58cc1f972a5788c6d3a3ae4d"
+        "file_sha256": "9340af96962a5a0c5f9cd60ac339791ebc7b88350121769504599b0a4f79025c"
       },
       {
         "id": "emitter-transform-class-fields",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 370,
+        "line": 371,
         "column": 1,
         "text": "pub fn transform_class_fields<'resolver>(",
         "text_sha256": "6725dc3040c7b665e642b0595eb187992791ad9331c370100c1dfd03cbd38159",
-        "file_sha256": "d24a3cbf75b41e76a880474d4eab82cf77169bde58cc1f972a5788c6d3a3ae4d"
+        "file_sha256": "9340af96962a5a0c5f9cd60ac339791ebc7b88350121769504599b0a4f79025c"
       },
       {
         "id": "emitter-transform-ecmascript-module",
         "path": "crates/emitter/src/builtins.rs",
-        "line": 380,
+        "line": 381,
         "column": 1,
         "text": "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
         "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
-        "file_sha256": "d24a3cbf75b41e76a880474d4eab82cf77169bde58cc1f972a5788c6d3a3ae4d"
+        "file_sha256": "9340af96962a5a0c5f9cd60ac339791ebc7b88350121769504599b0a4f79025c"
       },
       {
         "id": "emitter-changed-import-printer",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "1622458e0bc797c33c9ca325d4f7b226305f1fd360c051b660db22d1d2c5c7ea"
+  "inventory_fingerprint_sha256": "a36313c90f840bfa4129ff1b6bde39d19358c673c2b43117efcec44caba7c510"
 }

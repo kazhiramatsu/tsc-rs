@@ -575,13 +575,21 @@ not semantic facts.
 ### `EA-GAP-COMPOSITION` — ES2015 and Generators
 
 **Substrate landed (B-1, 2026-08-21 at `ad62e4a5`; B-2, 2026-08-22 at `f6c18ff4`,
-[B-2 packet](slices/h2-5h-b-b-2.md)):** B-1 landed the five shared
+[B-2 packet](slices/h2-5h-b-b-2.md); B-3, 2026-08-22 at `a7b97b48`,
+[B-3 packet](slices/h2-5h-b-b-3.md)):** B-1 landed the five shared
 capability rows (helpers, resolver queries, eager name generation, the
 nine-facet flags classifier, hook chaining); B-2 landed the 18-function
 destructuring-flattener shared module
 (`crates/emitter/src/builtins/flatten_destructuring.rs`, both
 `FlattenLevel` arms behind the `FlattenHost` consumer seam, qualified by
-focused oracle projections). Both are dormant until the B-3/B-4/B-5
+focused oracle projections); B-3 landed the complete
+`transformGenerators` state machine (the 129-function owner as
+`crates/emitter/src/builtins/generators.rs` behind the real
+`GeneratorsTransformer` seam — labels, try/catch protocol, instruction
+encoding via `createGeneratorHelper`, catch-rename print-time
+substitution, the label-literal finalize-write — qualified by 72
+byte-equal focused oracle projections, consumer-first per the pinned
+`yield-star-synthesis` edge). All are dormant until the B-4/B-5
 owners; the active ObjectRestSpread production path deliberately remains
 `es2018.rs`'s independent plan-based lowering until a byte-identity-gated
 re-base at the H2.5h-b closure.

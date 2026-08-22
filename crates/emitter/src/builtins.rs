@@ -40,6 +40,7 @@ mod es2021;
 mod es_next;
 mod flatten_destructuring;
 mod generated_bindings;
+mod generators;
 mod helpers;
 mod jsx;
 mod legacy_decorators;
@@ -13767,6 +13768,13 @@ fn local_transform_flags(node: &Node) -> TransformFlags {
             flags |= TransformFlags::CONTAINS_ES_2018;
             flags |= TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
         }
+        // `createContinueStatement`/`createBreakStatement`
+        // (`_tsc.js:23177`/`:23188`): completion statements carry the
+        // hoisted-declaration-or-completion facet so completion-routing
+        // passes (the Generators machine) descend to them.
+        NodeData::ContinueStatement(_) | NodeData::BreakStatement(_) => {
+            flags |= TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
+        }
         NodeData::AwaitExpression(_) => {
             flags |= TransformFlags::CONTAINS_ES_2017;
             flags |= TransformFlags::CONTAINS_ES_2018;
@@ -13993,8 +14001,65 @@ fn local_contextual_target_flags(
             Ok(super_access_target_flags(arena, source, data.expression)?
                 | private_identifier_expression_flags(arena, source, &node.data)?)
         }
+        // The factory's per-function facet conditional
+        // (`createFunctionExpression`/`createFunctionDeclaration`/
+        // `createMethodDeclaration`, `_tsc.js:22685-22688`; ported for
+        // synthesized nodes as `function_facets` in
+        // `TransformArena::propagate_child_flags`): async generators mark
+        // ES2018, async functions ES2017, plain generators
+        // `ContainsGenerator`. The async halves are bit-idempotent with
+        // the AsyncKeyword modifier token's own facets; the generator
+        // facet is what the parsed tree was missing
+        // (`docs/design/greenfield/slices/h2-5h-b-b-3.md` §12.2).
+        NodeData::FunctionDeclaration(data) => Ok(function_like_facet_flags(
+            arena,
+            source,
+            data.asterisk_token,
+            data.modifiers,
+        )?),
+        NodeData::FunctionExpression(data) => Ok(function_like_facet_flags(
+            arena,
+            source,
+            data.asterisk_token,
+            data.modifiers,
+        )?),
+        NodeData::MethodDeclaration(data) => Ok(function_like_facet_flags(
+            arena,
+            source,
+            data.asterisk_token,
+            data.modifiers,
+        )?),
         _ => Ok(TransformFlags::NONE),
     }
+}
+
+fn function_like_facet_flags(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    asterisk_token: Option<tsc_syntax::NodeId>,
+    modifiers: Option<tsc_syntax::NodeArrayId>,
+) -> Result<TransformFlags, TransformError> {
+    let is_generator = asterisk_token.is_some();
+    let mut is_async = false;
+    if let Some(modifiers) = modifiers.and_then(|array| arena.node_array_ref(source, array)) {
+        for modifier in &arena.node_array(modifiers)?.nodes {
+            if let Some(modifier) = arena.node_ref(source, *modifier) {
+                if arena.node(modifier)?.kind == SyntaxKind::AsyncKeyword {
+                    is_async = true;
+                    break;
+                }
+            }
+        }
+    }
+    Ok(if is_async && is_generator {
+        TransformFlags::CONTAINS_ES_2018
+    } else if is_async {
+        TransformFlags::CONTAINS_ES_2017
+    } else if is_generator {
+        TransformFlags::CONTAINS_GENERATOR
+    } else {
+        TransformFlags::NONE
+    })
 }
 
 fn super_access_target_flags(

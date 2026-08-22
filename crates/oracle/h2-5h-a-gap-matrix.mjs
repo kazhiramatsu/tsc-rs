@@ -338,19 +338,27 @@ const CAPABILITY_ROWS = Object.freeze([
   }),
   Object.freeze({
     capability_id: "generator-state-machine",
-    state: "missing",
+    state: "exists",
     requirement:
       "the transformGenerators state machine (labels, try/catch protocol, instruction encoding via createGeneratorHelper)",
     surfaces: Object.freeze(["yield-star-synthesis", "helper-factory"]),
     architecture_rows: Object.freeze(["EA-GAP-COMPOSITION", "E-ORDER-H"]),
-    anchors: Object.freeze([]),
-    absences: Object.freeze([
+    anchors: Object.freeze([
       Object.freeze({
-        path: "crates/emitter/src/builtins",
-        module: "generators.rs",
+        path: "crates/emitter/src/builtins/generators.rs",
+        symbol: "fn transform_generators",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/generators.rs",
+        symbol: "fn transform_generator_function_body",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/generators.rs",
+        symbol: "fn build_statements",
       }),
     ]),
-    note: null,
+    absences: Object.freeze([]),
+    note: "B-3 landed the complete owner (129 pinned local functions) as the dormant GeneratorsTransformer behind transform_generators, qualified by 72 byte-equal focused oracle projections; registration stays with the B-5 runtime flip; the yield-star consumer obligations (EmitFlags Iterator skip + the YieldStar opcode) landed and the producer sites arrive with B-4",
   }),
   Object.freeze({
     capability_id: "destructuring-flattener-es2015",
