@@ -259,7 +259,8 @@ substitutes for a per-packet gate.
    - **B-3 — Generators state machine (foundation, dormant)**: labels,
      try/catch protocol, instruction encoding via
      `createGeneratorHelper`; consumer-first per the pinned
-     `yield-star-synthesis` edge.
+     `yield-star-synthesis` edge. **LANDED at `a7b97b48`
+     (2026-08-22, [B-3 packet](h2-5h-b-b-3.md)).**
    - **B-4 — ES2015 visitors (foundation)**: class lowering lanes,
      captured `this`/`arguments`/`new.target`, parameters, and loop
      conversion WITH the two pinned `yield*` synthesis sites feeding
