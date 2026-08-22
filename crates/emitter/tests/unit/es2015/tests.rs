@@ -3675,3 +3675,254 @@ fn private_accessor_name_is_a_typed_error() {
         "unexpected error shape: {error:?}"
     );
 }
+
+// --- Composition-shielded unit contracts (§12.5): arms only reachable
+// through passes outside the fixture pipeline port faithfully and carry
+// structural contracts; their end-to-end verifier is B-5's witness gate. ---
+
+fn transform_structurally(
+    source_text: &str,
+) -> (crate::TransformationResult<'static>, TransformSourceId) {
+    let parsed = parse_source_file("input.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver: &'static UnavailableFixtureResolver =
+        Box::leak(Box::new(UnavailableFixtureResolver));
+    let options = fixture_options(false, false);
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_es2015(&options, resolver)],
+        false,
+    )
+    .expect("es2015 transform");
+    (result, source)
+}
+
+/// A resolver whose collision queries answer "no collision" — the module
+/// files and hand-built wrapper trees of these contracts never consult
+/// the loop/capture queries.
+struct UnavailableFixtureResolver;
+
+impl EmitResolver for UnavailableFixtureResolver {
+    fn is_declaration_with_colliding_name(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Ok(false)
+    }
+    fn get_referenced_declaration_with_colliding_name(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Ok(None)
+    }
+}
+
+fn root_statement_kinds(
+    result: &crate::TransformationResult<'_>,
+    source: TransformSourceId,
+) -> Vec<SyntaxKind> {
+    let arena = result.arena();
+    let root = arena.root(source).expect("root");
+    let NodeData::SourceFile(data) = &arena.node(root).expect("record").data else {
+        panic!("source file root");
+    };
+    let statements = data.statements.expect("statements");
+    arena
+        .node_array(crate::TransformNodeArray::new(source, statements))
+        .expect("array")
+        .nodes
+        .iter()
+        .map(|id| {
+            arena
+                .node(crate::TransformNode::new(source, *id))
+                .expect("record")
+                .kind
+        })
+        .collect()
+}
+
+/// `visitClassDeclaration`'s export arm (`hasSyntacticModifier(node,
+/// Export)` → `createExternalModuleExport(getLocalName(node))`): module
+/// files leave the §7 fixture language, so the lane is contract-driven.
+#[test]
+fn exported_class_lowers_to_var_statement_plus_export_declaration() {
+    let (result, source) = transform_structurally("export class C {\n  m() { return 1; }\n}\n");
+    let kinds = root_statement_kinds(&result, source);
+    assert_eq!(
+        kinds,
+        vec![SyntaxKind::VariableStatement, SyntaxKind::ExportDeclaration],
+    );
+}
+
+/// The `hasSyntacticModifier(node, Default)` arm →
+/// `createExportDefault(getLocalName(node))`.
+#[test]
+fn default_exported_class_lowers_to_var_statement_plus_export_assignment() {
+    let (result, source) =
+        transform_structurally("export default class C {\n  m() { return 1; }\n}\n");
+    let kinds = root_statement_kinds(&result, source);
+    assert_eq!(
+        kinds,
+        vec![SyntaxKind::VariableStatement, SyntaxKind::ExportAssignment],
+    );
+}
+
+/// `visitTypeScriptClassWrapper` (the IIFE surgery): reachable only from
+/// TS-transformer-marked input (`InternalEmitFlags::TYPE_SCRIPT_CLASS_WRAPPER`),
+/// driven here by a hand-stamped wrapper-shaped parse tree. The contract
+/// asserts the surgery's structural outcome: the alias-free wrapper
+/// flattens the inner class statements into the rebuilt IIFE body
+/// (class function + trailing statements + single return).
+#[test]
+fn type_script_class_wrapper_surgery_flattens_the_wrapped_class() {
+    let source_text = "var C = (() => {\n    var C = (function () {\n        function C() {\n        }\n        return C;\n    }());\n    foo();\n    return C;\n})();\n";
+    let parsed = parse_source_file("input.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    // stamp TYPE_SCRIPT_CLASS_WRAPPER on the OUTER `(() => {...})()` call.
+    {
+        let syntax_nodes: Vec<(NodeId, SyntaxKind)> = {
+            let syntax = arena.source(source).expect("source").syntax();
+            let node_base = syntax.arena.node_base();
+            syntax
+                .arena
+                .nodes()
+                .iter()
+                .enumerate()
+                .map(|(offset, record)| (NodeId(node_base + offset as u32), record.kind))
+                .collect()
+        };
+        let outer_call = syntax_nodes
+            .iter()
+            .find(|(id, kind)| {
+                *kind == SyntaxKind::CallExpression && {
+                    // the outer call's callee is a parenthesized arrow
+                    let node = crate::TransformNode::new(source, *id);
+                    let record = arena.node(node).expect("record");
+                    if let NodeData::CallExpression(data) = &record.data {
+                        data.expression.is_some_and(|callee| {
+                            matches!(
+                                arena
+                                    .node(crate::TransformNode::new(source, callee))
+                                    .expect("callee")
+                                    .data,
+                                NodeData::ParenthesizedExpression(_)
+                            )
+                        })
+                    } else {
+                        false
+                    }
+                }
+            })
+            .map(|(id, _)| crate::TransformNode::new(source, *id))
+            .expect("outer wrapper call");
+        arena
+            .metadata_mut(outer_call)
+            .set_internal_flags(crate::InternalEmitFlags::TYPE_SCRIPT_CLASS_WRAPPER);
+    }
+    let resolver: &'static UnavailableFixtureResolver =
+        Box::leak(Box::new(UnavailableFixtureResolver));
+    let options = fixture_options(false, false);
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_es2015(&options, resolver)],
+        false,
+    )
+    .expect("wrapper surgery");
+    // var C = <rebuilt IIFE>; — the rebuilt function's body holds the
+    // flattened statements: [FunctionDeclaration C, foo();, return C;].
+    let arena = result.arena();
+    let root = arena.root(source).expect("root");
+    let NodeData::SourceFile(data) = &arena.node(root).expect("root record").data else {
+        panic!("source file root");
+    };
+    let statements = data.statements.expect("statements");
+    let first = arena
+        .node_array(crate::TransformNodeArray::new(source, statements))
+        .expect("array")
+        .nodes[0];
+    let mut current = crate::TransformNode::new(source, first);
+    // var statement -> declaration list -> declaration -> initializer
+    let body_kinds: Vec<SyntaxKind> = {
+        let NodeData::VariableStatement(statement) = &arena.node(current).expect("var").data else {
+            panic!("variable statement");
+        };
+        current = crate::TransformNode::new(source, statement.declaration_list.expect("list"));
+        let NodeData::VariableDeclarationList(list) = &arena.node(current).expect("list").data
+        else {
+            panic!("list");
+        };
+        let declaration = arena
+            .node_array(crate::TransformNodeArray::new(
+                source,
+                list.declarations.expect("declarations"),
+            ))
+            .expect("array")
+            .nodes[0];
+        current = crate::TransformNode::new(source, declaration);
+        let NodeData::VariableDeclaration(declaration) =
+            &arena.node(current).expect("declaration").data
+        else {
+            panic!("declaration");
+        };
+        let mut initializer =
+            crate::TransformNode::new(source, declaration.initializer.expect("initializer"));
+        // unwrap parens to the call, then the function expression body
+        while let NodeData::ParenthesizedExpression(inner) =
+            &arena.node(initializer).expect("init").data
+        {
+            initializer = crate::TransformNode::new(source, inner.expression.expect("inner"));
+        }
+        let NodeData::CallExpression(call) = &arena.node(initializer).expect("call").data else {
+            panic!(
+                "IIFE call, got {:?}",
+                arena.node(initializer).expect("call").kind
+            );
+        };
+        let mut callee = crate::TransformNode::new(source, call.expression.expect("callee"));
+        loop {
+            match &arena.node(callee).expect("callee").data {
+                NodeData::ParenthesizedExpression(inner) => {
+                    callee = crate::TransformNode::new(source, inner.expression.expect("inner"));
+                }
+                NodeData::PartiallyEmittedExpression(inner) => {
+                    callee = crate::TransformNode::new(source, inner.expression.expect("inner"));
+                }
+                _ => break,
+            }
+        }
+        let NodeData::FunctionExpression(function) = &arena.node(callee).expect("fn").data else {
+            panic!("IIFE function");
+        };
+        let body = crate::TransformNode::new(source, function.body.expect("body"));
+        let NodeData::Block(block) = &arena.node(body).expect("body").data else {
+            panic!("body block");
+        };
+        arena
+            .node_array(crate::TransformNodeArray::new(
+                source,
+                block.statements.expect("statements"),
+            ))
+            .expect("array")
+            .nodes
+            .iter()
+            .map(|id| {
+                arena
+                    .node(crate::TransformNode::new(source, *id))
+                    .expect("statement")
+                    .kind
+            })
+            .collect()
+    };
+    assert_eq!(
+        body_kinds,
+        vec![
+            SyntaxKind::FunctionDeclaration,
+            SyntaxKind::ExpressionStatement,
+            SyntaxKind::ReturnStatement,
+        ],
+    );
+}
