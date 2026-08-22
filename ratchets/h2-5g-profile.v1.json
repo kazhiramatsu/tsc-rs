@@ -1120,7 +1120,7 @@
     },
     {
       "path": "crates/emitter/tests/unit/generators/tests.rs",
-      "sha256": "b5a08dc9ed0d94e55402759c575b2be851b0256ea5873cf8267ad5716c2c3db4"
+      "sha256": "cd5f82adee9ce607c19ce147267cf5314af5c7f2e01b075e9eb887874c642648"
     }
   ],
   "admitted_profile": {
@@ -1306,5 +1306,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "08136a225159b3e56b113c264436b09c05fe3ff093292f072ce4b66a55c06ab9"
+  "profile_fingerprint_sha256": "f4839573bd96f8db71e26e6b7175c735770300db69b1686384bbe3f5248e645c"
 }
