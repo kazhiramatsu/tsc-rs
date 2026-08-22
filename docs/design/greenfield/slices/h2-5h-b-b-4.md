@@ -757,7 +757,12 @@ is read-only), `crates/emitter/src/factory.rs` (the two
 MetaProperty arm + the §12.6 `move_synthetic_comments` arena surface
 ONLY), `crates/emitter/src/metadata.rs` (the §12.6 synthetic-comment
 take/append accessors ONLY, if the move cannot be expressed through
-existing surfaces), `crates/emitter/tests/unit/es2015/tests.rs` (new,
+existing surfaces — implementation measured: NOT needed, the move
+rides the existing pub(crate) comment lists through the new factory
+surface), `crates/emitter/src/printer.rs` (the §12.11
+`emitObjectLiteralExpression` Indented arm ONLY — a mid-train
+amendment under the design-gate amend rule),
+`crates/emitter/tests/unit/es2015/tests.rs` (new,
 attached with the `#[cfg(test)] #[path]` idiom), and the §8 evidence
 set. `generators.rs`, `flatten_destructuring.rs`, `es2017.rs`,
 `es2018.rs`, `helpers.rs`, `printer.rs`, `transform.rs`,
@@ -1130,7 +1135,9 @@ normal-priority resume exception.
 ## 11. Prohibitions
 
 No transformer registration or activation change; no corpus
-output-byte change (the ratchet is the enforcement); no printer,
+output-byte change (the ratchet is the enforcement); no printer edit
+beyond the single pinned §12.11 Indented arm (a mid-train amendment;
+every other printer surface untouched); no
 helpers.rs, transform.rs, resolver.rs, generators.rs,
 flatten_destructuring.rs, es2017.rs, or es2018.rs edit; no
 tagged-template module (`tagged_template.rs` stays absent — gap row
@@ -1260,6 +1267,56 @@ production edit until its own design-gate pass and envelope exist.
    ports faithfully per §4.2 with `languageVersion = undefined` at
    both ES2015 call sites (the `< ES2015 → "_super"` arm stays
    dormant and ports faithfully); `cacheIdentifiers` defaults false.
+10a. ~~Printer object-literal `Indented` arm (mid-train amendment)~~ —
+    RESOLVED during implementation: upstream
+    `emitObjectLiteralExpression` honors `EmitFlags.Indented`
+    (`_tsc.js:118208-118222`); this printer implemented the protocol
+    only in its class arm, and the §7 suite's computed-name chunking
+    fixtures tripped exactly the §12.7 tripwire. The gap is
+    UNREACHABLE-today outside this packet (measured: every active
+    `INDENTED` producer stamps classes — class_fields.rs:556,
+    class_fields/downlevel.rs:2633 — and the printer's class arm
+    already ports the identical protocol), so the one-arm completion
+    landed as a mid-train fence amendment (the CS-2 amend-rule
+    precedent) with the vendored pin in the arm header; the corpus
+    ratchet is the enforcement, and the byte tripwire that found it
+    (`obj_computed_multiline`) is now a permanent projection.
+10b. ~~Implementation-measured adaptations (all byte-verified by the
+    §7 projections)~~ — (a) the harness hint model passes
+    `Unspecified` for non-identifier expression children (printer
+    `emit_node_id_with_context`), so the upstream `hint === Expression`
+    routing for `this` maps to the ThisKeyword-token arm of
+    `substitute_node`; (b) parsed-spelling channels: the printer
+    prints position-ranged identifiers from SOURCE text and keys the
+    member-access line break on the receiver's node positions (the
+    dot token is unrepresentable), so the `getName` clone and the
+    `visitIdentifier` re-mint thread their ranges through the
+    map/comment channels instead of node positions — upstream
+    suppresses both effects through parent-less clones and synthesized
+    dot tokens, and position-threading here would open channels
+    upstream never opens (maps are byte-inert at this dormant
+    position); (c) tsc numbers `createUniqueName` families in the
+    printer's per-scope name-generation pass (a parent scope's names
+    fully before its nested function scopes), while the eager model
+    allocates post-order for the converted-loop `state` family — the
+    module re-plans that family in scope-pass order before the
+    finalize walk (`renumber_state_bindings`, writing through the
+    sanctioned `set_generated_identifier_text` surface); (d) the
+    parse records carry COOKED literal text, so binary/octal
+    detection reads the record's `numeric_literal_flags` word and
+    extended-unicode identifier detection reads the source slice
+    (`\u{` — no parse-side NodeFlags-256 writer exists), in both the
+    §12.4 facet arms and the visitor lanes; (e) §12.4's list gains
+    the `createBaseCallExpression` super-property row
+    (`_tsc.js:22574-22576` — a call whose callee is a super property
+    carries `ContainsLexicalThis`; zero active readers, measured);
+    (f) the parsed-tree MetaProperty arm stamps ONLY the `new.target`
+    ES2015 half — the `import.meta` ES2020 half has ACTIVE readers
+    and stays outside this packet's corpus-inert scope (the dormant
+    classifier carries the full vendored row); (g)
+    `createExtendsHelper` passes the file-level-optimistic `_super`
+    as the second `__extends` argument (`_tsc.js:25852-25860`, now
+    pinned in the module).
 10. ~~Reuse vs re-port of B-2/B-3 addenda~~ — RESOLVED: re-port
     into `es2015.rs` (§4.2 rationale — fence tightness over landed
     production files, visitor-state coupling of the generators

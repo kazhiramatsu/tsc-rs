@@ -42,6 +42,8 @@ pub(crate) enum EmitHelperName {
     RunInitializers,
     Generator,
     Values,
+    Extends,
+    SpreadArray,
 }
 
 impl EmitHelperName {
@@ -72,6 +74,8 @@ impl EmitHelperName {
             Self::RunInitializers => "__runInitializers",
             Self::Generator => "__generator",
             Self::Values => "__values",
+            Self::Extends => "__extends",
+            Self::SpreadArray => "__spreadArray",
         }
     }
 }
@@ -336,6 +340,29 @@ impl TransformArena {
         data.text.clear();
         data.text.push_str(text);
         Ok(())
+    }
+
+    /// tsc-port: moveSyntheticComments @6.0.3
+    /// tsc-hash: dbec5c77db1209731faea7ecc4bbe067a09abe111ed885ca1c4dfb7b7b90677a
+    /// tsc-span: _tsc.js:25388-25395
+    ///
+    /// Replace `node`'s synthetic comment lists with `original`'s and clear
+    /// `original`'s — a METADATA relocation through the sanctioned arena
+    /// surface (the `set_generated_identifier_text` discipline); the sole
+    /// production caller is the ES2015 arrow expression-body return
+    /// statement (`docs/design/greenfield/slices/h2-5h-b-b-4.md` §12.6).
+    #[allow(dead_code)] // the production caller arrives with the B-4 owner
+    pub(crate) fn move_synthetic_comments(&mut self, node: TransformNode, original: TransformNode) {
+        let (leading, trailing) = {
+            let source = self.metadata_mut(original);
+            (
+                std::mem::take(&mut source.leading_comments),
+                std::mem::take(&mut source.trailing_comments),
+            )
+        };
+        let target = self.metadata_mut(node);
+        target.leading_comments = leading;
+        target.trailing_comments = trailing;
     }
 
     pub fn node_array(&self, array: TransformNodeArray) -> Result<&NodeArray, TransformError> {
@@ -738,10 +765,26 @@ impl TransformArena {
 
         let additions = match &record.data {
             NodeData::Identifier(data) => {
-                if data.escaped_text == "await" {
+                // createIdentifier rows: the "await" facet plus the
+                // extended-unicode-escape ES2015 facet
+                // (`_tsc.js:21618-21623`; NodeFlags 256).
+                let mut flags = if data.escaped_text == "await" {
                     TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT
                 } else {
                     TransformFlags::NONE
+                };
+                if declared_flags.contains(NodeFlags::IDENTIFIER_HAS_EXTENDED_UNICODE_ESCAPE) {
+                    flags |= TransformFlags::CONTAINS_ES_2015;
+                }
+                flags
+            }
+            NodeData::MetaProperty(data) => {
+                // createMetaProperty keyword rows (`_tsc.js:23009-23026`):
+                // `new.target` is ES2015; `import.meta` is ES2020.
+                match data.keyword_token {
+                    SyntaxKind::NewKeyword => TransformFlags::CONTAINS_ES_2015,
+                    SyntaxKind::ImportKeyword => TransformFlags::CONTAINS_ES_2020,
+                    _ => TransformFlags::NONE,
                 }
             }
             NodeData::NumericLiteral(data) => {
