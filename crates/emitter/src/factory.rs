@@ -44,6 +44,7 @@ pub(crate) enum EmitHelperName {
     Values,
     Extends,
     SpreadArray,
+    MakeTemplateObject,
 }
 
 impl EmitHelperName {
@@ -76,6 +77,7 @@ impl EmitHelperName {
             Self::Values => "__values",
             Self::Extends => "__extends",
             Self::SpreadArray => "__spreadArray",
+            Self::MakeTemplateObject => "__makeTemplateObject",
         }
     }
 }

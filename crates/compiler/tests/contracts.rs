@@ -4,6 +4,8 @@ mod automatic_type_directive_session_contract;
 mod cli_contract;
 #[path = "integration/emit_session_contract.rs"]
 mod emit_session_contract;
+#[path = "integration/es2015_generators_witness_contract.rs"]
+mod es2015_generators_witness_contract;
 #[path = "integration/filesystem_loader_contract.rs"]
 mod filesystem_loader_contract;
 #[path = "integration/h0_qualification_contract.rs"]

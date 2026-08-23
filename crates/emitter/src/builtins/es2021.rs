@@ -120,7 +120,7 @@ impl TargetPass {
     }
 
     const fn lower_target(self) -> ScriptTarget {
-        ScriptTarget::ES2015
+        ScriptTarget::ES5
     }
 
     fn is_final_for_target(self, target: ScriptTarget) -> bool {

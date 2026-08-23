@@ -125,6 +125,7 @@ pub(crate) enum ModuleResolutionMode {
     Unknown,
 }
 
+pub(crate) const EMIT_HELPER_EXTENDS: u32 = 1 << 0;
 pub(crate) const EMIT_HELPER_DECORATE: u32 = 1 << 3;
 pub(crate) const EMIT_HELPER_READ: u32 = 1 << 9;
 pub(crate) const EMIT_HELPER_SPREAD_ARRAY: u32 = 1 << 10;
@@ -5919,7 +5920,7 @@ impl<'a> CheckerState<'a> {
 
     fn external_emit_helper_names(helper: u32, legacy_decorators: bool) -> &'static [&'static str] {
         match helper {
-            1 => &["__extends"],
+            EMIT_HELPER_EXTENDS => &["__extends"],
             2 => &["__assign"],
             4 => &["__rest"],
             EMIT_HELPER_DECORATE if legacy_decorators => &["__decorate"],

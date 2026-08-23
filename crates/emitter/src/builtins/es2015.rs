@@ -40,6 +40,7 @@ use super::{
     },
     generated_bindings::{AncestorBindingPolicy, GeneratedBindingScopes},
     helpers, initialize_transform_flags,
+    tagged_template::{self, ProcessLevel},
     target_bindings::{
         collect_untagged_identifier_texts, finalize_generated_binding_names,
         ParsedSourceIdentifierNames, TargetBinding,
@@ -280,11 +281,9 @@ struct Es2015PrintState {
     generated_names_for_nodes: BTreeMap<(TransformSourceId, NodeId), TargetBinding>,
 }
 
-/// The seam the B-5 owner registers as the FIRST entry of the joint
-/// `[transformES2015, transformGenerators]` list at
-/// `languageVersion < ES2015` (upstream registration
-/// `_tsc.js:115942-115945`).
-#[allow(dead_code)] // the production registration arrives with the B-5 owner
+/// The FIRST entry of the joint `[transformES2015, transformGenerators]`
+/// list at `languageVersion < ES2015` (upstream registration
+/// `_tsc.js:115942-115945`; live since the B-5 runtime flip).
 pub(super) fn transform_es2015<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
@@ -883,7 +882,7 @@ enum VisitOutcome {
 /// converted-loop state, unused-expression-result flag select dispatch),
 /// so there is deliberately NO per-node visit memoization (the B-3
 /// generators precedent; the es2017 memo map is not replicated).
-struct Es2015Visitor<'context, 'resolver, 'state> {
+pub(super) struct Es2015Visitor<'context, 'resolver, 'state> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
@@ -963,7 +962,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
 
     // --- core accessors (the generators.rs idiom) ---------------------
 
-    fn node(&self, id: NodeId) -> TransformNode {
+    pub(super) fn node(&self, id: NodeId) -> TransformNode {
         TransformNode::new(self.source, id)
     }
 
@@ -1011,7 +1010,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         Ok(flags)
     }
 
-    fn set_text_range(
+    pub(super) fn set_text_range(
         &mut self,
         node: TransformNode,
         location: TransformNode,
@@ -1092,7 +1091,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         }
     }
 
-    fn array_nodes(
+    pub(super) fn array_nodes(
         &self,
         array: Option<NodeArrayId>,
     ) -> Result<Vec<TransformNode>, TransformError> {
@@ -1129,7 +1128,10 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
     }
 
     /// `createUniqueName(text)` — the `text_1` numbered family.
-    fn allocate_numbered_binding(&mut self, text: &str) -> Result<TargetBinding, TransformError> {
+    pub(super) fn allocate_numbered_binding(
+        &mut self,
+        text: &str,
+    ) -> Result<TargetBinding, TransformError> {
         let provisional = self.generated_bindings.allocate_numbered(text);
         TargetBinding::allocate_numbered(self.context, text.to_owned(), provisional)
     }
@@ -1143,7 +1145,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         TargetBinding::allocate_planned(self.context, provisional)
     }
 
-    fn create_generated_identifier(
+    pub(super) fn create_generated_identifier(
         &mut self,
         binding: &TargetBinding,
     ) -> Result<TransformNode, TransformError> {
@@ -1286,7 +1288,10 @@ impl Es2015Visitor<'_, '_, '_> {
         )
     }
 
-    fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
+    pub(super) fn create_string_literal(
+        &mut self,
+        text: &str,
+    ) -> Result<TransformNode, TransformError> {
         let source = self.source;
         self.context.factory()?.create_node(
             source,
@@ -1338,7 +1343,7 @@ impl Es2015Visitor<'_, '_, '_> {
     }
 
     /// `createVoidZero()` — `void 0`.
-    fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
+    pub(super) fn create_void_zero(&mut self) -> Result<TransformNode, TransformError> {
         let zero = self.create_numeric_literal("0")?;
         let source = self.source;
         let flags = self.child_flags(&[zero])?;
@@ -1396,7 +1401,7 @@ impl Es2015Visitor<'_, '_, '_> {
         )
     }
 
-    fn create_call(
+    pub(super) fn create_call(
         &mut self,
         callee: TransformNode,
         arguments: Vec<TransformNode>,
@@ -1465,7 +1470,7 @@ impl Es2015Visitor<'_, '_, '_> {
         )
     }
 
-    fn create_assignment(
+    pub(super) fn create_assignment(
         &mut self,
         left: TransformNode,
         right: TransformNode,
@@ -1481,7 +1486,7 @@ impl Es2015Visitor<'_, '_, '_> {
         self.create_binary(left, SyntaxKind::AmpersandAmpersandToken, right)
     }
 
-    fn create_logical_or(
+    pub(super) fn create_logical_or(
         &mut self,
         left: TransformNode,
         right: TransformNode,
@@ -1617,7 +1622,7 @@ impl Es2015Visitor<'_, '_, '_> {
         Ok(created)
     }
 
-    fn create_array_literal(
+    pub(super) fn create_array_literal(
         &mut self,
         elements: Vec<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
@@ -2043,7 +2048,7 @@ impl Es2015Visitor<'_, '_, '_> {
             .map(|id| self.node(id)))
     }
 
-    fn visit_each_child_required(
+    pub(super) fn visit_each_child_required(
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -2055,7 +2060,7 @@ impl Es2015Visitor<'_, '_, '_> {
     }
 
     /// `Debug.checkDefined(visitNode(node, visitor, isExpression))`.
-    fn visit_required_expression(
+    pub(super) fn visit_required_expression(
         &mut self,
         node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
@@ -2801,18 +2806,11 @@ impl Es2015Visitor<'_, '_, '_> {
     /// tsc-port: visitTaggedTemplateExpression @6.0.3
     /// tsc-hash: 311c98a5b65cc44b160bbf1a221a3950679691e0fca83a65b8449b4ef4a8a919
     /// tsc-span: _tsc.js:107927-107936
-    ///
-    /// The `processTaggedTemplateExpression` shared module is the B-5
-    /// flip (`tagged_template.rs`; gap row 12); until it lands this arm is
-    /// a TYPED FAIL-CLOSED SEAM — never a silent pass-through.
     fn visit_tagged_template_expression(
         &mut self,
-        _node: TransformNode,
+        node: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        Err(TransformError::RequiredChildRemoved {
-            parent: SyntaxKind::TaggedTemplateExpression,
-            field: "tagged-template lowering is the B-5 shared module (gap row 12)",
-        })
+        tagged_template::process_tagged_template_expression(self, node, ProcessLevel::All)
     }
 
     /// tsc-port: visitReturnStatement @6.0.3
@@ -4964,7 +4962,7 @@ impl Es2015Visitor<'_, '_, '_> {
 /// same-line test and the class-wrapper positions (byte positions; the
 /// §7 fixture surface has no comments in the scanned spans, so the
 /// whitespace arm is the live one; comments scan faithfully).
-fn skip_trivia_bytes(text: &str, position: u32) -> u32 {
+pub(super) fn skip_trivia_bytes(text: &str, position: u32) -> u32 {
     let bytes = text.as_bytes();
     let mut index = position as usize;
     while index < bytes.len() {
@@ -7083,6 +7081,57 @@ impl Es2015Visitor<'_, '_, '_> {
         self.create_call(helper, vec![expression])
     }
 
+    /// tsc-port: createTemplateObjectHelper @6.0.3
+    /// tsc-hash: 270715e6924c8655b32e871c56808bfea6e6230a85a9e66ee9a447828277a5a9
+    /// tsc-span: _tsc.js:25861-25869
+    pub(super) fn create_template_object_helper_call(
+        &mut self,
+        cooked: TransformNode,
+        raw: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.context
+            .request_emit_helper(helpers::make_template_object())?;
+        let source = self.source;
+        let helper = self
+            .context
+            .factory()?
+            .create_unscoped_helper_identifier(source, EmitHelperName::MakeTemplateObject)?;
+        self.create_call(helper, vec![cooked, raw])
+    }
+
+    /// tsc-port: recordTaggedTemplateString @6.0.3
+    /// tsc-hash: e44a8b5f8a01f5174faa2e9ba2d0e629b9175d698d9290e9a78ab4ca9e8126fc
+    /// tsc-span: _tsc.js:104759-104764
+    pub(super) fn record_tagged_template_string(
+        &mut self,
+        temp: TransformNode,
+    ) -> Result<(), TransformError> {
+        let declaration = self.create_variable_declaration_plain(temp, None)?;
+        self.tagged_template_string_declarations.push(declaration);
+        Ok(())
+    }
+
+    /// `isExternalModule(currentSourceFile)` — the parse record's
+    /// external-module indicator.
+    pub(super) fn is_external_module_source(&self) -> Result<bool, TransformError> {
+        Ok(self
+            .context
+            .arena()
+            .source(self.source)?
+            .syntax()
+            .external_module_indicator
+            .is_some())
+    }
+
+    /// Shared-module read access to the arena record (the
+    /// tagged-template module's data walks).
+    pub(super) fn arena_node(
+        &self,
+        node: TransformNode,
+    ) -> Result<&tsc_syntax::Node, TransformError> {
+        self.context.arena().node(node)
+    }
+
     /// `emitHelpers().createExtendsHelper(name)` — `__extends(name,
     /// _super)` with the file-level-optimistic `_super` as the second
     /// argument (`_tsc.js:25852-25860`).
@@ -8132,12 +8181,25 @@ impl Es2015Visitor<'_, '_, '_> {
                     flags,
                 )?
             };
-            self.set_range_raw(created, close_brace_start, close_brace_start + 1)?;
+            // `createTokenRange(skipTrivia(...), CloseBraceToken)` — for a
+            // synthesized members array the position is the -1 sentinel and
+            // upstream computes end = -1 + 1 = 0; `wrapping_add` reproduces
+            // that two's-complement arithmetic bit-for-bit (set_range_raw
+            // drops the unrepresentable range either way).
+            self.set_range_raw(
+                created,
+                close_brace_start,
+                close_brace_start.wrapping_add(1),
+            )?;
             created
         };
         self.add_emit_flags(outer, EmitFlags::NO_COMMENTS)?;
         let return_statement = self.create_return_statement(Some(outer))?;
-        self.set_range_raw(return_statement, close_brace_start, close_brace_start + 1)?;
+        self.set_range_raw(
+            return_statement,
+            close_brace_start,
+            close_brace_start.wrapping_add(1),
+        )?;
         self.add_emit_flags(
             return_statement,
             EmitFlags::NO_COMMENTS | EmitFlags::NO_TOKEN_SOURCE_MAPS,

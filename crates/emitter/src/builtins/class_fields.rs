@@ -48,11 +48,10 @@ impl Transformer for ClassFieldsTransformer<'_> {
     }
 
     fn initialize(&mut self, context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2015 || self.target > ScriptTarget::ES_NEXT {
+        if self.target < ScriptTarget::ES5 || self.target > ScriptTarget::ES_NEXT {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "class-field transform",
-                detail:
-                    "the closed target band admits ES2015 through ESNext class-field reachability",
+                detail: "the closed target band admits ES5 through ESNext class-field reachability",
             });
         }
         context.enable_substitution(SyntaxKind::Identifier)?;

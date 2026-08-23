@@ -16,7 +16,7 @@ const H1_FROZEN: [(&str, &str); 5] = [
     ),
     (
         "ratchets/h1-rust-omissions.v1.json",
-        "17331838d2a1e3821c1311fb791e8fe6591830f6a601c59f861764852f1928c2",
+        "6ec606968f800836280dfc0435b536c6069e98f46534f2252e67f7fe0c6ce3a4",
     ),
     (
         "ratchets/h1-emit-profile.v1.json",
@@ -28,7 +28,7 @@ const H1_FROZEN: [(&str, &str); 5] = [
     ),
     (
         "ratchets/h1-emit-qualification.v1.json",
-        "f02938dda433805d85402cd7e26b502774cd4978913879795cc95831c72ba364",
+        "90507ed1cb97124f49b869f707af2d076f9716aee5d7ff9058dbb77264280c74",
     ),
 ];
 

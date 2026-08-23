@@ -70,7 +70,7 @@ impl EmitDiagnosticGate {
 /// before output planning, checker-to-emitter borrowing, or sink dispatch.
 pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), EmitFailure> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2015 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
         return unsupported("target");
     }
     if !matches!(
@@ -98,7 +98,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
 
     for (active, name) in [
         (options.no_emit == Some(true), "noEmit"),
-        (options.import_helpers == Some(true), "importHelpers"),
         (options.no_check == Some(true), "noCheck"),
         (options.isolated_modules == Some(true), "isolatedModules"),
         (
@@ -268,7 +267,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_5g_profile();
+    let mut activity = H2ActivityCanary::h2_5h_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -331,6 +330,7 @@ pub fn emit_files_with_activity(
         PrinterOptions::new(new_line)
             .with_remove_comments(options.remove_comments == Some(true))
             .with_no_emit_helpers(options.no_emit_helpers == Some(true))
+            .with_import_helpers(options.import_helpers == Some(true))
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
