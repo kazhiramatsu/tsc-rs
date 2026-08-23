@@ -494,11 +494,10 @@ Forbidden: `crates/checker` (no checker change in this packet),
    fallback (`siblingNodePositionsAreComparable`: non-comparable
    sibling positions in a `MultiLine` list take one line, never the
    same-line space).
-6. **Census final (this head): 185 → 58 at the pre-revert bytes;
-   the B(i)-part-(b) revert returns the wrapper dup-comment rows
-   (h2-5h-ca-2a-r5) to the residual set — the re-measured count is
-   recorded in the merge-head PR body** (0 blocked either way),
-   measured on the §9.4 harness with all four scratch
+6. **Census final (the merge head, post-revert): 185 → 79**
+   (0 blocked; all write diffs; the pre-revert bytes measured 58 —
+   the §8-A.2 revert returns the 21 wrapper dup-comment rows, now
+   the named residual h2-5h-ca-2a-r5), measured on the §9.4 harness with all four scratch
    components restored (the frozen `patch_census.py` now carries the
    census command, the DUMP hook, the census-only activity-bookkeeping
    skip, and the CA-2b blocked-row compare — a worktree
@@ -524,10 +523,11 @@ Forbidden: `crates/checker` (no checker change in this packet),
    - **h2-5h-ca-2a-r3 — ES6/ESNext module-kind at ES5 target (4
      rows)**: es6modulekindWithES5Target ×2,
      esnextmodulekindWithES5Target ×2.
-   - **h2-5h-ca-2a-r5 — wrapper dup-comment dedup (the §8-A.2
-     revert)**: the class-IIFE wrapper re-emits a class's leading
-     comment inside the wrapper (accessorAccidentalCallDiagnostic
-     family); blocked on the linear `containerPos` printer model.
+   - **h2-5h-ca-2a-r5 — wrapper dup-comment dedup (21 rows, the
+     §8-A.2 revert)**: the class-IIFE wrapper re-emits a class's
+     leading comment inside the wrapper
+     (accessorAccidentalCallDiagnostic family); blocked on the
+     linear `containerPos` printer model.
    - **h2-5h-ca-2a-r4 — singles (~10 rows)**: decoratedBlockScopedClass
      ×2, awaitUsingDeclarationsInForOf ×2, blockScopedVariablesUseBeforeDef,
      emitAccessExpressionOfCastedObjectLiteral…, nestedLoops,

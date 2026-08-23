@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "7345816415921533a6271e55fc9748d9f4131ea480dde371e2651bdcab800ee4"
+    "sha256": "4f816d82e5fb81df5d82f60610b1f2dadac03a602c5bbf1d2843395b7658402e"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "0911de4a71bb6bd00cb86efb79721d20add9c6f1a5875561b97890fdcf04346b"
+    "sha256": "f82208842bbd9187ddc7ab64c8cd1537c5fbd0074ffb4e86e92f6d1b13f28989"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -32,7 +32,7 @@
       },
       "qualification": {
         "path": "ratchets/h2-5f-qualification.v1.json",
-        "sha256": "e1e32a4753453b11525889aa2bef26e02bb6f72dd60c3be9c1c901122631f022"
+        "sha256": "18ab03028c5b523a9735d80b29249074fc05946aea3473301c1d369772518298"
       },
       "owner_controls": {
         "path": "ratchets/h2-5f-owner-controls.v1.json",
@@ -67,7 +67,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-5g-qualification.v1.json",
-    "sha256": "84a07b04b5c5dfb02ba7e77f20e2e4d25a1fd7ac169c83cb0a8c6e0498bd97d2"
+    "sha256": "b6736d4e54ebe4c94c67222bb7b9d8897a422cd6342d813772dd6aa14ae1b60d"
   },
   "current_exact_promotions": [
     {
@@ -81,7 +81,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "ad0f7b9e1b16a79c86e47437a9a22c711c1cd9abefd33967700a84d31b75d6f0"
+        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
       }
     },
     {
@@ -95,7 +95,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "ad0f7b9e1b16a79c86e47437a9a22c711c1cd9abefd33967700a84d31b75d6f0"
+        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
       }
     },
     {
@@ -109,7 +109,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "ad0f7b9e1b16a79c86e47437a9a22c711c1cd9abefd33967700a84d31b75d6f0"
+        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
       }
     },
     {
@@ -123,7 +123,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "ad0f7b9e1b16a79c86e47437a9a22c711c1cd9abefd33967700a84d31b75d6f0"
+        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
       }
     },
     {
@@ -137,7 +137,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "ad0f7b9e1b16a79c86e47437a9a22c711c1cd9abefd33967700a84d31b75d6f0"
+        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
       }
     }
   ],
@@ -224,7 +224,7 @@
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "033bc28557bfe00d6b832c482ee9bb992b909e4fc0d80a01a91b0d1f8949961b"
+      "sha256": "f5f2579eb41e1c14acb439d660b416dab05f1cfb291d69b3e60b4d58338fd41e"
     },
     {
       "path": "crates/emitter/src/resolver.rs",
@@ -1152,7 +1152,7 @@
     },
     {
       "path": "crates/emitter/tests/unit/es2015/tests.rs",
-      "sha256": "76e8ae5cd05b2afcff706d7c80c5212d4aed73d1dc9eb12189cae4711f22242c"
+      "sha256": "35c880024913877a49767b532e121432e0087babcda59a8bf46c3d3e9424d1c1"
     },
     {
       "path": "crates/emitter/tests/unit/tagged_template/tests.rs",
@@ -1317,7 +1317,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "910d1c4a4b24f7dc5feb96282a3d4d0ae7a8f017ff73cd243e7cfb92b45e1036"
+      "sha256": "2e046e6f9b7597c9f9594f859d054280f1891459113099f31cc28af3806a0ceb"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -1342,5 +1342,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "fd325c14d09fe351eb146bdfb0f64692af5b0603fc5f528b17e2a34656f4e3c3"
+  "profile_fingerprint_sha256": "b63455fd0d462fab3edf826ab206488a4cca4bf7078a53c20a161dbd7329650e"
 }
