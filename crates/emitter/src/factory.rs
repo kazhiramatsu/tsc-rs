@@ -1337,6 +1337,24 @@ impl<'arena> NodeFactory<'arena> {
         Ok(updated)
     }
 
+    /// `setTextRange(nodeArray, location)` for a synthesized statements
+    /// array — the es2015 class-body/constructor lanes range the ARRAY to
+    /// the original members/body statements while the Block keeps its own
+    /// range policy (`_tsc.js:105239-105243`, `105300-105301`,
+    /// `105373-105381`).
+    pub fn set_node_array_text_range(
+        &mut self,
+        array: TransformNodeArray,
+        pos: u32,
+        end: u32,
+    ) -> Result<(), TransformError> {
+        let syntax = &mut self.arena.source_mut(array.source)?.source;
+        let record = syntax.arena.node_array_mut(array.array);
+        record.pos = pos;
+        record.end = end;
+        Ok(())
+    }
+
     /// tsc-port: cloneNode @6.0.3
     /// tsc-hash: d223dcea6ccf14e9212d40d5b8df188197023622ea3e5d624ffb974a25db19d6
     /// tsc-span: _tsc.js:24436-24466

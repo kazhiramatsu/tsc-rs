@@ -407,6 +407,122 @@ Forbidden: `crates/checker` (no checker change in this packet),
    re-examine the fix (the gate is the guard, never re-mint to
    fit).
 
+### §8-A. Implementation-time amendments (2026-08-24, recorded at the stop points)
+
+1. **C(iii) design correction — naming-moment order, not flat tree
+   order.** The first fix attempt (flat print-tree ordinals in the
+   finalize walk) broke the frozen loop-state oracle
+   (`projects_loop_capture_labeled_break`: outer `state_1`, inner
+   `state_2`). Verbatim-reading `generateNames`
+   (`_tsc.js:120515-120596`) settled the real discipline: the
+   pre-pass walks STATEMENT structure only — it never descends
+   into function expressions, and it inlines only
+   `ReuseTempVariableScope` FUNCTION DECLARATIONS
+   (120568-120574) — so a nested function body's generated names
+   resolve when its own emission pass runs. Ordinals therefore
+   sort by (naming-moment path, in-scope sequence): parents
+   before children, tree order within one scope. Landed as the
+   two-phase source-numbered assignment in
+   `target_bindings.rs` (`EnterNamingMoment`/`ExitNamingMoment`
+   moment boundaries for reuse-flagged function EXPRESSIONS,
+   which keep the parent uniqueness scope but delay the moment;
+   phase 2 pre-assigns the numbered family in sorted order; the
+   per-event numbered arm is now unreachable).
+2. **B(i) landed shape.** Part (a) as designed: the statements
+   NodeArray ranges at the three block constructions
+   (`transform_class_body`, `create_default_constructor_body`,
+   `transform_constructor_body`; new factory
+   `set_node_array_text_range`, the `update_node_array` range
+   idiom). Part (b) simplified against the packet's projection:
+   the VariableStatement's claim ALREADY rides `EmitContext`
+   through the wrapper chain (`for_child` preserves `comments`;
+   synthesized wrapper edges claim `None` sides which inherit) —
+   the gap was the CONSUMER: the multi-line Block statement
+   loop's Normal leading branch never consulted
+   `expression_context.comments().container_pos()`. Landed as
+   the `parent_comment_container_owned_prefix_for_owner`
+   consultation in that branch (printer.rs; the one-edge
+   projection generalizes to the inherited ambient claim).
+3. **B(iii) landed shape.** The printer's detached-comment
+   order machinery (prologue → detached header → helpers →
+   statements) and the ownership predicate were already exact;
+   the defect was upstream of both: es2015
+   `visit_source_file` rebuilt the SourceFile statements array
+   WITHOUT the `updateSourceFile` `setTextRange(...,
+   node.statements)`, so the predicate's Original-range gate
+   failed. Landed as the array range copy in
+   `visit_source_file`. Oracle probes pinned the blank-line
+   split rule both ways (detached header before helpers WITH a
+   blank line; attached comment stays with its statement
+   without one).
+4. **A/D landed shape.** The four-condition guard is OPEN —
+   including the decorated lanes: upstream promotes
+   unconditionally at `languageVersion < ES2015` (94436/94448)
+   and both decorator transformers plus the `__metadata`
+   machinery exist in-tree, so the seam refusal (not a missing
+   owner) was the only blocker. `moveModifiers` landed as
+   modifier elision inside the promote
+   (`elide_moved_class_modifiers`) + the external-module lane
+   split in the new `visit_top_level_class_declaration`
+   (SourceFile dispatch arm): named export → wrapper statement +
+   `export { X }`; default → wrapper + `export default X`;
+   namespace-exported classes ride the EXISTING
+   `visit_namespace_exported_declaration` splice. The census is
+   the judge for the decorated subset; rows that still diverge
+   re-classify per §9.3's typed-deferral clause.
+
+5. **Census-driven residual fixes beyond the six §5 families** (the
+   census surfaced these at the packet's write-diff sweep; each fixed
+   in-train with an oracle-pinned witness): the printer NUL escape
+   (`getReplacement`, `_tsc.js:16301-16310` — `\0`, or `\x00` before
+   a digit; 12 rows), the AMD/CJS dynamic-import ES5 forks
+   (`createImportCallExpressionAMD/CommonJS`,
+   `_tsc.js:111009-111167` — function expressions below ES2015 plus
+   the `"".concat` sync-eval coercion; 9 rows), the derived
+   generated-binding flavor (`getGeneratedNameForNode` over a
+   generated identifier: for-await result/catch temps re-derive from
+   the base binding's FINAL spelling; metadata
+   `generated_binding_derived_from` + the phase-1 upgrade-merge for
+   Generators-rebuilt identifiers), and the multi-line list separator
+   fallback (`siblingNodePositionsAreComparable`: non-comparable
+   sibling positions in a `MultiLine` list take one line, never the
+   same-line space).
+6. **Census final (this head): 185 → 58** (0 blocked; all write
+   diffs), measured on the §9.4 harness with all four scratch
+   components restored (the frozen `patch_census.py` now carries the
+   census command, the DUMP hook, the census-only activity-bookkeeping
+   skip, and the CA-2b blocked-row compare — a worktree
+   `git checkout -- crates/` wiped them mid-train and each was
+   re-derived from the session transcript). Typed residuals per §9.3,
+   named for the follow-up owner:
+   - **h2-5h-ca-2a-r1 — statics placement + static this/super alias
+     plumbing for wrapped classes (~20 rows)**:
+     typeOfThisInStaticMembers ×7, thisAndSuperInStaticMembers ×2,
+     superInStaticMembers1, staticPropertyNameConflicts ×2,
+     classStaticBlock ×2, classInConvertedLoopES5,
+     complexClassRelationships, derivedClassWithPrivate* ×2,
+     classAbstractAccessor, accessorsOverrideProperty7, autoAccessor5,
+     derivedClassSuperStatementPosition. Mechanism (recon'd, dumps in
+     the session scratchpad): the class-fields statics-inside routing
+     for `TypeScriptClassWrapper` classes (`_tsc.js:97004-97009`) and
+     the `_a = CC` class-alias assignment placement/substitution.
+   - **h2-5h-ca-2a-r2 — lone-surrogate cooked-text fidelity (4
+     rows)**: unicodeExtendedEscapesInStrings/Templates 10-11 —
+     `\u{D800}` cooks to U+FFFD through the `String` pipeline; the
+     fix needs WTF-16-faithful cooked text (a data-model change, out
+     of packet scope by the §12 stop rule).
+   - **h2-5h-ca-2a-r3 — ES6/ESNext module-kind at ES5 target (4
+     rows)**: es6modulekindWithES5Target ×2,
+     esnextmodulekindWithES5Target ×2.
+   - **h2-5h-ca-2a-r4 — singles (~10 rows)**: decoratedBlockScopedClass
+     ×2, awaitUsingDeclarationsInForOf ×2, blockScopedVariablesUseBeforeDef,
+     emitAccessExpressionOfCastedObjectLiteral…, nestedLoops,
+     newLexicalEnvironmentForConvertedLoop, asyncAwait_es5,
+     asyncImportedPromise_es5, emitter.asyncGenerators.classMethods,
+     computedPropertyNames1/12, destructuringVariableDeclaration1ES5iterable,
+     invalidNewTarget/newTarget, ES5For-of37, objectRestParameterES5,
+     thisTypeInAccessors.
+
 ## 9. Acceptance
 
 1. Focused tests per step green (oracle-byte projections; no

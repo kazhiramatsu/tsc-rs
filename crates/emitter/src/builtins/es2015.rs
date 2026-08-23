@@ -2449,6 +2449,31 @@ impl Es2015Visitor<'_, '_, '_> {
                 .factory()?
                 .create_node_array(source, combined)?
         };
+        // `updateSourceFile` ranges the fresh statements array to the
+        // original (`setTextRange(factory.createNodeArray(statements),
+        // node.statements)`) so the printer's detached-comment ownership
+        // predicate still sees the parsed body span (H2.5h CA-2a B(iii)).
+        let original_statements = {
+            let NodeData::SourceFile(data) = &self.context.arena().node(node)?.data else {
+                return Err(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::SourceFile,
+                    field: "source file",
+                });
+            };
+            data.statements
+        };
+        if let Some(original_statements) = original_statements {
+            let (pos, end) = {
+                let array = self
+                    .context
+                    .arena()
+                    .node_array(tsc_syntax_array(self.source, original_statements))?;
+                (array.pos, array.end)
+            };
+            self.context
+                .factory()?
+                .set_node_array_text_range(statements_array, pos, end)?;
+        }
         let updated_data = {
             let NodeData::SourceFile(data) = &self.context.arena().node(node)?.data else {
                 return Err(TransformError::RequiredChildRemoved {
@@ -4903,6 +4928,17 @@ impl Es2015Visitor<'_, '_, '_> {
             | NodeData::ArrowFunction(_)
             | NodeData::ClassExpression(_) => {}
             _ => return Ok(None),
+        }
+        // A class-fields alias rewrite made the CURRENT parent a
+        // generated-alias assignment; upstream's harvest then yields the
+        // generated LHS, which the `!isGeneratedIdentifier` guard rejects.
+        if self
+            .context
+            .arena()
+            .metadata(node)
+            .is_some_and(super::super::EmitMetadata::class_expression_alias_assigned)
+        {
+            return Ok(None);
         }
         let Some(original) = self.context.arena().parse_tree_node(node)? else {
             return Ok(None);
@@ -8299,6 +8335,12 @@ impl Es2015Visitor<'_, '_, '_> {
         let environment = self.context.end_lexical_environment()?;
         self.insert_statements_after_standard_prologue_materialized(&mut statements, environment)?;
         let block = self.create_block(statements, /*multi_line*/ true)?;
+        let members = match &self.context.arena().node(node)?.data {
+            NodeData::ClassDeclaration(data) => data.members,
+            NodeData::ClassExpression(data) => data.members,
+            _ => None,
+        };
+        self.set_block_statements_range_to_array(block, members)?;
         self.add_emit_flags(block, EmitFlags::NO_COMMENTS)?;
         Ok(block)
     }
@@ -8325,6 +8367,40 @@ impl Es2015Visitor<'_, '_, '_> {
             return Ok(false);
         };
         Ok(is_non_contextual_keyword_text(&data.escaped_text))
+    }
+
+    /// `setTextRange(factory.createNodeArray(statements), location)` — the
+    /// class-body/constructor lanes range the synthesized statements ARRAY
+    /// to an original array location (members / body statements) so the
+    /// printer's comment `containerPos` machinery sees the original span
+    /// (H2.5h CA-2a B(i); `_tsc.js:105239-105243`, `105300-105301`,
+    /// `105373-105381`).
+    fn set_block_statements_range_to_array(
+        &mut self,
+        block: TransformNode,
+        location: Option<NodeArrayId>,
+    ) -> Result<(), TransformError> {
+        let Some(location) = location else {
+            return Ok(());
+        };
+        let (pos, end) = {
+            let array = self
+                .context
+                .arena()
+                .node_array(tsc_syntax_array(self.source, location))?;
+            (array.pos, array.end)
+        };
+        let statements = {
+            let NodeData::Block(data) = &self.context.arena().node(block)?.data else {
+                return Err(assembly_kind_error(SyntaxKind::Block, "ranged block"));
+            };
+            data.statements
+                .ok_or(assembly_kind_error(SyntaxKind::Block, "block statements"))?
+        };
+        let array = tsc_syntax_array(self.source, statements);
+        self.context
+            .factory()?
+            .set_node_array_text_range(array, pos, end)
     }
 
     /// Raw byte-position range writer (the close-brace/`skipTrivia` ranges
@@ -8496,6 +8572,12 @@ impl Es2015Visitor<'_, '_, '_> {
             statements.push(self.create_return_statement(Some(super_call))?);
         }
         let block = self.create_block(statements, /*multi_line*/ true)?;
+        let members = match &self.context.arena().node(node)?.data {
+            NodeData::ClassDeclaration(data) => data.members,
+            NodeData::ClassExpression(data) => data.members,
+            _ => None,
+        };
+        self.set_block_statements_range_to_array(block, members)?;
         self.set_text_range(block, node)?;
         self.add_emit_flags(block, EmitFlags::NO_COMMENTS)?;
         Ok(block)
@@ -8700,6 +8782,11 @@ impl Es2015Visitor<'_, '_, '_> {
         let mut combined = prologue;
         combined.append(&mut statements);
         let body = self.create_block(combined, /*multi_line*/ true)?;
+        let original_statements = match &self.context.arena().node(constructor_body)?.data {
+            NodeData::Block(data) => data.statements,
+            _ => None,
+        };
+        self.set_block_statements_range_to_array(body, original_statements)?;
         self.set_text_range(body, constructor_body)?;
         self.simplify_constructor(body, constructor_body, has_synthesized_super)
     }

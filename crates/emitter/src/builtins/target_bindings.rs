@@ -121,6 +121,7 @@ pub(super) struct TargetBinding {
     preferred_name_domain: Option<PreferredNameDomain>,
     ordinary_temp_name_policy: OrdinaryTempNamePolicy,
     reserve_in_nested_scopes: bool,
+    derived_from: Option<GeneratedBindingId>,
 }
 
 impl TargetBinding {
@@ -162,6 +163,7 @@ impl TargetBinding {
                 OrdinaryTempNamePolicy::FinalizerTraversal
             },
             reserve_in_nested_scopes,
+            derived_from: None,
         }
     }
 
@@ -178,6 +180,7 @@ impl TargetBinding {
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
             reserve_in_nested_scopes: false,
+            derived_from: None,
         })
     }
 
@@ -194,6 +197,7 @@ impl TargetBinding {
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::PlannedSpellingAuthoritative,
             reserve_in_nested_scopes: false,
+            derived_from: None,
         })
     }
 
@@ -212,6 +216,29 @@ impl TargetBinding {
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::LoopVariable,
             reserve_in_nested_scopes: false,
+            derived_from: None,
+        })
+    }
+
+    /// `getGeneratedNameForNode` over another generated identifier: the
+    /// ordinal appends to the BASE BINDING's finalized spelling (H2.5h
+    /// CA-2a C(iii) residual); the recorded text base is the fallback when
+    /// the finalize never assigned the base (planned-authoritative bases).
+    pub(super) fn allocate_numbered_derived(
+        context: &mut TransformationContext,
+        base: &Self,
+        provisional_name: String,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
+            id: context.allocate_generated_binding_id()?,
+            provisional_name,
+            numbered_base: Some(base.provisional_name.clone()),
+            preferred_base: None,
+            preferred_role_suffix: None,
+            preferred_name_domain: None,
+            ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
+            reserve_in_nested_scopes: false,
+            derived_from: Some(base.id),
         })
     }
 
@@ -228,6 +255,7 @@ impl TargetBinding {
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
             reserve_in_nested_scopes: true,
+            derived_from: None,
         })
     }
 
@@ -244,6 +272,7 @@ impl TargetBinding {
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::PlannedSpellingAuthoritative,
             reserve_in_nested_scopes: true,
+            derived_from: None,
         })
     }
 
@@ -261,6 +290,7 @@ impl TargetBinding {
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
             reserve_in_nested_scopes: false,
+            derived_from: None,
         })
     }
 
@@ -278,6 +308,7 @@ impl TargetBinding {
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
             reserve_in_nested_scopes: true,
+            derived_from: None,
         })
     }
 
@@ -295,6 +326,7 @@ impl TargetBinding {
             preferred_name_domain: Some(PreferredNameDomain::ScopedOptimistic),
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
             reserve_in_nested_scopes: true,
+            derived_from: None,
         })
     }
 
@@ -312,6 +344,7 @@ impl TargetBinding {
             preferred_name_domain: Some(PreferredNameDomain::FileLevelOptimistic),
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
             reserve_in_nested_scopes: true,
+            derived_from: None,
         })
     }
 
@@ -330,6 +363,7 @@ impl TargetBinding {
             preferred_name_domain: Some(PreferredNameDomain::ScopedOptimistic),
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::FinalizerTraversal,
             reserve_in_nested_scopes: true,
+            derived_from: None,
         })
     }
 
@@ -389,12 +423,23 @@ impl TargetBinding {
         if self.reserve_in_nested_scopes {
             metadata.reserve_generated_binding_in_nested_scopes();
         }
+        if let Some(base) = self.derived_from {
+            metadata.set_generated_binding_derived_from(base);
+        }
     }
 }
 
 #[derive(Clone, Debug)]
 enum BindingNameEvent {
     EnterScope(GeneratedBindingOwner),
+    /// A naming-moment boundary WITHOUT a uniqueness scope: a
+    /// `ReuseTempVariableScope` function expression continues the enclosing
+    /// temp alphabet, but its body's generated names still resolve when its
+    /// own emission pass runs (`generateNames` never descends into function
+    /// expressions, `_tsc.js:120556-120574`), so source-numbered ordinals
+    /// order after every enclosing-pass name (H2.5h CA-2a C(iii)).
+    EnterNamingMoment,
+    ExitNamingMoment,
     Identifier {
         node: TransformNode,
         binding: GeneratedBindingId,
@@ -405,6 +450,7 @@ enum BindingNameEvent {
         ordinary_temp_name_policy: OrdinaryTempNamePolicy,
         planned_name: String,
         reserve_in_nested_scopes: bool,
+        derived_from: Option<GeneratedBindingId>,
     },
     ExitScope,
 }
@@ -477,8 +523,91 @@ pub(super) fn finalize_generated_binding_names(
     let mut scope_stack = Vec::new();
     let mut assigned = BTreeMap::<GeneratedBindingId, String>::new();
     let mut node_names = BTreeMap::<TransformNode, String>::new();
+    // Source-numbered assignment order: upstream names a scope's own
+    // declarations in that scope's pass, parents before children
+    // (`generateNames` does not descend into nested function bodies; a
+    // nested scope's names are assigned when its emission pass runs), so
+    // ordinals sort by (scope path, in-scope sequence) — the
+    // renumber_state_bindings discipline generalized (H2.5h CA-2a
+    // C(iii)). Phase 1 records the numbered events; phase 2 assigns in
+    // that order before the per-node name map is written.
+    struct NumberedAssignment {
+        moment_path: Vec<u32>,
+        sequence: usize,
+        binding: GeneratedBindingId,
+        base: String,
+        reserve_in_nested_scopes: bool,
+        derived_from: Option<GeneratedBindingId>,
+    }
+    let mut numbered_order: Vec<NumberedAssignment> = Vec::new();
+    let mut scope_path: Vec<u32> = Vec::new();
+    let mut scope_ordinal: u32 = 0;
+    let mut sequence: usize = 0;
+    for event in &events {
+        match event {
+            BindingNameEvent::EnterScope(_) | BindingNameEvent::EnterNamingMoment => {
+                scope_ordinal += 1;
+                scope_path.push(scope_ordinal);
+            }
+            BindingNameEvent::ExitScope | BindingNameEvent::ExitNamingMoment => {
+                scope_path.pop();
+            }
+            BindingNameEvent::Identifier {
+                binding,
+                numbered_base: Some(base),
+                preferred_base: None,
+                preferred_role_suffix: None,
+                preferred_name_domain: None,
+                reserve_in_nested_scopes,
+                derived_from,
+                ..
+            } => {
+                if let Some(existing) = numbered_order
+                    .iter_mut()
+                    .find(|entry| entry.binding == *binding)
+                {
+                    // A re-materialized identifier (the Generators pass
+                    // rebuilds hoisted declaration lists) may carry fuller
+                    // metadata than the binding's first event; keep the
+                    // derived-from link whichever event carries it.
+                    if existing.derived_from.is_none() {
+                        existing.derived_from = *derived_from;
+                    }
+                } else {
+                    sequence += 1;
+                    numbered_order.push(NumberedAssignment {
+                        moment_path: scope_path.clone(),
+                        sequence,
+                        binding: *binding,
+                        base: base.clone(),
+                        reserve_in_nested_scopes: *reserve_in_nested_scopes,
+                        derived_from: *derived_from,
+                    });
+                }
+            }
+            BindingNameEvent::Identifier { .. } => {}
+        }
+    }
+    numbered_order.sort_by(|a, b| {
+        a.moment_path
+            .cmp(&b.moment_path)
+            .then(a.sequence.cmp(&b.sequence))
+    });
+    for entry in &numbered_order {
+        // A derived binding appends its ordinal to the base binding's
+        // FINALIZED spelling (`getGeneratedNameForNode`); the recorded
+        // text base covers bases outside the numbered family.
+        let base = entry
+            .derived_from
+            .and_then(|parent| assigned.get(&parent).cloned())
+            .unwrap_or_else(|| entry.base.clone());
+        let name =
+            scopes.allocate_source_numbered_with_policy(&base, entry.reserve_in_nested_scopes);
+        assigned.insert(entry.binding, name);
+    }
     for event in events {
         match event {
+            BindingNameEvent::EnterNamingMoment | BindingNameEvent::ExitNamingMoment => {}
             BindingNameEvent::EnterScope(owner) => {
                 scope_stack.push(scopes.enter(owner));
             }
@@ -492,6 +621,7 @@ pub(super) fn finalize_generated_binding_names(
                 ordinary_temp_name_policy,
                 planned_name,
                 reserve_in_nested_scopes,
+                derived_from: _,
             } => {
                 let name = assigned
                     .entry(binding)
@@ -532,14 +662,14 @@ pub(super) fn finalize_generated_binding_names(
                                 planned_name,
                                 reserve_in_nested_scopes,
                             ),
-                            (Some(base), None, None, None) if reserve_in_nested_scopes => scopes
-                                .allocate_source_planned_numbered_with_policy(
-                                    &base,
-                                    planned_name,
-                                    true,
-                                ),
                             (Some(base), None, None, None) => {
-                                scopes.allocate_source_planned_numbered(&base, planned_name)
+                                // Pre-assigned in phase 2 (scope-pass
+                                // order); reaching this arm means the
+                                // binding escaped phase 1.
+                                let _ = (&base, &planned_name);
+                                unreachable!(
+                                    "source-numbered binding missed the scope-pass assignment"
+                                )
                             }
                             (None, None, None, None) => allocate_ordinary_temp_name(
                                 &mut scopes,
@@ -616,6 +746,62 @@ fn collect_binding_name_events(
             .flags()
             .contains(EmitFlags::REUSE_TEMP_VARIABLE_SCOPE)
     });
+    if !scope_root
+        && is_function_scope_kind(record.kind)
+        && reuses_enclosing_temp_scope
+        && record.kind != SyntaxKind::FunctionDeclaration
+    {
+        // A reuse-flagged FUNCTION DECLARATION inlines into the parent's
+        // naming moment at its tree position (`_tsc.js:120568-120574`);
+        // every other reuse-flagged function-like keeps the parent
+        // uniqueness scope but delays its body's naming moment.
+        let body = match &record.data {
+            NodeData::ArrowFunction(data) => data.body,
+            NodeData::Constructor(data) => data.body,
+            NodeData::FunctionExpression(data) => data.body,
+            NodeData::GetAccessor(data) => data.body,
+            NodeData::MethodDeclaration(data) => data.body,
+            NodeData::SetAccessor(data) => data.body,
+            _ => None,
+        };
+        let syntax = arena.source(source)?.syntax();
+        let mut surface = Vec::new();
+        let mut scoped = Vec::new();
+        for_each_child(&syntax.arena, &record, |child| {
+            let child_node = TransformNode::new(source, child);
+            if Some(child) == body
+                || arena
+                    .node(child_node)
+                    .is_ok_and(|record| record.kind == SyntaxKind::Parameter)
+            {
+                scoped.push(child);
+            } else {
+                surface.push(child);
+            }
+            false
+        });
+        for child in surface {
+            collect_binding_name_events(
+                arena,
+                source,
+                TransformNode::new(source, child),
+                false,
+                events,
+            )?;
+        }
+        events.push(BindingNameEvent::EnterNamingMoment);
+        for child in scoped {
+            collect_binding_name_events(
+                arena,
+                source,
+                TransformNode::new(source, child),
+                false,
+                events,
+            )?;
+        }
+        events.push(BindingNameEvent::ExitNamingMoment);
+        return Ok(());
+    }
     if !scope_root && is_function_scope_kind(record.kind) && !reuses_enclosing_temp_scope {
         // tsc changes its generated-name scope after visiting the
         // function-like declaration surface. In particular, a computed method
@@ -764,6 +950,9 @@ fn collect_binding_name_events(
                 });
             }
         };
+        let derived_from = arena
+            .metadata(node)
+            .and_then(|metadata| metadata.generated_binding_derived_from());
         events.push(BindingNameEvent::Identifier {
             node,
             binding,
@@ -774,6 +963,7 @@ fn collect_binding_name_events(
             ordinary_temp_name_policy,
             planned_name,
             reserve_in_nested_scopes,
+            derived_from,
         });
     }
     let syntax = arena.source(source)?.syntax();

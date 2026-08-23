@@ -429,6 +429,19 @@ pub struct EmitMetadata {
     /// the scope's slot is free, the ordinary temp sequence otherwise
     /// (`makeTempVariableName`, `_tsc.js:120703-120740`).
     pub(crate) generated_binding_loop_variable: bool,
+    /// Whether a class-fields lowering rewrote this class expression's
+    /// evaluation into a generated-alias assignment (`class_1 = class ...`):
+    /// the assigned-name harvest must then see the GENERATED left-hand side
+    /// (which `getName`'s `!isGeneratedIdentifier` guard rejects), not the
+    /// parse-tree assignment target (H2.5h CA-2a C(ii) under the class-temp
+    /// rewrite, `_tsc.js:24788-24798` with the transformed `.parent`).
+    pub(crate) class_expression_alias_assigned: bool,
+    /// The binding whose FINAL name this source-numbered binding derives
+    /// from (`getGeneratedNameForNode` over another generated identifier:
+    /// the for-await iterator-result/catch temps append their ordinal to the
+    /// base binding's resolved spelling, not its visit-time text — H2.5h
+    /// CA-2a C(iii) residual).
+    pub(crate) generated_binding_derived_from: Option<GeneratedBindingId>,
 }
 
 impl EmitMetadata {
@@ -645,6 +658,22 @@ impl EmitMetadata {
 
     pub(crate) fn mark_generated_binding_loop_variable(&mut self) {
         self.generated_binding_loop_variable = true;
+    }
+
+    pub(crate) const fn class_expression_alias_assigned(&self) -> bool {
+        self.class_expression_alias_assigned
+    }
+
+    pub(crate) fn mark_class_expression_alias_assigned(&mut self) {
+        self.class_expression_alias_assigned = true;
+    }
+
+    pub(crate) const fn generated_binding_derived_from(&self) -> Option<GeneratedBindingId> {
+        self.generated_binding_derived_from
+    }
+
+    pub(crate) fn set_generated_binding_derived_from(&mut self, value: GeneratedBindingId) {
+        self.generated_binding_derived_from = Some(value);
     }
 
     /// tsc-port: mergeEmitNode @6.0.3

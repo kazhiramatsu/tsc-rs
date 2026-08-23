@@ -2138,6 +2138,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let initializer = if let Some(binding) = initializer_binding.as_ref() {
                 self.register_class_alias(decorated.declaration, binding)?;
                 let target = self.create_binding_identifier(binding)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(class)
+                    .mark_class_expression_alias_assigned();
                 self.create_assignment(target, class)?
             } else {
                 class
@@ -2163,6 +2167,10 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         // comma expression owns the temporary class value and every ordered
         // static operation, then yields the class binding.
         let target = self.create_binding_identifier(&binding)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(class)
+            .mark_class_expression_alias_assigned();
         let assign_class = self.create_assignment(target, class)?;
         if self.class_this_binding(original).is_some() {
             if let Some(owner) = self.variable_statement_expansion_owner(original)? {
