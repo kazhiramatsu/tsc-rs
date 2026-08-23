@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "2ecb07a0e143466d9839e90a5d50b180dec147b1a51abe945d0de028f8a1b472";
+  "b9bbf100396bb62f9d2549ca2aa762a57a6fc649ba5758376835b75f049cfe81";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -78,7 +78,7 @@ const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
   ["profile", "ratchets/h2-5f-profile.v1.json", "68c3c6ed51afa36a668aaf6fa338df2da87d6cbaad4740be25e8733be1a45b73"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "53fecbd32ea42327013dc2cc235d0cac26096efc63e0a97bad53269b81018749"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "29dde26e720906f46075bf54652be1e5a213e4e0481621f52fd107e94d81e875"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
   ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "d5593648869817dde318c26156d4b025298fbdf411fe67a5c89fc6df8e5a715d"],
   ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "72773d747b0da690f7614dbd16755e5904aa617cc8e0b0f6573edbb84c342fad"],
@@ -96,6 +96,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/checker/Cargo.toml",
   "crates/checker/src/access.rs",
   "crates/checker/src/check.rs",
+  "crates/checker/src/class.rs",
   "crates/checker/src/constraints.rs",
   "crates/checker/src/contextual.rs",
   "crates/checker/src/elaboration.rs",
@@ -143,6 +144,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/checker/tests/unit/structural/tests.rs",
   "crates/checker/tests/unit/unions/tests.rs",
   "crates/checker/tests/unit/variance/tests.rs",
+  "crates/compiler/tests/contracts.rs",
   "crates/compiler/tests/integration/es2015_generators_witness_contract.rs",
   "crates/compiler/tests/integration/filesystem_loader_contract.rs",
   "crates/compiler/tests/unit/lib/tests.rs",
@@ -544,7 +546,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 250,
+    runtimeInputSet.size === 252,
     "H2.5g runtime input identity changed",
   );
 

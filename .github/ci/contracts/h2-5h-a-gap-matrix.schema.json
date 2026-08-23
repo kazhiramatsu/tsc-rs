@@ -115,7 +115,7 @@
         "pinned_rust_files": {
           "type": "integer",
           "minimum": 5,
-          "maximum": 20
+          "maximum": 24
         },
         "rust_runs": { "const": 0 },
         "runtime_admissions_delta": { "const": 0 }

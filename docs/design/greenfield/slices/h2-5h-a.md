@@ -270,7 +270,9 @@ substitutes for a per-packet gate.
      `[transformES2015, transformGenerators]` registration
      (`languageVersion < ES2015`), the 32-case witness fixture gate
      (the CS-6 analog: frozen bytes are the entire expectation), and
-     requalification.
+     requalification. **LANDED at `0382bb3a`
+     (2026-08-23, [B-5 packet](h2-5h-b-b-5.md)); the ladder is
+     COMPLETE and the joint pass is live.**
 
 **Packet checker** (step 7; also the envelope's proof commands): all of
 

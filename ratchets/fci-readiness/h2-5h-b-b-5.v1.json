@@ -5,7 +5,7 @@
   "trustedBase": "7308f9fcf4320b4e81ac4858264161d9dfadcc91",
   "packet": {
     "path": "docs/design/greenfield/slices/h2-5h-b-b-5.md",
-    "sha256": "60dc4c46ee328604f58d53719c88416081b12e037284bd5e0cb1c6f18fac31b8"
+    "sha256": "bef6734aa1f6312ee725e07d892956a66dc5f7126c54b74da7ca4b60fc1e4e5d"
   },
   "predecessors": [
     {
@@ -83,7 +83,10 @@
     "crates/emitter/src/builtins/es2021.rs",
     "crates/emitter/src/builtins/generators.rs",
     "crates/checker/src/class.rs",
-    "crates/checker/src/modules.rs"
+    "crates/checker/src/modules.rs",
+    "crates/emitter/src/transform.rs",
+    "crates/emitter/src/builtins/target_bindings.rs",
+    "crates/emitter/tests/unit/builtins/tests.rs"
   ],
   "forbiddenPrefixes": [
     "crates/binder",

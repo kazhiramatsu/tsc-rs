@@ -7,21 +7,21 @@
   "plan_step": "prerequisite-transition-step-3",
   "generator": {
     "path": "crates/oracle/h2-5h-a-gap-matrix.mjs",
-    "sha256": "6353c33b8c8c15f52b7121e83b793ef82fb08f6feeaa3cc1762f12c3dfa23814"
+    "sha256": "7ac0c142902e2bd0e3bd13d3a0b73fee5a9d07a152ead311501ca64c5e20ada5"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-gap-matrix.schema.json",
-    "sha256": "28de6bb2ac74b8f02e437323024414ec1cc60ec70f8c6e0a60ad02f2303a8375"
+    "sha256": "2fd36bed09c3592ffedd4a15c245c3fe36def20f4b834f723c2f938b59f60c9d"
   },
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "963277b12533b854a325dcb782e0ede6b79e5eba83baa269ca35dacce2ea5cd4"
+      "sha256": "287305f8528cce22505ef4c1701772272bf1b54843e56597d28c567928c15aa8"
     },
-    "owner_graph_fingerprint_sha256": "f41c4a0b271a22769894aad67dd1f2d25858ec5024d80ab4669e3167cd94fbf5",
+    "owner_graph_fingerprint_sha256": "9a706ee67be03fe4d23a8c1a869a1958fd7c64f09972430933715834dd248a18",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
-      "sha256": "115c09ebd78dab08fb8ee19a88dd9939b204e43b33a016864a7d38b02ad01845"
+      "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
     },
     "interpretation": "prerequisite-transition step 3 records the current Rust capability states against the frozen owner graph; a landed implementation breaks its pinned absence and forces re-disposition; it edits no production code and activates nothing"
   },
@@ -30,7 +30,7 @@
       "index": 0,
       "capability_id": "pass-registration-boundary",
       "state": "exists",
-      "requirement": "joint transformES2015+transformGenerators registration for target below ES2015; today the boundary is a typed fail-closed rejection",
+      "requirement": "joint transformES2015+transformGenerators registration for target below ES2015",
       "surfaces": [
         "hook-composition"
       ],
@@ -41,16 +41,32 @@
       "anchors": [
         {
           "path": "crates/emitter/src/builtins.rs",
-          "symbol": "older targets belong to later target-ladder slices",
+          "symbol": "es2015::transform_es2015(options, resolver)",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "e3c27f2472b21fa529d186523d9bef4cc72883e0c4e98192a4513288065843fd"
+            "sha256": "ea302962b7e6767c2a966684defa17a03ca20c795b4795b3672a7be6e688dada"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins.rs",
+          "symbol": "generators::transform_generators(target, resolver)",
+          "file": {
+            "path": "crates/emitter/src/builtins.rs",
+            "sha256": "ea302962b7e6767c2a966684defa17a03ca20c795b4795b3672a7be6e688dada"
+          }
+        },
+        {
+          "path": "crates/emitter/src/activity.rs",
+          "symbol": "pub const fn h2_5h_profile()",
+          "file": {
+            "path": "crates/emitter/src/activity.rs",
+            "sha256": "15e76b372403e8df8c25efa116261a032fc26dad9cd9b1df93901857f7908cc5"
           }
         }
       ],
       "absences": [],
-      "note": "the dormant seam this packet eventually activates; activation stays with H2.5h-b+",
-      "capability_fingerprint_sha256": "35350ab8f02caf6face5142ec197f363b3c3a41fc42916da92fa7136feb3a079"
+      "note": "B-5 landed the live registration: the ES5 admission floor, the H2.5h activity profile, and the joint push in the upstream order (_tsc.js:115942-115945), verified end-to-end by the 32-case witness gate",
+      "capability_fingerprint_sha256": "3557f9ec7683f68e7bd04ff98e5045c54c007433a57cc88e7e14d8730c491c5a"
     },
     {
       "index": 1,
@@ -69,7 +85,7 @@
           "symbol": "pub struct LexicalEnvironment",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+            "sha256": "29c2e8f3352bc8df6b52e27179fe5ba963cdac5a7c7aa87850442449bfc8f317"
           }
         },
         {
@@ -77,7 +93,7 @@
           "symbol": "lexical_environment_stack",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+            "sha256": "29c2e8f3352bc8df6b52e27179fe5ba963cdac5a7c7aa87850442449bfc8f317"
           }
         },
         {
@@ -85,13 +101,13 @@
           "symbol": "lexical_environment_suspended",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+            "sha256": "29c2e8f3352bc8df6b52e27179fe5ba963cdac5a7c7aa87850442449bfc8f317"
           }
         }
       ],
       "absences": [],
       "note": null,
-      "capability_fingerprint_sha256": "e1095d5a123ad1f1a9961091663934f6f527891c1bb7a282207dfe25a828698f"
+      "capability_fingerprint_sha256": "3c48ab0abce88421c08291e3fd6e24986e005e8523b8e6be086edf18c2466ee0"
     },
     {
       "index": 2,
@@ -110,7 +126,7 @@
           "symbol": "pub fn create_node",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "daab0274701e95907c6eb6337f288fefa6f58b4d755dbfb1db10f5cb610558c0"
+            "sha256": "6a605a00f74b0f8cb6a96f4db42533cf835bc9b4a09fee512476dff2c8c20425"
           }
         },
         {
@@ -118,13 +134,13 @@
           "symbol": "pub fn create_node_array",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "daab0274701e95907c6eb6337f288fefa6f58b4d755dbfb1db10f5cb610558c0"
+            "sha256": "6a605a00f74b0f8cb6a96f4db42533cf835bc9b4a09fee512476dff2c8c20425"
           }
         }
       ],
       "absences": [],
       "note": null,
-      "capability_fingerprint_sha256": "02afc5356357d1b51e1a25b11b015138b1ac1d61c077277ed8cc36d590a2a603"
+      "capability_fingerprint_sha256": "9d3e7cf2f924b99139610a4a1e54161fef156152a5c63f9d4479f5f31b929661"
     },
     {
       "index": 3,
@@ -144,7 +160,7 @@
           "symbol": "pub fn propagate_child_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "daab0274701e95907c6eb6337f288fefa6f58b4d755dbfb1db10f5cb610558c0"
+            "sha256": "6a605a00f74b0f8cb6a96f4db42533cf835bc9b4a09fee512476dff2c8c20425"
           }
         },
         {
@@ -152,7 +168,7 @@
           "symbol": "fn classify_created_node_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "daab0274701e95907c6eb6337f288fefa6f58b4d755dbfb1db10f5cb610558c0"
+            "sha256": "6a605a00f74b0f8cb6a96f4db42533cf835bc9b4a09fee512476dff2c8c20425"
           }
         },
         {
@@ -160,7 +176,7 @@
           "symbol": "fn classify_created_token_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "daab0274701e95907c6eb6337f288fefa6f58b4d755dbfb1db10f5cb610558c0"
+            "sha256": "6a605a00f74b0f8cb6a96f4db42533cf835bc9b4a09fee512476dff2c8c20425"
           }
         },
         {
@@ -174,7 +190,7 @@
       ],
       "absences": [],
       "note": "B-1 landed the EA-GAP-FLAGS postorder classifier: per-created-kind facet tables ported from the owner-called creators, aggregated through propagate_child_flags; the eight TransformFlags facets of the nine-facet qualification surface carry table contracts (the ninth is the resolver-side NodeCheckFlags fact)",
-      "capability_fingerprint_sha256": "80a036898d8e65ad36bf6585c2d44beb0b3858b3053737cb1a987b16437203e0"
+      "capability_fingerprint_sha256": "6c4658458d42be260f83657a75eb7f5a8132e8276e7ae10ec73a7129c0f425fb"
     },
     {
       "index": 4,
@@ -193,7 +209,7 @@
           "symbol": "pub fn substitution_factory",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+            "sha256": "29c2e8f3352bc8df6b52e27179fe5ba963cdac5a7c7aa87850442449bfc8f317"
           }
         },
         {
@@ -201,7 +217,7 @@
           "symbol": "pub fn substitute_node",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+            "sha256": "29c2e8f3352bc8df6b52e27179fe5ba963cdac5a7c7aa87850442449bfc8f317"
           }
         },
         {
@@ -209,7 +225,7 @@
           "symbol": "pub fn before_emit_node",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+            "sha256": "29c2e8f3352bc8df6b52e27179fe5ba963cdac5a7c7aa87850442449bfc8f317"
           }
         },
         {
@@ -217,7 +233,7 @@
           "symbol": "pub fn after_emit_node",
           "file": {
             "path": "crates/emitter/src/transform.rs",
-            "sha256": "650dea7168f1fc987eced0c4c241fa9971427addfedf80d217eed79fcd07a404"
+            "sha256": "29c2e8f3352bc8df6b52e27179fe5ba963cdac5a7c7aa87850442449bfc8f317"
           }
         },
         {
@@ -231,7 +247,7 @@
       ],
       "absences": [],
       "note": "B-1 pinned the chain: previous-first onSubstituteNode delegation with registration order [transformES2015, transformGenerators] is the forward substitution walk, notification is the forward-before/reverse-after wrap with the first-registered transformer outermost, and the order contracts prove the enablement split (ES2015 substitution+notification, Generators substitution only)",
-      "capability_fingerprint_sha256": "f4ab72336c71ac7a2a2da51a5b41fb989fc3c0199c20899fc926e8b8d41f8079"
+      "capability_fingerprint_sha256": "026b3f9080d9f862370036d5c025fff44c0004c5fbf35f13f7c79ddd6a37f5ee"
     },
     {
       "index": 5,
@@ -251,7 +267,7 @@
           "symbol": "typescript:read",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
+            "sha256": "18828fd1a2d752b17c07a3d6d48565e5d6999ffd4b457d3562393f83c29ececb"
           }
         },
         {
@@ -259,7 +275,7 @@
           "symbol": "typescript:extends",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
+            "sha256": "18828fd1a2d752b17c07a3d6d48565e5d6999ffd4b457d3562393f83c29ececb"
           }
         },
         {
@@ -267,7 +283,7 @@
           "symbol": "typescript:values",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
+            "sha256": "18828fd1a2d752b17c07a3d6d48565e5d6999ffd4b457d3562393f83c29ececb"
           }
         },
         {
@@ -275,7 +291,7 @@
           "symbol": "typescript:spreadArray",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
+            "sha256": "18828fd1a2d752b17c07a3d6d48565e5d6999ffd4b457d3562393f83c29ececb"
           }
         },
         {
@@ -283,7 +299,7 @@
           "symbol": "typescript:generator",
           "file": {
             "path": "crates/emitter/src/builtins/helpers.rs",
-            "sha256": "b5b33e44fc2f8102a26aa16a1ae94d13b23c026c9ac3cc5dc034ce564f0f3ebf"
+            "sha256": "18828fd1a2d752b17c07a3d6d48565e5d6999ffd4b457d3562393f83c29ececb"
           }
         },
         {
@@ -291,13 +307,13 @@
           "symbol": "fn helper_texts_match_the_vendored_declarations",
           "file": {
             "path": "crates/emitter/tests/unit/helpers/tests.rs",
-            "sha256": "c5501cae3f83808c36794cd6b5e4084a616b1b1849e16732f35777d840aeacbf"
+            "sha256": "e0152526908b5df0441595a30f9cb82eb9f2f8367ce87762cafc5bcba30f2d9d"
           }
         }
       ],
       "absences": [],
       "note": "B-1 landed the four absent texts byte-pinned to the vendored declarations by the proven typescript:read dedent recipe (ledger d2 hashes + the byte-parity unit suite that proves the recipe against read first); metadata mirrors upstream (extends priority 0, generator priority 6)",
-      "capability_fingerprint_sha256": "50819bf8da3789a9655284895b3f51e4a9707adb50534faa1464cbe02fbee8e3"
+      "capability_fingerprint_sha256": "c4d0513e984afbbd670b18f9fb5a98e5091ee2f379997ce27f11d87bccb26669"
     },
     {
       "index": 6,
@@ -383,7 +399,7 @@
           "symbol": "token_owned_comment_phase_prefix",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "c234179278e8fd138f88e8165415afffb3de779a4a5e0a21024aeaffa3f71c26"
+            "sha256": "f6ff05de0f3b593483ab919231dbbd329ef0855f432bd731f9bb6ef38aacd2da"
           }
         },
         {
@@ -407,7 +423,7 @@
           "symbol": "fn established_container_sides",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "c234179278e8fd138f88e8165415afffb3de779a4a5e0a21024aeaffa3f71c26"
+            "sha256": "f6ff05de0f3b593483ab919231dbbd329ef0855f432bd731f9bb6ef38aacd2da"
           }
         },
         {
@@ -415,7 +431,7 @@
           "symbol": "struct EmitContext",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "c234179278e8fd138f88e8165415afffb3de779a4a5e0a21024aeaffa3f71c26"
+            "sha256": "f6ff05de0f3b593483ab919231dbbd329ef0855f432bd731f9bb6ef38aacd2da"
           }
         },
         {
@@ -423,7 +439,7 @@
           "symbol": "fn file_root",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "c234179278e8fd138f88e8165415afffb3de779a4a5e0a21024aeaffa3f71c26"
+            "sha256": "f6ff05de0f3b593483ab919231dbbd329ef0855f432bd731f9bb6ef38aacd2da"
           }
         },
         {
@@ -445,7 +461,7 @@
       ],
       "absences": [],
       "note": "CS-2 landed the threaded scope at the root and core pipeline, CS-3 landed the per-side claim predicates on the expression/list routes, and CS-4 landed the statement/declaration-family migration with the declaration-list writer (claim_declaration_list_sides replaces the planned container claim; the statement-paired claim helper is deleted); CS-5 deleted the five contextless shims and the detached_transitional constructor, leaving file_root as the printer's single zero-scope entry; CS-6 landed the 30-case witness-driven fixture gate (byte parity against the frozen artifact, both removeComments polarities, six transforms) and the permanent zero-contextless workspace audit — the sub-packet is closed, requalified at 6acd5d43, and ES2015/Generators production (H2.5h-b) is unblocked",
-      "capability_fingerprint_sha256": "dd8801470f074431d67542a058359d411c03b7e4a16f2c46ba88937fd3d77e31"
+      "capability_fingerprint_sha256": "0518862f628fa9f0f745730bff00644861fba4b3ddcba9d5d623e139ef5e8453"
     },
     {
       "index": 8,
@@ -514,7 +530,7 @@
           "symbol": "fn emit_get_referenced_declaration_with_colliding_name",
           "file": {
             "path": "crates/checker/src/modules.rs",
-            "sha256": "a8ad3d857959a1fb01b8067722d9d763140eb1531ac6bdd4b2088f941db1d805"
+            "sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
           }
         },
         {
@@ -536,7 +552,7 @@
       ],
       "absences": [],
       "note": "B-1 landed the collision/capture trio as typed fail-closed trait defaults with production implementations at the checker bridge (CheckerSession in emit.rs delegating to the modules.rs ports; checkNestedBlockScopedBinding's capturedBlockScopeBindings list materialized for isBindingCapturedByNode); all 43 resolver queries recorded by the foundation's three checker+resolver direct controls replay equal through the production bridge",
-      "capability_fingerprint_sha256": "039435718b29df9a1d453b3d7daa192cafe1f91f763fcccd42569c5928836e0f"
+      "capability_fingerprint_sha256": "4e5dc16394e587d2917b6d74a20fa62c526870fd5c34f59213abd73e476b7aa4"
     },
     {
       "index": 9,
@@ -557,7 +573,7 @@
           "symbol": "fn transform_es2015",
           "file": {
             "path": "crates/emitter/src/builtins/es2015.rs",
-            "sha256": "4e64778794fe8320b2d9f98618727548b0538ccadbc60c7ad9ecdeeccff293c8"
+            "sha256": "e3372e69c0889e5db44b7f53347c91d162757fe166eb30b8b3fa2ac8a2f1d195"
           }
         },
         {
@@ -565,7 +581,7 @@
           "symbol": "fn convert_iteration_statement_body_if_necessary",
           "file": {
             "path": "crates/emitter/src/builtins/es2015.rs",
-            "sha256": "4e64778794fe8320b2d9f98618727548b0538ccadbc60c7ad9ecdeeccff293c8"
+            "sha256": "e3372e69c0889e5db44b7f53347c91d162757fe166eb30b8b3fa2ac8a2f1d195"
           }
         },
         {
@@ -573,13 +589,13 @@
           "symbol": "fn generate_call_to_converted_loop_snapshot",
           "file": {
             "path": "crates/emitter/src/builtins/es2015.rs",
-            "sha256": "4e64778794fe8320b2d9f98618727548b0538ccadbc60c7ad9ecdeeccff293c8"
+            "sha256": "e3372e69c0889e5db44b7f53347c91d162757fe166eb30b8b3fa2ac8a2f1d195"
           }
         }
       ],
       "absences": [],
       "note": "B-4 landed the complete owner (171 pinned local functions) as the dormant Es2015Transformer behind transform_es2015 - class lowering lanes, captured this/arguments/new.target, parameters, block-scoped bindings, loop conversion with BOTH pinned yield* synthesis sites (the EmitFlags Iterator producer half), spread, templates, object-literal chunking, for-of both modes, the first production FlattenHost - qualified by 123 byte-equal focused oracle projections through the real [transformES2015, transformGenerators] chain; registration and tagged-template lowering stay with B-5",
-      "capability_fingerprint_sha256": "cfdf1430f9128f9eba7aebbfac0abb708933506060173010915c4b247f7e0207"
+      "capability_fingerprint_sha256": "ea6ef4af0da81640f070eccb856b79caa7d2017cc572c418e453d003c306f3ca"
     },
     {
       "index": 10,
@@ -600,7 +616,7 @@
           "symbol": "fn transform_generators",
           "file": {
             "path": "crates/emitter/src/builtins/generators.rs",
-            "sha256": "2a0975f778aee4d7476a302568a0cda62130cc1fbb04ba8d67cb0b38c5b9b7fb"
+            "sha256": "4468694baee70eb01b4131261e3cd135474a103a62f6ac6883dddfa35b118894"
           }
         },
         {
@@ -608,7 +624,7 @@
           "symbol": "fn transform_generator_function_body",
           "file": {
             "path": "crates/emitter/src/builtins/generators.rs",
-            "sha256": "2a0975f778aee4d7476a302568a0cda62130cc1fbb04ba8d67cb0b38c5b9b7fb"
+            "sha256": "4468694baee70eb01b4131261e3cd135474a103a62f6ac6883dddfa35b118894"
           }
         },
         {
@@ -616,13 +632,13 @@
           "symbol": "fn build_statements",
           "file": {
             "path": "crates/emitter/src/builtins/generators.rs",
-            "sha256": "2a0975f778aee4d7476a302568a0cda62130cc1fbb04ba8d67cb0b38c5b9b7fb"
+            "sha256": "4468694baee70eb01b4131261e3cd135474a103a62f6ac6883dddfa35b118894"
           }
         }
       ],
       "absences": [],
       "note": "B-3 landed the complete owner (129 pinned local functions) as the dormant GeneratorsTransformer behind transform_generators, qualified by 72 byte-equal focused oracle projections; registration stays with the B-5 runtime flip; the yield-star consumer obligations (EmitFlags Iterator skip + the YieldStar opcode) landed and the producer sites arrive with B-4",
-      "capability_fingerprint_sha256": "9db394f65015de5d15c75596b1ec842377f111e2fa44c647336f8e64ec3253a9"
+      "capability_fingerprint_sha256": "ff8ed24f5cfc27d5b3cefb82d2da6794f30c9fd260859d3bdad3ecac5f952bc5"
     },
     {
       "index": 11,
@@ -658,7 +674,7 @@
           "symbol": "mod flatten_destructuring;",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "e3c27f2472b21fa529d186523d9bef4cc72883e0c4e98192a4513288065843fd"
+            "sha256": "ea302962b7e6767c2a966684defa17a03ca20c795b4795b3672a7be6e688dada"
           }
         },
         {
@@ -666,7 +682,7 @@
           "symbol": "flatten_destructuring_assignment",
           "file": {
             "path": "crates/emitter/src/builtins/es2018.rs",
-            "sha256": "622da5f93fe6d51016437ee130608abf28f3c5f8658c64960a77f917a4937f83"
+            "sha256": "8428502630fb272e1a33097b1ee6e2845287dfa9df7a45807775f97cbc5e97a9"
           }
         },
         {
@@ -674,18 +690,18 @@
           "symbol": "flatten_destructuring_binding",
           "file": {
             "path": "crates/emitter/src/builtins/es2018.rs",
-            "sha256": "622da5f93fe6d51016437ee130608abf28f3c5f8658c64960a77f917a4937f83"
+            "sha256": "8428502630fb272e1a33097b1ee6e2845287dfa9df7a45807775f97cbc5e97a9"
           }
         }
       ],
       "absences": [],
       "note": "B-2 landed the 18-function shared family (both FlattenLevel arms behind the FlattenHost consumer seam) as crates/emitter/src/builtins/flatten_destructuring.rs, qualified by focused oracle projections; the module is dormant until the B-4/B-5 owners consume it; the ObjectRestSpread PRODUCTION path deliberately remains the independent plan-based lowering inside es2018.rs (re-basing it onto the shared family is a byte-identity-gated H2.5h-b-closure concern, B-2 packet section 12.3)",
-      "capability_fingerprint_sha256": "a8d971277f7c5a06230911d59bc38b7c119df3f02db7097f139bc63dc6dab726"
+      "capability_fingerprint_sha256": "b7c6bf14601c5a449abf9f67f4bb0df01fe21447010ad8e52ade6f63e82026cc"
     },
     {
       "index": 12,
       "capability_id": "tagged-template-lowering",
-      "state": "missing",
+      "state": "exists",
       "requirement": "processTaggedTemplateExpression + createTemplateCooked for target below ES2015",
       "surfaces": [
         "tagged-template-module"
@@ -694,25 +710,45 @@
         "EA-GAP-COMPOSITION",
         "E-STRINGS"
       ],
-      "anchors": [],
-      "absences": [
+      "anchors": [
         {
-          "path": "crates/emitter/src/builtins",
-          "module": "tagged_template.rs"
+          "path": "crates/emitter/src/builtins/tagged_template.rs",
+          "symbol": "pub(super) fn process_tagged_template_expression",
+          "file": {
+            "path": "crates/emitter/src/builtins/tagged_template.rs",
+            "sha256": "e5c0764577362afb37feb98b78eb6eb1602deebbcc603fb50168e8520e4f6eb4"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/tagged_template.rs",
+          "symbol": "fn create_template_cooked",
+          "file": {
+            "path": "crates/emitter/src/builtins/tagged_template.rs",
+            "sha256": "e5c0764577362afb37feb98b78eb6eb1602deebbcc603fb50168e8520e4f6eb4"
+          }
+        },
+        {
+          "path": "crates/emitter/src/builtins/helpers.rs",
+          "symbol": "pub(super) fn make_template_object()",
+          "file": {
+            "path": "crates/emitter/src/builtins/helpers.rs",
+            "sha256": "18828fd1a2d752b17c07a3d6d48565e5d6999ffd4b457d3562393f83c29ececb"
+          }
         }
       ],
-      "note": null,
-      "capability_fingerprint_sha256": "198e7b04f95e28a78cbfc71e397f3d166013f6d592fd1e48a2bc65ef66659bf8"
+      "absences": [],
+      "note": "B-5 landed the shared module (ProcessLevel::All consumer in the ES2015 owner; the invalid-escape recomputation reads raw fragment bytes) with the __makeTemplateObject helper text byte-pinned; the es2018 LiftRestriction consumer stays the corpus-adoption deferral",
+      "capability_fingerprint_sha256": "f20e07322f33d56a65abe0f2ebd631d6801e01d6576c090f65f84bbfc1a2f44a"
     }
   ],
   "summary": {
     "capabilities": 13,
-    "exists": 12,
+    "exists": 13,
     "partial": 0,
-    "missing": 1,
-    "pinned_rust_files": 20,
+    "missing": 0,
+    "pinned_rust_files": 22,
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "52de7a8310d8ad7fce9c4231e20da91c39f398d5f2e7fb8ba853e4038ab73d8b"
+  "gap_matrix_fingerprint_sha256": "019e15708851515580cebf927cb77ab5b478cae3f5aa4efd11cf6f2afb2f87a0"
 }
