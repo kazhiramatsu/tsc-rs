@@ -268,6 +268,31 @@ No production-band delta (mjs-only; census unaffected).
    `h2-5h-a` handoff item-4 CA-3 LANDED marker. Implementation-time
    discoveries append §8-A per the stop rule.
 
+### §8-A. Implementation-time notes (2026-08-24)
+
+1. The mint landed one-shot: pass 1 `reused_observations=850
+   recorded=82`; pass 2 full reuse (932); `--check` ×2 (receipt
+   minted → hit). All 82 project rows classified
+   **admitted-for-execution** (888 admitted / 44 deferred, the 44
+   unchanged H2.9 compiler/conformance rows); writes 968 → 1,120,
+   diagnostics 1,002 → 1,143; the shared mount inventories 233
+   files.
+2. The per-row plan asserts (arm, roots+presence, variant,
+   target/module profile) held for all 82 with no divergence; the
+   config parse uses `ts.parseJsonSourceFileConfigFileContent`
+   over the case-sensitive mount host.
+3. Checker nuance: the CI schema-subset validator rejects boolean
+   subschemas — the per-suite prohibitions are expressed as
+   `{"type": "null"}` (presence ⇒ violation) instead of `false`.
+4. The hand probe (baseline.json#amd): the observed write is the
+   AMD `define(["require","exports"], …)` shape at
+   `/.src/tests/cases/projects/baseline/decl.js` with 2 writes /
+   2 diagnostics, disposition admitted.
+5. The diff surface is mjs/json/md-only (asserted); the battery
+   (transition, 5g pair, the 5h-a chain, l0) is green with NO
+   re-mints — the review's finding-10 downstream analysis
+   confirmed empirically.
+
 ## 9. Acceptance
 
 1. Mint green with `reused_observations=850 recorded=82`; both

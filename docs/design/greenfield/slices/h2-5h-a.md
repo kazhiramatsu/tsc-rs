@@ -298,14 +298,21 @@ substitutes for a per-packet gate.
        invalid-`ignoreDeprecations` row). LANDED at `13eacb4e`
        (2026-08-23, [CA-2b packet](h2-5h-ca-2b.md)); census
        212 → 185 failing, diagnostics-differ family swept.**
-     - **CA-2a — the ES2015/wrapper cluster (next)**: promoteToIIFE
+     - **CA-2a — the ES2015/wrapper cluster**: promoteToIIFE
        exported/namespace/decorated lanes (63), comment ownership
        (~34), generated names incl. the rest-loop `_i` reservation
        (~19), static-property placement (~10), the
        captured-this+super fold, void-0 hoisted-temp initializers.
-   - **CA-3 — project-suite harness (evidence+runtime)**: first
+       **LANDED at `2ed465c1` (2026-08-24, PR #470,
+       [CA-2a packet](h2-5h-ca-2a.md)); census 185 → 79, promote
+       seam retired (63 → 0), typed residuals r1–r5 named in the
+       packet §8-A.6.**
+   - **CA-3 — project-suite harness (evidence)**: first
      project-suite observation machinery; retires the CA-1
-     `project_deferral` block.
+     `project_deferral` block. **LANDED (2026-08-24,
+     [CA-3 packet](h2-5h-ca-3.md)); 932/932 observed
+     (`admitted=888 deferred=44`, all 82 project rows admitted),
+     the shared 233-file mount inventoried, mjs-only.**
    - **CA-4 — acceptance wiring (evidence)**: `run_h2_5h` with
      exact baked totals, the `fn acceptance` append under the
      conditional hosted-acceptance clause below, the local-gate
