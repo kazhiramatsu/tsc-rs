@@ -1670,6 +1670,22 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
         );
     }
 
+    if let Some(value) = options.ignore_deprecations.as_deref() {
+        // tsc getIgnoreDeprecationsVersion (_tsc.js:125052-125061) accepts
+        // exactly "5.0" and "6.0"; any other value reports 5103 once
+        // (reportInvalidIgnoreDeprecations, _tsc.js:122639) while the
+        // deprecation rows below still fire.
+        if !matches!(value, "5.0" | "6.0") {
+            push_programmatic_option_diagnostic(
+                prepared,
+                &mut diagnostics,
+                &["ignoreDeprecations"],
+                ProgrammaticOptionDiagnosticLocation::Value,
+                true,
+                MessageChain::new(&gen::Invalid_value_for_ignoreDeprecations, &[]),
+            );
+        }
+    }
     if options.ignore_deprecations.as_deref() != Some("6.0") {
         if options.target == Some(1) {
             push_programmatic_option_deprecation_value(

@@ -42,6 +42,14 @@ const PINNED: &[PinnedHelper] = &[
         span_end: 26_246,
     },
     PinnedHelper {
+        factory: super::assign,
+        name: "typescript:assign",
+        upstream_variable: "assignHelper",
+        priority: Some(1),
+        span_start: 26_122,
+        span_end: 26_139,
+    },
+    PinnedHelper {
         factory: super::make_template_object,
         name: "typescript:makeTemplateObject",
         upstream_variable: "templateObjectHelper",

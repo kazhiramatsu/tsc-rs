@@ -3674,7 +3674,18 @@ impl<'context> Es2018Visitor<'context> {
         &mut self,
         operands: Vec<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
-        debug_assert!(self.target >= ScriptTarget::ES2015);
+        // tsc createAssignHelper (_tsc.js:25724-25740): `Object.assign`
+        // at target >= ES2015, the `__assign` helper below it. The
+        // predicate lives in the helper factory upstream, so every
+        // caller of this chokepoint inherits the fork.
+        if self.target < ScriptTarget::ES2015 {
+            self.context.request_emit_helper(super::helpers::assign())?;
+            let callee = self
+                .context
+                .factory()?
+                .create_unscoped_helper_identifier(self.source, EmitHelperName::Assign)?;
+            return self.create_call(callee, operands);
+        }
         let object = self.create_identifier("Object")?;
         let assign = self.create_identifier("assign")?;
         let callee = self.create_property_access(object, assign)?;

@@ -160,6 +160,47 @@ fn transform_and_print_at_target(source_text: &str, target: ScriptTarget) -> Str
     transform_and_print_at_target_with_resolver(source_text, target, &NoConstantValueResolver)
 }
 
+// CA-2b family F: upstream createAssignHelper (_tsc.js:25724-25740) forks
+// the object-spread lowering on the language version — Object.assign at
+// >= ES2015, the __assign helper below. Expected bytes are fresh-process
+// vendored tsc emits (alwaysStrict false, LF; probe = ca2b-probe.mjs).
+#[test]
+fn object_spread_uses_the_assign_helper_below_es2015() {
+    let printed = transform_and_print_at_target(
+        "declare var a: any;\nvar o = { ...a, b: 1 };\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+var o = __assign(__assign({}, a), { b: 1 });
+"#
+    );
+}
+
+#[test]
+fn object_spread_keeps_object_assign_at_es2015_and_above() {
+    let printed = transform_and_print_at_target(
+        "declare var a: any;\nvar o = { ...a, b: 1 };\n",
+        ScriptTarget::ES2017,
+    );
+    assert_eq!(
+        printed,
+        r#"var o = Object.assign(Object.assign({}, a), { b: 1 });
+"#
+    );
+}
+
 fn transform_and_print_at_target_with_resolver(
     source_text: &str,
     target: ScriptTarget,
