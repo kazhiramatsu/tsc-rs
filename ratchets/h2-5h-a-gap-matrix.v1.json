@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "287305f8528cce22505ef4c1701772272bf1b54843e56597d28c567928c15aa8"
+      "sha256": "6caabe669de4a263d3cc2640c205eed59deae51583014049d487bd09bcb36aa0"
     },
-    "owner_graph_fingerprint_sha256": "9a706ee67be03fe4d23a8c1a869a1958fd7c64f09972430933715834dd248a18",
+    "owner_graph_fingerprint_sha256": "a937b9fc514d5369bc13e9c0f5a306b067006e8add1446fd902606bab07e4632",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
@@ -716,7 +716,7 @@
           "symbol": "pub(super) fn process_tagged_template_expression",
           "file": {
             "path": "crates/emitter/src/builtins/tagged_template.rs",
-            "sha256": "e5c0764577362afb37feb98b78eb6eb1602deebbcc603fb50168e8520e4f6eb4"
+            "sha256": "a39b2f43d76274f383d5e67b54a23c3d7db9f67a707920a23a6dc13fc3d01ef2"
           }
         },
         {
@@ -724,7 +724,7 @@
           "symbol": "fn create_template_cooked",
           "file": {
             "path": "crates/emitter/src/builtins/tagged_template.rs",
-            "sha256": "e5c0764577362afb37feb98b78eb6eb1602deebbcc603fb50168e8520e4f6eb4"
+            "sha256": "a39b2f43d76274f383d5e67b54a23c3d7db9f67a707920a23a6dc13fc3d01ef2"
           }
         },
         {
@@ -738,7 +738,7 @@
       ],
       "absences": [],
       "note": "B-5 landed the shared module (ProcessLevel::All consumer in the ES2015 owner; the invalid-escape recomputation reads raw fragment bytes) with the __makeTemplateObject helper text byte-pinned; the es2018 LiftRestriction consumer stays the corpus-adoption deferral",
-      "capability_fingerprint_sha256": "f20e07322f33d56a65abe0f2ebd631d6801e01d6576c090f65f84bbfc1a2f44a"
+      "capability_fingerprint_sha256": "463570c593fad8a9e8b306df964132861798ddfcb75f41cc2fa5bb2de7b66d8e"
     }
   ],
   "summary": {
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "019e15708851515580cebf927cb77ab5b478cae3f5aa4efd11cf6f2afb2f87a0"
+  "gap_matrix_fingerprint_sha256": "c4a046612671086edb6c33606e3191f2d4aa81e10ded83e917f09bbc38fe3de1"
 }
