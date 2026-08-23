@@ -428,21 +428,28 @@ Forbidden: `crates/checker` (no checker change in this packet),
    which keep the parent uniqueness scope but delay the moment;
    phase 2 pre-assigns the numbered family in sorted order; the
    per-event numbered arm is now unreachable).
-2. **B(i) landed shape.** Part (a) as designed: the statements
-   NodeArray ranges at the three block constructions
-   (`transform_class_body`, `create_default_constructor_body`,
-   `transform_constructor_body`; new factory
-   `set_node_array_text_range`, the `update_node_array` range
-   idiom). Part (b) simplified against the packet's projection:
-   the VariableStatement's claim ALREADY rides `EmitContext`
-   through the wrapper chain (`for_child` preserves `comments`;
-   synthesized wrapper edges claim `None` sides which inherit) —
-   the gap was the CONSUMER: the multi-line Block statement
-   loop's Normal leading branch never consulted
-   `expression_context.comments().container_pos()`. Landed as
-   the `parent_comment_container_owned_prefix_for_owner`
-   consultation in that branch (printer.rs; the one-edge
-   projection generalizes to the inherited ambient claim).
+2. **B(i) landed shape — part (b) REVERTED at the hosted gate.**
+   Part (a) as designed: the statements NodeArray ranges at the
+   three block constructions (`transform_class_body`,
+   `create_default_constructor_body`, `transform_constructor_body`;
+   new factory `set_node_array_text_range`, the `update_node_array`
+   range idiom). Part (b) — the ambient-claim consultation in the
+   multi-line Block statement loop — FIXED the wrapper dup and
+   passed every local suite, but the hosted 5g acceptance
+   falsified the model: `_tsc.js`'s `containerPos` is LINEAR
+   printer state (the last node emitted with a source position,
+   121012-121022), not an ancestor-scoped claim. h2-5g case 4119
+   (`systemModule7.ts#default`) is the counter-example: a
+   preceding RANGED SIBLING subtree re-claims `containerPos`
+   before the statement, so upstream prints the module's leading
+   comment where the ancestor-claim consultation suppressed it
+   (a nearest-ranged-ancestor refinement was tried and also
+   falsified — the re-claimer is a sibling, not an ancestor).
+   The consultation is REVERTED (the 5g band is frozen oracle
+   truth and gates hosted acceptance); the wrapper dup-comment
+   family is the named residual **h2-5h-ca-2a-r5**, pending a
+   faithful linear `containerPos` model in the printer (a
+   deliberate CS-era architecture change, its own design gate).
 3. **B(iii) landed shape.** The printer's detached-comment
    order machinery (prologue → detached header → helpers →
    statements) and the ownership predicate were already exact;
@@ -487,8 +494,11 @@ Forbidden: `crates/checker` (no checker change in this packet),
    fallback (`siblingNodePositionsAreComparable`: non-comparable
    sibling positions in a `MultiLine` list take one line, never the
    same-line space).
-6. **Census final (this head): 185 → 58** (0 blocked; all write
-   diffs), measured on the §9.4 harness with all four scratch
+6. **Census final (this head): 185 → 58 at the pre-revert bytes;
+   the B(i)-part-(b) revert returns the wrapper dup-comment rows
+   (h2-5h-ca-2a-r5) to the residual set — the re-measured count is
+   recorded in the merge-head PR body** (0 blocked either way),
+   measured on the §9.4 harness with all four scratch
    components restored (the frozen `patch_census.py` now carries the
    census command, the DUMP hook, the census-only activity-bookkeeping
    skip, and the CA-2b blocked-row compare — a worktree
@@ -514,6 +524,10 @@ Forbidden: `crates/checker` (no checker change in this packet),
    - **h2-5h-ca-2a-r3 — ES6/ESNext module-kind at ES5 target (4
      rows)**: es6modulekindWithES5Target ×2,
      esnextmodulekindWithES5Target ×2.
+   - **h2-5h-ca-2a-r5 — wrapper dup-comment dedup (the §8-A.2
+     revert)**: the class-IIFE wrapper re-emits a class's leading
+     comment inside the wrapper (accessorAccidentalCallDiagnostic
+     family); blocked on the linear `containerPos` printer model.
    - **h2-5h-ca-2a-r4 — singles (~10 rows)**: decoratedBlockScopedClass
      ×2, awaitUsingDeclarationsInForOf ×2, blockScopedVariablesUseBeforeDef,
      emitAccessExpressionOfCastedObjectLiteral…, nestedLoops,

@@ -5903,32 +5903,16 @@ impl Printer {
                                 writer,
                             )?;
                         } else {
-                            // The enclosing container's `containerPos` claim
-                            // survives synthesized wrapper edges (the class
-                            // IIFE chain ranges its constructor back to the
-                            // class statement's claimed start); a statement
-                            // starting exactly there must not re-emit the
-                            // claimed prefix (H2.5h CA-2a B(i)).
-                            //
-                            // tsc-port: forEachLeadingCommentToEmit @6.0.3
-                            // tsc-span: _tsc.js:121219-121233
-                            let owner = self.expression_comment_phase_owner_for_node(
-                                transformation,
-                                statement,
-                            )?;
-                            let container_owned = self
-                                .parent_comment_container_owned_prefix_for_owner(
-                                    transformation,
-                                    expression_context.comments().container_pos(),
-                                    owner,
-                                )?;
-                            self.emit_leading_comments_for_node_worker(
-                                transformation,
-                                statement,
-                                LeadingCommentContext::Normal,
-                                container_owned,
-                                writer,
-                            )?;
+                            // H2.5h CA-2a B(i) postscript: tsc's `containerPos`
+                            // is LINEAR printer state (the last node emitted
+                            // with a source position, `_tsc.js:121012-121022`),
+                            // not an ancestor-scoped claim — an ancestor-claim
+                            // consultation here suppressed real comments when a
+                            // preceding ranged sibling should have re-claimed
+                            // (System-module bodies, h2-5g case 4119). The
+                            // wrapper dup family is the named residual
+                            // h2-5h-ca-2a-r5 pending the faithful linear model.
+                            self.emit_leading_comments_for_node(transformation, statement, writer)?;
                         }
                         if has_original_range {
                             has_previous_original_statement = true;

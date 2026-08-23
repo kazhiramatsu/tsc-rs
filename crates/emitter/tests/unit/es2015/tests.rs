@@ -4138,35 +4138,6 @@ fn type_script_class_wrapper_surgery_flattens_the_wrapped_class() {
     );
 }
 
-// H2.5h CA-2a B(i): the enclosing wrapper statement's `containerPos` claim
-// survives the class-IIFE chain — the synthesized constructor (ranged back
-// to the class statement's claimed start) must not re-emit the class's
-// leading comment inside the wrapper. Expected bytes = fresh-process
-// vendored tsc (scratchpad biii/obi, prologue-less driver).
-#[test]
-fn class_wrapper_does_not_duplicate_the_leading_class_comment() {
-    let printed = project_with(
-        "// leading class doc\nclass Test24554 {\n    get property() { return 1; }\n}\n",
-        false,
-        false,
-    );
-    assert_eq!(
-        printed,
-        r#"// leading class doc
-var Test24554 = /** @class */ (function () {
-    function Test24554() {
-    }
-    Object.defineProperty(Test24554.prototype, "property", {
-        get: function () { return 1; },
-        enumerable: false,
-        configurable: true
-    });
-    return Test24554;
-}());
-"#
-    );
-}
-
 // H2.5h CA-2a B(iii): a blank-line-detached header comment belongs to the
 // source file's detached-comment pass and prints BEFORE the helper block
 // (`emitSourceFile` -> `emitBodyWithDetachedComments`,
