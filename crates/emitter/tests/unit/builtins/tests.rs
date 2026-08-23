@@ -1208,6 +1208,166 @@ fn transform_and_print_module(source_text: &str, module: ModuleKind) -> String {
     transform_and_print_module_with_remove_comments(source_text, module, false)
 }
 
+fn transform_and_print_module_at_target(
+    source_text: &str,
+    module: ModuleKind,
+    target: ScriptTarget,
+) -> String {
+    let parsed = parse_source_file("module.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(target.bits()),
+        module: Some(module.bits()),
+        use_define_for_class_fields: Some(true),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let resolver = LegacyScriptJsxResolver;
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![transform_module(&options, &resolver)],
+        false,
+    )
+    .expect("module transform");
+    create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed)
+            .with_target(target)
+            .with_remove_comments(false),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("print module transform")
+    .text()
+    .to_owned()
+}
+
+// CA-2b family E: the synthesized require bindings choose their declaration
+// keyword by language version (tsc `languageVersion >= ES2015 ? Const :
+// None`, _tsc.js:111241/111277/111338/113555/113591). Expected bytes are
+// fresh-process vendored tsc emits (module CommonJS, alwaysStrict false,
+// LF; probe = ca2b-probe.mjs).
+#[test]
+fn commonjs_import_bindings_use_var_below_es2015() {
+    let printed = transform_and_print_module_at_target(
+        "import * as ns from \"./dep\";\nns.use(1);\n",
+        ModuleKind::COMMON_JS,
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#""use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+var ns = __importStar(require("./dep"));
+ns.use(1);
+"#
+    );
+}
+
+#[test]
+fn commonjs_import_bindings_keep_const_at_es2015_and_above() {
+    let printed = transform_and_print_module_at_target(
+        "import * as ns from \"./dep\";\nns.use(1);\n",
+        ModuleKind::COMMON_JS,
+        ScriptTarget::ES2017,
+    );
+    assert_eq!(
+        printed,
+        r#""use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
+Object.defineProperty(exports, "__esModule", { value: true });
+const ns = __importStar(require("./dep"));
+ns.use(1);
+"#
+    );
+}
+
+#[test]
+fn commonjs_import_equals_binding_uses_var_below_es2015() {
+    let printed = transform_and_print_module_at_target(
+        "import x = require(\"./dep\");\nx.use();\n",
+        ModuleKind::COMMON_JS,
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#""use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var x = require("./dep");
+x.use();
+"#
+    );
+}
+
 fn transform_and_print_module_with_remove_comments(
     source_text: &str,
     module: ModuleKind,
@@ -4274,6 +4434,90 @@ fn legacy_decorator_recovers_default_class_without_export() {
         "{output}",
     );
     assert!(!output.contains("export default"), "{output}");
+}
+
+fn transform_and_print_classic_jsx_at_target(source_text: &str, target: ScriptTarget) -> String {
+    let parsed = parse_source_file(
+        "classic-jsx-spread.tsx",
+        source_text,
+        ParseOptions {
+            language_variant: LanguageVariant::Jsx,
+            ..ParseOptions::default()
+        },
+        None,
+    );
+    let resolver = LegacyScriptJsxResolver;
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(target.bits()),
+        jsx: Some(2),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_jsx(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("classic JSX spread transform");
+    create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            &mut DisabledSourceMapRecorder,
+        )
+        .expect("print classic JSX spread transform")
+        .text()
+        .to_owned()
+}
+
+// CA-2b family F2: the JSX spread-attribute builder is upstream's second
+// createAssignHelper caller (transformJsxAttributesToExpression,
+// _tsc.js:104267) and forks identically — flat multi-operand form.
+// Expected bytes are fresh-process vendored tsc emits (jsx react,
+// alwaysStrict false, LF; probe = ca2b-probe3.mjs).
+#[test]
+fn jsx_spread_attributes_use_the_assign_helper_below_es2015() {
+    let printed = transform_and_print_classic_jsx_at_target(
+        "var attrs = { a: 1 };\nvar e = <div {...attrs} b=\"1\"/>;\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};
+var attrs = { a: 1 };
+var e = React.createElement("div", __assign({}, attrs, { b: "1" }));
+"#
+    );
+}
+
+#[test]
+fn jsx_spread_attributes_keep_object_assign_at_es2015_and_above() {
+    let printed = transform_and_print_classic_jsx_at_target(
+        "var attrs = { a: 1 };\nvar e = <div {...attrs} b=\"1\"/>;\n",
+        ScriptTarget::ES2017,
+    );
+    assert_eq!(
+        printed,
+        r#"var attrs = { a: 1 };
+var e = React.createElement("div", Object.assign({}, attrs, { b: "1" }));
+"#
+    );
 }
 
 #[test]

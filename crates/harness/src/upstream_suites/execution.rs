@@ -786,8 +786,12 @@ fn apply_compiler_setting(
         "declaration" => compiler_options.declaration = Some(boolean()?),
         "composite" => compiler_options.composite = Some(boolean()?),
         "isolateddeclarations" => compiler_options.isolated_declarations = Some(boolean()?),
+        // The flag gates upstream handleNoEmitOptions (_tsc.js:125636-125663):
+        // dropping it silently leaves every harness execution unblocked, which
+        // hides the blocked-emit diagnostic set the observations record
+        // (H2.5h CA-2b).
+        "noemitonerror" => compiler_options.no_emit_on_error = Some(boolean()?),
         "noemithelpers"
-        | "noemitonerror"
         | "declarationmap"
         | "emitdeclarationonly"
         | "sourcemap"

@@ -404,6 +404,7 @@ pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transfo
             .rewrite_relative_import_extensions
             .unwrap_or(false),
         import_helpers: options.import_helpers == Some(true),
+        target: options.emit_script_target(),
     })
 }
 
@@ -1066,6 +1067,10 @@ struct EcmaScriptModuleTransformer {
     module_kind: i32,
     rewrite_relative_import_extensions: bool,
     import_helpers: bool,
+    // The synthesized require/createRequire bindings choose their
+    // declaration keyword by language version (tsc: `languageVersion >=
+    // ES2015 ? Const : None`, _tsc.js:113555/113591).
+    target: ScriptTarget,
 }
 
 impl Transformer for EcmaScriptModuleTransformer {
@@ -1121,7 +1126,8 @@ impl Transformer for EcmaScriptModuleTransformer {
         }
         if was_external {
             let current_root = context.arena().root(source)?;
-            let mut visitor = EcmaScriptModuleEqualsVisitor::new(context, source, self.module_kind);
+            let mut visitor =
+                EcmaScriptModuleEqualsVisitor::new(context, source, self.module_kind, self.target);
             let rewritten = visitor.transform_source_file(current_root)?;
             visitor
                 .context
@@ -1227,6 +1233,7 @@ struct EcmaScriptModuleEqualsVisitor<'context> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     module_kind: i32,
+    target: ScriptTarget,
     used_names: BTreeSet<String>,
     create_require_name: Option<String>,
     require_name: Option<String>,
@@ -1237,12 +1244,14 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         module_kind: i32,
+        target: ScriptTarget,
     ) -> Self {
         let used_names = system::collect_identifier_texts(context.arena(), source);
         Self {
             context,
             source,
             module_kind,
+            target,
             used_names,
             create_require_name: None,
             require_name: None,
@@ -1361,7 +1370,12 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
             self.create_identifier(&require_name)?
         };
         let call = self.create_call(require, vec![module_specifier])?;
-        let statement = self.create_variable_statement(name, call, NodeFlags::CONST)?;
+        let keyword = if self.target >= ScriptTarget::ES2015 {
+            NodeFlags::CONST
+        } else {
+            NodeFlags::NONE
+        };
+        let statement = self.create_variable_statement(name, call, keyword)?;
         self.set_original_and_range(statement, original)?;
         let mut output = vec![statement];
         if has_modifier(
@@ -1465,7 +1479,12 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         let import_meta_url = self.create_identifier("import.meta.url")?;
         let initializer = self.create_call(create_require, vec![import_meta_url])?;
         let name = self.create_identifier(&require_name)?;
-        let declaration = self.create_variable_statement(name, initializer, NodeFlags::CONST)?;
+        let keyword = if self.target >= ScriptTarget::ES2015 {
+            NodeFlags::CONST
+        } else {
+            NodeFlags::NONE
+        };
+        let declaration = self.create_variable_statement(name, initializer, keyword)?;
         Ok(vec![import, declaration])
     }
 
@@ -2201,6 +2220,7 @@ fn transform_module<'resolver>(
         rewrite_relative_import_extensions: options
             .rewrite_relative_import_extensions
             .unwrap_or(false),
+        target: options.emit_script_target(),
     })
 }
 
@@ -2211,6 +2231,10 @@ struct CommonJsModuleTransformer<'resolver> {
     es_module_interop: bool,
     preserves_native_parameter_defaults: bool,
     rewrite_relative_import_extensions: bool,
+    // The synthesized import/require bindings choose their declaration
+    // keyword by language version (tsc: `languageVersion >= ES2015 ?
+    // Const : None`, _tsc.js:111241/111277/111338).
+    target: ScriptTarget,
 }
 
 impl Transformer for CommonJsModuleTransformer<'_> {
@@ -2287,6 +2311,7 @@ impl Transformer for CommonJsModuleTransformer<'_> {
                 has_dynamic_import,
                 preserves_native_parameter_defaults: self.preserves_native_parameter_defaults,
                 rewrite_relative_import_extensions: self.rewrite_relative_import_extensions,
+                target: self.target,
             },
             info,
         );
@@ -3978,6 +4003,7 @@ struct CommonJsVisitorOptions {
     has_dynamic_import: bool,
     preserves_native_parameter_defaults: bool,
     rewrite_relative_import_extensions: bool,
+    target: ScriptTarget,
 }
 
 /// The two function traversal routes exposed by transformModule. Ordinary
@@ -4137,6 +4163,7 @@ struct CommonJsVisitor<'context, 'resolver> {
     has_dynamic_import: bool,
     preserves_native_parameter_defaults: bool,
     rewrite_relative_import_extensions: bool,
+    target: ScriptTarget,
     info: CommonJsModuleInfo,
     nodes: BTreeMap<NodeId, NodeId>,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
@@ -4164,6 +4191,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             has_dynamic_import: options.has_dynamic_import,
             preserves_native_parameter_defaults: options.preserves_native_parameter_defaults,
             rewrite_relative_import_extensions: options.rewrite_relative_import_extensions,
+            target: options.target,
             info,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
@@ -4783,8 +4811,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 let value = self.create_identifier(runtime_name)?;
                 let declaration = self.create_variable_declaration(namespace_alias, value)?;
                 let declaration = self.set_original_and_range(declaration, original)?;
-                statements
-                    .push(self.create_variable_statement(vec![declaration], NodeFlags::CONST)?);
+                let keyword = if self.target >= ScriptTarget::ES2015 {
+                    NodeFlags::CONST
+                } else {
+                    NodeFlags::NONE
+                };
+                statements.push(self.create_variable_statement(vec![declaration], keyword)?);
             }
             for re_export in self.import_re_exports(&data)? {
                 statements.push(self.create_import_re_export_statement(re_export)?);
@@ -4826,7 +4858,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let value = self.create_identifier(runtime_name)?;
             declarations.push(self.create_variable_declaration(namespace_alias, value)?);
         }
-        let statement = self.create_variable_statement(declarations, NodeFlags::CONST)?;
+        let keyword = if self.target >= ScriptTarget::ES2015 {
+            NodeFlags::CONST
+        } else {
+            NodeFlags::NONE
+        };
+        let statement = self.create_variable_statement(declarations, keyword)?;
         self.set_original_and_range(statement, original)?;
         let mut statements = vec![statement];
         let re_exports = self.import_re_exports(&data)?;
@@ -5083,8 +5120,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             (ImportEqualsPublication::LocalBinding, false) => {
                 let require = self.create_require_call(module_specifier)?;
                 let declaration = self.create_variable_declaration(runtime_name, require)?;
-                let statement =
-                    self.create_variable_statement(vec![declaration], NodeFlags::CONST)?;
+                let statement = self.create_variable_statement(
+                    vec![declaration],
+                    if self.target >= ScriptTarget::ES2015 {
+                        NodeFlags::CONST
+                    } else {
+                        NodeFlags::NONE
+                    },
+                )?;
                 statements.push(self.set_original_and_range(statement, original)?);
             }
             (ImportEqualsPublication::ExportObject { exported_name }, false) => {

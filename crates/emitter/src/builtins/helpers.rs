@@ -45,6 +45,18 @@ const READ_HELPER_TEXT: &str = r#"var __read = (this && this.__read) || function
     return ar;
 };"#;
 
+const ASSIGN_HELPER_TEXT: &str = r#"var __assign = (this && this.__assign) || function () {
+    __assign = Object.assign || function(t) {
+        for (var s, i = 1, n = arguments.length; i < n; i++) {
+            s = arguments[i];
+            for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p))
+                t[p] = s[p];
+        }
+        return t;
+    };
+    return __assign.apply(this, arguments);
+};"#;
+
 const EXTENDS_HELPER_TEXT: &str = r#"var __extends = (this && this.__extends) || (function () {
     var extendStatics = function (d, b) {
         extendStatics = Object.setPrototypeOf ||
@@ -182,6 +194,23 @@ pub(super) fn object_rest() -> EmitHelper {
 
 pub(super) fn read() -> EmitHelper {
     EmitHelper::with_text("typescript:read", false, READ_HELPER_TEXT, None, Vec::new())
+}
+
+/// Requested by the CA-2b object-spread forks (H2.5h corpus adoption):
+/// the es2018 lowering and the JSX spread-attribute builder call the
+/// helper below ES2015 where upstream's `createAssignHelper` forks away
+/// from `Object.assign`.
+/// tsc-port: assignHelper @6.0.3
+/// tsc-hash: a195c84f6fbb4280f8164fde5d33f0d246cfec5b40286c16416b042d9de991f1
+/// tsc-span: _tsc.js:26122-26139
+pub(super) fn assign() -> EmitHelper {
+    EmitHelper::with_text(
+        "typescript:assign",
+        false,
+        ASSIGN_HELPER_TEXT,
+        Some(1),
+        Vec::new(),
+    )
 }
 
 /// Requested by the B-4 ES2015 class-lowering lanes (H2.5h-b); until those owners land,

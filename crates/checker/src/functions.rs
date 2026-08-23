@@ -2208,8 +2208,11 @@ impl<'a> CheckerState<'a> {
             if self.kind_of(name) == SyntaxKind::Identifier
                 && self.identifier_text_of(name) == Some("arguments")
             {
+                // tsc reports on the whole parameter node
+                // (`errorSkippedOn("noEmit", p, ...)`, _tsc.js:83234-83236),
+                // not the name identifier.
                 self.error_skipped_on_no_emit(
-                    Some(name),
+                    Some(parameter),
                     &diagnostics::Duplicate_identifier_arguments_Compiler_uses_arguments_to_initialize_rest_parameters,
                     &[],
                 );
