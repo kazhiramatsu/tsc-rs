@@ -164,6 +164,106 @@ fn transform_and_print_at_target(source_text: &str, target: ScriptTarget) -> Str
 // the object-spread lowering on the language version — Object.assign at
 // >= ES2015, the __assign helper below. Expected bytes are fresh-process
 // vendored tsc emits (alwaysStrict false, LF; probe = ca2b-probe.mjs).
+// H2.5h CA-2a steps 1+4 focused projections. Expected bytes are
+// fresh-process vendored tsc emits (ES5, alwaysStrict false, LF;
+// probe = ca2a-probe.mjs).
+#[test]
+fn rest_parameter_loop_reuses_the_dedicated_i_slot_per_function() {
+    let printed = transform_and_print_at_target(
+        "function f(...rest: any[]) { rest; }\nfunction g(...more: any[]) { more; }\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"function f() {
+    var rest = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        rest[_i] = arguments[_i];
+    }
+    rest;
+}
+function g() {
+    var more = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        more[_i] = arguments[_i];
+    }
+    more;
+}
+"#
+    );
+}
+
+#[test]
+fn anonymous_class_expression_reuses_the_variable_declaration_name() {
+    let printed = transform_and_print_at_target(
+        "var y = class { m() { return 1; } };\ny;\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"var y = /** @class */ (function () {
+    function y() {
+    }
+    Object.defineProperty(y.prototype, "m", {
+        enumerable: false,
+        configurable: true,
+        writable: true,
+        value: function () { return 1; }
+    });
+    return y;
+}());
+y;
+"#
+    );
+}
+
+#[test]
+fn anonymous_class_expression_reuses_the_property_assignment_name() {
+    let printed = transform_and_print_at_target(
+        "var o = { k: class { m() { return 1; } } };\no;\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"var o = { k: /** @class */ (function () {
+        function k() {
+        }
+        Object.defineProperty(k.prototype, "m", {
+            enumerable: false,
+            configurable: true,
+            writable: true,
+            value: function () { return 1; }
+        });
+        return k;
+    }()) };
+o;
+"#
+    );
+}
+
+#[test]
+fn anonymous_class_expression_reuses_the_property_access_assignment_name() {
+    let printed = transform_and_print_at_target(
+        "declare var A: any;\nA.b = class { m() { return 1; } };\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"A.b = /** @class */ (function () {
+    function b() {
+    }
+    Object.defineProperty(b.prototype, "m", {
+        enumerable: false,
+        configurable: true,
+        writable: true,
+        value: function () { return 1; }
+    });
+    return b;
+}());
+"#
+    );
+}
+
 #[test]
 fn object_spread_uses_the_assign_helper_below_es2015() {
     let printed = transform_and_print_at_target(
@@ -14301,5 +14401,53 @@ fn legacy_alias_and_producer_temp_hoists_keep_two_epochs_in_every_scope() {
             "static { Inner_1 = this; }",
             "Inner = Inner_1 = __decorate",
         ],
+    );
+}
+
+// H2.5h CA-2a: a parsed multi-line array keeps one element per line even
+// when lowering replaced the elements with synthesized class wrappers —
+// non-comparable sibling positions take tsc's `format & MultiLine`
+// fallback (one line), never the same-line space.
+#[test]
+fn multiline_array_of_lowered_class_wrappers_breaks_between_elements() {
+    let printed = transform_and_print_at_target(
+        "var a = [\n    class { },\n    class { },\n];\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"var a = [
+    /** @class */ (function () {
+        function class_1() {
+        }
+        return class_1;
+    }()),
+    /** @class */ (function () {
+        function class_2() {
+        }
+        return class_2;
+    }()),
+];
+"#
+    );
+}
+
+// H2.5h CA-2a C(iii) residual: the for-await iterator-result temp derives
+// its ordinal from the iterator binding's FINAL spelling
+// (`getGeneratedNameForNode`), surviving the Generators pass's re-built
+// hoisted declaration lists (c_2 -> c_2_1, never the visit-time c_1_1).
+#[test]
+fn for_await_result_temp_derives_from_the_final_iterator_spelling() {
+    let printed = transform_and_print_at_target(
+        "async function f(c: number[]) {\n    for (var s of c) { s; }\n    for await (var s2 of c) { s2; }\n}\n",
+        ScriptTarget::ES5,
+    );
+    assert!(
+        printed.contains("var _a, c_2, c_2_1;"),
+        "expected the derived result temp c_2_1:\n{printed}"
+    );
+    assert!(
+        !printed.contains("c_1_1"),
+        "the visit-time base leaked into the derived temp:\n{printed}"
     );
 }

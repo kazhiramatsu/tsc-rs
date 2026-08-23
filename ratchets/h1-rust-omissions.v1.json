@@ -42,8 +42,8 @@
     "file_count": 268,
     "rust_source_files": 247,
     "cargo_manifests": 21,
-    "bytes": 17292343,
-    "tree_sha256": "1426375dc791785a5dbff7c165bc627bb6cfb8f63131b01c36556fb76a0901b6"
+    "bytes": 17323468,
+    "tree_sha256": "1693e2244f3336e42d5e557dd0d3d5f36d38e7bad713e8251875e5317419a3b1"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -424,7 +424,7 @@
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "a941d91bcde693ca2f5f93d0daf5a9a1341e5411397b316c55ed5d875321601d"
+        "file_sha256": "ec6a221dbb011226263835fe9fd5689a36730d1abfcd60806a511c041214dd81"
       },
       {
         "id": "emitter-node-factory",
@@ -433,7 +433,7 @@
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "a941d91bcde693ca2f5f93d0daf5a9a1341e5411397b316c55ed5d875321601d"
+        "file_sha256": "ec6a221dbb011226263835fe9fd5689a36730d1abfcd60806a511c041214dd81"
       },
       {
         "id": "emitter-transform-flags",
@@ -451,7 +451,7 @@
         "column": 1,
         "text": "pub struct EmitMetadata {",
         "text_sha256": "8ef23fa666dcb24593e950f34243354d67421355e90ba282ceead155eff4bf82",
-        "file_sha256": "bb6448b10dbcb11b3baf59a4b92a1e698b29a3e83e11b6fc831d9fa041b06831"
+        "file_sha256": "cb93c9618d5438a211f9a31160c1c44843c6bb4c45aae565c6e7ee760ab72bf9"
       },
       {
         "id": "emitter-transformation-context",
@@ -487,7 +487,7 @@
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "f6ff05de0f3b593483ab919231dbbd329ef0855f432bd731f9bb6ef38aacd2da"
+        "file_sha256": "f5f2579eb41e1c14acb439d660b416dab05f1cfb291d69b3e60b4d58338fd41e"
       },
       {
         "id": "emitter-position-domains",
@@ -505,7 +505,7 @@
         "column": 1,
         "text": "pub trait SourceMapRecorder {",
         "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "f6ff05de0f3b593483ab919231dbbd329ef0855f432bd731f9bb6ef38aacd2da"
+        "file_sha256": "f5f2579eb41e1c14acb439d660b416dab05f1cfb291d69b3e60b4d58338fd41e"
       },
       {
         "id": "emitter-resolver-protocol",
@@ -523,7 +523,7 @@
         "column": 1,
         "text": "pub fn get_script_transformers<'resolver>(",
         "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
-        "file_sha256": "90630011d411bdd5d9cd9aecc965db4fbd533a32e86f8339722f5528fdbe5f2e"
+        "file_sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
       },
       {
         "id": "emitter-transform-typescript",
@@ -532,7 +532,7 @@
         "column": 1,
         "text": "pub fn transform_type_script<'resolver>(",
         "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
-        "file_sha256": "90630011d411bdd5d9cd9aecc965db4fbd533a32e86f8339722f5528fdbe5f2e"
+        "file_sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
       },
       {
         "id": "emitter-transform-class-fields",
@@ -541,7 +541,7 @@
         "column": 1,
         "text": "pub fn transform_class_fields<'resolver>(",
         "text_sha256": "6725dc3040c7b665e642b0595eb187992791ad9331c370100c1dfd03cbd38159",
-        "file_sha256": "90630011d411bdd5d9cd9aecc965db4fbd533a32e86f8339722f5528fdbe5f2e"
+        "file_sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
       },
       {
         "id": "emitter-transform-ecmascript-module",
@@ -550,7 +550,7 @@
         "column": 1,
         "text": "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
         "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
-        "file_sha256": "90630011d411bdd5d9cd9aecc965db4fbd533a32e86f8339722f5528fdbe5f2e"
+        "file_sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
       },
       {
         "id": "emitter-changed-import-printer",
@@ -559,7 +559,7 @@
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "f6ff05de0f3b593483ab919231dbbd329ef0855f432bd731f9bb6ef38aacd2da"
+        "file_sha256": "f5f2579eb41e1c14acb439d660b416dab05f1cfb291d69b3e60b4d58338fd41e"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "c5540fccb1cac41da356f6acf6ca44a503be4791920e4b5cb5d288c3395717c4"
+  "inventory_fingerprint_sha256": "01840622f27fb045bb5df5caf2cbc067ff87af5357a648cb5dc516e1e91c1184"
 }

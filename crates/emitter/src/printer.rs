@@ -5903,6 +5903,15 @@ impl Printer {
                                 writer,
                             )?;
                         } else {
+                            // H2.5h CA-2a B(i) postscript: tsc's `containerPos`
+                            // is LINEAR printer state (the last node emitted
+                            // with a source position, `_tsc.js:121012-121022`),
+                            // not an ancestor-scoped claim — an ancestor-claim
+                            // consultation here suppressed real comments when a
+                            // preceding ranged sibling should have re-claimed
+                            // (System-module bodies, h2-5g case 4119). The
+                            // wrapper dup family is the named residual
+                            // h2-5h-ca-2a-r5 pending the faithful linear model.
                             self.emit_leading_comments_for_node(transformation, statement, writer)?;
                         }
                         if has_original_range {
@@ -6317,10 +6326,25 @@ impl Printer {
         left: TransformNode,
         right: TransformNode,
     ) -> Result<bool, PrinterError> {
+        Ok(self
+            .source_node_end_and_node_start_same_line_comparable(transformation, left, right)?
+            .unwrap_or(true))
+    }
+
+    /// `siblingNodePositionsAreComparable` + the text scan: `None` when the
+    /// sibling positions are not comparable (synthesized, cross-source, or
+    /// out of order) — the caller supplies tsc's per-list fallback
+    /// (`format & MultiLine ? line : none`).
+    fn source_node_end_and_node_start_same_line_comparable(
+        &self,
+        transformation: &TransformationResult<'_>,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<Option<bool>, PrinterError> {
         let left = transformation.arena().get_original_node(left);
         let right = transformation.arena().get_original_node(right);
         if left.source() != right.source() {
-            return Ok(true);
+            return Ok(None);
         }
         let source = transformation.arena().source(left.source())?.syntax();
         let left_record = transformation.arena().node(left)?;
@@ -6329,16 +6353,18 @@ impl Printer {
             SourceRange::from_raw(left_record.pos, left_record.end, source.positions())?,
             SourceRange::from_raw(right_record.pos, right_record.end, source.positions())?,
         ) else {
-            return Ok(true);
+            return Ok(None);
         };
         let left_end = left_range.end().value() as usize;
         let right_start = skip_trivia(source.text(), right_range.start().value() as usize);
         if left_end > right_start || right_start > source.text().len() {
-            return Ok(true);
+            return Ok(None);
         }
-        Ok(!source.text()[left_end..right_start]
-            .bytes()
-            .any(|byte| matches!(byte, b'\r' | b'\n')))
+        Ok(Some(
+            !source.text()[left_end..right_start]
+                .bytes()
+                .any(|byte| matches!(byte, b'\r' | b'\n')),
+        ))
     }
 
     fn source_node_starts_are_on_same_line(
@@ -6588,11 +6614,16 @@ impl Printer {
                         .arena()
                         .node_ref(source, next)
                         .ok_or(PrinterError::UnknownStatement(next.0))?;
-                    self.source_node_end_and_node_start_are_on_same_line(
+                    // Non-comparable sibling positions in a multi-line list
+                    // take tsc's `format & MultiLine` fallback: one line
+                    // (H2.5h CA-2a — synthesized class-wrapper elements in
+                    // a parsed multi-line array).
+                    self.source_node_end_and_node_start_same_line_comparable(
                         transformation,
                         child,
                         next,
                     )
+                    .map(|comparable| comparable.unwrap_or(false))
                 })
                 .transpose()?
                 .unwrap_or(false);
@@ -13107,6 +13138,17 @@ fn quote_javascript_string(units: &[u16], single_quote: bool, no_ascii_escaping:
         if !no_ascii_escaping && unit > 0x7f || (0xd800..=0xdfff).contains(&unit) {
             use std::fmt::Write;
             let _ = write!(quoted, "\\u{unit:04X}");
+            index += 1;
+            continue;
+        }
+        if unit == 0 {
+            // `getReplacement` (`_tsc.js:16301-16310`): NUL prints as `\0`
+            // unless a decimal digit follows (which would form a legacy
+            // octal escape) — then `\x00`.
+            let digit_follows = units
+                .get(index + 1)
+                .is_some_and(|next| (0x30..=0x39).contains(next));
+            quoted.push_str(if digit_follows { "\\x00" } else { "\\0" });
             index += 1;
             continue;
         }

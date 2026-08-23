@@ -44,6 +44,54 @@ fn fixture_options(
     }
 }
 
+// H2.5h CA-2a G: the captured-this + super fold must survive a source
+// parameter named `_super` (the class binding renames to `_super_1`
+// eagerly; the fold predicates match the binding's preferred base, not
+// the spelled text). Expected bytes = fresh-process vendored tsc
+// (probe ca2a-probe-g.mjs).
+#[test]
+fn captured_this_super_fold_survives_a_source_super_collision() {
+    let printed = project_with(
+        "class Base {\n}\nclass Foo extends Base {\n    constructor(_super) {\n        super();\n        var f = () => this;\n        f;\n    }\n}\n",
+        false,
+        true,
+    );
+    assert_eq!(
+        printed,
+        r#"var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var Base = /** @class */ (function () {
+    function Base() {
+    }
+    return Base;
+}());
+var Foo = /** @class */ (function (_super_1) {
+    __extends(Foo, _super_1);
+    function Foo(_super) {
+        var _this = _super_1.call(this) || this;
+        var f = function () { return _this; };
+        f;
+        return _this;
+    }
+    return Foo;
+}(Base));
+"#
+    );
+}
+
 fn project_with(
     source_text: &str,
     downlevel_iteration: bool,
@@ -4087,5 +4135,37 @@ fn type_script_class_wrapper_surgery_flattens_the_wrapped_class() {
             SyntaxKind::ExpressionStatement,
             SyntaxKind::ReturnStatement,
         ],
+    );
+}
+
+// H2.5h CA-2a B(iii): a blank-line-detached header comment belongs to the
+// source file's detached-comment pass and prints BEFORE the helper block
+// (`emitSourceFile` -> `emitBodyWithDetachedComments`,
+// `_tsc.js:119710-119719`); without the blank line the comment stays
+// attached to the first statement and follows the helpers. Expected bytes =
+// fresh-process vendored tsc (scratchpad biii).
+#[test]
+fn detached_header_comment_precedes_the_helper_block() {
+    let printed = project_with(
+        "// Copyright header\n\nfunction tag(t: any, ...args: any[]): any { return t; }\ntag `x`;\n",
+        false,
+        false,
+    );
+    assert!(
+        printed.starts_with("// Copyright header\nvar __makeTemplateObject ="),
+        "detached header must precede the helper block:\n{printed}"
+    );
+    let attached = project_with(
+        "// Copyright header\nfunction tag(t: any, ...args: any[]): any { return t; }\ntag `x`;\n",
+        false,
+        false,
+    );
+    assert!(
+        attached.starts_with("var __makeTemplateObject ="),
+        "an attached comment must stay with its statement after the helpers:\n{attached}"
+    );
+    assert!(
+        attached.contains("};\n// Copyright header\nfunction tag(t)"),
+        "the attached comment must ride the first statement:\n{attached}"
     );
 }

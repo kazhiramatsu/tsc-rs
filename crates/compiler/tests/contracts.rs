@@ -16,6 +16,8 @@ mod h1_emit_qualification_contract;
 mod h1_filesystem_cli_oracle_contract;
 #[path = "integration/h1_memory_emit_oracle_contract.rs"]
 mod h1_memory_emit_oracle_contract;
+#[path = "integration/h2_5h_ca2a_promote_contract.rs"]
+mod h2_5h_ca2a_promote_contract;
 #[path = "integration/h2_5h_ca2b_seam_contract.rs"]
 mod h2_5h_ca2b_seam_contract;
 #[path = "integration/library_loader_session_contract.rs"]

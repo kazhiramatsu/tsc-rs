@@ -349,37 +349,18 @@ impl GeneratedBindingScopes {
         }
     }
 
-    /// Reconciles an eagerly planned source-derived name with bindings added
-    /// by later transforms. The planned ordinal is retained when available;
-    /// on collision the same source-name sequence advances (`e_1` -> `e_2`)
-    /// instead of treating the full spelling as a new preferred base.
-    pub(super) fn allocate_source_planned_numbered(
+    /// Assigns the source-derived numbered form in TRAVERSAL order: the
+    /// next free ordinal for the base at first occurrence, ignoring any
+    /// visit-time planned ordinal. This is the finalize-walk analog of
+    /// upstream's print-pass numbering (`makeUniqueName` ordinals are
+    /// assigned in emit traversal order), which diverges from eager visit
+    /// order exactly in multi-pass compositions (H2.5h CA-2a C(iii)).
+    pub(super) fn allocate_source_numbered_with_policy(
         &mut self,
         source_name: &str,
-        planned: String,
-    ) -> String {
-        self.allocate_source_planned_numbered_with_policy(source_name, planned, false)
-    }
-
-    pub(super) fn allocate_source_planned_numbered_with_policy(
-        &mut self,
-        source_name: &str,
-        planned: String,
         reserve_in_nested_scopes: bool,
     ) -> String {
-        if self.reserve_in_source(planned.clone()) {
-            if reserve_in_nested_scopes {
-                self.scopes[0]
-                    .names_reserved_in_descendants
-                    .push(planned.clone());
-            }
-            return planned;
-        }
-        let prefix = format!("{source_name}_");
-        let mut suffix = planned
-            .strip_prefix(&prefix)
-            .and_then(|suffix| suffix.parse::<usize>().ok())
-            .map_or(1, |suffix| suffix + 1);
+        let mut suffix = 1usize;
         loop {
             let candidate = format!("{source_name}_{suffix}");
             if self.reserve_in_source(candidate.clone()) {

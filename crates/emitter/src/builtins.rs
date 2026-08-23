@@ -8006,10 +8006,18 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             Some(argument)
                 if !is_inlineable && !self.is_simple_inlineable_expression(argument)? =>
             {
-                let template = self.create_string_coercion_template(argument)?;
+                // ES2015+: a template `${arg}`; ES5: `"".concat(arg)`
+                // (`_tsc.js:111096-111108`).
+                let coerced = if self.target >= ScriptTarget::ES2015 {
+                    self.create_string_coercion_template(argument)?
+                } else {
+                    let empty = self.create_string_literal("")?;
+                    let concat = self.create_property_access(empty, "concat")?;
+                    self.create_call(concat, vec![argument])?
+                };
                 let parameter = self.create_parameter("s")?;
                 (
-                    vec![template],
+                    vec![coerced],
                     Some(self.create_identifier("s")?),
                     vec![parameter],
                 )
@@ -8027,12 +8035,27 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         } else {
             require
         };
-        let arrow = self.create_arrow_function(parameters, loaded)?;
+        // `languageVersion >= ES2015 ? createArrowFunction(..., requireCall)
+        // : createFunctionExpression(..., createBlock([return requireCall]))`
+        // (`createImportCallExpressionCommonJS`, `_tsc.js:111128-111159`).
+        let callback = if self.target >= ScriptTarget::ES2015 {
+            self.create_arrow_function(parameters, loaded)?
+        } else {
+            let return_statement = self.context.factory()?.create_node(
+                self.source,
+                NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
+                    expression: Some(loaded.node()),
+                }),
+                TransformFlags::NONE,
+            )?;
+            let body = self.create_block(vec![return_statement], false)?;
+            self.create_function_expression(parameters, body)?
+        };
         let promise = self.create_identifier("Promise")?;
         let resolve = self.create_property_access(promise, "resolve")?;
         let resolved = self.create_call(resolve, resolve_arguments)?;
         let then = self.create_property_access(resolved, "then")?;
-        self.create_call(then, vec![arrow])
+        self.create_call(then, vec![callback])
     }
 
     fn reserve_amd_dynamic_import_bindings(&mut self) -> AmdDynamicImportBindings {
@@ -8062,8 +8085,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let require_call = self.create_call(require, vec![dependency, resolve, reject])?;
         let require_statement = self.create_expression_statement(require_call)?;
         let body = self.create_block(vec![require_statement], false)?;
-        let executor =
-            self.create_arrow_function(vec![resolve_parameter, reject_parameter], body)?;
+        // `languageVersion >= ES2015 ? createArrowFunction : createFunctionExpression`
+        // (`createImportCallExpressionAMD`, `_tsc.js:111040-111071`).
+        let executor = if self.target >= ScriptTarget::ES2015 {
+            self.create_arrow_function(vec![resolve_parameter, reject_parameter], body)?
+        } else {
+            self.create_function_expression(vec![resolve_parameter, reject_parameter], body)?
+        };
         let promise = self.create_identifier("Promise")?;
         let loaded = self.create_new(promise, vec![executor])?;
         if self.es_module_interop {
@@ -9935,6 +9963,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         if let Some(statement) = self.visit_typescript(statement)? {
                             output.push(self.node(statement));
                         }
+                    }
+                    SyntaxKind::ClassDeclaration => {
+                        output.extend(self.visit_top_level_class_declaration(statement)?);
                     }
                     _ => {
                         if let Some(statement) = self.visit(statement)? {
@@ -13024,17 +13055,17 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         data: tsc_syntax::nodes::ClassDeclarationData,
         decorated: bool,
     ) -> Result<NodeId, TransformError> {
-        if decorated
-            || !self.namespace_stack.is_empty()
-            || self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?
-            || self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?
-        {
-            return Err(TransformError::RequiredChildRemoved {
-                parent: SyntaxKind::ClassDeclaration,
-                field:
-                    "exported/decorated ES5 class-wrapper promotion (H2.5h corpus-adoption seam)",
-            });
-        }
+        // Upstream promotes unconditionally at `languageVersion < ES2015`
+        // (`_tsc.js:94436`, `94448`); the decorated lanes compose with the
+        // separate decorator transformers over the wrapper's inner class
+        // (H2.5h CA-2a A/D).
+        let _ = decorated;
+        // `moveModifiers`: the promoted lane elides the declaration's
+        // modifiers (`modifierElidingVisitor`); the export binding is
+        // re-created AFTER the wrapper by the caller's lane split
+        // (`_tsc.js:94451-94452`, `94515-94546`).
+        let mut data = data;
+        data.modifiers = self.elide_moved_class_modifiers(data.modifiers)?;
         // `createTokenRange(skipTrivia(currentSourceFile.text, node.members.end),
         // CloseBraceToken)` over the PARSE positions (the promote arm runs on
         // parse-owned classes; `wrapping_add` mirrors the -1 sentinel
@@ -13185,6 +13216,139 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .metadata_mut(variable_statement)
             .set_starts_on_new_line(true);
         Ok(variable_statement.node())
+    }
+
+    /// `modifierElidingVisitor` over a promoted class's modifier list: every
+    /// modifier is dropped (decorator entries never reach the promoted lane;
+    /// that lane still refuses).
+    fn elide_moved_class_modifiers(
+        &mut self,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        let Some(modifiers) = modifiers else {
+            return Ok(None);
+        };
+        let nodes = node_array_nodes(self.context.arena(), self.source, Some(modifiers))?;
+        let mut kept = Vec::new();
+        for modifier in nodes {
+            let kind = self.context.arena().node(modifier)?.kind;
+            if kind == SyntaxKind::Decorator {
+                kept.push(modifier);
+            }
+        }
+        if kept.is_empty() {
+            return Ok(None);
+        }
+        let array = {
+            let source = self.source;
+            self.context.factory()?.create_node_array(source, kept)?
+        };
+        Ok(Some(array.array()))
+    }
+
+    /// The external-module lane split after a moved-modifier class visit:
+    /// an exported promoted class keeps the wrapper statement and gains a
+    /// separate export binding AFTER it, never `export var`.
+    ///
+    /// tsc-port: visitClassDeclaration @6.0.3 (the moveModifiers lanes)
+    /// tsc-hash: 54322cab9482b8d117e006ac77bf71844cbda0c3a38fab1f233c4e608fd6a5cf
+    /// tsc-span: _tsc.js:94515-94546
+    fn visit_top_level_class_declaration(
+        &mut self,
+        statement: NodeId,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        let (has_export, has_default) = {
+            let record = self.context.arena().node(self.node(statement))?;
+            match &record.data {
+                NodeData::ClassDeclaration(data) => (
+                    self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?,
+                    self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?,
+                ),
+                _ => (false, false),
+            }
+        };
+        let Some(visited) = self.visit(statement)? else {
+            return Ok(Vec::new());
+        };
+        let visited = self.node(visited);
+        if !has_export || self.context.arena().node(visited)?.kind != SyntaxKind::VariableStatement
+        {
+            return Ok(vec![visited]);
+        }
+        let name_text = {
+            let declarations = match &self.context.arena().node(visited)?.data {
+                NodeData::VariableStatement(data) => data.declaration_list,
+                _ => None,
+            };
+            let declaration =
+                variable_declarations(self.context.arena(), self.source, declarations)?
+                    .first()
+                    .copied()
+                    .ok_or(TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::VariableStatement,
+                        field: "promoted class wrapper declaration",
+                    })?;
+            let name = match &self.context.arena().node(declaration)?.data {
+                NodeData::VariableDeclaration(data) => data.name,
+                _ => None,
+            }
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::VariableDeclaration,
+                field: "promoted class wrapper name",
+            })?;
+            self.identifier_text(name)?.to_owned()
+        };
+        let export_statement = if has_default {
+            // `factory.createExportDefault(localName)`
+            let local = self.create_identifier(&name_text)?;
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::ExportAssignment(tsc_syntax::nodes::ExportAssignmentData {
+                    modifiers: None,
+                    is_export_equals: None,
+                    expression: Some(local.node()),
+                }),
+                TransformFlags::NONE,
+            )?
+        } else {
+            // `factory.createExternalModuleExport(declarationName)` —
+            // `export { X };`
+            let local = self.create_identifier(&name_text)?;
+            let specifier = self.context.factory()?.create_node(
+                self.source,
+                NodeData::ExportSpecifier(tsc_syntax::nodes::ExportSpecifierData {
+                    name: Some(local.node()),
+                    is_type_only: false,
+                    property_name: None,
+                }),
+                TransformFlags::NONE,
+            )?;
+            let elements = {
+                let source = self.source;
+                self.context
+                    .factory()?
+                    .create_node_array(source, vec![specifier])?
+            };
+            let named = self.context.factory()?.create_node(
+                self.source,
+                NodeData::NamedExports(tsc_syntax::nodes::NamedExportsData {
+                    elements: Some(elements.array()),
+                }),
+                TransformFlags::NONE,
+            )?;
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::ExportDeclaration(tsc_syntax::nodes::ExportDeclarationData {
+                    modifiers: None,
+                    is_type_only: false,
+                    export_clause: Some(named.node()),
+                    module_specifier: None,
+                    attributes: None,
+                }),
+                TransformFlags::NONE,
+            )?
+        };
+        Ok(vec![visited, export_statement])
     }
 
     /// The one-byte close-brace token range shared by the wrapper's

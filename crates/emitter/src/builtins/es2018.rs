@@ -1192,6 +1192,19 @@ impl<'context> Es2018Visitor<'context> {
         TargetBinding::allocate_numbered(self.context, source_name.to_owned(), name)
     }
 
+    /// `getGeneratedNameForNode` over another generated identifier: the
+    /// derived temp's ordinal appends to the base binding's FINAL spelling
+    /// (H2.5h CA-2a C(iii) residual — the for-await result/catch temps).
+    fn allocate_local_derived_binding(
+        &mut self,
+        base: &TargetBinding,
+    ) -> Result<TargetBinding, TransformError> {
+        let name = self
+            .generated_bindings
+            .allocate_local_numbered(base.provisional_name());
+        TargetBinding::allocate_numbered_derived(self.context, base, name)
+    }
+
     fn create_planned_identifier(
         &mut self,
         binding: &TargetBinding,
@@ -1226,12 +1239,11 @@ impl<'context> Es2018Visitor<'context> {
             self.allocate_local_temp_binding()?
         };
         let result = if iterator.numbered_base().is_some() {
-            self.allocate_local_numbered_binding(iterator.provisional_name())?
+            self.allocate_local_derived_binding(&iterator)?
         } else {
             self.allocate_local_temp_binding()?
         };
-        let catch_variable =
-            self.allocate_local_numbered_binding(error_record.provisional_name())?;
+        let catch_variable = self.allocate_local_derived_binding(&error_record)?;
 
         Ok(ForAwaitLoweringPlan {
             mode,
