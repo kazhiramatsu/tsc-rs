@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-1a-profile.mjs",
-    "sha256": "53155ff021a579d4d30ed1cce4e6118697cc348d906fd0a51236e4c00325ff5c"
+    "sha256": "8c00151d554ddbaac6f65ab78781064875cea748296fd4c9f3ab93c8f1e9eaa5"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-1a-profile.schema.json",
@@ -28,7 +28,7 @@
     "historical": {
       "profile_transition": {
         "path": "ratchets/h2-profile-transition.v1.json",
-        "sha256": "7d7f782fafd2588dde1764cd969f63179f3c3af202f839a52e22efe0a39a2cb4"
+        "sha256": "1f6fd70938f7480007e13f8c7798af219d7168d3726ae7ebea0516a7cf1fe5b4"
       },
       "runtime_baseline": {
         "path": "ratchets/h2-runtime-baseline.v1.json",
@@ -36,7 +36,7 @@
       },
       "transition_generator": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "462745231cdc2133c1f98e74a7494fdadacd0a4d05251f922af5d6b0327d4313"
+        "sha256": "3b7079614ac49a3572bd3c8a2fdfe523b1f6740cedc1b78a047d6334a34a3b70"
       },
       "baseline_generator": {
         "path": "crates/oracle/h2-baseline.mjs",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-1a-qualification.v1.json",
-    "sha256": "c493568a1decd109ed8bf8f3735252d6616bb7484b39fd525e8ebc5ab5101851"
+    "sha256": "ad0f7b9e1b16a79c86e47437a9a22c711c1cd9abefd33967700a84d31b75d6f0"
   },
   "runtime_inputs": [
     {
@@ -76,7 +76,7 @@
     },
     {
       "path": "crates/emitter/src/builtins.rs",
-      "sha256": "90630011d411bdd5d9cd9aecc965db4fbd533a32e86f8339722f5528fdbe5f2e"
+      "sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
     },
     {
       "path": "crates/emitter/src/execute.rs",
@@ -88,7 +88,7 @@
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "f6ff05de0f3b593483ab919231dbbd329ef0855f432bd731f9bb6ef38aacd2da"
+      "sha256": "033bc28557bfe00d6b832c482ee9bb992b909e4fc0d80a01a91b0d1f8949961b"
     },
     {
       "path": "crates/emitter/src/transform.rs",
@@ -157,7 +157,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "e7015532ea6c3e03086c4ff2bb8560ef3485f1e23e019db4de9ab110ac0cd0a8"
+      "sha256": "910d1c4a4b24f7dc5feb96282a3d4d0ae7a8f017ff73cd243e7cfb92b45e1036"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -180,5 +180,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "cec119f026c24c0dfa1023bef8dd059f0f783a72d55ccb2d084cd4cdb038dcf4"
+  "profile_fingerprint_sha256": "fff858c7412132007ba9ad06684161b2f45a8120a5beb0a1158f8c7bf4e7c5c7"
 }
