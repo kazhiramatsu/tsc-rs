@@ -273,6 +273,37 @@ substitutes for a per-packet gate.
      requalification. **LANDED at `0382bb3a`
      (2026-08-23, [B-5 packet](h2-5h-b-b-5.md)); the ladder is
      COMPLETE and the joint pass is live.**
+4. **CA-1 .. CA-4 — H2.5h corpus-adoption packets** (the B-5
+   next-owner work; ladder ratified in the
+   [CA-1 packet](h2-5h-ca-1.md) §2):
+   - **CA-1 — the `h2-5h-qualification` observation sweep
+     (evidence, mjs-only)**: the 932-row dependency-closed band
+     from the global candidate dispositions; the 850
+     compiler/conformance rows observed twice in fresh
+     pinned-TypeScript processes with exact write/diagnostic
+     capture (806 admitted / 44 deferred to H2.9); the 82 project
+     rows typed-deferred to CA-3; contract-registered artifact
+     `ratchets/h2-5h-qualification.v1.json` with the gate-tax-3
+     check receipt ported (`target/h2-5h/check-receipt.v1.json`,
+     `TSRS_H2_5H_CHECK_SHARDS`). **LANDED at `05e8c54b`
+     (2026-08-23, [CA-1 packet](h2-5h-ca-1.md)).**
+   - **CA-2 — seam census + closures (runtime)**: the Rust census
+     over the CA-1 artifact sizes the named typed seams (remaining
+     ES5-band `checkExternalEmitHelpers` sites, tslib
+     collision-alias + CommonJS import-equals lanes,
+     exported/namespace/decorated `promoteToIIFE` lanes, the
+     es2018 tagged-template `LiftRestriction` consumer, the es2021
+     `ObjectAssign`/`__assign` ES5 fork); splits at its own design
+     gate if the census demands.
+   - **CA-3 — project-suite harness (evidence+runtime)**: first
+     project-suite observation machinery; retires the CA-1
+     `project_deferral` block.
+   - **CA-4 — acceptance wiring (evidence)**: `run_h2_5h` with
+     exact baked totals, the `fn acceptance` append under the
+     conditional hosted-acceptance clause below, the local-gate
+     `h2-5h-oracle` phase, the H2.5g→historical / H2.5h-live
+     profile transition, and the handoff close; records the es2018
+     ObjectRestSpread re-base decision.
 
 **Packet checker** (step 7; also the envelope's proof commands): all of
 

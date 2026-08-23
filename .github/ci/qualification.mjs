@@ -103,6 +103,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     artifact: "ratchets/h2-5g-profile.v1.json",
   }),
   Object.freeze({
+    label: "H2.5h qualification",
+    schema: ".github/ci/contracts/h2-5h-qualification.schema.json",
+    artifact: "ratchets/h2-5h-qualification.v1.json",
+  }),
+  Object.freeze({
     label: "H2.5h-a foundation",
     schema: ".github/ci/contracts/h2-5h-a-foundation.schema.json",
     artifact: "ratchets/h2-5h-a-foundation.v1.json",
@@ -1892,6 +1897,7 @@ export function validatePolicy(policy) {
     "h2-5g-owner-controls",
     "h2-5g-qualification",
     "h2-5g-profile",
+    "h2-5h-qualification",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {
