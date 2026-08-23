@@ -343,7 +343,6 @@ fn template_cooked_is_invalid(raw: &str) -> bool {
     false
 }
 
-
 #[cfg(test)]
 #[path = "../../tests/unit/tagged_template/tests.rs"]
 mod tagged_template_tests;
