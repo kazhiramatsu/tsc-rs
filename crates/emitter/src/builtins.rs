@@ -10,12 +10,12 @@ use tsc_types::{CompilerOptions, NodeFlags, ScriptTarget};
 use crate::transform::GeneratedBindingId;
 use crate::{
     factory::{private_identifier_expression_flags, EmitHelperName},
-    EmitConstantValue, EmitExportContainerMode, EmitFlags, EmitHint, EmitHost, EmitResolver,
-    EmitResolverError, EmitResolverMethod, EmitResolverNode, H2ActivityCanary, H2RuntimeSlice,
-    InternalEmitFlags, LexicalEnvironment, LexicalEnvironmentFlags, SourceMapRange, SourceRange,
-    SyntheticComment, SyntheticCommentKind, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer, UnsupportedTransformFeature,
+    CommentRange, EmitConstantValue, EmitExportContainerMode, EmitFlags, EmitHint, EmitHost,
+    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, H2ActivityCanary,
+    H2RuntimeSlice, InternalEmitFlags, LexicalEnvironment, LexicalEnvironmentFlags, SourceMapRange,
+    SourceRange, SyntheticComment, SyntheticCommentKind, TransformArena, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
+    TransformationContext, Transformer, UnsupportedTransformFeature,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -47,6 +47,7 @@ mod jsx;
 mod legacy_decorators;
 mod standard_decorators;
 mod system;
+mod tagged_template;
 mod target_bindings;
 
 const CREATE_BINDING_HELPER_TEXT: &str = r#"var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
@@ -104,7 +105,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5g_profile();
+    let mut activity = H2ActivityCanary::h2_5h_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -119,7 +120,7 @@ pub fn get_script_transformers_for_source<'transformers>(
     host: &'transformers dyn EmitHost,
     source: SourceFileId,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5g_profile();
+    let mut activity = H2ActivityCanary::h2_5h_profile();
     get_script_transformers_with_optional_host(
         options,
         resolver,
@@ -145,10 +146,10 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
-    if target < ScriptTarget::ES2015 || target > ScriptTarget::ES_NEXT {
+    if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
-            detail: "H2.5g admits ES2015 through ESNext; older targets belong to later target-ladder slices",
+            detail: "H2.5h admits ES5 through ESNext (ES3 computes as unset per _computedOptions.target)",
         });
     }
     if !matches!(
@@ -250,6 +251,9 @@ fn get_script_transformers_with_optional_host<'transformers>(
         if target < ScriptTarget::ES2016 {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_5g);
         }
+        if target < ScriptTarget::ES2015 {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_5h);
+        }
     }
 
     activity.construct_script_transformer_list();
@@ -279,6 +283,10 @@ fn get_script_transformers_with_optional_host<'transformers>(
         (target < ScriptTarget::ES2017).then(|| es2017::transform_es2017(options, resolver));
     let transform_es2016 =
         (target < ScriptTarget::ES2016).then(|| es2021::transform_es2016(options));
+    let transform_es2015 =
+        (target < ScriptTarget::ES2015).then(|| es2015::transform_es2015(options, resolver));
+    let transform_generators =
+        (target < ScriptTarget::ES2015).then(|| generators::transform_generators(target, resolver));
     let module_transformer = if options.emit_module_kind() == MODULE_PRESERVE {
         activity.construct_transform_ecmascript_module();
         transform_ecmascript_module(options)
@@ -329,6 +337,15 @@ fn get_script_transformers_with_optional_host<'transformers>(
     if let Some(transform_es2016) = transform_es2016 {
         transformers.push(transform_es2016);
     }
+    // The joint H2.5h pass in the upstream registration order
+    // (_tsc.js:115942-115945): transformES2015 then transformGenerators,
+    // both ahead of the module transformer.
+    if let Some(transform_es2015) = transform_es2015 {
+        transformers.push(transform_es2015);
+    }
+    if let Some(transform_generators) = transform_generators {
+        transformers.push(transform_generators);
+    }
     transformers.push(module_transformer);
     Ok(transformers)
 }
@@ -359,6 +376,7 @@ pub fn transform_type_script<'resolver>(
         // initializers, including assignment-mode output where it replaces
         // the earlier constructor statements.
         project_parameter_properties_for_class_fields: true,
+        promote_class_iife: options.emit_script_target() < ScriptTarget::ES2015,
         namespace_container_names: BTreeMap::new(),
         enum_container_names: BTreeMap::new(),
         active_namespace_emit_depth: 0,
@@ -385,6 +403,7 @@ pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transfo
         rewrite_relative_import_extensions: options
             .rewrite_relative_import_extensions
             .unwrap_or(false),
+        import_helpers: options.import_helpers == Some(true),
     })
 }
 
@@ -425,6 +444,11 @@ struct TypeScriptTransformer<'resolver> {
     allow_jsx: bool,
     allow_legacy_decorators: bool,
     project_parameter_properties_for_class_fields: bool,
+    /// `languageVersion < ES2015`: `visitClassDeclaration` promotes a class
+    /// with static initialized properties (or decorator facts) into the
+    /// `TypeScriptClassWrapper` arrow IIFE consumed by the ES2015 owner's
+    /// wrapper surgery (upstream `promoteToIIFE`, `_tsc.js:94436`).
+    promote_class_iife: bool,
     namespace_container_names: BTreeMap<TransformNode, Box<str>>,
     enum_container_names: BTreeMap<TransformNode, Box<str>>,
     active_namespace_emit_depth: usize,
@@ -488,6 +512,7 @@ impl Transformer for TypeScriptTransformer<'_> {
             self.preserve_const_enums,
             self.project_parameter_properties_for_class_fields,
             self.downlevel_iteration,
+            self.promote_class_iife,
         );
         let transformed = visitor.visit_typescript(root_node.node())?.ok_or(
             TransformError::RequiredChildRemoved {
@@ -1040,6 +1065,7 @@ fn source_file_has_use_strict_prologue(
 struct EcmaScriptModuleTransformer {
     module_kind: i32,
     rewrite_relative_import_extensions: bool,
+    import_helpers: bool,
 }
 
 impl Transformer for EcmaScriptModuleTransformer {
@@ -1101,6 +1127,9 @@ impl Transformer for EcmaScriptModuleTransformer {
                 .context
                 .arena_mut()?
                 .replace_root(source, rewritten)?;
+        }
+        if was_external && self.import_helpers {
+            insert_external_helpers_import_declaration(context, source)?;
         }
         if !was_external || self.module_kind == MODULE_PRESERVE {
             return Ok(TransformRoot::SourceFile(source));
@@ -1835,6 +1864,164 @@ impl NodeDataChildVisitor for RelativeModuleSpecifierVisitor<'_> {
     fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
         TransformError::RequiredChildRemoved { parent, field }
     }
+}
+
+/// tsc-port: createExternalHelpersImportDeclarationIfNeeded @6.0.3
+/// tsc-hash: d44b2c0d8237d7cad74d638bdaa5cd14dd4347e3a57e408de8b5fb85a6a18f77
+/// tsc-span: _tsc.js:27613-27680
+///
+/// The ES-module named-import arm: under `importHelpers`, an external
+/// module that requested unscoped helpers imports them from `tslib`
+/// (`import { __x } from "tslib";` after the prologue) instead of
+/// inlining their texts (the printer suppresses unscoped helper bodies
+/// for that configuration). Import names come from the transcribed
+/// helper table (`EmitHelper::import_name`), sorted case-sensitively and
+/// deduplicated. The upstream aliasing arm for a helper name that is not
+/// file-level unique, and the import-equals arm for CommonJS-format
+/// files, are typed fail-closed seams owned by the H2.5h
+/// corpus-adoption slice.
+fn insert_external_helpers_import_declaration(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
+) -> Result<(), TransformError> {
+    let mut names: BTreeSet<&'static str> = BTreeSet::new();
+    for helper in context.requested_emit_helpers() {
+        if let Some(name) = helper.import_name() {
+            names.insert(name);
+        }
+    }
+    if names.is_empty() {
+        return Ok(());
+    }
+    // `isFileLevelUniqueName(sourceFile, name)` reads the PARSE file's
+    // identifier census (transformed-tree identifiers include the helper
+    // references themselves and must not count).
+    let source_names =
+        target_bindings::ParsedSourceIdentifierNames::collect(context.arena(), source)?;
+    for name in &names {
+        if source_names.contains(name) {
+            return Err(TransformError::UnsupportedCompilerOption {
+                option: "importHelpers",
+                detail: "a tslib helper import aliasing a colliding source identifier is owned by the H2.5h corpus-adoption slice",
+            });
+        }
+    }
+    let mut specifiers = Vec::with_capacity(names.len());
+    for name in names {
+        let identifier = context.factory()?.create_node(
+            source,
+            NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
+                escaped_text: name.to_owned(),
+                text: name.to_owned(),
+            }),
+            TransformFlags::NONE,
+        )?;
+        let specifier = context.factory()?.create_node(
+            source,
+            NodeData::ImportSpecifier(tsc_syntax::nodes::ImportSpecifierData {
+                name: Some(identifier.node()),
+                property_name: None,
+                is_type_only: false,
+            }),
+            TransformFlags::NONE,
+        )?;
+        specifiers.push(specifier);
+    }
+    let elements = context.factory()?.create_node_array(source, specifiers)?;
+    let named_imports = context.factory()?.create_node(
+        source,
+        NodeData::NamedImports(tsc_syntax::nodes::NamedImportsData {
+            elements: Some(elements.array()),
+        }),
+        TransformFlags::NONE,
+    )?;
+    let clause = context.factory()?.create_node(
+        source,
+        NodeData::ImportClause(tsc_syntax::nodes::ImportClauseData {
+            name: None,
+            is_type_only: false,
+            phase_modifier: None,
+            named_bindings: Some(named_imports.node()),
+        }),
+        TransformFlags::NONE,
+    )?;
+    let specifier = context.factory()?.create_node(
+        source,
+        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+            text: "tslib".to_owned(),
+            has_extended_unicode_escape: None,
+        }),
+        TransformFlags::NONE,
+    )?;
+    let declaration = context.factory()?.create_node(
+        source,
+        NodeData::ImportDeclaration(tsc_syntax::nodes::ImportDeclarationData {
+            modifiers: None,
+            import_clause: Some(clause.node()),
+            module_specifier: Some(specifier.node()),
+            attributes: None,
+        }),
+        TransformFlags::NONE,
+    )?;
+    context
+        .arena_mut()?
+        .metadata_mut(declaration)
+        .set_internal_flags(InternalEmitFlags::NEVER_APPLY_IMPORT_HELPER);
+    let root_node = context.arena().root(source)?;
+    let NodeData::SourceFile(mut source_data) = context.arena().node(root_node)?.data.clone()
+    else {
+        return Err(TransformError::RootKindExpected {
+            actual: context.arena().node(root_node)?.kind,
+        });
+    };
+    let original_array = source_data
+        .statements
+        .and_then(|id| context.arena().node_array_ref(source, id));
+    let mut statements = match original_array {
+        Some(array) => context
+            .arena()
+            .node_array(array)?
+            .nodes
+            .iter()
+            .filter_map(|id| context.arena().node_ref(source, *id))
+            .collect::<Vec<_>>(),
+        None => Vec::new(),
+    };
+    // `factory2.copyPrologue(node.statements, statements)` — the import
+    // lands after leading directive prologues.
+    let mut offset = 0;
+    for statement in &statements {
+        let NodeData::ExpressionStatement(data) = &context.arena().node(*statement)?.data else {
+            break;
+        };
+        let is_prologue = data
+            .expression
+            .and_then(|id| context.arena().node_ref(source, id))
+            .and_then(|expression| context.arena().node(expression).ok())
+            .is_some_and(|record| matches!(record.data, NodeData::StringLiteral(_)));
+        if !is_prologue {
+            break;
+        }
+        offset += 1;
+    }
+    statements.insert(offset, declaration);
+    source_data.statements = Some(match original_array {
+        Some(array) => context
+            .factory()?
+            .update_node_array(array, statements)?
+            .array(),
+        None => context
+            .factory()?
+            .create_node_array(source, statements)?
+            .array(),
+    });
+    let flags = context.arena().transform_flags(root_node);
+    let updated =
+        context
+            .factory()?
+            .update_node(root_node, NodeData::SourceFile(source_data), flags)?;
+    context.arena_mut()?.replace_root(source, updated)?;
+    Ok(())
 }
 
 fn transformed_source_has_external_module_indicator(
@@ -9059,6 +9246,7 @@ struct TypeScriptVisitor<'context, 'resolver> {
     preserve_const_enums: bool,
     project_parameter_properties_for_class_fields: bool,
     downlevel_iteration: bool,
+    promote_class_iife: bool,
     nodes: BTreeMap<NodeId, Option<NodeId>>,
     arrays: BTreeMap<NodeArrayId, Option<NodeArrayId>>,
     class_member_arrays: BTreeMap<NodeArrayId, ClassMemberArrayVisit>,
@@ -9163,6 +9351,7 @@ impl TypeScriptLexicalScopeOwner {
 }
 
 impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
+    #[allow(clippy::too_many_arguments)] // the transformer's option snapshot
     fn new(
         context: &'context mut TransformationContext,
         source: TransformSourceId,
@@ -9171,6 +9360,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         preserve_const_enums: bool,
         project_parameter_properties_for_class_fields: bool,
         downlevel_iteration: bool,
+        promote_class_iife: bool,
     ) -> Self {
         let source_identifier_names = system::collect_identifier_texts(context.arena(), source);
         Self {
@@ -9181,6 +9371,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             preserve_const_enums,
             project_parameter_properties_for_class_fields,
             downlevel_iteration,
+            promote_class_iife,
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             class_member_arrays: BTreeMap::new(),
@@ -9481,6 +9672,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                                 .node(),
                         )
                     } else {
+                        let facts = self.typescript_class_facts(data.members)?;
                         if data.name.is_none() {
                             let mut generated_name = self
                                 .generated_declaration_names
@@ -9490,7 +9682,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                             // anonymous declaration a stable identity before
                             // later decorator, class-field, and module passes
                             // split it into statements.
-                            let facts = self.typescript_class_facts(data.members)?;
                             if generated_name.is_none() && facts.needs_declaration_name() {
                                 generated_name =
                                     Some(self.ensure_generated_declaration_name(id, "default"));
@@ -9500,7 +9691,22 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                             }
                         }
                         data.type_parameters = None;
-                        Some(self.update_class_declaration(original, id, data)?)
+                        let class_is_decorated =
+                            self.has_modifier(data.modifiers, SyntaxKind::Decorator)?;
+                        let promote = self.promote_class_iife
+                            && (facts.has_static_initialized_properties
+                                || facts.has_member_decorators
+                                || class_is_decorated);
+                        if promote {
+                            Some(self.promote_class_declaration_to_iife(
+                                original,
+                                id,
+                                data,
+                                class_is_decorated || facts.has_member_decorators,
+                            )?)
+                        } else {
+                            Some(self.update_class_declaration(original, id, data)?)
+                        }
                     }
                 }
                 NodeData::ClassExpression(mut data) => {
@@ -12753,6 +12959,208 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             }
         }
         Ok(facts)
+    }
+
+    /// tsc-port: visitClassDeclaration @6.0.3
+    /// tsc-hash: b4f4c7bb3c8f14a7776dd0ab5337e8c11b30104d7eb70b676c5dba79a9e1ae59
+    /// tsc-span: _tsc.js:94434-94548
+    ///
+    /// The `promoteToIIFE` arm of the owner function:
+    /// `languageVersion < ES2015` wraps a class declaration carrying static
+    /// initialized properties in the `TypeScriptClassWrapper` arrow IIFE the
+    /// ES2015 owner's wrapper surgery consumes
+    /// (`visitTypeScriptClassWrapper`). The exported, namespace-nested, and
+    /// decorated promote lanes stay typed fail-closed seams: the
+    /// plain-script static lane is the only byte-evidenced configuration
+    /// (the B-5 witness gate and focused projections); the H2.5h
+    /// corpus-adoption slice owns the remaining lanes' oracle evidence.
+    fn promote_class_declaration_to_iife(
+        &mut self,
+        original: TransformNode,
+        parent: NodeId,
+        data: tsc_syntax::nodes::ClassDeclarationData,
+        decorated: bool,
+    ) -> Result<NodeId, TransformError> {
+        if decorated
+            || !self.namespace_stack.is_empty()
+            || self.has_modifier(data.modifiers, SyntaxKind::ExportKeyword)?
+            || self.has_modifier(data.modifiers, SyntaxKind::DefaultKeyword)?
+        {
+            return Err(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ClassDeclaration,
+                field:
+                    "exported/decorated ES5 class-wrapper promotion (H2.5h corpus-adoption seam)",
+            });
+        }
+        // `createTokenRange(skipTrivia(currentSourceFile.text, node.members.end),
+        // CloseBraceToken)` over the PARSE positions (the promote arm runs on
+        // parse-owned classes; `wrapping_add` mirrors the -1 sentinel
+        // arithmetic exactly as in the ES2015 owner's `transformClassBody`).
+        let members_end = match data.members {
+            Some(members) => self.context.arena().node_array(self.array(members))?.end,
+            None => self.context.arena().node(original)?.end,
+        };
+        let close_brace_start = {
+            let source = self.context.arena().source(self.source)?.syntax();
+            es2015::skip_trivia_bytes(source.text(), members_end)
+        };
+        self.context.start_lexical_environment()?;
+        let updated_class = self.update_class_declaration(original, parent, data)?;
+        let updated_class = self.node(updated_class);
+        // `if (facts & HasStaticInitializedProperties) emitFlags |= NoTrailingSourceMap`
+        self.context
+            .arena_mut()?
+            .metadata_mut(updated_class)
+            .add_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+        let name_text = {
+            let NodeData::ClassDeclaration(updated) =
+                &self.context.arena().node(updated_class)?.data
+            else {
+                unreachable!("update_class_declaration returns a class declaration");
+            };
+            let name = updated.name.ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::ClassDeclaration,
+                field: "promoted class name",
+            })?;
+            self.identifier_text(name)?.to_owned()
+        };
+        let outer = {
+            let local = self.create_identifier(&name_text)?;
+            let created = self.context.factory()?.create_node(
+                self.source,
+                NodeData::PartiallyEmittedExpression(
+                    tsc_syntax::nodes::PartiallyEmittedExpressionData {
+                        expression: Some(local.node()),
+                    },
+                ),
+                TransformFlags::NONE,
+            )?;
+            self.set_close_brace_token_range(created, close_brace_start)?;
+            created
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(outer)
+            .add_flags(EmitFlags::NO_COMMENTS);
+        let return_statement = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ReturnStatement(tsc_syntax::nodes::ReturnStatementData {
+                expression: Some(outer.node()),
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.set_close_brace_token_range(return_statement, close_brace_start)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(return_statement)
+            .add_flags(EmitFlags::NO_COMMENTS | EmitFlags::NO_TOKEN_SOURCE_MAPS);
+        let environment = self.context.end_lexical_environment()?;
+        let block =
+            self.create_block_from_array(vec![updated_class, return_statement], None, true)?;
+        // `insertStatementsAfterStandardPrologue(statements,
+        // context.endLexicalEnvironment())` — the wrapper body has no
+        // prologue directives, so hoisted declarations land first.
+        let block = self.merge_namespace_lexical_environment(block, environment)?;
+        let arrow = {
+            let parameters = self
+                .context
+                .factory()?
+                .create_node_array(self.source, Vec::new())?;
+            let token = self.context.factory()?.create_token(
+                self.source,
+                SyntaxKind::EqualsGreaterThanToken,
+                TransformFlags::NONE,
+            )?;
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::ArrowFunction(tsc_syntax::nodes::ArrowFunctionData {
+                    modifiers: None,
+                    type_parameters: None,
+                    parameters: Some(parameters.array()),
+                    r#type: None,
+                    body: Some(block.node()),
+                    equals_greater_than_token: Some(token.node()),
+                }),
+                TransformFlags::NONE,
+            )?
+        };
+        let iife = {
+            let arguments = self
+                .context
+                .factory()?
+                .create_node_array(self.source, Vec::new())?;
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::CallExpression(tsc_syntax::nodes::CallExpressionData {
+                    expression: Some(arrow.node()),
+                    question_dot_token: None,
+                    type_arguments: None,
+                    arguments: Some(arguments.array()),
+                }),
+                TransformFlags::NONE,
+            )?
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(iife)
+            .set_internal_flags(InternalEmitFlags::TYPE_SCRIPT_CLASS_WRAPPER);
+        let variable_declaration = {
+            let name = self.create_identifier(&name_text)?;
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
+                    name: Some(name.node()),
+                    exclamation_token: None,
+                    r#type: None,
+                    initializer: Some(iife.node()),
+                }),
+                TransformFlags::NONE,
+            )?
+        };
+        self.context
+            .arena_mut()?
+            .set_original_node(variable_declaration, Some(original))?;
+        let variable_statement =
+            self.create_variable_statement(vec![variable_declaration], None, NodeFlags::LET)?;
+        self.context
+            .arena_mut()?
+            .set_original_node(variable_statement, Some(original))?;
+        let statement_range = {
+            let record = self.context.arena().node(original)?;
+            let source = self.context.arena().source(self.source)?.syntax();
+            SourceRange::from_raw(record.pos, record.end, source.positions())
+        };
+        if let Ok(range) = statement_range {
+            let metadata = self.context.arena_mut()?.metadata_mut(variable_statement);
+            metadata.set_comment_range(CommentRange::new(original.source(), range));
+            // `moveRangePastDecorators(node)` — the refused decorator lanes
+            // make this the plain node range.
+            metadata.set_source_map_range(SourceMapRange::new(original.source(), range));
+        }
+        self.context
+            .arena_mut()?
+            .metadata_mut(variable_statement)
+            .set_starts_on_new_line(true);
+        Ok(variable_statement.node())
+    }
+
+    /// The one-byte close-brace token range shared by the wrapper's
+    /// partially-emitted return protocol.
+    fn set_close_brace_token_range(
+        &mut self,
+        node: TransformNode,
+        start: u32,
+    ) -> Result<(), TransformError> {
+        let range = {
+            let source = self.context.arena().source(self.source)?.syntax();
+            SourceRange::from_raw(start, start.wrapping_add(1), source.positions())
+        };
+        if let Ok(range) = range {
+            self.context
+                .factory()?
+                .set_text_range_from_source_range(node, self.source, range)?;
+        }
+        Ok(())
     }
 
     /// tsc-port: nodeCanBeDecorated/nodeIsDecorated/childIsDecorated @6.0.3

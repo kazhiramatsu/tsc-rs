@@ -11,6 +11,11 @@
 //! no prologue, LF. Reproduction: `node b4-probe.mjs` (script body
 //! reproduced in the PR; the 123 exact sources are §7 step 5 of the
 //! packet).
+//!
+//! The B-5 tagged-template projections (packet h2-5h-b-b-5 §7.4) extend
+//! the suite with the same recipe plus a per-case `module: ESNext` extra
+//! for the external-module lanes (`b5-probe.mjs`); module-mode cases run
+//! the real `[es2015, generators, ecmascript-module]` tail.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -80,6 +85,48 @@ fn assert_projection(
     use_define_for_class_fields: bool,
 ) {
     let projected = project_with(source, downlevel_iteration, use_define_for_class_fields);
+    assert_eq!(projected, expected);
+}
+
+/// The external-module projection driver: `module: ESNext` options and
+/// the real `transform_ecmascript_module` tail after the joint pair —
+/// the b5-probe recipe for `export`-bearing fixtures.
+fn project_with_module(source_text: &str) -> String {
+    let parsed = parse_source_file("input.ts", source_text, Default::default(), None);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let resolver = build_fixture_resolver(&arena, source);
+    let options = CompilerOptions {
+        module: Some(99), // ModuleKind.ESNext
+        ..fixture_options(false, false)
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_es2015(&options, &resolver),
+            transform_generators(tsc_types::ScriptTarget::ES5, &resolver),
+            super::super::transform_ecmascript_module(&options),
+        ],
+        false,
+    )
+    .expect("es2015+generators+esm transform");
+    create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(tsc_types::ScriptTarget::ES5),
+    )
+    .print(
+        &mut result,
+        PrintRequest::SourceFile(source),
+        &mut DisabledSourceMapRecorder,
+    )
+    .expect("print es2015 module projection")
+    .text()
+    .to_owned()
+}
+
+#[track_caller]
+fn assert_module_projection(source: &str, expected: &str) {
+    let projected = project_with_module(source);
     assert_eq!(projected, expected);
 }
 
@@ -3640,14 +3687,130 @@ use(r);
 // --- Fault-shaped typed-error contracts (§7): not oracle-mintable — the
 // upstream pipeline shields these arms. ---
 
-/// The tagged-template seam: `processTaggedTemplateExpression` is the B-5
-/// shared module (gap row 12); until it lands the arm is a TYPED error.
+// --- B-5 tagged-template projections (packet h2-5h-b-b-5 section 7.4;
+// frozen probe output b5-expectations.json; do not hand-edit bodies). ---
+
 #[test]
-fn tagged_template_is_a_typed_error_until_b5() {
-    let error = project_error("var r = tag`x${y}`;\nuse(r);\n");
-    assert!(
-        matches!(error, TransformError::RequiredChildRemoved { .. }),
-        "unexpected error shape: {error:?}"
+fn projects_tagged_no_subst() {
+    assert_projection(
+        "var r = tag`plain`;\nuse(r);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar r = tag(__makeTemplateObject([\"plain\"], [\"plain\"]));\nuse(r);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_multi_span() {
+    assert_projection(
+        "var r = tag`a${x}b${y}`;\nuse(r);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar r = tag(__makeTemplateObject([\"a\", \"b\", \"\"], [\"a\", \"b\", \"\"]), x, y);\nuse(r);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_expr_tag() {
+    assert_projection(
+        "var r = o.m()`x${v}`;\nuse(r);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar r = o.m()(__makeTemplateObject([\"x\", \"\"], [\"x\", \"\"]), v);\nuse(r);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_invalid_escape() {
+    assert_projection(
+        "var r = tag`bad\\xZZ${x}tail`;\nuse(r);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar r = tag(__makeTemplateObject([void 0, \"tail\"], [\"bad\\\\xZZ\", \"tail\"]), x);\nuse(r);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_invalid_octal() {
+    assert_projection(
+        "var r = tag`o\\101k`;\nuse(r);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar r = tag(__makeTemplateObject([void 0], [\"o\\\\101k\"]));\nuse(r);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_invalid_unicode_brace() {
+    assert_projection(
+        "var r = tag`u\\u{110000}q`;\nuse(r);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar r = tag(__makeTemplateObject([void 0], [\"u\\\\u{110000}q\"]));\nuse(r);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_crlf_raw() {
+    assert_projection(
+        "var r = tag`line1\r\nline2${x}tail`;\nuse(r);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar r = tag(__makeTemplateObject([\"line1\\nline2\", \"tail\"], [\"line1\\nline2\", \"tail\"]), x);\nuse(r);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_nested() {
+    assert_projection(
+        "var r = outer`a${inner`b${x}`}c`;\nuse(r);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar r = outer(__makeTemplateObject([\"a\", \"c\"], [\"a\", \"c\"]), inner(__makeTemplateObject([\"b\", \"\"], [\"b\", \"\"]), x));\nuse(r);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_in_loop_capture() {
+    assert_projection(
+        "for (let i = 0; i < n; i++) { sink(function () { return tag`v${i}`; }); }\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar _loop_1 = function (i) {\n    sink(function () { return tag(__makeTemplateObject([\"v\", \"\"], [\"v\", \"\"]), i); });\n};\nfor (var i = 0; i < n; i++) {\n    _loop_1(i);\n}\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_in_generator() {
+    assert_projection(
+        "function* g() { return tag`v${yield 1}`; }\nuse(g);\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nvar __generator = (this && this.__generator) || function (thisArg, body) {\n    var _ = { label: 0, sent: function() { if (t[0] & 1) throw t[1]; return t[1]; }, trys: [], ops: [] }, f, y, t, g = Object.create((typeof Iterator === \"function\" ? Iterator : Object).prototype);\n    return g.next = verb(0), g[\"throw\"] = verb(1), g[\"return\"] = verb(2), typeof Symbol === \"function\" && (g[Symbol.iterator] = function() { return this; }), g;\n    function verb(n) { return function (v) { return step([n, v]); }; }\n    function step(op) {\n        if (f) throw new TypeError(\"Generator is already executing.\");\n        while (g && (g = 0, op[0] && (_ = 0)), _) try {\n            if (f = 1, y && (t = op[0] & 2 ? y[\"return\"] : op[0] ? y[\"throw\"] || ((t = y[\"return\"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;\n            if (y = 0, t) op = [op[0] & 2, t.value];\n            switch (op[0]) {\n                case 0: case 1: t = op; break;\n                case 4: _.label++; return { value: op[1], done: false };\n                case 5: _.label++; y = op[1]; op = [0]; continue;\n                case 7: op = _.ops.pop(); _.trys.pop(); continue;\n                default:\n                    if (!(t = _.trys, t = t.length > 0 && t[t.length - 1]) && (op[0] === 6 || op[0] === 2)) { _ = 0; continue; }\n                    if (op[0] === 3 && (!t || (op[1] > t[0] && op[1] < t[3]))) { _.label = op[1]; break; }\n                    if (op[0] === 6 && _.label < t[1]) { _.label = t[1]; t = op; break; }\n                    if (t && _.label < t[2]) { _.label = t[2]; _.ops.push(op); break; }\n                    if (t[2]) _.ops.pop();\n                    _.trys.pop(); continue;\n            }\n            op = body.call(thisArg, _);\n        } catch (e) { op = [6, e]; y = 0; } finally { f = t = 0; }\n        if (op[0] & 5) throw op[1]; return { value: op[0] ? op[1] : void 0, done: true };\n    }\n};\nfunction g() { var _a, _b; return __generator(this, function (_c) {\n    switch (_c.label) {\n        case 0:\n            _a = tag;\n            _b = [__makeTemplateObject([\"v\", \"\"], [\"v\", \"\"])];\n            return [4 /*yield*/, 1];\n        case 1: return [2 /*return*/, _a.apply(void 0, _b.concat([_c.sent()]))];\n    }\n}); }\nuse(g);\n",
+        false,
+        false,
+    );
+}
+
+#[test]
+fn projects_tagged_module_export() {
+    assert_module_projection(
+        "export var r = tag`m${x}`;\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nexport var r = tag(templateObject_1 || (templateObject_1 = __makeTemplateObject([\"m\", \"\"], [\"m\", \"\"])), x);\nvar templateObject_1;\n",
+    );
+}
+
+#[test]
+fn projects_tagged_module_two() {
+    assert_module_projection(
+        "export var r = tag`m${x}`;\nexport var s = tag`n${y}`;\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nexport var r = tag(templateObject_1 || (templateObject_1 = __makeTemplateObject([\"m\", \"\"], [\"m\", \"\"])), x);\nexport var s = tag(templateObject_2 || (templateObject_2 = __makeTemplateObject([\"n\", \"\"], [\"n\", \"\"])), y);\nvar templateObject_1, templateObject_2;\n",
+    );
+}
+
+#[test]
+fn projects_tagged_module_invalid() {
+    assert_module_projection(
+        "export var r = tag`bad\\xZZ${x}`;\n",
+        "var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {\n    if (Object.defineProperty) { Object.defineProperty(cooked, \"raw\", { value: raw }); } else { cooked.raw = raw; }\n    return cooked;\n};\nexport var r = tag(templateObject_1 || (templateObject_1 = __makeTemplateObject([void 0, \"\"], [\"bad\\\\xZZ\", \"\"])), x);\nvar templateObject_1;\n",
     );
 }
 

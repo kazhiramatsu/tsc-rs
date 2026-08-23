@@ -7,7 +7,8 @@ use tsc_binder::SymbolId;
 use tsc_diagnostics::gen as diagnostics;
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    InternalSymbolName, ModifierFlags, NodeFlags, ObjectFlags, SymbolFlags, TypeFlags, TypeId,
+    InternalSymbolName, ModifierFlags, NodeFlags, ObjectFlags, ScriptTarget, SymbolFlags,
+    TypeFlags, TypeId,
 };
 
 use crate::state::{CheckResult, CheckerState, IndexInfo};
@@ -668,6 +669,17 @@ impl<'a> CheckerState<'a> {
                 (base_data.expression, base_data.type_arguments);
             for argument in self.nodes_of(base_type_arguments) {
                 self.check_source_element(Some(argument));
+            }
+            // `if (languageVersion < LanguageFeatureMinimumTarget.Classes)
+            // checkExternalEmitHelpers(baseTypeNode.parent, Extends)` —
+            // live since the H2.5h-b B-5 target flip admitted the ES5 band.
+            if self.options.emit_script_target() < ScriptTarget::ES2015 {
+                if let Some(heritage_clause) = self.parent_of(base_type_node) {
+                    self.check_external_emit_helpers(
+                        heritage_clause,
+                        crate::modules::EMIT_HELPER_EXTENDS,
+                    )?;
+                }
             }
             if let Some(extends_node) = self.get_class_extends_heritage_element(node) {
                 if extends_node != base_type_node {

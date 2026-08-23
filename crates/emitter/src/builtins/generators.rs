@@ -217,10 +217,9 @@ struct RenameState {
 /// tsc-hash: a7c6256b82433a63dc01b3887370845fab05df1c00083366114fa045437f8e95
 /// tsc-span: _tsc.js:108119-110087
 ///
-/// The registration seam the B-5 runtime flip wires as the second entry of
-/// the joint `[transformES2015, transformGenerators]` pass list
-/// (`languageVersion < ES2015`, owner-graph `upstream_registration`).
-#[allow(dead_code)] // the production registration arrives with the B-5 owner
+/// The second entry of the joint `[transformES2015, transformGenerators]`
+/// pass list (`languageVersion < ES2015`, owner-graph
+/// `upstream_registration`; live since the B-5 runtime flip).
 pub(super) fn transform_generators<'resolver>(
     language_version: ScriptTarget,
     resolver: &'resolver dyn EmitResolver,

@@ -652,6 +652,7 @@ pub struct PrinterOptions {
     new_line: NewLineKind,
     remove_comments: bool,
     no_emit_helpers: bool,
+    import_helpers: bool,
     target: Option<ScriptTarget>,
     source_file_text_mode: SourceFileTextMode,
 }
@@ -662,6 +663,7 @@ impl PrinterOptions {
             new_line,
             remove_comments: false,
             no_emit_helpers: false,
+            import_helpers: false,
             target: None,
             source_file_text_mode: SourceFileTextMode::PreserveUnchanged,
         }
@@ -674,6 +676,15 @@ impl PrinterOptions {
 
     pub const fn with_no_emit_helpers(mut self, value: bool) -> Self {
         self.no_emit_helpers = value;
+        self
+    }
+
+    /// `importHelpers`: unscoped helper bodies are imported from `tslib`
+    /// by the module transformer instead of being inlined
+    /// (`hasRecordedExternalHelpers`, `_tsc.js:117730`); the printer
+    /// suppresses them for external-module sources.
+    pub const fn with_import_helpers(mut self, value: bool) -> Self {
+        self.import_helpers = value;
         self
     }
 
@@ -1232,10 +1243,26 @@ impl Printer {
             writer.write_comment(shebang);
             writer.write_line(false);
         }
+        // `shouldSkip = printerOptions.noEmitHelpers || hasRecordedExternalHelpers(sourceFile)`
+        // (`_tsc.js:117729-117736`): under `importHelpers` an external
+        // module's unscoped helpers were rewritten into the tslib import by
+        // the module transformer, so their bodies never inline. The
+        // external-module test is equivalent to the recorded flag: the
+        // import is created exactly when unscoped helpers exist there.
+        let suppress_unscoped = self.options.import_helpers
+            && transformation
+                .arena()
+                .source(source_id)?
+                .syntax()
+                .external_module_indicator
+                .is_some();
         let helpers = if self.options.no_emit_helpers {
             Vec::new()
         } else {
             let mut helpers = transformation.emit_helpers().to_vec();
+            if suppress_unscoped {
+                helpers.retain(|helper| helper.scoped());
+            }
             helpers.sort_by_key(|helper| {
                 helper
                     .priority()
@@ -3689,6 +3716,22 @@ impl Printer {
                 } else {
                     writer.write_space(" ");
                 }
+                // tsc-port: emitSignatureAndBody @6.0.3 (the Indented arm)
+                // tsc-span: _tsc.js:118969-118982
+                // `const indentedFlag = getEmitFlags(node) & Indented` —
+                // brackets the signature and body one level deeper. The sole
+                // producer is the ES2015 class lowering's function expression
+                // (which inherits the flag class-fields stamps on the class
+                // node, `_tsc.js:105203`), so the arm is byte-inert for every
+                // target at or above ES2015 (no function node carries the
+                // flag there; the ratchet is the enforcement).
+                let indented = transformation
+                    .arena()
+                    .metadata(node)
+                    .is_some_and(|metadata| metadata.flags().contains(crate::EmitFlags::INDENTED));
+                if indented {
+                    writer.increase_indent();
+                }
                 self.emit_parameter_list(
                     transformation,
                     node.source(),
@@ -3705,6 +3748,9 @@ impl Printer {
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                }
+                if indented {
+                    writer.decrease_indent();
                 }
                 Ok(())
             }

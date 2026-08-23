@@ -62,6 +62,11 @@ const EXTENDS_HELPER_TEXT: &str = r#"var __extends = (this && this.__extends) ||
     };
 })();"#;
 
+const MAKE_TEMPLATE_OBJECT_HELPER_TEXT: &str = r#"var __makeTemplateObject = (this && this.__makeTemplateObject) || function (cooked, raw) {
+    if (Object.defineProperty) { Object.defineProperty(cooked, "raw", { value: raw }); } else { cooked.raw = raw; }
+    return cooked;
+};"#;
+
 const SPREAD_ARRAY_HELPER_TEXT: &str = r#"var __spreadArray = (this && this.__spreadArray) || function (to, from, pack) {
     if (pack || arguments.length === 2) for (var i = 0, l = from.length, ar; i < l; i++) {
         if (ar || !(i in from)) {
@@ -190,6 +195,21 @@ pub(super) fn extends() -> EmitHelper {
         "typescript:extends",
         false,
         EXTENDS_HELPER_TEXT,
+        Some(0),
+        Vec::new(),
+    )
+}
+
+/// Requested by the B-5 tagged-template shared module (H2.5h-b) — the
+/// second priority-0 helper next to `typescript:extends`.
+/// tsc-port: templateObjectHelper @6.0.3
+/// tsc-hash: 95a23beee7acf99b5f61e7ee0971c9783339404894a17b279498f19421a9609f
+/// tsc-span: _tsc.js:26247-26257
+pub(super) fn make_template_object() -> EmitHelper {
+    EmitHelper::with_text(
+        "typescript:makeTemplateObject",
+        false,
+        MAKE_TEMPLATE_OBJECT_HELPER_TEXT,
         Some(0),
         Vec::new(),
     )

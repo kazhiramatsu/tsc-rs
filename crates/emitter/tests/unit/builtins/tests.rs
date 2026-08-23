@@ -5116,3 +5116,57 @@ fn common_js_merged_exported_namespace_publishes_its_initializer() {
         "{output}",
     );
 }
+
+/// The B-5 registered joint pass: the ES5 pipeline pushes
+/// `transformES2015` then `transformGenerators` between the es2016 entry
+/// and the module transformer — the upstream registration order
+/// (`_tsc.js:115942-115945`, owner-graph `upstream_registration`).
+#[test]
+fn es5_pipeline_registers_the_joint_es2015_generators_pass_in_upstream_order() {
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES5.bits()),
+        module: Some(ModuleKind::SYSTEM.bits()),
+        ..CompilerOptions::default()
+    };
+    struct PipelineShapeResolver;
+    impl crate::EmitResolver for PipelineShapeResolver {
+        fn get_constant_value(
+            &self,
+            _node: crate::EmitResolverNode,
+        ) -> Result<Option<crate::EmitConstantValue>, crate::EmitResolverError> {
+            Ok(None)
+        }
+
+        fn get_enum_member_value(
+            &self,
+            _node: crate::EmitResolverNode,
+        ) -> Result<Option<crate::EmitEnumMemberValue>, crate::EmitResolverError> {
+            Ok(None)
+        }
+    }
+    let resolver = PipelineShapeResolver;
+    let transformers = get_script_transformers(&options, &resolver)
+        .expect("construct the complete ES5 transform pipeline");
+    let names = transformers
+        .iter()
+        .map(|transformer| transformer.name())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        names,
+        [
+            "transformTypeScript",
+            "transformESNext",
+            "transformESDecorators",
+            "transformClassFields",
+            "transformES2021",
+            "transformES2020",
+            "transformES2019",
+            "transformES2018",
+            "transformES2017",
+            "transformES2016",
+            "transformES2015",
+            "transformGenerators",
+            "transformSystemModule",
+        ],
+    );
+}

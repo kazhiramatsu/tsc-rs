@@ -130,10 +130,10 @@ impl Transformer for Es2017Transformer<'_> {
     }
 
     fn initialize(&mut self, _context: &mut TransformationContext) -> Result<(), TransformError> {
-        if self.target < ScriptTarget::ES2015 || self.target > ScriptTarget::ES2016 {
+        if self.target < ScriptTarget::ES5 || self.target > ScriptTarget::ES2016 {
             return Err(TransformError::UnsupportedCompilerOption {
                 option: "transformES2017",
-                detail: "H2.5g composes transformES2017 at the ES2015 and ES2016 target boundaries",
+                detail: "H2.5h composes transformES2017 for ES5 through ES2016 targets",
             });
         }
         Ok(())

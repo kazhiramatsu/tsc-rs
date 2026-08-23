@@ -292,6 +292,55 @@ impl EmitHelper {
         &self.name
     }
 
+    /// The upstream helper table's `importName` column for UNSCOPED
+    /// helpers (tsc `allUnscopedEmitHelpers`, `_tsc.js:26042-26520`):
+    /// the `import { <importName> } from "tslib"` binding synthesized by
+    /// `createExternalHelpersImportDeclarationIfNeeded` under
+    /// `importHelpers`. Names are transcribed, not derived — five rows
+    /// (`commonjscreatebinding`, `commonjscreatevalue`,
+    /// `commonjsimportstar`, `commonjsimportdefault`, `export-star`)
+    /// break any prefix rule. An unknown unscoped helper name is a typed
+    /// error at the consumer, never a silent skip.
+    pub(crate) fn import_name(&self) -> Option<&'static str> {
+        if self.scoped {
+            return None;
+        }
+        Some(match self.name.as_ref() {
+            "typescript:decorate" => "__decorate",
+            "typescript:metadata" => "__metadata",
+            "typescript:param" => "__param",
+            "typescript:esDecorate" => "__esDecorate",
+            "typescript:runInitializers" => "__runInitializers",
+            "typescript:assign" => "__assign",
+            "typescript:await" => "__await",
+            "typescript:asyncGenerator" => "__asyncGenerator",
+            "typescript:asyncDelegator" => "__asyncDelegator",
+            "typescript:asyncValues" => "__asyncValues",
+            "typescript:rest" => "__rest",
+            "typescript:awaiter" => "__awaiter",
+            "typescript:extends" => "__extends",
+            "typescript:makeTemplateObject" => "__makeTemplateObject",
+            "typescript:read" => "__read",
+            "typescript:spreadArray" => "__spreadArray",
+            "typescript:propKey" => "__propKey",
+            "typescript:setFunctionName" => "__setFunctionName",
+            "typescript:values" => "__values",
+            "typescript:generator" => "__generator",
+            "typescript:commonjscreatebinding" => "__createBinding",
+            "typescript:commonjscreatevalue" => "__setModuleDefault",
+            "typescript:commonjsimportstar" => "__importStar",
+            "typescript:commonjsimportdefault" => "__importDefault",
+            "typescript:export-star" => "__exportStar",
+            "typescript:classPrivateFieldGet" => "__classPrivateFieldGet",
+            "typescript:classPrivateFieldSet" => "__classPrivateFieldSet",
+            "typescript:classPrivateFieldIn" => "__classPrivateFieldIn",
+            "typescript:addDisposableResource" => "__addDisposableResource",
+            "typescript:disposeResources" => "__disposeResources",
+            "typescript:rewriteRelativeImportExtension" => "__rewriteRelativeImportExtension",
+            _ => return None,
+        })
+    }
+
     pub const fn scoped(&self) -> bool {
         self.scoped
     }
@@ -664,6 +713,14 @@ impl TransformationContext {
     pub fn read_emit_helpers(&mut self) -> Result<Vec<EmitHelper>, TransformError> {
         self.require_transforming("read emit helpers")?;
         Ok(std::mem::take(&mut self.emit_helpers))
+    }
+
+    /// The unscoped helpers requested so far by earlier passes — the
+    /// `getEmitHelpers(sourceFile)` analog of the single-context helper
+    /// model, consumed by the module transformer's `importHelpers`
+    /// external-helpers import synthesis.
+    pub(crate) fn requested_emit_helpers(&self) -> &[EmitHelper] {
+        &self.emit_helpers
     }
 
     pub fn add_diagnostic(&mut self, diagnostic: Diagnostic) -> Result<(), TransformError> {

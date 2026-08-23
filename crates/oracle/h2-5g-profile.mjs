@@ -143,6 +143,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/checker/tests/unit/structural/tests.rs",
   "crates/checker/tests/unit/unions/tests.rs",
   "crates/checker/tests/unit/variance/tests.rs",
+  "crates/compiler/tests/integration/es2015_generators_witness_contract.rs",
   "crates/compiler/tests/integration/filesystem_loader_contract.rs",
   "crates/compiler/tests/unit/lib/tests.rs",
   "crates/emitter/src/comment_cursor.rs",
@@ -254,10 +255,12 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/emitter/tests/unit/hook_chaining/tests.rs",
   "crates/emitter/src/builtins/flatten_destructuring.rs",
   "crates/emitter/src/builtins/generators.rs",
+  "crates/emitter/src/builtins/tagged_template.rs",
   "crates/emitter/src/builtins/es2015.rs",
   "crates/emitter/tests/unit/flatten_destructuring/tests.rs",
   "crates/emitter/tests/unit/generators/tests.rs",
   "crates/emitter/tests/unit/es2015/tests.rs",
+  "crates/emitter/tests/unit/tagged_template/tests.rs",
 ]);
 
 // These files implement the non-authoritative acceptance impact/restart
@@ -541,7 +544,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 247,
+    runtimeInputSet.size === 250,
     "H2.5g runtime input identity changed",
   );
 

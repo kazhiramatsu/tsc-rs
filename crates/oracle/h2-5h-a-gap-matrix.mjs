@@ -31,17 +31,25 @@ const CAPABILITY_ROWS = Object.freeze([
     capability_id: "pass-registration-boundary",
     state: "exists",
     requirement:
-      "joint transformES2015+transformGenerators registration for target below ES2015; today the boundary is a typed fail-closed rejection",
+      "joint transformES2015+transformGenerators registration for target below ES2015",
     surfaces: Object.freeze(["hook-composition"]),
     architecture_rows: Object.freeze(["E-ORDER-H", "EA-GAP-COMPOSITION"]),
     anchors: Object.freeze([
       Object.freeze({
         path: "crates/emitter/src/builtins.rs",
-        symbol: "older targets belong to later target-ladder slices",
+        symbol: "es2015::transform_es2015(options, resolver)",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins.rs",
+        symbol: "generators::transform_generators(target, resolver)",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/activity.rs",
+        symbol: "pub const fn h2_5h_profile()",
       }),
     ]),
     absences: Object.freeze([]),
-    note: "the dormant seam this packet eventually activates; activation stays with H2.5h-b+",
+    note: "B-5 landed the live registration: the ES5 admission floor, the H2.5h activity profile, and the joint push in the upstream order (_tsc.js:115942-115945), verified end-to-end by the 32-case witness gate",
   }),
   Object.freeze({
     capability_id: "lexical-environment",
@@ -402,19 +410,27 @@ const CAPABILITY_ROWS = Object.freeze([
   }),
   Object.freeze({
     capability_id: "tagged-template-lowering",
-    state: "missing",
+    state: "exists",
     requirement:
       "processTaggedTemplateExpression + createTemplateCooked for target below ES2015",
     surfaces: Object.freeze(["tagged-template-module"]),
     architecture_rows: Object.freeze(["EA-GAP-COMPOSITION", "E-STRINGS"]),
-    anchors: Object.freeze([]),
-    absences: Object.freeze([
+    anchors: Object.freeze([
       Object.freeze({
-        path: "crates/emitter/src/builtins",
-        module: "tagged_template.rs",
+        path: "crates/emitter/src/builtins/tagged_template.rs",
+        symbol: "pub(super) fn process_tagged_template_expression",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/tagged_template.rs",
+        symbol: "fn create_template_cooked",
+      }),
+      Object.freeze({
+        path: "crates/emitter/src/builtins/helpers.rs",
+        symbol: "pub(super) fn make_template_object()",
       }),
     ]),
-    note: null,
+    absences: Object.freeze([]),
+    note: "B-5 landed the shared module (ProcessLevel::All consumer in the ES2015 owner; the invalid-escape recomputation reads raw fragment bytes) with the __makeTemplateObject helper text byte-pinned; the es2018 LiftRestriction consumer stays the corpus-adoption deferral",
   }),
 ]);
 

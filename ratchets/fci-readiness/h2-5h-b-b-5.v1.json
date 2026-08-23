@@ -5,7 +5,7 @@
   "trustedBase": "7308f9fcf4320b4e81ac4858264161d9dfadcc91",
   "packet": {
     "path": "docs/design/greenfield/slices/h2-5h-b-b-5.md",
-    "sha256": "28bc7c1bcdbc60651f35fab56c6981208c1b060938ae4fc8fc4a2365cfbb985f"
+    "sha256": "60dc4c46ee328604f58d53719c88416081b12e037284bd5e0cb1c6f18fac31b8"
   },
   "predecessors": [
     {
@@ -73,11 +73,20 @@
     "ratchets/fci-readiness/h2-5h-a.v1.json",
     "ratchets/fci-packet-bootstrap.v1.json",
     "docs/design/greenfield/slices/h2-5h-b-b-5.md",
-    "ratchets/fci-readiness/h2-5h-b-b-5.v1.json"
+    "ratchets/fci-readiness/h2-5h-b-b-5.v1.json",
+    "crates/emitter/src/printer.rs",
+    "crates/emitter/src/builtins/es_next.rs",
+    "crates/emitter/src/builtins/class_fields.rs",
+    "crates/emitter/src/builtins/standard_decorators.rs",
+    "crates/emitter/src/builtins/es2018.rs",
+    "crates/emitter/src/builtins/es2017.rs",
+    "crates/emitter/src/builtins/es2021.rs",
+    "crates/emitter/src/builtins/generators.rs",
+    "crates/checker/src/class.rs",
+    "crates/checker/src/modules.rs"
   ],
   "forbiddenPrefixes": [
     "crates/binder",
-    "crates/checker",
     "crates/syntax",
     "crates/types",
     "crates/diags",

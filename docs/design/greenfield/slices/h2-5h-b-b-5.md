@@ -393,9 +393,16 @@ the perf-ceiling normal-priority resume exception.
 
 ## 11. Prohibitions
 
-No es2018.rs, es2017.rs, es2021.rs, generators.rs,
-flatten_destructuring.rs, transform.rs, resolver.rs, or printer.rs
-edit; no witness amendment (a red witness case is a production fix);
+No flatten_destructuring.rs or resolver.rs edit; the generators.rs
+edit is limited to the constructor's dead-code-attribute retirement;
+transform.rs edits are limited to the §12.8.6 import-name table and
+`requested_emit_helpers` accessor; es2018.rs/es2017.rs/es2021.rs/
+es_next.rs/class_fields.rs/standard_decorators.rs edits are limited
+to the initialize-floor moves of §12.8.1; the printer edits are
+limited to the §12.8.4 pinned Indented arm and the §12.8.6
+`importHelpers` suppression; the checker edit is limited to the
+§12.8.5 Extends site; no witness amendment (a red witness case is a
+production fix);
 no corpus output-byte change for targets ≥ ES2015; no ts-tests
 corpus adoption, hosted-runner, or qualification-policy change (the
 next slice's scope); no parser/nodes schema change (the invalid
@@ -407,6 +414,87 @@ authorizes no production edit until its own design-gate pass and
 envelope exist.
 
 ## 12. Unresolved items (all closed at authoring, 2026-08-23)
+
+### 12.8 Mid-train amendments (first witness-gate run, 2026-08-23)
+
+The first end-to-end run of the 32-case gate surfaced five dormant
+`languageVersion < ES2015` arms the corpus-inert foundation packets had
+never been able to reach; each is fixed in production under the frozen
+bytes' authority (the CS-6 §6 precedent) and every edit is
+witness-byte-verified:
+
+1. **Per-transformer initialize floors** (es_next.rs:103,
+   class_fields.rs:51, standard_decorators.rs:93, es2018.rs:251,
+   es2017.rs:133, es2021.rs `lower_target`): the initialize-time band
+   guards mirrored the pipeline floor and move ES2015 → ES5 with it.
+2. **`validate_bootstrap_emit_options`** (execute.rs:73): the bootstrap
+   emit validator carried its own ES2015 floor AND an `importHelpers`
+   rejection row. The floor moves to ES5; `importHelpers` is accepted
+   (measured corpus-inert: zero `importHelpers` occurrences across
+   every qualification artifact — the option never reaches candidate
+   status — and the checker/emitter lanes below carry the witness
+   evidence).
+3. **`transformTypeScript`'s `promoteToIIFE` arm**
+   (`_tsc.js:94434-94548`, d2
+   `b4f4c7bb3c8f14a7776dd0ab5337e8c11b30104d7eb70b676c5dba79a9e1ae59`):
+   at `languageVersion < ES2015` a class declaration with static
+   initialized properties (or decorator facts) is wrapped in the
+   `TypeScriptClassWrapper` arrow IIFE consumed by the B-4-landed
+   ES2015 wrapper surgery. Ported as
+   `promote_class_declaration_to_iife` (builtins.rs) with the
+   close-brace return protocol (`wrapping_add` reproduces the -1
+   sentinel arithmetic); the exported / namespace-nested / decorated
+   promote lanes are typed fail-closed seams owned by the H2.5h
+   corpus-adoption slice (witness scope is the plain-script static
+   lane). The same sentinel arithmetic fix lands in the ES2015 owner's
+   `transformClassBody` tail (es2015.rs — synthesized members arrays
+   reach it once class-fields precedes ES2015 in the live chain).
+4. **The printer's function `Indented` arm**
+   (`emitSignatureAndBody`, `_tsc.js:118969-118982`): the
+   FunctionExpression emission brackets signature+body one level
+   deeper under `EmitFlags::INDENTED`. The flag's function-node
+   producer is exactly the ES2015 class lowering (inheriting
+   class-fields' class-node stamp, `_tsc.js:105203`), so the arm is
+   byte-inert for every target ≥ ES2015 (no function node carries the
+   flag there; the ratchet is the enforcement). This is the second
+   pinned Indented arm next to B-4's §12.11 object-literal arm.
+5. **The checker's `Extends` external-helper site**
+   (`_tsc.js:85014-85016`): `languageVersion <
+   LanguageFeatureMinimumTarget.Classes` requests
+   `checkExternalEmitHelpers(baseTypeNode.parent, Extends)`. The
+   check machinery (tslib resolution, 2354/2343/2344 reporting,
+   `__extends` name row) was already landed; only the call site and
+   the `EMIT_HELPER_EXTENDS` constant were absent
+   (crates/checker/src/{class.rs,modules.rs}). Measured T0-inert: the
+   full-corpus conformance ratchet is the enforcement (an affected
+   fixture would already be red today if one existed). The remaining
+   19 unported `checkExternalEmitHelpers` sites of the ES5 band stay
+   the pre-existing inherited deferral owned by the H2.5h
+   corpus-adoption slice.
+
+6. **The `importHelpers` tslib import lane**
+   (`createExternalHelpersImportDeclarationIfNeeded`,
+   `_tsc.js:27613-27680`, d2
+   `d44b2c0d8237d7cad74d638bdaa5cd14dd4347e3a57e408de8b5fb85a6a18f77`):
+   the ES-module named-import arm lands as
+   `insert_external_helpers_import_declaration` (builtins.rs), called
+   from the ECMAScript-module transformer for external modules under
+   `importHelpers`; import names come from the transcribed unscoped
+   helper table (`EmitHelper::import_name`, transform.rs — the five
+   irregular `commonjs*`/`export-star` rows forbid any derived
+   prefix rule), sorted case-sensitively after the prologue; the
+   printer suppresses unscoped helper bodies for that configuration
+   (`hasRecordedExternalHelpers` equivalence argument in the printer
+   comment). The upstream aliasing arm (helper name not file-level
+   unique) and the CommonJS-format import-equals arm are typed
+   fail-closed seams owned by the H2.5h corpus-adoption slice.
+   transform.rs additionally gains the read-only
+   `requested_emit_helpers` accessor.
+
+The envelope re-pins with this amendment (packet sha change);
+`crates/checker` and `crates/emitter/src/printer.rs` join the
+allowed surface accordingly (the B-1 precedent for dropping
+`crates/checker` from forbiddenPrefixes).
 
 1. ~~Trusted base + authority hashes~~ — pinned in §1 at
    `7308f9fcf4320b4e81ac4858264161d9dfadcc91`.

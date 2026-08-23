@@ -83,6 +83,10 @@ impl ParsedSourceIdentifierNames {
         Ok(Self(names))
     }
 
+    pub(super) fn contains(&self, name: &str) -> bool {
+        self.0.contains(name)
+    }
+
     pub(super) fn optimistic_candidate(&self, preferred: &str) -> String {
         if !self.0.contains(preferred) {
             return preferred.to_owned();

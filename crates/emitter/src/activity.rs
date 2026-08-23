@@ -443,6 +443,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.5h admits the
+    /// ES5 target boundary and the joint
+    /// `[transformES2015, transformGenerators]` lowering.
+    #[doc(hidden)]
+    pub const fn h2_5h_profile() -> Self {
+        let mut profile = Self::h2_5g_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_5h.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }
