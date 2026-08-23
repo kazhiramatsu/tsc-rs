@@ -164,6 +164,106 @@ fn transform_and_print_at_target(source_text: &str, target: ScriptTarget) -> Str
 // the object-spread lowering on the language version — Object.assign at
 // >= ES2015, the __assign helper below. Expected bytes are fresh-process
 // vendored tsc emits (alwaysStrict false, LF; probe = ca2b-probe.mjs).
+// H2.5h CA-2a steps 1+4 focused projections. Expected bytes are
+// fresh-process vendored tsc emits (ES5, alwaysStrict false, LF;
+// probe = ca2a-probe.mjs).
+#[test]
+fn rest_parameter_loop_reuses_the_dedicated_i_slot_per_function() {
+    let printed = transform_and_print_at_target(
+        "function f(...rest: any[]) { rest; }\nfunction g(...more: any[]) { more; }\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"function f() {
+    var rest = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        rest[_i] = arguments[_i];
+    }
+    rest;
+}
+function g() {
+    var more = [];
+    for (var _i = 0; _i < arguments.length; _i++) {
+        more[_i] = arguments[_i];
+    }
+    more;
+}
+"#
+    );
+}
+
+#[test]
+fn anonymous_class_expression_reuses_the_variable_declaration_name() {
+    let printed = transform_and_print_at_target(
+        "var y = class { m() { return 1; } };\ny;\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"var y = /** @class */ (function () {
+    function y() {
+    }
+    Object.defineProperty(y.prototype, "m", {
+        enumerable: false,
+        configurable: true,
+        writable: true,
+        value: function () { return 1; }
+    });
+    return y;
+}());
+y;
+"#
+    );
+}
+
+#[test]
+fn anonymous_class_expression_reuses_the_property_assignment_name() {
+    let printed = transform_and_print_at_target(
+        "var o = { k: class { m() { return 1; } } };\no;\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"var o = { k: /** @class */ (function () {
+        function k() {
+        }
+        Object.defineProperty(k.prototype, "m", {
+            enumerable: false,
+            configurable: true,
+            writable: true,
+            value: function () { return 1; }
+        });
+        return k;
+    }()) };
+o;
+"#
+    );
+}
+
+#[test]
+fn anonymous_class_expression_reuses_the_property_access_assignment_name() {
+    let printed = transform_and_print_at_target(
+        "declare var A: any;\nA.b = class { m() { return 1; } };\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        printed,
+        r#"A.b = /** @class */ (function () {
+    function b() {
+    }
+    Object.defineProperty(b.prototype, "m", {
+        enumerable: false,
+        configurable: true,
+        writable: true,
+        value: function () { return 1; }
+    });
+    return b;
+}());
+"#
+    );
+}
+
 #[test]
 fn object_spread_uses_the_assign_helper_below_es2015() {
     let printed = transform_and_print_at_target(

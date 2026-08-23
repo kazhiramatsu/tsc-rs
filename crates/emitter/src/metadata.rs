@@ -423,6 +423,12 @@ pub struct EmitMetadata {
     /// use this to keep the outer alias distinct from the inner generator's
     /// parameter aliases.
     pub(crate) generated_binding_reserved_in_nested_scopes: bool,
+    /// Whether this generated binding is tsc's dedicated loop variable
+    /// (`createLoopVariable`, GeneratedIdentifierFlags Loop): the final
+    /// name-reconciliation walk assigns it per printer scope — `_i` when
+    /// the scope's slot is free, the ordinary temp sequence otherwise
+    /// (`makeTempVariableName`, `_tsc.js:120703-120740`).
+    pub(crate) generated_binding_loop_variable: bool,
 }
 
 impl EmitMetadata {
@@ -528,6 +534,10 @@ impl EmitMetadata {
         self.generated_binding_reserved_in_nested_scopes
     }
 
+    pub(crate) const fn generated_binding_is_loop_variable(&self) -> bool {
+        self.generated_binding_loop_variable
+    }
+
     pub fn set_flags(&mut self, flags: EmitFlags) {
         self.flags = flags;
     }
@@ -631,6 +641,10 @@ impl EmitMetadata {
 
     pub(crate) fn reserve_generated_binding_in_nested_scopes(&mut self) {
         self.generated_binding_reserved_in_nested_scopes = true;
+    }
+
+    pub(crate) fn mark_generated_binding_loop_variable(&mut self) {
+        self.generated_binding_loop_variable = true;
     }
 
     /// tsc-port: mergeEmitNode @6.0.3

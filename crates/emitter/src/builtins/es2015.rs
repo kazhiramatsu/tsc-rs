@@ -1142,7 +1142,7 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         let provisional = self
             .generated_bindings
             .allocate_loop_variable(/*reserve_in_nested_scopes*/ false);
-        TargetBinding::allocate_planned(self.context, provisional)
+        TargetBinding::allocate_planned_loop(self.context, provisional)
     }
 
     pub(super) fn create_generated_identifier(
@@ -4894,6 +4894,79 @@ impl Es2015Visitor<'_, '_, '_> {
     /// tsc-port: getInternalName @6.0.3
     /// tsc-hash: cf6484de86856ef03a019d04862c731662b2aa5b215b22cb036feb31593f7778
     /// tsc-span: _tsc.js:24800-24802
+    /// tsc-port: getAssignedName @6.0.3
+    /// tsc-hash: 16b3160d83ab91d6d9c08811b7d3ef66bce1a84ccdde30ee5cac09babbc2bab7
+    /// tsc-span: _tsc.js:11566-11580
+    fn assigned_name(&self, node: TransformNode) -> Result<Option<TransformNode>, TransformError> {
+        match &self.context.arena().node(node)?.data {
+            NodeData::FunctionExpression(_)
+            | NodeData::ArrowFunction(_)
+            | NodeData::ClassExpression(_) => {}
+            _ => return Ok(None),
+        }
+        let Some(original) = self.context.arena().parse_tree_node(node)? else {
+            return Ok(None);
+        };
+        let syntax = self.context.arena().source(original.source())?.syntax();
+        let Some(parent) = syntax.arena.node(original.node()).parent else {
+            return Ok(None);
+        };
+        let parent_node = TransformNode::new(original.source(), parent);
+        let assigned = match &self.context.arena().node(parent_node)?.data {
+            NodeData::PropertyAssignment(data) => data.name,
+            NodeData::BindingElement(data) => data.name,
+            NodeData::BinaryExpression(data) if data.right == Some(original.node()) => {
+                match data.left.map(|left| {
+                    self.context
+                        .arena()
+                        .node(TransformNode::new(original.source(), left))
+                        .map(|record| (left, record.kind))
+                }) {
+                    Some(Ok((left, SyntaxKind::Identifier))) => Some(left),
+                    Some(Ok((left, SyntaxKind::PropertyAccessExpression))) => {
+                        match &self
+                            .context
+                            .arena()
+                            .node(TransformNode::new(original.source(), left))?
+                            .data
+                        {
+                            NodeData::PropertyAccessExpression(access) => access.name,
+                            _ => None,
+                        }
+                    }
+                    Some(Ok((left, SyntaxKind::ElementAccessExpression))) => {
+                        match &self
+                            .context
+                            .arena()
+                            .node(TransformNode::new(original.source(), left))?
+                            .data
+                        {
+                            NodeData::ElementAccessExpression(access) => access.argument_expression,
+                            _ => None,
+                        }
+                    }
+                    Some(Err(error)) => return Err(error),
+                    _ => None,
+                }
+            }
+            NodeData::VariableDeclaration(data) => match data.name {
+                Some(name)
+                    if self
+                        .context
+                        .arena()
+                        .node(TransformNode::new(original.source(), name))?
+                        .kind
+                        == SyntaxKind::Identifier =>
+                {
+                    Some(name)
+                }
+                _ => None,
+            },
+            _ => None,
+        };
+        Ok(assigned.map(|id| TransformNode::new(original.source(), id)))
+    }
+
     fn get_internal_name(&mut self, node: TransformNode) -> Result<TransformNode, TransformError> {
         self.get_name(
             node,
@@ -4920,6 +4993,15 @@ impl Es2015Visitor<'_, '_, '_> {
             _ => None,
         };
         let name = name.map(|id| self.node(id));
+        // `getNameOfDeclaration` falls through to `getAssignedName` for
+        // anonymous function/arrow/class EXPRESSIONS (_tsc.js:11562-11580):
+        // the surrounding property-assignment/binding-element name, a
+        // binary-assignment LHS identifier or access-expression name, or a
+        // variable declaration's identifier name is reused UNCONDITIONALLY.
+        let name = match name {
+            Some(name) => Some(name),
+            None => self.assigned_name(node)?,
+        };
         let name_is_plain_identifier = match name {
             Some(name) => {
                 matches!(
@@ -5383,17 +5465,28 @@ impl Es2015Visitor<'_, '_, '_> {
         &self,
         node: TransformNode,
     ) -> Result<bool, TransformError> {
-        let Some(reference) = self.context.arena().parse_tree_resolver_node(node)? else {
-            return Ok(false);
+        // A SYNTHESIZED let declaration (e.g. the class-fields loop-binding
+        // temp) has no parse-tree reference; upstream still evaluates the
+        // full predicate with every resolver query answering false
+        // (`hasNodeCheckFlag` returns false for synthesized nodes,
+        // `_tsc.js:88560-88564`), which yields the explicit `void 0`
+        // initializer outside top-level and for-heads (H2.5h CA-2a H).
+        let reference = self.context.arena().parse_tree_resolver_node(node)?;
+        let (is_captured_in_function, is_declared_in_loop, has_colliding_name) = match reference {
+            Some(reference) => (
+                self.resolver.has_node_check_flag(
+                    reference,
+                    NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING.bits() as u32,
+                )?,
+                self.resolver.has_node_check_flag(
+                    reference,
+                    NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32,
+                )?,
+                self.resolver
+                    .is_declaration_with_colliding_name(reference)?,
+            ),
+            None => (false, false, false),
         };
-        let is_captured_in_function = self.resolver.has_node_check_flag(
-            reference,
-            NodeCheckFlags::CAPTURED_BLOCK_SCOPED_BINDING.bits() as u32,
-        )?;
-        let is_declared_in_loop = self.resolver.has_node_check_flag(
-            reference,
-            NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32,
-        )?;
         let facts = self.print_state.hierarchy_facts;
         let emitted_as_top_level = facts.intersects(HierarchyFacts::TOP_LEVEL)
             || (is_captured_in_function
@@ -5401,9 +5494,7 @@ impl Es2015Visitor<'_, '_, '_> {
                 && facts.intersects(HierarchyFacts::ITERATION_STATEMENT_BLOCK));
         let emit_explicit_initializer = !emitted_as_top_level
             && !facts.intersects(HierarchyFacts::FOR_IN_OR_FOR_OF_STATEMENT)
-            && (!self
-                .resolver
-                .is_declaration_with_colliding_name(reference)?
+            && (!has_colliding_name
                 || (is_declared_in_loop
                     && !is_captured_in_function
                     && !facts.intersects(
@@ -8790,6 +8881,19 @@ impl Es2015Visitor<'_, '_, '_> {
         if !is_generated {
             return Ok(false);
         }
+        // Under eager E-NAMES allocation a source-name collision spells the
+        // capture `_this_1` at creation; upstream matches idText while it is
+        // still "_this" (renaming happens at print), so the eager
+        // equivalent matches the binding's preferred base (H2.5h CA-2a G).
+        if self
+            .context
+            .arena()
+            .metadata(node)
+            .and_then(|metadata| metadata.generated_binding_preferred_base())
+            == Some("_this")
+        {
+            return Ok(true);
+        }
         match &self.context.arena().node(node)?.data {
             NodeData::Identifier(data) => Ok(data.text == "_this"),
             _ => Ok(false),
@@ -8807,6 +8911,19 @@ impl Es2015Visitor<'_, '_, '_> {
             .is_some_and(|metadata| metadata.generated_binding_id().is_some());
         if !is_generated {
             return Ok(false);
+        }
+        // The synthetic super parameter is file-level-optimistic: a source
+        // parameter named `_super` makes the eager allocation spell it
+        // `_super_1` at creation, while upstream matches idText "_super"
+        // pre-rename — match the binding's preferred base (H2.5h CA-2a G).
+        if self
+            .context
+            .arena()
+            .metadata(node)
+            .and_then(|metadata| metadata.generated_binding_preferred_base())
+            == Some("_super")
+        {
+            return Ok(true);
         }
         match &self.context.arena().node(node)?.data {
             NodeData::Identifier(data) => Ok(data.text == "_super"),

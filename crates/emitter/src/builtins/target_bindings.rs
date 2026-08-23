@@ -44,6 +44,10 @@ enum PreferredNameDomain {
 enum OrdinaryTempNamePolicy {
     FinalizerTraversal,
     PlannedSpellingAuthoritative,
+    /// tsc `createLoopVariable`: the finalize walk assigns the name per
+    /// printer scope — the dedicated `_i` slot when free, the ordinary
+    /// temp sequence otherwise.
+    LoopVariable,
 }
 
 /// Immutable `SourceFile.identifiers` projection used by file-level names.
@@ -189,6 +193,24 @@ impl TargetBinding {
             preferred_role_suffix: None,
             preferred_name_domain: None,
             ordinary_temp_name_policy: OrdinaryTempNamePolicy::PlannedSpellingAuthoritative,
+            reserve_in_nested_scopes: false,
+        })
+    }
+
+    /// tsc `createLoopVariable()`: the visit-time spelling is provisional;
+    /// the finalize walk re-assigns per printer scope (H2.5h CA-2a C(i)).
+    pub(super) fn allocate_planned_loop(
+        context: &mut TransformationContext,
+        provisional_name: String,
+    ) -> Result<Self, TransformError> {
+        Ok(Self {
+            id: context.allocate_generated_binding_id()?,
+            provisional_name,
+            numbered_base: None,
+            preferred_base: None,
+            preferred_role_suffix: None,
+            preferred_name_domain: None,
+            ordinary_temp_name_policy: OrdinaryTempNamePolicy::LoopVariable,
             reserve_in_nested_scopes: false,
         })
     }
@@ -361,6 +383,9 @@ impl TargetBinding {
         if self.ordinary_temp_name_policy == OrdinaryTempNamePolicy::PlannedSpellingAuthoritative {
             metadata.mark_generated_binding_planned_name_authoritative();
         }
+        if self.ordinary_temp_name_policy == OrdinaryTempNamePolicy::LoopVariable {
+            metadata.mark_generated_binding_loop_variable();
+        }
         if self.reserve_in_nested_scopes {
             metadata.reserve_generated_binding_in_nested_scopes();
         }
@@ -428,6 +453,10 @@ fn allocate_ordinary_temp_name(
         }
         OrdinaryTempNamePolicy::PlannedSpellingAuthoritative => {
             scopes.allocate_planned_temp_with_policy(planned_name, reserve_in_nested_scopes)
+        }
+        OrdinaryTempNamePolicy::LoopVariable => {
+            let _ = planned_name;
+            scopes.allocate_loop_variable(reserve_in_nested_scopes)
         }
     }
 }
@@ -711,6 +740,11 @@ fn collect_binding_name_events(
             }
         });
         let ordinary_temp_name_policy = if arena
+            .metadata(node)
+            .is_some_and(|metadata| metadata.generated_binding_is_loop_variable())
+        {
+            OrdinaryTempNamePolicy::LoopVariable
+        } else if arena
             .metadata(node)
             .is_some_and(|metadata| metadata.generated_binding_planned_name_is_authoritative())
         {

@@ -44,6 +44,54 @@ fn fixture_options(
     }
 }
 
+// H2.5h CA-2a G: the captured-this + super fold must survive a source
+// parameter named `_super` (the class binding renames to `_super_1`
+// eagerly; the fold predicates match the binding's preferred base, not
+// the spelled text). Expected bytes = fresh-process vendored tsc
+// (probe ca2a-probe-g.mjs).
+#[test]
+fn captured_this_super_fold_survives_a_source_super_collision() {
+    let printed = project_with(
+        "class Base {\n}\nclass Foo extends Base {\n    constructor(_super) {\n        super();\n        var f = () => this;\n        f;\n    }\n}\n",
+        false,
+        true,
+    );
+    assert_eq!(
+        printed,
+        r#"var __extends = (this && this.__extends) || (function () {
+    var extendStatics = function (d, b) {
+        extendStatics = Object.setPrototypeOf ||
+            ({ __proto__: [] } instanceof Array && function (d, b) { d.__proto__ = b; }) ||
+            function (d, b) { for (var p in b) if (Object.prototype.hasOwnProperty.call(b, p)) d[p] = b[p]; };
+        return extendStatics(d, b);
+    };
+    return function (d, b) {
+        if (typeof b !== "function" && b !== null)
+            throw new TypeError("Class extends value " + String(b) + " is not a constructor or null");
+        extendStatics(d, b);
+        function __() { this.constructor = d; }
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
+})();
+var Base = /** @class */ (function () {
+    function Base() {
+    }
+    return Base;
+}());
+var Foo = /** @class */ (function (_super_1) {
+    __extends(Foo, _super_1);
+    function Foo(_super) {
+        var _this = _super_1.call(this) || this;
+        var f = function () { return _this; };
+        f;
+        return _this;
+    }
+    return Foo;
+}(Base));
+"#
+    );
+}
+
 fn project_with(
     source_text: &str,
     downlevel_iteration: bool,
