@@ -236,13 +236,19 @@ a `Let` list, which es2015 then converts. Plain
    scope — first loop temp per scope takes `_i` when free, others
    fall to the temp sequence — mirroring the B-3 finalize-write
    precedent (label literals) and B-4's `renumber_state_bindings`.
-   **C(iii) (the async/for-of hoist-numbering order, e.g. the
-   c_1/c_2 swap in operationsAvailableOnPromisedType) is owned by
-   this same finalize assignment**: the per-scope ordinal ordering
-   is re-derived in printer-scope order, which is exactly the
-   numbering upstream produces; the C(iii) rows are step-1
-   witnesses (§7.1) and a step-1 residual on them stops the train
-   for a packet amendment.
+   **C(iii) STOP-CONDITION FIRED (2026-08-23 night, the step-1
+   census at e14bcbf4):** the draft claimed the finalize assignment
+   owns the async/for-of hoist-numbering order; the measured
+   residual (operationsAvailableOnPromisedType: upstream hoists
+   `_i, c_1, …` in the generator group and `…, c_2, c_2_1` in the
+   second group; ours swaps c_1/c_2) shows the divergence is the
+   NUMBERED family's allocation order across the
+   async(es2017)+for-of(es2015) composition — a different
+   mechanism from the loop slot. C(iii) is re-scoped as its own
+   bounded investigation inside step 1's family (diagnose which
+   pass allocates each `c` binding and mirror upstream's
+   numbering order); its rows stay step-1 witnesses and the
+   packet's measured-final-count acceptance (§9.3) carries them.
 2. **H** — the block-scope route is LANDED AND WORKING
    (review-verified): `class_temp_plan` reads
    BLOCK_SCOPED_BINDING_IN_LOOP
