@@ -288,13 +288,21 @@ substitutes for a per-packet gate.
      `TSRS_H2_5H_CHECK_SHARDS`). **LANDED at `05e8c54b`
      (2026-08-23, [CA-1 packet](h2-5h-ca-1.md)).**
    - **CA-2 — seam census + closures (runtime)**: the Rust census
-     over the CA-1 artifact sizes the named typed seams (remaining
-     ES5-band `checkExternalEmitHelpers` sites, tslib
-     collision-alias + CommonJS import-equals lanes,
-     exported/namespace/decorated `promoteToIIFE` lanes, the
-     es2018 tagged-template `LiftRestriction` consumer, the es2021
-     `ObjectAssign`/`__assign` ES5 fork); splits at its own design
-     gate if the census demands.
+     over the CA-1 artifact sized nine root-cause families
+     (594/806 admitted rows already byte-exact) and demanded the
+     split ratified in the [CA-2b packet](h2-5h-ca-2b.md) §2:
+     - **CA-2b — cross-cutting cluster (module declaration
+       keywords at ES5, the `__assign` es2018+JSX forks,
+       checker/harness report parity: TS2396 parameter span, the
+       harness `noEmitOnError` mapping, the programmatic
+       invalid-`ignoreDeprecations` row). LANDED at `13eacb4e`
+       (2026-08-23, [CA-2b packet](h2-5h-ca-2b.md)); census
+       212 → 185 failing, diagnostics-differ family swept.**
+     - **CA-2a — the ES2015/wrapper cluster (next)**: promoteToIIFE
+       exported/namespace/decorated lanes (63), comment ownership
+       (~34), generated names incl. the rest-loop `_i` reservation
+       (~19), static-property placement (~10), the
+       captured-this+super fold, void-0 hoisted-temp initializers.
    - **CA-3 — project-suite harness (evidence+runtime)**: first
      project-suite observation machinery; retires the CA-1
      `project_deferral` block.

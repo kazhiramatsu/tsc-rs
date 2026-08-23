@@ -5,7 +5,7 @@
   "trustedBase": "a19bc3d7cda87ab1c172c6a41db86891a90fcaca",
   "packet": {
     "path": "docs/design/greenfield/slices/h2-5h-ca-2b.md",
-    "sha256": "b818f0f9af8d903b1f7d663afa6d6e0f0f99e705cab30ff70001d19472832500"
+    "sha256": "6f90b0dbf3c4915b621d88c9c5d6dba67027b1fef749bd006b6e2c08574aa534"
   },
   "predecessors": [
     {
@@ -70,7 +70,10 @@
     "crates/oracle/h2-3c-qualification.mjs",
     "crates/oracle/h2-3d-qualification.mjs",
     "crates/oracle/h2-5g-profile.mjs",
-    ".github/ci/contracts/h2-5g-profile.schema.json"
+    ".github/ci/contracts/h2-5g-profile.schema.json",
+    "crates/compiler/tests/integration/h2_5h_ca2b_seam_contract.rs",
+    "crates/emitter/tests/integration/active_transform_contract.rs",
+    "ratchets/l0-source-options.v1.json"
   ],
   "forbiddenPrefixes": [
     "crates/emitter/src/builtins/es2015.rs",

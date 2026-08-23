@@ -169,12 +169,12 @@ chokepoint (`create_object_assign_call`) and the JSX
 spread-attribute builder (`jsx.rs create_object_assign`) — both
 are fixed here (the JSX lane is corpus-inert in the band and lands
 projection-qualified). The `__assign` helper declaration is the
-vendored `assignHelper` object at **26122-26140** (name
+vendored `assignHelper` object at **26122-26139** (name
 `typescript:assign`, importName `__assign`, scoped false,
 **priority 1**, text = the `(this && this.__assign) || function ()
 { __assign = Object.assign || function(t) {…} … }` fallback form;
 tsc-hash
-`69fcc48c132e013d43c51fb6dab9e4949f25837ffc16e693468636a2af09b492`),
+`a195c84f6fbb4280f8164fde5d33f0d246cfec5b40286c16416b042d9de991f1`),
 byte-pinned at landing per the B-1 helper protocol.
 `createAssignHelper` tsc-hash
 `fc43c441a160dbfc108e0ed2174b29b7b0cc17f8c2e74eb82ba75404d7a1d1af`.
@@ -495,8 +495,18 @@ options-diagnostics producer ONLY — the emit gate and
 3. **Census verification sweep:** the scratch census harness
    (§9.4) over the E/F/I row indices reports ZERO failing rows for
    these families (the A/B/C/D/G/H rows still fail — CA-2a's
-   inventory; the packet records the before/after counts:
-   212 → ≈174 expected).
+   inventory). **MEASURED (2026-08-23, full 850-row rerun at the
+   implementation bytes): 212 → 185 failing** — 27 rows recovered;
+   the delta from the naive 38-row sum is the documented
+   multi-family overlap (an E/F row that also carries a CA-2a
+   defect correctly keeps failing on that component — e.g. the
+   collisionArguments rows progressed from diagnostics-differ to
+   the C-family `_i` write component, and
+   taggedTemplateStringsWithCurriedFunction from the `__assign`
+   fork to the B-family comment-before-helper component). Family
+   verdicts on the complete data: diagnostics-differ = 0 (I fully
+   swept), every spot-checked pure-E/F row byte-exact,
+   promoteToIIFE unchanged at 63.
 4. Census reproduction (authority): worktree at the packet head +
    the frozen scratch patches (census command
    `TSRS_H2_5H_CENSUS=1 ./target/debug/xtask h2-5h-census --start
@@ -522,7 +532,7 @@ options-diagnostics producer ONLY — the emit gate and
 | Deliverable | Upstream pin (tsc-hash where load-bearing) | Rust surface | Test |
 | --- | --- | --- | --- |
 | E keyword ×5 + target threading | 111241/111277/111338/113555/113591 (decl hashes: import-decl `d2de4a9f6f71…`, import-equals `ab7eb4340bab…`) | builtins.rs 1364/1468/4787/4829/5087 + both transformer ctors | per-lane ES5+ES2017 projections |
-| F fork + helper | createAssignHelper 25724-25740 `fc43c441a160…`; assignHelper 26122-26140 `69fcc48c132e…`; callers 102011/102015 | es2018.rs 3673 + helpers/factory | ES5 spread byte-equal + helper parity |
+| F fork + helper | createAssignHelper 25724-25740 `fc43c441a160…`; assignHelper 26122-26139 `a195c84f6fbb…`; callers 102011/102015 | es2018.rs 3673 + helpers/factory | ES5 spread byte-equal + helper parity |
 | F2 JSX fork | caller 104267 | jsx.rs 959-990 | ES5+≥ES2015 projections (corpus-inert lane) |
 | I 2396 span | 83229-83238 `2a65d820227a…` | functions.rs ~2211-2215 | collision row replay |
 | I noEmitOnError mapping | handleNoEmitOptions 125636-125663 `a65dad0c78a6…` (contract; production already exact) | harness execution.rs ~790 | autoAccessor1 end-to-end replay |
