@@ -294,7 +294,7 @@
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
         "line": 1405,
-        "source_sha256": "dc5d6810bb9ae2038c9af912ef18500cf7554860c5f160011d177a4624290c16",
+        "source_sha256": "e3eed46cca72831ecc15ded1151c17e24c5d460615556b74a4ddb19de46281d0",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
