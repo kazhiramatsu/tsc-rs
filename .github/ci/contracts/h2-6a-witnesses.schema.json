@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tsc-rs.invalid/contracts/h2-6a-witnesses.schema.json",
+  "title": "tsc-rs H2.6a W-H2.6A source-map witness artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "slice_id",
+    "sub_packet",
+    "plan_step",
+    "typescript",
+    "generator",
+    "contract",
+    "lineage",
+    "composition_facets",
+    "families",
+    "summary",
+    "witnesses_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": { "const": 1 },
+    "kind": { "const": "h2-source-map-witnesses" },
+    "status": { "const": "frozen-source-map-witnesses" },
+    "phase": { "const": "H2.6a" },
+    "slice_id": { "const": "H2.6a" },
+    "sub_packet": { "const": "W-H2.6A" },
+    "plan_step": { "const": "packet-witness-freeze" },
+    "typescript": { "$ref": "#/$defs/typescript" },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "const": "crates/oracle/h2-6a-witnesses.mjs" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "const": ".github/ci/contracts/h2-6a-witnesses.schema.json" },
+        "sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "lineage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["packet", "trusted_base", "interpretation"],
+      "properties": {
+        "packet": { "const": "docs/design/greenfield/slices/h2-6a.md" },
+        "trusted_base": {
+          "const": "752803c74d24acb33b5675f767e8c7b4fda50d50"
+        },
+        "interpretation": { "type": "string", "minLength": 1 }
+      }
+    },
+    "composition_facets": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/composition_facet" }
+    },
+    "families": {
+      "type": "array",
+      "minItems": 9,
+      "maxItems": 9,
+      "items": { "$ref": "#/$defs/family" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "families",
+        "cases",
+        "positive_cases",
+        "adjacent_negative_controls",
+        "composition_cases",
+        "fault_cases",
+        "parity_cases",
+        "refusal_control_cases",
+        "composition_facets_covered",
+        "typescript_oracle_runs",
+        "rust_runs",
+        "runtime_admissions_delta"
+      ],
+      "properties": {
+        "families": { "const": 9 },
+        "cases": { "const": 33 },
+        "positive_cases": { "const": 14 },
+        "adjacent_negative_controls": { "const": 12 },
+        "composition_cases": { "const": 4 },
+        "fault_cases": { "const": 3 },
+        "parity_cases": { "const": 28 },
+        "refusal_control_cases": { "const": 5 },
+        "composition_facets_covered": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/composition_facet" }
+        },
+        "typescript_oracle_runs": { "const": 66 },
+        "rust_runs": { "const": 0 },
+        "runtime_admissions_delta": { "const": 0 }
+      }
+    },
+    "witnesses_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "base64": { "type": "string", "pattern": "^[A-Za-z0-9+/]*={0,2}$" },
+    "composition_facet": {
+      "enum": [
+        "lowered-class",
+        "generators-machine",
+        "helper-prologue",
+        "destructuring",
+        "spread",
+        "json-unit",
+        "module-wrapper",
+        "multi-unit"
+      ]
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["version", "source_commit", "bundle", "implementation", "lib"],
+      "properties": {
+        "version": { "const": "6.0.3" },
+        "source_commit": {
+          "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+        },
+        "bundle": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "const": "vendor/typescript-6.0.3/lib/typescript.js" },
+            "sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "implementation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "sha256"],
+          "properties": {
+            "path": { "const": "vendor/typescript-6.0.3/lib/_tsc.js" },
+            "sha256": { "$ref": "#/$defs/sha256" }
+          }
+        },
+        "lib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "default_libraries", "sha256"],
+          "properties": {
+            "path": { "const": "vendor/typescript-6.0.3/lib" },
+            "default_libraries": { "type": "integer", "minimum": 1 },
+            "sha256": { "$ref": "#/$defs/sha256" }
+          }
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "code", "category", "file", "start", "length"],
+      "properties": {
+        "phase": { "enum": ["pre-emit", "emit"] },
+        "code": { "type": "integer", "minimum": 0 },
+        "category": { "type": "string", "minLength": 1 },
+        "file": {
+          "oneOf": [{ "type": "null" }, { "type": "string", "minLength": 1 }]
+        },
+        "start": {
+          "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }]
+        },
+        "length": {
+          "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }]
+        }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "callback_utf8_base64",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "on_error_callback_present",
+        "source_files",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "data_present",
+        "data_source_map_url_pos",
+        "data_diagnostics_count"
+      ],
+      "properties": {
+        "index": { "type": "integer", "minimum": 0 },
+        "path": { "type": "string", "minLength": 1 },
+        "callback_utf8_base64": { "$ref": "#/$defs/base64" },
+        "callback_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "callback_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "write_byte_order_mark": { "type": "boolean" },
+        "on_error_callback_present": { "type": "boolean" },
+        "source_files": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "materialized_utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "materialized_utf8_bytes": { "type": "integer", "minimum": 0 },
+        "data_present": { "type": "boolean" },
+        "data_source_map_url_pos": {
+          "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }]
+        },
+        "data_diagnostics_count": {
+          "oneOf": [{ "type": "null" }, { "type": "integer", "minimum": 0 }]
+        }
+      }
+    },
+    "source_map_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["input_source_file_names", "source_map_json"],
+      "properties": {
+        "input_source_file_names": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "source_map_json": { "type": "string", "minLength": 2 }
+      }
+    },
+    "marker": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "expectation"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1 },
+        "expectation": { "enum": ["present", "absent"] }
+      }
+    },
+    "marker_occurrence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["token", "occurrences"],
+      "properties": {
+        "token": { "type": "string", "minLength": 1 },
+        "occurrences": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "input_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "root", "utf8_base64", "utf8_sha256", "utf8_bytes"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "root": { "type": "boolean" },
+        "utf8_base64": { "$ref": "#/$defs/base64" },
+        "utf8_sha256": { "$ref": "#/$defs/sha256" },
+        "utf8_bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "case_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_directory", "roots", "files", "compiler_options"],
+      "properties": {
+        "current_directory": { "const": "/project" },
+        "roots": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "files": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/input_file" }
+        },
+        "compiler_options": { "type": "object" }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "emit_skipped",
+        "writes",
+        "source_maps",
+        "emitted_files",
+        "marker_occurrences",
+        "observation_fingerprint_sha256"
+      ],
+      "properties": {
+        "reported_diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_diagnostics": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/diagnostic" }
+        },
+        "emit_skipped": { "type": "boolean" },
+        "writes": { "type": "array", "items": { "$ref": "#/$defs/write" } },
+        "source_maps": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "$ref": "#/$defs/source_map_entry" } }
+          ]
+        },
+        "emitted_files": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          ]
+        },
+        "marker_occurrences": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/marker_occurrence" }
+        },
+        "observation_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "witness_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "role",
+        "rust_lane",
+        "description",
+        "option_overrides",
+        "expected_reported_codes",
+        "expected_emit_skipped",
+        "expected_write_paths",
+        "composition_facets",
+        "input",
+        "markers",
+        "repetitions",
+        "observation",
+        "case_fingerprint_sha256"
+      ],
+      "properties": {
+        "case_id": { "type": "string", "pattern": "^[a-z0-9-]+--[a-z0-9-]+$" },
+        "role": {
+          "enum": [
+            "positive",
+            "adjacent-negative-control",
+            "composition",
+            "fault"
+          ]
+        },
+        "rust_lane": { "enum": ["parity", "refusal-control"] },
+        "description": { "type": "string", "minLength": 1 },
+        "option_overrides": { "type": "object" },
+        "expected_reported_codes": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0 }
+        },
+        "expected_emit_skipped": { "type": "boolean" },
+        "expected_write_paths": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "composition_facets": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/composition_facet" }
+        },
+        "input": { "$ref": "#/$defs/case_input" },
+        "markers": { "type": "array", "items": { "$ref": "#/$defs/marker" } },
+        "repetitions": { "const": 2 },
+        "observation": { "$ref": "#/$defs/observation" },
+        "case_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "family": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "rust_boundary",
+        "description",
+        "cases",
+        "family_fingerprint_sha256"
+      ],
+      "properties": {
+        "family_id": {
+          "enum": [
+            "plain-program",
+            "multiline-literals",
+            "comment-interaction",
+            "transform-composition",
+            "path-shapes",
+            "json-exclusion",
+            "newline-variants",
+            "edge-shapes",
+            "boundary-controls"
+          ]
+        },
+        "rust_boundary": { "type": "boolean" },
+        "description": { "type": "string", "minLength": 1 },
+        "cases": {
+          "type": "array",
+          "minItems": 2,
+          "items": { "$ref": "#/$defs/witness_case" }
+        },
+        "family_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}

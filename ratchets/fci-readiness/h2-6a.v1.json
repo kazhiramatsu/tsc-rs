@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "packetId": "h2-6a",
+  "status": "ready",
+  "trustedBase": "752803c74d24acb33b5675f767e8c7b4fda50d50",
+  "packet": {
+    "path": "docs/design/greenfield/slices/h2-6a.md",
+    "sha256": "ee61a33bb76d8594224bbb133e05e23aaa8fbcb91f65da837e0742b16618f28e"
+  },
+  "predecessors": [
+    {
+      "packetId": "h2-5h-ca-4",
+      "receiptSha256": "abdb64642da433546d7b76bde56b130dba864cac03d02963a6005210a42ae0ad"
+    }
+  ],
+  "allowedPaths": [
+    "docs/design/greenfield/slices/h2-6a.md",
+    "docs/design/greenfield/slices/README.md",
+    "crates/oracle/h2-6a-witnesses.mjs",
+    ".github/ci/contracts/h2-6a-witnesses.schema.json",
+    "ratchets/h2-6a-witnesses.v1.json",
+    ".github/ci/qualification.mjs",
+    ".github/ci/qualification.test.mjs",
+    "ratchets/fci-readiness/h2-6a.v1.json",
+    "ratchets/fci-packet-bootstrap.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/emitter/src",
+    "crates/checker",
+    "crates/binder",
+    "crates/syntax",
+    "crates/types",
+    "crates/diags",
+    "crates/conformance",
+    "crates/xtask",
+    "crates/compiler",
+    "crates/harness",
+    "crates/program",
+    ".github/workflows"
+  ],
+  "proof": {
+    "commands": [
+      "node crates/oracle/h2-6a-witnesses.mjs --check",
+      "node --test .github/ci/qualification.test.mjs",
+      "node .github/ci/qualification.mjs check",
+      "node .github/ci/slice-readiness.mjs --check h2-6a"
+    ],
+    "evidencePath": "ratchets/h2-6a-witnesses.v1.json"
+  }
+}
