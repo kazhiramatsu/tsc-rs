@@ -489,3 +489,71 @@ fn collect_h2_5g_exact_differences_locally() {
         report_path.display()
     );
 }
+
+// H2.5h CA-4: the divergence ratchet's four outcomes (packet §4).
+mod h2_5h_ratchet {
+    use std::collections::HashMap;
+
+    use super::super::{
+        h2_5h_ratchet_join as join, H2_5hCaseOutcome as Outcome, H2_5hDivergence as Divergence,
+    };
+
+    fn outcome(case_id: &str, divergence: Divergence) -> Result<Outcome, String> {
+        Ok(Outcome {
+            case_id: case_id.to_owned(),
+            deferred: false,
+            divergence,
+        })
+    }
+
+    fn diverging() -> Divergence {
+        Divergence {
+            writes_diverging: 1,
+            ..Divergence::default()
+        }
+    }
+
+    #[test]
+    fn exact_unlisted_passes_and_diverging_listed_passes_facet_exact() {
+        let listed = HashMap::from([("b".to_owned(), diverging())]);
+        let (exact, deferred, known) = join(
+            vec![
+                outcome("a", Divergence::default()),
+                outcome("b", diverging()),
+            ],
+            &listed,
+            false,
+        )
+        .expect("both lanes pass");
+        assert_eq!((exact, deferred, known.len()), (1, 0, 1));
+    }
+
+    #[test]
+    fn diverging_unlisted_fails() {
+        let error = join(vec![outcome("a", diverging())], &HashMap::new(), false)
+            .expect_err("a new divergence must fail");
+        assert!(error.to_string().contains("NEW divergence"), "{error}");
+    }
+
+    #[test]
+    fn exact_listed_fails_stale() {
+        let listed = HashMap::from([("a".to_owned(), diverging())]);
+        let error = join(vec![outcome("a", Divergence::default())], &listed, false)
+            .expect_err("a stale entry must fail");
+        assert!(error.to_string().contains("stale"), "{error}");
+    }
+
+    #[test]
+    fn facet_mismatch_fails() {
+        let listed = HashMap::from([(
+            "a".to_owned(),
+            Divergence {
+                diagnostics_diverging: true,
+                ..Divergence::default()
+            },
+        )]);
+        let error = join(vec![outcome("a", diverging())], &listed, false)
+            .expect_err("facet drift must fail");
+        assert!(error.to_string().contains("facets differ"), "{error}");
+    }
+}

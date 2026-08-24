@@ -4,9 +4,9 @@ use std::sync::Arc;
 use serde_json::Value;
 use tsc_host::{CompilerHost, FsCompilerHost, HostError, HostErrorKind, HostOperation};
 use tsc_program::{
-    load_program, validate_config_plan, CompilerConfigHost, CompilerOptions, ConfigHostError,
-    ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
-    PreparedProgram, ProgramLoadLimits, ProgramOptions,
+    load_emitting_program, load_program, validate_config_plan, CompilerConfigHost, CompilerOptions,
+    ConfigHostError, ConfigHostOperation, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest,
+    LibraryCatalog, PreparedProgram, ProgramLoadLimits, ProgramOptions,
 };
 
 use super::{
@@ -201,6 +201,218 @@ pub fn load_project_no_emit(
         effective_program_options: program_options,
         prepared_program,
     })
+}
+
+/// Emit projection of one project descriptor for the H2.5h corpus-adoption
+/// acceptance (`run_h2_5h`).
+///
+/// Structure layer identical to [`load_project_no_emit`] (shared mount,
+/// case-sensitive host, the three root-selection arms); the OPTION layer is
+/// the CA-3 §5.3a observation floor rather than the H0 no-emit adapter:
+/// no forced `noEmit`, descriptor emit options (`sourceMap`/`sourceRoot`/
+/// `mapRoot`/`outDir`/`outFile`/`declaration`/`declarationDir`) apply as
+/// ordinary compiler options, `newLine` pins CRLF, and the loader runs in
+/// emit mode. Explicit rows pass EVERY requested root (missing included —
+/// the program loader owns the missing-root diagnostic chain; the admitted
+/// `invalidRootFile` variants depend on it).
+pub fn load_project_emit(
+    workspace: &Path,
+    plan: &ProjectExecutionPlan,
+    limits: ProgramLoadLimits,
+) -> HarnessResult<ProjectNoEmitProgram> {
+    let library_directory = normalize_existing_directory(
+        &workspace.join("vendor/typescript-6.0.3/lib"),
+        "pinned TypeScript library directory",
+    )?;
+    let host = MountedProjectHost::new(
+        workspace,
+        Arc::clone(&plan.fixture.mount),
+        Arc::clone(&plan.fixture.current_directory),
+        library_directory.clone(),
+    )?;
+
+    let (config_root_plan, root_names, mut compiler_options, program_options) = match &plan
+        .fixture
+        .root_selection
+    {
+        ProjectRootSelection::Explicit { input_names } => {
+            let root_names = input_names
+                .iter()
+                .map(|name| {
+                    normalize_virtual_path(plan.fixture.current_directory.as_ref(), name)
+                        .map(PathBuf::from)
+                        .map_err(|path_error| {
+                            error(format!(
+                                "project descriptor {:?} has invalid explicit root {:?}: {path_error}",
+                                plan.fixture.source.relative_path, name
+                            ))
+                        })
+                })
+                .collect::<HarnessResult<Vec<_>>>()?;
+            (
+                None,
+                root_names,
+                CompilerOptions::default(),
+                ProgramOptions::default()
+                    .without_config_file_path()
+                    .with_default_library_file_name(PROJECT_RUNNER_DEFAULT_LIBRARY),
+            )
+        }
+        ProjectRootSelection::ProjectConfig {
+            resolved_config_path,
+            ..
+        } => {
+            let config_root_plan = parse_project_config(&host, resolved_config_path, plan)?;
+            // The H0 no-emit validation scope (watchOptions/typeAcquisition/
+            // compileOnSave refusals) is adapter behavior, not observation
+            // semantics: the CA-3 oracle parsed these configs through the
+            // vendored `parseJsonSourceFileConfigFileContent`, which
+            // tolerates them. The emit lane's contract is the frozen
+            // observation (CA-4 packet §4 layer split).
+            let root_names = config_root_plan
+                .file_names()
+                .iter()
+                .map(PathBuf::from)
+                .collect::<Vec<_>>();
+            let compiler_options = config_root_plan
+                .module_resolution_options()
+                .compiler_options()
+                .clone();
+            let program_options = config_root_plan
+                .module_resolution_options()
+                .program_options()
+                .clone()
+                .without_config_file_path()
+                .with_external_config_option_diagnostics()
+                .with_default_library_file_name(PROJECT_RUNNER_DEFAULT_LIBRARY);
+            (
+                Some(config_root_plan),
+                root_names,
+                compiler_options,
+                program_options,
+            )
+        }
+        ProjectRootSelection::DiscoverConfig => {
+            let config_path =
+                join_config_path(plan.fixture.current_directory.as_ref(), "tsconfig.json");
+            let config_root_plan = parse_project_config(&host, &config_path, plan)?;
+            // Same H0-scope tolerance as the named-config arm above.
+            let root_names = config_root_plan
+                .file_names()
+                .iter()
+                .map(PathBuf::from)
+                .collect::<Vec<_>>();
+            let compiler_options = config_root_plan
+                .module_resolution_options()
+                .compiler_options()
+                .clone();
+            let program_options = config_root_plan
+                .module_resolution_options()
+                .program_options()
+                .clone()
+                .without_config_file_path()
+                .with_external_config_option_diagnostics()
+                .with_default_library_file_name(PROJECT_RUNNER_DEFAULT_LIBRARY);
+            (
+                Some(config_root_plan),
+                root_names,
+                compiler_options,
+                program_options,
+            )
+        }
+    };
+
+    apply_project_emit_options(plan, &mut compiler_options)?;
+
+    let library_catalog = LibraryCatalog::typescript_6_0_3(library_directory);
+    let prepared_program = load_emitting_program(
+        &host,
+        &root_names,
+        compiler_options.clone(),
+        program_options.clone(),
+        &library_catalog,
+        limits,
+    )
+    .map_err(|load_error| {
+        error(format!(
+            "failed to load project descriptor {:?} for emit: {load_error}",
+            plan.fixture.source.relative_path
+        ))
+    })?;
+
+    Ok(ProjectNoEmitProgram {
+        config_root_plan,
+        root_names: Arc::from(root_names),
+        effective_compiler_options: compiler_options,
+        effective_program_options: program_options,
+        prepared_program,
+    })
+}
+
+/// The CA-3 §5.3a observation option floor for the emit lane: the runner
+/// defaults (Classic resolution, truncation/lib-check false, the module
+/// variant) with descriptor options — INCLUDING the emit controls the
+/// no-emit adapter rejects — applied as ordinary compiler options, and
+/// `newLine` pinned to CRLF for hermetic bytes.
+fn apply_project_emit_options(
+    plan: &ProjectExecutionPlan,
+    options: &mut CompilerOptions,
+) -> HarnessResult<()> {
+    options.no_error_truncation = Some(false);
+    options.skip_default_lib_check = Some(false);
+    options.module_resolution = Some(1); // Classic
+    options.new_line = Some(0); // CarriageReturnLineFeed
+    options.module = Some(match plan.module_variant {
+        ProjectModule::Commonjs => 1,
+        ProjectModule::Amd => 2,
+    });
+
+    for property in plan.fixture.properties.iter() {
+        match property.name.as_ref() {
+            "module" => {
+                options.module = Some(project_named_i32(&property.value, "module")?);
+            }
+            "moduleResolution" => {
+                options.module_resolution =
+                    Some(project_named_i32(&property.value, "moduleResolution")?);
+            }
+            "declaration" => {
+                options.declaration = Some(property_bool(&property.value, "declaration")?);
+            }
+            "strict" => {
+                options.strict = Some(property_bool(&property.value, "strict")?);
+            }
+            "noResolve" => {
+                options.no_resolve = Some(property_bool(&property.value, "noResolve")?);
+            }
+            "sourceMap" => {
+                options.source_map = Some(property_bool(&property.value, "sourceMap")?);
+            }
+            "sourceRoot" => {
+                options.source_root = property.value.as_str().map(str::to_owned);
+            }
+            "mapRoot" => {
+                options.map_root = property.value.as_str().map(str::to_owned);
+            }
+            "outDir" => {
+                options.out_dir = property.value.as_str().map(str::to_owned);
+            }
+            "outFile" => {
+                options.out_file = property.value.as_str().map(str::to_owned);
+            }
+            "rootDir" => {
+                options.root_dir = property.value.as_str().map(str::to_owned);
+            }
+            "scenario" | "projectRoot" | "inputFiles" | "baselineCheck" | "runTest" | "project" => {
+            }
+            other => {
+                return Err(error(format!(
+                    "project descriptor contains unsupported property {other:?}"
+                )));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Parse and load the six `NodeModulesSearch` CommonJS/AMD variants through

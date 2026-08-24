@@ -23,26 +23,50 @@
     "profile_fingerprint_sha256"
   ],
   "properties": {
-    "schema": { "const": 1 },
-    "kind": { "const": "h2-runtime-profile" },
-    "status": { "const": "qualified" },
-    "phase": { "const": "H2.5g" },
-    "typescript": { "$ref": "#/$defs/typescript" },
-    "generator": { "$ref": "#/$defs/path_hash" },
-    "contract": { "$ref": "#/$defs/path_hash" },
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "const": "h2-runtime-profile"
+    },
+    "status": {
+      "const": "qualified"
+    },
+    "phase": {
+      "const": "H2.5g"
+    },
+    "typescript": {
+      "$ref": "#/$defs/typescript"
+    },
+    "generator": {
+      "$ref": "#/$defs/path_hash"
+    },
+    "contract": {
+      "$ref": "#/$defs/path_hash"
+    },
     "origin": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["trusted_h2_5f_merge", "historical", "interpretation"],
+      "required": [
+        "trusted_h2_5f_merge",
+        "historical",
+        "interpretation"
+      ],
       "properties": {
-        "trusted_h2_5f_merge": { "const": "11f5d0abb93fed4b109bdb1dc552721ceb05e707" },
-        "historical": { "$ref": "#/$defs/historical" },
+        "trusted_h2_5f_merge": {
+          "const": "11f5d0abb93fed4b109bdb1dc552721ceb05e707"
+        },
+        "historical": {
+          "$ref": "#/$defs/historical"
+        },
         "interpretation": {
           "const": "H2.5f artifacts remain immutable lineage; current runtime ownership transfers to this H2.5g profile"
         }
       }
     },
-    "qualification": { "$ref": "#/$defs/path_hash" },
+    "qualification": {
+      "$ref": "#/$defs/path_hash"
+    },
     "current_exact_promotions": {
       "const": [
         {
@@ -121,12 +145,27 @@
       "type": "array",
       "minItems": 254,
       "maxItems": 254,
-      "items": { "$ref": "#/$defs/path_hash" }
+      "items": {
+        "$ref": "#/$defs/path_hash"
+      }
     },
     "admitted_profile": {
       "const": {
         "execution": "single-project-one-shot-whole-program",
-        "target_states": ["ES2015(2)", "ES2016(3)", "ES2017(4)", "ES2018(5)", "ES2019(6)", "ES2020(7)", "ES2021(8)", "ES2022(9)", "ES2023(10)", "ES2024(11)", "ES2025(12)", "ESNext(99)"],
+        "target_states": [
+          "ES2015(2)",
+          "ES2016(3)",
+          "ES2017(4)",
+          "ES2018(5)",
+          "ES2019(6)",
+          "ES2020(7)",
+          "ES2021(8)",
+          "ES2022(9)",
+          "ES2023(10)",
+          "ES2024(11)",
+          "ES2025(12)",
+          "ESNext(99)"
+        ],
         "module_states": [
           "absent-effective-ESNext",
           "None(0)",
@@ -144,9 +183,31 @@
           "NodeNext(199)",
           "Preserve(200)"
         ],
-        "jsx_modes": ["Preserve(1)", "React(2)", "ReactNative(3)", "ReactJSX(4)", "ReactJSXDev(5)"],
-        "source_kinds": [".ts", ".mts", ".cts", ".tsx", ".js", ".mjs", ".cjs", ".jsx", ".json"],
-        "products": ["javascript", "mjs", "cjs", "jsx", "json"],
+        "jsx_modes": [
+          "Preserve(1)",
+          "React(2)",
+          "ReactNative(3)",
+          "ReactJSX(4)",
+          "ReactJSXDev(5)"
+        ],
+        "source_kinds": [
+          ".ts",
+          ".mts",
+          ".cts",
+          ".tsx",
+          ".js",
+          ".mjs",
+          ".cjs",
+          ".jsx",
+          ".json"
+        ],
+        "products": [
+          "javascript",
+          "mjs",
+          "cjs",
+          "jsx",
+          "json"
+        ],
         "exact_cases": 9196,
         "h2_5g_exact_cases": 8511,
         "exact_reported_diagnostics": 28415,
@@ -164,9 +225,9 @@
     "transition": {
       "const": {
         "completed_slice": "H2.5g",
-        "next_slice": "H2.5h-a",
-        "next_slice_scope": "architecture-validation-owner-local-gap-rust-design-and-oracle-fixture-freeze",
-        "next_runtime_activation_slice": "determined-by-H2.5h-a-owner-graph",
+        "next_slice": "H2.6a",
+        "next_slice_scope": "exact-map-json-and-callback-metadata",
+        "next_runtime_activation_slice": "H2.6a",
         "active_runtime_slices": [
           "H2.1a",
           "H2.1b",
@@ -189,9 +250,10 @@
           "H2.5d",
           "H2.5e",
           "H2.5f",
-          "H2.5g"
+          "H2.5g",
+          "H2.5h"
         ],
-        "inactive_runtime_slice_count": 15,
+        "inactive_runtime_slice_count": 14,
         "classic_jsx_tsx_owner": "complete",
         "automatic_jsx_runtime_owner": "complete",
         "json_output_owner": "complete",
@@ -204,11 +266,16 @@
         "target_es2018_transform_owner": "complete",
         "target_es2017_transform_owner": "complete",
         "target_es2016_transform_owner": "complete",
-        "target_es2015_transform_owner": "H2.5h-b+",
-        "target_generators_transform_owner": "H2.5h-b+",
+        "target_es2015_transform_owner": "complete-with-h2-5h-divergence-ratchet",
+        "target_generators_transform_owner": "complete-with-h2-5h-divergence-ratchet",
         "general_output_matrix_owner": "H2.8a",
         "h2_5g_candidate_cases": 9027,
         "h2_5g_admitted_cases": 8511,
+        "h2_5h_candidate_cases": 932,
+        "h2_5h_admitted_cases": 888,
+        "h2_5h_exact_cases": 795,
+        "h2_5h_known_divergences": 93,
+        "h2_5h_source_deferred_cases": 44,
         "h2_5g_global_future_rows": 2883,
         "h2_5g_source_deferred_cases": 516,
         "deferred_failure_boundary": "typed failure before first sink write"
@@ -240,26 +307,66 @@
         "hosted_gate_scope"
       ],
       "properties": {
-        "typescript_repetitions": { "const": 2 },
-        "rust_repetitions": { "const": 2 },
-        "legal_worker_control": { "const": "h2_5g_cases_and_owner_controls_run_twice_in_isolated_programs" },
-        "denominator_control": { "const": "h2_5g_exact_denominator_is_9027_with_516_source_deferred_cases_and_2883_global_future_rows" },
-        "target_band_control": { "const": "es2015_lowers_es2016_syntax_while_es2016_preserves_it" },
-        "exponentiation_control": { "const": "binary_and_assignment_exponentiation_preserve_associativity_evaluation_and_temp_ownership" },
-        "generated_binding_control": { "const": "typed_scope_hoists_and_binding_identity_preserve_property_element_parameter_and_collision_names" },
-        "composition_control": { "const": "async_object_rest_decorators_class_fields_using_and_commonjs_compose_in_transform_order" },
-        "diagnostic_control": { "const": "reported_emit_and_no_emit_on_error_diagnostics_match_tsc" },
-        "printer_control": { "const": "comments_precedence_and_final_tree_layout_are_exact" },
-        "failure_control": { "const": "516_later_owned_sources_fail_before_first_sink_write_and_no_emit_on_error_writes_nothing" },
-        "owner_controls": { "$ref": "#/$defs/owner_controls" },
-        "qualification_vfs_overlay_test": { "$ref": "#/$defs/path_hash" },
-        "h0_authority": { "$ref": "#/$defs/path_hash" },
-        "h1_authority": { "$ref": "#/$defs/path_hash" },
-        "l1_authority": { "$ref": "#/$defs/path_hash" },
-        "historical_h2_5f_profile": { "$ref": "#/$defs/path_hash" },
-        "local_full_gate": { "const": "cargo xtask ci --baseline 11f5d0abb93fed4b109bdb1dc552721ceb05e707" },
-        "hosted_gate": { "const": "cargo xtask acceptance" },
-        "hosted_gate_scope": { "const": "fixed-unsplit-ts-tests-only" }
+        "typescript_repetitions": {
+          "const": 2
+        },
+        "rust_repetitions": {
+          "const": 2
+        },
+        "legal_worker_control": {
+          "const": "h2_5g_cases_and_owner_controls_run_twice_in_isolated_programs"
+        },
+        "denominator_control": {
+          "const": "h2_5g_exact_denominator_is_9027_with_516_source_deferred_cases_and_2883_global_future_rows"
+        },
+        "target_band_control": {
+          "const": "es2015_lowers_es2016_syntax_while_es2016_preserves_it"
+        },
+        "exponentiation_control": {
+          "const": "binary_and_assignment_exponentiation_preserve_associativity_evaluation_and_temp_ownership"
+        },
+        "generated_binding_control": {
+          "const": "typed_scope_hoists_and_binding_identity_preserve_property_element_parameter_and_collision_names"
+        },
+        "composition_control": {
+          "const": "async_object_rest_decorators_class_fields_using_and_commonjs_compose_in_transform_order"
+        },
+        "diagnostic_control": {
+          "const": "reported_emit_and_no_emit_on_error_diagnostics_match_tsc"
+        },
+        "printer_control": {
+          "const": "comments_precedence_and_final_tree_layout_are_exact"
+        },
+        "failure_control": {
+          "const": "516_later_owned_sources_fail_before_first_sink_write_and_no_emit_on_error_writes_nothing"
+        },
+        "owner_controls": {
+          "$ref": "#/$defs/owner_controls"
+        },
+        "qualification_vfs_overlay_test": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "h0_authority": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "h1_authority": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "l1_authority": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "historical_h2_5f_profile": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "local_full_gate": {
+          "const": "cargo xtask ci --baseline 11f5d0abb93fed4b109bdb1dc552721ceb05e707"
+        },
+        "hosted_gate": {
+          "const": "cargo xtask acceptance"
+        },
+        "hosted_gate_scope": {
+          "const": "fixed-unsplit-ts-tests-only"
+        }
       }
     },
     "summary": {
@@ -275,29 +382,58 @@
         "historical_artifacts_reinterpreted": 0
       }
     },
-    "profile_fingerprint_sha256": { "$ref": "#/$defs/sha256" }
+    "profile_fingerprint_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
   },
   "$defs": {
-    "sha1": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
-    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
     "path_hash": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["path", "sha256"],
+      "required": [
+        "path",
+        "sha256"
+      ],
       "properties": {
-        "path": { "type": "string", "minLength": 1 },
-        "sha256": { "$ref": "#/$defs/sha256" }
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
       }
     },
     "typescript": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["version", "source_commit", "bundle", "implementation"],
+      "required": [
+        "version",
+        "source_commit",
+        "bundle",
+        "implementation"
+      ],
       "properties": {
-        "version": { "const": "6.0.3" },
-        "source_commit": { "$ref": "#/$defs/sha1" },
-        "bundle": { "$ref": "#/$defs/path_hash" },
-        "implementation": { "$ref": "#/$defs/path_hash" }
+        "version": {
+          "const": "6.0.3"
+        },
+        "source_commit": {
+          "$ref": "#/$defs/sha1"
+        },
+        "bundle": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "implementation": {
+          "$ref": "#/$defs/path_hash"
+        }
       }
     },
     "historical": {
@@ -315,25 +451,53 @@
         "owner_controls_contract"
       ],
       "properties": {
-        "profile": { "$ref": "#/$defs/path_hash" },
-        "qualification": { "$ref": "#/$defs/path_hash" },
-        "owner_controls": { "$ref": "#/$defs/path_hash" },
-        "profile_generator": { "$ref": "#/$defs/path_hash" },
-        "qualification_generator": { "$ref": "#/$defs/path_hash" },
-        "owner_controls_generator": { "$ref": "#/$defs/path_hash" },
-        "profile_contract": { "$ref": "#/$defs/path_hash" },
-        "qualification_contract": { "$ref": "#/$defs/path_hash" },
-        "owner_controls_contract": { "$ref": "#/$defs/path_hash" }
+        "profile": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "qualification": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "owner_controls": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "profile_generator": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "qualification_generator": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "owner_controls_generator": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "profile_contract": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "qualification_contract": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "owner_controls_contract": {
+          "$ref": "#/$defs/path_hash"
+        }
       }
     },
     "owner_controls": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["artifact", "generator", "contract"],
+      "required": [
+        "artifact",
+        "generator",
+        "contract"
+      ],
       "properties": {
-        "artifact": { "$ref": "#/$defs/path_hash" },
-        "generator": { "$ref": "#/$defs/path_hash" },
-        "contract": { "$ref": "#/$defs/path_hash" }
+        "artifact": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "generator": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "contract": {
+          "$ref": "#/$defs/path_hash"
+        }
       }
     }
   }

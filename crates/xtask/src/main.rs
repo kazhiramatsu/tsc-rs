@@ -89,6 +89,7 @@ fn main() {
         Some("h2-5f-acceptance") => run_or_exit(h2_5f_acceptance(args)),
         Some("h2-5f-owner-controls") => run_or_exit(h2_5f_owner_controls(args)),
         Some("h2-5g-acceptance") => run_or_exit(h2_5g_acceptance(args)),
+        Some("h2-5h-acceptance") => run_or_exit(h2_5h_acceptance(args)),
         Some("h2-5g-probe") => run_or_exit(h2_5g_probe(args)),
         Some("h2-5g-inventory") => run_or_exit(h2_5g_inventory(args)),
         Some("h2-5g-owner-controls") => run_or_exit(h2_5g_owner_controls(args)),
@@ -4377,7 +4378,8 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_2c_acceptance::run_h2_5d(&workspace)?;
     h2_2c_acceptance::run_h2_5e(&workspace)?;
     h2_2c_acceptance::run_h2_5f(&workspace)?;
-    h2_2c_acceptance::run_h2_5g(&workspace)
+    h2_2c_acceptance::run_h2_5g(&workspace)?;
+    h2_2c_acceptance::run_h2_5h(&workspace)
 }
 
 fn h2_5a_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -4483,6 +4485,16 @@ fn h2_5g_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dy
     let workspace = find_workspace_root()?;
     h2_2c_acceptance::run_h2_5g(&workspace)?;
     h2_3d_acceptance::run_h2_5g_owner_controls(&workspace)
+}
+
+fn h2_5h_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected h2-5h-acceptance argument: {argument}").into());
+    }
+    let workspace = find_workspace_root()?;
+    // Owner controls for the H2.5h band defer to the residual packets
+    // (CA-4 packet §5.4's recorded deviation).
+    h2_2c_acceptance::run_h2_5h(&workspace)
 }
 
 fn h2_5g_probe(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7693,6 +7705,17 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
     // Synthetic ownership controls are valuable local phase tests, but are
     // deliberately outside the fixed hosted boundary, which executes only
     // cases sourced from ts-tests.
+    // The corpus-adoption band's freshness proof: the 5h qualification's
+    // gate-tax-3 receipt makes the steady-state check a fast receipt hit;
+    // the acceptance band itself (run_h2_5h) executes on HOSTED via
+    // `cargo xtask acceptance` (CA-4 packet §5.4).
+    resume.run_phase(
+        "h2-5h-oracle",
+        local_ci_resume::InputScope::NodeRuntimeOracle,
+        "",
+        &[],
+        || ci_h2_5h_oracle_gates(&workspace),
+    )?;
     resume.run_phase(
         "h2-owner-controls",
         local_ci_resume::InputScope::Verification,
@@ -8709,6 +8732,21 @@ fn ci_h2_5g_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         )?;
     }
     Ok(())
+}
+
+fn ci_h2_5h_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("--check")
+            .arg("crates/oracle/h2-5h-qualification.mjs"),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("crates/oracle/h2-5h-qualification.mjs")
+            .arg("--check"),
+    )
 }
 
 fn ci_h2_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {

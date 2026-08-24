@@ -261,6 +261,45 @@ counts; any project-lane divergence family discovered by the
 first sweep (named `h2-5h-project-r<N>` with evidence); every
 implementation-time deviation per the stop rule.
 
+### §8-A. Implementation-time notes (2026-08-24)
+
+1. **Measured band state (the first full sweep):** 932 =
+   exact 795 + known_diverging 93 + deferred 44. The 79
+   compiler/conformance manifest entries join census v10
+   EXACTLY (0 discrepancy — `run_h2_5h` reproduces the census
+   instrument). Owners: r1 22, r2 4, r3 4, r4 27, r5 22,
+   h2-5h-project-r1 8, h2-5h-project-r2 6.
+2. **Project-lane families discovered (per §8's anticipation):**
+   - **h2-5h-project-r1 (8 rows, `emit_refused`)**: the
+     production emitter's fails-closed option preflight
+     (`execute.rs` — the l0-source-options owner surface,
+     FORBIDDEN to this packet) refuses `mapRoot`/`sourceRoot`/
+     `rootDir`; the manifest gains the `emit_refused` facet for
+     exactly this typed-refusal shape (a §4 schema amendment).
+   - **h2-5h-project-r2 (6 rows, diagnostics)**:
+     emitDecoratorMetadataSystemJS ×2 + nodeModulesImportHigher
+     ×2 + nodeModulesMaxDepthIncreased ×2 — project-lane
+     diagnostics parity (decorator-metadata and
+     node_modules-depth resolution reporting).
+3. **The H0 validation scope is not observation semantics:**
+   `load_project_emit` does NOT run `validate_config_plan` —
+   its watchOptions/typeAcquisition/compileOnSave refusals are
+   no-emit-adapter behavior; the CA-3 oracle parsed those
+   configs through the vendored parser, which tolerates them
+   (the discovered-config row `emitDecoratorMetadataSystemJS`
+   carries `compileOnSave`). The §4 layer split covers this.
+4. The typed-refusal detection matches the emitter's
+   `unsupported emit compiler option` message at the session
+   boundary (the typed error surface lives in forbidden crates;
+   the single well-known message is the envelope-compatible
+   join, recorded here for the r1 packet to replace).
+5. The transition block landed: active slices +H2.5h (inactive
+   15 → 14), next = H2.6a (exact-map-json scope),
+   `target_es2015/generators_transform_owner =
+   complete-with-h2-5h-divergence-ratchet`, and the five
+   h2_5h_* count fields (932/888/795/93/44) — mjs + schema
+   const in the same commit.
+
 ## 9. Acceptance
 
 1. `run_h2_5h` green locally with the printed totals matching the
