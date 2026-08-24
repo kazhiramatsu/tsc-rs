@@ -5,7 +5,7 @@
   "trustedBase": "cce33a37211cce26b7cc50532242626053a93535",
   "packet": {
     "path": "docs/design/greenfield/slices/h2-6a-m-1.md",
-    "sha256": "8bcde2673de79a0d1a240fab017923dc17a33296651b76e2a1bd696e83f73a0d"
+    "sha256": "73765db8c2e94d30ded0b1361092ed83986d4ab8dacca161fc3ad66bc4ea495c"
   },
   "predecessors": [
     {
@@ -18,6 +18,19 @@
     "crates/emitter/src/lib.rs",
     "crates/emitter/src/source_map.rs",
     "crates/emitter/tests/unit/source_map/tests.rs",
+    "crates/harness/tests/integration/h2_1a_profile.rs",
+    "crates/harness/tests/integration/h2_1b_profile.rs",
+    "crates/harness/tests/integration/h2_1c_profile.rs",
+    "crates/harness/tests/integration/h2_1d_profile.rs",
+    "crates/harness/tests/integration/h2_1e_profile.rs",
+    "crates/harness/tests/integration/h2_2a_profile.rs",
+    "crates/harness/tests/integration/h2_2b_profile.rs",
+    "crates/harness/tests/integration/h2_2c_profile.rs",
+    "crates/harness/tests/integration/h2_2d_profile.rs",
+    "crates/harness/tests/integration/h2_3a_profile.rs",
+    "crates/harness/tests/integration/h2_3b_profile.rs",
+    "crates/harness/tests/integration/h2_3c_profile.rs",
+    "crates/harness/tests/integration/h2_transition.rs",
     "crates/oracle/h2-1a-profile.mjs",
     "crates/oracle/h2-1b-profile.mjs",
     "crates/oracle/h2-1b-qualification.mjs",
@@ -147,10 +160,11 @@
     "crates/conformance",
     "crates/xtask",
     "crates/compiler",
-    "crates/harness",
     "crates/program",
     ".github/workflows",
-    ".github/ci/qualification.mjs"
+    ".github/ci/qualification.mjs",
+    "crates/harness/src",
+    "crates/harness/tests/unit"
   ],
   "proof": {
     "commands": [

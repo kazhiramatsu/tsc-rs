@@ -139,7 +139,7 @@ fn h2_2a_profile_is_content_addressed_and_closes_the_transition() {
     let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.2a profile JSON");
     assert_eq!(
         sha256(RECORDED),
-        "ff04dafad0b76b02e06d8a2b84454a468463bd81497a7fd78f118b9082ea094c"
+        "f05ffc635cfdfaafb0738c55e25c9d6dcddbed12b68c2504e9098cb0a6220020"
     );
     assert_eq!(artifact["schema"], 1);
     assert_eq!(artifact["kind"], "h2-runtime-profile");
@@ -169,7 +169,7 @@ fn h2_2a_profile_is_content_addressed_and_closes_the_transition() {
     assert_recorded_exact(
         &artifact["generator"],
         "crates/oracle/h2-2a-profile.mjs",
-        "64cea9739b7c9a58ef60cb1bb3ec5211eb171701f69778a3b17baa3851229584",
+        "9e21ad53b016f243f8836f94e7c86ed4dfa5b2bb31e024d142183fd53ce4c2f4",
     );
     assert_recorded_exact(
         &artifact["contract"],
@@ -179,7 +179,7 @@ fn h2_2a_profile_is_content_addressed_and_closes_the_transition() {
     assert_recorded_exact(
         &artifact["qualification"],
         "ratchets/h2-2a-qualification.v1.json",
-        "2e7fc31c181d5c383a5948fa7db48b6b57fd1996504e565b10e149858daa2bf9",
+        "51d4e3606c6f9062fe7d97c75177d3a691966ca7491ea5bd16c6034715980612",
     );
     let inputs = array(&artifact["runtime_inputs"], "runtime inputs");
     assert_eq!(inputs.len(), RUNTIME_INPUTS.len());
@@ -191,12 +191,12 @@ fn h2_2a_profile_is_content_addressed_and_closes_the_transition() {
         (
             "profile",
             "ratchets/h2-1e-profile.v1.json",
-            "9970c3702cc7877a8f40c0ea436f5f4713b0ed2349826af42220a1b1d73184b9",
+            "c867dd729c477da0126150d85d352d7170589683d86a56a98b4ad5569b823c32",
         ),
         (
             "qualification",
             "ratchets/h2-1e-qualification.v1.json",
-            "0049570a37cf285da2547826b770c1902351035503b7ca865972ef3b2019d9a3",
+            "26d3977af52d73cdd711994702958c20e02f6885e8019997590b4a201fffe88e",
         ),
     ] {
         let record = &artifact["origin"]["historical"][field];
