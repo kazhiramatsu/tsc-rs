@@ -293,6 +293,17 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/harness/tests/contracts.rs",
   "crates/harness/tests/integration/h2_transition.rs",
   "crates/harness/tests/integration/h2_1a_profile.rs",
+  "crates/harness/tests/integration/h2_1b_profile.rs",
+  "crates/harness/tests/integration/h2_1c_profile.rs",
+  "crates/harness/tests/integration/h2_1d_profile.rs",
+  "crates/harness/tests/integration/h2_1e_profile.rs",
+  "crates/harness/tests/integration/h2_2a_profile.rs",
+  "crates/harness/tests/integration/h2_2b_profile.rs",
+  "crates/harness/tests/integration/h2_2c_profile.rs",
+  "crates/harness/tests/integration/h2_2d_profile.rs",
+  "crates/harness/tests/integration/h2_3a_profile.rs",
+  "crates/harness/tests/integration/h2_3b_profile.rs",
+  "crates/harness/tests/integration/h2_3c_profile.rs",
   "crates/harness/tests/integration/transpile_suite_inventory.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit
