@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "packetId": "h2-6a-m-2",
+  "status": "ready",
+  "trustedBase": "1ccfc0cee3047cf3d507a85ad8e78ef153985083",
+  "packet": {
+    "path": "docs/design/greenfield/slices/h2-6a-m-2.md",
+    "sha256": "6993cc2524293590400af04a0f7adbfae01a2e19ce5ae606fcae5ab521e20469"
+  },
+  "predecessors": [
+    {
+      "packetId": "h2-6a-m-1",
+      "receiptSha256": "ae36a0eae48bff26ac0600a869a2371e9d9d1ec153ff35ff22f1db808d6adc5f"
+    }
+  ],
+  "allowedPaths": [
+    ".github/ci/contracts/h2-5g-profile.schema.json",
+    "crates/checker/tests/unit/emit/tests.rs",
+    "crates/compiler/tests/contracts.rs",
+    "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+    "crates/emitter/src/builtins/es2015.rs",
+    "crates/emitter/src/execute.rs",
+    "crates/emitter/src/lib.rs",
+    "crates/emitter/src/printer.rs",
+    "crates/emitter/src/source_map.rs",
+    "crates/emitter/src/writer.rs",
+    "crates/emitter/tests/integration/active_transform_contract.rs",
+    "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
+    "crates/emitter/tests/integration/factory_transform_contract.rs",
+    "crates/emitter/tests/integration/printer_foundation_contract.rs",
+    "crates/emitter/tests/integration/printer_oracle_contract.rs",
+    "crates/emitter/tests/integration/token_cursor_contract.rs",
+    "crates/emitter/tests/integration/tsx_type_argument_transform_contract.rs",
+    "crates/emitter/tests/source_comment_topology_contract.rs",
+    "crates/emitter/tests/unit/builtins/tests.rs",
+    "crates/emitter/tests/unit/es2015/tests.rs",
+    "crates/emitter/tests/unit/flatten_destructuring/tests.rs",
+    "crates/emitter/tests/unit/generators/tests.rs",
+    "crates/emitter/tests/unit/source_map/tests.rs",
+    "crates/emitter/tests/unit/token_cursor/tests.rs",
+    "crates/oracle/h2-5g-profile.mjs",
+    "docs/design/greenfield/slices/README.md",
+    "docs/design/greenfield/slices/h2-6a-m-2.md",
+    "ratchets/fci-packet-bootstrap.v1.json",
+    "ratchets/fci-readiness/h2-6a-m-2.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/emitter/src/plan.rs",
+    "crates/emitter/src/artifact.rs",
+    "crates/emitter/src/outcome.rs",
+    "crates/emitter/src/activity.rs",
+    "crates/emitter/src/sink.rs",
+    "crates/emitter/src/host.rs",
+    "crates/binder",
+    "crates/syntax",
+    "crates/types",
+    "crates/diags",
+    "crates/conformance",
+    "crates/xtask",
+    "crates/harness/src",
+    "crates/harness/tests/unit",
+    "crates/program",
+    ".github/workflows",
+    ".github/ci/qualification.mjs",
+    "crates/checker/src",
+    "crates/checker/tests/integration",
+    "crates/compiler/src",
+    "crates/compiler/tests/unit"
+  ],
+  "proof": {
+    "commands": [
+      "cargo test -p tsc-rs-emitter --lib",
+      "cargo test -p tsc-rs-compiler --test contracts",
+      "cargo xtask ledger check",
+      "node .github/ci/qualification.mjs check",
+      "node .github/ci/slice-readiness.mjs --check h2-6a-m-2"
+    ],
+    "evidencePath": "ratchets/h2-6a-witnesses.v1.json"
+  }
+}
