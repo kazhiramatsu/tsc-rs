@@ -22,6 +22,7 @@ mod position;
 mod printer;
 mod resolver;
 mod sink;
+mod source_map;
 mod token_cursor;
 mod transform;
 mod writer;
@@ -71,6 +72,7 @@ pub use resolver::{
     EmitTypeReferenceSerializationKind, UnavailableEmitResolver,
 };
 pub use sink::{EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink, OutputSink};
+pub use source_map::{SourceMapGenerator, SourceMappingFields};
 pub use transform::{
     transform_nodes, EmitHelper, EmitHint, LexicalEnvironment, LexicalEnvironmentFlags,
     TransformBundle, TransformError, TransformFlags, TransformRoot, TransformationContext,
