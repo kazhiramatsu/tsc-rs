@@ -300,6 +300,25 @@ implementation-time deviation per the stop rule.
    h2_5h_* count fields (932/888/795/93/44) — mjs + schema
    const in the same commit.
 
+6. **Walk discoveries (the closure + pin surfaces):** (a) the
+   new loader test enters the 5g-profile runtime-input closure
+   in NEW_RUNTIME_INPUTS (254 → 255) while the test REGISTRY
+   (`crates/harness/tests/contracts.rs`) belongs in the
+   inventory's EXCLUDED gate-infrastructure list — the two lists
+   are distinct and the first walk mis-filed both; (b)
+   `h2-5h-a-foundation.mjs` pinned the PRE-landing 5g-profile
+   transition values — its parent-profile expectations now
+   assert the landed block (H2.6a / +H2.5h / the ratchet owner
+   strings); (c) `l0-source-options` carries a line-anchored
+   `main.rs` pin that moved with the append (2-line re-mint);
+   (d) review finding 6's "no `.github/ci/qualification.mjs`
+   edit" was INCOMPLETE: the CA-1 hosted clause's actual
+   mechanism is `HOSTED_ACCEPTANCE_QUALIFIED_CALLS` + the
+   derived canonical `fn acceptance` body pin in that file —
+   `run_h2_5h` appends there, with the test's synthetic
+   entrypoint fixture updated in kind. All four surfaces are
+   envelope-amended in this train.
+
 ## 9. Acceptance
 
 1. `run_h2_5h` green locally with the printed totals matching the

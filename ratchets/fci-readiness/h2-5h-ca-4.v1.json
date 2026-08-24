@@ -5,7 +5,7 @@
   "trustedBase": "dd0052eff99e3089aaa4ee7de3304c61a09c478d",
   "packet": {
     "path": "docs/design/greenfield/slices/h2-5h-ca-4.md",
-    "sha256": "4231f8bf47754650951affa432bd4a1ec59880dd6b2e207b1962c4f2f79b501c"
+    "sha256": "337d8b9b7b383eadef2e21595f28ae8cca34e7685f026c0b194c114eb1fb788b"
   },
   "predecessors": [
     {
@@ -68,7 +68,14 @@
     "docs/design/greenfield/slices/h2-5h-a.md",
     "docs/design/greenfield/slices/README.md",
     "target/h2-5h/check-receipt.v1.json",
-    "crates/harness/tests/contracts.rs"
+    "crates/harness/tests/contracts.rs",
+    "ratchets/h2-5h-a-owner-graph.v1.json",
+    "ratchets/h2-5h-a-gap-matrix.v1.json",
+    "ratchets/h2-5h-a-dispositions.v1.json",
+    "ratchets/h2-5h-a-es2015-generators-witnesses.v1.json",
+    "ratchets/l0-source-options.v1.json",
+    ".github/ci/qualification.mjs",
+    ".github/ci/qualification.test.mjs"
   ],
   "forbiddenPrefixes": [
     "crates/checker",
