@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "packetId": "h2-6a-m-1",
   "status": "ready",
-  "trustedBase": "cce33a3765be1755e69e5eab2b7f61035971a959",
+  "trustedBase": "cce33a37211cce26b7cc50532242626053a93535",
   "packet": {
     "path": "docs/design/greenfield/slices/h2-6a-m-1.md",
-    "sha256": "4e1d7adccac5f452b987a064c9228afc5698f06993e50ba40964c9f10ae9cbbd"
+    "sha256": "8bcde2673de79a0d1a240fab017923dc17a33296651b76e2a1bd696e83f73a0d"
   },
   "predecessors": [
     {
