@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-3b-qualification.mjs",
-    "sha256": "f3f556b331ad17a2dc2d6c0cc9a31d74eb84a20b515b6d5bfebac9ba69cb6aca"
+    "sha256": "e329a3a8c615eed15041ca7f042637a1061dfccfe1f8bfc0a6154b040730b848"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-3b-qualification.schema.json",
@@ -26,17 +26,17 @@
     "trusted_base_commit": "3ce56e1fdb1c3841bc27f37b33488d3dd25b65a0",
     "h2_3a_profile": {
       "path": "ratchets/h2-3a-profile.v1.json",
-      "sha256": "6330f8b93c2bc82850b21d17f4187408b9e5bfde9a4d78a0f1932bee260d7434"
+      "sha256": "5b5638bbe7543944948a1dea210f2910c6348b1fd65722c65996b1ab68efba3c"
     }
   },
   "inputs": {
     "compiler_classification": {
       "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
-      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+      "sha256": "7158d2e4fac5b6d43ee9382d5dadac7d27e358c86bd532e07b4d1f9ff85ad5b0"
     },
     "conformance_classification": {
       "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
-      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+      "sha256": "43c3e4d6f6273f2264e7eed96348795bf58caecf30d81b365c4c0dc8d630a990"
     },
     "compiler_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -48,11 +48,11 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+      "sha256": "01b771627b40a7ce3615156981ad3fabdc236e93769f40839f8a245b06b9aa21"
     },
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+      "sha256": "40369fe8e840e74ca88d5cbea3fb354ef85a9d6cc4dda0bd0515416ca9a6f366"
     }
   },
   "execution_contract": {
@@ -2126,5 +2126,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "5a53d4059bfa568721faad8ad2301dd6d9e068065522495dbeead17ee59e97d2"
+  "qualification_fingerprint_sha256": "af2414428faf83f76ef103489085fd0289fa5da0a7a8d10c1fac3e626d6ed4e6"
 }
