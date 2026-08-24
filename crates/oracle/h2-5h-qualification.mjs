@@ -90,18 +90,20 @@ const CLOSED_SLICES = new Set([
 // plus 82 project rows typed-deferred to the CA-3 project harness.
 const GLOBAL_H2_5H_ROWS = 2_012;
 const GLOBAL_CANDIDATES = 932;
-const OBSERVED_CANDIDATE_CASES = 850;
-const PROJECT_DEFERRED_CASES = 82;
+const OBSERVED_CANDIDATE_CASES = 932;
+const COMPILER_CONFORMANCE_CASES = 850;
+const PROJECT_CANDIDATE_CASES = 82;
+const PROJECT_DEFERRED_CASES = 0;
 const EXPECTED_TARGET_STATES = Object.freeze([
-  Object.freeze({ value: "ES5(1)", cases: 836 }),
-  Object.freeze({ value: "absent", cases: 9 }),
+  Object.freeze({ value: "ES5(1)", cases: 838 }),
+  Object.freeze({ value: "absent", cases: 89 }),
   Object.freeze({ value: "ES3(0)", cases: 5 }),
 ]);
 const EXPECTED_MODULE_STATES = Object.freeze([
   Object.freeze({ value: "absent", cases: 685 }),
-  Object.freeze({ value: "CommonJS(1)", cases: 74 }),
+  Object.freeze({ value: "CommonJS(1)", cases: 115 }),
+  Object.freeze({ value: "AMD(2)", cases: 57 }),
   Object.freeze({ value: "ESNext(99)", cases: 33 }),
-  Object.freeze({ value: "AMD(2)", cases: 16 }),
   Object.freeze({ value: "ES2015(5)", cases: 16 }),
   Object.freeze({ value: "System(4)", cases: 11 }),
   Object.freeze({ value: "UMD(3)", cases: 9 }),
@@ -805,6 +807,561 @@ function createProgramCase(loaded, selection, settings, options) {
   };
 }
 
+
+// ---- H2.5h CA-3: the project-suite observation lane ----
+//
+// Structure layer mirrors the T0-gated Rust record
+// (`build_project_fixture` + the shared whole-tree mount,
+// `execution.rs:1198-1222`/`2381-2432`); the option layer is the
+// observation lane's own projection (the H0 no-emit adapter is NOT the
+// record — packet section 5.3a). Per-row inputs are asserted against the
+// designated plan artifact
+// (`vendor/typescript-6.0.3/project-profile-classification.v1.json`).
+
+const PROJECT_DESCRIPTOR_ROOT = "ts-tests/tests/cases/project";
+const PROJECT_TREE_ROOT = "ts-tests/tests/cases/projects";
+const PROJECT_VIRTUAL_PREFIX = "/.src/tests/cases/projects";
+const PROJECT_VIRTUAL_SOURCE_ROOT = "/.src";
+const PROJECT_STRUCTURAL_KEYS = new Set([
+  "scenario", "projectRoot", "inputFiles", "baselineCheck", "runTest",
+  "project",
+]);
+const PROJECT_MODULE_VARIANTS = Object.freeze({
+  amd: Object.freeze({ name: "amd", value: 2 }),
+  commonjs: Object.freeze({ name: "commonjs", value: 1 }),
+});
+
+function walkProjectTree() {
+  const rootAbsolute = path.join(WORKSPACE, PROJECT_TREE_ROOT);
+  const files = [];
+  const stack = [rootAbsolute];
+  while (stack.length !== 0) {
+    const directory = stack.pop();
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(absolute);
+      } else if (entry.isFile()) {
+        files.push(absolute);
+      } else {
+        fail(`unsupported project tree entry ${absolute}`);
+      }
+    }
+  }
+  files.sort();
+  return files.map((absolute) => {
+    const relative = path
+      .relative(rootAbsolute, absolute)
+      .split(path.sep)
+      .join("/");
+    const raw = fs.readFileSync(absolute);
+    const decoded = ts.sys.readFile(absolute);
+    requireCondition(
+      typeof decoded === "string",
+      `cannot decode project mount file ${relative}`,
+    );
+    return {
+      relative_path: relative,
+      virtual_path: `${PROJECT_VIRTUAL_PREFIX}/${relative}`,
+      bytes: raw.length,
+      sha256: sha256(raw),
+      git_blob_sha1: gitBlobSha1(raw),
+      text: decoded,
+    };
+  });
+}
+
+function projectMountInventory(tree) {
+  const files = tree.map((entry) => ({
+    path: entry.virtual_path,
+    bytes: entry.bytes,
+    sha256: entry.sha256,
+    git_blob_sha1: entry.git_blob_sha1,
+  }));
+  return withFingerprint({ files }, "mount_fingerprint_sha256");
+}
+
+function loadProjectDescriptor(row) {
+  const absolute = path.join(
+    WORKSPACE,
+    PROJECT_DESCRIPTOR_ROOT,
+    row.source.path,
+  );
+  requireCondition(
+    path
+      .relative(path.join(WORKSPACE, PROJECT_DESCRIPTOR_ROOT), absolute)
+      .split(path.sep)
+      .join("/") === row.source.path,
+    `project descriptor path escapes its root: ${row.source.path}`,
+  );
+  const raw = fs.readFileSync(absolute);
+  requireCondition(
+    raw.length === row.source.bytes &&
+      sha256(raw) === row.source.sha256 &&
+      gitBlobSha1(raw) === row.source.git_blob_sha1,
+    `project descriptor ${row.source.path} identity changed`,
+  );
+  const descriptor = JSON.parse(raw.toString("utf8"));
+  for (const key of Object.keys(descriptor)) {
+    if (!PROJECT_STRUCTURAL_KEYS.has(key) && !OPTION_INDEX.has(key.toLowerCase())) {
+      fail(`project descriptor ${row.source.path} carries unknown key ${key}`);
+    }
+  }
+  requireCondition(
+    typeof descriptor.scenario === "string" &&
+      typeof descriptor.projectRoot === "string",
+    `project descriptor ${row.source.path} is missing scenario/projectRoot`,
+  );
+  return descriptor;
+}
+
+function projectCurrentDirectory(descriptor) {
+  return ts.normalizePath(
+    `${PROJECT_VIRTUAL_SOURCE_ROOT}/${descriptor.projectRoot}`,
+  );
+}
+
+function projectRootSelectionRecord(descriptor, cwd, mountByPath) {
+  if (Array.isArray(descriptor.inputFiles)) {
+    return {
+      state: "explicit-inputs",
+      roots: descriptor.inputFiles.map((requested) => {
+        const absolute = ts.getNormalizedAbsolutePath(requested, cwd);
+        return {
+          requested,
+          path: absolute,
+          present: mountByPath.has(absolute),
+        };
+      }),
+    };
+  }
+  if (typeof descriptor.project === "string") {
+    const configured = ts.getNormalizedAbsolutePath(descriptor.project, cwd);
+    const candidates = mountByPath.has(configured)
+      ? configured
+      : ts.normalizePath(`${configured}/tsconfig.json`);
+    requireCondition(
+      mountByPath.has(candidates),
+      `project descriptor config ${descriptor.project} is absent from the mount`,
+    );
+    return { state: "project-config", config_path: candidates };
+  }
+  const discovered = ts.normalizePath(`${cwd}/tsconfig.json`);
+  requireCondition(
+    mountByPath.has(discovered),
+    `discovered project config ${discovered} is absent from the mount`,
+  );
+  return { state: "discovered-config", config_path: discovered };
+}
+
+function parseProjectConfig(configPath, cwd, mountByPath) {
+  const configText = mountByPath.get(configPath)?.text;
+  requireCondition(
+    typeof configText === "string",
+    `project config ${configPath} is unreadable`,
+  );
+  const parsed = ts.parseJsonText(configPath, configText);
+  const host = {
+    useCaseSensitiveFileNames: true,
+    fileExists: (fileName) =>
+      mountByPath.has(ts.getNormalizedAbsolutePath(fileName, cwd)),
+    readFile: (fileName) =>
+      mountByPath.get(ts.getNormalizedAbsolutePath(fileName, cwd))?.text,
+    readDirectory(rootDirectory, extensions, excludes, includes, depth) {
+      return ts.matchFiles(
+        rootDirectory,
+        extensions,
+        excludes,
+        includes,
+        true,
+        cwd,
+        depth,
+        (directory) => {
+          const normalized = ts.normalizePath(directory).replace(/\/+$/, "");
+          const prefix = normalized === "" ? "" : `${normalized}/`;
+          const files = [];
+          const directories = new Set();
+          for (const filePath of mountByPath.keys()) {
+            if (!filePath.startsWith(prefix)) continue;
+            const remainder = filePath.slice(prefix.length);
+            const slash = remainder.indexOf("/");
+            if (slash === -1) files.push(remainder);
+            else directories.add(remainder.slice(0, slash));
+          }
+          return { files, directories: [...directories] };
+        },
+        (fileName) => ts.getNormalizedAbsolutePath(fileName, cwd),
+      );
+    },
+  };
+  const content = ts.parseJsonSourceFileConfigFileContent(
+    parsed,
+    host,
+    ts.getDirectoryPath(configPath),
+    {},
+    configPath,
+  );
+  return {
+    options: content.options,
+    file_names: content.fileNames.map((fileName) => ts.normalizePath(fileName)),
+    diagnostics: [...(parsed.parseDiagnostics ?? []), ...content.errors].map(
+      configDiagnostic,
+    ),
+  };
+}
+
+function projectEffectiveOptions(descriptor, variant, configOptions) {
+  const options = {
+    ...configOptions,
+    moduleResolution:
+      configOptions.moduleResolution ?? ts.ModuleResolutionKind.Classic,
+    noErrorTruncation: false,
+    skipDefaultLibCheck: false,
+    newLine: ts.NewLineKind.CarriageReturnLineFeed,
+  };
+  for (const [key, raw] of Object.entries(descriptor)) {
+    if (PROJECT_STRUCTURAL_KEYS.has(key)) continue;
+    const option = OPTION_INDEX.get(key.toLowerCase());
+    requireCondition(
+      option !== undefined,
+      `project descriptor option ${key} is not a compiler option`,
+    );
+    options[option.name] = optionValue(option, String(raw));
+  }
+  options.module = variant.value;
+  delete options.noEmit;
+  return options;
+}
+
+function createProjectProgramCase(mountByPath, cwd, rootPaths, options) {
+  const baseHost = ts.createCompilerHost(options, true);
+  const defaultLibraryFileName = ts.combinePaths(
+    baseHost.getDefaultLibLocation(),
+    "lib.es5.d.ts",
+  );
+  const directoryOverlay = createHermeticDirectoryOverlay(mountByPath.keys(), {
+    currentDirectory: cwd,
+    useCaseSensitiveFileNames: true,
+    fallbackHost: baseHost,
+  });
+  const host = {
+    ...baseHost,
+    getCurrentDirectory: () => cwd,
+    useCaseSensitiveFileNames: () => true,
+    getCanonicalFileName: (fileName) => fileName,
+    getDefaultLibFileName: () => defaultLibraryFileName,
+    trace() {},
+    fileExists(fileName) {
+      const normalized = ts.normalizePath(fileName);
+      return mountByPath.has(normalized) || baseHost.fileExists(normalized);
+    },
+    readFile(fileName) {
+      const normalized = ts.normalizePath(fileName);
+      return mountByPath.get(normalized)?.text ?? baseHost.readFile(normalized);
+    },
+    directoryExists(directory) {
+      return directoryOverlay.directoryExists(directory);
+    },
+    getDirectories(directory) {
+      return directoryOverlay.getDirectories(directory);
+    },
+    realpath(fileName) {
+      const normalized = ts.normalizePath(fileName);
+      return mountByPath.has(normalized)
+        ? normalized
+        : (baseHost.realpath?.(normalized) ?? normalized);
+    },
+    getSourceFile(fileName, languageVersion) {
+      const normalized = ts.normalizePath(fileName);
+      const mounted = mountByPath.get(normalized);
+      if (!mounted) return baseHost.getSourceFile(fileName, languageVersion);
+      return ts.createSourceFile(
+        normalized,
+        mounted.text,
+        languageVersion,
+        true,
+        ts.getScriptKindFromFileName(normalized),
+      );
+    },
+  };
+  return {
+    program: ts.createProgram(rootPaths, options, host),
+    roots: rootPaths,
+    cwd,
+    unitByPath: mountByPath,
+    vfsSymlinks: [],
+  };
+}
+
+function analyzeProjectCase(caseId, projectInputSeed, makeProgram) {
+  const { program, cwd } = makeProgram();
+  const analyzedFiles = [];
+  const requiredSlices = new Set();
+  for (const sourceFile of program.getSourceFiles()) {
+    const normalized = ts.normalizePath(sourceFile.fileName);
+    if (!normalized.startsWith(`${PROJECT_VIRTUAL_PREFIX}/`)) continue;
+    const emitEligible = ts.sourceFileMayBeEmitted(sourceFile, program, false);
+    const roots = featureRoots(sourceFile);
+    const emitFormat = program.getEmitModuleFormatOfFile(sourceFile);
+    const parseDiagnosticCodes = [
+      ...new Set(sourceFile.parseDiagnostics.map((diagnostic) => diagnostic.code)),
+    ].sort((left, right) => left - right);
+    const maxAstDepth = maximumAstDepth(sourceFile);
+    const importAttributes = hasImportAttributes(sourceFile);
+    const advancedCommentPlacement =
+      /\.\.\.[\t \r\n]*\/(?:\*|\/)/.test(sourceFile.text) ||
+      /#[A-Za-z_$][\w$]*[\t ]*\/\*.*?\*\/(?:[\t \r\n]|\/\*.*?\*\/)*\bin\b/s.test(
+        sourceFile.text,
+      ) ||
+      hasCommentedOptionalChainTypeAssertion(sourceFile.text);
+    if (emitEligible) {
+      const slice = outputSlice(sourceFile.fileName);
+      if (slice) requiredSlices.add(slice);
+      for (const root of roots) requiredSlices.add(FEATURE_SLICES[root.feature]);
+      if (parseDiagnosticCodes.length !== 0) requiredSlices.add("H2.9");
+      if (maxAstDepth > MAX_TRANSFORM_DEPTH) requiredSlices.add("H2.9");
+      if (importAttributes) requiredSlices.add("H2.1e");
+      if (advancedCommentPlacement) requiredSlices.add("H2.8a");
+    }
+    analyzedFiles.push({
+      path: normalized,
+      script_kind: scriptKindName(sourceFile.fileName),
+      declaration_file: sourceFile.isDeclarationFile,
+      emit_eligible: emitEligible,
+      implied_module_format: impliedFormatName(sourceFile.impliedNodeFormat),
+      emit_module_format: emitFormat,
+      feature_roots: roots,
+      parse_diagnostic_codes: parseDiagnosticCodes,
+      max_ast_depth: maxAstDepth,
+      import_attributes: importAttributes,
+      advanced_comment_placement: advancedCommentPlacement,
+      text_sha256: sha256(Buffer.from(sourceFile.text, "utf8")),
+    });
+  }
+  // Every PRESENT root must be reached (the missing-root witness is
+  // invalidRootFile — packet section 5.5).
+  for (const root of projectInputSeed.root_selection.roots ?? []) {
+    if (!root.present) continue;
+    requireCondition(
+      analyzedFiles.some((file) => file.path === root.path),
+      `${caseId} did not reach present root ${root.path}`,
+    );
+  }
+  const orderedSlices = [...requiredSlices].sort(
+    (left, right) => SLICE_RANK.get(left) - SLICE_RANK.get(right),
+  );
+  const remainingSlices = orderedSlices.filter((slice) => !CLOSED_SLICES.has(slice));
+  const first = observeTypeScript(makeProgram);
+  const second = observeTypeScript(makeProgram);
+  requireCondition(
+    first.run_fingerprint_sha256 === second.run_fingerprint_sha256,
+    `${caseId} TypeScript observation is not deterministic`,
+  );
+  const disposition =
+    remainingSlices.length === 0 ? "admitted-for-execution" : "deferred-to-slices";
+  return {
+    project_input: { ...projectInputSeed, analyzed_files: analyzedFiles },
+    owner_reachability: OWNER_KEYS,
+    disposition,
+    required_slices: remainingSlices,
+    diagnostic_disposition:
+      remainingSlices.length === 0
+        ? { state: "exact-required" }
+        : { state: "not-observed-source-deferred" },
+    typescript_observation: first,
+    typescript_run_fingerprints: [
+      first.run_fingerprint_sha256,
+      second.run_fingerprint_sha256,
+    ],
+  };
+}
+
+function storedProjectCaseReusable(stored, row, projectInputSeed, mountFingerprint) {
+  return (
+    stored.suite === "project" &&
+    stored.selection_origin === "global-h2-5h-candidate" &&
+    stored.source.sha256 === row.source.sha256 &&
+    hasValidFingerprint(stored, "case_fingerprint_sha256") &&
+    stored.project_input !== undefined &&
+    stored.project_input.mount_fingerprint === mountFingerprint &&
+    canonical({ ...stored.project_input, analyzed_files: null }) ===
+      canonical({ ...projectInputSeed, analyzed_files: null })
+  );
+}
+
+function buildProjectSuite(
+  projectRows,
+  projectClassificationById,
+  planRowsById,
+  reuseByCaseId,
+) {
+  const tree = walkProjectTree();
+  const mountInventory = projectMountInventory(tree);
+  const mountFingerprint = mountInventory.mount_fingerprint_sha256;
+  const mountByPath = new Map(
+    tree.map((entry) => [entry.virtual_path, entry]),
+  );
+  const records = projectRows
+    .slice()
+    .sort((left, right) => left.id.localeCompare(right.id))
+    .map((row) => {
+      const classified = projectClassificationById.get(row.id);
+      requireCondition(
+        classified !== undefined,
+        `H2.5h project candidate ${row.id} is absent from the project classification`,
+      );
+      requireCondition(
+        classified.descriptor_path === row.source.path,
+        `H2.5h project candidate ${row.id} descriptor/source mismatch`,
+      );
+      const plan = planRowsById.get(row.id);
+      requireCondition(
+        plan !== undefined,
+        `H2.5h project candidate ${row.id} is absent from the plan artifact`,
+      );
+      const descriptor = loadProjectDescriptor(row);
+      const cwd = projectCurrentDirectory(descriptor);
+      requireCondition(
+        cwd === plan.current_directory,
+        `${row.id} current directory diverges from the plan (${cwd} vs ${plan.current_directory})`,
+      );
+      const variantName = decodeURIComponent(
+        (row.id.split("#")[1] ?? "").replace(/^module%3D|^module=/, ""),
+      ).replace(/^module=/, "");
+      const variant = PROJECT_MODULE_VARIANTS[variantName];
+      requireCondition(
+        variant !== undefined && plan.module_variant.name === variant.name,
+        `${row.id} module variant diverges from the plan`,
+      );
+      const selection = projectRootSelectionRecord(descriptor, cwd, mountByPath);
+      requireCondition(
+        selection.state === plan.root_selection.state,
+        `${row.id} root-selection arm diverges from the plan (${selection.state} vs ${plan.root_selection.state})`,
+      );
+      if (selection.state === "explicit-inputs") {
+        requireCondition(
+          canonical(
+            selection.roots.map((root) => ({
+              requested: root.requested,
+              path: root.path,
+              present: root.present,
+            })),
+          ) ===
+            canonical(
+              plan.root_selection.roots.map((root) => ({
+                requested: root.requested,
+                path: root.path,
+                present: root.presence.state === "present",
+              })),
+            ),
+          `${row.id} explicit roots diverge from the plan`,
+        );
+      }
+      let configOptions = {};
+      let configFileNames = null;
+      let configDiagnostics = [];
+      if (selection.state !== "explicit-inputs") {
+        const parsedConfig = parseProjectConfig(
+          selection.config_path,
+          cwd,
+          mountByPath,
+        );
+        configOptions = parsedConfig.options;
+        configFileNames = parsedConfig.file_names;
+        configDiagnostics = parsedConfig.diagnostics;
+      }
+      const options = projectEffectiveOptions(descriptor, variant, configOptions);
+      // Plan-recorded profile asserts (ONLY the recorded fields; the
+      // rejected_when_effective entries APPLY in the observation lane —
+      // packet section 7.4).
+      const planTarget = plan.effective_profile.target;
+      requireCondition(
+        planTarget.state === "absent"
+          ? options.target === undefined
+          : options.target === planTarget.value,
+        `${row.id} effective target diverges from the plan`,
+      );
+      requireCondition(
+        options.module === plan.effective_profile.module.value,
+        `${row.id} effective module diverges from the plan`,
+      );
+      const rootPaths =
+        selection.state === "explicit-inputs"
+          ? selection.roots.map((root) => root.path)
+          : configFileNames;
+      const projectInputSeed = {
+        descriptor: {
+          path: row.source.path,
+          scenario: descriptor.scenario,
+          project_root: descriptor.projectRoot,
+        },
+        current_directory: cwd,
+        root_selection: selection,
+        module_variant: { name: variant.name, value: variant.value },
+        config_diagnostics: configDiagnostics,
+        mount_fingerprint: mountFingerprint,
+      };
+      const stored = reuseByCaseId?.get(row.id);
+      if (
+        stored !== undefined &&
+        storedProjectCaseReusable(stored, row, projectInputSeed, mountFingerprint)
+      ) {
+        reusedObservations += 1;
+        reportObservationProgress(row.id);
+        return stored;
+      }
+      if (checkReceiptAttempt) {
+        throw new CheckReceiptMiss(`case ${row.id}`);
+      }
+      if (shardAdoption !== null) {
+        const adopted = shardAdoption.get(row.id);
+        requireCondition(
+          adopted !== undefined,
+          `${row.id} is missing from the shard observations`,
+        );
+        reportObservationProgress(row.id);
+        return adopted;
+      }
+      if (shardAssignment !== null) {
+        const ordinal = shardOrdinal;
+        shardOrdinal += 1;
+        if (ordinal % shardAssignment.count !== shardAssignment.index) {
+          return null;
+        }
+      }
+      const makeProgram = () =>
+        createProjectProgramCase(mountByPath, cwd, rootPaths, options);
+      const analysis = analyzeProjectCase(row.id, projectInputSeed, makeProgram);
+      reportObservationProgress(row.id);
+      return withFingerprint(
+        {
+          suite: "project",
+          case_id: row.id,
+          selection_origin: "global-h2-5h-candidate",
+          execution_route: "project-mount",
+          source: {
+            path: row.source.path,
+            bytes: row.source.bytes,
+            sha256: row.source.sha256,
+            git_blob_sha1: row.source.git_blob_sha1,
+          },
+          target_state: targetStateName(options.target),
+          module_state: moduleStateName(options.module),
+          ...analysis,
+          rust_expectation:
+            analysis.disposition === "admitted-for-execution"
+              ? "two-deterministic-exact-runs"
+              : "typed-failure-before-first-sink-write",
+        },
+        "case_fingerprint_sha256",
+      );
+    });
+  return {
+    records: records.filter((record) => record !== null),
+    mountInventory,
+  };
+}
+
 function serializeDiagnostic(diagnostic) {
   return {
     code: diagnostic.code,
@@ -1143,7 +1700,8 @@ function reusableStoredCases(
     canonical(stored.typescript) !== canonical(typescriptRecord) ||
     canonical(observationInputs(stored.inputs)) !==
       canonical(observationInputs(inputsRecord)) ||
-    canonical(stored.execution_contract) !== canonical(executionContract) ||
+    canonical({ ...stored.execution_contract, admission: null }) !==
+      canonical({ ...executionContract, admission: null }) ||
     canonical(stored.owner_closure) !== canonical(ownerRows)
   ) {
     if (checkReceiptAttempt) throw new CheckReceiptMiss("global-records");
@@ -1573,7 +2131,7 @@ function countBy(values) {
 }
 
 function admissionContract() {
-  return `all 932 selected global rows have a required-slice set closed through H2.5g at the option/owner inventory layer; the 850 compiler/conformance rows are observed and the 82 project rows are typed-deferred to the CA-3 project harness; an observed case is admitted for Rust execution only when every emit-eligible reached source computes to the ES5 floor (target absent, ES3, or ES5), has no parse diagnostics, has AST depth <= ${MAX_TRANSFORM_DEPTH}, and requires no later source/output owner; the joint transformES2015+transformGenerators pass runs after the already-closed transformESNext/class-field/ES2021/ES2020/ES2019/ES2018/ES2017/ES2016 pipeline and before the module transformer, and diagnostics and writes are exact; deferred cases retain their first later owner and fail before the first Rust sink write`;
+  return `all 932 selected global rows have a required-slice set closed through H2.5g at the option/owner inventory layer; all 932 rows are observed (850 compiler/conformance plus the 82 project rows through the CA-3 project-mount lane); an observed case is admitted for Rust execution only when every emit-eligible reached source computes to the ES5 floor (target absent, ES3, or ES5), has no parse diagnostics, has AST depth <= ${MAX_TRANSFORM_DEPTH}, and requires no later source/output owner; the joint transformES2015+transformGenerators pass runs after the already-closed transformESNext/class-field/ES2021/ES2020/ES2019/ES2018/ES2017/ES2016 pipeline and before the module transformer, and diagnostics and writes are exact; deferred cases retain their first later owner and fail before the first Rust sink write`;
 }
 
 function buildArtifact() {
@@ -1605,57 +2163,31 @@ function buildArtifact() {
     `unexpected global H2.5h candidate denominator ${candidateRows.length}`,
   );
   const projectRows = candidateRows.filter((entry) => entry.suite === "project");
-  const observedRows = candidateRows.filter(
+  const moduleRows = candidateRows.filter(
     (entry) => entry.suite === "compiler" || entry.suite === "conformance",
   );
   requireCondition(
-    projectRows.length + observedRows.length === candidateRows.length,
+    projectRows.length + moduleRows.length === candidateRows.length,
     "H2.5h candidate suite partition is incomplete",
   );
   requireCondition(
-    projectRows.length === PROJECT_DEFERRED_CASES,
+    projectRows.length === PROJECT_CANDIDATE_CASES,
     `unexpected H2.5h project candidate count ${projectRows.length}`,
   );
   requireCondition(
-    observedRows.length === OBSERVED_CANDIDATE_CASES,
-    `unexpected H2.5h observed candidate count ${observedRows.length}`,
+    moduleRows.length === COMPILER_CONFORMANCE_CASES,
+    `unexpected H2.5h compiler/conformance candidate count ${moduleRows.length}`,
   );
   const projectClassificationById = new Map(
     projectClassification.cases.map((entry) => [entry.id, entry]),
   );
-  const projectDeferral = {
-    owner: "h2-5h-ca-3",
-    cases: projectRows.length,
-    rows: projectRows
-      .map((entry) => {
-        const classified = projectClassificationById.get(entry.id);
-        requireCondition(
-          classified !== undefined,
-          `H2.5h project candidate ${entry.id} is absent from the project classification`,
-        );
-        requireCondition(
-          classified.descriptor_path === entry.source.path,
-          `H2.5h project candidate ${entry.id} descriptor/source mismatch`,
-        );
-        return {
-          id: entry.id,
-          descriptor_path: classified.descriptor_path,
-          source: {
-            path: entry.source.path,
-            bytes: entry.source.bytes,
-            sha256: entry.source.sha256,
-            git_blob_sha1: entry.source.git_blob_sha1,
-          },
-        };
-      })
-      .sort((left, right) => left.id.localeCompare(right.id)),
-  };
+  const planRowsById = projectClassificationById;
   const selectionOrigins = new Map(
-    observedRows.map((entry) => [entry.id, "global-h2-5h-candidate"]),
+    moduleRows.map((entry) => [entry.id, "global-h2-5h-candidate"]),
   );
   requireCondition(
-    selectionOrigins.size === OBSERVED_CANDIDATE_CASES,
-    `unexpected H2.5h observed candidate denominator ${selectionOrigins.size}`,
+    selectionOrigins.size === COMPILER_CONFORMANCE_CASES,
+    `unexpected H2.5h compiler/conformance denominator ${selectionOrigins.size}`,
   );
   const ownerRows = OWNER_KEYS.map((key) => {
     const row = owner.owners.find((entry) => entry.key === key);
@@ -1730,6 +2262,23 @@ function buildArtifact() {
       selectionOrigins,
       conformanceLoadedBySource,
     ),
+    // The project rows' effective states come from the plan artifact's
+    // recorded profile (asserted per row again at observation time).
+    ...projectRows.map((row) => {
+      const plan = planRowsById.get(row.id);
+      requireCondition(
+        plan !== undefined,
+        `H2.5h project candidate ${row.id} is absent from the plan artifact`,
+      );
+      return {
+        target: targetStateName(
+          plan.effective_profile.target.state === "absent"
+            ? undefined
+            : plan.effective_profile.target.value,
+        ),
+        module: moduleStateName(plan.effective_profile.module.value),
+      };
+    }),
   ];
   requireCondition(
     canonical(countBy(optionStates.map((entry) => entry.target))) ===
@@ -1739,6 +2288,12 @@ function buildArtifact() {
     `H2.5h effective option distribution changed: targets=${canonical(countBy(optionStates.map((entry) => entry.target)))} modules=${canonical(countBy(optionStates.map((entry) => entry.module)))}`,
   );
   if (MODE === "--preflight") return null;
+  const projectSuite = buildProjectSuite(
+    projectRows,
+    projectClassificationById,
+    planRowsById,
+    reuseByCaseId,
+  );
   const cases = [
     ...buildSuite(
       "compiler",
@@ -1756,6 +2311,7 @@ function buildArtifact() {
       conformanceLoadedBySource,
       reuseByCaseId,
     ),
+    ...projectSuite.records,
   ].sort((left, right) => left.suite.localeCompare(right.suite) || left.case_id.localeCompare(right.case_id));
   if (shardAssignment !== null) {
     requireCondition(
@@ -1779,32 +2335,37 @@ function buildArtifact() {
   const summary = {
     candidates: GLOBAL_CANDIDATES,
     observed_candidates: cases.length,
-    project_deferred_cases: projectDeferral.cases,
+    project_deferred_cases: PROJECT_DEFERRED_CASES,
     compiler_candidates: cases.filter((entry) => entry.suite === "compiler").length,
     conformance_candidates: cases.filter((entry) => entry.suite === "conformance").length,
+    project_candidates: cases.filter((entry) => entry.suite === "project").length,
     recorded_compiler_plan_cases: cases.filter(
       (entry) => entry.execution_route === "recorded-compiler-plan",
     ).length,
     qualified_vfs_cases: cases.filter(
       (entry) => entry.execution_route === "qualified-vfs",
     ).length,
+    project_mount_cases: cases.filter(
+      (entry) => entry.execution_route === "project-mount",
+    ).length,
     virtual_config_cases: cases.filter(
-      (entry) => entry.input.virtual_config !== null,
+      (entry) => entry.input !== undefined && entry.input.virtual_config !== null,
     ).length,
     vfs_symlink_cases: cases.filter(
-      (entry) => entry.input.vfs_symlinks.length > 0,
+      (entry) => entry.input !== undefined && entry.input.vfs_symlinks.length > 0,
     ).length,
     vfs_symlink_paths: cases.reduce(
-      (sum, entry) => sum + entry.input.vfs_symlinks.length,
+      (sum, entry) => sum + (entry.input?.vfs_symlinks.length ?? 0),
       0,
     ),
     admitted_cases: admitted.length,
     deferred_cases: deferred.length,
     diagnostic_deferred_output_control_cases: outputControls.length,
     source_deferred_cases: sourceDeferred.length,
-    no_emit_control_cases: admitted.filter(
-      (entry) => !entry.files.some((file) => file.emit_eligible),
-    ).length,
+    no_emit_control_cases: admitted.filter((entry) => {
+      const files = entry.files ?? entry.project_input.analyzed_files;
+      return !files.some((file) => file.emit_eligible);
+    }).length,
     target_states: countBy(cases.map((entry) => entry.target_state)),
     module_states: countBy(cases.map((entry) => entry.module_state)),
     dispositions: countBy(cases.map((entry) => entry.disposition)),
@@ -1840,8 +2401,16 @@ function buildArtifact() {
   requireCondition(summary.compiler_candidates === 231, "compiler candidate count changed");
   requireCondition(summary.conformance_candidates === 619, "conformance candidate count changed");
   requireCondition(
-    summary.observed_candidates + summary.project_deferred_cases ===
-      summary.candidates,
+    summary.project_candidates === PROJECT_CANDIDATE_CASES,
+    "project candidate count changed",
+  );
+  requireCondition(
+    summary.compiler_candidates +
+      summary.conformance_candidates +
+      summary.project_candidates ===
+      summary.observed_candidates &&
+      summary.observed_candidates === summary.candidates &&
+      summary.project_deferred_cases === 0,
     "candidate suite partition is incomplete",
   );
   requireCondition(
@@ -1906,17 +2475,17 @@ function buildArtifact() {
       selection_contract: {
         global_h2_5h_rows: globalRows.length,
         candidate_definition:
-          "the 932 dependency-closed rows among the 2,012 global H2.5h rows whose complete required-slice set is closed through H2.5g; the 850 compiler/conformance rows are observed and the 82 project rows are typed-deferred to the CA-3 project harness",
+          "the 932 dependency-closed rows among the 2,012 global H2.5h rows whose complete required-slice set is closed through H2.5g; all 932 rows are observed (850 compiler/conformance plus the 82 project rows through the CA-3 project-mount lane)",
         global_candidate_denominator: candidateRows.length,
-        observed_candidate_denominator: selectionOrigins.size,
-        project_deferred_candidates: projectRows.length,
+        observed_candidate_denominator: cases.length,
+        project_deferred_candidates: PROJECT_DEFERRED_CASES,
         future_deferred_rows: globalRows.length - candidateRows.length,
       },
       inputs: inputsRecord,
       execution_contract: executionContract,
       owner_closure: ownerRows,
+      project_mount: projectSuite.mountInventory,
       cases,
-      project_deferral: projectDeferral,
       summary,
     },
     "qualification_fingerprint_sha256",

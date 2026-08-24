@@ -17,7 +17,7 @@
     "execution_contract",
     "owner_closure",
     "cases",
-    "project_deferral",
+    "project_mount",
     "summary",
     "qualification_fingerprint_sha256"
   ],
@@ -108,10 +108,10 @@
           "const": 932
         },
         "observed_candidate_denominator": {
-          "const": 850
+          "const": 932
         },
         "project_deferred_candidates": {
-          "const": 82
+          "const": 0
         },
         "future_deferred_rows": {
           "const": 1080
@@ -212,35 +212,10 @@
     },
     "cases": {
       "type": "array",
-      "minItems": 850,
-      "maxItems": 850,
+      "minItems": 932,
+      "maxItems": 932,
       "items": {
         "$ref": "#/$defs/case"
-      }
-    },
-    "project_deferral": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "owner",
-        "cases",
-        "rows"
-      ],
-      "properties": {
-        "owner": {
-          "const": "h2-5h-ca-3"
-        },
-        "cases": {
-          "const": 82
-        },
-        "rows": {
-          "type": "array",
-          "minItems": 82,
-          "maxItems": 82,
-          "items": {
-            "$ref": "#/$defs/project_row"
-          }
-        }
       }
     },
     "summary": {
@@ -248,6 +223,49 @@
     },
     "qualification_fingerprint_sha256": {
       "$ref": "#/$defs/sha256"
+    },
+    "project_mount": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "files",
+        "mount_fingerprint_sha256"
+      ],
+      "properties": {
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "path",
+              "bytes",
+              "sha256",
+              "git_blob_sha1"
+            ],
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer"
+              },
+              "sha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              "git_blob_sha1": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{40}$"
+              }
+            }
+          }
+        },
+        "mount_fingerprint_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
     }
   },
   "$defs": {
@@ -905,12 +923,9 @@
         "case_id",
         "selection_origin",
         "execution_route",
-        "expansion_case",
         "source",
         "target_state",
         "module_state",
-        "input",
-        "files",
         "owner_reachability",
         "disposition",
         "required_slices",
@@ -924,7 +939,8 @@
         "suite": {
           "enum": [
             "compiler",
-            "conformance"
+            "conformance",
+            "project"
           ]
         },
         "case_id": {
@@ -937,7 +953,8 @@
         "execution_route": {
           "enum": [
             "recorded-compiler-plan",
-            "qualified-vfs"
+            "qualified-vfs",
+            "project-mount"
           ]
         },
         "expansion_case": {
@@ -1055,6 +1072,79 @@
         },
         "case_fingerprint_sha256": {
           "$ref": "#/$defs/sha256"
+        },
+        "project_input": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "descriptor",
+            "current_directory",
+            "root_selection",
+            "module_variant",
+            "config_diagnostics",
+            "mount_fingerprint",
+            "analyzed_files"
+          ],
+          "properties": {
+            "descriptor": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "path",
+                "scenario",
+                "project_root"
+              ],
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "scenario": {
+                  "type": "string"
+                },
+                "project_root": {
+                  "type": "string"
+                }
+              }
+            },
+            "current_directory": {
+              "type": "string"
+            },
+            "root_selection": {
+              "type": "object"
+            },
+            "module_variant": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "value"
+              ],
+              "properties": {
+                "name": {
+                  "enum": [
+                    "amd",
+                    "commonjs"
+                  ]
+                },
+                "value": {
+                  "enum": [
+                    1,
+                    2
+                  ]
+                }
+              }
+            },
+            "config_diagnostics": {
+              "type": "array"
+            },
+            "mount_fingerprint": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "analyzed_files": {
+              "type": "array"
+            }
+          }
         }
       },
       "allOf": [
@@ -1141,6 +1231,64 @@
               }
             }
           }
+        },
+        {
+          "if": {
+            "properties": {
+              "suite": {
+                "enum": [
+                  "compiler",
+                  "conformance"
+                ]
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "expansion_case",
+              "input",
+              "files"
+            ],
+            "properties": {
+              "execution_route": {
+                "enum": [
+                  "recorded-compiler-plan",
+                  "qualified-vfs"
+                ]
+              },
+              "project_input": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "suite": {
+                "const": "project"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "project_input"
+            ],
+            "properties": {
+              "execution_route": {
+                "const": "project-mount"
+              },
+              "input": {
+                "type": "null"
+              },
+              "files": {
+                "type": "null"
+              },
+              "expansion_case": {
+                "type": "null"
+              }
+            }
+          }
         }
       ]
     },
@@ -1191,17 +1339,19 @@
         "diagnostic_control_typescript_writes",
         "admitted_typescript_diagnostics",
         "unexecuted_candidates",
-        "undispositioned_candidates"
+        "undispositioned_candidates",
+        "project_candidates",
+        "project_mount_cases"
       ],
       "properties": {
         "candidates": {
           "const": 932
         },
         "observed_candidates": {
-          "const": 850
+          "const": 932
         },
         "project_deferred_cases": {
-          "const": 82
+          "const": 0
         },
         "compiler_candidates": {
           "const": 231
@@ -1225,7 +1375,7 @@
           "const": 0
         },
         "admitted_cases": {
-          "const": 806
+          "const": 888
         },
         "deferred_cases": {
           "const": 44
@@ -1237,17 +1387,17 @@
           "const": 44
         },
         "no_emit_control_cases": {
-          "const": 2
+          "const": 6
         },
         "target_states": {
           "const": [
             {
               "value": "ES5(1)",
-              "cases": 836
+              "cases": 838
             },
             {
               "value": "absent",
-              "cases": 9
+              "cases": 89
             },
             {
               "value": "ES3(0)",
@@ -1263,15 +1413,15 @@
             },
             {
               "value": "CommonJS(1)",
-              "cases": 74
+              "cases": 115
+            },
+            {
+              "value": "AMD(2)",
+              "cases": 57
             },
             {
               "value": "ESNext(99)",
               "cases": 33
-            },
-            {
-              "value": "AMD(2)",
-              "cases": 16
             },
             {
               "value": "ES2015(5)",
@@ -1303,7 +1453,7 @@
           "const": [
             {
               "value": "admitted-for-execution",
-              "cases": 806
+              "cases": 888
             },
             {
               "value": "deferred-to-slices",
@@ -1320,25 +1470,31 @@
           ]
         },
         "typescript_runs": {
-          "const": 1700
+          "const": 1864
         },
         "deterministic_typescript_cases": {
-          "const": 850
+          "const": 932
         },
         "admitted_typescript_writes": {
-          "const": 968
+          "const": 1120
         },
         "diagnostic_control_typescript_writes": {
           "const": 0
         },
         "admitted_typescript_diagnostics": {
-          "const": 1002
+          "const": 1143
         },
         "unexecuted_candidates": {
           "const": 0
         },
         "undispositioned_candidates": {
           "const": 0
+        },
+        "project_candidates": {
+          "const": 82
+        },
+        "project_mount_cases": {
+          "const": 82
         }
       }
     }

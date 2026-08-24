@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "packetId": "h2-5h-ca-3",
+  "status": "ready",
+  "trustedBase": "2ed465c1d0b914a54137abf3187b3eb7b5901d4a",
+  "packet": {
+    "path": "docs/design/greenfield/slices/h2-5h-ca-3.md",
+    "sha256": "cdb614ca6b1442e2650eb8d5734f32414dedf22e10102cb1dc290e10a9c4e083"
+  },
+  "predecessors": [
+    {
+      "packetId": "h2-5h-ca-2a",
+      "receiptSha256": "36cbef335353f9bda5fa30c45c427f52e83232b9052757955a774182d01ab30e"
+    }
+  ],
+  "allowedPaths": [
+    "crates/oracle/h2-5h-qualification.mjs",
+    ".github/ci/qualification.mjs",
+    ".github/ci/qualification.test.mjs",
+    "ratchets/h2-5h-qualification.v1.json",
+    "ratchets/fci-readiness/h2-5h-ca-3.v1.json",
+    "ratchets/fci-packet-bootstrap.v1.json",
+    "docs/design/greenfield/slices/h2-5h-ca-3.md",
+    "docs/design/greenfield/slices/h2-5h-a.md",
+    "docs/design/greenfield/slices/README.md",
+    "target/h2-5h/check-receipt.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/checker",
+    "crates/harness",
+    "crates/compiler",
+    "crates/binder",
+    "crates/syntax",
+    "crates/types",
+    "crates/diags",
+    "crates/conformance",
+    "crates/emitter",
+    "crates/xtask",
+    ".github/workflows"
+  ],
+  "proof": {
+    "commands": [
+      "node crates/oracle/h2-5h-qualification.mjs --check",
+      "node .github/ci/qualification.mjs check",
+      "node .github/ci/slice-readiness.mjs --check h2-5h-ca-3"
+    ],
+    "evidencePath": "ratchets/h2-5h-qualification.v1.json"
+  }
+}
