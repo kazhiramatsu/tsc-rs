@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-1a-profile.mjs",
-    "sha256": "348252d94a117c6e3321bc4479acb12a6ff12f79803702c246a7081415c811ca"
+    "sha256": "ee1ca3e9de285411a6ffc208c776a65719590bbbaf67fe2dd62b1ab1fc958fec"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-1a-profile.schema.json",
@@ -28,7 +28,7 @@
     "historical": {
       "profile_transition": {
         "path": "ratchets/h2-profile-transition.v1.json",
-        "sha256": "40ef8f5f14e6b7740229a1637e8a82fd57cba95bcdcc0139fec6b41d8ce8c3e9"
+        "sha256": "5c3dd5f6cde8b5be966c3980ca4790a16176387c4413c44959a87d9326a0c4a2"
       },
       "runtime_baseline": {
         "path": "ratchets/h2-runtime-baseline.v1.json",
@@ -36,7 +36,7 @@
       },
       "transition_generator": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "336db6ef2b460dba8991a0ec7c057d312179583f8b5739421fa44897bc594579"
+        "sha256": "c532ada53620bfbb2f2f51645710762b0e8f8edabdd4a2d64d68e49d1dcf438e"
       },
       "baseline_generator": {
         "path": "crates/oracle/h2-baseline.mjs",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-1a-qualification.v1.json",
-    "sha256": "d201cce77851865d6a0b999f7f3ddb91c18cfdd478cceef3785a1a661a06d67e"
+    "sha256": "166429fff483e17f0581269de207346124c08f37df8e5e0e2ab033cb980bae77"
   },
   "runtime_inputs": [
     {
@@ -157,7 +157,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "dfa497a967ddbf6c93db97718f6d07eb5ff922d59cbf23d699d1a38754e282af"
+      "sha256": "a2c0a4a1c2ccfa37472761a18012664deec7ccf4d86aeb014ce7da9b436b78e9"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -180,5 +180,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "0f1378be6249d0b0c0addc3ab9dd1703295108114afe67ada0dfecc250da366b"
+  "profile_fingerprint_sha256": "580f1908c3bbbff969778bd0696f9ec14b8bcbaf247c3c335c04d23c3b941902"
 }

@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-4b-qualification.mjs",
-    "sha256": "003b1697ba196a3c7ccae626dbbb3fdcd19c1973cb6377d2574a6e82d90981b5"
+    "sha256": "7d2cda589d25a0fef3e33aa3a9cac81d04ca515464850bee5c0a4f4e561a8a27"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-4b-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_4a_merge": "650d1f4ef43a1ad6ef28b8adb55f1308403e5625",
     "h2_4a_profile": {
       "path": "ratchets/h2-4a-profile.v1.json",
-      "sha256": "347ab7956674ef3e930d7db6bd9cbea8e840ac13056d445b5578d9f3211968c4"
+      "sha256": "7509db46a76f3dee3f92e91b6c2827e80a021d265820bf3ccf4a21886ff1ddb4"
     }
   },
   "selection_contract": {
@@ -40,11 +40,11 @@
   "inputs": {
     "compiler_classification": {
       "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
-      "sha256": "3c3cbcb3c29a5254c145dc2665ca21683a1bd94f5271841320f061e82b614603"
+      "sha256": "7158d2e4fac5b6d43ee9382d5dadac7d27e358c86bd532e07b4d1f9ff85ad5b0"
     },
     "conformance_classification": {
       "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
-      "sha256": "d54b51d44da91836ad1b7be3be4b7de19c6892e6cb1fe9605fda06cdda5a67eb"
+      "sha256": "43c3e4d6f6273f2264e7eed96348795bf58caecf30d81b365c4c0dc8d630a990"
     },
     "compiler_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -56,15 +56,15 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "1f3d666d107247bef7b5e18d6e9506ff51d281277c136bf70112a863b6dfa98d"
+      "sha256": "01b771627b40a7ce3615156981ad3fabdc236e93769f40839f8a245b06b9aa21"
     },
     "global_candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a"
+      "sha256": "40369fe8e840e74ca88d5cbea3fb354ef85a9d6cc4dda0bd0515416ca9a6f366"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "1a1dbd0bd51768f054c1fed51300df8de5211af7e4978f838efe93926bd527e3"
+      "sha256": "166429fff483e17f0581269de207346124c08f37df8e5e0e2ab033cb980bae77"
     }
   },
   "execution_contract": {
@@ -9532,5 +9532,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "7f3376072aa1ff25c926fd11afa0f35f9a94d69d3c6d024caba9a78fd8f2def0"
+  "qualification_fingerprint_sha256": "1f0de91c1294cb710b5292207c5baa337795e1600364b9b6db808779e5c82490"
 }
