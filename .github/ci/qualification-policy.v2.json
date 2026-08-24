@@ -18,7 +18,7 @@
     "only_acceptance_tests": true,
     "rust_source_sha256": {
       "crates/xtask/src/bounded_pipeline.rs": "0c28a1734791196646b869db5d22b9c6f34da617a250bfc99e23997bd3c0e3db",
-      "crates/xtask/src/main.rs": "22e5ce34235648669dd56d743383fdab8e01d698a125f894927476def9faae17",
+      "crates/xtask/src/main.rs": "f5e23b6f68f0eb339a7ec84d965da92670377bdfe7dba18f62809af6733944cd",
       "crates/xtask/src/h1_emit_acceptance.rs": "cbae2669320c23532d517c20957731327e46969fc668057b2514501face379a8",
       "crates/xtask/src/h2_1a_acceptance.rs": "f3897a488fd058eb1abf0303ad62df593bc696308a4f11bd5200a9d29f332546",
       "crates/xtask/src/h2_1b_acceptance.rs": "a6ea8943cb7ecafc63b58ebffae6ec32a6bc707a300a0935fccc67daf3cdbb3e",
@@ -27,7 +27,7 @@
       "crates/xtask/src/h2_1e_acceptance.rs": "bf4ae2f49ddfb8a50d2b214758578c87aa890ede4e2eb68bbd259e677c7e287f",
       "crates/xtask/src/h2_2a_acceptance.rs": "fd9a51e7ea084fae1aea3094662d2ff12561c098adc8c09eeb3d4eb8aee054ad",
       "crates/xtask/src/h2_2b_acceptance.rs": "c1fa3def3ebd5f77863f6d4d0a718af4f417f0dd8fff57d1e6d7cd3cfe01f018",
-      "crates/xtask/src/h2_2c_acceptance.rs": "33df3c19371a791212c383c5dde6f3516a1b05ab8d1f9183ffe589eb1b78e22f",
+      "crates/xtask/src/h2_2c_acceptance.rs": "8b8499736a30a09fec6de3c1b5e086089a2a4ee235f1194d193dba00f7dadc95",
       "crates/xtask/src/h2_2d_acceptance.rs": "1b5a99f4229c5bb0b49408b16985042b58d12dd1ae87e5186e101039c6a60be0",
       "crates/xtask/src/h2_3a_acceptance.rs": "0b3de4989b8400123ef72030c800440222d124d110b8f7c9bdb2a57067a2bc77",
       "crates/xtask/src/h2_3b_acceptance.rs": "69c37e52a934dcadbace502ccfa8a7524036b92ddf7e4a92eae194270cb163cc",

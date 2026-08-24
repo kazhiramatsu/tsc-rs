@@ -46,8 +46,8 @@ use crate::HarnessResult;
 mod project;
 
 pub use project::{
-    load_node_modules_search_project, load_project_no_emit, ProjectConfigProgram,
-    ProjectNoEmitProgram,
+    load_node_modules_search_project, load_project_emit, load_project_no_emit,
+    ProjectConfigProgram, ProjectNoEmitProgram,
 };
 
 /// Build the same bounded no-emit [`PreparedProgram`] that the compiler

@@ -318,7 +318,31 @@ substitutes for a per-packet gate.
      conditional hosted-acceptance clause below, the local-gate
      `h2-5h-oracle` phase, the H2.5g→historical / H2.5h-live
      profile transition, and the handoff close; records the es2018
-     ObjectRestSpread re-base decision.
+     ObjectRestSpread re-base decision. **LANDED (2026-08-24,
+     [CA-4 packet](h2-5h-ca-4.md)): `run_h2_5h` executes all 932
+     rows (exact=795, known_diverging=93 under the frozen
+     facet-exact divergence ratchet
+     `ratchets/h2-5h-known-divergences.v1.json`, deferred=44);
+     hosted `cargo xtask acceptance` appends the band; the
+     H2.5h landing recorded in the 5g-profile transition block
+     (active slices +H2.5h, next = H2.6a). ObjectRestSpread
+     re-base decision: the es2018 helper base stays AS-LANDED
+     (CA-2b's corpus-validated `__assign` forks; the 5h band
+     exercises them with zero es2018-family divergences — no
+     re-base).**
+
+**SLICE CLOSE — the H2.5h corpus-adoption slice is COMPLETE
+(2026-08-24).** The ladder landed in five merges: CA-1 #468
+(observation freeze, 850), CA-2b #469 (cross-cutting execution
+families), CA-2a #470 (the es2015/wrapper cluster; census
+185 → 79; residuals typed r1–r5), CA-3 #471 (the 82 project
+rows observed; 932/932), CA-4 (this train: the acceptance
+wiring + the divergence ratchet). The residual burn-down is a
+first-class gate: every diverging row lives in the manifest
+with a named owner (r1 22, r2 4, r3 4, r4 27, r5 22,
+project-r1 8 [the emit-option preflight surface], project-r2 6
+[project-lane diagnostics parity]); a fix that lands shrinks
+the manifest in the same train or the gate fails stale.
 
 **Packet checker** (step 7; also the envelope's proof commands): all of
 

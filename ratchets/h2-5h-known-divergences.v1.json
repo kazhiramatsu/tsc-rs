@@ -1,0 +1,749 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/accessorAccidentalCallDiagnostic.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/blockScopedVariablesUseBeforeDef.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/classInConvertedLoopES5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/classStaticPropertyTypeGuard.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/complexClassRelationships.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/divergentAccessorsTypes5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/dynamicImportWithNestedThis_es5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/es5ModuleInternalNamedImports.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/methodContainingLocalFunction.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/nestedLoops.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/newLexicalEnvironmentForConvertedLoop.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/readonlyInNonPropertyParameters.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction11_es5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncAwait_es5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/async/es5/asyncImportedPromise_es5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractAccessor.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock9.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/constructorDeclarations/superCalls/derivedClassSuperStatementPosition.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/accessibility/privateClassPropertyAccessibleWithinNestedClass.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/accessibility/protectedClassPropertyAccessibleWithinClass.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/accessibility/protectedClassPropertyAccessibleWithinNestedClass.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/accessibility/protectedClassPropertyAccessibleWithinSubclass.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/inheritanceAndOverriding/derivedClassWithPrivateInstanceShadowingProtectedInstance.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/inheritanceAndOverriding/derivedClassWithPrivateStaticShadowingProtectedStatic.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/superInStaticMembers1.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 47,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/thisAndSuperInStaticMembers3.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/thisAndSuperInStaticMembers4.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers10.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers11.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers3.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers4.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers7.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers8.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers9.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/accessibilityModifiers.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/accessorsOverrideProperty7.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/autoAccessor5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts#target%3Des5%2Cusedefineforclassfields%3Dfalse",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/staticPropertyNameConflicts.ts#target%3Des5%2Cusedefineforclassfields%3Dtrue",
+      "owner": "h2-5h-ca-2a-r1",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/decorators/class/decoratedBlockScopedClass2.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/decorators/class/decoratedBlockScopedClass3.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/emitter/es5/asyncGenerators/emitter.asyncGenerators.classMethods.es5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNames12_ES5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNames1_ES5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/destructuring/destructuringVariableDeclaration1ES5iterable.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/newTarget/invalidNewTarget.es5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/newTarget/newTarget.es5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings10.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r2",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInStrings11.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r2",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates10.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r2",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInTemplates11.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r2",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/contextualTyping/getSetAccessorContextualTyping.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterBindingPattern.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/nullishCoalescingOperator/nullishCoalescingOperatorInParameterInitializer.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/callChain/callChainWithSuper.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInLoop.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterBindingPattern.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/optionalChaining/optionalChainingInParameterInitializer.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/superPropertyAccess/errorSuperPropertyAccess.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/expressions/superPropertyAccess/superPropertyAccessNoError.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/es6/es6modulekindWithES5Target.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r3",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/es6/es6modulekindWithES5Target2.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r3",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/esnext/esnextmodulekindWithES5Target.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r3",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/esnext/esnextmodulekindWithES5Target2.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r3",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/parser/ecmascript5/parserAstSpans1.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForAwaitOf.3.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForAwaitOf.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForOf.1.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForOf.5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of37.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-ofTypeCheck10.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/namedTypes/classWithOnlyPublicMembersEquivalentToInterface.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/namedTypes/classWithOnlyPublicMembersEquivalentToInterface2.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/rest/objectRestParameterES5.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/spread/objectSpread.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/spread/objectSpreadNegative.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r5",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/thisType/thisTypeInAccessors.ts#target%3Des5",
+      "owner": "h2-5h-ca-2a-r4",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/emitDecoratorMetadataSystemJS.json#module%3Damd",
+      "owner": "h2-5h-project-r2",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/emitDecoratorMetadataSystemJS.json#module%3Dcommonjs",
+      "owner": "h2-5h-project-r2",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootSourceRootWithNoSourceMapOption.json#module%3Damd",
+      "owner": "h2-5h-project-r1",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootSourceRootWithNoSourceMapOption.json#module%3Dcommonjs",
+      "owner": "h2-5h-project-r1",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootWithNoSourceMapOption.json#module%3Damd",
+      "owner": "h2-5h-project-r1",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootWithNoSourceMapOption.json#module%3Dcommonjs",
+      "owner": "h2-5h-project-r1",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesImportHigher.json#module%3Damd",
+      "owner": "h2-5h-project-r2",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesImportHigher.json#module%3Dcommonjs",
+      "owner": "h2-5h-project-r2",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesMaxDepthIncreased.json#module%3Damd",
+      "owner": "h2-5h-project-r2",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/nodeModulesMaxDepthIncreased.json#module%3Dcommonjs",
+      "owner": "h2-5h-project-r2",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Damd",
+      "owner": "h2-5h-project-r1",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Dcommonjs",
+      "owner": "h2-5h-project-r1",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootWithNoSourceMapOption.json#module%3Damd",
+      "owner": "h2-5h-project-r1",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootWithNoSourceMapOption.json#module%3Dcommonjs",
+      "owner": "h2-5h-project-r1",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    }
+  ]
+}

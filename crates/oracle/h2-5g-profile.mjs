@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec";
+  "d201cce77851865d6a0b999f7f3ddb91c18cfdd478cceef3785a1a661a06d67e";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -78,7 +78,7 @@ const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
   ["profile", "ratchets/h2-5f-profile.v1.json", "68c3c6ed51afa36a668aaf6fa338df2da87d6cbaad4740be25e8733be1a45b73"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "18ab03028c5b523a9735d80b29249074fc05946aea3473301c1d369772518298"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "32e7642ce4c078a5f39760b3fc71ebb4f6b889ee3ae316e4a0bdb888a29253cd"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
   ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "d5593648869817dde318c26156d4b025298fbdf411fe67a5c89fc6df8e5a715d"],
   ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "72773d747b0da690f7614dbd16755e5904aa617cc8e0b0f6573edbb84c342fad"],
@@ -252,6 +252,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/emitter/tests/unit/builtins_jsx_tests.rs",
   "crates/emitter/tests/unit/target_bindings_tests.rs",
   "crates/harness/tests/unit/upstream_suites/execution_tests.rs",
+  "crates/harness/tests/integration/h2_5h_project_emit.rs",
   "crates/program/tests/unit/option_validation_tests.rs",
   "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
   "crates/emitter/tests/unit/factory_classifier/tests.rs",
@@ -287,6 +288,7 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/harness/tests/integration/h1_conformance_profile_classification.rs",
   "crates/harness/tests/integration/h1_fourslash_whole_program_equivalence.rs",
   "crates/harness/tests/integration/h1_project_profile_classification.rs",
+  "crates/harness/tests/contracts.rs",
   "crates/harness/tests/integration/h2_transition.rs",
   "crates/harness/tests/integration/h2_1a_profile.rs",
   "crates/harness/tests/integration/transpile_suite_inventory.rs",
@@ -548,7 +550,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 254,
+    runtimeInputSet.size === 255,
     "H2.5g runtime input identity changed",
   );
 
@@ -605,17 +607,16 @@ function buildArtifact() {
       },
       transition: {
         completed_slice: "H2.5g",
-        next_slice: "H2.5h-a",
-        next_slice_scope:
-          "architecture-validation-owner-local-gap-rust-design-and-oracle-fixture-freeze",
-        next_runtime_activation_slice: "determined-by-H2.5h-a-owner-graph",
+        next_slice: "H2.6a",
+        next_slice_scope: "exact-map-json-and-callback-metadata",
+        next_runtime_activation_slice: "H2.6a",
         active_runtime_slices: [
           "H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a",
           "H2.2b", "H2.2c", "H2.2d", "H2.3a", "H2.3b", "H2.3c",
           "H2.3d", "H2.4a", "H2.4b", "H2.5a", "H2.5b", "H2.5c",
-          "H2.5d", "H2.5e", "H2.5f", "H2.5g",
+          "H2.5d", "H2.5e", "H2.5f", "H2.5g", "H2.5h",
         ],
-        inactive_runtime_slice_count: 15,
+        inactive_runtime_slice_count: 14,
         classic_jsx_tsx_owner: "complete",
         automatic_jsx_runtime_owner: "complete",
         json_output_owner: "complete",
@@ -628,11 +629,16 @@ function buildArtifact() {
         target_es2018_transform_owner: "complete",
         target_es2017_transform_owner: "complete",
         target_es2016_transform_owner: "complete",
-        target_es2015_transform_owner: "H2.5h-b+",
-        target_generators_transform_owner: "H2.5h-b+",
+        target_es2015_transform_owner: "complete-with-h2-5h-divergence-ratchet",
+        target_generators_transform_owner: "complete-with-h2-5h-divergence-ratchet",
         general_output_matrix_owner: "H2.8a",
         h2_5g_candidate_cases: 9_027,
         h2_5g_admitted_cases: 8_511,
+        h2_5h_candidate_cases: 932,
+        h2_5h_admitted_cases: 888,
+        h2_5h_exact_cases: 795,
+        h2_5h_known_divergences: 93,
+        h2_5h_source_deferred_cases: 44,
         h2_5g_global_future_rows: 2_883,
         h2_5g_source_deferred_cases: 516,
         deferred_failure_boundary: "typed failure before first sink write",

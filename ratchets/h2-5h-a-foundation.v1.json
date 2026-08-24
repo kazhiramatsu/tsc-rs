@@ -23,7 +23,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5h-a-foundation.mjs",
-    "sha256": "8a4222cf6defcc7374ae658c662f5d3fd630d8771f19cf94b125b0b730a0feb5"
+    "sha256": "35285868728eaafe673b3c6f9babceda7406b1640e0d47044066ba5a6cc128a1"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-foundation.schema.json",
@@ -34,18 +34,18 @@
     "parent_phase": "H2.5g",
     "parent_profile": {
       "path": "ratchets/h2-5g-profile.v1.json",
-      "sha256": "508289a9bdb5cc71559cb622fed0aba70083f550058e8a9482af714407f7e6c3"
+      "sha256": "fd2faa1d40f35f1fcd9d026ee2e7f6b315172eedd2545a9928b6f9b660ea59ca"
     },
     "interpretation": "H2.5h-a freezes candidate identity and semantic controls without activating either H2.5h production transformer"
   },
   "inputs": {
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "f2d9d3480640ca1bd95ba6a7d82ea945025bc9ed5c8f6ed3de565a142fc75d2f"
+      "sha256": "afdb304965ff1d6704a7c48a18c2fb38129e34e5eb14bf21aca9e29ae29e3f0f"
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "b8bf511d819fa4d3ca1c7d064cfe4aac2bbb4c7306327414d68c6e44ffc7f6ce"
+      "sha256": "b38308010c5b8648c833f9c787f7739886ad42c9fde03cc87b32ba7e0b9ab847"
     }
   },
   "selection_contract": {
@@ -21299,5 +21299,5 @@
     "unexecuted_candidates": 932,
     "undispositioned_candidates": 0
   },
-  "foundation_fingerprint_sha256": "77fc00f5468f77fad449e63c5fc7d00ee0cf30f14c62ff9a7177e61ca2dd4cbd"
+  "foundation_fingerprint_sha256": "13f3398c955ea62a0134a54d3c58a0f6f1cab6136d7e281622aa4be92068be0a"
 }

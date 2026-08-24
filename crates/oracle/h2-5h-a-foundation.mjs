@@ -1293,17 +1293,20 @@ function loadParentProfile(requireParent) {
       parent.status === "qualified" &&
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
-      parent.transition.next_slice === FOUNDATION_SLICE &&
+      // The CA-4 landing rewrote the live transition block: H2.5h is
+      // ACTIVE, the ladder points at H2.6a, and the es2015/generators
+      // owners carry the divergence-ratchet completion state
+      // (CA-4 packet §5.6; the pre-landing values are history).
+      parent.transition.next_slice === "H2.6a" &&
       parent.transition.next_slice_scope ===
-        "architecture-validation-owner-local-gap-rust-design-and-oracle-fixture-freeze" &&
-      parent.transition.next_runtime_activation_slice ===
-        "determined-by-H2.5h-a-owner-graph" &&
+        "exact-map-json-and-callback-metadata" &&
+      parent.transition.next_runtime_activation_slice === "H2.6a" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical(CLOSED_THROUGH_H2_5G) &&
+        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h"]) &&
       parent.transition.target_es2015_transform_owner ===
-        RUNTIME_ACTIVATION_SLICE &&
+        "complete-with-h2-5h-divergence-ratchet" &&
       parent.transition.target_generators_transform_owner ===
-        RUNTIME_ACTIVATION_SLICE &&
+        "complete-with-h2-5h-divergence-ratchet" &&
       parent.summary.completed_runtime_slices === 22 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
       // 9,191 at the H2.5g candidate plus the five reviewed H2.1a exact

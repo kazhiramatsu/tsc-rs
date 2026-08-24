@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "4f816d82e5fb81df5d82f60610b1f2dadac03a602c5bbf1d2843395b7658402e"
+    "sha256": "cda637c68f54b6ba1fa5a0545c16c5e45dbad3d33f55d7e81264d07bd18a6662"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "f82208842bbd9187ddc7ab64c8cd1537c5fbd0074ffb4e86e92f6d1b13f28989"
+    "sha256": "bc4af1948b4a1e454e4900d3bb0f077e42da03a88cac2820dd80b55a8f00077d"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -32,7 +32,7 @@
       },
       "qualification": {
         "path": "ratchets/h2-5f-qualification.v1.json",
-        "sha256": "18ab03028c5b523a9735d80b29249074fc05946aea3473301c1d369772518298"
+        "sha256": "32e7642ce4c078a5f39760b3fc71ebb4f6b889ee3ae316e4a0bdb888a29253cd"
       },
       "owner_controls": {
         "path": "ratchets/h2-5f-owner-controls.v1.json",
@@ -67,7 +67,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-5g-qualification.v1.json",
-    "sha256": "b6736d4e54ebe4c94c67222bb7b9d8897a422cd6342d813772dd6aa14ae1b60d"
+    "sha256": "3623df84f3e64614e51eaa81d1fa1456f2f91237ccdacb3b8e779bee20580505"
   },
   "current_exact_promotions": [
     {
@@ -81,7 +81,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
+        "sha256": "d201cce77851865d6a0b999f7f3ddb91c18cfdd478cceef3785a1a661a06d67e"
       }
     },
     {
@@ -95,7 +95,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
+        "sha256": "d201cce77851865d6a0b999f7f3ddb91c18cfdd478cceef3785a1a661a06d67e"
       }
     },
     {
@@ -109,7 +109,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
+        "sha256": "d201cce77851865d6a0b999f7f3ddb91c18cfdd478cceef3785a1a661a06d67e"
       }
     },
     {
@@ -123,7 +123,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
+        "sha256": "d201cce77851865d6a0b999f7f3ddb91c18cfdd478cceef3785a1a661a06d67e"
       }
     },
     {
@@ -137,7 +137,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "f9fdcb7c2e9417c5539ce9d82282a788933fb064dc60d074130f9e997abbabec"
+        "sha256": "d201cce77851865d6a0b999f7f3ddb91c18cfdd478cceef3785a1a661a06d67e"
       }
     }
   ],
@@ -248,11 +248,11 @@
     },
     {
       "path": "crates/harness/src/upstream_suites/execution.rs",
-      "sha256": "cb6e53e3a93c3c35686efae7363b1b07d5e8bdcb2f8d7ca2dfdff213d96b52db"
+      "sha256": "bc4fd3cf2ac571642571e727f8c37ad707bb081adc806fb0119af18517a473e4"
     },
     {
       "path": "crates/harness/src/upstream_suites/execution/project.rs",
-      "sha256": "350773455293ca43f5557b3fe6aa4c516822f5cc5a7b98f984e5ca17ca01ca00"
+      "sha256": "4998e1bf1d4f28f147b3f434c466c2e592f990879a3fdae1178237e80a6dbdd8"
     },
     {
       "path": "crates/program/src/prepared.rs",
@@ -320,7 +320,7 @@
     },
     {
       "path": "crates/xtask/src/h2_2c_acceptance.rs",
-      "sha256": "33df3c19371a791212c383c5dde6f3516a1b05ab8d1f9183ffe589eb1b78e22f"
+      "sha256": "8b8499736a30a09fec6de3c1b5e086089a2a4ee235f1194d193dba00f7dadc95"
     },
     {
       "path": "crates/xtask/src/h2_2d_acceptance.rs",
@@ -340,7 +340,7 @@
     },
     {
       "path": "crates/xtask/src/main.rs",
-      "sha256": "22e5ce34235648669dd56d743383fdab8e01d698a125f894927476def9faae17"
+      "sha256": "f5e23b6f68f0eb339a7ec84d965da92670377bdfe7dba18f62809af6733944cd"
     },
     {
       "path": "crates/xtask/tests/unit/h2_1d_acceptance/tests.rs",
@@ -360,7 +360,7 @@
     },
     {
       "path": "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs",
-      "sha256": "d1625fb58ed1d54098e2737e6fa4b2208fe1dc4673c925959fd6346b998921fc"
+      "sha256": "ec5611b8e533b336f4372abd72b2fc821e4220d7796af02a97525d84de1de307"
     },
     {
       "path": "crates/xtask/tests/unit/h2_2d_acceptance/tests.rs",
@@ -1107,6 +1107,10 @@
       "sha256": "2482847befd6f98837f8075b9719dffbb2d73657b30e6407fc7665ceb5bb7fce"
     },
     {
+      "path": "crates/harness/tests/integration/h2_5h_project_emit.rs",
+      "sha256": "ea3868370e33c2f6d5c6db3944e82fab0f1cc0d11e16cba79163031c7f8460ee"
+    },
+    {
       "path": "crates/program/tests/unit/option_validation_tests.rs",
       "sha256": "34166b6b7e4dfe1e2fe8d8bd37086da8827dca4d27bb46dc58bd400d8ea9cfff"
     },
@@ -1232,9 +1236,9 @@
   },
   "transition": {
     "completed_slice": "H2.5g",
-    "next_slice": "H2.5h-a",
-    "next_slice_scope": "architecture-validation-owner-local-gap-rust-design-and-oracle-fixture-freeze",
-    "next_runtime_activation_slice": "determined-by-H2.5h-a-owner-graph",
+    "next_slice": "H2.6a",
+    "next_slice_scope": "exact-map-json-and-callback-metadata",
+    "next_runtime_activation_slice": "H2.6a",
     "active_runtime_slices": [
       "H2.1a",
       "H2.1b",
@@ -1257,9 +1261,10 @@
       "H2.5d",
       "H2.5e",
       "H2.5f",
-      "H2.5g"
+      "H2.5g",
+      "H2.5h"
     ],
-    "inactive_runtime_slice_count": 15,
+    "inactive_runtime_slice_count": 14,
     "classic_jsx_tsx_owner": "complete",
     "automatic_jsx_runtime_owner": "complete",
     "json_output_owner": "complete",
@@ -1272,11 +1277,16 @@
     "target_es2018_transform_owner": "complete",
     "target_es2017_transform_owner": "complete",
     "target_es2016_transform_owner": "complete",
-    "target_es2015_transform_owner": "H2.5h-b+",
-    "target_generators_transform_owner": "H2.5h-b+",
+    "target_es2015_transform_owner": "complete-with-h2-5h-divergence-ratchet",
+    "target_generators_transform_owner": "complete-with-h2-5h-divergence-ratchet",
     "general_output_matrix_owner": "H2.8a",
     "h2_5g_candidate_cases": 9027,
     "h2_5g_admitted_cases": 8511,
+    "h2_5h_candidate_cases": 932,
+    "h2_5h_admitted_cases": 888,
+    "h2_5h_exact_cases": 795,
+    "h2_5h_known_divergences": 93,
+    "h2_5h_source_deferred_cases": 44,
     "h2_5g_global_future_rows": 2883,
     "h2_5g_source_deferred_cases": 516,
     "deferred_failure_boundary": "typed failure before first sink write"
@@ -1317,7 +1327,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "2e046e6f9b7597c9f9594f859d054280f1891459113099f31cc28af3806a0ceb"
+      "sha256": "dfa497a967ddbf6c93db97718f6d07eb5ff922d59cbf23d699d1a38754e282af"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -1342,5 +1352,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "b63455fd0d462fab3edf826ab206488a4cca4bf7078a53c20a161dbd7329650e"
+  "profile_fingerprint_sha256": "196c74e94bb64babdd755516b2b722815cf656cf5a42b8ed0b5f8e71ee84bf2a"
 }
