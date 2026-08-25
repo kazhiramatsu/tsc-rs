@@ -42,8 +42,8 @@
     "file_count": 269,
     "rust_source_files": 248,
     "cargo_manifests": 21,
-    "bytes": 17456132,
-    "tree_sha256": "3a5f63e91355a7ea9eb49a2c731d871d8c56d6413aee32d135afe122d538b1d4"
+    "bytes": 17456436,
+    "tree_sha256": "9f22528ebfd7c7f1a88826a42ad9171a922cdbbfd94cb31025b3a713dbdd6111"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "9e493bfa26e19e9de1adadc622d006c201718bdfb500191bb3e17025760c84e9"
+  "inventory_fingerprint_sha256": "d6a0c06b27def6acc943ef910b27513c38e7e360933cf187e4361385e78305c6"
 }

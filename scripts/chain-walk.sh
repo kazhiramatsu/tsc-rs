@@ -107,11 +107,31 @@ for name in "${ORDER[@]}"; do
 done
 [ $drift -eq 0 ] || exit 2
 echo "coverage: ORDER in sync (${#ORDER[@]} chain scripts)"
+
+# The ladder is only proven for the crate bytes it was converged at. The
+# green tail below records that tree hash; here (and in the gate's
+# structural-preflight via WALK_DRY) a drifted tree refuses in seconds
+# instead of failing the gate's oracle phase minutes in. Paid 2026-08-26:
+# a 5-line post-walk xtask fix red-ended the gate on stale h1-rust-omissions.
+crate_tree_sha() {
+  find crates -name '*.rs' -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -d' ' -f1
+}
+CONVERGED_RECORD="target/chain-walk/converged-crates.sha256"
 if [ "${WALK_DRY:-0}" = "1" ]; then
   # Probe mode (also the gate's structural-preflight hook): the harness pin
   # audit runs here so a stale test-const fails the gate in seconds, not at
   # the workspace-tests phase 40 minutes in.
   python3 scripts/pin-audit.py || exit 1
+  if [ -f "$CONVERGED_RECORD" ]; then
+    if [ "$(crate_tree_sha)" != "$(cat "$CONVERGED_RECORD")" ]; then
+      echo "LADDER NOT CONVERGED FOR THESE CRATE BYTES: crates/*.rs changed"
+      echo "since the last green chain walk — run scripts/chain-walk.sh first."
+      exit 1
+    fi
+    echo "converged-walk record: crate tree matches"
+  else
+    echo "converged-walk record: absent (a green walk will mint it)"
+  fi
   echo "WALK_DRY=1: stopping after preflight + coverage + pin-audit checks"
   exit 0
 fi
@@ -167,4 +187,6 @@ if [ $# -ge 1 ]; then
   node .github/ci/slice-readiness.mjs --check "$1" || { echo "readiness FAILED: $1"; exit 1; }
 fi
 [ $rc -eq 0 ] && [ $qc -eq 0 ] || exit 1
-echo "chain walk: converged and green"
+mkdir -p "$(dirname "$CONVERGED_RECORD")"
+crate_tree_sha > "$CONVERGED_RECORD"
+echo "chain walk: converged and green (crate-tree record minted)"
