@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 1,
+  "packetId": "h2-6a-m-3",
+  "status": "ready",
+  "trustedBase": "1ccfc0cee3047cf3d507a85ad8e78ef153985083",
+  "packet": {
+    "path": "docs/design/greenfield/slices/h2-6a-m-3.md",
+    "sha256": "d898fd6648f7b4b38bbb341590fef097892fbbb079ad7fa95fdd9feeb9be46d2"
+  },
+  "predecessors": [
+    {
+      "packetId": "h2-6a-m-2",
+      "receiptSha256": "9b7579121d010da2cacb8251ae7e5c2ad72b50451f7453a505dce700bdd20bc9"
+    }
+  ],
+  "allowedPaths": [
+    ".github/ci/contracts/h2-6a-witnesses.schema.json",
+    "crates/compiler/src/lib.rs",
+    "crates/compiler/tests/contracts.rs",
+    "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
+    "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+    "crates/emitter/src/activity.rs",
+    "crates/emitter/src/artifact.rs",
+    "crates/emitter/src/builtins.rs",
+    "crates/emitter/src/execute.rs",
+    "crates/emitter/src/lib.rs",
+    "crates/emitter/src/outcome.rs",
+    "crates/emitter/src/plan.rs",
+    "crates/emitter/src/printer.rs",
+    "crates/emitter/src/source_map.rs",
+    "crates/emitter/tests/unit/activity/tests.rs",
+    "crates/emitter/tests/unit/source_map/tests.rs",
+    "crates/oracle/h2-6a-witnesses.mjs",
+    "docs/design/greenfield/slices/README.md",
+    "docs/design/greenfield/slices/h2-6a-m-3.md",
+    "ratchets/fci-packet-bootstrap.v1.json",
+    "ratchets/fci-readiness/h2-6a-m-3.v1.json",
+    "ratchets/h2-6a-witnesses.v1.json",
+    "ratchets/l0-source-options.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/emitter/src/sink.rs",
+    "crates/emitter/src/host.rs",
+    "crates/binder",
+    "crates/syntax",
+    "crates/types",
+    "crates/diags",
+    "crates/conformance",
+    "crates/xtask",
+    "crates/harness/src",
+    "crates/harness/tests/unit",
+    "crates/program",
+    ".github/workflows",
+    ".github/ci/qualification.mjs",
+    "crates/checker/src",
+    "crates/checker/tests/integration",
+    "crates/compiler/tests/unit",
+    "crates/compiler/src/cli.rs",
+    "crates/compiler/src/config"
+  ],
+  "proof": {
+    "commands": [
+      "cargo test -p tsc-rs-emitter --lib",
+      "cargo test -p tsc-rs-compiler --test contracts",
+      "cargo xtask ledger check",
+      "node crates/oracle/h2-6a-witnesses.mjs --check",
+      "node .github/ci/slice-readiness.mjs --check h2-6a-m-3"
+    ],
+    "evidencePath": "ratchets/h2-6a-witnesses.v1.json"
+  }
+}
