@@ -435,19 +435,12 @@ pub(crate) fn produce_all() -> Result<ProducedEvidence, Box<dyn Error>> {
     // discoverable by a later readiness invocation. The content-addressed B2
     // runtime artifact is deliberately retained: it has its own strict reuse
     // validator and is the only evidence file restored by Actions cache.
-    invalidate_published_files(
-        &workspace,
-        [
-            &manifest_path,
-            &fuzz_path,
-            &perf_path,
-            &ci_paths.receipt,
-            &ci_paths.all,
-            &ci_paths.two_xxx,
-            &ci_paths.syntactic,
-            &ci_paths.families,
-        ],
-    )?;
+    // gate-tax 4: the performance artifact and its CI conformance outputs
+    // are content-addressed the same way as B2 — `reuse_performance` below
+    // either proves the standing set against a freshly recomputed exact
+    // fingerprint or the miss path invalidates them before producing, so
+    // readiness can never discover a half-produced or unproven B4 set.
+    invalidate_published_files(&workspace, [&manifest_path, &fuzz_path])?;
 
     if runtime_artifact_is_current(&workspace, &runtime_path)? {
         println!(
@@ -464,7 +457,23 @@ pub(crate) fn produce_all() -> Result<ProducedEvidence, Box<dyn Error>> {
         config.fuzzer.cases,
         &fuzz_path,
     )?;
-    let performance = produce_performance(&workspace, &config, None, &perf_path)?;
+    let performance = match reuse_performance(&workspace, &config, &perf_path)? {
+        Some(reused) => reused,
+        None => {
+            invalidate_published_files(
+                &workspace,
+                [
+                    &perf_path,
+                    &ci_paths.receipt,
+                    &ci_paths.all,
+                    &ci_paths.two_xxx,
+                    &ci_paths.syntactic,
+                    &ci_paths.families,
+                ],
+            )?;
+            produce_performance(&workspace, &config, None, &perf_path)?
+        }
+    };
 
     let artifacts = [
         ("runtime-coverage", runtime_path),
@@ -1899,6 +1908,124 @@ pub(crate) fn perf_conformance(args: impl Iterator<Item = String>) -> Result<(),
     produce_performance(&workspace, &config, runner.as_deref(), &artifact).map(drop)
 }
 
+/// The pure decision core of `reuse_performance`: every recorded term of the
+/// standing artifact is compared against the CURRENT runner policy and the
+/// freshly recomputed total fingerprint. Content-addressed like B2 — the
+/// exact fingerprint (which includes the producer executable) owns reuse and
+/// the mint commit stays as provenance, so `artifact_header_matches` runs
+/// with no HEAD requirement.
+fn performance_reuse_miss(
+    artifact: &PerformanceArtifact,
+    runner: &RunnerProfile,
+    fingerprint: &Fingerprint,
+    command: &str,
+) -> Option<&'static str> {
+    if artifact.runner != *runner {
+        return Some("runner profile changed");
+    }
+    if artifact.observed_os != std::env::consts::OS
+        || artifact.observed_arch != std::env::consts::ARCH
+    {
+        return Some("platform changed");
+    }
+    if !artifact_header_matches(&artifact.header, "performance", command, fingerprint, None) {
+        return Some("fingerprint or header mismatch");
+    }
+    if artifact.wall_seconds < 0.0
+        || artifact.wall_seconds > runner.ceiling_wall_seconds
+        || artifact.max_rss_bytes == 0
+        || artifact.max_rss_bytes > runner.ceiling_rss_bytes
+        || artifact.cache_off_smoke.exit_status != 0
+        || artifact.cache_off_smoke.fixture_limit != CACHE_OFF_SMOKE_LIMIT
+    {
+        return Some("recorded observation violates the current runner policy");
+    }
+    None
+}
+
+/// gate-tax 4: the PerformanceArtifact is the cross-run receipt for the B4
+/// conformance/performance execution. Reuse is licensed exactly like the B2
+/// runtime artifact — a freshly recomputed total fingerprint (all compiler
+/// and xtask sources, corpus, ratchet/scope anchors, and the producer
+/// executable) must equal the recorded one, every CI conformance output must
+/// byte-verify, and the recorded observation must satisfy the CURRENT runner
+/// profile's ceilings. On a hit the verified outputs are re-bound through
+/// the unchanged in-process move-only receipt flow; only the timed child
+/// executions are skipped. Any validation failure prints the miss reason and
+/// returns None, and the caller invalidates and produces in full.
+fn reuse_performance(
+    workspace: &Path,
+    config: &EvidenceConfig,
+    artifact_path: &Path,
+) -> Result<Option<ProducedPerformance>, Box<dyn Error>> {
+    fn miss(reason: &str) -> Result<Option<ProducedPerformance>, Box<dyn Error>> {
+        println!("b4 conformance: full run ({reason})");
+        Ok(None)
+    }
+    let bytes = match fs::read(artifact_path) {
+        Ok(bytes) => bytes,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            return miss("performance artifact absent");
+        }
+        Err(error) => return Err(error.into()),
+    };
+    let Ok(mut artifact) = serde_json::from_slice::<PerformanceArtifact>(&bytes) else {
+        return miss("performance artifact invalid");
+    };
+    let profile_id = std::env::var("TSRS_M8_RUNNER_PROFILE")
+        .ok()
+        .unwrap_or_else(|| config.performance.default_runner_profile.clone());
+    let Some(runner) = config
+        .performance
+        .runners
+        .iter()
+        .find(|profile| profile.id == profile_id)
+    else {
+        return miss("runner profile unknown");
+    };
+    let fingerprint = performance_fingerprint(workspace)?;
+    let command = format!(
+        "cargo xtask perf conformance --artifact {} --runner-profile {}",
+        artifact_path.display(),
+        runner.id
+    );
+    if let Some(reason) = performance_reuse_miss(&artifact, runner, &fingerprint, &command) {
+        return miss(reason);
+    }
+    if verify_ci_conformance_binding(workspace, config, &artifact.ci_conformance).is_err() {
+        return miss("CI conformance outputs failed byte verification");
+    }
+    // Rebind the verified outputs through the unchanged move-only flow: a
+    // fresh in-process receipt replaces the mint run's, and the artifact's
+    // binding tracks it so the manifest/artifact binding equality holds.
+    let ci_paths = ci_conformance_paths(workspace, config)?;
+    let invocation = ci_conformance_invocation(workspace, &ci_paths, &fingerprint)?;
+    let publication_guard = crate::ci_conformance_receipt::begin(&invocation)?;
+    let receipt_token = crate::ci_conformance_receipt::publish(publication_guard, &invocation)?;
+    let binding = bind_ci_conformance(workspace, &ci_paths)?;
+    verify_ci_conformance_binding(workspace, config, &binding)?;
+    artifact.ci_conformance = binding.clone();
+    write_json(workspace, artifact_path, &artifact)?;
+    println!(
+        "b4 conformance: receipt hit — reused artifact {} (wall={:.3}/{:.3}s rss={}/{} profile={})",
+        artifact_path.display(),
+        artifact.wall_seconds,
+        runner.ceiling_wall_seconds,
+        artifact.max_rss_bytes,
+        runner.ceiling_rss_bytes,
+        runner.id
+    );
+    Ok(Some(ProducedPerformance {
+        evidence: ProducedEvidence {
+            receipt_token,
+            invocation,
+            paths: ci_paths,
+            binding: binding.clone(),
+        },
+        binding,
+    }))
+}
+
 fn produce_performance(
     workspace: &Path,
     config: &EvidenceConfig,
@@ -2318,12 +2445,15 @@ pub(crate) fn verify_for_readiness(
             path.display(),
             artifact.runner.id
         );
+        // gate-tax 4: the performance artifact is content-addressed like the
+        // B2 runtime artifact — its exact fingerprint, not HEAD equality,
+        // owns reuse across commits; the mint commit stays as provenance.
         let ready = artifact_header_matches(
             &artifact.header,
             "performance",
             &expected_command,
             &current,
-            Some(&current_head),
+            None,
         ) && entry.sha256 == sha256_file(&path)?
             && entry.fingerprint_sha256 == artifact.header.fingerprint.sha256
             && artifact.ci_conformance == manifest.ci_conformance

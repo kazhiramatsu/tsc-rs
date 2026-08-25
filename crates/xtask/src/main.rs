@@ -5115,8 +5115,24 @@ const POST_JOBS_INVARIANTS: [PostJobsInvariant; 4] = [
 
 fn invariants(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
     let workspace = find_workspace_root()?;
-    invariant_attestation::invalidate(&workspace)?;
     let args = parse_invariant_args(args)?;
+    // gate-tax 4: the standing full-corpus attestation is the receipt of a
+    // prior green run of exactly this invocation. `verify` is the same
+    // authority `m8 readiness` trusts — canonical workspace plus every
+    // controlled-input group re-fingerprinted from disk — so a valid
+    // attestation makes re-execution redundant by construction; any probe
+    // red falls back to today's invalidate-first full path (fail-closed).
+    // Sampled and partial invocations keep their unconditional invalidation
+    // exactly as before.
+    if args.full_corpus && args.suite == InvariantSuite::All {
+        let probe = invariant_attestation::verify(&workspace);
+        if probe.ready {
+            println!("full-corpus invariants: attestation hit — {}", probe.detail);
+            return Ok(());
+        }
+        println!("full-corpus invariants: full run — {}", probe.detail);
+    }
+    invariant_attestation::invalidate(&workspace)?;
     let programs = load_sample_programs(&workspace, args.limit)?;
     let fixture_count = programs
         .iter()
