@@ -453,6 +453,15 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.6a admits
+    /// external single-file source-map generation (h2-6a-m-3 G13).
+    #[doc(hidden)]
+    pub const fn h2_6a_profile() -> Self {
+        let mut profile = Self::h2_5h_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_6a.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

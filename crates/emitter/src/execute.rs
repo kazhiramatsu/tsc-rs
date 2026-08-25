@@ -6,7 +6,8 @@ use crate::{
     create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
     EmitOutcome, EmitPreflight, EmitResolver, EmitRoot, EmitSelection, EmitTextMetadata,
     EmitWriteDisposition, H2ActivityCanary, H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest,
-    PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot,
+    PrinterOptions, SourceFileTextMode, SourceMapObservation, SourceMapRecordingInputs,
+    TransformArena, TransformRoot,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -107,7 +108,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             options.allow_importing_ts_extensions == Some(true),
             "allowImportingTsExtensions",
         ),
-        (options.source_map == Some(true), "sourceMap"),
         (options.inline_source_map == Some(true), "inlineSourceMap"),
         (options.inline_sources == Some(true), "inlineSources"),
         (options.declaration == Some(true), "declaration"),
@@ -266,7 +266,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_5h_profile();
+    let mut activity = H2ActivityCanary::h2_6a_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -311,7 +311,7 @@ pub fn print_script_units_with_recording_for_harness(
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
-    let mut activity = H2ActivityCanary::h2_5h_profile();
+    let mut activity = H2ActivityCanary::h2_6a_profile();
     let mut printed_units = Vec::new();
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -356,6 +356,59 @@ pub fn print_script_units_with_recording_for_harness(
 /// Compiler-owned entry which carries one observer from request construction
 /// through callback completion.
 #[doc(hidden)]
+/// tsc-port: getSourceMappingURL/encodeURI @6.0.3
+/// tsc-hash: ef8e1bcbc2559f9d7ee1de030c89a049c5f5330e48498632761d137b14b0277a
+/// tsc-span: _tsc.js:116826-116857
+///
+/// The URL comment escapes the map basename with the JS `encodeURI`
+/// builtin: ASCII alphanumerics and `;,/?:@&=+$-_.!~*'()#` pass
+/// through, every other scalar percent-escapes its UTF-8 bytes
+/// (uppercase hex). The witness `path-shapes--positive-percent-name`
+/// case pins the byte behavior.
+fn encode_uri(text: &str) -> String {
+    const KEEP: &[u8] = b";,/?:@&=+$-_.!~*'()#";
+    let mut encoded = String::with_capacity(text.len());
+    let mut buffer = [0_u8; 4];
+    for scalar in text.chars() {
+        if scalar.is_ascii() && (scalar.is_ascii_alphanumeric() || KEEP.contains(&(scalar as u8))) {
+            encoded.push(scalar);
+        } else {
+            for byte in scalar.encode_utf8(&mut buffer).as_bytes() {
+                encoded.push('%');
+                encoded.push_str(&format!("{byte:02X}"));
+            }
+        }
+    }
+    encoded
+}
+
+/// `createSourceMapGenerator` inputs for one script unit (h2-6a-m-3;
+/// upstream printSourceFileOrBundle 116751-116757): `file` = the js
+/// basename, `sourceRoot` = `""` (the option is refused at this
+/// floor), `sourcesDirectoryPath` = the js output directory
+/// (getSourceMapDirectory's no-sourceRoot/no-mapRoot arm 116812-116825).
+fn source_map_recording_inputs(
+    host: &dyn EmitHost,
+    javascript_path: &std::path::Path,
+) -> SourceMapRecordingInputs {
+    let normalized = javascript_path.to_string_lossy().replace('\\', "/");
+    let (directory, basename) = match normalized.rfind('/') {
+        Some(split) => (&normalized[..split], &normalized[split + 1..]),
+        None => ("", normalized.as_str()),
+    };
+    SourceMapRecordingInputs {
+        file: basename.into(),
+        source_root: "".into(),
+        sources_directory_path: directory.into(),
+        current_directory: host
+            .current_directory()
+            .to_string_lossy()
+            .replace('\\', "/")
+            .into(),
+        use_case_sensitive_source_keys: host.use_case_sensitive_file_names(),
+    }
+}
+
 pub fn emit_files_with_activity(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
@@ -405,6 +458,13 @@ pub fn emit_files_with_activity(
     );
 
     let mut artifacts = Vec::with_capacity(preflight.plan().units().len());
+    // emittedFiles lists js THEN map per unit (116633-116638) while the
+    // sink writes map THEN js (116784-116801): the list order is
+    // plan-owned, never derived from the write order.
+    let mut unit_listing: Vec<(std::path::PathBuf, Option<std::path::PathBuf>)> = Vec::new();
+    // sourceMapDataList is allocated iff a map option is on (116532);
+    // at this floor that is exactly `sourceMap`.
+    let mut source_map_observations: Vec<SourceMapObservation> = Vec::new();
     let mut emit_skipped = false;
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -438,23 +498,89 @@ pub fn emit_files_with_activity(
             false,
         )?;
         let transform_diagnostics = transformation.diagnostics().to_vec();
+        // shouldEmitSourceMaps (116805-116807) at this floor: a map path
+        // was planned exactly when `sourceMap` is on and the source is
+        // not JSON (G6), so the plan carries the gate.
+        let javascript_map_path = unit
+            .paths()
+            .javascript_map_path()
+            .map(std::path::Path::to_path_buf);
+        let recording_inputs = javascript_map_path
+            .as_deref()
+            .map(|_| source_map_recording_inputs(host, javascript_path));
+        if recording_inputs.is_some() {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_6a);
+        }
         let printed = printer.print(
             &mut transformation,
             PrintRequest::SourceFile(transform_source),
-            None,
+            recording_inputs,
         )?;
-        activity.create_javascript_artifact();
-        artifacts.push(EmitArtifact::javascript(
-            javascript_path,
-            printed.text(),
-            options.emit_bom == Some(true),
-            Some(vec![source.path().to_path_buf()]),
-            EmitTextMetadata::new(transform_diagnostics, None),
-        ));
+        if let Some(map_path) = javascript_map_path.as_ref() {
+            let mut generator = printed.source_map().cloned().ok_or(EmitFailure::Contract(
+                EmitContractViolation::SourceMapRecordingUnavailable,
+            ))?;
+            let map_json = generator.to_json_string();
+            source_map_observations.push(SourceMapObservation::new(
+                generator
+                    .raw_sources()
+                    .iter()
+                    .map(|name| std::path::PathBuf::from(name.as_ref()))
+                    .collect(),
+                map_json.clone().into_boxed_str(),
+            ));
+            // getSourceMappingURL + the append (116779-116783): one
+            // newLine if the writer is mid-line, `sourceMapUrlPos` at the
+            // UTF-16 offset where `//#` begins, NO trailing newline.
+            let map_basename = {
+                let normalized = map_path.to_string_lossy().replace('\\', "/");
+                match normalized.rfind('/') {
+                    Some(split) => normalized[split + 1..].to_owned(),
+                    None => normalized,
+                }
+            };
+            let mut javascript_text = printed.text().to_owned();
+            let mut url_position = printed.end().position();
+            if printed.end().column() != 0 {
+                javascript_text.push_str(new_line.text());
+                url_position = url_position
+                    .checked_add(new_line.text().len() as u32)
+                    .ok_or(EmitFailure::Contract(
+                        EmitContractViolation::SourceMapRecordingUnavailable,
+                    ))?;
+            }
+            javascript_text.push_str("//# sourceMappingURL=");
+            javascript_text.push_str(&encode_uri(&map_basename));
+            // Map artifact BEFORE js (116784-116795): no BOM, no data.
+            artifacts.push(EmitArtifact::javascript_map(
+                map_path.clone(),
+                map_json,
+                Some(vec![source.path().to_path_buf()]),
+            ));
+            activity.create_javascript_artifact();
+            artifacts.push(EmitArtifact::javascript(
+                javascript_path,
+                javascript_text,
+                options.emit_bom == Some(true),
+                Some(vec![source.path().to_path_buf()]),
+                EmitTextMetadata::new(transform_diagnostics, Some(url_position)),
+            ));
+        } else {
+            activity.create_javascript_artifact();
+            artifacts.push(EmitArtifact::javascript(
+                javascript_path,
+                printed.text(),
+                options.emit_bom == Some(true),
+                Some(vec![source.path().to_path_buf()]),
+                EmitTextMetadata::new(transform_diagnostics, None),
+            ));
+        }
+        unit_listing.push((javascript_path.to_path_buf(), javascript_map_path));
     }
 
     let mut diagnostics: DiagnosticList = Vec::new();
-    let mut emitted_files = emitted_files_enabled.then(Vec::new);
+    let mut written_paths: std::collections::BTreeSet<std::path::PathBuf> =
+        std::collections::BTreeSet::new();
     for artifact in artifacts {
         let path = artifact.path().to_path_buf();
         activity.attempt_output_sink_write();
@@ -471,18 +597,29 @@ pub fn emit_files_with_activity(
             }
         };
         if include_in_emitted_files {
-            let Some(emitted_files) = emitted_files.as_mut() else {
-                continue;
-            };
-            emitted_files.push(path);
+            written_paths.insert(path);
         }
     }
+    let emitted_files = emitted_files_enabled.then(|| {
+        let mut listing = Vec::new();
+        for (javascript_path, map_path) in unit_listing {
+            if written_paths.contains(&javascript_path) {
+                listing.push(javascript_path);
+            }
+            if let Some(map_path) = map_path {
+                if written_paths.contains(&map_path) {
+                    listing.push(map_path);
+                }
+            }
+        }
+        listing
+    });
 
     Ok(EmitOutcome::new(
         diagnostics,
         emit_skipped,
         emitted_files,
-        None,
+        (options.source_map == Some(true)).then_some(source_map_observations),
         activity.counters(),
     ))
 }

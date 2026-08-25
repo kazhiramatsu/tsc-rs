@@ -147,10 +147,6 @@ fn every_dormant_axis_is_typed_and_rejected() {
 
     for (paths, feature) in [
         (
-            javascript().with_javascript_map("/project/out.js.map"),
-            UnsupportedEmitFeature::JavaScriptMap,
-        ),
-        (
             javascript().with_declaration("/project/out.d.ts"),
             UnsupportedEmitFeature::Declaration,
         ),
@@ -169,6 +165,17 @@ fn every_dormant_axis_is_typed_and_rejected() {
             Err(EmitFailure::Unsupported(feature))
         );
     }
+}
+
+/// h2-6a-m-3 G8: the planned `.js.map` member left the dormant set —
+/// a mapped unit passes the bootstrap-shape validation.
+#[test]
+fn a_planned_javascript_map_member_is_accepted() {
+    let plan = EmitOutputPlan::whole_program(vec![script_unit(
+        1,
+        EmitOutputPaths::javascript("/project/out.js").with_javascript_map("/project/out.js.map"),
+    )]);
+    assert_eq!(plan.validate_bootstrap_shape(), Ok(()));
 }
 
 #[test]

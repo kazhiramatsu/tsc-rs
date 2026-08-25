@@ -430,6 +430,7 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                 | "runtime-namespace-control"
                 | "parameter-property-control"
                 | "jsx-control"
+                | "source-map-control"
         ) {
             let mut sink = MemoryOutputSink::new();
             let outcome = ProgramSession::new(prepared_control(
@@ -438,26 +439,38 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
             ))
             .emit(&mut sink)
             .expect("later H2 slices promote the frozen adjacent control");
-            let expected = &case["observation"]["writes"][0];
-            assert_eq!(sink.writes().len(), 1, "{id}: exact promoted write count");
+            // The frozen oracle observation is the complete write
+            // expectation: one write for the pre-map promotions, the
+            // map-then-js pair for source-map-control (h2-6a-m-3).
+            let expected_writes = case["observation"]["writes"]
+                .as_array()
+                .expect("expected writes");
             assert_eq!(
-                sink.writes()[0].path(),
-                Path::new(expected["path"].as_str().expect("expected write path")),
-                "{id}: exact promoted output path",
+                sink.writes().len(),
+                expected_writes.len(),
+                "{id}: exact promoted write count"
             );
-            assert_eq!(
-                sink.writes()[0].callback_text(),
-                expected["callback_text"]
-                    .as_str()
-                    .expect("expected write text"),
-                "{id}: exact promoted output text",
-            );
+            for (write, expected) in sink.writes().iter().zip(expected_writes) {
+                assert_eq!(
+                    write.path(),
+                    Path::new(expected["path"].as_str().expect("expected write path")),
+                    "{id}: exact promoted output path",
+                );
+                assert_eq!(
+                    write.callback_text(),
+                    expected["callback_text"]
+                        .as_str()
+                        .expect("expected write text"),
+                    "{id}: exact promoted output text",
+                );
+            }
             let owner = match id {
                 "mts-output-control" => H2RuntimeSlice::H2_1e,
                 "runtime-enum-control" => H2RuntimeSlice::H2_2a,
                 "runtime-namespace-control" => H2RuntimeSlice::H2_2b,
                 "parameter-property-control" => H2RuntimeSlice::H2_2c,
                 "jsx-control" => H2RuntimeSlice::H2_3b,
+                "source-map-control" => H2RuntimeSlice::H2_6a,
                 _ => unreachable!("promoted adjacent control"),
             };
             assert_eq!(

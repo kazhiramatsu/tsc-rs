@@ -4671,6 +4671,40 @@ impl Printer {
                     .map(|expression| self.original_node_end_cursor(transformation, expression))
                     .transpose()?
                     .unwrap_or(case_keyword.cursor());
+                // emitCaseOrDefaultClauseRest decides the single-statement
+                // polarity BEFORE the colon: the same-line arm is upstream
+                // `writeToken` (the mapped token pipeline, h2-6a-m-3),
+                // the list arm is `emitTokenWithComment` (unmapped).
+                let single_line_statement = self.clause_single_statement_same_line(
+                    transformation,
+                    node,
+                    node.source(),
+                    data.statements,
+                )?;
+                let colon_map_default =
+                    if single_line_statement && writer.has_source_map_recording() {
+                        match colon_cursor.source_position() {
+                            Some((cursor_source, position)) => self.token_map_range_at(
+                                transformation,
+                                cursor_source,
+                                position.value(),
+                                writer,
+                            )?,
+                            None => None,
+                        }
+                    } else {
+                        None
+                    };
+                if single_line_statement {
+                    self.record_token_map_side(
+                        transformation,
+                        MapBoundary::Before,
+                        node,
+                        SyntaxKind::ColonToken,
+                        colon_map_default,
+                        writer,
+                    )?;
+                }
                 let colon = self.emit_list_boundary_token_with_comments(
                     transformation,
                     node,
@@ -4679,12 +4713,22 @@ impl Printer {
                     false,
                     writer,
                 )?;
+                if single_line_statement {
+                    self.record_token_map_side(
+                        transformation,
+                        MapBoundary::After,
+                        node,
+                        SyntaxKind::ColonToken,
+                        colon_map_default,
+                        writer,
+                    )?;
+                }
                 self.emit_case_clause_statements(
                     transformation,
-                    node,
                     node.source(),
                     data.statements,
                     colon,
+                    single_line_statement,
                     expression_context,
                     writer,
                 )
@@ -4698,6 +4742,36 @@ impl Printer {
                     false,
                     writer,
                 )?;
+                let single_line_statement = self.clause_single_statement_same_line(
+                    transformation,
+                    node,
+                    node.source(),
+                    data.statements,
+                )?;
+                let colon_map_default =
+                    if single_line_statement && writer.has_source_map_recording() {
+                        match default_keyword.cursor().source_position() {
+                            Some((cursor_source, position)) => self.token_map_range_at(
+                                transformation,
+                                cursor_source,
+                                position.value(),
+                                writer,
+                            )?,
+                            None => None,
+                        }
+                    } else {
+                        None
+                    };
+                if single_line_statement {
+                    self.record_token_map_side(
+                        transformation,
+                        MapBoundary::Before,
+                        node,
+                        SyntaxKind::ColonToken,
+                        colon_map_default,
+                        writer,
+                    )?;
+                }
                 let colon = self.emit_list_boundary_token_with_comments(
                     transformation,
                     node,
@@ -4706,12 +4780,22 @@ impl Printer {
                     false,
                     writer,
                 )?;
+                if single_line_statement {
+                    self.record_token_map_side(
+                        transformation,
+                        MapBoundary::After,
+                        node,
+                        SyntaxKind::ColonToken,
+                        colon_map_default,
+                        writer,
+                    )?;
+                }
                 self.emit_case_clause_statements(
                     transformation,
-                    node,
                     node.source(),
                     data.statements,
                     colon,
+                    single_line_statement,
                     expression_context,
                     writer,
                 )
@@ -6177,13 +6261,39 @@ impl Printer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn emit_case_clause_statements(
+    /// The single-statement clause polarity, hoisted above the colon
+    /// write (upstream emitCaseOrDefaultClauseRest computes it first;
+    /// the same-line arm's colon is the mapped `writeToken`).
+    fn clause_single_statement_same_line(
         &self,
-        transformation: &mut TransformationResult<'_>,
+        transformation: &TransformationResult<'_>,
         clause: TransformNode,
         source: TransformSourceId,
         statements: Option<tsc_syntax::NodeArrayId>,
+    ) -> Result<bool, PrinterError> {
+        let statements = statements
+            .and_then(|array| transformation.arena().node_array_ref(source, array))
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .map(|array| array.nodes.clone())
+            .unwrap_or_default();
+        if statements.len() != 1 {
+            return Ok(false);
+        }
+        let Some(first) = transformation.arena().node_ref(source, statements[0]) else {
+            return Err(PrinterError::UnknownStatement(statements[0].0));
+        };
+        self.source_nodes_start_on_same_line(transformation, clause, first)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn emit_case_clause_statements(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        statements: Option<tsc_syntax::NodeArrayId>,
         colon: TokenEmission,
+        single_line: bool,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -6202,8 +6312,6 @@ impl Printer {
             return Ok(());
         }
         let first = first.ok_or(PrinterError::UnknownStatement(statements[0].0))?;
-        let single_line = statements.len() == 1
-            && self.source_nodes_start_on_same_line(transformation, clause, first)?;
         if single_line {
             writer.write_space(" ");
             self.emit_leading_comments_for_node_worker(

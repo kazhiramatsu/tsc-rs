@@ -19,29 +19,29 @@ use tsc_program::{
     load_emitting_program, CompilerOptions, LibraryCatalog, ProgramLoadLimits, ProgramOptions,
 };
 
-const WITNESSES: &[u8] = include_bytes!(concat!(
+pub(crate) const WITNESSES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../ratchets/h2-6a-witnesses.v1.json"
 ));
 
-const LIBRARY_HOST_DIRECTORY: &str = "/typescript/lib";
+pub(crate) const LIBRARY_HOST_DIRECTORY: &str = "/typescript/lib";
 
 /// First-run divergences owned by this train as production fixes; the
 /// list may only SHRINK (the es2015 witness-gate idiom), and any NEW
 /// divergence fails the suite immediately.
 const KNOWN_DIVERGENCES: [&str; 0] = [];
 
-fn sha256_hex(bytes: &[u8]) -> String {
+pub(crate) fn sha256_hex(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 
-fn decode_base64(text: &str) -> Vec<u8> {
+pub(crate) fn decode_base64(text: &str) -> Vec<u8> {
     base64::engine::general_purpose::STANDARD
         .decode(text)
         .expect("witness base64 payload")
 }
 
-fn vendored_library_files() -> Vec<(String, Vec<u8>)> {
+pub(crate) fn vendored_library_files() -> Vec<(String, Vec<u8>)> {
     let directory =
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../vendor/typescript-6.0.3/lib");
     let mut files = Vec::new();
@@ -63,7 +63,7 @@ fn vendored_library_files() -> Vec<(String, Vec<u8>)> {
 /// Fail-closed option mapping over exactly the witness floor plus the
 /// per-family overrides (packet §8.1's named extension set); an
 /// unexpected key is a hard failure, never a silent default.
-fn case_compiler_options(serialized: &Value) -> CompilerOptions {
+pub(crate) fn case_compiler_options(serialized: &Value) -> CompilerOptions {
     let map = serialized.as_object().expect("serialized options object");
     let mut options = CompilerOptions::default();
     for (key, value) in map {
@@ -96,13 +96,25 @@ fn case_compiler_options(serialized: &Value) -> CompilerOptions {
             "downlevelIteration" => {
                 options.downlevel_iteration = Some(value.as_bool().expect("downlevelIteration"));
             }
+            // The boundary-controls family (m-3 emit gate): H2.6b-owned
+            // options mapped so the production refusal rows can fire.
+            "sourceRoot" => {
+                options.source_root = Some(value.as_str().expect("sourceRoot").to_owned());
+            }
+            "mapRoot" => options.map_root = Some(value.as_str().expect("mapRoot").to_owned()),
+            "inlineSourceMap" => {
+                options.inline_source_map = Some(value.as_bool().expect("inlineSourceMap"));
+            }
+            "inlineSources" => {
+                options.inline_sources = Some(value.as_bool().expect("inlineSources"));
+            }
             other => panic!("unexpected stored compiler option {other}"),
         }
     }
     options
 }
 
-fn write_entry<'a>(observation: &'a Value, suffix: &str) -> Option<&'a Value> {
+pub(crate) fn write_entry<'a>(observation: &'a Value, suffix: &str) -> Option<&'a Value> {
     observation["writes"]
         .as_array()
         .expect("writes array")
@@ -148,7 +160,15 @@ struct ReplayOutcome {
     map_json: String,
 }
 
-fn drive_case(case_id: &str, case: &Value, library_files: &[(String, Vec<u8>)]) -> ReplayOutcome {
+/// Build the case's program exactly as the oracle host did: memory
+/// host at `/project`, identity-checked inputs, the vendored library
+/// inventory, the case's mapped options (shared with the m-3 emit
+/// witness contract).
+pub(crate) fn prepare_case_program(
+    case_id: &str,
+    case: &Value,
+    library_files: &[(String, Vec<u8>)],
+) -> tsc_program::PreparedProgram {
     let input = &case["input"];
     assert_eq!(
         input["current_directory"].as_str(),
@@ -178,7 +198,7 @@ fn drive_case(case_id: &str, case: &Value, library_files: &[(String, Vec<u8>)]) 
         .map(|root| PathBuf::from(root.as_str().expect("root path")))
         .collect::<Vec<_>>();
     let options = case_compiler_options(&input["compiler_options"]);
-    let prepared = load_emitting_program(
+    load_emitting_program(
         &host,
         &roots,
         options,
@@ -186,8 +206,11 @@ fn drive_case(case_id: &str, case: &Value, library_files: &[(String, Vec<u8>)]) 
         &catalog,
         ProgramLoadLimits::new(256, 2_048, 64, 16 * 1_024 * 1_024, 128 * 1_024 * 1_024),
     )
-    .unwrap_or_else(|error| panic!("{case_id}: program load failed: {error:?}"));
+    .unwrap_or_else(|error| panic!("{case_id}: program load failed: {error:?}"))
+}
 
+fn drive_case(case_id: &str, case: &Value, library_files: &[(String, Vec<u8>)]) -> ReplayOutcome {
+    let prepared = prepare_case_program(case_id, case, library_files);
     let observation = &case["observation"];
     let js_path = write_entry(observation, ".js").expect("js write")["path"]
         .as_str()
@@ -331,7 +354,7 @@ fn every_parity_witness_map_reproduces_through_the_production_pipeline() {
     }
     if std::env::var("M2_CASE").is_err() {
         assert_eq!(
-            replayed, 23,
+            replayed, 25,
             "parity replay census changed (parse-error is H2.9-deferred)"
         );
     }
@@ -361,6 +384,7 @@ fn mapless_controls_print_identically_without_recording() {
     for case_id in [
         "plain-program--adjacent-negative-nomap",
         "edge-shapes--adjacent-negative-shebang-nomap",
+        "token-surface--adjacent-negative-switch-nomap",
     ] {
         let case = artifact["families"]
             .as_array()

@@ -25,11 +25,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-6a-witnesses.mjs",
-    "sha256": "60a170554666d639f42ff868b9b158ebe8666ac54c137c07858000d5de4f5999"
+    "sha256": "b2314568ef562c80fd2a78ae77fa436d1c7d54d22bf9d9af2b913cb72124cbfa"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-6a-witnesses.schema.json",
-    "sha256": "3e2e152bb2613cb263ae342b1b55cf6064eaaf81849f8cd5bd93737f0c8eb3cd"
+    "sha256": "8deb2c877349ac054fb25aeac4a9bd2214489a23fa69a868679ab0674d5b6824"
   },
   "lineage": {
     "packet": "docs/design/greenfield/slices/h2-6a.md",
@@ -2669,6 +2669,264 @@
       "family_fingerprint_sha256": "5d59f7c852457413f1a63a4ee8ed337629e82ffe486701413510370408183748"
     },
     {
+      "family_id": "token-surface",
+      "rust_boundary": false,
+      "description": "m-3 witness extension (m-2 review F9 residue): the remaining upstream writeToken map sites — switch case-block braces, BOTH single-statement clause-colon polarities (same-line inline statement vs indented list), and the debugger keyword; MetaProperty stays deferred to the ca-1 burn-down",
+      "cases": [
+        {
+          "case_id": "token-surface--positive-switch-colons",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "switch with one same-line single-statement clause, one next-line clause list, and a same-line default: case-block braces plus both clause-colon polarities",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKZGVjbGFyZSBjb25zdCBwaWNrOiBudW1iZXI7CnN3aXRjaCAocGljaykgewogICAgY2FzZSAwOiBzaW5rKCJ6ZXJvIik7CiAgICBjYXNlIDE6CiAgICAgICAgc2luaygib25lIik7CiAgICAgICAgYnJlYWs7CiAgICBkZWZhdWx0OiBzaW5rKCJyZXN0Iik7Cn0Kc2luayhwaWNrKTsK",
+                "utf8_sha256": "37a811caba9dc06d75a4d0bb3d166dfac47dad4299dfb3618328af6591b0959b",
+                "utf8_bytes": 204
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBRUEsUUFBUSxJQUFJLEVBQUUsQ0FBQztJQUNYLEtBQUssQ0FBQyxDQUFDLENBQUMsSUFBSSxDQUFDLE1BQU0sQ0FBQyxDQUFDO0lBQ3JCLEtBQUssQ0FBQztRQUNGLElBQUksQ0FBQyxLQUFLLENBQUMsQ0FBQztRQUNaLE1BQU07SUFDVixPQUFPLENBQUMsQ0FBQyxJQUFJLENBQUMsTUFBTSxDQUFDLENBQUM7QUFDMUIsQ0FBQztBQUNELElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQyJ9",
+                "callback_utf8_sha256": "d4fab71af4a74f4c330b89acb5d9fd0c114d76caa3d8fb2d4a97d48045362079",
+                "callback_utf8_bytes": 312,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "d4fab71af4a74f4c330b89acb5d9fd0c114d76caa3d8fb2d4a97d48045362079",
+                "materialized_utf8_bytes": 312,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpzd2l0Y2ggKHBpY2spIHsKICAgIGNhc2UgMDogc2luaygiemVybyIpOwogICAgY2FzZSAxOgogICAgICAgIHNpbmsoIm9uZSIpOwogICAgICAgIGJyZWFrOwogICAgZGVmYXVsdDogc2luaygicmVzdCIpOwp9CnNpbmsocGljayk7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWlucHV0LmpzLm1hcA==",
+                "callback_utf8_sha256": "2227aa1411d0126994ae1bf6ec3861bd858e2f71af774ced4bf23425b2ae273e",
+                "callback_utf8_bytes": 178,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "2227aa1411d0126994ae1bf6ec3861bd858e2f71af774ced4bf23425b2ae273e",
+                "materialized_utf8_bytes": 178,
+                "data_present": true,
+                "data_source_map_url_pos": 145,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AAEA,QAAQ,IAAI,EAAE,CAAC;IACX,KAAK,CAAC,CAAC,CAAC,IAAI,CAAC,MAAM,CAAC,CAAC;IACrB,KAAK,CAAC;QACF,IAAI,CAAC,KAAK,CAAC,CAAC;QACZ,MAAM;IACV,OAAO,CAAC,CAAC,IAAI,CAAC,MAAM,CAAC,CAAC;AAC1B,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "68db93d4376aa9c9f2d889913f715553a20e0c8c4acecfe0fe3bcc8005217ad7"
+          },
+          "case_fingerprint_sha256": "a90ceebe536972fea29b191e948c0e44036189e37302e7be369dd407fb8979ba"
+        },
+        {
+          "case_id": "token-surface--positive-debugger",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "debugger statement inside a function body: the debugger keyword token record between plain statement boundaries",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKZnVuY3Rpb24gcHJvYmUoKTogbnVtYmVyIHsKICAgIGRlYnVnZ2VyOwogICAgcmV0dXJuIDc7Cn0Kc2luayhwcm9iZSgpKTsK",
+                "utf8_sha256": "a654bc7f54430c39a7412db6c7b3dee30e315a8445349d89171ea78fa26a9fcb",
+                "utf8_bytes": 117
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsU0FBUyxLQUFLO0lBQ1YsUUFBUSxDQUFDO0lBQ1QsT0FBTyxDQUFDLENBQUM7QUFDYixDQUFDO0FBQ0QsSUFBSSxDQUFDLEtBQUssRUFBRSxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "3ea9b5ebff005fd8bdf37f4a52d7eb5333dd2365c4942afc85a3b53ed1bb5e4b",
+                "callback_utf8_bytes": 190,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "3ea9b5ebff005fd8bdf37f4a52d7eb5333dd2365c4942afc85a3b53ed1bb5e4b",
+                "materialized_utf8_bytes": 190,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpmdW5jdGlvbiBwcm9iZSgpIHsKICAgIGRlYnVnZ2VyOwogICAgcmV0dXJuIDc7Cn0Kc2luayhwcm9iZSgpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "71dd811925d3af1640c899b0f279ffb6866fe0143533a4c03d83bec36ed6bc82",
+                "callback_utf8_bytes": 111,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "71dd811925d3af1640c899b0f279ffb6866fe0143533a4c03d83bec36ed6bc82",
+                "materialized_utf8_bytes": 111,
+                "data_present": true,
+                "data_source_map_url_pos": 78,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,SAAS,KAAK;IACV,QAAQ,CAAC;IACT,OAAO,CAAC,CAAC;AACb,CAAC;AACD,IAAI,CAAC,KAAK,EAAE,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "96e4234067e693ba1f276b523942d1d0496d932e46b66025d8d50d86fff87e0b"
+          },
+          "case_fingerprint_sha256": "a363689bdcb965e02b07ef98ec93d975e8b060b9cbe6ac54a41a81a83104a962"
+        },
+        {
+          "case_id": "token-surface--adjacent-negative-switch-nomap",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "identical switch program without sourceMap: single write, no URL comment, no sourceMaps result",
+          "option_overrides": {
+            "sourceMap": false
+          },
+          "expected_reported_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKZGVjbGFyZSBjb25zdCBwaWNrOiBudW1iZXI7CnN3aXRjaCAocGljaykgewogICAgY2FzZSAwOiBzaW5rKCJ6ZXJvIik7CiAgICBjYXNlIDE6CiAgICAgICAgc2luaygib25lIik7CiAgICAgICAgYnJlYWs7CiAgICBkZWZhdWx0OiBzaW5rKCJyZXN0Iik7Cn0Kc2luayhwaWNrKTsK",
+                "utf8_sha256": "37a811caba9dc06d75a4d0bb3d166dfac47dad4299dfb3618328af6591b0959b",
+                "utf8_bytes": 204
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpzd2l0Y2ggKHBpY2spIHsKICAgIGNhc2UgMDogc2luaygiemVybyIpOwogICAgY2FzZSAxOgogICAgICAgIHNpbmsoIm9uZSIpOwogICAgICAgIGJyZWFrOwogICAgZGVmYXVsdDogc2luaygicmVzdCIpOwp9CnNpbmsocGljayk7Cg==",
+                "callback_utf8_sha256": "c00d47dae0c1b0d5cbfc7ba4159b2b8c3a393f212076280eb56418283142cf6a",
+                "callback_utf8_bytes": 145,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "c00d47dae0c1b0d5cbfc7ba4159b2b8c3a393f212076280eb56418283142cf6a",
+                "materialized_utf8_bytes": 145,
+                "data_present": true,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": null,
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "0ff1930726768a4e0ba8331f6fe45f08be0908b33ed96572936dace5d27552a6"
+          },
+          "case_fingerprint_sha256": "72e90857588f7acd384005c40a3ef99ba8eef7d1d1b62b6e26f57b7cbf1176b6"
+        }
+      ],
+      "family_fingerprint_sha256": "a19928690e22453a36ade2405cb85d926e3ab637bead92e76a69922445752eb5"
+    },
+    {
       "family_id": "boundary-controls",
       "rust_boundary": true,
       "description": "H2.6b-owned option shapes frozen as inheritance: Rust keeps the typed emit refusal for every case in this family until H2.6b, and these oracle bytes are that slice's starting expectations",
@@ -3118,13 +3376,13 @@
     }
   ],
   "summary": {
-    "families": 9,
-    "cases": 33,
-    "positive_cases": 14,
-    "adjacent_negative_controls": 12,
+    "families": 10,
+    "cases": 36,
+    "positive_cases": 16,
+    "adjacent_negative_controls": 13,
     "composition_cases": 4,
     "fault_cases": 3,
-    "parity_cases": 28,
+    "parity_cases": 31,
     "refusal_control_cases": 5,
     "composition_facets_covered": [
       "destructuring",
@@ -3136,9 +3394,9 @@
       "multi-unit",
       "spread"
     ],
-    "typescript_oracle_runs": 66,
+    "typescript_oracle_runs": 72,
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "witnesses_fingerprint_sha256": "ba4ad65e626e3c24ede74207c647da6e130bb0bbabf91bc8ef3be58cdb8c53ee"
+  "witnesses_fingerprint_sha256": "580c9f8ca47a5462845b919203195117cbc2d664cf13c65c5d46983bf48183f7"
 }

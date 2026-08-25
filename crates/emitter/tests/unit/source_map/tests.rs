@@ -271,8 +271,8 @@ fn witness_replays_are_byte_equal() {
         }
     }
     assert_eq!(
-        replayed, 25,
-        "replay census changed (24 parity maps + 1 control)"
+        replayed, 27,
+        "replay census changed (26 parity maps + 1 control; token-surface joined at m-3)"
     );
 }
 
