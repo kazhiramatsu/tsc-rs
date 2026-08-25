@@ -105,6 +105,28 @@ commit:
   H2.6a's landing; its H2.6a rows stay listed with their own
   dispositions).
 
+## 4-A. Implementation-time amendments (2026-08-25)
+
+1. **The settings floor was the missing delta.** The shared
+   recorded-plan/qualified-VFS projection
+   (`crates/harness/src/upstream_suites/execution.rs`
+   `apply_compiler_setting`) silently DROPS `sourcemap` — correct for
+   the frozen 5g/5h bands (mapless on both sides: the 15 sourceMap-
+   carrying 5h rows are exact precisely because both lanes dropped it)
+   but fatal for H2.6a (the ca-1 oracle observed WITH maps). The first
+   sweep proved it as 175 uniform write/emit-result facets — a
+   compare-infrastructure artifact, not divergence; that manifest was
+   discarded, not adopted. Fix: `EmitOptionFloor
+   { Established, SourceMap }` threaded through the projection chain
+   with floor-suffixed public variants; existing entry points keep the
+   Established floor byte-for-byte, and ONLY the 6a lane's prepare
+   passes `SourceMap`. Every other map-family option stays dropped on
+   both floors until its owning slice admits it.
+2. **The four-outcome join is shared with a slice label**
+   (`h2_slice_ratchet_join`); the 5h wrapper delegates with its own
+   label, so 6a failures name H2.6a instead of H2.5h. Otherwise the
+   join is byte-identical to the CA-4 form.
+
 ## 5. Close markers
 
 The handoff close markers land here and in the slices index README row

@@ -1,0 +1,365 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/contextualTyping.ts#default",
+      "owner": "h2-6a-r1-ts-lowering-declaration-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/derivedClassConstructorWithExplicitReturns01.ts#target%3Des5",
+      "owner": "h2-6a-r4-class-decorator-corners",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifier.ts#default",
+      "owner": "h2-6a-r2-jsx-factory-names",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifierAsParameter.ts#default",
+      "owner": "h2-6a-r2-jsx-factory-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifierWithAbsentParameter.ts#default",
+      "owner": "h2-6a-r2-jsx-factory-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryQualifiedName.ts#default",
+      "owner": "h2-6a-r2-jsx-factory-names",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryQualifiedNameResolutionError.ts#default",
+      "owner": "h2-6a-r2-jsx-factory-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSources.ts#default",
+      "owner": "h2-6a-r7-b6-option-inheritance",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesMapRoot.ts#default",
+      "owner": "h2-6a-r7-b6-option-inheritance",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsSourcemapInlineSourcesSourceRoot.ts#default",
+      "owner": "h2-6a-r7-b6-option-inheritance",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/recursiveClassReferenceTest.ts#default",
+      "owner": "h2-6a-r4-class-decorator-corners",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comments.ts#target%3Des2015",
+      "owner": "h2-6a-r5-comment-literal-token-order",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comments.ts#target%3Des5",
+      "owner": "h2-6a-r5-comment-literal-token-order",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-FileWithComments.ts#default",
+      "owner": "h2-6a-r5-comment-literal-token-order",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des2015",
+      "owner": "h2-6a-r5-comment-literal-token-order",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des5",
+      "owner": "h2-6a-r5-comment-literal-token-order",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapForFunctionInInternalModuleWithCommentPrecedingStatement01.ts#default",
+      "owner": "h2-6a-r1-ts-lowering-declaration-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapSample.ts#default",
+      "owner": "h2-6a-r1-ts-lowering-declaration-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des2015",
+      "owner": "h2-6a-r4-class-decorator-corners",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des5",
+      "owner": "h2-6a-r4-class-decorator-corners",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClasses.ts#default",
+      "owner": "h2-6a-r4-class-decorator-corners",
+      "writes_diverging": 3,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDecorators.ts#target%3Des2015",
+      "owner": "h2-6a-r4-class-decorator-corners",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDecorators.ts#target%3Des5",
+      "owner": "h2-6a-r4-class-decorator-corners",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des2015",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPattern.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPatternDefaultValues.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPattern.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPatternDefaultValues.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterNestedObjectBindingPatternDefaultValues.ts#default",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterObjectBindingPatternDefaultValues.ts#default",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues.ts#target%3Des2015",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues2.ts#target%3Des2015",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationEnums.ts#default",
+      "owner": "h2-6a-r1-ts-lowering-declaration-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationImport.ts#default",
+      "owner": "h2-6a-r1-ts-lowering-declaration-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationModule.ts#default",
+      "owner": "h2-6a-r1-ts-lowering-declaration-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationSwitch.ts#default",
+      "owner": "h2-6a-r5-comment-literal-token-order",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourcemapValidationDuplicateNames.ts#default",
+      "owner": "h2-6a-r1-ts-lowering-declaration-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/typeResolution.ts#default",
+      "owner": "h2-6a-r1-ts-lowering-declaration-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames01.ts#target%3Des5",
+      "owner": "h2-6a-r5-comment-literal-token-order",
+      "writes_diverging": 20,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsx/tsxEmit3.tsx#default",
+      "owner": "h2-6a-r2-jsx-factory-names",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of26.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of34.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of35.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of36.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of8.ts#target%3Des5",
+      "owner": "h2-6a-r3-destructuring-binding-ranges",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    }
+  ]
+}

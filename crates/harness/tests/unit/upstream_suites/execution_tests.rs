@@ -22,6 +22,7 @@ fn check_js_computes_allow_js_only_when_allow_js_is_absent() {
                 .iter()
                 .map(|(name, value)| (name.as_str(), value.as_str())),
             false,
+            EmitOptionFloor::Established,
         )
         .expect("project effective allowJs");
         assert_eq!(compiler_options.allow_js, expected);
@@ -38,6 +39,7 @@ fn qualified_emit_projects_remove_comments_into_compiler_options() {
         "/.src",
         "removeComments",
         "true",
+        EmitOptionFloor::Established,
     )
     .expect("removeComments is an admitted emit option");
 
@@ -54,6 +56,7 @@ fn compiler_fixture_projects_lowercase_newline_directive() {
         "/.src",
         "newline",
         "LF",
+        EmitOptionFloor::Established,
     )
     .expect("compiler directives accept the upstream lowercase spelling");
 
@@ -70,6 +73,7 @@ fn compiler_plan_projects_erasable_syntax_only_into_checker_options() {
         "/.src",
         "erasableSyntaxOnly",
         "true",
+        EmitOptionFloor::Established,
     )
     .expect("erasableSyntaxOnly is an admitted checker option");
 
@@ -92,6 +96,7 @@ fn compiler_plan_retains_isolated_declaration_dependencies() {
             "/.src",
             name,
             value,
+            EmitOptionFloor::Established,
         )
         .unwrap_or_else(|setting_error| panic!("failed to project {name}: {setting_error}"));
     }
@@ -112,6 +117,7 @@ fn compiler_boolean_directives_preserve_non_true_lexemes_as_false() {
         "/.src",
         "declaration",
         "true;",
+        EmitOptionFloor::Established,
     )
     .expect("the upstream harness accepts every boolean directive lexeme");
 
@@ -131,6 +137,7 @@ fn relative_path_exact_case_resolves_mixed_case_module_resolution_key() {
         "/.src",
         "ModuleResolution",
         "classic",
+        EmitOptionFloor::Established,
     )
     .expect("relativePathToDeclarationFile admits its exact fixture spelling");
 
@@ -147,6 +154,7 @@ fn compiler_option_lookup_canonicalizes_ascii_case_once() {
         "/.src",
         "mOdUlErEsOlUtIoN",
         "bundler",
+        EmitOptionFloor::Established,
     )
     .expect("known compiler options use canonical ASCII keys");
 
@@ -163,6 +171,7 @@ fn compiler_plan_projects_ordered_custom_conditions() {
         "/.src",
         "customConditions",
         "webpack, browser",
+        EmitOptionFloor::Established,
     )
     .expect("customConditions is a typed module-resolution option");
 
@@ -199,6 +208,7 @@ fn jsdoc_exact_cases_accept_suppress_output_path_check_as_baseline_metadata() {
             "/.src",
             "suppressOutputPathCheck",
             "true",
+            EmitOptionFloor::Established,
         )
         .unwrap_or_else(|setting_error| {
             panic!("{case_id} rejects baseline metadata: {setting_error}")

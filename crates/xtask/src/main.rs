@@ -90,6 +90,7 @@ fn main() {
         Some("h2-5f-owner-controls") => run_or_exit(h2_5f_owner_controls(args)),
         Some("h2-5g-acceptance") => run_or_exit(h2_5g_acceptance(args)),
         Some("h2-5h-acceptance") => run_or_exit(h2_5h_acceptance(args)),
+        Some("h2-6a-acceptance") => run_or_exit(h2_6a_acceptance(args)),
         Some("h2-5g-probe") => run_or_exit(h2_5g_probe(args)),
         Some("h2-5g-inventory") => run_or_exit(h2_5g_inventory(args)),
         Some("h2-5g-owner-controls") => run_or_exit(h2_5g_owner_controls(args)),
@@ -4379,7 +4380,8 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_2c_acceptance::run_h2_5e(&workspace)?;
     h2_2c_acceptance::run_h2_5f(&workspace)?;
     h2_2c_acceptance::run_h2_5g(&workspace)?;
-    h2_2c_acceptance::run_h2_5h(&workspace)
+    h2_2c_acceptance::run_h2_5h(&workspace)?;
+    h2_2c_acceptance::run_h2_6a(&workspace)
 }
 
 fn h2_5a_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -4495,6 +4497,14 @@ fn h2_5h_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dy
     // Owner controls for the H2.5h band defer to the residual packets
     // (CA-4 packet §5.4's recorded deviation).
     h2_2c_acceptance::run_h2_5h(&workspace)
+}
+
+fn h2_6a_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected h2-6a-acceptance argument: {argument}").into());
+    }
+    let workspace = find_workspace_root()?;
+    h2_2c_acceptance::run_h2_6a(&workspace)
 }
 
 fn h2_5g_probe(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7717,6 +7727,13 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
         || ci_h2_5h_oracle_gates(&workspace),
     )?;
     resume.run_phase(
+        "h2-6a-oracle",
+        local_ci_resume::InputScope::NodeRuntimeOracle,
+        "",
+        &[],
+        || ci_h2_6a_oracle_gates(&workspace),
+    )?;
+    resume.run_phase(
         "h2-owner-controls",
         local_ci_resume::InputScope::Verification,
         "",
@@ -8745,6 +8762,21 @@ fn ci_h2_5h_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .current_dir(workspace)
             .arg("crates/oracle/h2-5h-qualification.mjs")
+            .arg("--check"),
+    )
+}
+
+fn ci_h2_6a_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("--check")
+            .arg("crates/oracle/h2-6a-qualification.mjs"),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("crates/oracle/h2-6a-qualification.mjs")
             .arg("--check"),
     )
 }

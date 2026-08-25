@@ -12153,12 +12153,16 @@ impl Es2015Visitor<'_, '_, '_> {
             .visit_statement_lifted(statement)?
             .ok_or(assembly_kind_error(SyntaxKind::ForOfStatement, "body"))?;
         if self.kind(visited_statement)? == SyntaxKind::Block {
-            let inner = {
+            let (inner, inner_location) = {
                 let NodeData::Block(data) = &self.context.arena().node(visited_statement)?.data
                 else {
                     return Err(assembly_kind_error(SyntaxKind::Block, "for-of body"));
                 };
-                self.array_nodes(data.statements)?
+                (
+                    self.array_nodes(data.statements)?,
+                    data.statements
+                        .map(|statements| (visited_statement.source(), statements)),
+                )
             };
             let mut combined = statements;
             combined.extend(inner);
@@ -12172,9 +12176,15 @@ impl Es2015Visitor<'_, '_, '_> {
                 statements: Some(array.array()),
             });
             let flags = flags_after_update(self.context.arena(), visited_statement, &updated_data)?;
-            self.context
-                .factory()?
-                .update_node(visited_statement, updated_data, flags)
+            let updated =
+                self.context
+                    .factory()?
+                    .update_node(visited_statement, updated_data, flags)?;
+            // setTextRange(createNodeArray(concatenate(...)), statement.statements)
+            // — the merged array takes the ORIGINAL body statements-array
+            // range (the loop-body close-brace map anchor, band burn-down).
+            self.set_block_statements_range_to_array(updated, inner_location)?;
+            Ok(updated)
         } else {
             statements.push(visited_statement);
             self.create_synthetic_block_for_converted_statements(statements)
@@ -12241,6 +12251,12 @@ impl Es2015Visitor<'_, '_, '_> {
         let zero = self.create_numeric_literal("0")?;
         let counter_declaration =
             self.create_variable_declaration_plain(counter_init, Some(zero))?;
+        // setTextRange(counterDeclaration, moveRangePos(node.expression, -1))
+        // — an END-only range upstream (pos stays -1): the h2-6a one-sided
+        // encoding keeps the full range and suppresses the leading side
+        // (band burn-down: the ES5For-of family's missing After record).
+        self.set_text_range(counter_declaration, expression)?;
+        self.add_emit_flags(counter_declaration, EmitFlags::NO_LEADING_SOURCE_MAP)?;
         let rhs_declaration =
             self.create_variable_declaration_plain(rhs_reference, Some(visited_expression))?;
         self.set_text_range(rhs_declaration, expression)?;
