@@ -23,29 +23,29 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5h-a-foundation.mjs",
-    "sha256": "35285868728eaafe673b3c6f9babceda7406b1640e0d47044066ba5a6cc128a1"
+    "sha256": "de0c62ee7c3fd0ce586609b1bb3b7c490b4069144756254a81c4efd490850ff7"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-foundation.schema.json",
-    "sha256": "a948e60200c295194edbda931f9dae260c6b30738217b49ca34f535aa89de53a"
+    "sha256": "7a9ea3f1d614efea795b7b5d47e7817ec5c94ac6a631794e5b078baa20f2475a"
   },
   "lineage": {
     "state": "closed-h2-5g-parent",
     "parent_phase": "H2.5g",
     "parent_profile": {
       "path": "ratchets/h2-5g-profile.v1.json",
-      "sha256": "9abdc3b23403c42b397075bb183d541617787c6de0814a9c2651d972764d424e"
+      "sha256": "706b8af6ddef0ea1a3a41ae59222f62b7a6ea2aef705df43dce9427db8a94ae3"
     },
     "interpretation": "H2.5h-a freezes candidate identity and semantic controls without activating either H2.5h production transformer"
   },
   "inputs": {
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "cdb0ee22f58ff9409487b74c9b03560df50390b4d2ee1f49483aed44a6e10a3c"
+      "sha256": "5ed5c276ffce45fde24d73721d7e3e8ea40495cd151b261569763a565eaca8a8"
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "83dc6fe825ff7f053c899903ea582f3959896461758fb5ec9f2b30d8c0e1aa76"
+      "sha256": "e740138c7dcd4f7b55bc91f66747f8b2620e65bfeeff7077482df51d344a753e"
     }
   },
   "selection_contract": {
@@ -233,7 +233,7 @@
     "candidate_execution_state": "not-run",
     "candidate_typescript_runs": 0,
     "rust_runs": 0,
-    "parent_completed_runtime_slices": 22,
+    "parent_completed_runtime_slices": 23,
     "runtime_admissions_before": 9196,
     "runtime_admissions_after": 9196,
     "runtime_admissions_delta": 0,
@@ -21299,5 +21299,5 @@
     "unexecuted_candidates": 932,
     "undispositioned_candidates": 0
   },
-  "foundation_fingerprint_sha256": "1663c099d79a1748fff8a92dd87760ea6c74facb82daf3b78b315bab412b68f3"
+  "foundation_fingerprint_sha256": "55acdd33562b663a3624881d89d1b70033335ba672cd77ffee0ac7b32ae9527c"
 }

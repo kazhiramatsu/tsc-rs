@@ -348,7 +348,7 @@
               { "$ref": "#/$defs/runtime_contract" },
               {
                 "properties": {
-                  "parent_completed_runtime_slices": { "const": 22 },
+                  "parent_completed_runtime_slices": { "const": 23 },
                   "runtime_admissions_before": { "const": 9196 },
                   "runtime_admissions_after": { "const": 9196 },
                   "executed_candidates_before": { "const": 9715 },
@@ -640,8 +640,8 @@
         "rust_runs": { "const": 0 },
         "parent_completed_runtime_slices": {
           "type": ["integer", "null"],
-          "minimum": 22,
-          "maximum": 22
+          "minimum": 23,
+          "maximum": 23
         },
         "runtime_admissions_before": {
           "type": ["integer", "null"],

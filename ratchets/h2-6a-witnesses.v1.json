@@ -29,7 +29,7 @@
   },
   "contract": {
     "path": ".github/ci/contracts/h2-6a-witnesses.schema.json",
-    "sha256": "8deb2c877349ac054fb25aeac4a9bd2214489a23fa69a868679ab0674d5b6824"
+    "sha256": "e771a26a176c13e6f7b7070ca43c9e90fba5cc3b3a9582f5a047b327b3cade76"
   },
   "lineage": {
     "packet": "docs/design/greenfield/slices/h2-6a.md",
@@ -3398,5 +3398,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "witnesses_fingerprint_sha256": "580c9f8ca47a5462845b919203195117cbc2d664cf13c65c5d46983bf48183f7"
+  "witnesses_fingerprint_sha256": "9ef21d9f5434a13c29d9dacde449000696bfe56b5d3e7f2247287eeb543ce2f2"
 }

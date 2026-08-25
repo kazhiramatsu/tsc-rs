@@ -1293,21 +1293,26 @@ function loadParentProfile(requireParent) {
       parent.status === "qualified" &&
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
-      // The CA-4 landing rewrote the live transition block: H2.5h is
-      // ACTIVE, the ladder points at H2.6a, and the es2015/generators
-      // owners carry the divergence-ratchet completion state
-      // (CA-4 packet §5.6; the pre-landing values are history).
-      parent.transition.next_slice === "H2.6a" &&
+      // The H2.6a ca-2 landing rewrote the live transition block again:
+      // H2.6a is ACTIVE, the ladder points at H2.6b, and the source-map
+      // adoption fields ride the h2_6a_* block (h2-6a-ca-2 packet §4;
+      // the CA-4-era values are history).
+      parent.transition.next_slice === "H2.6b" &&
       parent.transition.next_slice_scope ===
-        "exact-map-json-and-callback-metadata" &&
-      parent.transition.next_runtime_activation_slice === "H2.6a" &&
+        "inline-maps-sources-roots-and-multi-source-ranges" &&
+      parent.transition.next_runtime_activation_slice === "H2.6b" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h"]) &&
+        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h", "H2.6a"]) &&
       parent.transition.target_es2015_transform_owner ===
         "complete-with-h2-5h-divergence-ratchet" &&
       parent.transition.target_generators_transform_owner ===
         "complete-with-h2-5h-divergence-ratchet" &&
-      parent.summary.completed_runtime_slices === 22 &&
+      parent.transition.h2_6a_candidate_cases === 177 &&
+      parent.transition.h2_6a_admitted_cases === 175 &&
+      parent.transition.h2_6a_exact_cases === 130 &&
+      parent.transition.h2_6a_known_divergences === 45 &&
+      parent.transition.h2_6a_source_deferred_cases === 2 &&
+      parent.summary.completed_runtime_slices === 23 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
       // 9,191 at the H2.5g candidate plus the five reviewed H2.1a exact
       // promotions recorded in the closed profile's
