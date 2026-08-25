@@ -1,17 +1,16 @@
 {
   "schemaVersion": 1,
   "packetId": "h2-6a-ca-1",
-  "status": "draft",
-  "draftNote": "Authored on h2/6a-ca-prep (worktree). The train finalizes: trustedBase, packet sha256, the h2-6a-m-3 predecessor receipt (its envelope file hash at merge), bootstrap allowedPacketIds registration, and status ready.",
+  "status": "ready",
   "trustedBase": "1ccfc0cee3047cf3d507a85ad8e78ef153985083",
   "packet": {
     "path": "docs/design/greenfield/slices/h2-6a-ca-1.md",
-    "sha256": "re-pinned-on-the-train"
+    "sha256": "b2350857c2803856b1d04cf8ec06f1616cdd82c0c065dd9060bc570fba68fe3d"
   },
   "predecessors": [
     {
       "packetId": "h2-6a-m-3",
-      "receiptSha256": "re-pinned-on-the-train"
+      "receiptSha256": "11d0494252516de0e9e17b2daa6de9054364e6fb417062ea8ff4664b3210b7bf"
     }
   ],
   "allowedPaths": [

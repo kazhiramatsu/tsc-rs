@@ -93,6 +93,10 @@ const HISTORICAL_AUTHORITIES = Object.freeze([
 // this append-only set is every non-oracle crate path changed from the trusted
 // H2.5f merge that was not already part of the parent profile.
 const NEW_RUNTIME_INPUTS = Object.freeze([
+  // h2-6a-m-3: the runtime flip touched the emit error/outcome surfaces
+  // (SourceMapRecordingUnavailable, the SourceMapObservation producer).
+  "crates/emitter/src/error.rs",
+  "crates/emitter/src/outcome.rs",
   "crates/checker/Cargo.toml",
   "crates/checker/src/access.rs",
   "crates/checker/src/check.rs",
@@ -309,6 +313,9 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   // witnesses through the harness print bridge; not read by the fixed
   // H2.5g acceptance command (the CA-4 discovery (a) pattern).
   "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+  // h2-6a m-3/ca-2 gate evidence and burn-down tooling: same pattern.
+  "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
+  "crates/compiler/tests/integration/source_map_band_probe.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit
   // runtime (emit acceptance routes through the harness emit drivers,
@@ -567,7 +574,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 257,
+    runtimeInputSet.size === 259,
     "H2.5g runtime input identity changed",
   );
 
