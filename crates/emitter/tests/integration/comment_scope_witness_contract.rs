@@ -15,12 +15,12 @@ use serde_json::Value;
 use std::path::Path;
 
 use tsc_emitter::{
-    create_printer, get_script_transformers_for_source, transform_nodes, DisabledSourceMapRecorder,
-    EmitConstantValue, EmitEnumMemberValue, EmitFlags, EmitHost, EmitResolver, EmitResolverError,
-    EmitResolverNode, EmitSource, NewLineKind, PrintRequest, PrinterOptions, SourceFileId,
-    SourceFileTextMode, SourceRange, SyntheticComment, SyntheticCommentKind, TransformArena,
-    TransformError, TransformFlags, TransformNode, TransformRoot, TransformSourceId,
-    TransformationContext, Transformer,
+    create_printer, get_script_transformers_for_source, transform_nodes, EmitConstantValue,
+    EmitEnumMemberValue, EmitFlags, EmitHost, EmitResolver, EmitResolverError, EmitResolverNode,
+    EmitSource, NewLineKind, PrintRequest, PrinterOptions, SourceFileId, SourceFileTextMode,
+    SourceRange, SyntheticComment, SyntheticCommentKind, TransformArena, TransformError,
+    TransformFlags, TransformNode, TransformRoot, TransformSourceId, TransformationContext,
+    Transformer,
 };
 use tsc_syntax::{
     escape_leading_underscores,
@@ -564,11 +564,7 @@ fn drive_case(
             .with_remove_comments(remove_comments)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .unwrap_or_else(|error| panic!("{case_id}: print failed: {error:?}"))
     .text()
     .to_owned()

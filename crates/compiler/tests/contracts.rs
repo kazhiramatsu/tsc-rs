@@ -30,5 +30,7 @@ mod original_path_session_contract;
 mod preserve_symlinks_session_contract;
 #[path = "integration/program_session_contract.rs"]
 mod program_session_contract;
+#[path = "integration/source_map_recording_witness_contract.rs"]
+mod source_map_recording_witness_contract;
 #[path = "integration/upstream_no_emit_harness_contract.rs"]
 mod upstream_no_emit_harness_contract;

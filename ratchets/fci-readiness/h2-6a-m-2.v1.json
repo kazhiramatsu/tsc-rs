@@ -5,7 +5,7 @@
   "trustedBase": "1ccfc0cee3047cf3d507a85ad8e78ef153985083",
   "packet": {
     "path": "docs/design/greenfield/slices/h2-6a-m-2.md",
-    "sha256": "6993cc2524293590400af04a0f7adbfae01a2e19ce5ae606fcae5ab521e20469"
+    "sha256": "f4aaf50d0217da57de063b4442a8e3330e63473286d31e8a1efd1c98dabac8ce"
   },
   "predecessors": [
     {
@@ -16,9 +16,14 @@
   "allowedPaths": [
     ".github/ci/contracts/h2-5g-profile.schema.json",
     "crates/checker/tests/unit/emit/tests.rs",
+    "crates/compiler/src/lib.rs",
     "crates/compiler/tests/contracts.rs",
     "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+    "crates/emitter/src/builtins.rs",
     "crates/emitter/src/builtins/es2015.rs",
+    "crates/emitter/src/builtins/es2017.rs",
+    "crates/emitter/src/builtins/es2018.rs",
+    "crates/emitter/src/builtins/generators.rs",
     "crates/emitter/src/execute.rs",
     "crates/emitter/src/lib.rs",
     "crates/emitter/src/printer.rs",
@@ -64,8 +69,9 @@
     ".github/ci/qualification.mjs",
     "crates/checker/src",
     "crates/checker/tests/integration",
-    "crates/compiler/src",
-    "crates/compiler/tests/unit"
+    "crates/compiler/tests/unit",
+    "crates/compiler/src/cli.rs",
+    "crates/compiler/src/config"
   ],
   "proof": {
     "commands": [

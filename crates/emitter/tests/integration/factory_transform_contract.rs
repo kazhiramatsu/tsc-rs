@@ -3,12 +3,12 @@ use std::rc::Rc;
 
 use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_emitter::{
-    create_printer, get_script_transformers, transform_nodes, CommentRange,
-    DisabledSourceMapRecorder, EmitFlags, EmitHelper, EmitHint, EmitResolverNode, JavaScriptString,
-    NewLineKind, PrintRequest, PrinterError, PrinterOptions, SourceByteRange, SourceFileId,
-    SourceFileTextMode, SourceRange, SyntheticComment, SyntheticCommentKind, TransformArena,
-    TransformError, TransformFlags, TransformNode, TransformRoot, TransformSourceId,
-    TransformationContext, TransformationState, Transformer, UnavailableEmitResolver,
+    create_printer, get_script_transformers, transform_nodes, CommentRange, EmitFlags, EmitHelper,
+    EmitHint, EmitResolverNode, JavaScriptString, NewLineKind, PrintRequest, PrinterError,
+    PrinterOptions, SourceByteRange, SourceFileId, SourceFileTextMode, SourceRange,
+    SyntheticComment, SyntheticCommentKind, TransformArena, TransformError, TransformFlags,
+    TransformNode, TransformRoot, TransformSourceId, TransformationContext, TransformationState,
+    Transformer, UnavailableEmitResolver,
 };
 use tsc_syntax::{
     for_each_child,
@@ -471,11 +471,7 @@ fn print_canonical_source(text: &str) -> String {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("canonical export-assignment print")
     .text()
     .to_owned()
@@ -683,11 +679,7 @@ fn print_with_synthetic_arrow_token(
             .with_remove_comments(remove_comments)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("synthetic arrow print")
     .text()
     .to_owned()
@@ -891,11 +883,7 @@ fn print_no_asi_partial_expression(
             .with_remove_comments(remove_comments)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("no-ASI partial-expression print")
     .text()
     .to_owned()
@@ -1053,11 +1041,7 @@ fn print_with_arrow_token_hook(mode: ArrowTokenHookMode) -> Result<String, Print
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )?;
+    .print(&mut result, PrintRequest::SourceFile(source), None)?;
     Ok(printed.text().to_owned())
 }
 
@@ -1216,11 +1200,7 @@ fn synthetic_export_assignments_cover_both_branches_and_an_absent_child() {
     )
     .expect("synthetic export-assignment transform");
     let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("synthetic export-assignment print")
         .text()
         .to_owned();
@@ -1302,11 +1282,7 @@ fn synthetic_throw_recovery_emits_an_empty_expression_slot() {
     )
     .expect("synthetic throw recovery transform");
     let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("synthetic throw recovery print")
         .text()
         .to_owned();
@@ -1532,11 +1508,7 @@ fn print_scope_topology(hooked: bool) -> String {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("scope hook print");
     printed.text().to_owned()
 }

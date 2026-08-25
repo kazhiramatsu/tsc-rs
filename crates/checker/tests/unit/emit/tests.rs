@@ -7,9 +7,8 @@ use tsc_binder::BinderWorker;
 use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_emitter::{
     create_printer, get_script_transformers, get_script_transformers_for_source, transform_nodes,
-    DisabledSourceMapRecorder, EmitHost, EmitResolverError, EmitResolverMethod, EmitResolverNode,
-    EmitSource, NewLineKind, PrintRequest, PrinterOptions, SourceFileId, TransformArena,
-    TransformRoot,
+    EmitHost, EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitSource, NewLineKind,
+    PrintRequest, PrinterOptions, SourceFileId, TransformArena, TransformRoot,
 };
 use tsc_syntax::{LanguageVariant, NodeId, ParseOptions, SyntaxKind};
 use tsc_types::{CompilerOptions, IdentityDomain, ModuleKind, ScriptTarget};
@@ -224,11 +223,7 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
         )
         .expect("transform with live checker resolver");
         create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-            .print(
-                &mut transformed,
-                PrintRequest::SourceFile(source),
-                &mut DisabledSourceMapRecorder,
-            )
+            .print(&mut transformed, PrintRequest::SourceFile(source), None)
             .expect("print while checker resolver remains live")
             .text()
             .to_owned()
@@ -352,11 +347,7 @@ fn classic_jsx_fragment_retains_only_the_fragment_factory_import() {
         )
         .expect("classic JSX transform");
         create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-            .print(
-                &mut transformed,
-                PrintRequest::SourceFile(source_id),
-                &mut DisabledSourceMapRecorder,
-            )
+            .print(&mut transformed, PrintRequest::SourceFile(source_id), None)
             .expect("classic JSX CommonJS print")
             .text()
             .to_owned()
@@ -464,11 +455,7 @@ fn null_jsx_fragment_factory_does_not_retain_the_ordinary_factory_import_or_its_
         )
         .expect("null JSX fragment transform");
         create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-            .print(
-                &mut transformed,
-                PrintRequest::SourceFile(source_id),
-                &mut DisabledSourceMapRecorder,
-            )
+            .print(&mut transformed, PrintRequest::SourceFile(source_id), None)
             .expect("print null JSX fragment")
             .text()
             .to_owned()

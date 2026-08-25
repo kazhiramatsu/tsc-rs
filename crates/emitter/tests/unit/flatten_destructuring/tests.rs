@@ -22,9 +22,9 @@ use super::{
     flatten_destructuring_assignment, flatten_destructuring_binding, FlattenHost, FlattenLevel,
 };
 use crate::{
-    create_printer, transform_nodes, DisabledSourceMapRecorder, EmitFlags, NewLineKind,
-    PrintRequest, PrinterOptions, TransformArena, TransformError, TransformFlags, TransformNode,
-    TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    create_printer, transform_nodes, EmitFlags, NewLineKind, PrintRequest, PrinterOptions,
+    TransformArena, TransformError, TransformFlags, TransformNode, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer,
 };
 
 struct FlattenProjectionTransformer {
@@ -466,11 +466,7 @@ fn project(source_text: &str, level: FlattenLevel, downlevel_iteration: bool) ->
     create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(tsc_types::ScriptTarget::ES5),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print flatten projection")
     .text()
     .to_owned()

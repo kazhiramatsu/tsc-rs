@@ -13,10 +13,10 @@
 //! only the deepest partially-emitted owner receives the synthetic parens.
 
 use tsc_emitter::{
-    create_printer, transform_nodes, CommentRange, DisabledSourceMapRecorder, NewLineKind,
-    PrintRequest, PrinterOptions, SourceByteRange, SourceFileTextMode, SourceRange,
-    SyntheticComment, SyntheticCommentKind, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    create_printer, transform_nodes, CommentRange, NewLineKind, PrintRequest, PrinterOptions,
+    SourceByteRange, SourceFileTextMode, SourceRange, SyntheticComment, SyntheticCommentKind,
+    TransformArena, TransformError, TransformFlags, TransformNode, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer,
 };
 use tsc_syntax::{
     nodes::{
@@ -940,11 +940,7 @@ fn print_fixture(fixture: TopologyFixture, remove_comments: bool) -> String {
             .with_remove_comments(remove_comments)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("source-comment topology print")
     .text()
     .to_owned()

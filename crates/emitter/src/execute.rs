@@ -3,11 +3,10 @@ use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::get_script_transformers_with_activity;
 use crate::{
-    create_printer, transform_nodes, DisabledSourceMapRecorder, EmitArtifact,
-    EmitContractViolation, EmitFailure, EmitHost, EmitOutcome, EmitPreflight, EmitResolver,
-    EmitRoot, EmitSelection, EmitTextMetadata, EmitWriteDisposition, H2ActivityCanary,
-    H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest, PrinterOptions, SourceFileTextMode,
-    TransformArena, TransformRoot,
+    create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
+    EmitOutcome, EmitPreflight, EmitResolver, EmitRoot, EmitSelection, EmitTextMetadata,
+    EmitWriteDisposition, H2ActivityCanary, H2RuntimeSlice, NewLineKind, OutputSink, PrintRequest,
+    PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot,
 };
 
 const MODULE_NONE: i32 = 0;
@@ -284,6 +283,76 @@ pub fn emit_files(
     )
 }
 
+/// h2-6a-m-2 §8-A.1 harness-print bridge: the production
+/// plan → transform → print pipeline of `emit_files_with_activity`
+/// WITHOUT artifacts, sinks, activity accounting, or the option
+/// preflight — the replay suite injects a `SourceMapRecordingInputs`
+/// per unit and byte-compares the returned text and generator against
+/// the frozen witnesses. No production caller exists; real emits keep
+/// every refusal lane.
+#[doc(hidden)]
+pub fn print_script_units_with_recording_for_harness(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    preflight: &EmitPreflight,
+    recording_inputs_for: &dyn Fn(&std::path::Path) -> Option<crate::SourceMapRecordingInputs>,
+) -> Result<Vec<(std::path::PathBuf, crate::PrintedText)>, EmitFailure> {
+    let options = host.compiler_options();
+    let new_line = match options.new_line {
+        Some(0) => NewLineKind::CarriageReturnLineFeed,
+        None | Some(1) => NewLineKind::LineFeed,
+        Some(_) => return unsupported("newLine"),
+    };
+    let mut printer = create_printer(
+        PrinterOptions::new(new_line)
+            .with_remove_comments(options.remove_comments == Some(true))
+            .with_no_emit_helpers(options.no_emit_helpers == Some(true))
+            .with_import_helpers(options.import_helpers == Some(true))
+            .with_target(options.emit_script_target())
+            .with_source_file_text_mode(SourceFileTextMode::Canonical),
+    );
+    let mut activity = H2ActivityCanary::h2_5h_profile();
+    let mut printed_units = Vec::new();
+    for unit in preflight.plan().units() {
+        let EmitRoot::SourceFile(source_id) = unit.root() else {
+            return Err(EmitFailure::Unsupported(
+                crate::UnsupportedEmitFeature::BundleRoot,
+            ));
+        };
+        let Some(javascript_path) = unit.paths().javascript_path() else {
+            continue;
+        };
+        let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
+            EmitContractViolation::PlannedSourceMissing(*source_id),
+        ))?;
+        let syntax = source.syntax().ok_or(EmitFailure::Contract(
+            EmitContractViolation::CheckedSyntaxUnavailable(*source_id),
+        ))?;
+        let mut arena = TransformArena::new();
+        let transform_source = arena.add_source(syntax, Some(*source_id));
+        let transformers = get_script_transformers_with_activity(
+            options,
+            resolver,
+            host,
+            *source_id,
+            &mut activity,
+        )?;
+        let mut transformation = transform_nodes(
+            arena,
+            vec![TransformRoot::SourceFile(transform_source)],
+            transformers,
+            false,
+        )?;
+        let printed = printer.print(
+            &mut transformation,
+            PrintRequest::SourceFile(transform_source),
+            recording_inputs_for(javascript_path),
+        )?;
+        printed_units.push((javascript_path.to_path_buf(), printed));
+    }
+    Ok(printed_units)
+}
+
 /// Compiler-owned entry which carries one observer from request construction
 /// through callback completion.
 #[doc(hidden)]
@@ -372,7 +441,7 @@ pub fn emit_files_with_activity(
         let printed = printer.print(
             &mut transformation,
             PrintRequest::SourceFile(transform_source),
-            &mut DisabledSourceMapRecorder,
+            None,
         )?;
         activity.create_javascript_artifact();
         artifacts.push(EmitArtifact::javascript(

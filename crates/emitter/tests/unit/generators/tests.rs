@@ -15,9 +15,9 @@ use tsc_syntax::{parse_source_file, NodeData, NodeId};
 
 use super::transform_generators;
 use crate::{
-    create_printer, transform_nodes, DisabledSourceMapRecorder, EmitResolver, EmitResolverError,
-    EmitResolverNode, NewLineKind, PrintRequest, PrinterOptions, TransformArena, TransformError,
-    TransformRoot, TransformSourceId,
+    create_printer, transform_nodes, EmitResolver, EmitResolverError, EmitResolverNode,
+    NewLineKind, PrintRequest, PrinterOptions, TransformArena, TransformError, TransformRoot,
+    TransformSourceId,
 };
 
 /// The §12.5 fixture resolver: `get_referenced_value_declaration` by
@@ -118,11 +118,7 @@ fn project(source_text: &str) -> String {
     create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(tsc_types::ScriptTarget::ES5),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print generators projection")
     .text()
     .to_owned()
