@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "packetId": "h2-6a-ca-2",
+  "status": "draft",
+  "draftNote": "Authored on h2/6a-ca-prep (worktree); design-only — the ca-2 implementation lands on the train after m-3 closes. The train finalizes: trustedBase, packet sha256, the h2-6a-ca-1 predecessor receipt, bootstrap registration, and status ready.",
+  "trustedBase": "1ccfc0cee3047cf3d507a85ad8e78ef153985083",
+  "packet": {
+    "path": "docs/design/greenfield/slices/h2-6a-ca-2.md",
+    "sha256": "re-pinned-on-the-train"
+  },
+  "predecessors": [
+    {
+      "packetId": "h2-6a-ca-1",
+      "receiptSha256": "re-pinned-on-the-train"
+    }
+  ],
+  "allowedPaths": [
+    ".github/ci/contracts/h2-5g-profile.schema.json",
+    "crates/oracle/h2-5g-profile.mjs",
+    "crates/oracle/h2-5h-a-foundation.mjs",
+    "crates/oracle/h2-transition.mjs",
+    "crates/xtask/src/h2_2c_acceptance.rs",
+    "crates/xtask/src/main.rs",
+    "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs",
+    "docs/design/greenfield/slices/README.md",
+    "docs/design/greenfield/slices/h2-6a-ca-2.md",
+    "ratchets/fci-packet-bootstrap.v1.json",
+    "ratchets/fci-readiness/h2-6a-ca-2.v1.json",
+    "ratchets/h2-6a-known-divergences.v1.json",
+    "ratchets/h2-transition.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/binder",
+    "crates/checker",
+    "crates/compiler/src",
+    "crates/emitter/src",
+    "crates/program",
+    "crates/syntax",
+    "crates/types",
+    ".github/workflows"
+  ],
+  "proof": {
+    "commands": [
+      "cargo xtask h2-6a-acceptance",
+      "node crates/oracle/h2-6a-qualification.mjs --check",
+      "node crates/oracle/h2-5g-profile.mjs --check",
+      "node crates/oracle/h2-transition.mjs --check",
+      "node .github/ci/slice-readiness.mjs --check h2-6a-ca-2"
+    ],
+    "evidencePath": "ratchets/h2-6a-qualification.v1.json"
+  }
+}

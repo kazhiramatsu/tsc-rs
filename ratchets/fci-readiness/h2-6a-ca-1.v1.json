@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "packetId": "h2-6a-ca-1",
+  "status": "draft",
+  "draftNote": "Authored on h2/6a-ca-prep (worktree). The train finalizes: trustedBase, packet sha256, the h2-6a-m-3 predecessor receipt (its envelope file hash at merge), bootstrap allowedPacketIds registration, and status ready.",
+  "trustedBase": "1ccfc0cee3047cf3d507a85ad8e78ef153985083",
+  "packet": {
+    "path": "docs/design/greenfield/slices/h2-6a-ca-1.md",
+    "sha256": "re-pinned-on-the-train"
+  },
+  "predecessors": [
+    {
+      "packetId": "h2-6a-m-3",
+      "receiptSha256": "re-pinned-on-the-train"
+    }
+  ],
+  "allowedPaths": [
+    ".github/ci/contracts/h2-6a-qualification.schema.json",
+    ".github/ci/qualification.mjs",
+    "crates/oracle/h2-6a-qualification.mjs",
+    "docs/design/greenfield/slices/README.md",
+    "docs/design/greenfield/slices/h2-6a-ca-1.md",
+    "ratchets/fci-packet-bootstrap.v1.json",
+    "ratchets/fci-readiness/h2-6a-ca-1.v1.json",
+    "ratchets/h2-6a-qualification.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/binder",
+    "crates/checker",
+    "crates/compiler",
+    "crates/conformance",
+    "crates/emitter",
+    "crates/harness",
+    "crates/program",
+    "crates/syntax",
+    "crates/types",
+    "crates/xtask",
+    ".github/workflows"
+  ],
+  "proof": {
+    "commands": [
+      "node crates/oracle/h2-6a-qualification.mjs --preflight",
+      "node crates/oracle/h2-6a-qualification.mjs --check",
+      "node .github/ci/qualification.mjs check",
+      "node .github/ci/slice-readiness.mjs --check h2-6a-ca-1"
+    ],
+    "evidencePath": "ratchets/h2-6a-qualification.v1.json"
+  }
+}
