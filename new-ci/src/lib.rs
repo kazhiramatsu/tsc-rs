@@ -4,6 +4,10 @@
 //! is retained on a receipt for diagnosis, but cannot create another semantic
 //! cache version.
 
+pub mod lease;
+pub mod status;
+pub mod transaction;
+
 use std::collections::BTreeSet;
 use std::error::Error;
 use std::fmt;
