@@ -281,9 +281,13 @@ Verified pin surfaces beyond the ladder:
 - `h2-5g-qualification.schema.json`: SHAPE-only → no re-pin.
 - `plans/h2-5g.v1.json`: six pins are CASE-MEMBERSHIP digests → untouched.
 - `h2-5g-profile.schema.json`: the `current_exact_promotions` const
-  embeds `historical_qualification` {path, hash} of the qualification
-  artifact → WILL re-pin post-mint; repair recipe: assert only
-  historical_qualification differs, patch the const from the artifact.
+  embeds `historical_qualification` {path, hash} of
+  `ratchets/h2-1a-qualification.v1.json` ONLY (verified in-slice, and
+  the prospective plan predicted schema-contract: 0 for this diff) — a
+  full-ladder re-mint stales it (the gt4 landing), this slice's
+  mjs-only 5g cone does not; the repair recipe (assert only
+  historical_qualification differs, patch the const from the artifact)
+  stays recorded for the full-ladder case.
 - Harness/pin-audit: no 5g-named holders; any stale Rust-side pin
   surfaces mechanically in walk-preflight/pin-audit.
 
