@@ -12187,6 +12187,21 @@ impl Printer {
         if self.options.remove_comments || list_end.is_none() {
             return Ok(());
         }
+        // `setEmitFlags(block, NoComments)` suppresses every comment lane of
+        // the node; upstream `createDefaultConstructorBody` (_tsc.js 105307)
+        // and the ES5 class-IIFE tail rely on it to drop class-body comments
+        // that their artificial block ranges would otherwise re-discover.
+        // This pickup forgot the flag: the class-body comment of an
+        // otherwise-empty class leaked after both synthesized `return`
+        // statements (H2.5h aliasUsageInAccessorsOfClass#target=es5,
+        // h2-6a ca-2 regression).
+        if transformation
+            .arena()
+            .metadata(block)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_COMMENTS))
+        {
+            return Ok(());
+        }
         let start = list_end.expect("checked above");
         let original_block = transformation.arena().get_original_node(block);
         let source = transformation
