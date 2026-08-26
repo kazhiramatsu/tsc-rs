@@ -6,6 +6,7 @@ patterns). Only replaces when the path exists and its current sha256
 differs. Writes are same-directory temp+rename (atomic)."""
 import hashlib
 import importlib.util
+import json
 import os
 import pathlib
 import sys
@@ -37,10 +38,26 @@ script = sys.argv[1]
 s = open(script).read()
 changed = []
 
+# Pin-index `semantic` entries are grammar-SHAPED constants that are
+# program logic: never masked by the normalizer and never auto-repinned
+# here (gate-tax 5). Absent index (or consumer) = no exclusions — the
+# pre-gt5 grammar-only behavior, which the behavior-preservation test
+# pins byte-identically.
+SEMANTIC = set()
+try:
+    _index = json.load(open(".github/ci/pin-index.v1.json", encoding="utf-8"))
+    _rel = os.path.relpath(script)
+    for _row in _index.get("consumers", {}).get(_rel, {}).get("semantic", []):
+        SEMANTIC.add((_row["path"], _row["grammar"]))
+except (OSError, ValueError):
+    pass
+
 
 # patterns A/B/C: quoted path + adjacent quoted hash forms
-def sub_pair(m, rebuild):
+def sub_pair(m, rebuild, grammar):
     path, old = m.group(1), m.group(m.lastindex)
+    if (path, grammar) in SEMANTIC:
+        return m.group(0)
     now = cur(path)
     if now and now != old:
         changed.append((path, old[:8], now[:8]))
@@ -49,13 +66,13 @@ def sub_pair(m, rebuild):
 
 
 s = pin_grammar.PAT_A.sub(
-    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}", "{now}"'), s
+    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}", "{now}"', "A"), s
 )
 s = pin_grammar.PAT_B.sub(
-    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}":\n{mm.group(2)}"{now}"'), s
+    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}":\n{mm.group(2)}"{now}"', "B"), s
 )
 s = pin_grammar.PAT_C.sub(
-    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}": "{now}"'), s
+    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}": "{now}"', "C"), s
 )
 write_atomic(script, s)
 for path, old, new in changed:
@@ -67,6 +84,8 @@ if not changed:
 s = open(script).read()
 changedD = []
 for name, path in pin_grammar.d_relative_path_pairs(s).items():
+    if (path, "D") in SEMANTIC:
+        continue
     now = cur(path)
     if not now:
         continue
@@ -85,6 +104,8 @@ if changedD:
 s = open(script).read()
 changedE = []
 for name, path in pin_grammar.e_path_constants(s).items():
+    if (path, "E") in SEMANTIC:
+        continue
     now = cur(path)
     if not now:
         continue

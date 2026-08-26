@@ -187,6 +187,15 @@ def load_index_rows(index_path, consumer):
 
 
 def main(argv):
+    if len(argv) == 2 and argv[0] == "--normalize-all":
+        index = json.load(open(argv[1], encoding="utf-8"))
+        out = {}
+        for consumer, rows in sorted(index.get("consumers", {}).items()):
+            text = open(consumer, encoding="utf-8").read()
+            digest, refusals = normalized_sha256(text, rows)
+            out[consumer] = digest if not refusals else {"refusals": refusals}
+        print(json.dumps(out, indent=2, sort_keys=True))
+        return 0
     if len(argv) >= 2 and argv[0] == "--extract":
         text = open(argv[1], encoding="utf-8").read()
         print(json.dumps(extract_pins(text), indent=2))

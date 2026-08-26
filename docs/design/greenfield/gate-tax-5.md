@@ -117,7 +117,12 @@ constants (which only drive assembly-side assertions) cannot affect the
 skipped computation. Residual false-MISS class (accepted, bounded): a
 walk re-mint that changes a NON-hash script constant (e.g. a count const
 after a manifest burn-down) still changes the normalized hash → one
-anchor re-observation; self-limiting and rare.
+anchor re-observation; self-limiting and rare. Same class, found by the
+unit battery: repin's pattern-A rewrite collapses a multi-line
+`"path",\n "hash"` site onto one line (pre-gt5 behavior, preserved
+byte-identically), changing separator whitespace → one anchor on the
+FIRST repin of such a site, none after (the collapsed form is stable).
+Zero multi-line A sites exist in the corpus at landing.
 
 Scope note: `h2-5h-qualification.mjs` and `h2-6a-qualification.mjs` carry
 their own gate-tax-3 receipts with raw generator terms. Their full
