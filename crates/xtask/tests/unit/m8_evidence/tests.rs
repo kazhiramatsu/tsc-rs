@@ -390,3 +390,123 @@ fn ci_output_binding_rejects_order_and_content_tampering() {
     assert!(verify_ci_conformance_binding(&workspace, &config, &binding).is_err());
     fs::remove_dir_all(workspace).unwrap();
 }
+
+#[test]
+fn performance_reuse_requires_exact_fingerprint_and_current_policy() {
+    let fingerprint = Fingerprint {
+        sha256: "f".repeat(64),
+        inputs: vec![InputEntry {
+            path: "crates/checker/src/lib.rs".to_owned(),
+            sha256: "a".repeat(64),
+        }],
+    };
+    let runner = RunnerProfile {
+        id: "hosted-standard".to_owned(),
+        os: std::env::consts::OS.to_owned(),
+        arch: std::env::consts::ARCH.to_owned(),
+        measurement_backend: "bsd-time-l".to_owned(),
+        cpu_policy: "performance".to_owned(),
+        minimum_logical_cores: 1,
+        minimum_memory_bytes: 1,
+        ceiling_wall_seconds: 25.0,
+        ceiling_rss_bytes: 1_000_000,
+    };
+    let command =
+        "cargo xtask perf conformance --artifact perf.json --runner-profile hosted-standard";
+    let bound = |kind: &str| BoundOutput {
+        kind: kind.to_owned(),
+        path: format!("target/{kind}.json"),
+        bytes: 1,
+        sha256: "b".repeat(64),
+    };
+    let artifact = PerformanceArtifact {
+        header: ArtifactHeader {
+            schema: ARTIFACT_SCHEMA,
+            producer_version: PRODUCER_VERSION.to_owned(),
+            kind: "performance".to_owned(),
+            producer_commit: "c".repeat(40),
+            command: command.to_owned(),
+            started_unix_ms: 1,
+            finished_unix_ms: 2,
+            exit_status: 0,
+            fingerprint: fingerprint.clone(),
+        },
+        runner: runner.clone(),
+        observed_os: std::env::consts::OS.to_owned(),
+        observed_arch: std::env::consts::ARCH.to_owned(),
+        logical_cores: 8,
+        memory_bytes: 16_000_000_000,
+        wall_seconds: 14.9,
+        max_rss_bytes: 900_000,
+        child_stdout_sha256: "d".repeat(64),
+        child_stderr_sha256: "e".repeat(64),
+        cache_off_smoke: CacheOffObservation {
+            fixture_limit: CACHE_OFF_SMOKE_LIMIT,
+            wall_seconds: 1.0,
+            max_rss_bytes: 1,
+            exit_status: 0,
+            child_stdout_sha256: "d".repeat(64),
+            child_stderr_sha256: "e".repeat(64),
+        },
+        ci_conformance: CiConformanceBinding {
+            receipt: bound("receipt"),
+            outputs: vec![
+                bound("all"),
+                bound("2xxx"),
+                bound("syntactic"),
+                bound("families"),
+            ],
+        },
+    };
+    assert_eq!(
+        performance_reuse_miss(&artifact, &runner, &fingerprint, command),
+        None
+    );
+
+    let mut other_fingerprint = fingerprint.clone();
+    other_fingerprint.sha256 = "0".repeat(64);
+    assert_eq!(
+        performance_reuse_miss(&artifact, &runner, &other_fingerprint, command),
+        Some("fingerprint or header mismatch")
+    );
+
+    // A tightened ceiling changes the configured profile itself, so reuse
+    // misses before the observation is even consulted and the fresh run
+    // re-measures under the new policy.
+    let mut tightened = runner.clone();
+    tightened.ceiling_wall_seconds = 10.0;
+    assert_eq!(
+        performance_reuse_miss(&artifact, &tightened, &fingerprint, command),
+        Some("runner profile changed")
+    );
+
+    let mut slow = artifact.clone();
+    slow.wall_seconds = 26.0;
+    assert_eq!(
+        performance_reuse_miss(&slow, &runner, &fingerprint, command),
+        Some("recorded observation violates the current runner policy")
+    );
+
+    let mut failed_smoke = artifact.clone();
+    failed_smoke.cache_off_smoke.exit_status = 1;
+    assert_eq!(
+        performance_reuse_miss(&failed_smoke, &runner, &fingerprint, command),
+        Some("recorded observation violates the current runner policy")
+    );
+
+    let mut failed_child = artifact.clone();
+    failed_child.header.exit_status = 1;
+    assert_eq!(
+        performance_reuse_miss(&failed_child, &runner, &fingerprint, command),
+        Some("fingerprint or header mismatch")
+    );
+
+    let mut moved_workspace = artifact.clone();
+    moved_workspace.header.command =
+        "cargo xtask perf conformance --artifact moved.json --runner-profile hosted-standard"
+            .to_owned();
+    assert_eq!(
+        performance_reuse_miss(&moved_workspace, &runner, &fingerprint, command),
+        Some("fingerprint or header mismatch")
+    );
+}
