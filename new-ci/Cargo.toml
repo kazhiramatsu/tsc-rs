@@ -12,6 +12,10 @@ path = "src/lib.rs"
 name = "shadow"
 path = "src/bin/shadow.rs"
 
+[[bin]]
+name = "pin-index"
+path = "src/bin/pin-index.rs"
+
 [dependencies]
 
 [workspace]

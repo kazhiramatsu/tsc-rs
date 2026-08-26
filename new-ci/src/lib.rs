@@ -14,6 +14,8 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+pub mod pins;
+
 const RECORD_MAGIC: &[u8; 4] = b"NCIR";
 const RECORD_VERSION: u32 = 1;
 const MAX_RECORD_BYTES: u64 = 64 * 1024 * 1024;
