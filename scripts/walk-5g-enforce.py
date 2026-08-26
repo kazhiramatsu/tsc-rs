@@ -67,6 +67,16 @@ def decide(outcome, minted_this_walk, observations_so_far, expect_obs):
         )
     attempt = outcome.get("receipt_attempt")
     observed = 1 if outcome.get("full_observation_started") else 0
+    if (
+        observed
+        and outcome.get("completed")
+        and (outcome.get("observed_cases") or 0) == 0
+    ):
+        # a completed run that observed ZERO fresh cases is a pure
+        # journal-adoption pass: under the amended keystone the union of
+        # partial runs under one key is ONE observation, so this round
+        # does not count against the per-walk observation budget
+        observed = 0
     if expect_obs == "1":
         return (
             "notice",
@@ -91,7 +101,7 @@ def decide(outcome, minted_this_walk, observations_so_far, expect_obs):
     if attempt != "miss":
         return ("notice", observed, f"unrecognized receipt_attempt {attempt!r}")
     term = outcome.get("miss_term")
-    if expect_obs == "0":
+    if expect_obs == "0" and observed:
         return (
             "red",
             observed,
@@ -102,7 +112,12 @@ def decide(outcome, minted_this_walk, observations_so_far, expect_obs):
         return (
             "notice",
             observed,
-            f"cold cache / environment move (miss {term}) — observation allowed",
+            f"cold cache / environment move (miss {term}) — "
+            + (
+                "journal-adoption pass, 0 fresh observations"
+                if observed == 0
+                else "observation allowed"
+            ),
         )
     if minted_this_walk:
         return (
@@ -113,9 +128,9 @@ def decide(outcome, minted_this_walk, observations_so_far, expect_obs):
     return (
         "red",
         observed,
-        f"PIN-TAX REGRESSION: 5g re-observed on miss ({term}) with NO 5g re-mint "
-        "this walk — the receipt key broke without an evidence change "
-        "(gate-tax 5-A violation); inspect the receipt terms",
+        f"PIN-TAX REGRESSION: 5g receipt key broke (miss {term}) with NO 5g "
+        "re-mint this walk — an anchor term diverged without an evidence "
+        "change (gate-tax 5-A violation); inspect the receipt terms",
     )
 
 
@@ -136,6 +151,15 @@ def self_test():
         ({"receipt_attempt": "bypassed-fresh", "full_observation_started": True}, 0, 0, None, "notice", 1),
         ({"receipt_attempt": "miss", "miss_term": "normalized-generator", "full_observation_started": True}, 0, 0, "1", "notice", 1),
         ({"receipt_attempt": "miss", "miss_term": "absent", "full_observation_started": True}, 1, 0, "0", "red", 1),
+        # pure journal-adoption pass (completed, 0 fresh observations):
+        # one logical observation under the amended keystone — never a
+        # "second observation" red, and exempt from strict mode
+        ({"receipt_attempt": "miss", "miss_term": "invalid", "full_observation_started": True, "completed": True, "observed_cases": 0}, 1, 1, None, "notice", 0),
+        ({"receipt_attempt": "miss", "miss_term": "invalid", "full_observation_started": True, "completed": True, "observed_cases": 0}, 1, 0, "0", "notice", 0),
+        # …but an ANCHOR-term key break stays red even via adoption
+        ({"receipt_attempt": "miss", "miss_term": "normalized-generator", "full_observation_started": True, "completed": True, "observed_cases": 0}, 0, 0, None, "red", 0),
+        # a real second observation (fresh cases) still reds
+        ({"receipt_attempt": "miss", "miss_term": "absent", "full_observation_started": True, "completed": True, "observed_cases": 5}, 1, 1, None, "red", 1),
     ]
     for index, (outcome, minted, so_far, expect, want_verdict, want_observed) in enumerate(cases):
         verdict, observed, message = decide(outcome, minted, so_far, expect)
