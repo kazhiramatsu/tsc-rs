@@ -1,0 +1,17 @@
+[package]
+name = "new-ci"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+name = "new_ci"
+path = "src/lib.rs"
+
+[[bin]]
+name = "shadow"
+path = "src/bin/shadow.rs"
+
+[dependencies]
+
+[workspace]
