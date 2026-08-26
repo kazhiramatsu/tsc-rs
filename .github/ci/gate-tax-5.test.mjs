@@ -297,3 +297,156 @@ test("gt5: repin skips semantic-classified sites when the index says so", () => 
     fs.rmSync(workspace, { recursive: true, force: true });
   }
 });
+
+// ---- receipt key terms + resume journal (h2-5g-check-resume.mjs) ----
+
+const resume = await import("../../crates/oracle/h2-5g-check-resume.mjs");
+
+function sampleKey(overrides = {}) {
+  return resume.receiptKey({
+    workspace: "/w",
+    node: "v25.2.1",
+    platform: "darwin",
+    arch: "arm64",
+    normalizerSha256: "n".repeat(64),
+    pinIndexRowsSha256: "p".repeat(64),
+    normalizedGeneratorSha256: "g".repeat(64),
+    globalRecordsSha256: "r".repeat(64),
+    ...overrides,
+  });
+}
+
+test("gt5: receipt terms validate in order and name the divergent term", () => {
+  const key = sampleKey();
+  const receipt = resume.renderReceipt(key, "raw".padEnd(64, "0"), "c".repeat(64));
+  assert.equal(resume.receiptMissTerm(receipt, key), null);
+  assert.equal(resume.receiptMissTerm(null, key), "invalid");
+  assert.equal(resume.receiptMissTerm({ ...receipt, schema: 1 }, key), "invalid");
+  assert.equal(
+    resume.receiptMissTerm({ ...receipt, cases_observation_sha256: "x" }, key),
+    "invalid",
+    "fingerprint tamper must invalidate",
+  );
+  const cases = [
+    ["workspace", { workspace: "/other" }],
+    ["node", { node: "v99.0.0" }],
+    ["platform", { platform: "linux" }],
+    ["arch", { arch: "x64" }],
+    ["normalizer", { normalizerSha256: "1".repeat(64) }],
+    ["pin-index", { pinIndexRowsSha256: "2".repeat(64) }],
+    ["normalized-generator", { normalizedGeneratorSha256: "3".repeat(64) }],
+    ["global-records", { globalRecordsSha256: "4".repeat(64) }],
+  ];
+  for (const [term, override] of cases) {
+    assert.equal(
+      resume.receiptMissTerm(receipt, sampleKey(override)),
+      term,
+      `term ${term}`,
+    );
+  }
+  // the raw generator hash is informational provenance, never a key term
+  const rawSwapped = resume.renderReceipt(key, "e".repeat(64), "c".repeat(64));
+  assert.equal(resume.receiptMissTerm(rawSwapped, key), null);
+});
+
+test("gt5: journal round-trips, drops torn tails, and refuses key drift", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gt5-journal-"));
+  const base = path.join(root, "target", "h2-5g", "check-resume");
+  try {
+    const key = sampleKey();
+    const writer = resume.openJournalWriter(base, key, "shard-0-of-2.jsonl");
+    writer.append("case-a", { case_fingerprint_sha256: "a".repeat(64), value: 1 });
+    writer.append("case-b", { case_fingerprint_sha256: "b".repeat(64), value: 2 });
+    writer.close();
+    // duplicate line in a second file: first occurrence wins
+    const writer2 = resume.openJournalWriter(base, key, "shard-1-of-2.jsonl");
+    writer2.append("case-a", { case_fingerprint_sha256: "a".repeat(64), value: 99 });
+    writer2.append("case-c", { case_fingerprint_sha256: "c".repeat(64), value: 3 });
+    writer2.close();
+    const read = resume.readJournal(base, key);
+    assert.equal(read.cases.size, 3);
+    assert.equal(read.cases.get("case-a").value, 1);
+    assert.equal(read.droppedTails, 0);
+    // torn tail: append garbage half-line to one file
+    const directory = resume.journalDirectory(base, key);
+    fs.appendFileSync(path.join(directory, "shard-0-of-2.jsonl"), '{"schema":1,"tr');
+    const torn = resume.readJournal(base, key);
+    assert.equal(torn.cases.size, 3);
+    assert.equal(torn.droppedTails, 1);
+    // a tampered line drops that file's remainder
+    const tamperedPath = path.join(directory, "shard-1-of-2.jsonl");
+    const lines = fs.readFileSync(tamperedPath, "utf8").trimEnd().split("\n");
+    const tampered = lines[0].replace('"value":99', '"value":98');
+    fs.writeFileSync(tamperedPath, [tampered, ...lines.slice(1)].join("\n") + "\n");
+    const afterTamper = resume.readJournal(base, key);
+    assert.ok(!afterTamper.cases.has("case-c"), "remainder after tamper must drop");
+    assert.equal(afterTamper.cases.get("case-a").value, 1);
+    // a key-divergent journal is invisible and GC'd
+    const otherKey = sampleKey({ normalizedGeneratorSha256: "9".repeat(64) });
+    assert.equal(resume.readJournal(base, otherKey).cases.size, 0);
+    const removed = resume.collectStaleJournals(base, otherKey);
+    assert.deepEqual(removed, [key.key_sha256.slice(0, 16)]);
+    assert.equal(resume.readJournal(base, key).cases.size, 0);
+    // removeJournals clears the current key directory
+    const writer3 = resume.openJournalWriter(base, otherKey, "single.jsonl");
+    writer3.append("case-z", { case_fingerprint_sha256: "f".repeat(64) });
+    writer3.close();
+    assert.equal(resume.readJournal(base, otherKey).cases.size, 1);
+    resume.removeJournals(base, otherKey);
+    assert.equal(resume.readJournal(base, otherKey).cases.size, 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("gt5: journal removals refuse paths outside the store (rm guard)", () => {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), "gt5-guard-"));
+  try {
+    const store = path.join(base, "target", "h2-5g", "check-resume");
+    const key = sampleKey();
+    const writer = resume.openJournalWriter(store, key, "single.jsonl");
+    writer.append("case-a", { case_fingerprint_sha256: "a".repeat(64) });
+    writer.close();
+    // a base outside target/h2-5g/check-resume throws instead of deleting
+    assert.throws(() => resume.removeJournals(base, key), /refusing journal removal/);
+    // a foreign (non-16-hex) entry in the store is never touched by GC
+    const foreign = path.join(store, "not-a-key-dir");
+    fs.mkdirSync(foreign, { recursive: true });
+    fs.writeFileSync(path.join(foreign, "keep.txt"), "precious\n");
+    const removed = resume.collectStaleJournals(store, sampleKey({ node: "v9.9.9" }));
+    assert.deepEqual(removed, [key.key_sha256.slice(0, 16)]);
+    assert.ok(fs.existsSync(path.join(foreign, "keep.txt")));
+    // the guarded remove still works on the real key directory
+    const writer2 = resume.openJournalWriter(store, key, "single.jsonl");
+    writer2.append("case-b", { case_fingerprint_sha256: "b".repeat(64) });
+    writer2.close();
+    resume.removeJournals(store, key);
+    assert.equal(resume.readJournal(store, key).cases.size, 0);
+  } finally {
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
+
+test("gt5: journal lines under a stale-line prefix stay adoptable (kill window)", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "gt5-journal-kill-"));
+  const base = path.join(root, "target", "h2-5g", "check-resume");
+  try {
+    const key = sampleKey();
+    const writer = resume.openJournalWriter(base, key, "single.jsonl");
+    for (let index = 0; index < 50; index += 1) {
+      writer.append(`case-${index}`, {
+        case_fingerprint_sha256: "d".repeat(64),
+        index,
+      });
+    }
+    // simulate a kill mid-append: truncate the file inside the last line
+    const file = path.join(resume.journalDirectory(base, key), "single.jsonl");
+    const bytes = fs.readFileSync(file);
+    fs.writeFileSync(file, bytes.subarray(0, bytes.length - 17));
+    const read = resume.readJournal(base, key);
+    assert.equal(read.cases.size, 49, "a kill loses at most the in-flight case");
+    assert.equal(read.droppedTails, 1);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

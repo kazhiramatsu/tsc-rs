@@ -6,6 +6,21 @@ import { fileURLToPath } from "node:url";
 
 import ts from "../../vendor/typescript-6.0.3/lib/typescript.js";
 import { createHermeticDirectoryOverlay } from "./vfs-directory-overlay.mjs";
+import {
+  PIN_INDEX_RELATIVE_PATH,
+  consumerRows,
+  normalizedSha256,
+  pinIndexRowsSha256,
+} from "./pin-normalize.mjs";
+import {
+  collectStaleJournals,
+  openJournalWriter,
+  readJournal,
+  receiptKey,
+  receiptMissTerm,
+  removeJournals,
+  renderReceipt,
+} from "./h2-5g-check-resume.mjs";
 
 const GENERATOR_PATH = fileURLToPath(import.meta.url);
 const WORKSPACE = path.resolve(path.dirname(GENERATOR_PATH), "../..");
@@ -49,6 +64,10 @@ const DEFAULT_CHECK_SHARDS = 4;
 const MAX_CHECK_SHARDS = 8;
 const INTERNAL_CHECK_SHARD_MODE = "--internal-check-shard";
 const CHECK_RECEIPT_RELATIVE_PATH = "target/h2-5g/check-receipt.v1.json";
+const CHECK_OUTCOME_RELATIVE_PATH = "target/h2-5g/check-outcome.v1.json";
+const CHECK_RESUME_DIRECTORY = "target/h2-5g/check-resume";
+const PIN_NORMALIZE_RELATIVE_PATH = "crates/oracle/pin-normalize.mjs";
+const FRESH_ENV = "TSRS_H2_5G_FRESH";
 const TYPESCRIPT_LIB_DIRECTORY = "vendor/typescript-6.0.3/lib";
 const OPTION_LINE_PATTERN = /^\/{2}\s*@(\w+)\s*:\s*([^\r\n]*)/;
 const LINK_LINE_PATTERN =
@@ -135,6 +154,51 @@ let shardOrdinal = 0;
 let checkReceiptAttempt = false;
 
 class CheckReceiptMiss extends Error {}
+
+// gate-tax 5-B: the per-case resume journal for the one legitimate
+// full re-observation. Active only in the observing check processes
+// (single-mode --check after a receipt miss, and every shard child);
+// journaled cases are adopted through the unchanged per-case guards and
+// only the remainder is observed, so a kill loses at most one case.
+let resumeJournal = null;
+
+// gate-tax 5-C: TSRS_H2_5G_FRESH=1 bypasses the receipt attempt,
+// clears the journals, and forces the full observation — a RECORDED
+// approval (outcome record + stderr), never a silent exemption.
+const FRESH = process.env[FRESH_ENV] === "1";
+
+// Machine-readable --check outcome record (gate-tax 5-C): the walk
+// driver's enforcement reads this, never the prose lines.
+let outcomeState = null;
+let lastKeyRefusals = [];
+
+function writeCheckOutcome(update) {
+  if (MODE !== "--check") return;
+  outcomeState = {
+    ...(outcomeState ?? {
+      schema: 1,
+      kind: "h2-5g-check-outcome",
+      fresh: FRESH,
+      check_shards: null,
+      receipt_attempt: null,
+      miss_term: null,
+      refusals: [],
+      full_observation_started: false,
+      completed: false,
+      observed_cases: null,
+      journal_adopted: null,
+      receipt_reused: null,
+      minted: null,
+    }),
+    ...update,
+  };
+  const absolute = path.join(WORKSPACE, CHECK_OUTCOME_RELATIVE_PATH);
+  fs.mkdirSync(path.dirname(absolute), { recursive: true });
+  writeFileAtomic(
+    absolute,
+    render(withFingerprint({ ...outcomeState }, "outcome_fingerprint_sha256")),
+  );
+}
 
 function observationTarget() {
   return shardAssignment === null ? 9_027 : shardAssignment.assigned;
@@ -925,13 +989,20 @@ function hasCommentedOptionalChainTypeAssertion(text) {
 // the stored records are adopted through the same per-case guards and
 // the unchanged assembly plus whole-artifact byte comparison still run;
 // only the observeTypeScript runs are skipped. On ANY miss — receipt
-// absent/invalid, workspace path, node version, generator bytes, the
-// vendored lib inventory, the global observation records, the
-// observation-content roll, or one stale case — the attempt aborts
-// before any observation and the full re-observation runs unchanged,
-// minting a fresh receipt on success. The gate-tax 2 keystone survives
-// amended (gate-tax-3.md §3): observation content enters the trusted
-// state only through a local full re-observation.
+// absent/invalid, workspace path, node version, platform/arch, the
+// normalizer or pin-index terms, the NORMALIZED generator bytes
+// (gate-tax 5-A: pin-index-enumerated pin literals are masked, so walk
+// repins cannot break the key; raw generator_sha256 is informational
+// provenance only), the vendored lib inventory, the global observation
+// records, the observation-content roll, or one stale case — the
+// attempt aborts before any observation and the full re-observation
+// runs unchanged, minting a fresh schema-2 receipt on success. The
+// gate-tax 2 keystone survives, amended by gate-tax-3.md §3 and
+// gate-tax-5.md §B: observation content enters the trusted state only
+// through local re-observation under a SINGLE receipt key, resumable
+// across process restarts — the union of partial local runs under an
+// identical key (the per-case resume journal) is one full
+// re-observation.
 let reusedObservations = 0;
 
 // `owner_inventory` and `global_candidate_dispositions` are pin-carrying
@@ -1009,15 +1080,56 @@ function casesObservationSha(caseFingerprints) {
   return hash.digest("hex");
 }
 
-// Validates every receipt key term except the observation-content roll,
-// which reusableStoredCases owns (it holds the stored-artifact parse).
-// Throws CheckReceiptMiss naming the first divergent term.
-function loadCheckReceipt(
+// gate-tax 5-A: the schema-2 receipt key. The generator term is the
+// NORMALIZED script hash — bytes with every pin-index-enumerated pin
+// literal masked — so walk repins cannot break the key; a grammar hit
+// the index does not enumerate is a refusal, never a silent mask. The
+// normalizer bytes and the consumer's classification rows are their own
+// key terms (a masking-rule change must re-key).
+function computeCheckReceiptKey(
   typescriptRecord,
   inputsRecord,
   executionContract,
   ownerRows,
 ) {
+  const generatorText = readBytes(GENERATOR_RELATIVE_PATH).toString("utf8");
+  const rows = consumerRows(
+    readJson(PIN_INDEX_RELATIVE_PATH),
+    GENERATOR_RELATIVE_PATH,
+  );
+  const { sha256: normalizedGenerator, refusals } = normalizedSha256(
+    generatorText,
+    rows,
+  );
+  lastKeyRefusals = refusals;
+  if (refusals.length !== 0) return { key: null, refusals };
+  return {
+    refusals: [],
+    key: receiptKey({
+      workspace: fs.realpathSync(WORKSPACE),
+      node: process.version,
+      platform: process.platform,
+      arch: process.arch,
+      normalizerSha256: pathHash(PIN_NORMALIZE_RELATIVE_PATH).sha256,
+      pinIndexRowsSha256: pinIndexRowsSha256(rows),
+      normalizedGeneratorSha256: normalizedGenerator,
+      globalRecordsSha256: checkReceiptGlobalSha(
+        typescriptRecord,
+        inputsRecord,
+        executionContract,
+        ownerRows,
+      ),
+    }),
+  };
+}
+
+// Validates every receipt key term except the observation-content roll,
+// which reusableStoredCases owns (it holds the stored-artifact parse).
+// Throws CheckReceiptMiss naming the first divergent term.
+function loadCheckReceipt(keyComputation) {
+  if (keyComputation.refusals.length !== 0) {
+    throw new CheckReceiptMiss("normalizer-refusal");
+  }
   let bytes;
   try {
     bytes = fs.readFileSync(
@@ -1033,83 +1145,57 @@ function loadCheckReceipt(
   } catch {
     throw new CheckReceiptMiss("invalid");
   }
-  if (
-    receipt === null ||
-    typeof receipt !== "object" ||
-    receipt.schema !== 1 ||
-    receipt.kind !== "h2-5g-qualification-check-receipt" ||
-    !hasValidFingerprint(receipt, "receipt_fingerprint_sha256")
-  ) {
-    throw new CheckReceiptMiss("invalid");
-  }
-  if (receipt.workspace !== fs.realpathSync(WORKSPACE)) {
-    throw new CheckReceiptMiss("workspace");
-  }
-  if (receipt.node !== process.version) {
-    throw new CheckReceiptMiss("node");
-  }
-  if (receipt.generator_sha256 !== pathHash(GENERATOR_RELATIVE_PATH).sha256) {
-    throw new CheckReceiptMiss("generator");
-  }
-  if (
-    receipt.global_records_sha256 !==
-    checkReceiptGlobalSha(
-      typescriptRecord,
-      inputsRecord,
-      executionContract,
-      ownerRows,
-    )
-  ) {
-    throw new CheckReceiptMiss("global-records");
-  }
+  const term = receiptMissTerm(receipt, keyComputation.key);
+  if (term !== null) throw new CheckReceiptMiss(term);
   return receipt;
 }
 
+// Mints the schema-2 receipt, recomputing every key term fresh from the
+// current disk state (external-review #5). On a normalizer refusal the
+// mint is SKIPPED loudly — the full re-observation stays green, but no
+// receipt exists until the pin sites are classified, and the journal is
+// kept so the next check adopts instead of re-observing.
 function mintCheckReceipt(artifact) {
+  const computation = computeCheckReceiptKey(
+    artifact.typescript,
+    artifact.inputs,
+    artifact.execution_contract,
+    artifact.owner_closure,
+  );
+  if (computation.refusals.length !== 0) {
+    process.stderr.write(
+      `H2.5g check receipt: minting REFUSED — unclassified pin sites ${JSON.stringify(
+        computation.refusals,
+      )}; classify them in ${PIN_INDEX_RELATIVE_PATH} (scripts/pin-index.py)\n`,
+    );
+    return { minted: false, key: null };
+  }
   const absolute = path.join(WORKSPACE, CHECK_RECEIPT_RELATIVE_PATH);
   fs.mkdirSync(path.dirname(absolute), { recursive: true });
   writeFileAtomic(
     absolute,
     render(
-      withFingerprint(
-        {
-          schema: 1,
-          kind: "h2-5g-qualification-check-receipt",
-          minted_by: "full-re-observation-check",
-          workspace: fs.realpathSync(WORKSPACE),
-          node: process.version,
-          generator_sha256: artifact.generator.sha256,
-          global_records_sha256: checkReceiptGlobalSha(
-            artifact.typescript,
-            artifact.inputs,
-            artifact.execution_contract,
-            artifact.owner_closure,
-          ),
-          cases_observation_sha256: casesObservationSha(
-            artifact.cases.map((entry) => entry.case_fingerprint_sha256),
-          ),
-        },
-        "receipt_fingerprint_sha256",
+      renderReceipt(
+        computation.key,
+        artifact.generator.sha256,
+        casesObservationSha(
+          artifact.cases.map((entry) => entry.case_fingerprint_sha256),
+        ),
       ),
     ),
   );
+  return { minted: true, key: computation.key };
 }
 
 function reusableStoredCases(
+  keyComputation,
   typescriptRecord,
   inputsRecord,
   executionContract,
   ownerRows,
 ) {
   if (MODE !== "--write" && !checkReceiptAttempt) return null;
-  const receipt = checkReceiptAttempt
-    ? loadCheckReceipt(
-        typescriptRecord,
-        inputsRecord,
-        executionContract,
-        ownerRows,
-      )
-    : null;
+  const receipt = checkReceiptAttempt ? loadCheckReceipt(keyComputation) : null;
   const targetPath = path.join(WORKSPACE, TARGET_RELATIVE_PATH);
   if (!fs.existsSync(targetPath)) {
     if (checkReceiptAttempt) throw new CheckReceiptMiss("stored-artifact");
@@ -1483,6 +1569,20 @@ function buildSuite(
         return null;
       }
     }
+    if (resumeJournal !== null) {
+      // gate-tax 5-B: a journaled case re-enters through the SAME
+      // per-case guards as any stored record; only the remainder is
+      // observed. Guard failure = observe fresh (never an error).
+      const journaled = resumeJournal.map.get(row.id);
+      if (
+        journaled !== undefined &&
+        storedCaseReusable(journaled, suite, row, loaded, settings, selection)
+      ) {
+        resumeJournal.adopted += 1;
+        reportObservationProgress(row.id);
+        return journaled;
+      }
+    }
     const makeProgram = () => createProgramCase(loaded, selection, settings, options);
     const ownerReachability = OWNER_KEYS;
     const analysis = analyzeCase(
@@ -1494,7 +1594,7 @@ function buildSuite(
       ownerReachability,
     );
     reportObservationProgress(row.id);
-    return withFingerprint(
+    const record = withFingerprint(
       {
         suite,
         case_id: row.id,
@@ -1518,6 +1618,11 @@ function buildSuite(
       },
       "case_fingerprint_sha256",
     );
+    if (resumeJournal !== null) {
+      resumeJournal.writer.append(row.id, record);
+      resumeJournal.appended += 1;
+    }
+    return record;
   });
   return records.filter((record) => record !== null);
 }
@@ -1629,12 +1734,57 @@ function buildArtifact() {
     normalization: "none",
     deferred_boundary: "typed failure before first sink write",
   };
+  const keyComputation =
+    checkReceiptAttempt ||
+    (MODE === "--check" && shardAdoption === null && shardAssignment === null) ||
+    MODE === INTERNAL_CHECK_SHARD_MODE
+      ? computeCheckReceiptKey(
+          typescriptRecord,
+          inputsRecord,
+          executionContract,
+          ownerRows,
+        )
+      : null;
   const reuseByCaseId = reusableStoredCases(
+    keyComputation,
     typescriptRecord,
     inputsRecord,
     executionContract,
     ownerRows,
   );
+  // gate-tax 5-B: the observing check processes journal each completed
+  // case and adopt journaled cases through the unchanged per-case
+  // guards. The sharded parent never observes (children own the
+  // journal); the receipt attempt never observes (it aborts first).
+  const journalEligible =
+    (MODE === "--check" &&
+      !checkReceiptAttempt &&
+      shardAdoption === null &&
+      shardAssignment === null) ||
+    MODE === INTERNAL_CHECK_SHARD_MODE;
+  if (journalEligible && keyComputation.refusals.length === 0) {
+    const base = path.join(WORKSPACE, CHECK_RESUME_DIRECTORY);
+    collectStaleJournals(base, keyComputation.key);
+    const read = readJournal(base, keyComputation.key);
+    resumeJournal = {
+      key: keyComputation.key,
+      map: read.cases,
+      writer: openJournalWriter(
+        base,
+        keyComputation.key,
+        shardAssignment === null
+          ? "single.jsonl"
+          : `shard-${shardAssignment.index}-of-${shardAssignment.count}.jsonl`,
+      ),
+      adopted: 0,
+      appended: 0,
+    };
+    if (read.cases.size > 0) {
+      process.stderr.write(
+        `H2.5g check resume: ${read.cases.size} journaled cases available under key ${keyComputation.key.key_sha256.slice(0, 16)}${read.droppedTails > 0 ? ` (${read.droppedTails} torn tails dropped)` : ""}\n`,
+      );
+    }
+  }
   const configPlanBySource = new Map(
     compilerConfigPlans.fixtures.map((entry) => [entry.source.index, entry]),
   );
@@ -1902,7 +2052,7 @@ function observeShardInChildProcess(index, count) {
             Array.isArray(payload.shard_cases),
           `observation shard ${index} returned an invalid payload`,
         );
-        resolve(payload.shard_cases);
+        resolve(payload);
       } catch (error) {
         reject(error);
       }
@@ -1911,14 +2061,18 @@ function observeShardInChildProcess(index, count) {
 }
 
 async function runShardedCheck(count) {
-  const shardCases = await Promise.all(
+  const payloads = await Promise.all(
     Array.from({ length: count }, (_, index) =>
       observeShardInChildProcess(index, count),
     ),
   );
   const adoption = new Map();
-  for (const cases of shardCases) {
-    for (const record of cases) {
+  let journalAdopted = 0;
+  let observed = 0;
+  for (const payload of payloads) {
+    journalAdopted += payload.journal_adopted ?? 0;
+    observed += payload.observed ?? payload.shard_cases.length;
+    for (const record of payload.shard_cases) {
       requireCondition(
         record !== null &&
           typeof record === "object" &&
@@ -1942,9 +2096,18 @@ async function runShardedCheck(count) {
         rendered,
     `stale ${TARGET_RELATIVE_PATH}; run h2-5g-qualification.mjs --write and review`,
   );
-  mintCheckReceipt(artifact);
+  const mint = mintCheckReceipt(artifact);
+  if (mint.minted) {
+    removeJournals(path.join(WORKSPACE, CHECK_RESUME_DIRECTORY), mint.key);
+  }
+  writeCheckOutcome({
+    completed: true,
+    observed_cases: observed,
+    journal_adopted: journalAdopted,
+    minted: mint.minted,
+  });
   process.stdout.write(
-    `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} check_shards=${count} check_receipt=minted\n`,
+    `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} check_shards=${count} check_receipt=${mint.minted ? "minted" : "mint-refused"} journal_adopted=${journalAdopted}\n`,
   );
 }
 
@@ -1962,6 +2125,10 @@ function attemptReceiptCheck() {
     process.stderr.write(
       "H2.5g check receipt: hit; adopted 9,027 stored observations under the full per-case guards\n",
     );
+    writeCheckOutcome({
+      receipt_attempt: "hit",
+      receipt_reused: reusedObservations,
+    });
     return artifact;
   } catch (error) {
     if (!(error instanceof CheckReceiptMiss)) throw error;
@@ -1971,6 +2138,11 @@ function attemptReceiptCheck() {
     process.stderr.write(
       `H2.5g check receipt: miss (${error.message}); running the full re-observation\n`,
     );
+    writeCheckOutcome({
+      receipt_attempt: "miss",
+      miss_term: error.message,
+      refusals: lastKeyRefusals,
+    });
     return null;
   } finally {
     checkReceiptAttempt = false;
@@ -1985,16 +2157,40 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
     shard !== null && Array.isArray(shard.shard_cases),
     "internal shard mode did not produce shard observations",
   );
+  resumeJournal?.writer.close();
   process.stdout.write(
     render({
       schema: 1,
       shard_index: shardAssignment.index,
       shard_count: shardAssignment.count,
       shard_cases: shard.shard_cases,
+      journal_adopted: resumeJournal?.adopted ?? 0,
+      observed: resumeJournal?.appended ?? shard.shard_cases.length,
     }),
   );
 } else if (MODE === "--check") {
-  const receiptArtifact = attemptReceiptCheck();
+  requireCondition(
+    process.env[FRESH_ENV] === undefined ||
+      ["0", "1"].includes(process.env[FRESH_ENV]),
+    `${FRESH_ENV} must be 0 or 1`,
+  );
+  if (FRESH) {
+    const resumeBase = path.join(WORKSPACE, CHECK_RESUME_DIRECTORY);
+    // recursive removal is guarded: the resolved path must be the
+    // journal store itself (user directive 2026-08-27 — never trust an
+    // unchecked recursive rmSync)
+    requireCondition(
+      path.resolve(resumeBase) ===
+        path.resolve(WORKSPACE, "target", "h2-5g", "check-resume"),
+      `refusing to clear unexpected journal path ${resumeBase}`,
+    );
+    fs.rmSync(resumeBase, { recursive: true, force: true });
+    process.stderr.write(
+      `H2.5g check receipt: bypassed (${FRESH_ENV}=1) — journals cleared, full re-observation (recorded approval)\n`,
+    );
+    writeCheckOutcome({ receipt_attempt: "bypassed-fresh" });
+  }
+  const receiptArtifact = FRESH ? null : attemptReceiptCheck();
   if (receiptArtifact !== null) {
     const rendered = render(receiptArtifact);
     requireCondition(
@@ -2003,13 +2199,20 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
           rendered,
       `stale ${TARGET_RELATIVE_PATH}; run h2-5g-qualification.mjs --write and review`,
     );
+    writeCheckOutcome({ completed: true, minted: false });
     process.stdout.write(
       `H2.5g qualification is fresh: candidates=${receiptArtifact.summary.candidates} admitted=${receiptArtifact.summary.admitted_cases} deferred=${receiptArtifact.summary.deferred_cases} check_receipt=hit reused_observations=${reusedObservations}\n`,
     );
   } else if (checkShardCount() > 1) {
+    writeCheckOutcome({
+      full_observation_started: true,
+      check_shards: checkShardCount(),
+    });
     await runShardedCheck(checkShardCount());
   } else {
+    writeCheckOutcome({ full_observation_started: true, check_shards: 1 });
     const artifact = buildArtifact();
+    resumeJournal?.writer.close();
     const rendered = render(artifact);
     requireCondition(
       fs.existsSync(path.join(WORKSPACE, TARGET_RELATIVE_PATH)) &&
@@ -2017,9 +2220,18 @@ if (MODE === INTERNAL_CHECK_SHARD_MODE) {
           rendered,
       `stale ${TARGET_RELATIVE_PATH}; run h2-5g-qualification.mjs --write and review`,
     );
-    mintCheckReceipt(artifact);
+    const mint = mintCheckReceipt(artifact);
+    if (mint.minted) {
+      removeJournals(path.join(WORKSPACE, CHECK_RESUME_DIRECTORY), mint.key);
+    }
+    writeCheckOutcome({
+      completed: true,
+      observed_cases: resumeJournal?.appended ?? 9_027,
+      journal_adopted: resumeJournal?.adopted ?? 0,
+      minted: mint.minted,
+    });
     process.stdout.write(
-      `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} check_receipt=minted\n`,
+      `H2.5g qualification is fresh: candidates=${artifact.summary.candidates} admitted=${artifact.summary.admitted_cases} deferred=${artifact.summary.deferred_cases} check_receipt=${mint.minted ? "minted" : "mint-refused"} journal_adopted=${resumeJournal?.adopted ?? 0}\n`,
     );
   }
 } else if (MODE === "--upgrade-observation-layout") {
