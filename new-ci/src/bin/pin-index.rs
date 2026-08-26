@@ -475,10 +475,7 @@ fn policy_pins(text: &str) -> Vec<(String, String, usize, usize)> {
     let Some((start, end)) = json_container_after_key(text, "rust_source_sha256") else {
         return Vec::new();
     };
-    map_hash_pairs(text, start, end)
-        .into_iter()
-        .map(|(path, hash, hash_start, hash_end)| (path, hash, hash_start, hash_end))
-        .collect()
+    map_hash_pairs(text, start, end).into_iter().collect()
 }
 
 fn schema_const_pins(text: &str) -> Vec<PathHashPair> {
