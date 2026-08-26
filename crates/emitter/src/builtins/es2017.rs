@@ -2152,12 +2152,18 @@ impl<'context, 'resolver> Es2017Visitor<'context, 'resolver> {
             prologue_end += 1;
         }
         if !lexical_environment.variable_declarations().is_empty() {
-            let declarations = lexical_environment
-                .variable_declarations()
-                .iter()
-                .copied()
-                .map(|name| self.create_variable_declaration(name, None))
-                .collect::<Result<Vec<_>, _>>()?;
+            let mut declarations =
+                Vec::with_capacity(lexical_environment.variable_declarations().len());
+            for name in lexical_environment.variable_declarations().iter().copied() {
+                let declaration = self.create_variable_declaration(name, None)?;
+                // hoistVariableDeclaration sets EmitFlags.NoNestedSourceMaps
+                // on every hoisted declaration.
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(declaration)
+                    .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+                declarations.push(declaration);
+            }
             let list = self.create_variable_declaration_list(declarations, NodeFlags::NONE)?;
             let statement = self.create_variable_statement_from_list(list)?;
             self.context

@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "166429fff483e17f0581269de207346124c08f37df8e5e0e2ab033cb980bae77";
+  "02e6d669d1d336f18d95f36849b3796120169a825293f14ff42d5eb24d790d87";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "7cf435dd2a858871201c245a1eaee862a9c1ef96d4f3b966af26c9af593ee511"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "250e2c1f0770d99545a4d7670ddd7001cb2db1aa6f2478343069c33cf3485724"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "05b73dabfb21085c03821579e41b0bf9750c7bb460db77542fc07eb7cf2db61b"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "dc20ad95a4536602babc558a1e7961ce85247929b14e0981022946cae51a7118"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "9dd42476fb4d5e228e53394c596976f122e3cb3180b3fe9dbeb5019ec18b75f3"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "bb89bdc52257c9bf9c0e49ac04381eb35541054b90a2de6ff9e0923251ab16ac"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "863a28ecb9667b9e26d35fa221644e49be33f1062cd1c288d853f3bc960eeb59"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "935b4c6f4c6f3103c923b3bd67eea16e248bf05257ad22c40b480aa36bc82bc7"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
@@ -93,6 +93,10 @@ const HISTORICAL_AUTHORITIES = Object.freeze([
 // this append-only set is every non-oracle crate path changed from the trusted
 // H2.5f merge that was not already part of the parent profile.
 const NEW_RUNTIME_INPUTS = Object.freeze([
+  // h2-6a-m-3: the runtime flip touched the emit error/outcome surfaces
+  // (SourceMapRecordingUnavailable, the SourceMapObservation producer).
+  "crates/emitter/src/error.rs",
+  "crates/emitter/src/outcome.rs",
   "crates/checker/Cargo.toml",
   "crates/checker/src/access.rs",
   "crates/checker/src/check.rs",
@@ -305,6 +309,13 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/harness/tests/integration/h2_3b_profile.rs",
   "crates/harness/tests/integration/h2_3c_profile.rs",
   "crates/harness/tests/integration/transpile_suite_inventory.rs",
+  // h2-6a-m-2 replay suite: gate evidence over the frozen W-H2.6A
+  // witnesses through the harness print bridge; not read by the fixed
+  // H2.5g acceptance command (the CA-4 discovery (a) pattern).
+  "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+  // h2-6a m-3/ca-2 gate evidence and burn-down tooling: same pattern.
+  "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
+  "crates/compiler/tests/integration/source_map_band_probe.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit
   // runtime (emit acceptance routes through the harness emit drivers,
@@ -563,7 +574,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 257,
+    runtimeInputSet.size === 259,
     "H2.5g runtime input identity changed",
   );
 
@@ -620,16 +631,16 @@ function buildArtifact() {
       },
       transition: {
         completed_slice: "H2.5g",
-        next_slice: "H2.6a",
-        next_slice_scope: "exact-map-json-and-callback-metadata",
-        next_runtime_activation_slice: "H2.6a",
+        next_slice: "H2.6b",
+        next_slice_scope: "inline-maps-sources-roots-and-multi-source-ranges",
+        next_runtime_activation_slice: "H2.6b",
         active_runtime_slices: [
           "H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a",
           "H2.2b", "H2.2c", "H2.2d", "H2.3a", "H2.3b", "H2.3c",
           "H2.3d", "H2.4a", "H2.4b", "H2.5a", "H2.5b", "H2.5c",
-          "H2.5d", "H2.5e", "H2.5f", "H2.5g", "H2.5h",
+          "H2.5d", "H2.5e", "H2.5f", "H2.5g", "H2.5h", "H2.6a",
         ],
-        inactive_runtime_slice_count: 14,
+        inactive_runtime_slice_count: 13,
         classic_jsx_tsx_owner: "complete",
         automatic_jsx_runtime_owner: "complete",
         json_output_owner: "complete",
@@ -652,6 +663,11 @@ function buildArtifact() {
         h2_5h_exact_cases: 795,
         h2_5h_known_divergences: 93,
         h2_5h_source_deferred_cases: 44,
+        h2_6a_candidate_cases: 177,
+        h2_6a_admitted_cases: 175,
+        h2_6a_exact_cases: 130,
+        h2_6a_known_divergences: 45,
+        h2_6a_source_deferred_cases: 2,
         h2_5g_global_future_rows: 2_883,
         h2_5g_source_deferred_cases: 516,
         deferred_failure_boundary: "typed failure before first sink write",
@@ -685,7 +701,7 @@ function buildArtifact() {
         hosted_gate_scope: "fixed-unsplit-ts-tests-only",
       },
       summary: {
-        completed_runtime_slices: 22,
+        completed_runtime_slices: 23,
         next_slice_runtime_slice_delta: 0,
         runtime_admissions: 9_196,
         executed_candidates: 9_715,

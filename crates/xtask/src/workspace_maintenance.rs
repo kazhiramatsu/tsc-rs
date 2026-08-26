@@ -528,8 +528,7 @@ fn audit_automation_package_selectors(workspace: &Path) -> Result<(), Box<dyn Er
     let mut script_files = Vec::new();
     collect_files(&workspace.join("scripts"), &mut script_files)?;
     for path in script_files {
-        let text = fs::read_to_string(&path)?;
-        if let Some(selector) = automation_cargo_selector(&text) {
+        if let Some(selector) = automation_selector_in_bytes(&fs::read(&path)?) {
             return Err(format!(
                 "automation file {} contains direct Cargo selector `{selector}`; use workspace gates, a manifest path/default-run, or an xtask role",
                 path.display(),
@@ -538,6 +537,13 @@ fn audit_automation_package_selectors(workspace: &Path) -> Result<(), Box<dyn Er
         }
     }
     Ok(())
+}
+
+/// Automation selectors can only live in text scripts; a generated binary
+/// artifact under `scripts/` (a stray `__pycache__/*.pyc`) is skipped
+/// instead of failing the whole audit on invalid UTF-8.
+fn automation_selector_in_bytes(bytes: &[u8]) -> Option<String> {
+    automation_cargo_selector(std::str::from_utf8(bytes).ok()?)
 }
 
 fn audit_yaml_automation_file(path: &Path) -> Result<Vec<String>, Box<dyn Error>> {

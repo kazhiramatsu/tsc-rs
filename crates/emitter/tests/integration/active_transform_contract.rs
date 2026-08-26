@@ -5,12 +5,11 @@ use std::path::Path;
 use serde_json::Value;
 use tsc_emitter::{
     create_printer, get_script_transformers, get_script_transformers_for_source, transform_nodes,
-    transform_type_script, DisabledSourceMapRecorder, EmitConstantValue, EmitEnumMemberValue,
-    EmitExportContainerMode, EmitFlags, EmitHost, EmitResolver, EmitResolverError,
-    EmitResolverNode, EmitSource, EmitTypeReferenceSerializationKind, InternalEmitFlags,
-    JavaScriptNumber, JavaScriptString, NewLineKind, PrintRequest, PrinterOptions,
-    SourceFileTextMode, SourceRange, TransformArena, TransformNode, TransformRoot,
-    TransformSourceId, UnavailableEmitResolver,
+    transform_type_script, EmitConstantValue, EmitEnumMemberValue, EmitExportContainerMode,
+    EmitFlags, EmitHost, EmitResolver, EmitResolverError, EmitResolverNode, EmitSource,
+    EmitTypeReferenceSerializationKind, InternalEmitFlags, JavaScriptNumber, JavaScriptString,
+    NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode, SourceRange, TransformArena,
+    TransformNode, TransformRoot, TransformSourceId, UnavailableEmitResolver,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{
@@ -364,11 +363,7 @@ fn transform_and_print_at_target_with_resolver_and_mode(
             .with_remove_comments(remove_comments)
             .with_source_file_text_mode(source_file_text_mode),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print target transform")
     .text()
     .to_owned()
@@ -441,11 +436,7 @@ fn invalid_react_namespace_option_value_is_retained_by_recovery_emit() {
     let text = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print invalid reactNamespace recovery output")
     .text()
     .to_owned();
@@ -488,11 +479,7 @@ fn relocated_assignment_field_owns_its_leading_comment_once() {
     let text = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print assignment-mode class field")
     .text()
     .to_owned();
@@ -529,11 +516,7 @@ fn transform_and_print_module(
     )
     .expect("module transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print module transform")
         .text()
         .to_owned()
@@ -841,11 +824,7 @@ fn transform_and_print_using_common_js(source_text: &str) -> (String, usize) {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print ES2022 CommonJS using-hoist transform")
     .text()
     .to_owned();
@@ -1946,11 +1925,7 @@ fn transformed_super_switch_retains_the_empty_case_block_line_in_crlf_output() {
             .with_target(ScriptTarget::ES2015)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print derived-class super switch");
 
     assert!(
@@ -2497,11 +2472,7 @@ fn common_js_named_import_tag_erases_the_substituted_property_receiver() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS named-import tagged template")
     .text()
     .to_owned();
@@ -2627,11 +2598,7 @@ fn transform_async_arguments_contract(source_text: &str) -> String {
     )
     .expect("async arguments transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print async arguments transform")
         .text()
         .to_owned()
@@ -2910,11 +2877,7 @@ fn const_enum_negative_access_comment_stays_inside_access_parentheses() {
     let printed = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print const enum access");
 
     assert_eq!(printed.text(), "let value = (-1 /* Foo.A */).toString();\n");
@@ -3000,11 +2963,7 @@ fn commentless_const_enum_integer_access_keeps_the_property_dot_boundary() {
             .with_target(ScriptTarget::ES2015)
             .with_remove_comments(true),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print commentless const enum access");
 
     assert_eq!(printed.text(), "let value = 100..toString();\n");
@@ -3050,11 +3009,7 @@ fn commentless_const_enum_numeric_substitution_keeps_expression_grammar() {
                 .with_target(ScriptTarget::ES2015)
                 .with_remove_comments(true),
         )
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print commentless const enum value");
 
         assert_eq!(printed.text(), expected, "constant value: {value:?}");
@@ -4541,11 +4496,7 @@ fn preserved_jsx_expression_comments_follow_jsx_token_boundaries() {
             .with_target(ScriptTarget::ES2015)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print preserved JSX comments")
     .text()
     .to_owned();
@@ -4602,11 +4553,7 @@ fn automatic_jsx_children_retain_expression_trailing_comments() {
             .with_target(ScriptTarget::ES2015)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print automatic JSX child comment")
     .text()
     .to_owned();
@@ -4651,11 +4598,7 @@ fn classic_jsx_children_retain_expression_trailing_comments() {
             .with_target(ScriptTarget::ES2015)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print classic JSX child comment")
     .text()
     .to_owned();
@@ -4705,11 +4648,7 @@ fn classic_jsx_attribute_tail_is_not_owned_by_the_generated_property() {
             .with_target(ScriptTarget::ES2015)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print classic JSX attribute-tail ownership")
     .text()
     .to_owned();
@@ -4762,11 +4701,7 @@ fn parenthesized_jsx_line_comment_terminates_before_closing_delimiters() {
             .with_target(ScriptTarget::ES2015)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print classic JSX parenthesized comment")
     .text()
     .to_owned();
@@ -4918,11 +4853,7 @@ fn transform_jsx_namespace_contract(jsx: i32) -> String {
             .with_target(ScriptTarget::ES2015)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print JSX namespace transform")
     .text()
     .to_owned()
@@ -5411,11 +5342,7 @@ fn exact_bootstrap_transformer_order_erases_the_frozen_typescript_tree() {
     );
 
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print transformed source");
     assert_eq!(
         printed.text(),
@@ -5794,11 +5721,7 @@ fn anonymous_class_receiver_precedes_its_computed_static_key_binding() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print computed static class expression")
     .text()
     .to_owned();
@@ -6402,11 +6325,7 @@ fn transform_and_print_decorators_at_target(
     )
     .expect("legacy decorator transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print legacy decorator transform")
         .text()
         .to_owned()
@@ -6450,11 +6369,7 @@ fn transform_and_print_legacy_decorator_recovery_at_target(
     )
     .expect("legacy decorator recovery transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print legacy decorator recovery transform")
         .text()
         .to_owned()
@@ -6497,11 +6412,7 @@ fn transform_and_print_standard_decorated_class_namespace_merge(
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS standard-decorator class/namespace merge")
     .text()
     .to_owned();
@@ -6735,11 +6646,7 @@ fn observe_standard_decorated_class_name_projections(
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print standard-decorator name projections")
     .text()
     .to_owned();
@@ -7217,11 +7124,7 @@ fn transform_parsed_legacy_decorator_metadata_at_target(
     )
     .expect("legacy decorator metadata transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print legacy decorator metadata transform")
         .text()
         .to_owned()
@@ -7344,11 +7247,7 @@ fn typescript_and_legacy_passes_exchange_one_ambient_property_anchor() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES_NEXT),
     )
-    .print(
-        &mut legacy,
-        PrintRequest::SourceFile(legacy_source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut legacy, PrintRequest::SourceFile(legacy_source), None)
     .expect("print legacy ambient-anchor handoff")
     .text()
     .to_owned();
@@ -7622,11 +7521,7 @@ fn transform_parsed_class_declaration_correlation_at_target_with_mode(
     )
     .expect("class declaration correlation transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print class declaration correlation transform")
         .text()
         .to_owned()
@@ -9362,11 +9257,7 @@ fn native_standard_decorator_root_is_owned_after_typescript_erasure() {
     )
     .expect("native standard decorator syntax is owned by H2.4b");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print native standard decorator syntax");
     assert_eq!(printed.text(), "@dec\nclass Value {\n    field;\n}\n");
 }
@@ -10412,11 +10303,7 @@ fn standard_decorator_residual_initializer_replays_custom_variable_prologue() {
     let text = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print standard decorator custom-prologue transform")
     .text()
     .to_owned();
@@ -11340,11 +11227,7 @@ fn downlevel_standard_decorator_metadata_uses_the_class_receiver() {
     )
     .expect("ES2015 CommonJS standard-decorator pipeline");
     let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print downlevel standard-decorator metadata")
         .text()
         .to_owned();
@@ -11395,11 +11278,7 @@ fn es2022_using_scope_is_lowered_through_typed_disposal_state() {
     )
     .expect("ES2022 using transform");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print lowered using scope");
     assert!(printed.text().starts_with("var __addDisposableResource ="));
     assert!(printed.text().contains("var __disposeResources ="));
@@ -11447,11 +11326,7 @@ fn es2022_disposal_names_follow_output_scope_ownership() {
     )
     .expect("ES2022 nested using transforms");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print nested using scopes");
     let text = printed.text();
 
@@ -11570,11 +11445,7 @@ fn assignment_mode_parameter_properties_precede_field_initializers() {
     )
     .expect("assignment-mode parameter-property transform");
     let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print assignment-mode parameter property")
         .text()
         .to_owned();
@@ -11667,11 +11538,7 @@ fn function_body_detached_comment_precedes_relocated_field_initializer() {
     let text = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print constructor detached comments")
     .text()
     .to_owned();
@@ -11751,11 +11618,7 @@ fn es2022_decorator_call_bindings_preserve_receivers_and_lexical_super() {
     )
     .expect("ES2022 standard decorator call bindings");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print standard decorator call bindings");
     let text = printed.text();
 
@@ -11799,11 +11662,7 @@ fn detached_source_prefix_stays_before_standard_decorator_helpers() {
     )
     .expect("standard decorator transform with detached source trivia");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print standard decorator with detached source trivia");
     let text = printed.text();
 
@@ -11999,11 +11858,7 @@ fn standard_decorator_named_declaration_has_one_outer_leading_comment_owner() {
     let text = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2022),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print standard decorator comment-owner transform")
     .text()
     .to_owned();
@@ -12171,11 +12026,7 @@ fn esnext_assignment_mode_static_auto_accessor_keeps_dynamic_this_receiver() {
     )
     .expect("ESNext assignment-mode decorated static auto-accessor");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print ESNext assignment-mode decorated static auto-accessor");
     let text = printed.text();
 
@@ -12229,11 +12080,7 @@ fn synthesized_jsx_import_owns_position_before_detached_source_prefix() {
     assert_eq!((statements.pos, statements.end), (u32::MAX, u32::MAX));
 
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print automatic JSX with detached source trivia");
     let text = printed.text();
     let import = text.find("import { jsx as _jsx }").unwrap();
@@ -12271,11 +12118,7 @@ fn synthesized_disposal_body_keeps_detached_prefix_inside_the_try() {
     )
     .expect("using transform with detached source trivia");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print using transform with detached source trivia");
     let text = printed.text();
 
@@ -12308,11 +12151,7 @@ fn es2022_auto_accessor_lowers_while_native_fields_remain_owned() {
     )
     .expect("ES2022 auto-accessor transform");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print ES2022 auto accessor");
     assert_eq!(
         printed.text(),
@@ -12396,11 +12235,7 @@ fn es2021_public_fields_use_typed_assignment_and_define_policies() {
         )
         .expect("ES2021 public-field transform");
         let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-            .print(
-                &mut result,
-                PrintRequest::SourceFile(source),
-                &mut DisabledSourceMapRecorder,
-            )
+            .print(&mut result, PrintRequest::SourceFile(source), None)
             .expect("print ES2021 public fields");
         assert_eq!(
             printed.text(),
@@ -12441,11 +12276,7 @@ fn erased_class_member_keeps_its_same_line_comment_out_of_the_next_member() {
     )
     .expect("ES2015 erased class-member transform");
     let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print erased class-member comments")
         .text()
         .to_owned();
@@ -12489,11 +12320,7 @@ fn class_field_key_evaluation_drains_into_the_next_computed_member() {
     )
     .expect("ES2015 computed class-field transform");
     let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print computed class-field ordering")
         .text()
         .to_owned();
@@ -12554,11 +12381,7 @@ fn case_block_end_comments_survive_class_field_relocation() {
     )
     .expect("ES2015 class-field comment transform");
     let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print class-field case comments")
         .text()
         .to_owned();
@@ -12594,11 +12417,7 @@ fn es2021_private_fields_use_owned_slots_and_helper_operations() {
     )
     .expect("ES2021 private-field transform");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print ES2021 private fields");
     assert_eq!(
         printed.text(),
@@ -12654,11 +12473,7 @@ fn private_field_destructuring_targets_use_setter_wrappers() {
     )
     .expect("private destructuring target transform");
     let text = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print private destructuring target")
         .text()
         .to_owned();
@@ -13114,11 +12929,7 @@ fn es2021_private_behavior_uses_a_shared_brand_and_named_functions() {
     )
     .expect("ES2021 private method/accessor transform");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print ES2021 private behavior");
     assert!(printed.text().starts_with("var __classPrivateFieldGet ="));
     assert!(printed.text().contains("var __classPrivateFieldSet ="));
@@ -13157,11 +12968,7 @@ fn es2021_static_initializers_own_lexical_this_and_super_bindings() {
     )
     .expect("ES2021 static lexical transform");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print ES2021 static lexical bindings");
     assert_eq!(
         printed.text(),
@@ -13275,11 +13082,7 @@ fn es2021_auto_accessors_expand_into_downlevel_private_storage() {
     )
     .expect("ES2021 auto-accessor transform");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print ES2021 auto accessors");
     assert!(printed.text().starts_with("var __classPrivateFieldGet ="));
     assert!(printed.text().contains("var __classPrivateFieldSet ="));
@@ -13351,11 +13154,7 @@ fn es2021_private_auto_accessor_keeps_logical_and_backing_slots_distinct() {
     )
     .expect("ES2021 private auto-accessor transform");
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print ES2021 private auto accessor");
     assert!(printed.text().starts_with("var __classPrivateFieldGet ="));
     assert!(printed.text().contains("var __classPrivateFieldSet ="));
@@ -13560,11 +13359,7 @@ fn changed_node_printer_uses_the_configured_newline_and_preserves_unicode_litera
     )
     .unwrap();
     let printed = create_printer(PrinterOptions::new(NewLineKind::CarriageReturnLineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .unwrap();
     assert_eq!(
         printed.text(),
@@ -13591,11 +13386,7 @@ fn runtime_in_operator_remains_a_javascript_token() {
     assert_eq!(result.arena().root(source).unwrap().node(), parsed.root);
 
     let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("identity JavaScript print");
     assert_eq!(printed.text(), text);
 }
@@ -13637,11 +13428,7 @@ fn h2_3a_javascript_print_preserves_shebang_directive_and_attached_comments() {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("H2.3a JavaScript print");
 
     assert_eq!(printed.text(), text);

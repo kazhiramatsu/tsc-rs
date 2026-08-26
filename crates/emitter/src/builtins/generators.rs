@@ -903,6 +903,24 @@ impl GeneratorsVisitor<'_, '_> {
             let inlined = self.inline_expressions(expressions)?;
             let statement = self.create_expression_statement(inlined)?;
             self.set_source_map_range_from(statement, node)?;
+            // setSourceMapRange(statement, node) copies a range whose
+            // absent sides ride as -1 upstream; the Rust one-sided
+            // encoding keeps those sides as flags on the donor node, so
+            // the copy carries them too (h2-6a-m-2 §8-A).
+            let donor_flags = self.emit_flags(node);
+            let mut side_flags = EmitFlags::NONE;
+            if donor_flags.intersects(EmitFlags::NO_LEADING_SOURCE_MAP) {
+                side_flags |= EmitFlags::NO_LEADING_SOURCE_MAP;
+            }
+            if donor_flags.intersects(EmitFlags::NO_TRAILING_SOURCE_MAP) {
+                side_flags |= EmitFlags::NO_TRAILING_SOURCE_MAP;
+            }
+            if side_flags != EmitFlags::NONE {
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(statement)
+                    .add_flags(side_flags);
+            }
             Ok(Some(statement.node()))
         }
     }
@@ -4299,7 +4317,15 @@ impl GeneratorsVisitor<'_, '_> {
         if !environment.variable_declarations().is_empty() {
             let mut declarations = Vec::new();
             for name in environment.variable_declarations().iter().copied() {
-                declarations.push(self.create_variable_declaration(name, None)?);
+                let declaration = self.create_variable_declaration(name, None)?;
+                // hoistVariableDeclaration sets EmitFlags.NoNestedSourceMaps
+                // on every hoisted declaration (the carried source name
+                // never records).
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(declaration)
+                    .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+                declarations.push(declaration);
             }
             let list = self.create_variable_declaration_list(declarations)?;
             let statement = self.create_variable_statement_from_list(list)?;

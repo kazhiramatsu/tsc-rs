@@ -1079,22 +1079,10 @@ fn unsupported_options_and_unadmitted_extensions_fail_before_the_first_sink_call
         ..CompilerOptions::default()
     };
 
-    let mut source_map = base();
-    source_map.source_map = Some(true);
-    let mut sink = CountingSink::default();
-    let error = ProgramSession::new(prepared_with_sources(
-        source_map,
-        &[("/project/mapped.ts", "export const mapped = true;\n")],
-    ))
-    .emit(&mut sink)
-    .expect_err("source maps are outside H1");
-    assert_eq!(
-        error,
-        DriverError::Emit(EmitFailure::UnsupportedCompilerOption {
-            option: "sourceMap"
-        })
-    );
-    assert_eq!(sink.writes, 0);
+    // `sourceMap` left this refusal table at h2-6a-m-3 (the runtime
+    // flip); its positive coverage lives in
+    // source_map_emit_witness_contract and the promoted
+    // source-map-control of the h1 qualification contract.
 
     let mut out_file = base();
     out_file.module = Some(2);

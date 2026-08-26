@@ -5,3 +5,4 @@
 .DS_Store
 # Claude Code local (per-machine) settings — not shared
 /.claude/settings.local.json
+__pycache__/

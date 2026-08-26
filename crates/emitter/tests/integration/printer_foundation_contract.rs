@@ -1,24 +1,8 @@
 use tsc_emitter::{
-    create_printer, transform_nodes, DisabledSourceMapRecorder, NewLineKind, PrintRequest,
-    PrinterError, PrinterOptions, SourceFileTextMode, SourceMapHookEvent, SourceMapHookPhase,
-    SourceMapRecorder, TransformArena, TransformBundle, TransformRoot, UnsupportedEmitFeature,
+    create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterError, PrinterOptions,
+    SourceFileTextMode, TransformArena, TransformBundle, TransformRoot, UnsupportedEmitFeature,
 };
 use tsc_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions};
-
-#[derive(Default)]
-struct RecordingSourceMapHooks {
-    events: Vec<SourceMapHookEvent>,
-}
-
-impl SourceMapRecorder for RecordingSourceMapHooks {
-    fn enabled(&self) -> bool {
-        true
-    }
-
-    fn record(&mut self, event: SourceMapHookEvent) {
-        self.events.push(event);
-    }
-}
 
 fn transformed(
     text: &str,
@@ -40,13 +24,15 @@ fn transformed(
 }
 
 #[test]
-fn whole_source_pipeline_preserves_text_and_observes_typed_map_hook_phases() {
+fn whole_source_pipeline_preserves_text_and_positions() {
+    // h2-6a-m-2 §5: the identity arm's hook-event seam is deleted with
+    // the recording model (the arm records nothing and is unreachable
+    // under compiler emit); the byte/position oracle stands.
     let text = "const astral = \"😀\";\nconst combining = \"e\u{301}\";\n";
     let (mut result, source) = transformed(text);
     let mut printer = create_printer(PrinterOptions::new(NewLineKind::LineFeed));
-    let mut recorder = RecordingSourceMapHooks::default();
     let printed = printer
-        .print(&mut result, PrintRequest::SourceFile(source), &mut recorder)
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("whole-source print");
 
     assert_eq!(printed.text(), text);
@@ -56,26 +42,7 @@ fn whole_source_pipeline_preserves_text_and_observes_typed_map_hook_phases() {
     );
     assert_eq!(printed.end().line(), 2);
     assert_eq!(printed.end().column(), 0);
-    assert!(recorder
-        .events
-        .iter()
-        .any(|event| event.phase() == SourceMapHookPhase::BeforeNode));
-    assert!(recorder
-        .events
-        .iter()
-        .any(|event| event.phase() == SourceMapHookPhase::AfterNode));
-    assert!(recorder
-        .events
-        .iter()
-        .any(|event| event.phase() == SourceMapHookPhase::BeforeToken));
-    assert!(recorder
-        .events
-        .iter()
-        .any(|event| event.phase() == SourceMapHookPhase::AfterToken));
-    for event in &recorder.events {
-        assert_eq!(event.source(), source);
-        assert!(event.generated().position().value() <= printed.end().position().value());
-    }
+    assert!(printed.source_map().is_none());
 }
 
 #[test]
@@ -87,11 +54,7 @@ fn canonical_source_file_mode_walks_an_unchanged_tree() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(
@@ -114,11 +77,7 @@ fn throw_keyword_and_expression_share_internal_comment_boundaries_once() {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("canonical try statement print");
 
     assert_eq!(printed.text().matches("/*5*/").count(), 1);
@@ -153,11 +112,7 @@ fn standalone_tsx_printer_emits_type_argument_delimiters() {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print standalone TSX type arguments");
 
     assert_eq!(
@@ -203,11 +158,7 @@ fn standalone_tsx_printer_preserves_attribute_and_child_comments() {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print standalone TSX comments");
 
     for comment in ["/* block attribute comment */", "// line attribute comment"] {
@@ -257,11 +208,7 @@ fn standalone_tsx_tag_name_line_comment_uses_the_configured_newline() {
         PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print TSX tag-name line comment");
 
     assert_eq!(
@@ -300,11 +247,7 @@ fn standalone_tsx_child_keeps_comment_newline_separate_from_raw_jsx_text() {
         PrinterOptions::new(NewLineKind::CarriageReturnLineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print TSX child line comment");
 
     assert_eq!(
@@ -327,11 +270,7 @@ fn empty_case_block_uses_the_multiline_case_block_list_format() {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print empty switch case-block layouts");
 
     assert_eq!(
@@ -353,11 +292,7 @@ fn template_span_expression_owns_comments_after_the_substitution_open() {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print template-span comments");
 
     assert_eq!(printed.text(), text);
@@ -380,11 +315,7 @@ fn template_span_comment_ownership_covers_open_expression_and_close_boundaries()
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print all template-span comment boundaries");
 
     assert_eq!(printed.text(), text);
@@ -399,11 +330,7 @@ fn canonical_string_line_continuation_keeps_its_source_newline() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical string-literal line-continuation print");
 
     assert_eq!(
@@ -421,11 +348,7 @@ fn canonical_object_literals_preserve_same_line_property_groups() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(printed.text(), text);
@@ -440,11 +363,7 @@ fn canonical_property_access_preserves_a_line_break_after_the_dot() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(printed.text(), text);
@@ -459,11 +378,7 @@ fn canonical_binary_and_prefix_operators_preserve_lexical_separation() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(
@@ -481,11 +396,7 @@ fn canonical_nested_conditionals_preserve_source_line_structure() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(
@@ -503,11 +414,7 @@ fn canonical_continue_statement_writes_its_asi_safe_terminator() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(printed.text(), "while (true)\n    continue;\n");
@@ -527,11 +434,7 @@ fn canonical_jump_statements_preserve_keyword_and_label_comments() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical jump-statement print");
 
     assert_eq!(printed.text(), text);
@@ -553,11 +456,7 @@ fn canonical_asi_jump_comments_follow_the_synthesized_terminator() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical ASI jump-comment print");
 
     assert_eq!(
@@ -590,11 +489,7 @@ fn canonical_switch_tokens_own_internal_comments() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical switch token-comment print");
 
     assert_eq!(
@@ -620,11 +515,7 @@ fn canonical_do_statement_ends_a_non_block_body_before_while() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(printed.text(), text);
@@ -639,11 +530,7 @@ fn canonical_multiline_comments_preserve_empty_lines() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(printed.text(), text);
@@ -658,11 +545,7 @@ fn canonical_leading_block_comment_separates_the_following_token() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(
@@ -680,11 +563,7 @@ fn canonical_call_list_keeps_comments_before_the_closing_delimiter() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(printed.text(), text);
@@ -703,11 +582,7 @@ fn canonical_call_arguments_keep_line_comment_spacing_without_indent_drift() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(printed.text(), text);
@@ -722,11 +597,7 @@ fn canonical_binding_patterns_emit_omitted_expressions_as_empty_slots() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical source-file print");
 
     assert_eq!(printed.text(), text);
@@ -741,11 +612,7 @@ fn canonical_template_spans_do_not_preserve_incidental_source_spaces() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("canonical template expression print");
 
     assert_eq!(printed.text(), "f `\\x0D${\"Interrupted CRLF\"}\\x0A`;\n");
@@ -760,11 +627,7 @@ fn canonical_source_file_mode_emits_deferred_import_phase() {
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
     let printed = printer
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("deferred import print");
 
     assert_eq!(
@@ -774,14 +637,13 @@ fn canonical_source_file_mode_emits_deferred_import_phase() {
 }
 
 #[test]
-fn disabled_recorder_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
+fn recording_absent_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
     let text = "export const value = 1;\n";
     let (mut result, source) = transformed(text);
     let mut printer = create_printer(PrinterOptions::default());
-    let mut disabled = DisabledSourceMapRecorder;
     assert_eq!(
         printer
-            .print(&mut result, PrintRequest::SourceFile(source), &mut disabled)
+            .print(&mut result, PrintRequest::SourceFile(source), None)
             .unwrap()
             .text(),
         text
@@ -796,31 +658,19 @@ fn disabled_recorder_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
         _ => unreachable!(),
     };
     assert_eq!(
-        printer.print(
-            &mut result,
-            PrintRequest::StandaloneNode(root),
-            &mut disabled
-        ),
+        printer.print(&mut result, PrintRequest::StandaloneNode(root), None),
         Err(PrinterError::Unsupported(
             UnsupportedEmitFeature::StandaloneNodePrinting
         ))
     );
     assert_eq!(
-        printer.print(
-            &mut result,
-            PrintRequest::JavaScriptMap(source),
-            &mut disabled
-        ),
+        printer.print(&mut result, PrintRequest::JavaScriptMap(source), None),
         Err(PrinterError::Unsupported(
             UnsupportedEmitFeature::JavaScriptMap
         ))
     );
     assert_eq!(
-        printer.print(
-            &mut result,
-            PrintRequest::NodeList(statements),
-            &mut disabled
-        ),
+        printer.print(&mut result, PrintRequest::NodeList(statements), None),
         Err(PrinterError::Unsupported(
             UnsupportedEmitFeature::NodeListPrinting
         ))
@@ -829,18 +679,14 @@ fn disabled_recorder_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
         printer.print(
             &mut result,
             PrintRequest::Bundle(TransformBundle::new(vec![source])),
-            &mut disabled
+            None
         ),
         Err(PrinterError::Unsupported(
             UnsupportedEmitFeature::BundleRoot
         ))
     );
     assert_eq!(
-        printer.print(
-            &mut result,
-            PrintRequest::Declaration(source),
-            &mut disabled
-        ),
+        printer.print(&mut result, PrintRequest::Declaration(source), None),
         Err(PrinterError::Unsupported(
             UnsupportedEmitFeature::Declaration
         ))

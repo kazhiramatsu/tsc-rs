@@ -76,6 +76,7 @@ const HOSTED_ACCEPTANCE_QUALIFIED_CALLS = Object.freeze([
   "h2_2c_acceptance::run_h2_5f",
   "h2_2c_acceptance::run_h2_5g",
   "h2_2c_acceptance::run_h2_5h",
+  "h2_2c_acceptance::run_h2_6a",
 ]);
 
 const HOSTED_ACCEPTANCE_CANONICAL_BODY = [
@@ -107,6 +108,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     label: "H2.5h qualification",
     schema: ".github/ci/contracts/h2-5h-qualification.schema.json",
     artifact: "ratchets/h2-5h-qualification.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.6a qualification",
+    schema: ".github/ci/contracts/h2-6a-qualification.schema.json",
+    artifact: "ratchets/h2-6a-qualification.v1.json",
   }),
   Object.freeze({
     label: "H2.5h-a foundation",
@@ -1904,6 +1910,7 @@ export function validatePolicy(policy) {
     "h2-5g-qualification",
     "h2-5g-profile",
     "h2-5h-qualification",
+    "h2-6a-qualification",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {

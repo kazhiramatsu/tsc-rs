@@ -32,7 +32,7 @@ use std::fmt::Write as _;
 /// identity: the emit host canonicalizer lowercases if and only if file
 /// names are case-insensitive, so a boolean selects identity versus the
 /// ported `to_file_name_lower_case` arm.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceMapGenerator {
     file: Box<str>,
     source_root: Box<str>,
@@ -55,7 +55,7 @@ pub struct SourceMapGenerator {
 
 /// The six-scalar mapping record shared by the `last*`/`pending*` pairs
 /// (_tsc.js:92375-92387).
-#[derive(Debug, Clone, Copy, Default)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 struct MappingFields {
     generated_line: u32,
     generated_character: u32,
@@ -407,6 +407,167 @@ fn push_json_string(out: &mut String, value: &str) {
         }
     }
     out.push('"');
+}
+
+/// Constructor inputs for a print-lifetime recording (h2-6a-m-2 §4):
+/// exactly `createSourceMapGenerator`'s host/file/sourceRoot/
+/// sourcesDirectoryPath surface, carried as owned values so the printer
+/// needs no host reach.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceMapRecordingInputs {
+    pub file: Box<str>,
+    pub source_root: Box<str>,
+    pub sources_directory_path: Box<str>,
+    pub current_directory: Box<str>,
+    pub use_case_sensitive_source_keys: bool,
+}
+
+/// Where the current print source stands with the generator: JSON
+/// sources are never registered and never record (upstream
+/// `setSourceMapSource` skips registration for `.json` and `emitPos`
+/// checks `isJsonSourceMapSource`).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum RegisteredSource {
+    Json,
+    Indexed(u32),
+}
+
+/// Print-lifetime source-map recording state (h2-6a-m-2 §4): the m-1
+/// generator plus the current-source identity, the per-source
+/// registration memo, and the `NO_NESTED_SOURCE_MAPS` suppression depth
+/// (upstream's mutable `sourceMapsDisabled` extent, carried here because
+/// token and comment records never see an `EmitContext`).
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SourceMapRecording {
+    generator: SourceMapGenerator,
+    registered: HashMap<crate::TransformSourceId, RegisteredSource>,
+    current: Option<RegisteredSource>,
+    suppressed_depth: u32,
+}
+
+impl SourceMapRecording {
+    pub fn new(inputs: SourceMapRecordingInputs) -> Self {
+        Self {
+            generator: SourceMapGenerator::new(
+                inputs.file,
+                inputs.source_root,
+                inputs.sources_directory_path,
+                inputs.current_directory,
+                inputs.use_case_sensitive_source_keys,
+            ),
+            registered: HashMap::new(),
+            current: None,
+            suppressed_depth: 0,
+        }
+    }
+
+    fn register(&mut self, source: crate::TransformSourceId, file_name: &str) -> RegisteredSource {
+        if let Some(&registered) = self.registered.get(&source) {
+            return registered;
+        }
+        // tsc-port: isJsonSourceMapSource @6.0.3
+        // tsc-hash: 6dfe87426da2f4738186629fcf86526d3d4b1030570d6284437b0d8ec67dbee2
+        // tsc-span: _tsc.js:121375-121377
+        let registered = if file_name.to_ascii_lowercase().ends_with(".json") {
+            RegisteredSource::Json
+        } else {
+            RegisteredSource::Indexed(self.generator.add_source(file_name))
+        };
+        self.registered.insert(source, registered);
+        registered
+    }
+
+    /// tsc-port: setSourceMapSource @6.0.3
+    /// tsc-hash: 9d5ddceb0e432a1400a46679dcb977ee72a5c90837177cc4cd2cf705e82065ac
+    /// tsc-span: _tsc.js:121352-121370
+    ///
+    /// Registers the print source up front — the empty-file witness pins
+    /// `sources:["input.ts"]` with zero mappings.
+    pub(crate) fn set_current_source(&mut self, source: crate::TransformSourceId, file_name: &str) {
+        let registered = self.register(source, file_name);
+        self.current = Some(registered);
+    }
+
+    pub(crate) fn suppress(&mut self) {
+        self.suppressed_depth += 1;
+    }
+
+    pub(crate) fn unsuppress(&mut self) {
+        self.suppressed_depth = self
+            .suppressed_depth
+            .checked_sub(1)
+            .expect("source-map suppression depth underflow");
+    }
+
+    /// tsc-port: emitPos @6.0.3
+    /// tsc-hash: 0f8f04ad2314d22ba03071e0cdd6fd5df55a159098f978cbddb6aafc8925b33a
+    /// tsc-span: _tsc.js:121307-121321
+    ///
+    /// The generated triple comes from the writer at the record moment;
+    /// synthesized-position filtering happens at the call sites (the
+    /// range machinery), suppression and the JSON guard here.
+    pub(crate) fn record_current(
+        &mut self,
+        source_line: u32,
+        source_character: u32,
+        generated_line: u32,
+        generated_character: u32,
+    ) {
+        if self.suppressed_depth > 0 {
+            return;
+        }
+        let Some(RegisteredSource::Indexed(index)) = self.current else {
+            return;
+        };
+        self.generator.add_mapping(
+            generated_line,
+            generated_character,
+            Some(SourceMappingFields {
+                source_index: index,
+                source_line,
+                source_character,
+            }),
+            None,
+        );
+    }
+
+    /// tsc-port: emitSourcePos @6.0.3
+    /// tsc-hash: c3f079664348b23bc5f254936a266eb104d7fad5cc793ff5f49159625e1f8b70
+    /// tsc-span: _tsc.js:121322-121332
+    ///
+    /// The foreign-source lane: registers on demand (the upstream
+    /// save/set/emit/restore collapses to an explicit per-record source
+    /// because the printer passes the effective source at every site).
+    pub(crate) fn record_for_source(
+        &mut self,
+        source: crate::TransformSourceId,
+        file_name: &str,
+        source_line: u32,
+        source_character: u32,
+        generated_line: u32,
+        generated_character: u32,
+    ) {
+        if self.suppressed_depth > 0 {
+            return;
+        }
+        let RegisteredSource::Indexed(index) = self.register(source, file_name) else {
+            return;
+        };
+        self.generator.add_mapping(
+            generated_line,
+            generated_character,
+            Some(SourceMappingFields {
+                source_index: index,
+                source_line,
+                source_character,
+            }),
+            None,
+        );
+    }
+
+    pub fn into_generator(self) -> SourceMapGenerator {
+        self.generator
+    }
 }
 
 /// The sources-relativization path closure (packet §4/§5). Private to

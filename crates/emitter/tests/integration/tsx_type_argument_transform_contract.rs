@@ -1,7 +1,6 @@
 use tsc_emitter::{
-    create_printer, get_script_transformers, transform_nodes, DisabledSourceMapRecorder,
-    NewLineKind, PrintRequest, PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot,
-    UnavailableEmitResolver,
+    create_printer, get_script_transformers, transform_nodes, NewLineKind, PrintRequest,
+    PrinterOptions, SourceFileTextMode, TransformArena, TransformRoot, UnavailableEmitResolver,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
@@ -45,11 +44,7 @@ fn preserved_jsx_erases_type_arguments_without_consuming_the_attribute_boundary(
             .with_target(ScriptTarget::ES2015)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print preserved JSX")
     .text()
     .to_owned();

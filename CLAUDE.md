@@ -34,6 +34,12 @@ current H2 implementation maps.
    changes keep the per-slice full gate as always. Batching reduces
    merge count, never gate strength: whatever merges still passes the
    complete local gate at its final head.
+   **Thick ladder trains (user directive, 2026-08-25):** a slice's ladder
+   rungs (design-gate m-*/ca-* pairs and their follow-ups) bundle onto
+   1–2 trains, NOT one PR per rung; intra-train rungs verify with
+   targeted tests (walks, qualification check, focused suites) and the
+   full local gate runs ONCE at each train's final head (precedent:
+   PR #475, the H2.6a m-2..ca-2 train).
 3. **Merge criteria** — all gates green on the branch:
    `cargo xtask ci` (fmt --check, clippy -D warnings, build, tests,
    relpin, accepted-state lineage + trusted `origin/main` comparison,
@@ -126,6 +132,25 @@ current H2 implementation maps.
   normal priority — the resume journal retains the green phases, so
   only the measurement-bearing phase repeats. Never raise a ceiling
   to compensate.
+- **Oracle chain walk = `bash scripts/chain-walk.sh [readiness-slice-id]`,
+  NEVER a hand-written session loop.** The driver hard-refuses to start
+  until `cargo fmt --all -- --check` and workspace clippy are green:
+  re-minting the ladder before the Rust tree reaches final bytes re-stales
+  the profile ladder (h2_2c_acceptance.rs bytes are pinned by 15 profile
+  ratchets + the hosted qualification policy) and repeats the entire
+  converge (paid twice: slice A 57-min re-observation; H2.6a ca-2
+  2026-08-25, a 3-line post-walk fmt reflow). The driver also self-checks
+  its ORDER list against `crates/oracle/h2-*.mjs` on disk and refuses to
+  walk on drift, so the slice that adds or retires an oracle script MUST
+  extend/trim ORDER in that same slice (verify with `WALK_DRY=1`);
+  `scripts/chain-walk-repin.py` is its stale-generator-pin fallback.
+  The walk tail and the gate's structural-preflight both run
+  `scripts/pin-audit.py`: every Rust-side artifact pin literal (harness
+  integration tests' RECORDED/lineage hashes — the m-1 "walk repair"
+  class) is verified in seconds instead of failing workspace-tests ~40
+  minutes into the gate; repair with `pin-audit.py --fix` + the affected
+  harness integration tests, and classify newly discovered pin-holding
+  files in the script's AUDITED/EXEMPT lists (it refuses until you do).
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
   (from the repository root, using the trusted base recorded in the PR). Its
   full-corpus B2 producer reuses an existing exact-fingerprint artifact

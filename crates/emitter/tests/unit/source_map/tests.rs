@@ -271,8 +271,8 @@ fn witness_replays_are_byte_equal() {
         }
     }
     assert_eq!(
-        replayed, 25,
-        "replay census changed (24 parity maps + 1 control)"
+        replayed, 27,
+        "replay census changed (26 parity maps + 1 control; token-surface joined at m-3)"
     );
 }
 
@@ -468,4 +468,282 @@ fn relativizer_cross_root_uses_file_url_prefix() {
         parsed["sources"][0].as_str().expect("source"),
         "file:///other/root/input.ts"
     );
+}
+
+// ---------------------------------------------------------------------------
+// §8.3/§8.4 recording contracts (h2-6a-m-2): flag-gate and source-switch
+// behavior asserted as segment presence/absence THROUGH the generator —
+// no hand-authored map bytes. Fixtures carry a `1_0` numeric-separator
+// literal: the emission plan's literal-rewrite lane marks the ancestor
+// chain structured, so the identity print pipelines every node exactly
+// as the production transform output does (the parsed-tree fast path
+// would otherwise stop recursion above the observed records).
+// ---------------------------------------------------------------------------
+
+use tsc_program::SourceFileId;
+use tsc_syntax::{parse_source_file, NodeData};
+
+use crate::{
+    create_printer, transform_nodes, EmitFlags, NewLineKind, PrintRequest, PrinterOptions,
+    SourceMapRange, SourceRange, TransformArena, TransformNode, TransformRoot, TransformSourceId,
+};
+
+use super::SourceMapRecordingInputs;
+
+/// Parse `input.ts`, apply `mutate` to the parsed nodes, identity-print
+/// with a recording, and return the map's sources and decoded segments.
+fn print_recorded(
+    source_text: &str,
+    mutate: impl FnOnce(&mut TransformArena, TransformSourceId, &[TransformNode]),
+) -> (Vec<String>, Vec<Segment>) {
+    let parsed = parse_source_file("/a.ts", source_text, Default::default(), None);
+    let NodeData::SourceFile(source_file) = &parsed.arena.node(parsed.root).data else {
+        panic!("source file root");
+    };
+    let statement_ids = parsed
+        .arena
+        .node_array(source_file.statements.expect("top-level statements"))
+        .nodes
+        .clone();
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let statements = statement_ids
+        .into_iter()
+        .map(|id| arena.node_ref(source, id).expect("top-level statement"))
+        .collect::<Vec<_>>();
+    mutate(&mut arena, source, &statements);
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        Vec::new(),
+        false,
+    )
+    .expect("identity transformation");
+    let printed = create_printer(PrinterOptions::new(NewLineKind::LineFeed))
+        .print(
+            &mut result,
+            PrintRequest::SourceFile(source),
+            Some(SourceMapRecordingInputs {
+                file: "a.js".into(),
+                source_root: "".into(),
+                sources_directory_path: "/".into(),
+                current_directory: "/".into(),
+                use_case_sensitive_source_keys: true,
+            }),
+        )
+        .expect("recorded identity print");
+    let json = printed
+        .source_map()
+        .expect("recorded print returns a map")
+        .clone()
+        .to_json_string();
+    let parsed_json: Value = serde_json::from_str(&json).expect("map JSON");
+    let sources = parsed_json["sources"]
+        .as_array()
+        .expect("sources array")
+        .iter()
+        .map(|value| value.as_str().expect("source entry").to_owned())
+        .collect();
+    let segments = decode_mappings(parsed_json["mappings"].as_str().expect("mappings"));
+    (sources, segments)
+}
+
+fn source_positions(segments: &[Segment]) -> Vec<(u32, u32, u32)> {
+    segments
+        .iter()
+        .filter_map(|segment| segment.source)
+        .collect()
+}
+
+const FUNCTION_FIXTURE: &str = "function f() {\n    // note\n    return 1_0;\n}\n";
+
+fn function_body_and_return(
+    arena: &TransformArena,
+    function: TransformNode,
+) -> (TransformNode, TransformNode) {
+    let NodeData::FunctionDeclaration(data) = &arena.node(function).expect("function").data else {
+        panic!("function declaration fixture");
+    };
+    let body = arena
+        .node_ref(function.source(), data.body.expect("function body"))
+        .expect("body node");
+    let NodeData::Block(block) = &arena.node(body).expect("body block").data else {
+        panic!("block body");
+    };
+    let statement_array = arena
+        .node_array_ref(
+            function.source(),
+            block.statements.expect("body statements"),
+        )
+        .expect("body statement array");
+    let first = arena
+        .node_array(statement_array)
+        .expect("body statement nodes")
+        .nodes[0];
+    let return_statement = arena
+        .node_ref(function.source(), first)
+        .expect("return statement");
+    (body, return_statement)
+}
+
+/// §8.3: `NO_NESTED_SOURCE_MAPS` on a subtree suppresses the node,
+/// token, and comment records inside it while the flagged node's own
+/// boundaries stay live (the F5 carrier).
+#[test]
+fn no_nested_source_maps_suppresses_node_token_and_comment_records_inside_the_subtree() {
+    let (_, baseline) = print_recorded(FUNCTION_FIXTURE, |_, _, _| {});
+    let baseline = source_positions(&baseline);
+    // Inner records exist to suppress: the comment (line 1), the return
+    // chain (line 2), and the body close-brace token (line 3 column 0).
+    assert!(baseline.iter().any(|&(_, line, _)| line == 1));
+    assert!(baseline.iter().any(|&(_, line, _)| line == 2));
+    assert!(baseline.contains(&(0, 3, 0)));
+
+    let (_, suppressed) = print_recorded(FUNCTION_FIXTURE, |arena, _, statements| {
+        arena
+            .metadata_mut(statements[0])
+            .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+    });
+    let suppressed = source_positions(&suppressed);
+    assert!(!suppressed.is_empty());
+    // Only the function's own Before (0:0) and After (3:1) survive.
+    assert!(suppressed.contains(&(0, 0, 0)));
+    assert!(suppressed.contains(&(0, 3, 1)));
+    assert!(suppressed
+        .iter()
+        .all(|position| [(0, 0, 0), (0, 3, 1)].contains(position)));
+}
+
+/// §8.3: `NO_LEADING_SOURCE_MAP` / `NO_TRAILING_SOURCE_MAP` suppress
+/// exactly one node-boundary side, and the pair together records
+/// neither (the F4 flag pairing).
+#[test]
+fn leading_and_trailing_source_map_flags_suppress_exactly_one_side() {
+    let (_, baseline) = print_recorded(FUNCTION_FIXTURE, |_, _, _| {});
+    let baseline = source_positions(&baseline);
+    // The return statement's own sides (2:4 Before, 2:15 After) and its
+    // literal child (2:11 / 2:14) are distinct records.
+    for expected in [(0, 2, 4), (0, 2, 15), (0, 2, 11), (0, 2, 14)] {
+        assert!(baseline.contains(&expected), "missing {expected:?}");
+    }
+
+    let flag_return = |flags: EmitFlags| {
+        let (_, segments) = print_recorded(FUNCTION_FIXTURE, |arena, _, statements| {
+            let (_, return_statement) = function_body_and_return(arena, statements[0]);
+            arena.metadata_mut(return_statement).add_flags(flags);
+        });
+        source_positions(&segments)
+    };
+
+    let no_leading = flag_return(EmitFlags::NO_LEADING_SOURCE_MAP);
+    assert!(!no_leading.contains(&(0, 2, 4)));
+    assert!(no_leading.contains(&(0, 2, 15)));
+    assert!(no_leading.contains(&(0, 2, 11)));
+
+    let no_trailing = flag_return(EmitFlags::NO_TRAILING_SOURCE_MAP);
+    assert!(no_trailing.contains(&(0, 2, 4)));
+    assert!(!no_trailing.contains(&(0, 2, 15)));
+    assert!(no_trailing.contains(&(0, 2, 14)));
+
+    let neither = flag_return(EmitFlags::NO_LEADING_SOURCE_MAP | EmitFlags::NO_TRAILING_SOURCE_MAP);
+    assert!(!neither.contains(&(0, 2, 4)));
+    assert!(!neither.contains(&(0, 2, 15)));
+    assert!(neither.contains(&(0, 2, 11)));
+    assert!(neither.contains(&(0, 2, 14)));
+}
+
+/// §8.3: `NO_TOKEN_SOURCE_MAPS` on the token's owner gates the token
+/// lane while node-boundary records stay live.
+#[test]
+fn no_token_source_maps_gates_the_token_lane_only() {
+    let (_, baseline) = print_recorded(FUNCTION_FIXTURE, |_, _, _| {});
+    let baseline = source_positions(&baseline);
+    assert!(baseline.contains(&(0, 3, 0)));
+
+    let (_, gated) = print_recorded(FUNCTION_FIXTURE, |arena, _, statements| {
+        let (body, _) = function_body_and_return(arena, statements[0]);
+        arena
+            .metadata_mut(body)
+            .add_flags(EmitFlags::NO_TOKEN_SOURCE_MAPS);
+    });
+    let gated = source_positions(&gated);
+    // The close-brace token Before (3:0) is gone; the function's own
+    // After (3:1) and the return chain records remain.
+    assert!(!gated.contains(&(0, 3, 0)));
+    assert!(gated.contains(&(0, 3, 1)));
+    assert!(gated.contains(&(0, 2, 4)));
+}
+
+/// §8.4: a `source_map_range` naming a second source registers it in
+/// the generator and records the node's boundaries against it, while
+/// unrelated records stay on the printed source (the source-switch
+/// control; the full multi-source lane stays H2.6b).
+#[test]
+fn a_source_map_range_naming_a_second_source_registers_and_records_against_it() {
+    let switch_target = parse_source_file("/b.ts", "var beta = 2;\n", Default::default(), None);
+    let (sources, segments) = print_recorded("var alpha = 1_0 + 2;\n", |arena, _, statements| {
+        let second = arena.add_source(&switch_target, Some(SourceFileId::from_raw(1)));
+        let positions_range = {
+            let syntax = arena.source(second).expect("second source").syntax();
+            SourceRange::from_raw(0, 13, syntax.positions()).expect("second-source range")
+        };
+        // Switch the initializer literal: its generated boundaries are
+        // not shared with any sibling record, so the switched records
+        // survive the generator's same-generated-position collapse (a
+        // switched STATEMENT's Before would be overwritten by its own
+        // first child at the same generated column).
+        let NodeData::VariableStatement(statement) =
+            &arena.node(statements[0]).expect("variable statement").data
+        else {
+            panic!("variable statement fixture");
+        };
+        let list = arena
+            .node_ref(
+                statements[0].source(),
+                statement.declaration_list.expect("declaration list"),
+            )
+            .expect("list node");
+        let NodeData::VariableDeclarationList(list_data) = &arena.node(list).expect("list").data
+        else {
+            panic!("declaration list fixture");
+        };
+        let declarations = arena
+            .node_array_ref(list.source(), list_data.declarations.expect("declarations"))
+            .expect("declaration array");
+        let first = arena.node_array(declarations).expect("declarations").nodes[0];
+        let declaration = arena
+            .node_ref(list.source(), first)
+            .expect("declaration node");
+        let NodeData::VariableDeclaration(declaration_data) =
+            &arena.node(declaration).expect("declaration").data
+        else {
+            panic!("variable declaration fixture");
+        };
+        let initializer = arena
+            .node_ref(
+                declaration.source(),
+                declaration_data.initializer.expect("initializer"),
+            )
+            .expect("initializer node");
+        let NodeData::BinaryExpression(sum) = &arena.node(initializer).expect("sum").data else {
+            panic!("binary initializer fixture");
+        };
+        // The left operand: records after its After side exist at later
+        // generated columns, so neither switched side is collapsed by
+        // the generator's same-generated-position overwrite.
+        let left = arena
+            .node_ref(initializer.source(), sum.left.expect("left operand"))
+            .expect("left operand node");
+        arena
+            .metadata_mut(left)
+            .set_source_map_range(SourceMapRange::new(second, positions_range));
+    });
+    assert_eq!(sources, ["a.ts", "b.ts"]);
+    let positions = source_positions(&segments);
+    // The switched node's boundaries record against source index 1.
+    assert!(positions.contains(&(1, 0, 0)));
+    assert!(positions.contains(&(1, 0, 13)));
+    // Unrelated records stay on the printed source.
+    assert!(positions.contains(&(0, 0, 4)));
+    assert!(positions.contains(&(0, 0, 0)));
 }

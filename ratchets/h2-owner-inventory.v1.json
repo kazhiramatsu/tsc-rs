@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "c532ada53620bfbb2f2f51645710762b0e8f8edabdd4a2d64d68e49d1dcf438e"
+    "sha256": "afca96a4d6cba2497f70506a24e618382a53f584504f072eb393650bd6a6e6b7"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-owner-inventory.schema.json",
@@ -29,7 +29,7 @@
     },
     "h1_rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "ff8ed0a5c165f31a9503f630c5577b8ca590e4d1def00d18976ccef71d0b4568"
+      "sha256": "b7ff0b4fceb82c4c82187648fa1e71d8a26452b2064ed4849ec66b95077fd107"
     }
   },
   "closure_model": "complete H2 one-shot compiler owner-root universe plus exact source-symbol references between roots; each runtime slice regenerates the transitive helper closure and may suffix-split independent SCCs before admission",
@@ -2159,7 +2159,7 @@
         "path": "crates/emitter/src/builtins.rs",
         "line": 104,
         "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
-        "file_sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
+        "file_sha256": "01b71379d2fb9895fdc4677a574b32a91ea1b383b0d52dedd1e08ec485df407f"
       },
       "upstream_owners": [
         "module-transformer-selection",
@@ -2174,7 +2174,7 @@
         "path": "crates/emitter/src/builtins.rs",
         "line": 356,
         "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
-        "file_sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
+        "file_sha256": "01b71379d2fb9895fdc4677a574b32a91ea1b383b0d52dedd1e08ec485df407f"
       },
       "upstream_owners": [
         "transform-typescript"
@@ -2187,7 +2187,7 @@
         "path": "crates/emitter/src/builtins.rs",
         "line": 390,
         "text_sha256": "6725dc3040c7b665e642b0595eb187992791ad9331c370100c1dfd03cbd38159",
-        "file_sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
+        "file_sha256": "01b71379d2fb9895fdc4677a574b32a91ea1b383b0d52dedd1e08ec485df407f"
       },
       "upstream_owners": [
         "transform-class-fields"
@@ -2200,7 +2200,7 @@
         "path": "crates/emitter/src/builtins.rs",
         "line": 400,
         "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
-        "file_sha256": "d6ad4f0ecac1154bb6c8140bef0e0b237013f146f5aeef903cbfef4f221ae021"
+        "file_sha256": "01b71379d2fb9895fdc4677a574b32a91ea1b383b0d52dedd1e08ec485df407f"
       },
       "upstream_owners": [
         "transform-es-module"
@@ -2224,9 +2224,9 @@
       "anchor": {
         "id": "emitter-printer-factory",
         "path": "crates/emitter/src/printer.rs",
-        "line": 833,
+        "line": 790,
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "f5f2579eb41e1c14acb439d660b416dab05f1cfb291d69b3e60b4d58338fd41e"
+        "file_sha256": "e24b839972ed2f7aa461f4c5cd95e135cf3ed8328022e2f1efa73568803c87be"
       },
       "upstream_owners": [
         "printer"
@@ -2236,10 +2236,10 @@
     {
       "anchor": {
         "id": "emitter-source-map-recorder",
-        "path": "crates/emitter/src/printer.rs",
-        "line": 796,
-        "text_sha256": "76298cd03affa09442e1ee73bff9ba404f8ce719406bc4d5d1c45e0461acd461",
-        "file_sha256": "f5f2579eb41e1c14acb439d660b416dab05f1cfb291d69b3e60b4d58338fd41e"
+        "path": "crates/emitter/src/source_map.rs",
+        "line": 441,
+        "text_sha256": "8613594a9379a1270da4e2ebbc614e8ac71571dad079e770f2b32e9e03e3ff91",
+        "file_sha256": "763f3f83a8e36d79eab31cbb84c340b4f35f2b9cfaa33525586030c4e21da772"
       },
       "upstream_owners": [
         "source-map-generator",
@@ -2253,7 +2253,7 @@
         "path": "crates/emitter/src/plan.rs",
         "line": 54,
         "text_sha256": "7b9332f2f24bd1e1ac1a7a6c7379f51b9b5161b02ba290af1eb9fd8b98d86f70",
-        "file_sha256": "dda6079d9039c119d06dbcf2b9e2fa735dbbfca59faf7dee1a29dbc9b12b6b9a"
+        "file_sha256": "ac36b2be2a480b0fce8b25a3983a9ec4e0c63661f138b45fcf31db1124c4fa3e"
       },
       "upstream_owners": [
         "bundle-output-paths",
@@ -2267,9 +2267,9 @@
       "anchor": {
         "id": "emitter-emit-files",
         "path": "crates/emitter/src/execute.rs",
-        "line": 262,
+        "line": 261,
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "00e5cb840c872b16b674e7446f8cfe118c17bfae98252206115d28e8075bbc83"
+        "file_sha256": "b1381283e5a6c766d78ac1474370519dfe1937c16d027138056514119065ba99"
       },
       "upstream_owners": [
         "emit-files",
@@ -2281,9 +2281,9 @@
       "anchor": {
         "id": "program-session-emit",
         "path": "crates/compiler/src/lib.rs",
-        "line": 716,
+        "line": 717,
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "dffdb3faacb37b7c9159e8557d6eb8d5c153cb87fda2e7e627e443fe6c0e2b31"
+        "file_sha256": "4fee2244faa23bb4dd8bae2e8001a55bf0058234cff5327aa2b1d9e5f324d8fe"
       },
       "upstream_owners": [
         "program-emit"
@@ -2362,5 +2362,5 @@
     "undispositioned_owners": 0,
     "unmapped_rust_converse_rows": 0
   },
-  "inventory_fingerprint_sha256": "2858f08ef7ab483746a8ca5ee187cce7951051571a82b3d0afed9a4d6356cdca"
+  "inventory_fingerprint_sha256": "5a8156aac03a33622419d1f200625b4468c6827de129d1abdcc2787c748e3a0c"
 }

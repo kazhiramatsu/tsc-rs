@@ -26,9 +26,9 @@ use tsc_types::CompilerOptions;
 use super::super::generators::transform_generators;
 use super::transform_es2015;
 use crate::{
-    create_printer, transform_nodes, DisabledSourceMapRecorder, EmitResolver, EmitResolverError,
-    EmitResolverNode, NewLineKind, PrintRequest, PrinterOptions, TransformArena, TransformError,
-    TransformRoot, TransformSourceId,
+    create_printer, transform_nodes, EmitResolver, EmitResolverError, EmitResolverNode,
+    NewLineKind, PrintRequest, PrinterOptions, TransformArena, TransformError, TransformRoot,
+    TransformSourceId,
 };
 
 fn fixture_options(
@@ -115,11 +115,7 @@ fn project_with(
     create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(tsc_types::ScriptTarget::ES5),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print es2015 projection")
     .text()
     .to_owned()
@@ -162,11 +158,7 @@ fn project_with_module(source_text: &str) -> String {
     create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(tsc_types::ScriptTarget::ES5),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print es2015 module projection")
     .text()
     .to_owned()

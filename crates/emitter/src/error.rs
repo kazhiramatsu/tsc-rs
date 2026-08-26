@@ -66,6 +66,9 @@ pub enum EmitContractViolation {
     ScriptOutputMissingJavaScriptPath,
     PlannedSourceMissing(SourceFileId),
     CheckedSyntaxUnavailable(SourceFileId),
+    /// A mapped unit's print returned no recorded generator, or the URL
+    /// offset left the UTF-16 position domain (h2-6a-m-3).
+    SourceMapRecordingUnavailable,
 }
 
 /// Typed failure before or while orchestrating emission.
@@ -109,6 +112,10 @@ impl fmt::Display for EmitFailure {
                 "invalid emit plan: SourceFileId {} is not present in the emit host",
                 source.raw()
             ),
+            Self::Contract(EmitContractViolation::SourceMapRecordingUnavailable) => formatter
+                .write_str(
+                    "invalid emit execution: a mapped unit produced no source-map recording",
+                ),
             Self::Contract(EmitContractViolation::CheckedSyntaxUnavailable(source)) => write!(
                 formatter,
                 "invalid emit execution: SourceFileId {} has no checked syntax",

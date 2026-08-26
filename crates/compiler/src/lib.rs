@@ -33,8 +33,9 @@ use tsc_checker::{
 };
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_emitter::{
-    emit_files_with_activity, preflight_emit, validate_bootstrap_emit_request, EmitDiagnosticGate,
-    EmitHost, EmitSource, H2ActivityCanary, UnavailableEmitResolver,
+    emit_files_with_activity, preflight_emit, print_script_units_with_recording_for_harness,
+    validate_bootstrap_emit_request, EmitDiagnosticGate, EmitHost, EmitSource, H2ActivityCanary,
+    PrintedText, SourceMapRecordingInputs, UnavailableEmitResolver,
 };
 pub use tsc_emitter::{
     EmitArtifact, EmitArtifactKind, EmitBuildInfoMetadata, EmitContractViolation, EmitFailure,
@@ -755,6 +756,74 @@ impl ProgramSession {
         self.emit_with_command_outcome(sink, None)
     }
 
+    /// h2-6a-m-2 §8-A.1 harness-print bridge: run the production
+    /// plan → checker-resolver → transform → print pipeline and return
+    /// each script unit's printed text (with an optionally injected
+    /// source-map recording), WITHOUT artifacts, sinks, activity
+    /// accounting, or the emit option preflight. Qualification-only:
+    /// the replay suite byte-compares the returned units against the
+    /// frozen witnesses; production emits keep every refusal lane.
+    #[doc(hidden)]
+    pub fn print_units_with_source_map_recording_for_harness(
+        self,
+        recording_inputs_for: &dyn Fn(&std::path::Path) -> Option<SourceMapRecordingInputs>,
+    ) -> Result<Vec<(std::path::PathBuf, PrintedText)>, DriverError> {
+        self.require_mode(PreparedProgramMode::Emit)?;
+        let prepared = self.prepared;
+        let emit_host = PreparedEmitHost::new(&prepared)?;
+        let selection = EmitSelection::WholeProgram;
+        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;
+
+        let inputs = project_checker_inputs(&prepared)?;
+        let provider = PreparedModuleProvider {
+            prepared: &prepared,
+            request_plans: RefCell::new(BTreeMap::new()),
+        };
+        let mut print_result: Option<Result<Vec<(std::path::PathBuf, PrintedText)>, DriverError>> =
+            None;
+        let mut operation =
+            |snapshot: &ProgramSnapshot, checker: &CheckerSession<'_>, checked: &CheckResult| {
+                if print_result.is_some() {
+                    return;
+                }
+                if let Some(partial) = checked.partial_checks.first() {
+                    print_result = Some(Err(DriverError::IncompleteCheck {
+                        file_name: partial.file_name.clone(),
+                        start: partial.start,
+                        length: partial.length,
+                        reason: partial.reason.clone(),
+                        additional_partial_checks: checked.partial_checks.len().saturating_sub(1),
+                    }));
+                    return;
+                }
+                let checked_host = CheckedEmitHost {
+                    prepared: &emit_host,
+                    snapshot,
+                };
+                print_result = Some(checker.with_emit_resolver(|resolver| {
+                    print_script_units_with_recording_for_harness(
+                        resolver,
+                        &checked_host,
+                        &preflight,
+                        recording_inputs_for,
+                    )
+                    .map_err(DriverError::Emit)
+                }));
+            };
+        let checked = check_program_with_authoritative_modules_at_for_emit(
+            &inputs.libs,
+            &inputs.files,
+            &inputs.lib_metadata,
+            &inputs.file_metadata,
+            prepared.compiler_options(),
+            &inputs.current_directory,
+            &provider,
+            &mut operation,
+        );
+        drop(checked);
+        print_result.expect("the checked emit callback runs exactly once")
+    }
+
     fn emit_with_command_outcome(
         self,
         sink: &mut dyn OutputSink,
@@ -762,7 +831,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h2_5h_profile();
+        let mut h2_activity = H2ActivityCanary::h2_6a_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;

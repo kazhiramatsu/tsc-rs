@@ -105,7 +105,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5h_profile();
+    let mut activity = H2ActivityCanary::h2_6a_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -120,7 +120,7 @@ pub fn get_script_transformers_for_source<'transformers>(
     host: &'transformers dyn EmitHost,
     source: SourceFileId,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_5h_profile();
+    let mut activity = H2ActivityCanary::h2_6a_profile();
     get_script_transformers_with_optional_host(
         options,
         resolver,
@@ -6721,11 +6721,17 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         &mut self,
         names: &[TransformNode],
     ) -> Result<TransformNode, TransformError> {
-        let declarations = names
-            .iter()
-            .copied()
-            .map(|name| self.create_variable_declaration_from_name(name, None))
-            .collect::<Result<Vec<_>, _>>()?;
+        let mut declarations = Vec::with_capacity(names.len());
+        for name in names.iter().copied() {
+            let declaration = self.create_variable_declaration_from_name(name, None)?;
+            // hoistVariableDeclaration sets EmitFlags.NoNestedSourceMaps on
+            // every hoisted declaration.
+            self.context
+                .arena_mut()?
+                .metadata_mut(declaration)
+                .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+            declarations.push(declaration);
+        }
         let statement = self.create_variable_statement(declarations, NodeFlags::NONE)?;
         self.context
             .arena_mut()?
@@ -12213,7 +12219,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         &mut self,
         name: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.create_node(
+        let declaration = self.context.factory()?.create_node(
             self.source,
             NodeData::VariableDeclaration(tsc_syntax::nodes::VariableDeclarationData {
                 name: Some(name.node()),
@@ -12222,7 +12228,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 initializer: None,
             }),
             TransformFlags::NONE,
-        )
+        )?;
+        // hoistVariableDeclaration sets EmitFlags.NoNestedSourceMaps on
+        // every hoisted declaration (this helper's single caller).
+        self.context
+            .arena_mut()?
+            .metadata_mut(declaration)
+            .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+        Ok(declaration)
     }
 
     fn create_variable_statement(

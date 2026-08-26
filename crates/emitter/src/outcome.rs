@@ -12,8 +12,7 @@ pub struct SourceMapObservation {
 }
 
 impl SourceMapObservation {
-    // H1.1 freezes the result slot for a later source-map profile expansion.
-    #[allow(dead_code)]
+    // H1.1 froze the result slot; h2-6a-m-3 is the producer.
     pub(crate) fn new(input_source_files: Vec<PathBuf>, canonical_json: Box<str>) -> Self {
         Self {
             input_source_files: input_source_files.into_boxed_slice(),

@@ -4934,12 +4934,18 @@ impl<'context> Es2018Visitor<'context> {
             );
         }
         if !lexical_environment.variable_declarations().is_empty() {
-            let declarations = lexical_environment
-                .variable_declarations()
-                .iter()
-                .copied()
-                .map(|name| self.create_variable_declaration(name, None))
-                .collect::<Result<Vec<_>, _>>()?;
+            let mut declarations =
+                Vec::with_capacity(lexical_environment.variable_declarations().len());
+            for name in lexical_environment.variable_declarations().iter().copied() {
+                let declaration = self.create_variable_declaration(name, None)?;
+                // hoistVariableDeclaration sets EmitFlags.NoNestedSourceMaps
+                // on every hoisted declaration.
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(declaration)
+                    .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+                declarations.push(declaration);
+            }
             let statement = self.create_variable_statement(declarations)?;
             self.context
                 .arena_mut()?

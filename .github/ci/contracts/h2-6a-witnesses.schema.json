@@ -69,8 +69,8 @@
     },
     "families": {
       "type": "array",
-      "minItems": 9,
-      "maxItems": 9,
+      "minItems": 10,
+      "maxItems": 10,
       "items": { "$ref": "#/$defs/family" }
     },
     "summary": {
@@ -91,13 +91,13 @@
         "runtime_admissions_delta"
       ],
       "properties": {
-        "families": { "const": 9 },
-        "cases": { "const": 33 },
-        "positive_cases": { "const": 14 },
-        "adjacent_negative_controls": { "const": 12 },
+        "families": { "const": 10 },
+        "cases": { "const": 36 },
+        "positive_cases": { "const": 16 },
+        "adjacent_negative_controls": { "const": 13 },
         "composition_cases": { "const": 4 },
         "fault_cases": { "const": 3 },
-        "parity_cases": { "const": 28 },
+        "parity_cases": { "const": 31 },
         "refusal_control_cases": { "const": 5 },
         "composition_facets_covered": {
           "type": "array",
@@ -106,7 +106,7 @@
           "uniqueItems": true,
           "items": { "$ref": "#/$defs/composition_facet" }
         },
-        "typescript_oracle_runs": { "const": 66 },
+        "typescript_oracle_runs": { "const": 72 },
         "rust_runs": { "const": 0 },
         "runtime_admissions_delta": { "const": 0 }
       }
@@ -405,6 +405,7 @@
             "json-exclusion",
             "newline-variants",
             "edge-shapes",
+            "token-surface",
             "boundary-controls"
           ]
         },

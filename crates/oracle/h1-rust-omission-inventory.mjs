@@ -227,9 +227,11 @@ const anchorSpecs = [
     "pub enum SourceRange {",
   ],
   [
+    // h2-6a-m-2: the dormant SourceMapRecorder seam was replaced by the
+    // production recording state machine (packet §5 deletion cascade).
     "emitter-source-map-recorder",
-    "crates/emitter/src/printer.rs",
-    "pub trait SourceMapRecorder {",
+    "crates/emitter/src/source_map.rs",
+    "pub struct SourceMapRecording {",
   ],
   [
     "emitter-resolver-protocol",
@@ -309,7 +311,9 @@ const anchorSpecs = [
   [
     "program-session-memory-emit",
     "crates/compiler/src/lib.rs",
-    "let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
+    // h2-6a-m-2: the harness print bridge repeats the bare preflight
+    // line; the activity-canary prefix pins the production session.
+    "h2_activity.construct_output_plan();\n        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
   ],
   [
     "emitter-host-protocol",

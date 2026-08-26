@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "packetId": "h2-6a-ca-2",
+  "status": "ready",
+  "trustedBase": "1ccfc0cee3047cf3d507a85ad8e78ef153985083",
+  "packet": {
+    "path": "docs/design/greenfield/slices/h2-6a-ca-2.md",
+    "sha256": "91c70dc35fb8404a228c200ea6f679a22b0f7d9f7518f4f9899fd26152272a41"
+  },
+  "predecessors": [
+    {
+      "packetId": "h2-6a-ca-1",
+      "receiptSha256": "ae51bc2cf681c0e7b77831cc7be15815919e08b84dbd720f20fa26cfa5cb70b1"
+    }
+  ],
+  "allowedPaths": [
+    ".github/ci/contracts/h2-5g-profile.schema.json",
+    "crates/compiler/tests/contracts.rs",
+    "crates/compiler/tests/integration/source_map_band_probe.rs",
+    "crates/emitter/src/builtins/es2015.rs",
+    "crates/harness/src/upstream_suites/execution.rs",
+    "crates/harness/tests/unit/upstream_suites/execution_tests.rs",
+    "crates/oracle/h2-5g-profile.mjs",
+    "crates/oracle/h2-5h-a-foundation.mjs",
+    "crates/oracle/h2-transition.mjs",
+    "crates/xtask/src/h2_2c_acceptance.rs",
+    "crates/xtask/src/main.rs",
+    "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs",
+    "docs/design/greenfield/slices/README.md",
+    "docs/design/greenfield/slices/h2-6a-ca-2.md",
+    "ratchets/fci-packet-bootstrap.v1.json",
+    "ratchets/fci-readiness/h2-6a-ca-1.v1.json",
+    "ratchets/fci-readiness/h2-6a-ca-2.v1.json",
+    "ratchets/fci-readiness/h2-6a-m-3.v1.json",
+    "ratchets/h2-5g-profile.v1.json",
+    "ratchets/h2-6a-known-divergences.v1.json",
+    "ratchets/h2-transition.v1.json"
+  ],
+  "forbiddenPrefixes": [
+    "crates/binder",
+    "crates/checker",
+    "crates/compiler/src",
+    "crates/emitter/src",
+    "crates/program",
+    "crates/syntax",
+    "crates/types",
+    ".github/workflows"
+  ],
+  "proof": {
+    "commands": [
+      "cargo xtask h2-6a-acceptance",
+      "node crates/oracle/h2-6a-qualification.mjs --check",
+      "node crates/oracle/h2-5g-profile.mjs --check",
+      "node crates/oracle/h2-transition.mjs --check",
+      "node .github/ci/slice-readiness.mjs --check h2-6a-ca-2"
+    ],
+    "evidencePath": "ratchets/h2-6a-qualification.v1.json"
+  }
+}

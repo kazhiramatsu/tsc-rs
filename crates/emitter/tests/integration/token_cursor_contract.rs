@@ -1,9 +1,8 @@
 use tsc_emitter::{
-    create_printer, get_script_transformers, transform_nodes, CommentRange,
-    DisabledSourceMapRecorder, EmitConstantValue, EmitEnumMemberValue, EmitExportContainerMode,
-    EmitMetadata, EmitResolver, EmitResolverError, EmitResolverNode, NewLineKind, PrintRequest,
-    PrinterOptions, SourceByteRange, SourceFileTextMode, SourceMapRange, SourceRange,
-    TransformArena, TransformRoot,
+    create_printer, get_script_transformers, transform_nodes, CommentRange, EmitConstantValue,
+    EmitEnumMemberValue, EmitExportContainerMode, EmitMetadata, EmitResolver, EmitResolverError,
+    EmitResolverNode, NewLineKind, PrintRequest, PrinterOptions, SourceByteRange,
+    SourceFileTextMode, SourceMapRange, SourceRange, TransformArena, TransformRoot,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{parse_source_file, LanguageVariant, ParseOptions};
@@ -39,11 +38,7 @@ fn canonical_identity(
             .with_remove_comments(remove_comments)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("canonical identity print")
     .text()
     .to_owned()
@@ -84,11 +79,7 @@ fn print_at_target(source_text: &str, target: ScriptTarget) -> String {
             .with_target(target)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("target print")
     .text()
     .to_owned()

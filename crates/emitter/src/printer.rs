@@ -2,9 +2,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
+use tsc_diagnostics::compute_line_starts;
 use tsc_syntax::{
-    for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, scan_byte_tokens,
-    skip_trivia, ByteTokenIter, NodeData, NodeId, SyntaxKind,
+    for_each_child, is_js_whitespace, is_line_break, is_whitespace_like, skip_trivia, NodeData,
+    NodeId, SyntaxKind,
 };
 use tsc_types::{NodeFlags, ScriptTarget, TokenFlags};
 
@@ -729,10 +730,19 @@ pub enum PrintRequest {
     Declaration(TransformSourceId),
 }
 
+/// The two sides of a recorded map range (h2-6a-m-2 §4): Before is the
+/// skip-trivia'd leading position, After the raw trailing position.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum MapBoundary {
+    Before,
+    After,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrintedText {
     text: String,
     end: GeneratedUtf16Location,
+    source_map: Option<crate::source_map::SourceMapGenerator>,
 }
 
 impl PrintedText {
@@ -743,70 +753,17 @@ impl PrintedText {
     pub const fn end(&self) -> GeneratedUtf16Location {
         self.end
     }
-}
 
-#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-pub enum SourceMapHookPhase {
-    BeforeNode,
-    AfterNode,
-    BeforeToken,
-    AfterToken,
-}
-
-/// Test-observable source-map hook input. It records typed source-byte and
-/// generated-UTF-16 domains but performs no VLQ encoding or map serialization.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct SourceMapHookEvent {
-    phase: SourceMapHookPhase,
-    node: TransformNode,
-    token: Option<SyntaxKind>,
-    source: TransformSourceId,
-    source_position: SourceBytePosition,
-    generated: GeneratedUtf16Location,
-}
-
-impl SourceMapHookEvent {
-    pub const fn phase(self) -> SourceMapHookPhase {
-        self.phase
+    /// h2-6a-m-2: the recorded generator, present exactly when the
+    /// print ran with a `SourceMapRecordingInputs` (the m-3 caller
+    /// serializes it; tests replay it).
+    pub fn source_map(&self) -> Option<&crate::source_map::SourceMapGenerator> {
+        self.source_map.as_ref()
     }
 
-    pub const fn node(self) -> TransformNode {
-        self.node
+    pub fn into_source_map(self) -> Option<crate::source_map::SourceMapGenerator> {
+        self.source_map
     }
-
-    pub const fn token(self) -> Option<SyntaxKind> {
-        self.token
-    }
-
-    pub const fn source(self) -> TransformSourceId {
-        self.source
-    }
-
-    pub const fn source_position(self) -> SourceBytePosition {
-        self.source_position
-    }
-
-    pub const fn generated(self) -> GeneratedUtf16Location {
-        self.generated
-    }
-}
-
-/// Dormant map-recorder seam. Production H1 supplies the disabled
-/// implementation; focused tests may capture the exact hook phases.
-pub trait SourceMapRecorder {
-    fn enabled(&self) -> bool;
-    fn record(&mut self, event: SourceMapHookEvent);
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-pub struct DisabledSourceMapRecorder;
-
-impl SourceMapRecorder for DisabledSourceMapRecorder {
-    fn enabled(&self) -> bool {
-        false
-    }
-
-    fn record(&mut self, _event: SourceMapHookEvent) {}
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -947,11 +904,11 @@ impl Printer {
         &mut self,
         transformation: &mut TransformationResult<'_>,
         request: PrintRequest,
-        recorder: &mut dyn SourceMapRecorder,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
     ) -> Result<PrintedText, PrinterError> {
         match request {
             PrintRequest::SourceFile(source) => {
-                self.print_source_file(transformation, source, recorder)
+                self.print_source_file(transformation, source, recording)
             }
             PrintRequest::StandaloneNode(_) => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::StandaloneNodePrinting,
@@ -975,7 +932,7 @@ impl Printer {
         &mut self,
         transformation: &mut TransformationResult<'_>,
         source_id: TransformSourceId,
-        recorder: &mut dyn SourceMapRecorder,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
     ) -> Result<PrintedText, PrinterError> {
         if !transformation.roots().iter().any(
             |root| matches!(root, crate::TransformRoot::SourceFile(source) if *source == source_id),
@@ -993,7 +950,14 @@ impl Printer {
             .to_ascii_lowercase()
             .ends_with(".json")
         {
-            return self.print_json_source_file(transformation, source_id, root, recorder);
+            // h2-6a-m-2 §4: JSON sources never record (the upstream
+            // triple guard); requesting a recording here is fail-closed.
+            if recording.is_some() {
+                return Err(PrinterError::Unsupported(
+                    UnsupportedEmitFeature::JavaScriptMap,
+                ));
+            }
+            return self.print_json_source_file(transformation, source_id, root);
         }
         let (text, language_variant, statement_array, statements) = {
             let source = transformation.arena().source(source_id)?.syntax();
@@ -1027,8 +991,17 @@ impl Printer {
                 root,
                 statement_array,
                 statements,
-                recorder,
+                recording,
             );
+        }
+
+        // h2-6a-m-2 §4: the identity arm is unreachable under compiler
+        // emit (Canonical is pinned there) and records nothing; a
+        // recording request on this arm is fail-closed.
+        if recording.is_some() {
+            return Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::JavaScriptMap,
+            ));
         }
 
         transformation.before_emit_node(EmitHint::SourceFile, root)?;
@@ -1041,13 +1014,7 @@ impl Printer {
         }
 
         let mut writer = create_text_writer(self.options.new_line);
-        // The identity arm is the sole printer path that needs a lexical
-        // stream: token source-map hooks observe exact copied token ranges.
-        // Retain one byte-domain iterator for the complete source and only
-        // construct it when a recorder can observe those hooks.
-        let mut token_stream = recorder
-            .enabled()
-            .then(|| scan_byte_tokens(&text, language_variant).peekable());
+        let _ = language_variant;
         let mut cursor = 0u32;
         for raw_statement in statements {
             let statement = transformation
@@ -1072,27 +1039,11 @@ impl Printer {
                 });
             }
             raw_write_range(&mut writer, &text, cursor, start)?;
-            self.record_node_hook(
-                transformation,
-                recorder,
-                SourceMapHookPhase::BeforeNode,
-                statement,
-                &writer,
-            )?;
             self.write_original_node(
                 transformation,
                 statement,
                 OriginalNodeText { range, text: &text },
-                token_stream.as_mut(),
                 &mut writer,
-                recorder,
-            )?;
-            self.record_node_hook(
-                transformation,
-                recorder,
-                SourceMapHookPhase::AfterNode,
-                statement,
-                &writer,
             )?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             cursor = end;
@@ -1107,6 +1058,7 @@ impl Printer {
         Ok(PrintedText {
             text: writer.text().to_owned(),
             end: writer.location(),
+            source_map: None,
         })
     }
 
@@ -1123,7 +1075,6 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source_id: TransformSourceId,
         root: TransformNode,
-        _recorder: &mut dyn SourceMapRecorder,
     ) -> Result<PrintedText, PrinterError> {
         transformation.before_emit_node(EmitHint::SourceFile, root)?;
         let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
@@ -1198,6 +1149,7 @@ impl Printer {
         Ok(PrintedText {
             text: writer.text().to_owned(),
             end: writer.location(),
+            source_map: None,
         })
     }
 
@@ -1208,7 +1160,7 @@ impl Printer {
         root: TransformNode,
         statement_array: Option<TransformNodeArray>,
         statements: Vec<tsc_syntax::NodeId>,
-        recorder: &mut dyn SourceMapRecorder,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
     ) -> Result<PrintedText, PrinterError> {
         transformation.before_emit_node(EmitHint::SourceFile, root)?;
         let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
@@ -1238,6 +1190,17 @@ impl Printer {
             }
         };
         let mut writer = create_text_writer(self.options.new_line);
+        if let Some(inputs) = recording {
+            let mut active = crate::source_map::SourceMapRecording::new(inputs);
+            let file_name = transformation
+                .arena()
+                .source(source_id)?
+                .syntax()
+                .file_name
+                .clone();
+            active.set_current_source(source_id, &file_name);
+            writer.set_source_map_recording(Some(active));
+        }
         let source_text = transformation.arena().source(source_id)?.syntax().text();
         if let Some(shebang) = source_shebang(source_text) {
             writer.write_comment(shebang);
@@ -1384,13 +1347,10 @@ impl Printer {
             } else {
                 self.emit_statement_leading_comments(transformation, emitted, &mut writer)?;
             }
-            self.record_node_hook(
-                transformation,
-                recorder,
-                SourceMapHookPhase::BeforeNode,
-                emitted,
-                &writer,
-            )?;
+            // h2-6a-m-2 §4: the statement-level map pair is gone — the
+            // node bracket inside emit_transformed_node records the
+            // boundary BEFORE the trailing statement comments (the
+            // upstream order the old pair violated).
             self.emit_transformed_node(
                 transformation,
                 emitted,
@@ -1398,13 +1358,6 @@ impl Printer {
                 &mut writer,
             )?;
             self.emit_statement_trailing_comments(transformation, emitted, &mut writer)?;
-            self.record_node_hook(
-                transformation,
-                recorder,
-                SourceMapHookPhase::AfterNode,
-                emitted,
-                &writer,
-            )?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
         }
@@ -1430,6 +1383,15 @@ impl Printer {
         // multiline comment has just written its separating space.
         writer.write_line(false);
         transformation.after_emit_node(EmitHint::SourceFile, root)?;
+        // h2-6a-m-2 §12a: the system-helper splice rewrites finished
+        // output after emission and would invalidate recorded generated
+        // positions; recording under that lane is fail-closed until the
+        // m-3 resolution.
+        if system_scoped_helpers && writer.has_source_map_recording() {
+            return Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::JavaScriptMap,
+            ));
+        }
         let text = if system_scoped_helpers {
             self.insert_system_scoped_helpers(writer.text(), &helpers)?
         } else {
@@ -1442,7 +1404,14 @@ impl Printer {
         } else {
             writer.location()
         };
-        Ok(PrintedText { text, end })
+        let source_map = writer
+            .take_source_map_recording()
+            .map(crate::source_map::SourceMapRecording::into_generator);
+        Ok(PrintedText {
+            text,
+            end,
+            source_map,
+        })
     }
 
     fn is_system_register_statement(
@@ -1545,23 +1514,44 @@ impl Printer {
         // level and stay live, so only the child-facing context flips. The
         // extent ends when this context goes out of scope - tsc's mutable
         // enable/disable pair, threaded immutably.
-        let expression_context = if transformation
+        let node_flags = transformation
             .arena()
             .metadata(node)
-            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_NESTED_COMMENTS))
-        {
+            .map_or(EmitFlags::NONE, |metadata| metadata.flags());
+        let expression_context = if node_flags.intersects(EmitFlags::NO_NESTED_COMMENTS) {
             expression_context.with_nested_comments_suppressed()
         } else {
             expression_context
         };
+        // h2-6a-m-2 §4 node phase: Before after the leading comment
+        // phases, After before the trailing ones (upstream
+        // pipelineEmitWithSourceMaps nesting), with the
+        // NO_NESTED_SOURCE_MAPS extent suppressing every record inside
+        // the subtree while the node's own boundaries stay live
+        // (upstream emitSourceMapsBeforeNode order: record, then
+        // disable; AfterNode: enable, then record).
+        self.record_node_map_boundary(transformation, MapBoundary::Before, node, writer)?;
+        let suppress_nested_maps = node_flags.intersects(EmitFlags::NO_NESTED_SOURCE_MAPS);
+        if suppress_nested_maps {
+            if let Some(recording) = writer.recording_mut() {
+                recording.suppress();
+            }
+        }
         let mut deferred_source_comments = DeferredExpressionSourceCommentsState::default();
-        self.emit_transformed_node_worker(
+        let worker_result = self.emit_transformed_node_worker(
             transformation,
             node,
             expression_context,
             &mut deferred_source_comments,
             writer,
-        )?;
+        );
+        if suppress_nested_maps {
+            if let Some(recording) = writer.recording_mut() {
+                recording.unsuppress();
+            }
+        }
+        worker_result?;
+        self.record_node_map_boundary(transformation, MapBoundary::After, node, writer)?;
         debug_assert!(matches!(
             deferred_source_comments,
             DeferredExpressionSourceCommentsState::Inactive
@@ -1668,7 +1658,37 @@ impl Printer {
                 Ok(())
             }
             NodeData::DebuggerStatement(_) => {
-                writer.write_keyword("debugger");
+                // h2-6a-m-2 §4 route table: upstream writes the debugger
+                // keyword via writeToken (118931) — the keyword itself
+                // maps, anchored at the statement start with the keyword
+                // length.
+                let keyword_default = {
+                    let record = transformation.arena().node(node)?;
+                    let positions = transformation
+                        .arena()
+                        .source(node.source())?
+                        .syntax()
+                        .positions();
+                    match SourceRange::from_raw(record.pos, record.end, positions) {
+                        Ok(SourceRange::Original(range)) => self.token_map_range_spanning(
+                            transformation,
+                            node.source(),
+                            range.start().value(),
+                            "debugger".len(),
+                            writer,
+                        )?,
+                        _ => None,
+                    }
+                };
+                self.record_brace_write(
+                    transformation,
+                    node,
+                    SyntaxKind::DebuggerKeyword,
+                    keyword_default,
+                    "debugger",
+                    |writer, spelling| writer.write_keyword(spelling),
+                    writer,
+                )?;
                 writer.write_trailing_semicolon(";");
                 Ok(())
             }
@@ -3502,6 +3522,11 @@ impl Printer {
                         });
                     }
                 };
+                // Upstream emitHeritageClause writes its own leading space
+                // INSIDE the pipelined route (h2-6a-m-2: the clause's
+                // Before map precedes the space); the class head no longer
+                // writes it.
+                writer.write_space(" ");
                 writer.write_keyword(keyword);
                 writer.write_space(" ");
                 self.emit_node_array(
@@ -4646,6 +4671,40 @@ impl Printer {
                     .map(|expression| self.original_node_end_cursor(transformation, expression))
                     .transpose()?
                     .unwrap_or(case_keyword.cursor());
+                // emitCaseOrDefaultClauseRest decides the single-statement
+                // polarity BEFORE the colon: the same-line arm is upstream
+                // `writeToken` (the mapped token pipeline, h2-6a-m-3),
+                // the list arm is `emitTokenWithComment` (unmapped).
+                let single_line_statement = self.clause_single_statement_same_line(
+                    transformation,
+                    node,
+                    node.source(),
+                    data.statements,
+                )?;
+                let colon_map_default =
+                    if single_line_statement && writer.has_source_map_recording() {
+                        match colon_cursor.source_position() {
+                            Some((cursor_source, position)) => self.token_map_range_at(
+                                transformation,
+                                cursor_source,
+                                position.value(),
+                                writer,
+                            )?,
+                            None => None,
+                        }
+                    } else {
+                        None
+                    };
+                if single_line_statement {
+                    self.record_token_map_side(
+                        transformation,
+                        MapBoundary::Before,
+                        node,
+                        SyntaxKind::ColonToken,
+                        colon_map_default,
+                        writer,
+                    )?;
+                }
                 let colon = self.emit_list_boundary_token_with_comments(
                     transformation,
                     node,
@@ -4654,12 +4713,22 @@ impl Printer {
                     false,
                     writer,
                 )?;
+                if single_line_statement {
+                    self.record_token_map_side(
+                        transformation,
+                        MapBoundary::After,
+                        node,
+                        SyntaxKind::ColonToken,
+                        colon_map_default,
+                        writer,
+                    )?;
+                }
                 self.emit_case_clause_statements(
                     transformation,
-                    node,
                     node.source(),
                     data.statements,
                     colon,
+                    single_line_statement,
                     expression_context,
                     writer,
                 )
@@ -4673,6 +4742,36 @@ impl Printer {
                     false,
                     writer,
                 )?;
+                let single_line_statement = self.clause_single_statement_same_line(
+                    transformation,
+                    node,
+                    node.source(),
+                    data.statements,
+                )?;
+                let colon_map_default =
+                    if single_line_statement && writer.has_source_map_recording() {
+                        match default_keyword.cursor().source_position() {
+                            Some((cursor_source, position)) => self.token_map_range_at(
+                                transformation,
+                                cursor_source,
+                                position.value(),
+                                writer,
+                            )?,
+                            None => None,
+                        }
+                    } else {
+                        None
+                    };
+                if single_line_statement {
+                    self.record_token_map_side(
+                        transformation,
+                        MapBoundary::Before,
+                        node,
+                        SyntaxKind::ColonToken,
+                        colon_map_default,
+                        writer,
+                    )?;
+                }
                 let colon = self.emit_list_boundary_token_with_comments(
                     transformation,
                     node,
@@ -4681,12 +4780,22 @@ impl Printer {
                     false,
                     writer,
                 )?;
+                if single_line_statement {
+                    self.record_token_map_side(
+                        transformation,
+                        MapBoundary::After,
+                        node,
+                        SyntaxKind::ColonToken,
+                        colon_map_default,
+                        writer,
+                    )?;
+                }
                 self.emit_case_clause_statements(
                     transformation,
-                    node,
                     node.source(),
                     data.statements,
                     colon,
+                    single_line_statement,
                     expression_context,
                     writer,
                 )
@@ -5680,8 +5789,43 @@ impl Printer {
                 result
             }
             NodeData::Block(data) => {
-                writer.write_punctuation("{");
                 let function_body = self.is_function_body_block(transformation, node)?;
+                // h2-6a-m-2 §4 route table: block braces map (upstream
+                // emitBlockStatements emitTokenWithComment pairs), EXCEPT
+                // the function-body open brace (upstream
+                // emitBlockFunctionBody writes it via bare
+                // writePunctuation — never mapped, not even by override).
+                let block_source_start = {
+                    let record = transformation.arena().node(node)?;
+                    let positions = transformation
+                        .arena()
+                        .source(node.source())?
+                        .syntax()
+                        .positions();
+                    match SourceRange::from_raw(record.pos, record.end, positions) {
+                        Ok(SourceRange::Original(range)) => Some(range.start().value()),
+                        _ => None,
+                    }
+                };
+                if function_body {
+                    writer.write_punctuation("{");
+                } else {
+                    let open_default = match block_source_start {
+                        Some(start) => {
+                            self.token_map_range_at(transformation, node.source(), start, writer)?
+                        }
+                        None => None,
+                    };
+                    self.record_brace_write(
+                        transformation,
+                        node,
+                        SyntaxKind::OpenBraceToken,
+                        open_default,
+                        "{",
+                        |writer, spelling| writer.write_punctuation(spelling),
+                        writer,
+                    )?;
+                }
                 // tsc-port: shouldEmitBlockFunctionBodyOnSingleLine @6.0.3
                 // tsc-hash: f1644748bb2314796a601992b80c26925e740f7bd10b23e23300df3614367b1a
                 // tsc-span: _tsc.js:118999-119020
@@ -5941,7 +6085,27 @@ impl Printer {
                     )?;
                     writer.decrease_indent();
                 }
-                writer.write_punctuation("}");
+                // Close brace maps for every block kind (upstream
+                // emitBlockStatements 118596 / emitBlockFunctionBody
+                // writeToken 119030), anchored at the statement-list end.
+                let close_default = match statement_list_end {
+                    Some(end) => match u32::try_from(end) {
+                        Ok(end) => {
+                            self.token_map_range_at(transformation, node.source(), end, writer)?
+                        }
+                        Err(_) => None,
+                    },
+                    None => None,
+                };
+                self.record_brace_write(
+                    transformation,
+                    node,
+                    SyntaxKind::CloseBraceToken,
+                    close_default,
+                    "}",
+                    |writer, spelling| writer.write_punctuation(spelling),
+                    writer,
+                )?;
                 Ok(())
             }
             _ if !changed => {
@@ -6001,7 +6165,31 @@ impl Printer {
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
         let source = case_block.source();
-        writer.write_punctuation("{");
+        // h2-6a-m-2 §4 route table: case-block braces map (upstream
+        // emitCaseBlock emitTokenWithComment pairs 119176/119178),
+        // open anchored at the case-block start, close at the clause
+        // NodeArray end.
+        let case_block_start = {
+            let record = transformation.arena().node(case_block)?;
+            let positions = transformation.arena().source(source)?.syntax().positions();
+            match SourceRange::from_raw(record.pos, record.end, positions) {
+                Ok(SourceRange::Original(range)) => Some(range.start().value()),
+                _ => None,
+            }
+        };
+        let open_default = match case_block_start {
+            Some(start) => self.token_map_range_at(transformation, source, start, writer)?,
+            None => None,
+        };
+        self.record_brace_write(
+            transformation,
+            case_block,
+            SyntaxKind::OpenBraceToken,
+            open_default,
+            "{",
+            |writer, spelling| writer.write_punctuation(spelling),
+            writer,
+        )?;
         let (clauses, clause_list_end) = if let Some(array) =
             clauses.and_then(|array| transformation.arena().node_array_ref(source, array))
         {
@@ -6056,18 +6244,56 @@ impl Printer {
             )?;
             writer.decrease_indent();
         }
-        writer.write_punctuation("}");
+        let close_default = match clause_list_end.and_then(|end| u32::try_from(end).ok()) {
+            Some(end) => self.token_map_range_at(transformation, source, end, writer)?,
+            None => None,
+        };
+        self.record_brace_write(
+            transformation,
+            case_block,
+            SyntaxKind::CloseBraceToken,
+            close_default,
+            "}",
+            |writer, spelling| writer.write_punctuation(spelling),
+            writer,
+        )?;
         Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    /// The single-statement clause polarity, hoisted above the colon
+    /// write (upstream emitCaseOrDefaultClauseRest computes it first;
+    /// the same-line arm's colon is the mapped `writeToken`).
+    fn clause_single_statement_same_line(
+        &self,
+        transformation: &TransformationResult<'_>,
+        clause: TransformNode,
+        source: TransformSourceId,
+        statements: Option<tsc_syntax::NodeArrayId>,
+    ) -> Result<bool, PrinterError> {
+        let statements = statements
+            .and_then(|array| transformation.arena().node_array_ref(source, array))
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .map(|array| array.nodes.clone())
+            .unwrap_or_default();
+        if statements.len() != 1 {
+            return Ok(false);
+        }
+        let Some(first) = transformation.arena().node_ref(source, statements[0]) else {
+            return Err(PrinterError::UnknownStatement(statements[0].0));
+        };
+        self.source_nodes_start_on_same_line(transformation, clause, first)
     }
 
     #[allow(clippy::too_many_arguments)]
     fn emit_case_clause_statements(
         &self,
         transformation: &mut TransformationResult<'_>,
-        clause: TransformNode,
         source: TransformSourceId,
         statements: Option<tsc_syntax::NodeArrayId>,
         colon: TokenEmission,
+        single_line: bool,
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
@@ -6086,8 +6312,6 @@ impl Printer {
             return Ok(());
         }
         let first = first.ok_or(PrinterError::UnknownStatement(statements[0].0))?;
-        let single_line = statements.len() == 1
-            && self.source_nodes_start_on_same_line(transformation, clause, first)?;
         if single_line {
             writer.write_space(" ");
             self.emit_leading_comments_for_node_worker(
@@ -7165,12 +7389,11 @@ impl Printer {
             .transpose()?
             .is_some_and(|array| !array.nodes.is_empty());
         if has_heritage_clauses {
-            writer.write_space(" ");
             self.emit_node_array(
                 transformation,
                 source,
                 heritage_clauses,
-                " ",
+                "",
                 expression_context,
                 writer,
             )?;
@@ -9299,6 +9522,16 @@ impl Printer {
                     source_leading_phase,
                     writer,
                 )?;
+                // h2-6a-m-2 §4 (review F7): the parsed no-ASI wrapper
+                // bypasses both node brackets; upstream pipelines the
+                // parsed parenthesized expression, so its boundary maps
+                // bracket the whole `( child )` extent.
+                self.record_node_map_boundary(
+                    transformation,
+                    MapBoundary::Before,
+                    metadata_owner,
+                    writer,
+                )?;
                 let open = self.emit_token_with_comments(
                     transformation,
                     token_owner,
@@ -9321,6 +9554,12 @@ impl Printer {
                     FixedToken::punctuation(SyntaxKind::CloseParenToken),
                     self.node_end_cursor(transformation, inner)?,
                     false,
+                    writer,
+                )?;
+                self.record_node_map_boundary(
+                    transformation,
+                    MapBoundary::After,
+                    metadata_owner,
                     writer,
                 )?;
                 self.emit_synthetic_trailing_comments_for_node(
@@ -9381,14 +9620,39 @@ impl Printer {
             SourceLeadingCommentPhaseVisit::NotVisited,
             writer,
         )?;
+        // h2-6a-m-2 §4: the no-ASI forwarding lane bypasses
+        // emit_transformed_node, so it carries the same node-boundary
+        // map bracket and NO_NESTED_SOURCE_MAPS extent.
+        self.record_node_map_boundary(transformation, MapBoundary::Before, substituted, writer)?;
+        let suppress_nested_maps =
+            transformation
+                .arena()
+                .metadata(substituted)
+                .is_some_and(|metadata| {
+                    metadata
+                        .flags()
+                        .intersects(EmitFlags::NO_NESTED_SOURCE_MAPS)
+                });
+        if suppress_nested_maps {
+            if let Some(recording) = writer.recording_mut() {
+                recording.suppress();
+            }
+        }
         let mut state = DeferredExpressionSourceCommentsState::Pending(deferred);
-        self.emit_transformed_node_worker(
+        let worker_result = self.emit_transformed_node_worker(
             transformation,
             substituted,
             expression_context,
             &mut state,
             writer,
-        )?;
+        );
+        if suppress_nested_maps {
+            if let Some(recording) = writer.recording_mut() {
+                recording.unsuppress();
+            }
+        }
+        worker_result?;
+        self.record_node_map_boundary(transformation, MapBoundary::After, substituted, writer)?;
         self.emit_synthetic_trailing_comments_for_node(transformation, substituted, writer)?;
         match state {
             DeferredExpressionSourceCommentsState::Consumed(outcome) => Ok(outcome),
@@ -11229,11 +11493,53 @@ impl Printer {
         // steal the surrounding source container's comments.
         let similar = self.node_has_source_token_shape(transformation, owner)?;
 
+        // h2-6a-m-2 §4 route table: the upstream emitTokenWithComment
+        // BRACE arm records here (every other token kind there is
+        // writeTokenText, unmapped), plus the conditional `?`/`:`
+        // lane — upstream pipelines those as token NODES, whose
+        // boundary maps land at exactly this write with the token's
+        // skip-trivia'd span as the default range. A synthesized
+        // conditional carries factory `createToken` question/colon
+        // nodes (pos -1): no boundary map, however real the
+        // neighboring cursor looks — hence the `similar` gate
+        // (replay-falsified: the default-value conditional's colon
+        // otherwise records the source comma after the initializer).
+        let record_braces = matches!(
+            token.kind,
+            SyntaxKind::OpenBraceToken | SyntaxKind::CloseBraceToken
+        ) || (matches!(
+            token.kind,
+            SyntaxKind::QuestionToken | SyntaxKind::ColonToken
+        ) && owner_record.kind == SyntaxKind::ConditionalExpression
+            && similar);
         let Some((cursor_source, start_position)) = cursor.source_position() else {
             #[cfg(test)]
             crate::token_cursor::record_cursor_work(0);
             Self::ensure_token_leading_space(writer, leading_space);
+            if record_braces {
+                // Review F6: a synthetic-cursor token records if and only
+                // if a token_source_map_ranges override exists (default
+                // range None).
+                self.record_token_map_side(
+                    transformation,
+                    MapBoundary::Before,
+                    owner,
+                    token.kind,
+                    None,
+                    writer,
+                )?;
+            }
             Self::write_fixed_token(writer, token.write_as, spelling);
+            if record_braces {
+                self.record_token_map_side(
+                    transformation,
+                    MapBoundary::After,
+                    owner,
+                    token.kind,
+                    None,
+                    writer,
+                )?;
+            }
             return Ok(TokenEmission::new(TokenCursor::Synthetic, None));
         };
         if similar && original_owner.source() != cursor_source {
@@ -11263,7 +11569,6 @@ impl Printer {
         }
 
         Self::ensure_token_leading_space(writer, leading_space);
-        Self::write_fixed_token(writer, token.write_as, spelling);
         let token_end =
             token_start
                 .checked_add(spelling.len())
@@ -11271,6 +11576,46 @@ impl Printer {
                     position: start_position.value(),
                     token: token.kind,
                 })?;
+        // The positioned brace default range spans the raw start (the
+        // record side re-skips trivia exactly as upstream
+        // emitTokenWithSourceMap does) to the arithmetic token end; a
+        // range that cannot be constructed on char boundaries records
+        // nothing (§8-A records the deviation from upstream's arithmetic
+        // continuation — unwitnessed corner).
+        let token_map_range = if record_braces && writer.has_source_map_recording() {
+            u32::try_from(token_end).ok().and_then(|end_raw| {
+                SourceRange::from_raw(
+                    u32::try_from(start).expect("token start exceeds u32"),
+                    end_raw,
+                    source.positions(),
+                )
+                .ok()
+                .map(|range| SourceMapRange::new(cursor_source, range))
+            })
+        } else {
+            None
+        };
+        if record_braces {
+            self.record_token_map_side(
+                transformation,
+                MapBoundary::Before,
+                owner,
+                token.kind,
+                token_map_range,
+                writer,
+            )?;
+        }
+        Self::write_fixed_token(writer, token.write_as, spelling);
+        if record_braces {
+            self.record_token_map_side(
+                transformation,
+                MapBoundary::After,
+                owner,
+                token.kind,
+                token_map_range,
+                writer,
+            )?;
+        }
         let token_end_raw =
             u32::try_from(token_end).map_err(|_| PrinterError::TokenPositionOverflow {
                 position: start_position.value(),
@@ -11842,6 +12187,21 @@ impl Printer {
         if self.options.remove_comments || list_end.is_none() {
             return Ok(());
         }
+        // `setEmitFlags(block, NoComments)` suppresses every comment lane of
+        // the node; upstream `createDefaultConstructorBody` (_tsc.js 105307)
+        // and the ES5 class-IIFE tail rely on it to drop class-body comments
+        // that their artificial block ranges would otherwise re-discover.
+        // This pickup forgot the flag: the class-body comment of an
+        // otherwise-empty class leaked after both synthesized `return`
+        // statements (H2.5h aliasUsageInAccessorsOfClass#target=es5,
+        // h2-6a ca-2 regression).
+        if transformation
+            .arena()
+            .metadata(block)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_COMMENTS))
+        {
+            return Ok(());
+        }
         let start = list_end.expect("checked above");
         let original_block = transformation.arena().get_original_node(block);
         let source = transformation
@@ -12081,92 +12441,44 @@ impl Printer {
         transformation: &TransformationResult<'_>,
         node: TransformNode,
         original: OriginalNodeText<'_>,
-        tokens: Option<&mut std::iter::Peekable<ByteTokenIter<'_>>>,
         writer: &mut TextWriter,
-        recorder: &mut dyn SourceMapRecorder,
     ) -> Result<(), PrinterError> {
-        let flags = transformation
-            .arena()
-            .metadata(node)
-            .map_or(EmitFlags::NONE, |metadata| metadata.flags());
-        let Some(tokens) = tokens else {
-            return raw_write_range(
-                writer,
-                original.text,
-                original.range.start().value(),
-                original.range.end().value(),
-            );
-        };
-        let mut cursor = original.range.start().value();
-        while let Some(token) = tokens.peek().copied() {
-            if token.end <= original.range.start().value()
-                || token.start < original.range.start().value()
-            {
-                tokens.next();
-                continue;
-            }
-            if token.start >= original.range.end().value()
-                || token.end > original.range.end().value()
-            {
-                break;
-            }
-            let token = tokens.next().expect("peeked identity token disappeared");
-            let token = TokenSpan {
-                kind: token.kind,
-                start: token.start,
-                end: token.end,
-            };
-            if token.start < cursor {
-                continue;
-            }
-            raw_write_range(writer, original.text, cursor, token.start)?;
-            if !flags.intersects(EmitFlags::NO_NESTED_SOURCE_MAPS) {
-                self.record_token_hook(
-                    transformation,
-                    recorder,
-                    SourceMapHookPhase::BeforeToken,
-                    node,
-                    token,
-                    writer,
-                )?;
-            }
-            raw_write_range(writer, original.text, token.start, token.end)?;
-            if !flags.intersects(EmitFlags::NO_NESTED_SOURCE_MAPS) {
-                self.record_token_hook(
-                    transformation,
-                    recorder,
-                    SourceMapHookPhase::AfterToken,
-                    node,
-                    token,
-                    writer,
-                )?;
-            }
-            cursor = token.end;
-        }
-        raw_write_range(writer, original.text, cursor, original.range.end().value())
+        let _ = transformation.arena().metadata(node);
+        raw_write_range(
+            writer,
+            original.text,
+            original.range.start().value(),
+            original.range.end().value(),
+        )
     }
-
-    fn record_node_hook(
+    fn record_node_map_boundary(
         &self,
         transformation: &TransformationResult<'_>,
-        recorder: &mut dyn SourceMapRecorder,
-        phase: SourceMapHookPhase,
+        boundary: MapBoundary,
         node: TransformNode,
-        writer: &TextWriter,
+        writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if !recorder.enabled() {
+        if !writer.has_source_map_recording() {
             return Ok(());
         }
         let arena = transformation.arena();
         if arena.node(node)?.kind == SyntaxKind::NotEmittedStatement {
             return Ok(());
         }
+        // Upstream emitSignatureAndBody calls emitBlockFunctionBody
+        // DIRECTLY — a function body block is never pipeline-emitted and
+        // carries no node-boundary maps (its close brace maps through the
+        // token lane); the Rust funnel pipelines every child, so the
+        // asymmetry is restored here.
+        if arena.node(node)?.kind == SyntaxKind::Block
+            && self.is_function_body_block(transformation, node)?
+        {
+            return Ok(());
+        }
         let metadata = arena.metadata(node);
         let flags = metadata.map_or(EmitFlags::NONE, |metadata| metadata.flags());
-        if phase == SourceMapHookPhase::BeforeNode
-            && flags.intersects(EmitFlags::NO_LEADING_SOURCE_MAP)
-            || phase == SourceMapHookPhase::AfterNode
-                && flags.intersects(EmitFlags::NO_TRAILING_SOURCE_MAP)
+        if boundary == MapBoundary::Before && flags.intersects(EmitFlags::NO_LEADING_SOURCE_MAP)
+            || boundary == MapBoundary::After && flags.intersects(EmitFlags::NO_TRAILING_SOURCE_MAP)
         {
             return Ok(());
         }
@@ -12181,86 +12493,158 @@ impl Printer {
         let range = metadata
             .and_then(|metadata| metadata.source_map_range())
             .unwrap_or(default_range);
+        self.record_map_range_side(transformation, boundary, range, writer)
+    }
+
+    /// The shared range-side record: resolves the effective side
+    /// position (Before = skip-trivia'd start, After = raw end),
+    /// converts to the source's UTF-16 line/character, and records
+    /// against the range's own source (the `emitSourcePos` foreign
+    /// lane collapses to the explicit per-record source).
+    fn record_map_range_side(
+        &self,
+        transformation: &TransformationResult<'_>,
+        boundary: MapBoundary,
+        range: SourceMapRange,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
         let SourceRange::Original(range_value) = range.range() else {
             return Ok(());
         };
+        let arena = transformation.arena();
         let mapped_source = arena.source(range.source())?.syntax();
-        let raw = match phase {
-            SourceMapHookPhase::BeforeNode => u32::try_from(skip_trivia(
+        let raw = match boundary {
+            MapBoundary::Before => u32::try_from(skip_trivia(
                 mapped_source.text(),
                 range_value.start().value() as usize,
             ))
             .expect("source trivia position exceeds u32"),
-            SourceMapHookPhase::AfterNode => range_value.end().value(),
-            SourceMapHookPhase::BeforeToken | SourceMapHookPhase::AfterToken => unreachable!(),
+            MapBoundary::After => range_value.end().value(),
         };
-        let source_position = SourceBytePosition::new(raw, mapped_source.positions())?;
-        recorder.record(SourceMapHookEvent {
-            phase,
-            node,
-            token: None,
-            source: range.source(),
-            source_position,
-            generated: writer.location(),
-        });
+        let byte = SourceBytePosition::new(raw, mapped_source.positions())?;
+        let location = SourceUtf16Location::from_byte(byte, mapped_source.positions())?;
+        let file_name = mapped_source.file_name.clone();
+        writer.record_source_map_position_for(
+            range.source(),
+            &file_name,
+            location.line(),
+            location.column(),
+        );
         Ok(())
     }
 
-    fn record_token_hook(
+    /// tsc-port: emitTokenWithSourceMap @6.0.3
+    /// tsc-hash: 1f4c5a048470151a92b7a92ff32a976744e5222fb62cfa7c9b3e3964bde39732
+    /// tsc-span: _tsc.js:121333-121351
+    ///
+    /// The token map side (h2-6a-m-2 §4 route table): the
+    /// `token_source_map_ranges` override is consulted BEFORE any
+    /// synthetic test (review F6 — a synthetic-cursor token with a real
+    /// override records); without an override the caller-supplied
+    /// default range decides, and `None` records nothing.
+    fn record_token_map_side(
         &self,
         transformation: &TransformationResult<'_>,
-        recorder: &mut dyn SourceMapRecorder,
-        phase: SourceMapHookPhase,
-        node: TransformNode,
-        token: TokenSpan,
-        writer: &TextWriter,
+        boundary: MapBoundary,
+        owner: TransformNode,
+        token_kind: SyntaxKind,
+        default_range: Option<SourceMapRange>,
+        writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if !recorder.enabled() {
+        if !writer.has_source_map_recording() {
             return Ok(());
         }
         let arena = transformation.arena();
-        let metadata = arena.metadata(node);
+        let metadata = arena.metadata(owner);
         let flags = metadata.map_or(EmitFlags::NONE, |metadata| metadata.flags());
-        if phase == SourceMapHookPhase::BeforeToken
+        if boundary == MapBoundary::Before
             && flags.intersects(EmitFlags::NO_TOKEN_LEADING_SOURCE_MAPS)
-            || phase == SourceMapHookPhase::AfterToken
+            || boundary == MapBoundary::After
                 && flags.intersects(EmitFlags::NO_TOKEN_TRAILING_SOURCE_MAPS)
         {
             return Ok(());
         }
-        let explicit = metadata
-            .and_then(|metadata| metadata.token_source_map_ranges().get(&token.kind))
-            .copied();
-        let default = SourceMapRange::new(
-            node.source(),
-            SourceRange::Original(SourceByteRange::new(
-                token.start,
-                token.end,
-                arena.source(node.source())?.syntax().positions(),
-            )?),
-        );
-        let range = explicit.unwrap_or(default);
-        let SourceRange::Original(range_value) = range.range() else {
+        let range = metadata
+            .and_then(|metadata| metadata.token_source_map_ranges().get(&token_kind))
+            .copied()
+            .or(default_range);
+        let Some(range) = range else {
             return Ok(());
         };
-        let source = arena.source(range.source())?.syntax();
-        let raw = match phase {
-            SourceMapHookPhase::BeforeToken => u32::try_from(skip_trivia(
-                source.text(),
-                range_value.start().value() as usize,
-            ))
-            .expect("source trivia position exceeds u32"),
-            SourceMapHookPhase::AfterToken => range_value.end().value(),
-            SourceMapHookPhase::BeforeNode | SourceMapHookPhase::AfterNode => unreachable!(),
+        self.record_map_range_side(transformation, boundary, range, writer)
+    }
+
+    /// A one-token default range anchored at a raw source position: the
+    /// span from the raw anchor to one byte past its skip-trivia'd token
+    /// start (upstream `writeToken`'s returned continuation). `None` when
+    /// the anchor cannot form a valid range.
+    fn token_map_range_at(
+        &self,
+        transformation: &TransformationResult<'_>,
+        source: TransformSourceId,
+        raw_anchor: u32,
+        writer: &TextWriter,
+    ) -> Result<Option<SourceMapRange>, PrinterError> {
+        self.token_map_range_spanning(transformation, source, raw_anchor, 1, writer)
+    }
+
+    /// As `token_map_range_at` for a token of a known spelling length
+    /// (upstream `writeToken`'s `pos + tokenString.length` continuation).
+    fn token_map_range_spanning(
+        &self,
+        transformation: &TransformationResult<'_>,
+        source: TransformSourceId,
+        raw_anchor: u32,
+        spelling_len: usize,
+        writer: &TextWriter,
+    ) -> Result<Option<SourceMapRange>, PrinterError> {
+        if !writer.has_source_map_recording() {
+            return Ok(None);
+        }
+        let syntax = transformation.arena().source(source)?.syntax();
+        let token_start = skip_trivia(syntax.text(), raw_anchor as usize);
+        let Ok(end_raw) = u32::try_from(token_start + spelling_len) else {
+            return Ok(None);
         };
-        recorder.record(SourceMapHookEvent {
-            phase,
-            node,
-            token: Some(token.kind),
-            source: range.source(),
-            source_position: SourceBytePosition::new(raw, source.positions())?,
-            generated: writer.location(),
-        });
+        Ok(
+            SourceRange::from_raw(raw_anchor, end_raw, syntax.positions())
+                .ok()
+                .map(|range| SourceMapRange::new(source, range)),
+        )
+    }
+
+    /// The Block/CaseBlock brace lane of the §4 route table: bracket one
+    /// written brace with its token map pair (upstream
+    /// `emitTokenWithComment` → `writeToken` for braces), honoring the
+    /// owner's `token_source_map_ranges` override.
+    #[allow(clippy::too_many_arguments)]
+    fn record_brace_write(
+        &self,
+        transformation: &TransformationResult<'_>,
+        owner: TransformNode,
+        token_kind: SyntaxKind,
+        default_range: Option<SourceMapRange>,
+        spelling: &'static str,
+        classify: fn(&mut TextWriter, &str),
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.record_token_map_side(
+            transformation,
+            MapBoundary::Before,
+            owner,
+            token_kind,
+            default_range,
+            writer,
+        )?;
+        classify(writer, spelling);
+        self.record_token_map_side(
+            transformation,
+            MapBoundary::After,
+            owner,
+            token_kind,
+            default_range,
+            writer,
+        )?;
         Ok(())
     }
 }
@@ -12996,9 +13380,31 @@ fn emit_pinned_leading_comments(trivia: SourceTrivia<'_>, writer: &mut TextWrite
     }
 }
 
+/// The comment-lane source position: byte offset → UTF-16 line/character
+/// over the current file's text, with the same line-start semantics as
+/// the writer's generated tracking (`compute_line_starts`). Comments
+/// always record against the CURRENT print source (upstream
+/// `forEachLeadingCommentRange`/`forEachTrailingCommentRange` walk
+/// `currentSourceFile.text`), so the text at hand is authoritative.
+fn source_comment_utf16_location(source: &str, byte: usize) -> (u32, u32) {
+    let prefix = &source[..byte];
+    let starts = compute_line_starts(prefix);
+    let line = u32::try_from(starts.len().saturating_sub(1)).expect("comment line exceeds u32");
+    let line_start = starts.last().copied().unwrap_or(0) as usize;
+    let character = u32::try_from(prefix[line_start..].encode_utf16().count())
+        .expect("comment character exceeds u32");
+    (line, character)
+}
+
 /// tsc-port: writeCommentRange @6.0.3
 /// tsc-hash: 38bb9a8ad12c162ca638f01b60e4d17574d6bcfb54ffe941f257f40f02fc7d8b
 /// tsc-span: _tsc.js:16867-16919
+///
+/// h2-6a-m-2 §4 comment phase: every source-comment byte funnels
+/// through this writer (the triple-slash normalized-newlines path
+/// included), and upstream brackets each written comment with
+/// `emitPos(commentPos)`/`emitPos(commentEnd)` (_tsc.js:121151-121273)
+/// — recorded here against the current print source.
 fn write_source_comment(
     source: &str,
     comment_start: usize,
@@ -13009,6 +13415,23 @@ fn write_source_comment(
     debug_assert!(source.is_char_boundary(comment_start));
     debug_assert!(source.is_char_boundary(comment_end));
 
+    if writer.has_source_map_recording() {
+        let (line, character) = source_comment_utf16_location(source, comment_start);
+        writer.record_source_map_position(line, character);
+    }
+    write_source_comment_text(source, comment_start, comment_end, writer);
+    if writer.has_source_map_recording() {
+        let (line, character) = source_comment_utf16_location(source, comment_end);
+        writer.record_source_map_position(line, character);
+    }
+}
+
+fn write_source_comment_text(
+    source: &str,
+    comment_start: usize,
+    comment_end: usize,
+    writer: &mut TextWriter,
+) {
     if source.as_bytes().get(comment_start + 1) != Some(&b'*') {
         writer.write_comment(&source[comment_start..comment_end]);
         return;
@@ -13206,13 +13629,6 @@ fn write_synthetic_comment(comment: &SyntheticComment, writer: &mut TextWriter) 
             writer.write_comment("*/");
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct TokenSpan {
-    kind: SyntaxKind,
-    start: u32,
-    end: u32,
 }
 
 #[derive(Clone, Copy, Debug)]

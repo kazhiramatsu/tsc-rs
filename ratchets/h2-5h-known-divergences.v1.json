@@ -602,14 +602,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/conformance/types/rest/objectRestParameterES5.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r4",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/conformance/types/spread/objectSpread.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r5",
       "writes_diverging": 1,

@@ -20,10 +20,10 @@ use super::{
     CommonJsFileLevelGeneratedBindingExports,
 };
 use crate::{
-    create_printer, transform_nodes, DisabledSourceMapRecorder, EmitConstantValue,
-    EmitEnumMemberValue, EmitExportContainerMode, EmitFlags, EmitResolver, EmitResolverError,
-    EmitResolverNode, JavaScriptNumber, NewLineKind, PrintRequest, PrinterOptions, TransformArena,
-    TransformFlags, TransformRoot,
+    create_printer, transform_nodes, EmitConstantValue, EmitEnumMemberValue,
+    EmitExportContainerMode, EmitFlags, EmitResolver, EmitResolverError, EmitResolverNode,
+    JavaScriptNumber, NewLineKind, PrintRequest, PrinterOptions, TransformArena, TransformFlags,
+    TransformRoot,
 };
 
 struct EnumBindingResolver {
@@ -1236,11 +1236,7 @@ fn transform_and_print_module_at_target(
             .with_target(target)
             .with_remove_comments(false),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print module transform")
     .text()
     .to_owned()
@@ -1396,11 +1392,7 @@ fn transform_and_print_module_with_remove_comments(
             .with_target(ScriptTarget::ES2015)
             .with_remove_comments(remove_comments),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print module transform")
     .text()
     .to_owned()
@@ -1431,11 +1423,7 @@ fn transform_and_print_typescript_module(
     )
     .expect("TypeScript module transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print TypeScript module transform")
         .text()
         .to_owned()
@@ -1472,11 +1460,7 @@ fn transform_and_print_preserved_tsx(source_text: &str) -> String {
     )
     .expect("preserved TSX transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print preserved TSX transform")
         .text()
         .to_owned()
@@ -1525,11 +1509,7 @@ fn transform_and_print_parsed_es2015_class_fields_with_mode(
     )
     .expect("ES2015 class-fields transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print ES2015 class-fields transform")
         .text()
         .to_owned()
@@ -2224,11 +2204,7 @@ fn namespace_exported_internal_alias_uses_container_storage() {
     let text = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print namespace alias transform")
     .text()
     .to_owned();
@@ -2280,11 +2256,7 @@ fn namespace_erases_external_import_equals_even_when_the_alias_is_referenced() {
     let text = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print namespace TypeScript transform")
     .text()
     .to_owned();
@@ -2328,11 +2300,7 @@ fn module_export_substitution_uses_enum_binding_identity_across_namespaces() {
     let text = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print AMD enum binding transform")
     .text()
     .to_owned();
@@ -2379,11 +2347,7 @@ fn common_js_marker_does_not_reown_exported_enum_jsdoc() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS enum transform")
     .text()
     .to_owned();
@@ -2459,11 +2423,7 @@ fn common_js_flattens_destructuring_assignments_to_all_exported_names() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS exported destructuring")
     .text()
     .to_owned();
@@ -2535,11 +2495,7 @@ fn common_js_flattens_exported_destructuring_variable_declarations() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS exported destructuring declaration")
     .text()
     .to_owned();
@@ -2594,11 +2550,7 @@ fn common_js_appends_explicit_exports_for_each_array_binding_leaf() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS explicit array-binding exports")
     .text()
     .to_owned();
@@ -2908,11 +2860,7 @@ fn amd_import_equals_call_keeps_its_local_parameter_receiver_free() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print AMD import-equals call")
     .text()
     .to_owned();
@@ -3054,11 +3002,7 @@ fn common_js_export_equals_suppresses_appended_class_export() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS export-equals class transform")
     .text()
     .to_owned();
@@ -3118,11 +3062,7 @@ fn common_js_wraps_exported_legacy_decorator_assignment() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS legacy-decorator export transform")
     .text()
     .to_owned();
@@ -3164,11 +3104,7 @@ fn common_js_materializes_anonymous_default_function_binding() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS anonymous default function")
     .text()
     .to_owned();
@@ -3209,11 +3145,7 @@ fn export_default_reparenthesizes_a_class_exposed_by_type_erasure() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print export-default class assertion")
     .text()
     .to_owned();
@@ -3288,11 +3220,7 @@ fn typescript_transform_preserves_jsdoc_recovery_type_arguments() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print JSDoc recovery type arguments")
     .text()
     .to_owned();
@@ -3337,11 +3265,7 @@ fn typescript_transform_materializes_missing_accessor_bodies() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print accessors with materialized bodies")
     .text()
     .to_owned();
@@ -3384,11 +3308,7 @@ fn common_js_publishes_each_duplicate_anonymous_default_function() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print duplicate anonymous default functions")
     .text()
     .to_owned();
@@ -3448,11 +3368,7 @@ fn common_js_publishes_export_specifiers_for_erased_ambient_functions() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print ambient function exports")
     .text()
     .to_owned();
@@ -3504,11 +3420,7 @@ fn duplicate_default_re_export_preinitializes_a_hoisted_function_export() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print duplicate default exports")
     .text()
     .to_owned();
@@ -3558,11 +3470,7 @@ fn common_js_default_class_skips_only_its_undefined_preinitializer() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS default class")
     .text()
     .to_owned();
@@ -3614,11 +3522,7 @@ fn common_js_default_class_publishes_after_its_static_field_operations() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS default-class static field")
     .text()
     .to_owned();
@@ -3667,11 +3571,7 @@ fn common_js_materializes_invalid_anonymous_exported_class_identity() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS invalid anonymous exported class")
     .text()
     .to_owned();
@@ -3723,11 +3623,7 @@ fn namespace_default_classes_share_generated_declaration_identity() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print namespace default classes")
     .text()
     .to_owned();
@@ -3780,11 +3676,7 @@ fn namespace_default_functions_keep_recovery_syntax_and_generated_export_identit
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print namespace default functions")
     .text()
     .to_owned();
@@ -3833,11 +3725,7 @@ fn common_js_exported_updates_publish_new_values_and_preserve_postfix_results() 
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS exported updates")
     .text()
     .to_owned();
@@ -3903,11 +3791,7 @@ fn common_js_nested_export_update_temps_belong_to_the_module_scope() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS nested exported updates")
     .text()
     .to_owned();
@@ -3979,11 +3863,7 @@ fn common_js_publishes_the_standard_decorator_synthetic_named_export() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print standard decorator CommonJS transform")
     .text()
     .to_owned();
@@ -4307,11 +4187,7 @@ fn legacy_decorator_and_class_field_temps_share_final_binding_order() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print composed generated bindings")
     .text()
     .to_owned();
@@ -4368,11 +4244,7 @@ fn decorated_computed_names_are_shared_for_identifiers_and_class_expressions() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print decorated computed-name ownership")
     .text()
     .to_owned();
@@ -4419,11 +4291,7 @@ fn legacy_decorator_recovers_default_class_without_export() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print legacy-decorator default recovery")
     .text()
     .to_owned();
@@ -4466,11 +4334,7 @@ fn transform_and_print_classic_jsx_at_target(source_text: &str, target: ScriptTa
     )
     .expect("classic JSX spread transform");
     create_printer(PrinterOptions::new(NewLineKind::LineFeed).with_target(target))
-        .print(
-            &mut result,
-            PrintRequest::SourceFile(source),
-            &mut DisabledSourceMapRecorder,
-        )
+        .print(&mut result, PrintRequest::SourceFile(source), None)
         .expect("print classic JSX spread transform")
         .text()
         .to_owned()
@@ -4562,11 +4426,7 @@ fn classic_jsx_preserves_single_line_whitespace_text_children() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print classic JSX whitespace transform")
     .text()
     .to_owned();
@@ -4630,11 +4490,7 @@ fn common_js_substitutes_orphan_automatic_jsx_import_references() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print legacy-script automatic JSX transform")
     .text()
     .to_owned();
@@ -4683,11 +4539,7 @@ fn system_module_preserves_generated_automatic_jsx_local_reference() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print System automatic JSX transform")
     .text()
     .to_owned();
@@ -4731,11 +4583,7 @@ fn system_default_import_call_keeps_the_substituted_direct_callee() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print System default-import call")
     .text()
     .to_owned();
@@ -4781,11 +4629,7 @@ fn system_module_reuses_single_destructuring_initializer_without_a_temp() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print System exported destructuring declaration")
     .text()
     .to_owned();
@@ -4847,11 +4691,7 @@ fn system_module_hoists_uninitialized_export_from_source_owned_if_statement() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print System embedded uninitialized export")
     .text()
     .to_owned();
@@ -4907,11 +4747,7 @@ fn common_js_named_re_exports_use_live_bindings_and_source_comments() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS named re-export")
     .text()
     .to_owned();
@@ -4963,11 +4799,7 @@ fn common_js_unused_export_star_identity_does_not_consume_a_module_name() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS export-star module names")
     .text()
     .to_owned();
@@ -5008,11 +4840,7 @@ fn common_js_trailing_module_specifier_uses_tsc_generated_name() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS trailing module-specifier name")
     .text()
     .to_owned();
@@ -5057,11 +4885,7 @@ fn common_js_generated_require_leaves_import_tail_comments_with_the_statement() 
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS import-tail comments")
     .text()
     .to_owned();
@@ -5113,11 +4937,7 @@ fn common_js_direct_export_does_not_reexport_a_conflicting_import_binding() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS conflicting import")
     .text()
     .to_owned();
@@ -5177,11 +4997,7 @@ fn private_method_constructor_references_use_the_class_alias() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print private constructor-reference transform")
     .text()
     .to_owned();
@@ -5345,11 +5161,7 @@ fn common_js_merged_exported_namespace_publishes_its_initializer() {
     let output = create_printer(
         PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("print CommonJS merged namespace")
     .text()
     .to_owned();

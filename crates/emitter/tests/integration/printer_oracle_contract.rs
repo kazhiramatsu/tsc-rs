@@ -2,8 +2,7 @@ use serde_json::Value;
 use tsc_diagnostics::PositionIndex;
 use tsc_emitter::{
     create_printer, create_text_writer, transform_nodes, NewLineKind, PrintRequest, PrinterOptions,
-    SourceBytePosition, SourceMapHookEvent, SourceMapHookPhase, SourceMapRecorder,
-    SourceUtf16Location, SourceUtf16Position, TransformArena, TransformRoot,
+    SourceBytePosition, SourceUtf16Location, SourceUtf16Position, TransformArena, TransformRoot,
 };
 use tsc_syntax::parse_source_file;
 
@@ -142,23 +141,8 @@ fn source_byte_to_utf16_locations_match_vendored_line_maps() {
     }
 }
 
-#[derive(Default)]
-struct HookRecorder {
-    events: Vec<SourceMapHookEvent>,
-}
-
-impl SourceMapRecorder for HookRecorder {
-    fn enabled(&self) -> bool {
-        true
-    }
-
-    fn record(&mut self, event: SourceMapHookEvent) {
-        self.events.push(event);
-    }
-}
-
 #[test]
-fn whole_source_printer_and_token_hook_coordinates_match_vendored_printer() {
+fn whole_source_printer_coordinates_match_vendored_printer() {
     let oracle = oracle();
     for case in oracle["printer_cases"].as_array().unwrap() {
         let case_id = text(case, "id");
@@ -183,9 +167,12 @@ fn whole_source_printer_and_token_hook_coordinates_match_vendored_printer() {
         )
         .expect("identity transformation");
         let mut printer = create_printer(PrinterOptions::new(new_line(text(case, "new_line"))));
-        let mut recorder = HookRecorder::default();
+        // h2-6a-m-2 §5: the identity arm's token hook-event assertions
+        // are deleted with the seam (the arm records nothing under the
+        // new model and is unreachable in compiler emit); the vendored
+        // byte/position oracle below is unchanged.
         let printed = printer
-            .print(&mut result, PrintRequest::SourceFile(source), &mut recorder)
+            .print(&mut result, PrintRequest::SourceFile(source), None)
             .unwrap_or_else(|error| panic!("{case_id}: {error}"));
 
         assert_eq!(printed.text(), text(case, "output"), "{case_id} output");
@@ -204,53 +191,5 @@ fn whole_source_printer_and_token_hook_coordinates_match_vendored_printer() {
             number(&case["output_end"], "column_utf16"),
             "{case_id} output column"
         );
-
-        let before = recorder
-            .events
-            .iter()
-            .filter(|event| event.phase() == SourceMapHookPhase::BeforeToken)
-            .collect::<Vec<_>>();
-        let after = recorder
-            .events
-            .iter()
-            .filter(|event| event.phase() == SourceMapHookPhase::AfterToken)
-            .collect::<Vec<_>>();
-        let tokens = case["tokens"].as_array().unwrap();
-        assert_eq!(before.len(), tokens.len(), "{case_id} before-token hooks");
-        assert_eq!(after.len(), tokens.len(), "{case_id} after-token hooks");
-
-        for ((before, after), expected) in before.iter().zip(&after).zip(tokens) {
-            let index = number(expected, "index");
-            let expected_kind = number(expected, "kind");
-            assert_eq!(u32::from(before.token().unwrap() as u16), expected_kind);
-            assert_eq!(u32::from(after.token().unwrap() as u16), expected_kind);
-            assert_eq!(
-                before.source_position().value(),
-                number(&expected["start"], "source_byte_position"),
-                "{case_id} token {index} source start"
-            );
-            assert_eq!(
-                after.source_position().value(),
-                number(&expected["end"], "source_byte_position"),
-                "{case_id} token {index} source end"
-            );
-            for (event, endpoint) in [(*before, &expected["start"]), (*after, &expected["end"])] {
-                assert_eq!(
-                    event.generated().position().value(),
-                    number(endpoint, "source_utf16_position"),
-                    "{case_id} token {index} generated position"
-                );
-                assert_eq!(
-                    event.generated().line(),
-                    number(endpoint, "line"),
-                    "{case_id} token {index} generated line"
-                );
-                assert_eq!(
-                    event.generated().column(),
-                    number(endpoint, "column_utf16"),
-                    "{case_id} token {index} generated column"
-                );
-            }
-        }
     }
 }

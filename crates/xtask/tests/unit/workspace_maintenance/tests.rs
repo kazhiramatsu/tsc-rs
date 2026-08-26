@@ -537,3 +537,15 @@ fn retired_comment_scope_identifiers_are_denied_and_the_threaded_family_is_legal
     );
     assert_eq!(first_retired_comment_scope_identifier(legal), None);
 }
+
+#[test]
+fn automation_selector_skips_binary_script_artifacts() {
+    assert_eq!(
+        automation_selector_in_bytes(&[0xff, 0xfe, 0x00, 0x2a]),
+        None
+    );
+    assert_eq!(
+        automation_selector_in_bytes(format!("cargo test {PACKAGE_SHORT_FLAG} xtask").as_bytes()),
+        Some(PACKAGE_SHORT_FLAG.to_owned())
+    );
+}

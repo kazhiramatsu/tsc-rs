@@ -2,8 +2,8 @@ use super::{
     comment_cursor::{CommentCursor, CommentResume, CommentResumeError},
     create_printer,
     token_cursor::{cursor_work, reset_cursor_work, CursorWork},
-    transform_nodes, DisabledSourceMapRecorder, NewLineKind, PrintRequest, PrinterOptions,
-    SourceBytePosition, SourceFileTextMode, TransformArena, TransformRoot,
+    transform_nodes, NewLineKind, PrintRequest, PrinterOptions, SourceBytePosition,
+    SourceFileTextMode, TransformArena, TransformRoot,
 };
 use tsc_syntax::parse_source_file;
 
@@ -25,11 +25,7 @@ fn canonical_cursor_work(statement_count: usize) -> CursorWork {
         PrinterOptions::new(NewLineKind::LineFeed)
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     )
-    .print(
-        &mut result,
-        PrintRequest::SourceFile(source),
-        &mut DisabledSourceMapRecorder,
-    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
     .expect("canonical cursor print");
     assert_eq!(
         printed.text().matches("if (items[0])").count(),

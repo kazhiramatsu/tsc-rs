@@ -62,7 +62,13 @@ pub fn load_compiler_no_emit(
     plan: &CompilerExecutionPlan,
     limits: ProgramLoadLimits,
 ) -> HarnessResult<PreparedProgram> {
-    load_compiler_program(workspace, plan, limits, CompilerProgramMode::NoEmit)
+    load_compiler_program(
+        workspace,
+        plan,
+        limits,
+        CompilerProgramMode::NoEmit,
+        EmitOptionFloor::Established,
+    )
 }
 
 /// Build the profile-admitted emitting [`PreparedProgram`] for one pinned
@@ -72,12 +78,42 @@ pub fn load_compiler_no_emit(
 /// adapter only reconstructs the same verified VFS, root order, and effective
 /// options as [`load_compiler_no_emit`] before selecting the distinct emitting
 /// loader.
+/// Which map-family options the fixture-settings projection admits.
+///
+/// The established H2.5g/H2.5h acceptance floor DROPS `sourceMap` (both
+/// sides of those frozen bands are mapless); the H2.6a band projects it
+/// (h2-6a-ca-2 — the ca-1 oracle observed WITH maps). Every other
+/// map-family option stays dropped on both floors until its owning
+/// slice admits it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmitOptionFloor {
+    Established,
+    SourceMap,
+}
+
 pub fn load_compiler_emit(
     workspace: &Path,
     plan: &CompilerExecutionPlan,
     limits: ProgramLoadLimits,
 ) -> HarnessResult<PreparedProgram> {
-    load_compiler_program(workspace, plan, limits, CompilerProgramMode::Emit)
+    load_compiler_program(
+        workspace,
+        plan,
+        limits,
+        CompilerProgramMode::Emit,
+        EmitOptionFloor::Established,
+    )
+}
+
+/// [`load_compiler_emit`] with an explicit settings floor (the H2.6a
+/// acceptance lane).
+pub fn load_compiler_emit_with_option_floor(
+    workspace: &Path,
+    plan: &CompilerExecutionPlan,
+    limits: ProgramLoadLimits,
+    floor: EmitOptionFloor,
+) -> HarnessResult<PreparedProgram> {
+    load_compiler_program(workspace, plan, limits, CompilerProgramMode::Emit, floor)
 }
 
 /// Reconstruct one qualification-owned compiler-runner VFS without depending
@@ -96,6 +132,29 @@ pub fn load_qualified_compiler_emit(
     roots: &[PathBuf],
     settings: &[(String, String)],
     limits: ProgramLoadLimits,
+) -> HarnessResult<PreparedProgram> {
+    load_qualified_compiler_emit_with_option_floor(
+        workspace,
+        current_directory,
+        files,
+        roots,
+        settings,
+        limits,
+        EmitOptionFloor::Established,
+    )
+}
+
+/// [`load_qualified_compiler_emit`] with an explicit settings floor (the
+/// H2.6a acceptance lane).
+#[allow(clippy::too_many_arguments)]
+pub fn load_qualified_compiler_emit_with_option_floor(
+    workspace: &Path,
+    current_directory: &str,
+    files: &[(PathBuf, Vec<u8>)],
+    roots: &[PathBuf],
+    settings: &[(String, String)],
+    limits: ProgramLoadLimits,
+    floor: EmitOptionFloor,
 ) -> HarnessResult<PreparedProgram> {
     if files.is_empty() || roots.is_empty() {
         return Err(error(
@@ -147,6 +206,7 @@ pub fn load_qualified_compiler_emit(
             .iter()
             .map(|(name, value)| (name.as_str(), value.as_str())),
         false,
+        floor,
     )?;
     compiler_options.new_line.get_or_insert(0);
     compiler_options.no_error_truncation = Some(true);
@@ -177,6 +237,7 @@ fn load_compiler_program(
     plan: &CompilerExecutionPlan,
     limits: ProgramLoadLimits,
     mode: CompilerProgramMode,
+    floor: EmitOptionFloor,
 ) -> HarnessResult<PreparedProgram> {
     let current_directory = plan.current_directory.as_ref();
     let mut host_builder = MemoryCompilerHost::builder(current_directory)
@@ -262,7 +323,7 @@ fn load_compiler_program(
         plan.use_case_sensitive_file_names,
     )?;
 
-    let (mut compiler_options, program_options) = plan_compiler_options(plan)?;
+    let (mut compiler_options, program_options) = plan_compiler_options(plan, floor)?;
     // CompilerBaselineRunner normalizes these harness-only defaults
     // after config and directive projection. They are not command-line
     // defaults: in particular, its absent `newLine` becomes CRLF even when
@@ -455,11 +516,13 @@ fn compiler_root_paths(plan: &CompilerExecutionPlan) -> HarnessResult<Vec<PathBu
 
 fn plan_compiler_options(
     plan: &CompilerExecutionPlan,
+    floor: EmitOptionFloor,
 ) -> HarnessResult<(CompilerOptions, ProgramOptions)> {
     let (compiler_options, mut program_options) = project_compiler_options(
         &plan.fixture,
         &plan.effective_settings,
         plan.current_directory.as_ref(),
+        floor,
     )?;
 
     if plan.fixture.config_root_plan.is_some() {
@@ -476,6 +539,7 @@ fn project_compiler_options(
     fixture: &CompilerFixtureInput,
     settings: &[OrderedSetting],
     current_directory: &str,
+    floor: EmitOptionFloor,
 ) -> HarnessResult<(CompilerOptions, ProgramOptions)> {
     let (mut compiler_options, mut program_options, config_has_explicit_allow_js) = fixture
         .config_root_plan
@@ -504,6 +568,7 @@ fn project_compiler_options(
             .iter()
             .map(|setting| (setting.name.as_str(), setting.value.as_str())),
         config_has_explicit_allow_js,
+        floor,
     )?;
     Ok((compiler_options, program_options))
 }
@@ -519,6 +584,7 @@ fn apply_compiler_settings<'setting>(
     current_directory: &str,
     settings: impl IntoIterator<Item = (&'setting str, &'setting str)>,
     lower_layer_has_explicit_allow_js: bool,
+    floor: EmitOptionFloor,
 ) -> HarnessResult<()> {
     let mut has_explicit_allow_js = lower_layer_has_explicit_allow_js;
     for (name, value) in settings {
@@ -530,6 +596,7 @@ fn apply_compiler_settings<'setting>(
             current_directory,
             name,
             value,
+            floor,
         )?;
     }
     if !has_explicit_allow_js {
@@ -588,6 +655,7 @@ fn apply_compiler_setting(
     current_directory: &str,
     name: &str,
     value: &str,
+    floor: EmitOptionFloor,
 ) -> HarnessResult<()> {
     let key = CompilerFixtureOptionKey::new(name);
     if let Some(metadata) = CompilerBaselineMetadata::lookup(&key) {
@@ -791,10 +859,17 @@ fn apply_compiler_setting(
         // hides the blocked-emit diagnostic set the observations record
         // (H2.5h CA-2b).
         "noemitonerror" => compiler_options.no_emit_on_error = Some(boolean()?),
+        // `sourcemap` projects on the H2.6a floor and stays dropped on
+        // the established floor (h2-6a-ca-2; the frozen 5g/5h bands are
+        // mapless on both sides).
+        "sourcemap" => {
+            if floor == EmitOptionFloor::SourceMap {
+                compiler_options.source_map = Some(boolean()?);
+            }
+        }
         "noemithelpers"
         | "declarationmap"
         | "emitdeclarationonly"
-        | "sourcemap"
         | "inlinesourcemap"
         | "inlinesources"
         | "emitbom"

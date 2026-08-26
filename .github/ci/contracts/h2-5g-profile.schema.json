@@ -80,7 +80,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "166429fff483e17f0581269de207346124c08f37df8e5e0e2ab033cb980bae77"
+            "sha256": "02e6d669d1d336f18d95f36849b3796120169a825293f14ff42d5eb24d790d87"
           }
         },
         {
@@ -94,7 +94,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "166429fff483e17f0581269de207346124c08f37df8e5e0e2ab033cb980bae77"
+            "sha256": "02e6d669d1d336f18d95f36849b3796120169a825293f14ff42d5eb24d790d87"
           }
         },
         {
@@ -108,7 +108,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "166429fff483e17f0581269de207346124c08f37df8e5e0e2ab033cb980bae77"
+            "sha256": "02e6d669d1d336f18d95f36849b3796120169a825293f14ff42d5eb24d790d87"
           }
         },
         {
@@ -122,7 +122,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "166429fff483e17f0581269de207346124c08f37df8e5e0e2ab033cb980bae77"
+            "sha256": "02e6d669d1d336f18d95f36849b3796120169a825293f14ff42d5eb24d790d87"
           }
         },
         {
@@ -136,15 +136,15 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "166429fff483e17f0581269de207346124c08f37df8e5e0e2ab033cb980bae77"
+            "sha256": "02e6d669d1d336f18d95f36849b3796120169a825293f14ff42d5eb24d790d87"
           }
         }
       ]
     },
     "runtime_inputs": {
       "type": "array",
-      "minItems": 257,
-      "maxItems": 257,
+      "minItems": 259,
+      "maxItems": 259,
       "items": {
         "$ref": "#/$defs/path_hash"
       }
@@ -225,9 +225,9 @@
     "transition": {
       "const": {
         "completed_slice": "H2.5g",
-        "next_slice": "H2.6a",
-        "next_slice_scope": "exact-map-json-and-callback-metadata",
-        "next_runtime_activation_slice": "H2.6a",
+        "next_slice": "H2.6b",
+        "next_slice_scope": "inline-maps-sources-roots-and-multi-source-ranges",
+        "next_runtime_activation_slice": "H2.6b",
         "active_runtime_slices": [
           "H2.1a",
           "H2.1b",
@@ -251,9 +251,10 @@
           "H2.5e",
           "H2.5f",
           "H2.5g",
-          "H2.5h"
+          "H2.5h",
+          "H2.6a"
         ],
-        "inactive_runtime_slice_count": 14,
+        "inactive_runtime_slice_count": 13,
         "classic_jsx_tsx_owner": "complete",
         "automatic_jsx_runtime_owner": "complete",
         "json_output_owner": "complete",
@@ -276,6 +277,11 @@
         "h2_5h_exact_cases": 795,
         "h2_5h_known_divergences": 93,
         "h2_5h_source_deferred_cases": 44,
+        "h2_6a_candidate_cases": 177,
+        "h2_6a_admitted_cases": 175,
+        "h2_6a_exact_cases": 130,
+        "h2_6a_known_divergences": 45,
+        "h2_6a_source_deferred_cases": 2,
         "h2_5g_global_future_rows": 2883,
         "h2_5g_source_deferred_cases": 516,
         "deferred_failure_boundary": "typed failure before first sink write"
@@ -371,7 +377,7 @@
     },
     "summary": {
       "const": {
-        "completed_runtime_slices": 22,
+        "completed_runtime_slices": 23,
         "next_slice_runtime_slice_delta": 0,
         "runtime_admissions": 9196,
         "executed_candidates": 9715,

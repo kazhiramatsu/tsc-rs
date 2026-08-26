@@ -3435,12 +3435,17 @@ impl Es2015Visitor<'_, '_, '_> {
         let mut statements = Vec::new();
         statements.extend_from_slice(environment.function_declarations());
         if !environment.variable_declarations().is_empty() {
-            let declarations = environment
-                .variable_declarations()
-                .iter()
-                .copied()
-                .map(|name| self.create_variable_declaration_plain(name, None))
-                .collect::<Result<Vec<_>, _>>()?;
+            let mut declarations = Vec::with_capacity(environment.variable_declarations().len());
+            for name in environment.variable_declarations().iter().copied() {
+                let declaration = self.create_variable_declaration_plain(name, None)?;
+                // hoistVariableDeclaration sets EmitFlags.NoNestedSourceMaps
+                // on every hoisted declaration.
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(declaration)
+                    .add_flags(EmitFlags::NO_NESTED_SOURCE_MAPS);
+                declarations.push(declaration);
+            }
             let statement = self.create_variable_statement_from_declarations(declarations)?;
             self.context
                 .arena_mut()?
@@ -4640,10 +4645,14 @@ impl Es2015Visitor<'_, '_, '_> {
         let body_is_block = self.kind(body)? == SyntaxKind::Block;
         let mut statement_offset = 0usize;
         self.context.resume_lexical_environment()?;
+        let mut statements_location: Option<(TransformSourceId, NodeArrayId)> = None;
         let body_statements = if body_is_block {
             let NodeData::Block(data) = &self.context.arena().node(body)?.data else {
                 return Err(assembly_kind_error(SyntaxKind::Block, "body block"));
             };
+            statements_location = data
+                .statements
+                .map(|statements| (body.source(), statements));
             self.array_nodes(data.statements)?
         } else {
             Vec::new()
@@ -4742,10 +4751,15 @@ impl Es2015Visitor<'_, '_, '_> {
             self.exit_function_scope_path();
             return Ok(body);
         }
-        // setTextRange(createNodeArray(statements), statementsLocation) —
-        // the array range rides the block range (arrow bodies use
-        // moveRangeEnd(body, -1); byte-inert without maps).
+        // setTextRange(createNodeArray(statements), statementsLocation): a
+        // Block body donates its statements-array range (the close-brace
+        // map anchor, h2-6a-m-2). An arrow expression body uses
+        // moveRangeEnd(body, -1) — end stays the -1 sentinel, so the map
+        // anchor is absent and the close-brace record rides the
+        // CloseBraceToken override below; the pos half stays unset here to
+        // keep the rebuilt array byte-inert.
         let block = self.create_block(combined, multi_line)?;
+        self.set_block_statements_range_to_array(block, statements_location)?;
         self.set_text_range(block, body)?;
         if !multi_line && single_line {
             self.add_emit_flags(block, EmitFlags::SINGLE_LINE)?;
@@ -8276,7 +8290,12 @@ impl Es2015Visitor<'_, '_, '_> {
         // closing-brace return statement, comment/token-map-suppressed and
         // ranged to the close-brace token range.
         let members_end = {
-            let members = match &self.context.arena().node(node)?.data {
+            // The ORIGINAL class's members range (h2-6a-m-2
+            // replay-falsified: a visited class carries a rebuilt,
+            // rangeless members array, which pushed the close-brace
+            // return range to the sentinel).
+            let range_owner = self.context.arena().get_original_node(node);
+            let members = match &self.context.arena().node(range_owner)?.data {
                 NodeData::ClassDeclaration(data) => data.members,
                 NodeData::ClassExpression(data) => data.members,
                 _ => None,
@@ -8289,7 +8308,7 @@ impl Es2015Visitor<'_, '_, '_> {
                         .node_array(tsc_syntax_array(self.source, members))?;
                     array.end
                 }
-                None => self.context.arena().node(node)?.end,
+                None => self.context.arena().node(range_owner)?.end,
             }
         };
         let close_brace_start = skip_trivia_bytes(&self.current_text, members_end);
@@ -8320,27 +8339,44 @@ impl Es2015Visitor<'_, '_, '_> {
             )?;
             created
         };
-        self.add_emit_flags(outer, EmitFlags::NO_COMMENTS)?;
+        // setTextRangeEnd(outer, closingBraceLocation.end) — an END-only
+        // range upstream (pos stays -1): the leading map side is
+        // suppressed (h2-6a-m-2 replay-falsified).
+        self.add_emit_flags(
+            outer,
+            EmitFlags::NO_COMMENTS | EmitFlags::NO_LEADING_SOURCE_MAP,
+        )?;
         let return_statement = self.create_return_statement(Some(outer))?;
         self.set_range_raw(
             return_statement,
             close_brace_start,
             close_brace_start.wrapping_add(1),
         )?;
+        // setTextRangePos(statement, closingBraceLocation.pos) — a
+        // POS-only range upstream (end stays -1): the trailing map side
+        // is suppressed.
         self.add_emit_flags(
             return_statement,
-            EmitFlags::NO_COMMENTS | EmitFlags::NO_TOKEN_SOURCE_MAPS,
+            EmitFlags::NO_COMMENTS
+                | EmitFlags::NO_TOKEN_SOURCE_MAPS
+                | EmitFlags::NO_TRAILING_SOURCE_MAP,
         )?;
         statements.push(return_statement);
         let environment = self.context.end_lexical_environment()?;
         self.insert_statements_after_standard_prologue_materialized(&mut statements, environment)?;
         let block = self.create_block(statements, /*multi_line*/ true)?;
-        let members = match &self.context.arena().node(node)?.data {
+        // setTextRange(statementsArray, node.members) — the ORIGINAL class's
+        // members range, as at the default-constructor site.
+        let original = self.context.arena().get_original_node(node);
+        let members = match &self.context.arena().node(original)?.data {
             NodeData::ClassDeclaration(data) => data.members,
             NodeData::ClassExpression(data) => data.members,
             _ => None,
         };
-        self.set_block_statements_range_to_array(block, members)?;
+        self.set_block_statements_range_to_array(
+            block,
+            members.map(|members| (original.source(), members)),
+        )?;
         self.add_emit_flags(block, EmitFlags::NO_COMMENTS)?;
         Ok(block)
     }
@@ -8378,16 +8414,16 @@ impl Es2015Visitor<'_, '_, '_> {
     fn set_block_statements_range_to_array(
         &mut self,
         block: TransformNode,
-        location: Option<NodeArrayId>,
+        location: Option<(TransformSourceId, NodeArrayId)>,
     ) -> Result<(), TransformError> {
-        let Some(location) = location else {
+        let Some((location_source, location)) = location else {
             return Ok(());
         };
         let (pos, end) = {
             let array = self
                 .context
                 .arena()
-                .node_array(tsc_syntax_array(self.source, location))?;
+                .node_array(tsc_syntax_array(location_source, location))?;
             (array.pos, array.end)
         };
         let statements = {
@@ -8572,12 +8608,19 @@ impl Es2015Visitor<'_, '_, '_> {
             statements.push(self.create_return_statement(Some(super_call))?);
         }
         let block = self.create_block(statements, /*multi_line*/ true)?;
-        let members = match &self.context.arena().node(node)?.data {
+        // setTextRange(statementsArray, node.members) — upstream reads the
+        // ORIGINAL class's members range (a visited class carries a
+        // rebuilt, rangeless members array; h2-6a-m-2 replay-falsified).
+        let original = self.context.arena().get_original_node(node);
+        let members = match &self.context.arena().node(original)?.data {
             NodeData::ClassDeclaration(data) => data.members,
             NodeData::ClassExpression(data) => data.members,
             _ => None,
         };
-        self.set_block_statements_range_to_array(block, members)?;
+        self.set_block_statements_range_to_array(
+            block,
+            members.map(|members| (original.source(), members)),
+        )?;
         self.set_text_range(block, node)?;
         self.add_emit_flags(block, EmitFlags::NO_COMMENTS)?;
         Ok(block)
@@ -8786,7 +8829,10 @@ impl Es2015Visitor<'_, '_, '_> {
             NodeData::Block(data) => data.statements,
             _ => None,
         };
-        self.set_block_statements_range_to_array(body, original_statements)?;
+        self.set_block_statements_range_to_array(
+            body,
+            original_statements.map(|statements| (constructor_body.source(), statements)),
+        )?;
         self.set_text_range(body, constructor_body)?;
         self.simplify_constructor(body, constructor_body, has_synthesized_super)
     }
@@ -8857,13 +8903,30 @@ impl Es2015Visitor<'_, '_, '_> {
         let (node_pos, node_end) = (record.pos, record.end);
         match position {
             PartiallyEmittedPosition::EndOfNode => {
-                // setTextRangeEnd(inner, node.end) — pos stays synthesized;
-                // the printer consumes the END boundary.
+                // setTextRangeEnd(inner, node.end) — pos stays synthesized
+                // upstream; the zero-width Rust encoding restores the
+                // one-sided semantics with the leading-map suppression
+                // flag (h2-6a-m-2 §4, review F4: upstream skips a Before
+                // record for pos < 0).
                 self.set_range_raw(created, node_end, node_end)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(created)
+                    .add_flags(EmitFlags::NO_LEADING_SOURCE_MAP);
             }
             PartiallyEmittedPosition::SkipTriviaOfPos => {
+                // setTextRangeEnd(outer, skipTrivia(text, node.pos)) —
+                // ALSO an end-only range upstream (pos stays synthesized;
+                // the end value happens to be the skip-trivia'd start), so
+                // the leading side is suppressed exactly as the EndOfNode
+                // arm (review F4; the first replay run falsified the
+                // draft's trailing-side pairing).
                 let skipped = skip_trivia_bytes(&self.current_text, node_pos);
                 self.set_range_raw(created, skipped, skipped)?;
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(created)
+                    .add_flags(EmitFlags::NO_LEADING_SOURCE_MAP);
             }
         }
         Ok(created)
@@ -9808,6 +9871,45 @@ impl Es2015Visitor<'_, '_, '_> {
         }
         if has_synthesized_super {
             body = self.complicate_constructor_inject_super_presence_check(body)?;
+        }
+        // Upstream's simplify post-passes mutate the SAME NodeArray in
+        // place, so the statements range set by transformConstructorBody
+        // survives; the Rust rebuild creates fresh arrays — propagate the
+        // range so the close-brace map anchor (upstream
+        // emitBlockFunctionBody's `body.statements.end`) is preserved
+        // (h2-6a-m-2 replay-falsified).
+        if body != input_body {
+            let source_range = {
+                let NodeData::Block(data) = &self.context.arena().node(input_body)?.data else {
+                    return Err(assembly_kind_error(SyntaxKind::Block, "simplified body"));
+                };
+                match data.statements {
+                    Some(statements) => {
+                        let array = self
+                            .context
+                            .arena()
+                            .node_array(tsc_syntax_array(self.source, statements))?;
+                        ((array.pos != u32::MAX) || (array.end != u32::MAX))
+                            .then_some((array.pos, array.end))
+                    }
+                    None => None,
+                }
+            };
+            if let Some((pos, end)) = source_range {
+                let statements = {
+                    let NodeData::Block(data) = &self.context.arena().node(body)?.data else {
+                        return Err(assembly_kind_error(SyntaxKind::Block, "simplified body"));
+                    };
+                    data.statements
+                };
+                if let Some(statements) = statements {
+                    self.context.factory()?.set_node_array_text_range(
+                        tsc_syntax_array(self.source, statements),
+                        pos,
+                        end,
+                    )?;
+                }
+            }
         }
         Ok(body)
     }
@@ -11617,7 +11719,13 @@ impl Es2015Visitor<'_, '_, '_> {
                         "loop parameter name",
                     ))?
             };
-            call_arguments.push(self.clone_node(name)?);
+            // `map(state.loopParameters, p => p.name)` passes the parsed
+            // name NODE itself, whose range records in the map; the arena
+            // clone stays, so the donor's range rides as an explicit
+            // source-map range (h2-6a-m-2 §8-A).
+            let argument = self.clone_node(name)?;
+            self.set_source_map_range_from(argument, name)?;
+            call_arguments.push(argument);
         }
         let call = self.create_call(function_reference, call_arguments)?;
         let call_result = if contains_yield {
@@ -12001,12 +12109,18 @@ impl Es2015Visitor<'_, '_, '_> {
                 let declaration =
                     self.create_variable_declaration_plain(declaration_name, Some(bound_value))?;
                 let list = self.create_variable_declaration_list(vec![declaration])?;
+                self.set_text_range(list, initializer)?;
                 self.set_original(list, initializer)?;
-                // ranged moveRangePos(initializer, -1) / moveRangeEnd(initializer, -1)
-                // — synthesized-position threading is byte-inert here; the
-                // statement takes the initializer range.
+                // moveRangePos(initializer, -1) on the list and
+                // moveRangeEnd(initializer, -1) on the statement: each side
+                // keeps only half the initializer range upstream. The Rust
+                // range stays two-sided, so the absent half is expressed as
+                // a map-side suppression flag (h2-6a-m-2 §8-A one-sided
+                // encoding).
+                self.add_emit_flags(list, EmitFlags::NO_LEADING_SOURCE_MAP)?;
                 let statement = self.create_variable_statement_from_list(list)?;
                 self.set_text_range(statement, initializer)?;
+                self.add_emit_flags(statement, EmitFlags::NO_TRAILING_SOURCE_MAP)?;
                 statements.push(statement);
             }
         } else {
@@ -12039,12 +12153,16 @@ impl Es2015Visitor<'_, '_, '_> {
             .visit_statement_lifted(statement)?
             .ok_or(assembly_kind_error(SyntaxKind::ForOfStatement, "body"))?;
         if self.kind(visited_statement)? == SyntaxKind::Block {
-            let inner = {
+            let (inner, inner_location) = {
                 let NodeData::Block(data) = &self.context.arena().node(visited_statement)?.data
                 else {
                     return Err(assembly_kind_error(SyntaxKind::Block, "for-of body"));
                 };
-                self.array_nodes(data.statements)?
+                (
+                    self.array_nodes(data.statements)?,
+                    data.statements
+                        .map(|statements| (visited_statement.source(), statements)),
+                )
             };
             let mut combined = statements;
             combined.extend(inner);
@@ -12058,9 +12176,15 @@ impl Es2015Visitor<'_, '_, '_> {
                 statements: Some(array.array()),
             });
             let flags = flags_after_update(self.context.arena(), visited_statement, &updated_data)?;
-            self.context
-                .factory()?
-                .update_node(visited_statement, updated_data, flags)
+            let updated =
+                self.context
+                    .factory()?
+                    .update_node(visited_statement, updated_data, flags)?;
+            // setTextRange(createNodeArray(concatenate(...)), statement.statements)
+            // — the merged array takes the ORIGINAL body statements-array
+            // range (the loop-body close-brace map anchor, band burn-down).
+            self.set_block_statements_range_to_array(updated, inner_location)?;
+            Ok(updated)
         } else {
             statements.push(visited_statement);
             self.create_synthetic_block_for_converted_statements(statements)
@@ -12127,6 +12251,12 @@ impl Es2015Visitor<'_, '_, '_> {
         let zero = self.create_numeric_literal("0")?;
         let counter_declaration =
             self.create_variable_declaration_plain(counter_init, Some(zero))?;
+        // setTextRange(counterDeclaration, moveRangePos(node.expression, -1))
+        // — an END-only range upstream (pos stays -1): the h2-6a one-sided
+        // encoding keeps the full range and suppresses the leading side
+        // (band burn-down: the ES5For-of family's missing After record).
+        self.set_text_range(counter_declaration, expression)?;
+        self.add_emit_flags(counter_declaration, EmitFlags::NO_LEADING_SOURCE_MAP)?;
         let rhs_declaration =
             self.create_variable_declaration_plain(rhs_reference, Some(visited_expression))?;
         self.set_text_range(rhs_declaration, expression)?;

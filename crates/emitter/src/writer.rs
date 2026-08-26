@@ -34,6 +34,7 @@ pub struct TextWriter {
     line_position: GeneratedUtf16Position,
     text_position: GeneratedUtf16Position,
     has_trailing_comment: bool,
+    recording: Option<crate::source_map::SourceMapRecording>,
 }
 
 /// tsc-port: createTextWriter @6.0.3
@@ -58,6 +59,68 @@ impl TextWriter {
             line_position: GeneratedUtf16Position::new(0),
             text_position: GeneratedUtf16Position::new(0),
             has_trailing_comment: false,
+            recording: None,
+        }
+    }
+
+    /// h2-6a-m-2 §4: the print-lifetime recording rides the transformed
+    /// arm's main writer; probe/re-measure writers are fresh
+    /// constructions and never carry one.
+    pub(crate) fn set_source_map_recording(
+        &mut self,
+        recording: Option<crate::source_map::SourceMapRecording>,
+    ) {
+        self.recording = recording;
+    }
+
+    pub(crate) fn take_source_map_recording(
+        &mut self,
+    ) -> Option<crate::source_map::SourceMapRecording> {
+        self.recording.take()
+    }
+
+    pub(crate) fn has_source_map_recording(&self) -> bool {
+        self.recording.is_some()
+    }
+
+    pub(crate) fn recording_mut(&mut self) -> Option<&mut crate::source_map::SourceMapRecording> {
+        self.recording.as_mut()
+    }
+
+    /// Record a mapping against the CURRENT print source (the comment
+    /// lane and every default-range site of the printed file).
+    pub(crate) fn record_source_map_position(&mut self, source_line: u32, source_character: u32) {
+        let generated_line = self.line();
+        let generated_character = self.column();
+        if let Some(recording) = self.recording.as_mut() {
+            recording.record_current(
+                source_line,
+                source_character,
+                generated_line,
+                generated_character,
+            );
+        }
+    }
+
+    /// Record a mapping against an explicit (possibly foreign) source.
+    pub(crate) fn record_source_map_position_for(
+        &mut self,
+        source: crate::TransformSourceId,
+        file_name: &str,
+        source_line: u32,
+        source_character: u32,
+    ) {
+        let generated_line = self.line();
+        let generated_character = self.column();
+        if let Some(recording) = self.recording.as_mut() {
+            recording.record_for_source(
+                source,
+                file_name,
+                source_line,
+                source_character,
+                generated_line,
+                generated_character,
+            );
         }
     }
 

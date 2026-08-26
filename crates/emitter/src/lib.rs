@@ -40,8 +40,8 @@ pub use error::{
     UnsupportedEmitFeature,
 };
 pub use execute::{
-    emit_files, emit_files_with_activity, validate_bootstrap_emit_options,
-    validate_bootstrap_emit_request, EmitDiagnosticGate,
+    emit_files, emit_files_with_activity, print_script_units_with_recording_for_harness,
+    validate_bootstrap_emit_options, validate_bootstrap_emit_request, EmitDiagnosticGate,
 };
 pub use factory::{
     NodeFactory, TransformArena, TransformNode, TransformNodeArray, TransformSource,
@@ -64,15 +64,15 @@ pub use position::{
     SourceByteRange, SourcePositionError, SourceRange, SourceUtf16Location, SourceUtf16Position,
 };
 pub use printer::{
-    create_printer, DisabledSourceMapRecorder, PrintRequest, PrintedText, Printer, PrinterError,
-    PrinterOptions, SourceFileTextMode, SourceMapHookEvent, SourceMapHookPhase, SourceMapRecorder,
+    create_printer, PrintRequest, PrintedText, Printer, PrinterError, PrinterOptions,
+    SourceFileTextMode,
 };
 pub use resolver::{
     EmitExportContainerMode, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
     EmitTypeReferenceSerializationKind, UnavailableEmitResolver,
 };
 pub use sink::{EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink, OutputSink};
-pub use source_map::{SourceMapGenerator, SourceMappingFields};
+pub use source_map::{SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields};
 pub use transform::{
     transform_nodes, EmitHelper, EmitHint, LexicalEnvironment, LexicalEnvironmentFlags,
     TransformBundle, TransformError, TransformFlags, TransformRoot, TransformationContext,

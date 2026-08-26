@@ -637,6 +637,83 @@ const WITNESS_FAMILY_SPECS = Object.freeze([
     ],
   },
   {
+    family_id: "token-surface",
+    rust_boundary: false,
+    description:
+      "m-3 witness extension (m-2 review F9 residue): the remaining upstream writeToken map sites — switch case-block braces, BOTH single-statement clause-colon polarities (same-line inline statement vs indented list), and the debugger keyword; MetaProperty stays deferred to the ca-1 burn-down",
+    cases: [
+      witnessCase(
+        "positive-switch-colons",
+        "positive",
+        "parity",
+        "switch with one same-line single-statement clause, one next-line clause list, and a same-line default: case-block braces plus both clause-colon polarities",
+        [
+          file("/project/input.ts", [
+            "declare function sink(value: unknown): void;",
+            "declare const pick: number;",
+            "switch (pick) {",
+            "    case 0: sink(\"zero\");",
+            "    case 1:",
+            "        sink(\"one\");",
+            "        break;",
+            "    default: sink(\"rest\");",
+            "}",
+            "sink(pick);",
+            "",
+          ]),
+        ],
+        {
+          expected_write_paths: ["/project/input.js.map", "/project/input.js"],
+        },
+      ),
+      witnessCase(
+        "positive-debugger",
+        "positive",
+        "parity",
+        "debugger statement inside a function body: the debugger keyword token record between plain statement boundaries",
+        [
+          file("/project/input.ts", [
+            "declare function sink(value: unknown): void;",
+            "function probe(): number {",
+            "    debugger;",
+            "    return 7;",
+            "}",
+            "sink(probe());",
+            "",
+          ]),
+        ],
+        {
+          expected_write_paths: ["/project/input.js.map", "/project/input.js"],
+        },
+      ),
+      witnessCase(
+        "adjacent-negative-switch-nomap",
+        "adjacent-negative-control",
+        "parity",
+        "identical switch program without sourceMap: single write, no URL comment, no sourceMaps result",
+        [
+          file("/project/input.ts", [
+            "declare function sink(value: unknown): void;",
+            "declare const pick: number;",
+            "switch (pick) {",
+            "    case 0: sink(\"zero\");",
+            "    case 1:",
+            "        sink(\"one\");",
+            "        break;",
+            "    default: sink(\"rest\");",
+            "}",
+            "sink(pick);",
+            "",
+          ]),
+        ],
+        {
+          option_overrides: { sourceMap: false },
+          expected_write_paths: ["/project/input.js"],
+        },
+      ),
+    ],
+  },
+  {
     family_id: "boundary-controls",
     rust_boundary: true,
     description:
@@ -1318,18 +1395,18 @@ function buildArtifact() {
     "composition facet coverage changed",
   );
   requireCondition(
-    families.length === 9 && cases.length === 33,
+    families.length === 10 && cases.length === 36,
     "witness census changed",
   );
   requireCondition(
-    roleCount("positive") === 14 &&
-      roleCount("adjacent-negative-control") === 12 &&
+    roleCount("positive") === 16 &&
+      roleCount("adjacent-negative-control") === 13 &&
       roleCount("composition") === 4 &&
       roleCount("fault") === 3,
     "witness role census changed",
   );
   requireCondition(
-    laneCount("parity") === 28 && laneCount("refusal-control") === 5,
+    laneCount("parity") === 31 && laneCount("refusal-control") === 5,
     "witness rust-lane census changed",
   );
   // Cross-case invariant: the newline pair proves mappings are

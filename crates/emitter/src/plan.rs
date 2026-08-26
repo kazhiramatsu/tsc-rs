@@ -203,11 +203,8 @@ impl EmitOutputPlan {
                     ));
                 }
             }
-            if unit.paths.javascript_map.is_some() {
-                return Err(EmitFailure::Unsupported(
-                    UnsupportedEmitFeature::JavaScriptMap,
-                ));
-            }
+            // h2-6a-m-3 G8: a planned `.js.map` is a supported unit
+            // member (the sourceMap flip); declaration lanes stay refused.
             if unit.paths.declaration.is_some() {
                 return Err(EmitFailure::Unsupported(
                     UnsupportedEmitFeature::Declaration,
@@ -325,7 +322,10 @@ pub fn get_output_paths_for(
         Some(path) => EmitOutputPaths::javascript(path),
         None => EmitOutputPaths::empty(),
     };
-    if options.source_map == Some(true) && options.inline_source_map != Some(true) {
+    // getOutputPathsFor forces an undefined map path for JSON source
+    // files (116373-116387); getSourceMapFilePath (116388-116390) applies
+    // only past that gate (h2-6a-m-3 G6).
+    if options.source_map == Some(true) && options.inline_source_map != Some(true) && !is_json {
         if let Some(path) = paths.javascript_path().map(Path::to_path_buf) {
             paths = paths.with_javascript_map(format!("{}.map", path.to_string_lossy()));
         }
