@@ -31,13 +31,18 @@ review outcomes recorded in the gate-tax-5 packet: receipt key formula
 correction (projection-labelled dependency edges), G2 SLA split by
 change class, hosted-cache safety constraints.
 
-## Pending decision (NOT yet ratified)
+## Sequencing (RATIFIED 2026-08-27)
 
-Sequencing amendment (consult #2 finding 12): land this substrate +
-a current-oracle adapter in shadow mode FIRST, add the tsgo producer
-under the same contract AFTER — instead of migrating both at once.
-Recorded as a proposal; the standing ratified intent remains 'design
-together with tsgo Phase 0'.
+Land this substrate + a current-oracle adapter in shadow mode FIRST;
+the tsgo producer is added under the same receipt/store/key contract
+AFTER the substrate is trusted — never both migrations at once
+(running two full systems during an oracle migration doubles the
+expensive sweeps and makes cache/key failures indistinguishable from
+legitimate compiler divergence). The design remains unified with the
+tsgo Phase 0 oracle rebuild; only the LANDING order is staged. Shadow
+mode requires an explicit budget, a sampling/full-run schedule, a
+semantic-versus-byte comparison rule, an expected-difference taxonomy,
+and promotion + rollback criteria.
 
 # Evidence-DAG CI redesign: first-slice design
 
