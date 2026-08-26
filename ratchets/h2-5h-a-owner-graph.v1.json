@@ -28,17 +28,17 @@
   "lineage": {
     "foundation": {
       "path": "ratchets/h2-5h-a-foundation.v1.json",
-      "sha256": "b2add4bdc602c1780e9d3b9835b1b0bf046efc0177c8a5b195948c622c1f1e10"
+      "sha256": "09da77a8599529190ba3d612f308efdbe5ceb2fa93077d886785b7a305427ce2"
     },
-    "foundation_fingerprint_sha256": "8c7f3f982378f754b40e28cdca55aab440bce851379dffc07fdd566d4b25551b",
+    "foundation_fingerprint_sha256": "f4b5da09d364ada7fa05889942104835cb2a6f8d53b951c37dd05f7e4c4f4f54",
     "comment_scope_witnesses": {
       "path": "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
-      "sha256": "5b7609b87a3074f29e993f9d6718a1753b8817fa6781499808103fb0686470bb"
+      "sha256": "24a0466a88488402390e17cd5e2d95ba7f0088c663dcd052fdbb52db5863ba66"
     },
-    "witnesses_fingerprint_sha256": "fcdda7531e087e76cb6418135dcedf2c215fbe915e944238a33d4a057ec5a93e",
+    "witnesses_fingerprint_sha256": "379217ea50207f144bb6d956886c31634fae9e04b50df7130b784f701a4ff607",
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "c81cba67af8a97ee1b8584b1951464908f8f8b35dbcd0f8f2d780ee3d30ed2c9"
+      "sha256": "5f92a5ffbea6553b80389ecaee9ae77121df3b36e38552769959585bbbe780c6"
     },
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
@@ -3817,5 +3817,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "owner_graph_fingerprint_sha256": "b20fa2eca62535f0bdef3e21e4e0f827e85433c58a8f90b4e8aec525f595c344"
+  "owner_graph_fingerprint_sha256": "180cb7fb95ad31953c5adbd14f4c5ce0a60d16fa702b7f90415f1ed7b4910ec3"
 }
