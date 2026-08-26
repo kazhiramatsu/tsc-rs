@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "e649082d6f5f06e9c12c446cf95d6c089b345aa8eeb78d7d76c6fb1ef14c1bd0"
+      "sha256": "96b0c871633664b64fd5ef70559cdfba7044f2dfd72c26398b73220998889670"
     },
-    "owner_graph_fingerprint_sha256": "19720610ef96c26f10a95cc1b00b3bc3630ad0b5d2d986c1e67a764c154ef4b3",
+    "owner_graph_fingerprint_sha256": "b20fa2eca62535f0bdef3e21e4e0f827e85433c58a8f90b4e8aec525f595c344",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
@@ -399,7 +399,7 @@
           "symbol": "token_owned_comment_phase_prefix",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "c144894f7fd1fb5c175ef461632382aba1516ece6318ad07ee202fb1baed13b8"
+            "sha256": "e24b839972ed2f7aa461f4c5cd95e135cf3ed8328022e2f1efa73568803c87be"
           }
         },
         {
@@ -423,7 +423,7 @@
           "symbol": "fn established_container_sides",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "c144894f7fd1fb5c175ef461632382aba1516ece6318ad07ee202fb1baed13b8"
+            "sha256": "e24b839972ed2f7aa461f4c5cd95e135cf3ed8328022e2f1efa73568803c87be"
           }
         },
         {
@@ -431,7 +431,7 @@
           "symbol": "struct EmitContext",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "c144894f7fd1fb5c175ef461632382aba1516ece6318ad07ee202fb1baed13b8"
+            "sha256": "e24b839972ed2f7aa461f4c5cd95e135cf3ed8328022e2f1efa73568803c87be"
           }
         },
         {
@@ -439,7 +439,7 @@
           "symbol": "fn file_root",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "c144894f7fd1fb5c175ef461632382aba1516ece6318ad07ee202fb1baed13b8"
+            "sha256": "e24b839972ed2f7aa461f4c5cd95e135cf3ed8328022e2f1efa73568803c87be"
           }
         },
         {
@@ -461,7 +461,7 @@
       ],
       "absences": [],
       "note": "CS-2 landed the threaded scope at the root and core pipeline, CS-3 landed the per-side claim predicates on the expression/list routes, and CS-4 landed the statement/declaration-family migration with the declaration-list writer (claim_declaration_list_sides replaces the planned container claim; the statement-paired claim helper is deleted); CS-5 deleted the five contextless shims and the detached_transitional constructor, leaving file_root as the printer's single zero-scope entry; CS-6 landed the 30-case witness-driven fixture gate (byte parity against the frozen artifact, both removeComments polarities, six transforms) and the permanent zero-contextless workspace audit — the sub-packet is closed, requalified at 6acd5d43, and ES2015/Generators production (H2.5h-b) is unblocked",
-      "capability_fingerprint_sha256": "e9bba45e43274fc557ef5f0ed9ce88a891947ed3d0666511bec6c289531c3506"
+      "capability_fingerprint_sha256": "88ed027acf149e93bee611d030a8ec261c7424848f43dacdfc3cd54d2424a53a"
     },
     {
       "index": 8,
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "af3bc6f637baf86f974cd2ff1f19e3cb9450815f75fe7463d752c49354b73fda"
+  "gap_matrix_fingerprint_sha256": "ca72059d661b654a40386afe59c5cf53714d78bff291598e7db53625bce1d722"
 }

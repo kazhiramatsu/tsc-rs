@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-qualification.mjs",
-    "sha256": "0b7070956c3e0d80911b9d4b15e90f3cf2e9d857dbda40cdc78e69da25b2c544"
+    "sha256": "68767b5473b039a91be6298ce52638f77e09ccd5013dc0d32aebd177e38671cc"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_2a_merge": "c402252a0d9df4ca0f5332c7f64084087fe55886",
     "h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "30715d877d2011be2b9a72c5956fcb4a33dd66903eecef79e3829706022426c6"
+      "sha256": "033df5d3f5d09f97d6dc06f4c659a858a75aaf0227fae9ca1d9f4e386373ad5f"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "6b3d66b6a5bacb6c60835a353906c1664f290b08afdc71f9989abc1f755d72a1"
+      "sha256": "c81cba67af8a97ee1b8584b1951464908f8f8b35dbcd0f8f2d780ee3d30ed2c9"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "586f72c241a9d59d1e365cf11cd6aad28537acde7e4fb1852257ac00f82fd8a0"
+      "sha256": "02e6d669d1d336f18d95f36849b3796120169a825293f14ff42d5eb24d790d87"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "b555593abe9bcd37918ce230f735f333cdb45743361ea220eeb3fcc5790c6a00"
+      "sha256": "d9fb55ffc42f61c54a5c8e9d1edde0c13d86e0c4e722cb0affceafb2605b7e17"
     },
     "h2_2a_qualification": {
       "path": "ratchets/h2-2a-qualification.v1.json",
-      "sha256": "d1f3a6862da6f936700ddc7c6b387c04af0739553fd231d49ad424515af3ace1"
+      "sha256": "f343db73816fda56ca33c6bbd9ec69f768fb54d2bf26861a00bd6e40dd5feeaf"
     }
   },
   "execution_contract": {
@@ -7217,5 +7217,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "4ec2ddad4b849ebdde75f489092eb2dd2f03c43068d23e5a92b58945bdc34616"
+  "qualification_fingerprint_sha256": "fa5aa5f5a75c71b1febd3688fd48a5202338a3077bb6de38a6c62cde202360d1"
 }
