@@ -1,0 +1,959 @@
+{
+  "schema": 1,
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.6b-inline-and-roots",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-6b-qualification.mjs",
+    "sha256": "c39aae76560cd0c611dd07c61c8e385a39413c7a0cb108aa32c79835e0291321"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-6b-qualification.schema.json",
+    "sha256": "1b4d7eb913af2ecad88caf5ad20bce6fc670b0eadad780f8e46a49a630d83558"
+  },
+  "origin": {
+    "h2_6b_open_merge": "436dbceb1de2fa58edfa523472d2e51046638f62",
+    "h2_6b_m1_merge": "6f7bfd715ceb2ae285b5922110dd2cf5bc4eb5b0"
+  },
+  "selection_contract": {
+    "global_h2_6b_rows": 11,
+    "candidate_definition": "the 6 dependency-closed rows among the 11 global H2.6b rows whose other required slices are closed through H2.6a; all 6 rows are observed (6 compiler; zero conformance, project, or transpile rows survive closure, and the project-mount lane is dormant)",
+    "global_candidate_denominator": 6,
+    "observed_candidate_denominator": 6,
+    "project_deferred_candidates": 0,
+    "future_deferred_rows": 5
+  },
+  "inputs": {
+    "compiler_classification": {
+      "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json",
+      "sha256": "7158d2e4fac5b6d43ee9382d5dadac7d27e358c86bd532e07b4d1f9ff85ad5b0"
+    },
+    "conformance_classification": {
+      "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json",
+      "sha256": "43c3e4d6f6273f2264e7eed96348795bf58caecf30d81b365c4c0dc8d630a990"
+    },
+    "compiler_expansion": {
+      "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
+      "sha256": "9c6e991103b571f7a8800dc5e1ef66088017689f3769de8fcdb408b2dc125188"
+    },
+    "compiler_config_plans": {
+      "path": "vendor/typescript-6.0.3/compiler-config-plans.v1.json",
+      "sha256": "d19356ed235fd32579f8688be44ee2f57dd7965cf45ccf172e7f01cd95050453"
+    },
+    "conformance_expansion": {
+      "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
+      "sha256": "924d4007b3ac93a3ee57032ea6089b649bab2902e30ee64cff02f4c9404b7bbd"
+    },
+    "vfs_directory_overlay": {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    "owner_inventory": {
+      "path": "ratchets/h2-owner-inventory.v1.json",
+      "sha256": "3ab342ea754daf0f41a761d7416c993178403de2afef55785b04d7541fddd40b"
+    },
+    "global_candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "12bd833ab2e11a2c72a11360ac15afc180963904f3d0d477c7325aa7c6ed84c6"
+    }
+  },
+  "execution_contract": {
+    "source_reachability": "fixture VFS roots plus module-resolved fixture dependencies in a vendored TypeScript Program",
+    "module_selection": "Program.getEmitModuleFormatOfFile for every reached fixture SourceFile",
+    "admission": "all 6 selected global rows have a required-slice set closed through H2.6a at the option/owner inventory layer; all 6 rows are observed (6 compiler + 0 conformance; the project/transpile lanes are dormant at zero surviving rows); an observed case is admitted for Rust execution only when every emit-eligible reached source requires no later source/output owner, has no parse diagnostics, and has AST depth <= 256; every admitted case requests inlineSourceMap true (sourceMap/mapRoot/sourceRoot may also be present), and diagnostics, writes (including inline js bytes and the callback data argument), write order, emittedFiles, and emitResult.sourceMaps are exact; deferred cases retain their first later owner and fail before the first Rust sink write",
+    "typescript_repetitions": 2,
+    "rust_repetitions": 2,
+    "normalization": "none",
+    "deferred_boundary": "typed failure before first sink write"
+  },
+  "owner_closure": [
+    {
+      "key": "source-map-generator",
+      "declaration": {
+        "id": "h2:0e3485bedc1b7202ae80f9d6ad45316f2f2a0b69b08bdbe11ee2d1db1ea486d2",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "createSourceMapGenerator",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/createSourceMapGenerator@92365:1",
+        "source_range": {
+          "start": {
+            "offset": 4521435,
+            "line": 92365,
+            "character": 1
+          },
+          "end": {
+            "offset": 4530744,
+            "line": 92601,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "90f3314c42852b0ba3e523c1135dbb459c16bc0aea9efa2f514707fada914433",
+        "body_sha256": "96472f7193f92dfc90365727dc37cbea94bb429150f45be87b55ce4ffb2eab60",
+        "ledger_slice_sha256": "a9b20ed17638b1cd1d4c96a283a9731eef97e8ccffaf09b96d1e999d66d18e34"
+      },
+      "disposition_before_h2_6b": "deferred-h2"
+    },
+    {
+      "key": "source-map-output-path",
+      "declaration": {
+        "id": "h2:a94d80c96e4125b8d70c946664c3fc96789b23d84e89064c4c97751ab16968ef",
+        "source": "vendor/typescript-6.0.3/lib/_tsc.js",
+        "name": "getSourceMapFilePath",
+        "kind": "FunctionDeclaration",
+        "lexical_path": "<bundle>/getSourceMapFilePath@116388:1",
+        "source_range": {
+          "start": {
+            "offset": 5466908,
+            "line": 116388,
+            "character": 1
+          },
+          "end": {
+            "offset": 5467049,
+            "line": 116390,
+            "character": 2
+          }
+        },
+        "declaration_sha256": "3072bcbfbda679b7828e1b4b5d87ba85a72aa715dd7dd9afbbf6067b39890c1c",
+        "body_sha256": "7c60ed78358fef3c5599460cb694b36684dac74e8dba2f82f36957893efe349b",
+        "ledger_slice_sha256": "7d61c6d973c6018286f35118927aa9ef1b91518798535467f690526169c01293"
+      },
+      "disposition_before_h2_6b": "deferred-h2"
+    }
+  ],
+  "project_mount": null,
+  "cases": [
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/inlineSourceMap.ts#target%3Des2015",
+      "selection_origin": "global-h2-6b-candidate",
+      "execution_route": "recorded-compiler-plan",
+      "expansion_case": 3934,
+      "source": {
+        "path": "inlineSourceMap.ts",
+        "bytes": 81,
+        "sha256": "4429bbc082dc605a479e29d4f3ea3ffe4e1be6e8d71c563ff0951513925b5263",
+        "git_blob_sha1": "f78f6acc1bcdc7e633caed0768a34bca2289b57d"
+      },
+      "target_state": "ES2015(2)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/inlineSourceMap.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "inlinesourcemap",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/inlineSourceMap.ts",
+            "utf8_base64": "dmFyIHggPSAwOwpjb25zb2xlLmxvZyh4KTs=",
+            "utf8_sha256": "7424a4358b97d4529b8e9413ca5b21082d3ba8bf732e8df7a93f6ac4410883c0",
+            "utf8_bytes": 26
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/inlineSourceMap.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "7424a4358b97d4529b8e9413ca5b21082d3ba8bf732e8df7a93f6ac4410883c0"
+        }
+      ],
+      "owner_reachability": [
+        "source-map-generator",
+        "source-map-output-path"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/inlineSourceMap.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIHggPSAwOw0KY29uc29sZS5sb2coeCk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1kYXRhOmFwcGxpY2F0aW9uL2pzb247YmFzZTY0LGV5SjJaWEp6YVc5dUlqb3pMQ0ptYVd4bElqb2lhVzVzYVc1bFUyOTFjbU5sVFdGd0xtcHpJaXdpYzI5MWNtTmxVbTl2ZENJNklpSXNJbk52ZFhKalpYTWlPbHNpYVc1c2FXNWxVMjkxY21ObFRXRndMblJ6SWwwc0ltNWhiV1Z6SWpwYlhTd2liV0Z3Y0dsdVozTWlPaUk3UVVGQlFTeEpRVUZKTEVOQlFVTXNSMEZCUnl4RFFVRkRMRU5CUVVNN1FVRkRWaXhQUVVGUExFTkJRVU1zUjBGQlJ5eERRVUZETEVOQlFVTXNRMEZCUXl4RFFVRkRJbjA9",
+            "callback_utf8_sha256": "fb2075c85b9aad67d0d2e8cb59517f064126857aeec4722f4ea467e6e1a02e54",
+            "callback_utf8_bytes": 342,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "fb2075c85b9aad67d0d2e8cb59517f064126857aeec4722f4ea467e6e1a02e54",
+            "materialized_utf8_bytes": 342,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/inlineSourceMap.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 44,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/inlineSourceMap.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"inlineSourceMap.js\",\"sourceRoot\":\"\",\"sources\":[\"inlineSourceMap.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AACV,OAAO,CAAC,GAAG,CAAC,CAAC,CAAC,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0,
+        "run_fingerprint_sha256": "f886b427c765292bd7e3a4ab080b2f46a2d80852c112735b8852826fa2412ddd"
+      },
+      "typescript_run_fingerprints": [
+        "f886b427c765292bd7e3a4ab080b2f46a2d80852c112735b8852826fa2412ddd",
+        "f886b427c765292bd7e3a4ab080b2f46a2d80852c112735b8852826fa2412ddd"
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "ac5a164db5ffae184ec8b9e162859bae48737fe690ada90cbcae16010cef632e"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/inlineSourceMap.ts#target%3Des5",
+      "selection_origin": "global-h2-6b-candidate",
+      "execution_route": "recorded-compiler-plan",
+      "expansion_case": 3933,
+      "source": {
+        "path": "inlineSourceMap.ts",
+        "bytes": 81,
+        "sha256": "4429bbc082dc605a479e29d4f3ea3ffe4e1be6e8d71c563ff0951513925b5263",
+        "git_blob_sha1": "f78f6acc1bcdc7e633caed0768a34bca2289b57d"
+      },
+      "target_state": "ES5(1)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/inlineSourceMap.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es5"
+          },
+          {
+            "name": "inlinesourcemap",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/inlineSourceMap.ts",
+            "utf8_base64": "dmFyIHggPSAwOwpjb25zb2xlLmxvZyh4KTs=",
+            "utf8_sha256": "7424a4358b97d4529b8e9413ca5b21082d3ba8bf732e8df7a93f6ac4410883c0",
+            "utf8_bytes": 26
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/inlineSourceMap.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 1,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "7424a4358b97d4529b8e9413ca5b21082d3ba8bf732e8df7a93f6ac4410883c0"
+        }
+      ],
+      "owner_reachability": [
+        "source-map-generator",
+        "source-map-output-path"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/inlineSourceMap.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIHggPSAwOw0KY29uc29sZS5sb2coeCk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1kYXRhOmFwcGxpY2F0aW9uL2pzb247YmFzZTY0LGV5SjJaWEp6YVc5dUlqb3pMQ0ptYVd4bElqb2lhVzVzYVc1bFUyOTFjbU5sVFdGd0xtcHpJaXdpYzI5MWNtTmxVbTl2ZENJNklpSXNJbk52ZFhKalpYTWlPbHNpYVc1c2FXNWxVMjkxY21ObFRXRndMblJ6SWwwc0ltNWhiV1Z6SWpwYlhTd2liV0Z3Y0dsdVozTWlPaUk3UVVGQlFTeEpRVUZKTEVOQlFVTXNSMEZCUnl4RFFVRkRMRU5CUVVNN1FVRkRWaXhQUVVGUExFTkJRVU1zUjBGQlJ5eERRVUZETEVOQlFVTXNRMEZCUXl4RFFVRkRJbjA9",
+            "callback_utf8_sha256": "fb2075c85b9aad67d0d2e8cb59517f064126857aeec4722f4ea467e6e1a02e54",
+            "callback_utf8_bytes": 342,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "fb2075c85b9aad67d0d2e8cb59517f064126857aeec4722f4ea467e6e1a02e54",
+            "materialized_utf8_bytes": 342,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/inlineSourceMap.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 44,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/inlineSourceMap.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"inlineSourceMap.js\",\"sourceRoot\":\"\",\"sources\":[\"inlineSourceMap.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,CAAC,CAAC;AACV,OAAO,CAAC,GAAG,CAAC,CAAC,CAAC,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2,
+        "run_fingerprint_sha256": "bd00b787b89dc4ffdaea421cf7ba6e752d2935f43a2056dbcd0d2db7fa8f45ac"
+      },
+      "typescript_run_fingerprints": [
+        "bd00b787b89dc4ffdaea421cf7ba6e752d2935f43a2056dbcd0d2db7fa8f45ac",
+        "bd00b787b89dc4ffdaea421cf7ba6e752d2935f43a2056dbcd0d2db7fa8f45ac"
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "d9242f183460384dfbbbe00cd7319b2cef87edf9ff37dc1cd889c81d4626aada"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/jsFileCompilationWithMapFileAsJsWithInlineSourceMap.ts#default",
+      "selection_origin": "global-h2-6b-candidate",
+      "execution_route": "recorded-compiler-plan",
+      "expansion_case": 4288,
+      "source": {
+        "path": "jsFileCompilationWithMapFileAsJsWithInlineSourceMap.ts",
+        "bytes": 190,
+        "sha256": "5ed4ee71e8416391dbb474aaf8bc8d722b71917e676713586a1c912844ec61e7",
+        "git_blob_sha1": "7d05d2bd0443a9c04f588ea7f79ff6036fdcc3fd"
+      },
+      "target_state": "ES2015(2)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/a.ts",
+          "/.src/b.js"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "allowJs",
+            "value": "true"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "true"
+          },
+          {
+            "name": "filename",
+            "value": "b.js"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/a.ts",
+            "utf8_base64": "Y2xhc3MgYyB7Cn0K",
+            "utf8_sha256": "68f7434d867e8e881142f1ab16296ea248463b21749f2cff22dab0b628805e68",
+            "utf8_bytes": 12
+          },
+          {
+            "unit": 1,
+            "path": "/.src/b.js.map",
+            "utf8_base64": "ZnVuY3Rpb24gZm9vKCkgewp9Cg==",
+            "utf8_sha256": "d8aac72b334e2d22e316463eca5f049505f7045f65665d62ef76977dea6a3d6b",
+            "utf8_bytes": 19
+          },
+          {
+            "unit": 2,
+            "path": "/.src/b.js",
+            "utf8_base64": "ZnVuY3Rpb24gYmFyKCkgewp9",
+            "utf8_sha256": "11237388e5e961c88f8590db6aea6a716847eacbf4f05e0d46488b720535dfbc",
+            "utf8_bytes": 18
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/a.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "68f7434d867e8e881142f1ab16296ea248463b21749f2cff22dab0b628805e68"
+        },
+        {
+          "unit": 2,
+          "path": "/.src/b.js",
+          "script_kind": "JS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 3,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "11237388e5e961c88f8590db6aea6a716847eacbf4f05e0d46488b720535dfbc"
+        }
+      ],
+      "owner_reachability": [
+        "source-map-generator",
+        "source-map-output-path"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgYyB7DQp9DQovLyMgc291cmNlTWFwcGluZ1VSTD1kYXRhOmFwcGxpY2F0aW9uL2pzb247YmFzZTY0LGV5SjJaWEp6YVc5dUlqb3pMQ0ptYVd4bElqb2lZUzVxY3lJc0luTnZkWEpqWlZKdmIzUWlPaUlpTENKemIzVnlZMlZ6SWpwYkltRXVkSE1pWFN3aWJtRnRaWE1pT2x0ZExDSnRZWEJ3YVc1bmN5STZJanRCUVVGQkxFMUJRVTBzUTBGQlF6dERRVU5PSW4wPQ==",
+            "callback_utf8_sha256": "e7cfbfa17b2882c12f8442fb3647c101658e1d349cf1d75d10668bce691c579f",
+            "callback_utf8_bytes": 223,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e7cfbfa17b2882c12f8442fb3647c101658e1d349cf1d75d10668bce691c579f",
+            "materialized_utf8_bytes": 223,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 29,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5055,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Cannot write file '/.src/b.js' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/a.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"a.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC;CACN\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 1,
+        "run_fingerprint_sha256": "4fb91ba4b1da6b648eb3ddaa32fd1b293fcf63c6933d03cd97db4c61b7eea403"
+      },
+      "typescript_run_fingerprints": [
+        "4fb91ba4b1da6b648eb3ddaa32fd1b293fcf63c6933d03cd97db4c61b7eea403",
+        "4fb91ba4b1da6b648eb3ddaa32fd1b293fcf63c6933d03cd97db4c61b7eea403"
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "ff2af239074b55e9fb88b4170f2a367e3c38d7b2bbab6df148bf68f2cd631741"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/optionsInlineSourceMapMapRoot.ts#default",
+      "selection_origin": "global-h2-6b-candidate",
+      "execution_route": "recorded-compiler-plan",
+      "expansion_case": 5394,
+      "source": {
+        "path": "optionsInlineSourceMapMapRoot.ts",
+        "bytes": 80,
+        "sha256": "dff1211c6344bef40434b1105cbd9ce2b074fd6e661ac541d86c798595f09e61",
+        "git_blob_sha1": "2c4544b6867108520744f4f6bdd2e2525ad8bc17"
+      },
+      "target_state": "ES2015(2)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionsInlineSourceMapMapRoot.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "mapRoot",
+            "value": "local"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionsInlineSourceMapMapRoot.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/optionsInlineSourceMapMapRoot.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80"
+        }
+      ],
+      "owner_reachability": [
+        "source-map-generator",
+        "source-map-output-path"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/optionsInlineSourceMapMapRoot.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWIzQjBhVzl1YzBsdWJHbHVaVk52ZFhKalpVMWhjRTFoY0ZKdmIzUXVhbk1pTENKemIzVnlZMlZTYjI5MElqb2lJaXdpYzI5MWNtTmxjeUk2V3lJdUxpOXZjSFJwYjI1elNXNXNhVzVsVTI5MWNtTmxUV0Z3VFdGd1VtOXZkQzUwY3lKZExDSnVZVzFsY3lJNlcxMHNJbTFoY0hCcGJtZHpJam9pTzBGQlFVRXNTVUZCU1N4RFFVRkRMRWRCUVVjc1JVRkJSU3hEUVVGREluMD0=",
+            "callback_utf8_sha256": "69be2f94e0b58bd494ae2437359a781b630beea09a4f3268f03dc5c5d91273e8",
+            "callback_utf8_bytes": 314,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "69be2f94e0b58bd494ae2437359a781b630beea09a4f3268f03dc5c5d91273e8",
+            "materialized_utf8_bytes": 314,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsInlineSourceMapMapRoot.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5053,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'mapRoot' cannot be specified with option 'inlineSourceMap'."
+          },
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/optionsInlineSourceMapMapRoot.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"optionsInlineSourceMapMapRoot.js\",\"sourceRoot\":\"\",\"sources\":[\"../optionsInlineSourceMapMapRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2,
+        "run_fingerprint_sha256": "d9c15dd85847848d9310f820a0ced7b7f1ca1de8cf8c64a4b144599f2535cc1a"
+      },
+      "typescript_run_fingerprints": [
+        "d9c15dd85847848d9310f820a0ced7b7f1ca1de8cf8c64a4b144599f2535cc1a",
+        "d9c15dd85847848d9310f820a0ced7b7f1ca1de8cf8c64a4b144599f2535cc1a"
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "8c060442a726c1cad79026f82ac84cd9f3c2fca7f25407c40c69742bf08da75f"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/optionsInlineSourceMapSourcemap.ts#default",
+      "selection_origin": "global-h2-6b-candidate",
+      "execution_route": "recorded-compiler-plan",
+      "expansion_case": 5396,
+      "source": {
+        "path": "optionsInlineSourceMapSourcemap.ts",
+        "bytes": 81,
+        "sha256": "9321a909f5a98208b4a3f2f98d90f009d099874f49eca61ba71f55d92d5492ab",
+        "git_blob_sha1": "7b13c376aa1032dc716cbda3d517f6af48a822c2"
+      },
+      "target_state": "ES2015(2)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionsInlineSourceMapSourcemap.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourcemap",
+            "value": "true"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionsInlineSourceMapSourcemap.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/optionsInlineSourceMapSourcemap.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80"
+        }
+      ],
+      "owner_reachability": [
+        "source-map-generator",
+        "source-map-output-path"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/optionsInlineSourceMapSourcemap.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWIzQjBhVzl1YzBsdWJHbHVaVk52ZFhKalpVMWhjRk52ZFhKalpXMWhjQzVxY3lJc0luTnZkWEpqWlZKdmIzUWlPaUlpTENKemIzVnlZMlZ6SWpwYkltOXdkR2x2Ym5OSmJteHBibVZUYjNWeVkyVk5ZWEJUYjNWeVkyVnRZWEF1ZEhNaVhTd2libUZ0WlhNaU9sdGRMQ0p0WVhCd2FXNW5jeUk2SWp0QlFVRkJMRWxCUVVrc1EwRkJReXhIUVVGSExFVkJRVVVzUTBGQlF5Sjk=",
+            "callback_utf8_sha256": "d0a0fbab1d0fe39e69876399f39570e0bebea4557039c54b9161f2d6c41a21fb",
+            "callback_utf8_bytes": 314,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "d0a0fbab1d0fe39e69876399f39570e0bebea4557039c54b9161f2d6c41a21fb",
+            "materialized_utf8_bytes": 314,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsInlineSourceMapSourcemap.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5053,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'sourceMap' cannot be specified with option 'inlineSourceMap'."
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/optionsInlineSourceMapSourcemap.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"optionsInlineSourceMapSourcemap.js\",\"sourceRoot\":\"\",\"sources\":[\"optionsInlineSourceMapSourcemap.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 2,
+        "run_fingerprint_sha256": "cb56a63d8ff9a4d8c2b5715b39c7dda9e123c6d845229003f2451d067e56d08e"
+      },
+      "typescript_run_fingerprints": [
+        "cb56a63d8ff9a4d8c2b5715b39c7dda9e123c6d845229003f2451d067e56d08e",
+        "cb56a63d8ff9a4d8c2b5715b39c7dda9e123c6d845229003f2451d067e56d08e"
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "4ddeb2a611c56ad20f1b89db424c02d2ae3d198702f2834bc6a8cc91bef054dc"
+    },
+    {
+      "suite": "compiler",
+      "case_id": "typescript-6.0.3/compiler/optionsInlineSourceMapSourceRoot.ts#default",
+      "selection_origin": "global-h2-6b-candidate",
+      "execution_route": "recorded-compiler-plan",
+      "expansion_case": 5395,
+      "source": {
+        "path": "optionsInlineSourceMapSourceRoot.ts",
+        "bytes": 83,
+        "sha256": "34745a9fc1a3b8aa4e2063638cfe5f84252ffbcbfe5dfc395a84130a91e166ff",
+        "git_blob_sha1": "be2a7acec0c83f2e7b35534f8ed1b74f33ced766"
+      },
+      "target_state": "ES2015(2)",
+      "module_state": "absent",
+      "input": {
+        "current_directory": "/.src",
+        "roots": [
+          "/.src/optionsInlineSourceMapSourceRoot.ts"
+        ],
+        "vfs_symlinks": [],
+        "settings": [
+          {
+            "name": "target",
+            "value": "es2015"
+          },
+          {
+            "name": "sourceRoot",
+            "value": "local"
+          },
+          {
+            "name": "inlineSourceMap",
+            "value": "true"
+          }
+        ],
+        "virtual_config": null,
+        "files": [
+          {
+            "unit": 0,
+            "path": "/.src/optionsInlineSourceMapSourceRoot.ts",
+            "utf8_base64": "dmFyIGEgPSAxMDs=",
+            "utf8_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80",
+            "utf8_bytes": 11
+          }
+        ]
+      },
+      "files": [
+        {
+          "unit": 0,
+          "path": "/.src/optionsInlineSourceMapSourceRoot.ts",
+          "script_kind": "TS",
+          "declaration_file": false,
+          "emit_eligible": true,
+          "implied_module_format": "None",
+          "emit_module_format": 5,
+          "feature_roots": [],
+          "parse_diagnostic_codes": [],
+          "max_ast_depth": 5,
+          "import_attributes": false,
+          "advanced_comment_placement": false,
+          "text_sha256": "8951fb72b19e542649922a2411c7bf45e0f3a96b1ac79b6d4e38acd8b38cea80"
+        }
+      ],
+      "owner_reachability": [
+        "source-map-generator",
+        "source-map-output-path"
+      ],
+      "disposition": "admitted-for-execution",
+      "required_slices": [],
+      "diagnostic_disposition": {
+        "state": "exact-required"
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/optionsInlineSourceMapSourceRoot.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGEgPSAxMDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWIzQjBhVzl1YzBsdWJHbHVaVk52ZFhKalpVMWhjRk52ZFhKalpWSnZiM1F1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pYkc5allXd3ZJaXdpYzI5MWNtTmxjeUk2V3lKdmNIUnBiMjV6U1c1c2FXNWxVMjkxY21ObFRXRndVMjkxY21ObFVtOXZkQzUwY3lKZExDSnVZVzFsY3lJNlcxMHNJbTFoY0hCcGJtZHpJam9pTzBGQlFVRXNTVUZCU1N4RFFVRkRMRWRCUVVjc1JVRkJSU3hEUVVGREluMD0=",
+            "callback_utf8_sha256": "642641866a044e6c93bc201af125053ba424d67aa0088491badbf55eda822e7e",
+            "callback_utf8_bytes": 326,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "642641866a044e6c93bc201af125053ba424d67aa0088491badbf55eda822e7e",
+            "materialized_utf8_bytes": 326,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/optionsInlineSourceMapSourceRoot.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 28,
+            "data_diagnostics_count": 0
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/optionsInlineSourceMapSourceRoot.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"optionsInlineSourceMapSourceRoot.js\",\"sourceRoot\":\"local/\",\"sources\":[\"optionsInlineSourceMapSourceRoot.ts\"],\"names\":[],\"mappings\":\";AAAA,IAAI,CAAC,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "status_writes": [],
+        "exit_code": 0,
+        "run_fingerprint_sha256": "27f5682ba10e93fb1babe3ebe02e0f49f56e10f097a2e76fee70031814c1d0d5"
+      },
+      "typescript_run_fingerprints": [
+        "27f5682ba10e93fb1babe3ebe02e0f49f56e10f097a2e76fee70031814c1d0d5",
+        "27f5682ba10e93fb1babe3ebe02e0f49f56e10f097a2e76fee70031814c1d0d5"
+      ],
+      "rust_expectation": "two-deterministic-exact-runs",
+      "case_fingerprint_sha256": "7dbf6a8bd90a45af000e44abc05e97aeae2bfc4d4c079edce5faadb8c6eafbbe"
+    }
+  ],
+  "summary": {
+    "candidates": 6,
+    "observed_candidates": 6,
+    "project_deferred_cases": 0,
+    "compiler_candidates": 6,
+    "conformance_candidates": 0,
+    "project_candidates": 0,
+    "recorded_compiler_plan_cases": 6,
+    "qualified_vfs_cases": 0,
+    "project_mount_cases": 0,
+    "virtual_config_cases": 0,
+    "vfs_symlink_cases": 0,
+    "vfs_symlink_paths": 0,
+    "admitted_cases": 6,
+    "deferred_cases": 0,
+    "diagnostic_deferred_output_control_cases": 0,
+    "source_deferred_cases": 0,
+    "no_emit_control_cases": 0,
+    "target_states": [
+      {
+        "value": "ES2015(2)",
+        "cases": 5
+      },
+      {
+        "value": "ES5(1)",
+        "cases": 1
+      }
+    ],
+    "module_states": [
+      {
+        "value": "absent",
+        "cases": 6
+      }
+    ],
+    "dispositions": [
+      {
+        "value": "admitted-for-execution",
+        "cases": 6
+      }
+    ],
+    "first_deferred_slices": [],
+    "typescript_runs": 12,
+    "deterministic_typescript_cases": 6,
+    "admitted_typescript_writes": 6,
+    "diagnostic_control_typescript_writes": 0,
+    "admitted_typescript_diagnostics": 5,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "qualification_fingerprint_sha256": "bb08c978123a97957c3b0564eae7e5182608649850fbfbe522f81496643d4f81"
+}

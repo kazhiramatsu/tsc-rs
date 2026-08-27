@@ -154,6 +154,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     schema: ".github/ci/contracts/h2-6b-witnesses.schema.json",
     artifact: "ratchets/h2-6b-witnesses.v1.json",
   }),
+  Object.freeze({
+    label: "H2.6b qualification",
+    schema: ".github/ci/contracts/h2-6b-qualification.schema.json",
+    artifact: "ratchets/h2-6b-qualification.v1.json",
+  }),
 ]);
 
 const JSON_SCHEMA_KEYWORDS = new Set([
@@ -1916,6 +1921,7 @@ export function validatePolicy(policy) {
     "h2-5g-profile",
     "h2-5h-qualification",
     "h2-6a-qualification",
+    "h2-6b-qualification",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {
