@@ -1190,6 +1190,7 @@ impl Printer {
             }
         };
         let mut writer = create_text_writer(self.options.new_line);
+        let source_text = transformation.arena().source(source_id)?.syntax().text();
         if let Some(inputs) = recording {
             let mut active = crate::source_map::SourceMapRecording::new(inputs);
             let file_name = transformation
@@ -1198,10 +1199,9 @@ impl Printer {
                 .syntax()
                 .file_name
                 .clone();
-            active.set_current_source(source_id, &file_name);
+            active.set_current_source(source_id, &file_name, source_text);
             writer.set_source_map_recording(Some(active));
         }
-        let source_text = transformation.arena().source(source_id)?.syntax().text();
         if let Some(shebang) = source_shebang(source_text) {
             writer.write_comment(shebang);
             writer.write_line(false);

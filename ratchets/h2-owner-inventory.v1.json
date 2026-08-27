@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "994803e9ebb9d26f5c939c1c09d6a1d27157d029d046ddf80c925aac2e1753c9"
+    "sha256": "112bce3aa74784df6ef02eceb018b0c939e26e7cb7c5f20864b502bc0d414ad0"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-owner-inventory.schema.json",
@@ -29,7 +29,7 @@
     },
     "h1_rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "32ecb0a47de08ad57ac4e1d6c8244d48d39f62badff9e432d78cebe0b0968bb3"
+      "sha256": "0412e9987343d7c2488081b95fd2a40ebf23e0fe1bce451be23215ca3bf6b12f"
     }
   },
   "closure_model": "complete H2 one-shot compiler owner-root universe plus exact source-symbol references between roots; each runtime slice regenerates the transitive helper closure and may suffix-split independent SCCs before admission",
@@ -2226,7 +2226,7 @@
         "path": "crates/emitter/src/printer.rs",
         "line": 790,
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "e24b839972ed2f7aa461f4c5cd95e135cf3ed8328022e2f1efa73568803c87be"
+        "file_sha256": "7fc49b2fa1c2f43423e7889a81487d5ed9f0681a39c05f44383386e0ab7a2f51"
       },
       "upstream_owners": [
         "printer"
@@ -2237,9 +2237,9 @@
       "anchor": {
         "id": "emitter-source-map-recorder",
         "path": "crates/emitter/src/source_map.rs",
-        "line": 441,
+        "line": 445,
         "text_sha256": "8613594a9379a1270da4e2ebbc614e8ac71571dad079e770f2b32e9e03e3ff91",
-        "file_sha256": "763f3f83a8e36d79eab31cbb84c340b4f35f2b9cfaa33525586030c4e21da772"
+        "file_sha256": "19f4e41afad886eba932028d3488a6cdd63a2e49f65267207cd8368f79c17717"
       },
       "upstream_owners": [
         "source-map-generator",
@@ -2269,7 +2269,7 @@
         "path": "crates/emitter/src/execute.rs",
         "line": 261,
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "b1381283e5a6c766d78ac1474370519dfe1937c16d027138056514119065ba99"
+        "file_sha256": "f98a20e34c72fcab40968c25ace10cbb2ff7b88df7ba614af277125852c34d52"
       },
       "upstream_owners": [
         "emit-files",
@@ -2362,5 +2362,5 @@
     "undispositioned_owners": 0,
     "unmapped_rust_converse_rows": 0
   },
-  "inventory_fingerprint_sha256": "3918f19a4d9ac3e68313afbfe293261466db388bf5cc8422a598212fd281d9ff"
+  "inventory_fingerprint_sha256": "96300ecd7540343542cfcd2f556f0147ee5fc4c8f696072c0e48dce478328a94"
 }

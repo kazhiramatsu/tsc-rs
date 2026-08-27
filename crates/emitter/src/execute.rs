@@ -382,31 +382,239 @@ fn encode_uri(text: &str) -> String {
     encoded
 }
 
-/// `createSourceMapGenerator` inputs for one script unit (h2-6a-m-3;
-/// upstream printSourceFileOrBundle 116751-116757): `file` = the js
-/// basename, `sourceRoot` = `""` (the option is refused at this
-/// floor), `sourcesDirectoryPath` = the js output directory
-/// (getSourceMapDirectory's no-sourceRoot/no-mapRoot arm 116812-116825).
-fn source_map_recording_inputs(
-    host: &dyn EmitHost,
-    javascript_path: &std::path::Path,
-) -> SourceMapRecordingInputs {
-    let normalized = javascript_path.to_string_lossy().replace('\\', "/");
-    let (directory, basename) = match normalized.rfind('/') {
-        Some(split) => (&normalized[..split], &normalized[split + 1..]),
-        None => ("", normalized.as_str()),
-    };
-    SourceMapRecordingInputs {
-        file: basename.into(),
-        source_root: "".into(),
-        sources_directory_path: directory.into(),
-        current_directory: host
-            .current_directory()
-            .to_string_lossy()
-            .replace('\\', "/")
-            .into(),
+/// tsc-port: getSourceRoot @6.0.3
+/// tsc-hash: 13d496ce2a87d1659e7244bf582daf340c1be47e0b490f683c2790c6b3a553c1
+/// tsc-span: _tsc.js:116808-116811
+///
+/// The map's `sourceRoot` FIELD form: `normalizeSlashes(sourceRoot||"")`
+/// with a trailing directory separator ensured iff nonempty (h2-6b.md
+/// §4.2). `""` (still emitted as a key) whenever the option is absent —
+/// the H2.6a floor value.
+#[doc(hidden)]
+pub fn source_root_field(options: &CompilerOptions) -> String {
+    let normalized =
+        crate::source_map::paths::normalize_slashes(options.source_root.as_deref().unwrap_or(""));
+    if normalized.is_empty() {
+        normalized
+    } else {
+        crate::source_map::paths::ensure_trailing_directory_separator(&normalized)
+    }
+}
+
+fn normalized_display(path: &std::path::Path) -> String {
+    path.to_string_lossy().replace('\\', "/")
+}
+
+/// The exact host projection the root/URL lanes consume (h2-6b-m-1).
+/// Narrow on purpose: the suites replay the lanes with witness-case
+/// values and no host mock, and the production caller builds it from
+/// `EmitHost` once per unit.
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub struct MapLaneInputs {
+    /// `host.getCommonSourceDirectory()` with normalized slashes and the
+    /// trailing separator the upstream host guarantees.
+    pub common_source_directory: String,
+    pub current_directory: String,
+    pub use_case_sensitive_source_keys: bool,
+}
+
+fn map_lane_inputs(host: &dyn EmitHost) -> MapLaneInputs {
+    MapLaneInputs {
+        common_source_directory: crate::source_map::paths::ensure_trailing_directory_separator(
+            &crate::source_map::paths::normalize_slashes(
+                &host.common_source_directory().to_string_lossy(),
+            ),
+        ),
+        current_directory: normalized_display(host.current_directory()),
         use_case_sensitive_source_keys: host.use_case_sensitive_file_names(),
     }
+}
+
+fn directory_and_basename(normalized: &str) -> (&str, &str) {
+    match normalized.rfind('/') {
+        Some(split) => (&normalized[..split], &normalized[split + 1..]),
+        None => ("", normalized),
+    }
+}
+
+/// tsc-port: getSourceMapDirectory @6.0.3
+/// tsc-hash: 5d1e1b69c02c83fe1f02760b408962879736368ad481a3702c120c323c06840d
+/// tsc-span: _tsc.js:116812-116825
+///
+/// The `sourcesDirectoryPath` three-lane selection (h2-6b.md §4.2):
+/// `sourceRoot` → the common source directory; `mapRoot` → the
+/// normalized root, per-file nested when a source file exists, resolved
+/// against the common source directory when relative; otherwise the js
+/// output directory (the H2.6a floor lane — the only lane reachable in
+/// production until the h2-6b-m-2 refusal lift).
+#[doc(hidden)]
+pub fn source_map_directory(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    javascript_path: &std::path::Path,
+    source_path: &std::path::Path,
+) -> String {
+    use crate::source_map::paths;
+    if options
+        .source_root
+        .as_deref()
+        .is_some_and(|root| !root.is_empty())
+    {
+        return lane
+            .common_source_directory
+            .trim_end_matches('/')
+            .to_owned();
+    }
+    if let Some(map_root) = options.map_root.as_deref().filter(|root| !root.is_empty()) {
+        let mut source_map_dir = paths::normalize_slashes(map_root);
+        // per-file nesting (getSourceFilePathInNewDir): the relative
+        // mapRoot stays relative through the worker; the root-length
+        // check below then resolves it (upstream order).
+        let nested = paths::source_file_path_in_new_dir_worker(
+            &normalized_display(source_path),
+            &source_map_dir,
+            &lane.current_directory,
+            &lane.common_source_directory,
+            lane.use_case_sensitive_source_keys,
+        );
+        source_map_dir = directory_and_basename(&nested).0.to_owned();
+        if paths::get_root_length(&source_map_dir) == 0 {
+            source_map_dir = paths::combine_paths(
+                lane.common_source_directory.trim_end_matches('/'),
+                &source_map_dir,
+            );
+        }
+        return source_map_dir;
+    }
+    directory_and_basename(&normalized_display(javascript_path))
+        .0
+        .to_owned()
+}
+
+/// `createSourceMapGenerator` inputs for one script unit (upstream
+/// printSourceFileOrBundle 116751-116757), generalized by h2-6b-m-1 to
+/// the full root-lane selection. At the production floor (the four 6b
+/// options refused) every lane input degenerates to the H2.6a values:
+/// `sourceRoot` = `""`, `sourcesDirectoryPath` = the js output
+/// directory, `inline_sources` = false.
+#[doc(hidden)]
+pub fn source_map_recording_inputs_for(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    javascript_path: &std::path::Path,
+    source_path: &std::path::Path,
+) -> SourceMapRecordingInputs {
+    let normalized = normalized_display(javascript_path);
+    let (_, basename) = directory_and_basename(&normalized);
+    SourceMapRecordingInputs {
+        file: basename.into(),
+        source_root: source_root_field(options).into(),
+        sources_directory_path: source_map_directory(lane, options, javascript_path, source_path)
+            .into(),
+        current_directory: lane.current_directory.clone().into(),
+        use_case_sensitive_source_keys: lane.use_case_sensitive_source_keys,
+        inline_sources: options.inline_sources == Some(true),
+    }
+}
+
+/// tsc-port: sys.base64encode/convertToBase64 @6.0.3
+/// tsc-hash: d5b3a2fbf7db940bd61f9880c1c39156a9828158efcf36759186810b5137d7c5
+/// tsc-span: _tsc.js:5007-5007
+///
+/// `Buffer.from(input).toString("base64")` over the UTF-8 map text:
+/// standard alphabet, `=` padding, no line breaks (h2-6b.md §4.3). The
+/// VLQ `base64FormatEncode` in `source_map.rs` is a different, unpadded
+/// single-digit use and stays untouched.
+#[doc(hidden)]
+pub fn base64_encode(bytes: &[u8]) -> String {
+    const ALPHABET: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut encoded = String::with_capacity(bytes.len().div_ceil(3) * 4);
+    for chunk in bytes.chunks(3) {
+        let b0 = chunk[0] as u32;
+        let b1 = chunk.get(1).copied().unwrap_or(0) as u32;
+        let b2 = chunk.get(2).copied().unwrap_or(0) as u32;
+        let triple = (b0 << 16) | (b1 << 8) | b2;
+        encoded.push(ALPHABET[(triple >> 18) as usize & 63] as char);
+        encoded.push(ALPHABET[(triple >> 12) as usize & 63] as char);
+        encoded.push(if chunk.len() > 1 {
+            ALPHABET[(triple >> 6) as usize & 63] as char
+        } else {
+            '='
+        });
+        encoded.push(if chunk.len() > 2 {
+            ALPHABET[triple as usize & 63] as char
+        } else {
+            '='
+        });
+    }
+    encoded
+}
+
+/// tsc-port: getSourceMappingURL @6.0.3
+/// tsc-hash: ef8e1bcbc2559f9d7ee1de030c89a049c5f5330e48498632761d137b14b0277a
+/// tsc-span: _tsc.js:116826-116857
+///
+/// The four-way URL selection (h2-6b.md §4.3): inline data URI (no
+/// encodeURI), mapRoot rooted (absolute encodeURI'd URL), mapRoot
+/// relative (resolved against the common source directory then
+/// relativized FROM the js directory with the URL arm), and the
+/// basename default (the H2.6a floor lane — the only one reachable in
+/// production until m-2).
+#[doc(hidden)]
+pub fn source_mapping_url(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    map_text: &str,
+    javascript_path: &std::path::Path,
+    map_path: Option<&std::path::Path>,
+    source_path: &std::path::Path,
+) -> Result<String, EmitFailure> {
+    use crate::source_map::paths;
+    if options.inline_source_map == Some(true) {
+        return Ok(format!(
+            "data:application/json;base64,{}",
+            base64_encode(map_text.as_bytes())
+        ));
+    }
+    // Debug.checkDefined(sourceMapFilePath): the external lanes always
+    // plan a map path; its absence is a contract violation.
+    let map_path = map_path.ok_or(EmitFailure::Contract(
+        EmitContractViolation::SourceMapRecordingUnavailable,
+    ))?;
+    let normalized_map = normalized_display(map_path);
+    let (_, map_basename) = directory_and_basename(&normalized_map);
+    if let Some(map_root) = options.map_root.as_deref().filter(|root| !root.is_empty()) {
+        let mut source_map_dir = paths::normalize_slashes(map_root);
+        let nested = paths::source_file_path_in_new_dir_worker(
+            &normalized_display(source_path),
+            &source_map_dir,
+            &lane.current_directory,
+            &lane.common_source_directory,
+            lane.use_case_sensitive_source_keys,
+        );
+        source_map_dir = directory_and_basename(&nested).0.to_owned();
+        if paths::get_root_length(&source_map_dir) == 0 {
+            source_map_dir = paths::combine_paths(
+                lane.common_source_directory.trim_end_matches('/'),
+                &source_map_dir,
+            );
+            let normalized_js = normalized_display(javascript_path);
+            let (js_directory, _) = directory_and_basename(&normalized_js);
+            return Ok(encode_uri(&paths::get_relative_path_to_directory_or_url(
+                js_directory,
+                &paths::combine_paths(&source_map_dir, map_basename),
+                &lane.current_directory,
+                lane.use_case_sensitive_source_keys,
+                true,
+            )));
+        }
+        return Ok(encode_uri(&paths::combine_paths(
+            &source_map_dir,
+            map_basename,
+        )));
+    }
+    Ok(encode_uri(map_basename))
 }
 
 pub fn emit_files_with_activity(
@@ -505,9 +713,14 @@ pub fn emit_files_with_activity(
             .paths()
             .javascript_map_path()
             .map(std::path::Path::to_path_buf);
-        let recording_inputs = javascript_map_path
-            .as_deref()
-            .map(|_| source_map_recording_inputs(host, javascript_path));
+        let recording_inputs = javascript_map_path.as_deref().map(|_| {
+            source_map_recording_inputs_for(
+                &map_lane_inputs(host),
+                options,
+                javascript_path,
+                source.path(),
+            )
+        });
         if recording_inputs.is_some() {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_6a);
         }
@@ -531,14 +744,17 @@ pub fn emit_files_with_activity(
             ));
             // getSourceMappingURL + the append (116779-116783): one
             // newLine if the writer is mid-line, `sourceMapUrlPos` at the
-            // UTF-16 offset where `//#` begins, NO trailing newline.
-            let map_basename = {
-                let normalized = map_path.to_string_lossy().replace('\\', "/");
-                match normalized.rfind('/') {
-                    Some(split) => normalized[split + 1..].to_owned(),
-                    None => normalized,
-                }
-            };
+            // UTF-16 offset where `//#` begins, NO trailing newline. The
+            // URL string comes from the h2-6b-m-1 four-way selection; at
+            // this floor only the basename default lane is reachable.
+            let url = source_mapping_url(
+                &map_lane_inputs(host),
+                options,
+                &map_json,
+                javascript_path,
+                Some(map_path),
+                source.path(),
+            )?;
             let mut javascript_text = printed.text().to_owned();
             let mut url_position = printed.end().position();
             if printed.end().column() != 0 {
@@ -550,7 +766,7 @@ pub fn emit_files_with_activity(
                     ))?;
             }
             javascript_text.push_str("//# sourceMappingURL=");
-            javascript_text.push_str(&encode_uri(&map_basename));
+            javascript_text.push_str(&url);
             // Map artifact BEFORE js (116784-116795): no BOM, no data.
             artifacts.push(EmitArtifact::javascript_map(
                 map_path.clone(),

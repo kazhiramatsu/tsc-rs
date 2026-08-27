@@ -40,8 +40,11 @@ pub use error::{
     UnsupportedEmitFeature,
 };
 pub use execute::{
-    emit_files, emit_files_with_activity, print_script_units_with_recording_for_harness,
+    base64_encode, emit_files, emit_files_with_activity,
+    print_script_units_with_recording_for_harness, source_map_directory,
+    source_map_recording_inputs_for, source_mapping_url, source_root_field,
     validate_bootstrap_emit_options, validate_bootstrap_emit_request, EmitDiagnosticGate,
+    MapLaneInputs,
 };
 pub use factory::{
     NodeFactory, TransformArena, TransformNode, TransformNodeArray, TransformSource,
