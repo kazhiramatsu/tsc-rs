@@ -420,6 +420,10 @@ pub struct SourceMapRecordingInputs {
     pub sources_directory_path: Box<str>,
     pub current_directory: Box<str>,
     pub use_case_sensitive_source_keys: bool,
+    /// h2-6b-m-1: `printerOptions.inlineSources` — the registration
+    /// point feeds `set_source_content` iff set (upstream
+    /// `setSourceMapSource` 121352-121370). `false` at the H2.6a floor.
+    pub inline_sources: bool,
 }
 
 /// Where the current print source stands with the generator: JSON
@@ -443,6 +447,7 @@ pub struct SourceMapRecording {
     registered: HashMap<crate::TransformSourceId, RegisteredSource>,
     current: Option<RegisteredSource>,
     suppressed_depth: u32,
+    inline_sources: bool,
 }
 
 impl SourceMapRecording {
@@ -458,10 +463,16 @@ impl SourceMapRecording {
             registered: HashMap::new(),
             current: None,
             suppressed_depth: 0,
+            inline_sources: inputs.inline_sources,
         }
     }
 
-    fn register(&mut self, source: crate::TransformSourceId, file_name: &str) -> RegisteredSource {
+    fn register(
+        &mut self,
+        source: crate::TransformSourceId,
+        file_name: &str,
+        source_text: Option<&str>,
+    ) -> RegisteredSource {
         if let Some(&registered) = self.registered.get(&source) {
             return registered;
         }
@@ -471,7 +482,25 @@ impl SourceMapRecording {
         let registered = if file_name.to_ascii_lowercase().ends_with(".json") {
             RegisteredSource::Json
         } else {
-            RegisteredSource::Indexed(self.generator.add_source(file_name))
+            let index = self.generator.add_source(file_name);
+            // tsc-port: setSourceMapSource inlineSources arm @6.0.3
+            // tsc-hash: 9d5ddceb0e432a1400a46679dcb977ee72a5c90837177cc4cd2cf705e82065ac
+            // tsc-span: _tsc.js:121352-121370
+            //
+            // h2-6b-m-1: `setSourceContent(sourceMapSourceIndex,
+            // sourceMapSource.text)` runs iff `printerOptions.inlineSources`,
+            // once per registration (the memo above is the once-guard).
+            if self.inline_sources {
+                if let Some(source_text) = source_text {
+                    self.generator.set_source_content(index, Some(source_text));
+                }
+                // A `None` text reaches here only from the foreign-source
+                // seam (`record_for_source`), which no tsc-CLI input can
+                // drive (h2-6b.md §4.6: `SourceMapSource` is never
+                // constructed in `_tsc.js`); the public-API era owns the
+                // foreign-content feed.
+            }
+            RegisteredSource::Indexed(index)
         };
         self.registered.insert(source, registered);
         registered
@@ -483,8 +512,13 @@ impl SourceMapRecording {
     ///
     /// Registers the print source up front — the empty-file witness pins
     /// `sources:["input.ts"]` with zero mappings.
-    pub(crate) fn set_current_source(&mut self, source: crate::TransformSourceId, file_name: &str) {
-        let registered = self.register(source, file_name);
+    pub(crate) fn set_current_source(
+        &mut self,
+        source: crate::TransformSourceId,
+        file_name: &str,
+        source_text: &str,
+    ) {
+        let registered = self.register(source, file_name, Some(source_text));
         self.current = Some(registered);
     }
 
@@ -550,7 +584,7 @@ impl SourceMapRecording {
         if self.suppressed_depth > 0 {
             return;
         }
-        let RegisteredSource::Indexed(index) = self.register(source, file_name) else {
+        let RegisteredSource::Indexed(index) = self.register(source, file_name, None) else {
             return;
         };
         self.generator.add_mapping(
@@ -585,11 +619,11 @@ impl SourceMapRecording {
 /// (both drop empty/`.` segments identically, both clamp `..` at an
 /// absolute root, and both preserve leading `..` for relative inputs) —
 /// the recorded packet §4 equivalence argument.
-mod paths {
+pub(crate) mod paths {
     /// tsc-port: normalizeSlashes @6.0.3
     /// tsc-hash: d53c3e92f0b97072b15fe2ed30c413ab7f33522619f88528f818eef207535163
     /// tsc-span: _tsc.js:5452-5454
-    fn normalize_slashes(path: &str) -> String {
+    pub(crate) fn normalize_slashes(path: &str) -> String {
         if path.contains('\\') {
             path.replace('\\', "/")
         } else {
@@ -694,7 +728,7 @@ mod paths {
     /// tsc-port: getRootLength @6.0.3
     /// tsc-hash: 667612ab2d64309ca725b3e9e2b8c2d5e30fc1294a373956781a1f8a066e5cbb
     /// tsc-span: _tsc.js:5387-5390
-    fn get_root_length(path: &str) -> usize {
+    pub(crate) fn get_root_length(path: &str) -> usize {
         let root_length = get_encoded_root_length(path);
         (if root_length < 0 {
             !root_length
@@ -724,7 +758,7 @@ mod paths {
     /// tsc-port: ensureTrailingDirectorySeparator @6.0.3
     /// tsc-hash: 5bd7b55e9a33e4a9fbea300f2f8ee2011c420d700dcde3d9df360328fb0beca8
     /// tsc-span: _tsc.js:5610-5615
-    fn ensure_trailing_directory_separator(path: &str) -> String {
+    pub(crate) fn ensure_trailing_directory_separator(path: &str) -> String {
         if has_trailing_directory_separator(path) {
             path.to_owned()
         } else {
@@ -790,7 +824,7 @@ mod paths {
     /// tsc-port: combinePaths @6.0.3
     /// tsc-hash: b5ac359c4863f2966ac63973b41fde20c4548b83a0671304ce14cb6c54ba8e28
     /// tsc-span: _tsc.js:5474-5486
-    fn combine_paths(path: &str, relative: &str) -> String {
+    pub(crate) fn combine_paths(path: &str, relative: &str) -> String {
         let mut combined = if path.is_empty() {
             String::new()
         } else {
@@ -928,10 +962,61 @@ mod paths {
         relative
     }
 
+    /// tsc-port: getNormalizedAbsolutePath @6.0.3 (components form)
+    /// tsc-hash: b61f74b787ba34aece216809c77bbf6f46565bc1f0a0af082110aacbe0bf9b0c
+    /// tsc-span: _tsc.js:5493-5567
+    ///
+    /// The string form of the packet's recorded components-level
+    /// equivalence: `from_components(reduce(components(combine(cwd,
+    /// path))))`. File paths carry no trailing separator on any
+    /// reachable input; the trailing-separator preservation arm of the
+    /// upstream span is therefore vacuous here and not modeled.
+    pub(crate) fn get_normalized_absolute_path(path: &str, current_directory: &str) -> String {
+        get_path_from_path_components(&reduce_path_components(get_path_components(
+            path,
+            current_directory,
+        )))
+    }
+
+    /// tsc-port: getSourceFilePathInNewDirWorker @6.0.3
+    /// tsc-hash: 5c4d813d295ba15467286c56f0e2fc4d8b13c00694b1464d5d25c6ad189cab75
+    /// tsc-span: _tsc.js:16635-16643
+    ///
+    /// h2-6b-m-1: the mapRoot per-file nesting arm. `new_dir_path` stays
+    /// AS GIVEN (a relative mapRoot remains relative — the caller's
+    /// root-length check then resolves it against the common source
+    /// directory, upstream order). `common_source_directory` must carry
+    /// its trailing separator (the upstream host guarantees it; the
+    /// caller ensures it).
+    pub(crate) fn source_file_path_in_new_dir_worker(
+        file_name: &str,
+        new_dir_path: &str,
+        current_directory: &str,
+        common_source_directory: &str,
+        use_case_sensitive_source_keys: bool,
+    ) -> String {
+        let source_file_path = get_normalized_absolute_path(file_name, current_directory);
+        let canonical = |value: &str| {
+            if use_case_sensitive_source_keys {
+                value.to_owned()
+            } else {
+                to_file_name_lower_case(value)
+            }
+        };
+        let in_common =
+            canonical(&source_file_path).starts_with(&canonical(common_source_directory));
+        let suffix = if in_common {
+            source_file_path[common_source_directory.len()..].to_owned()
+        } else {
+            source_file_path
+        };
+        combine_paths(new_dir_path, &suffix)
+    }
+
     /// tsc-port: getRelativePathToDirectoryOrUrl @6.0.3
     /// tsc-hash: 702a35388f8748ee6cb70c7b7826ad08b66064005619ca2677dd90a7d8596b10
     /// tsc-span: _tsc.js:5734-5747
-    pub(super) fn get_relative_path_to_directory_or_url(
+    pub(crate) fn get_relative_path_to_directory_or_url(
         directory_path_or_url: &str,
         relative_or_absolute_path: &str,
         current_directory: &str,

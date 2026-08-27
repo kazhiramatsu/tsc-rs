@@ -529,6 +529,7 @@ fn print_recorded(
                 sources_directory_path: "/".into(),
                 current_directory: "/".into(),
                 use_case_sensitive_source_keys: true,
+                inline_sources: false,
             }),
         )
         .expect("recorded identity print");
@@ -746,4 +747,269 @@ fn a_source_map_range_naming_a_second_source_registers_and_records_against_it() 
     // Unrelated records stay on the printed source.
     assert!(positions.contains(&(0, 0, 4)));
     assert!(positions.contains(&(0, 0, 0)));
+}
+
+// ---- H2.6b / m-1 lane replays (h2-6b-m-1.md §8 tier 1) ----
+//
+// The frozen W-H2.6B artifact is the byte authority. Every case replays
+// through the PRODUCTION lane functions (`source_map_recording_inputs_for`,
+// `source_mapping_url`, `base64_encode` — crate-internal reach): the
+// recording inputs derive from the case options exactly as production
+// will at m-2, the generator replay reproduces the frozen map (external)
+// or payload (inline) byte-for-byte, and the URL selection reproduces the
+// frozen `sourceMappingURL` comment substring.
+
+const WITNESSES_6B: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../ratchets/h2-6b-witnesses.v1.json"
+));
+
+fn artifact_6b() -> Value {
+    serde_json::from_slice(WITNESSES_6B).expect("W-H2.6B artifact JSON")
+}
+
+fn lane_options(case: &Value) -> tsc_types::CompilerOptions {
+    let serialized = &case["input"]["compiler_options"];
+    tsc_types::CompilerOptions {
+        source_map: serialized["sourceMap"].as_bool(),
+        inline_source_map: serialized["inlineSourceMap"].as_bool(),
+        inline_sources: serialized["inlineSources"].as_bool(),
+        source_root: serialized["sourceRoot"].as_str().map(str::to_owned),
+        map_root: serialized["mapRoot"].as_str().map(str::to_owned),
+        ..Default::default()
+    }
+}
+
+/// The upstream common-source-directory for a witness case: the longest
+/// common directory prefix of the case's non-declaration source files,
+/// with the trailing separator the upstream host guarantees. (The m-2
+/// fixture gate drives the REAL host's value through the pipeline; this
+/// tier pins the lane arithmetic.)
+fn common_source_directory_of(case: &Value) -> String {
+    let directories: Vec<Vec<&str>> = case["input"]["files"]
+        .as_array()
+        .expect("input files")
+        .iter()
+        .map(|file| file["path"].as_str().expect("file path"))
+        .filter(|path| !path.ends_with(".d.ts") && !path.ends_with(".json"))
+        .map(|path| {
+            let directory = &path[..path.rfind('/').expect("file directory")];
+            directory.split('/').collect()
+        })
+        .collect();
+    let first = directories.first().expect("at least one source");
+    let mut shared = first.len();
+    for components in &directories[1..] {
+        let mut matched = 0;
+        while matched < shared
+            && matched < components.len()
+            && components[matched] == first[matched]
+        {
+            matched += 1;
+        }
+        shared = matched;
+    }
+    let joined = first[..shared].join("/");
+    if joined.is_empty() {
+        "/".to_owned()
+    } else {
+        format!("{joined}/")
+    }
+}
+
+fn js_url_comment(observation: &Value, js_path: &str) -> String {
+    let write = observation["writes"]
+        .as_array()
+        .expect("writes")
+        .iter()
+        .find(|write| write["path"].as_str() == Some(js_path))
+        .expect("js write");
+    let position = write["data_source_map_url_pos"]
+        .as_u64()
+        .expect("sourceMapUrlPos") as usize;
+    let text = String::from_utf8(decode_base64(
+        write["callback_utf8_base64"].as_str().expect("js base64"),
+    ))
+    .expect("js UTF-8");
+    let comment: String = text
+        .chars()
+        .skip(text.chars().take(position).count().min(position))
+        .collect();
+    // sourceMapUrlPos is a UTF-16 offset; every witness js is ASCII up to
+    // the comment, so the byte/char/UTF-16 offsets coincide (asserted).
+    assert!(
+        text.is_char_boundary(position) && comment.starts_with("//# sourceMappingURL="),
+        "URL comment offset mismatch in {js_path}"
+    );
+    comment["//# sourceMappingURL=".len()..].to_owned()
+}
+
+#[test]
+fn h2_6b_lane_replays_are_byte_equal() {
+    let artifact = artifact_6b();
+    let mut external_maps = 0usize;
+    let mut inline_payloads = 0usize;
+    for family in artifact["families"].as_array().expect("families") {
+        for case in family["cases"].as_array().expect("cases") {
+            let case_id = case["case_id"].as_str().expect("case id");
+            let observation = &case["observation"];
+            let options = lane_options(case);
+            let lane = crate::execute::MapLaneInputs {
+                common_source_directory: common_source_directory_of(case),
+                current_directory: "/project".to_owned(),
+                use_case_sensitive_source_keys: true,
+            };
+            let Some(source_maps) = observation["source_maps"].as_array() else {
+                continue;
+            };
+            let writes = observation["writes"].as_array().expect("writes");
+            let map_writes: Vec<&Value> = writes
+                .iter()
+                .filter(|write| write["path"].as_str().expect("path").ends_with(".js.map"))
+                .collect();
+            for (ordinal, entry) in source_maps.iter().enumerate() {
+                let frozen = entry["source_map_json"].as_str().expect("map json");
+                let raw_sources: Vec<&str> = entry["input_source_file_names"]
+                    .as_array()
+                    .expect("raw sources")
+                    .iter()
+                    .map(|name| name.as_str().expect("name"))
+                    .collect();
+                let (js_path, map_path) = if options.inline_source_map == Some(true) {
+                    assert!(map_writes.is_empty(), "{case_id}: inline lane wrote a map");
+                    let js = writes
+                        .iter()
+                        .filter(|write| write["data_source_map_url_pos"].as_u64().is_some())
+                        .nth(ordinal)
+                        .expect("inline-mapped js write")["path"]
+                        .as_str()
+                        .expect("js path");
+                    (js.to_owned(), None)
+                } else {
+                    let map = map_writes[ordinal]["path"].as_str().expect("map path");
+                    (
+                        map.strip_suffix(".map").expect("map suffix").to_owned(),
+                        Some(map.to_owned()),
+                    )
+                };
+                let source_path = std::path::PathBuf::from(raw_sources[0]);
+                let inputs = crate::execute::source_map_recording_inputs_for(
+                    &lane,
+                    &options,
+                    std::path::Path::new(&js_path),
+                    &source_path,
+                );
+                let mut generator = SourceMapGenerator::new(
+                    &*inputs.file,
+                    &*inputs.source_root,
+                    &*inputs.sources_directory_path,
+                    &*inputs.current_directory,
+                    inputs.use_case_sensitive_source_keys,
+                );
+                let parsed: Value = serde_json::from_str(frozen).expect("frozen JSON");
+                for raw in &raw_sources {
+                    let index = generator.add_source(raw);
+                    if inputs.inline_sources {
+                        let text_base64 = case["input"]["files"]
+                            .as_array()
+                            .expect("files")
+                            .iter()
+                            .find(|file| file["path"].as_str() == Some(*raw))
+                            .expect("registered source among inputs")["utf8_base64"]
+                            .as_str()
+                            .expect("file base64");
+                        let text =
+                            String::from_utf8(decode_base64(text_base64)).expect("file UTF-8");
+                        generator.set_source_content(index, Some(&text));
+                    }
+                }
+                for segment in decode_mappings(parsed["mappings"].as_str().expect("mappings")) {
+                    generator.add_mapping(
+                        segment.generated_line,
+                        segment.generated_character,
+                        segment
+                            .source
+                            .map(|(source_index, source_line, source_character)| {
+                                SourceMappingFields {
+                                    source_index,
+                                    source_line,
+                                    source_character,
+                                }
+                            }),
+                        segment.name,
+                    );
+                }
+                assert_eq!(
+                    generator.to_json_string(),
+                    frozen,
+                    "{case_id}: lane replay diverged from the frozen map (ordinal {ordinal})"
+                );
+                let url = crate::execute::source_mapping_url(
+                    &lane,
+                    &options,
+                    frozen,
+                    std::path::Path::new(&js_path),
+                    map_path.as_deref().map(std::path::Path::new),
+                    &source_path,
+                )
+                .expect("URL selection");
+                assert_eq!(
+                    url,
+                    js_url_comment(observation, &js_path),
+                    "{case_id}: URL lane diverged (ordinal {ordinal})"
+                );
+                if options.inline_source_map == Some(true) {
+                    inline_payloads += 1;
+                } else {
+                    external_maps += 1;
+                }
+            }
+        }
+    }
+    assert_eq!(
+        (external_maps, inline_payloads),
+        (24, 8),
+        "6b lane replay census changed"
+    );
+}
+
+#[test]
+fn base64_vectors_match_reference_encodings() {
+    for (input, expected) in [
+        (&b""[..], ""),
+        (&b"f"[..], "Zg=="),
+        (&b"fo"[..], "Zm8="),
+        (&b"foo"[..], "Zm9v"),
+        (&b"foob"[..], "Zm9vYg=="),
+        (&b"fooba"[..], "Zm9vYmE="),
+        (&b"foobar"[..], "Zm9vYmFy"),
+        ("マップ".as_bytes(), "44Oe44OD44OX"),
+    ] {
+        assert_eq!(crate::execute::base64_encode(input), expected);
+    }
+}
+
+#[test]
+fn source_root_field_forms() {
+    let mut options = tsc_types::CompilerOptions {
+        source_root: None,
+        ..Default::default()
+    };
+    assert_eq!(crate::execute::source_root_field(&options), "");
+    options.source_root = Some("src".to_owned());
+    assert_eq!(crate::execute::source_root_field(&options), "src/");
+    options.source_root = Some("src/".to_owned());
+    assert_eq!(crate::execute::source_root_field(&options), "src/");
+    options.source_root = Some("https://cdn.example.invalid/app".to_owned());
+    assert_eq!(
+        crate::execute::source_root_field(&options),
+        "https://cdn.example.invalid/app/"
+    );
+    options.source_root = Some("/served/sources".to_owned());
+    assert_eq!(
+        crate::execute::source_root_field(&options),
+        "/served/sources/"
+    );
+    options.source_root = Some("back\\slash".to_owned());
+    assert_eq!(crate::execute::source_root_field(&options), "back/slash/");
 }

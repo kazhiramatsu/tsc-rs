@@ -1,0 +1,45 @@
+{
+ "schemaVersion": 1,
+ "packetId": "h2-6b-m-1",
+ "status": "ready",
+ "trustedBase": "436dbceb1de2fa58edfa523472d2e51046638f62",
+ "packet": {
+  "path": "docs/design/greenfield/slices/h2-6b-m-1.md",
+  "sha256": "ea59b141e84a036b118e4cfce5d5c7d5ef45ade5cf51e4d5eeaf69a13a7226db"
+ },
+ "predecessors": [
+  {
+   "packetId": "h2-6b",
+   "receiptSha256": "ff6c6e051cbf855dcc2532333a8e91eff1d97667d94682f61dfd43f5b221e565"
+  }
+ ],
+ "allowedPaths": [
+  "docs/design/greenfield/slices/h2-6b-m-1.md",
+  "docs/design/greenfield/slices/README.md",
+  "crates/emitter/src/execute.rs",
+  "crates/emitter/src/source_map.rs",
+  "crates/emitter/src/printer.rs",
+  "crates/emitter/src/lib.rs",
+  "crates/emitter/tests/unit/source_map/tests.rs",
+  "crates/compiler/tests/integration/source_map_recording_witness_contract.rs",
+  "ratchets/fci-readiness/h2-6b-m-1.v1.json",
+  "ratchets/fci-packet-bootstrap.v1.json"
+ ],
+ "forbiddenPrefixes": [
+  "crates/checker",
+  "crates/binder",
+  "crates/syntax",
+  "crates/types",
+  "crates/diags",
+  "crates/conformance",
+  ".github/workflows"
+ ],
+ "proof": {
+  "commands": [
+   "cargo test -p tsc-rs-emitter --lib source_map",
+   "cargo test -p tsc-rs-compiler --test contracts h2_6b",
+   "node .github/ci/slice-readiness.mjs --check h2-6b-m-1"
+  ],
+  "evidencePath": "ratchets/h2-6b-witnesses.v1.json"
+ }
+}

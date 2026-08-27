@@ -232,6 +232,7 @@ fn drive_case(case_id: &str, case: &Value, library_files: &[(String, Vec<u8>)]) 
             sources_directory_path: directory.clone().into(),
             current_directory: "/project".into(),
             use_case_sensitive_source_keys: true,
+            inline_sources: false,
         })
     };
     let printed_units = ProgramSession::new(prepared)
@@ -481,4 +482,180 @@ fn parse_error_witness_is_typed_deferred_to_h2_9() {
         rendered.contains("ParseDiagnosticsDeferred") && rendered.contains("H2.9"),
         "unexpected deferral shape: {rendered}"
     );
+}
+
+// ---- H2.6b / m-1 pipeline replays (h2-6b-m-1.md §8 tier 2) ----
+//
+// The W-H2.6B lane arithmetic is byte-proven at the emitter unit tier;
+// this tier proves the PLUMBING: the production pipeline (plan →
+// transforms → print) with recording inputs computed by the PRODUCTION
+// lane selection (`source_map_recording_inputs_for`), the print-start
+// `inlineSources` content feed through `Printer::print` itself, and the
+// URL reconstruction through `source_mapping_url`. Multi-unit cases are
+// covered at the unit tier (per-unit plumbing is identical); the
+// parse-error deferral rule of the 6a gate does not arise (no 6b case
+// carries parse diagnostics).
+
+const WITNESSES_6B: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../ratchets/h2-6b-witnesses.v1.json"
+));
+
+fn common_source_directory_of(case: &Value) -> String {
+    let directories: Vec<Vec<&str>> = case["input"]["files"]
+        .as_array()
+        .expect("input files")
+        .iter()
+        .map(|file| file["path"].as_str().expect("file path"))
+        .filter(|path| !path.ends_with(".d.ts") && !path.ends_with(".json"))
+        .map(|path| {
+            let directory = &path[..path.rfind('/').expect("file directory")];
+            directory.split('/').collect()
+        })
+        .collect();
+    let first = directories.first().expect("at least one source");
+    let mut shared = first.len();
+    for components in &directories[1..] {
+        let mut matched = 0;
+        while matched < shared
+            && matched < components.len()
+            && components[matched] == first[matched]
+        {
+            matched += 1;
+        }
+        shared = matched;
+    }
+    let joined = first[..shared].join("/");
+    if joined.is_empty() {
+        "/".to_owned()
+    } else {
+        format!("{joined}/")
+    }
+}
+
+fn drive_case_6b(
+    case_id: &str,
+    case: &Value,
+    library_files: &[(String, Vec<u8>)],
+) -> ReplayOutcome {
+    let prepared = prepare_case_program(case_id, case, library_files);
+    let observation = &case["observation"];
+    let options = case_compiler_options(&case["input"]["compiler_options"]);
+    let lane = tsc_emitter::MapLaneInputs {
+        common_source_directory: common_source_directory_of(case),
+        current_directory: "/project".to_owned(),
+        use_case_sensitive_source_keys: true,
+    };
+    let inline = options.inline_source_map == Some(true);
+    let js_path = observation["source_maps"][0]["input_source_file_names"][0]
+        .as_str()
+        .map(|_| {
+            // the js write is the one carrying sourceMapUrlPos (both lanes)
+            observation["writes"]
+                .as_array()
+                .expect("writes")
+                .iter()
+                .find(|write| write["data_source_map_url_pos"].as_u64().is_some())
+                .expect("mapped js write")["path"]
+                .as_str()
+                .expect("js path")
+                .to_owned()
+        })
+        .expect("mapped unit");
+    let source_path = PathBuf::from(
+        observation["source_maps"][0]["input_source_file_names"][0]
+            .as_str()
+            .expect("raw source"),
+    );
+    let recording_target = PathBuf::from(&js_path);
+    let selector_options = options.clone();
+    let selector_lane = lane.clone();
+    let selector_source = source_path.clone();
+    let selector = move |unit_path: &Path| -> Option<SourceMapRecordingInputs> {
+        (unit_path == recording_target).then(|| {
+            tsc_emitter::source_map_recording_inputs_for(
+                &selector_lane,
+                &selector_options,
+                unit_path,
+                &selector_source,
+            )
+        })
+    };
+    let printed_units = ProgramSession::new(prepared)
+        .print_units_with_source_map_recording_for_harness(&selector)
+        .unwrap_or_else(|error| panic!("{case_id}: harness print failed: {error:?}"));
+    let (_, printed) = printed_units
+        .into_iter()
+        .find(|(path, _)| path == Path::new(&js_path))
+        .unwrap_or_else(|| panic!("{case_id}: no printed unit for {js_path}"));
+    let ends_at_line_start = printed.end().column() == 0;
+    let new_line = match case["input"]["compiler_options"]["newLine"].as_i64() {
+        Some(0) => "\r\n",
+        _ => "\n",
+    };
+    let mut generator = printed
+        .source_map()
+        .cloned()
+        .unwrap_or_else(|| panic!("{case_id}: no source map recorded"));
+    let map_json = generator.to_json_string();
+    let map_path = (!inline).then(|| PathBuf::from(format!("{js_path}.map")));
+    let url = tsc_emitter::source_mapping_url(
+        &lane,
+        &options,
+        &map_json,
+        Path::new(&js_path),
+        map_path.as_deref(),
+        &source_path,
+    )
+    .unwrap_or_else(|error| panic!("{case_id}: URL selection failed: {error:?}"));
+    let mut js = printed.text().to_owned();
+    if !ends_at_line_start {
+        js.push_str(new_line);
+    }
+    js.push_str("//# sourceMappingURL=");
+    js.push_str(&url);
+    ReplayOutcome { js, map_json }
+}
+
+#[test]
+fn h2_6b_lane_cases_reproduce_through_the_production_pipeline() {
+    let artifact: Value = serde_json::from_slice(WITNESSES_6B).expect("W-H2.6B artifact JSON");
+    let library_files = vendored_library_files();
+    let mut replayed = 0usize;
+    for family in artifact["families"].as_array().expect("families") {
+        for case in family["cases"].as_array().expect("cases") {
+            let case_id = case["case_id"].as_str().expect("case id");
+            let observation = &case["observation"];
+            let Some(source_maps) = observation["source_maps"].as_array() else {
+                continue;
+            };
+            if source_maps.len() != 1 {
+                // multi-unit lane arithmetic is unit-tier-proven
+                continue;
+            }
+            let roots = case["input"]["roots"].as_array().expect("roots");
+            if roots.len() != 1 {
+                continue;
+            }
+            let frozen_js = callback_text(
+                observation["writes"]
+                    .as_array()
+                    .expect("writes")
+                    .iter()
+                    .find(|write| write["data_source_map_url_pos"].as_u64().is_some())
+                    .expect("mapped js write"),
+            );
+            let frozen_map = source_maps[0]["source_map_json"]
+                .as_str()
+                .expect("map json");
+            let outcome = drive_case_6b(case_id, case, &library_files);
+            assert_eq!(
+                outcome.map_json, frozen_map,
+                "{case_id}: pipeline map diverged"
+            );
+            assert_eq!(outcome.js, frozen_js, "{case_id}: pipeline js diverged");
+            replayed += 1;
+        }
+    }
+    assert_eq!(replayed, 28, "6b pipeline replay census changed");
 }
