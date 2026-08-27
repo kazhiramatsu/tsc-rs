@@ -3,11 +3,11 @@ use std::error::Error;
 use std::fs;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Child, Command, ExitStatus};
 use std::sync::Arc;
 use std::time::Instant;
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tsc_binder::BinderWorker;
 use tsc_checker::{
@@ -34,14 +34,14 @@ struct Settings {
     max_rss_bytes: u64,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct DiagnosticPin {
     code: u32,
     start: Option<u32>,
     length: Option<u32>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct EditTrace {
     ordinal: usize,
     version: String,
@@ -69,11 +69,11 @@ struct StressState {
     final_active_ranges: usize,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct StressReport {
     schema: u32,
-    kind: &'static str,
-    status: &'static str,
+    kind: String,
+    status: String,
     seed: String,
     fixture: String,
     initial_text_sha256: String,
@@ -85,15 +85,107 @@ struct StressReport {
     final_active_ranges: usize,
     elapsed_millis: u128,
     peak_rss_bytes: Option<u64>,
+    rss_measurement: String,
     rss_ceiling_bytes: u64,
     trace_limit: usize,
     recent_edits: Vec<EditTrace>,
     error: Option<String>,
 }
 
+struct Arguments {
+    settings: Settings,
+    fixture: PathBuf,
+    report_path: PathBuf,
+    internal_stress_child: bool,
+}
+
+struct ChildWait {
+    status: ExitStatus,
+    peak_rss_bytes: Option<u64>,
+    mechanism: &'static str,
+}
+
 pub(crate) fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
-    let (settings, fixture, report_path) = parse_arguments(args)?;
-    let initial = fs::read_to_string(&fixture)?;
+    let arguments = parse_arguments(args)?;
+    if arguments.internal_stress_child {
+        let report = execute_report(arguments.settings, &arguments.fixture)?;
+        write_report(&arguments.report_path, &report)?;
+        return Ok(());
+    }
+    run_parent(arguments)
+}
+
+fn run_parent(arguments: Arguments) -> Result<(), Box<dyn Error>> {
+    let internal_report_path = internal_report_path(&arguments.report_path)?;
+    let temporary_report = TemporaryReport(internal_report_path.clone());
+    let executable = std::env::current_exe()?;
+    let mut command = Command::new(executable);
+    command
+        .args(["l1", "incremental-stress", "--internal-stress-child"])
+        .arg("--fixture")
+        .arg(&arguments.fixture)
+        .arg("--seed")
+        .arg(format!("0x{:016x}", arguments.settings.seed))
+        .arg("--edits")
+        .arg(arguments.settings.edits.to_string())
+        .arg("--max-rss-bytes")
+        .arg(arguments.settings.max_rss_bytes.to_string())
+        .arg("--report")
+        .arg(&internal_report_path);
+    let child = command.spawn()?;
+    let child_wait = wait_for_stress_child(child)?;
+    if !child_wait.status.success() {
+        return Err(format!(
+            "L1 incremental stress child failed with {}",
+            child_wait.status
+        )
+        .into());
+    }
+    let mut report: StressReport = serde_json::from_slice(&fs::read(&internal_report_path)?)?;
+    report.peak_rss_bytes = child_wait.peak_rss_bytes;
+    report.rss_measurement = child_wait.mechanism.to_owned();
+    if report.error.is_none() {
+        if let Some(peak) = report
+            .peak_rss_bytes
+            .filter(|peak| *peak > arguments.settings.max_rss_bytes)
+        {
+            report.error = Some(format!(
+                "peak RSS {peak} exceeds reviewed ceiling {}",
+                arguments.settings.max_rss_bytes
+            ));
+        }
+    }
+    report.status = if report.error.is_none() {
+        "passed".to_owned()
+    } else {
+        "failed".to_owned()
+    };
+    write_report(&arguments.report_path, &report)?;
+    drop(temporary_report);
+    println!(
+        "L1 incremental stress: status={} edits={}/{} min-reuse={} max-fresh={} child-peak-rss={:?}/{} rss-mechanism={} report={}",
+        report.status,
+        report.completed_edits,
+        report.requested_edits,
+        report.minimum_reused_nodes,
+        report.maximum_freshly_parsed_nodes,
+        report.peak_rss_bytes,
+        report.rss_ceiling_bytes,
+        report.rss_measurement,
+        arguments.report_path.display()
+    );
+    if report.status != "passed" {
+        return Err(format!(
+            "L1 incremental stress failed: {}",
+            report.error.as_deref().unwrap_or("unknown failure")
+        )
+        .into());
+    }
+    Ok(())
+}
+
+fn execute_report(settings: Settings, fixture: &Path) -> Result<StressReport, Box<dyn Error>> {
+    let initial = fs::read_to_string(fixture)?;
     let initial_hash = format!("{:x}", Sha256::digest(initial.as_bytes()));
     let started = Instant::now();
     let mut state = StressState {
@@ -101,7 +193,7 @@ pub(crate) fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
         ..StressState::default()
     };
     let execution = catch_unwind(AssertUnwindSafe(|| execute(settings, &initial, &mut state)));
-    let mut error = match execution {
+    let error = match execution {
         Ok(Ok(())) => None,
         Ok(Err(error)) => Some(error),
         Err(payload) => Some(
@@ -113,19 +205,11 @@ pub(crate) fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
         ),
     };
     let peak_rss_bytes = peak_rss_bytes();
-    if error.is_none() {
-        if let Some(peak) = peak_rss_bytes.filter(|peak| *peak > settings.max_rss_bytes) {
-            error = Some(format!(
-                "peak RSS {peak} exceeds reviewed ceiling {}",
-                settings.max_rss_bytes
-            ));
-        }
-    }
     let status = if error.is_none() { "passed" } else { "failed" };
-    let report = StressReport {
+    Ok(StressReport {
         schema: 1,
-        kind: "l1-incremental-parser-stress",
-        status,
+        kind: "l1-incremental-parser-stress".to_owned(),
+        status: status.to_owned(),
         seed: format!("0x{:016x}", settings.seed),
         fixture: fixture.display().to_string(),
         initial_text_sha256: initial_hash,
@@ -141,31 +225,12 @@ pub(crate) fn run(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
         final_active_ranges: state.final_active_ranges,
         elapsed_millis: started.elapsed().as_millis(),
         peak_rss_bytes,
+        rss_measurement: self_peak_rss_mechanism().to_owned(),
         rss_ceiling_bytes: settings.max_rss_bytes,
         trace_limit: TRACE_LIMIT,
         recent_edits: state.recent.into_iter().collect(),
         error,
-    };
-    write_report(&report_path, &report)?;
-    println!(
-        "L1 incremental stress: status={} edits={}/{} min-reuse={} max-fresh={} peak-rss={:?}/{} report={}",
-        report.status,
-        report.completed_edits,
-        report.requested_edits,
-        report.minimum_reused_nodes,
-        report.maximum_freshly_parsed_nodes,
-        report.peak_rss_bytes,
-        report.rss_ceiling_bytes,
-        report_path.display()
-    );
-    if report.status != "passed" {
-        return Err(format!(
-            "L1 incremental stress failed: {}",
-            report.error.as_deref().unwrap_or("unknown failure")
-        )
-        .into());
-    }
-    Ok(())
+    })
 }
 
 fn execute(settings: Settings, initial: &str, state: &mut StressState) -> Result<(), String> {
@@ -432,9 +497,7 @@ fn next_random(state: &mut u64) -> u64 {
     *state
 }
 
-fn parse_arguments(
-    mut args: impl Iterator<Item = String>,
-) -> Result<(Settings, PathBuf, PathBuf), Box<dyn Error>> {
+fn parse_arguments(mut args: impl Iterator<Item = String>) -> Result<Arguments, Box<dyn Error>> {
     let mut settings = Settings {
         seed: DEFAULT_SEED,
         edits: DEFAULT_EDITS,
@@ -442,12 +505,19 @@ fn parse_arguments(
     };
     let mut fixture = None;
     let mut report = PathBuf::from("target/l1/incremental-stress.json");
+    let mut internal_stress_child = false;
     while let Some(argument) = args.next() {
         let value = |name: &str, args: &mut dyn Iterator<Item = String>| {
             args.next()
                 .ok_or_else(|| format!("{name} requires a value"))
         };
         match argument.as_str() {
+            "--internal-stress-child" if !internal_stress_child => {
+                internal_stress_child = true;
+            }
+            "--internal-stress-child" => {
+                return Err("--internal-stress-child may only be specified once".into())
+            }
             "--fixture" => fixture = Some(PathBuf::from(value("--fixture", &mut args)?)),
             "--seed" => {
                 let raw = value("--seed", &mut args)?;
@@ -470,11 +540,35 @@ fn parse_arguments(
     if settings.max_rss_bytes < 64 * 1024 * 1024 {
         return Err("--max-rss-bytes must be at least 64 MiB".into());
     }
-    Ok((
+    Ok(Arguments {
         settings,
-        fixture.ok_or("l1 incremental-stress requires --fixture <large-edit.ts>")?,
-        report,
-    ))
+        fixture: fixture.ok_or("l1 incremental-stress requires --fixture <large-edit.ts>")?,
+        report_path: report,
+        internal_stress_child,
+    })
+}
+
+struct TemporaryReport(PathBuf);
+
+impl Drop for TemporaryReport {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.0);
+    }
+}
+
+fn internal_report_path(report_path: &Path) -> Result<PathBuf, Box<dyn Error>> {
+    let parent = report_path.parent().unwrap_or_else(|| Path::new("."));
+    let name = report_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or("L1 stress report file name is not UTF-8")?;
+    Ok(parent.join(format!(
+        ".{name}.internal-{}-{}.json",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)?
+            .as_nanos()
+    )))
 }
 
 fn write_report(path: &Path, report: &StressReport) -> Result<(), Box<dyn Error>> {
@@ -485,6 +579,81 @@ fn write_report(path: &Path, report: &StressReport) -> Result<(), Box<dyn Error>
     bytes.push(b'\n');
     fs::write(path, bytes)?;
     Ok(())
+}
+
+#[cfg(any(target_os = "linux", target_os = "macos"))]
+#[allow(unsafe_code)]
+fn wait_for_stress_child(child: Child) -> Result<ChildWait, Box<dyn Error>> {
+    use std::mem::MaybeUninit;
+    use std::os::unix::process::ExitStatusExt;
+
+    let pid = libc::pid_t::try_from(child.id())?;
+    let mut raw_status = 0;
+    let mut usage = MaybeUninit::<libc::rusage>::uninit();
+    loop {
+        // SAFETY: `raw_status` and `usage` point to writable storage for the
+        // duration of wait4, and `pid` names the live child owned here. The
+        // rusage value is read only after wait4 reports successful reaping.
+        let waited = unsafe { libc::wait4(pid, &mut raw_status, 0, usage.as_mut_ptr()) };
+        if waited == pid {
+            break;
+        }
+        if waited == -1 {
+            let error = std::io::Error::last_os_error();
+            if error.kind() == std::io::ErrorKind::Interrupted {
+                continue;
+            }
+            return Err(error.into());
+        }
+        return Err(format!("wait4 reaped unexpected process {waited} instead of {pid}").into());
+    }
+    // SAFETY: the successful wait4 call initialized the complete rusage.
+    let usage = unsafe { usage.assume_init() };
+    drop(child);
+    Ok(ChildWait {
+        status: ExitStatus::from_raw(raw_status),
+        peak_rss_bytes: ru_maxrss_bytes(usage.ru_maxrss),
+        mechanism: child_peak_rss_mechanism(),
+    })
+}
+
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+fn wait_for_stress_child(mut child: Child) -> Result<ChildWait, Box<dyn Error>> {
+    Ok(ChildWait {
+        status: child.wait()?,
+        peak_rss_bytes: None,
+        mechanism: "child wait without rusage",
+    })
+}
+
+#[cfg(target_os = "macos")]
+fn ru_maxrss_bytes(max_rss: libc::c_long) -> Option<u64> {
+    u64::try_from(max_rss).ok()
+}
+
+#[cfg(target_os = "linux")]
+fn ru_maxrss_bytes(max_rss: libc::c_long) -> Option<u64> {
+    u64::try_from(max_rss).ok()?.checked_mul(1024)
+}
+
+#[cfg(target_os = "macos")]
+fn child_peak_rss_mechanism() -> &'static str {
+    "wait4 ru_maxrss (darwin bytes)"
+}
+
+#[cfg(target_os = "linux")]
+fn child_peak_rss_mechanism() -> &'static str {
+    "wait4 ru_maxrss (linux KiB converted to bytes)"
+}
+
+fn self_peak_rss_mechanism() -> &'static str {
+    if cfg!(target_os = "linux") {
+        "procfs VmHWM (bytes)"
+    } else if cfg!(target_os = "macos") {
+        "getrusage RUSAGE_SELF ru_maxrss (darwin bytes)"
+    } else {
+        "unavailable"
+    }
 }
 
 fn peak_rss_bytes() -> Option<u64> {
@@ -499,20 +668,66 @@ fn peak_rss_bytes() -> Option<u64> {
             .ok()?;
         return kilobytes.checked_mul(1024);
     }
-    let process_selector = ['-', 'p'].into_iter().collect::<String>();
-    let output = Command::new("ps")
-        .args(["-o", "rss="])
-        .arg(process_selector)
-        .arg(std::process::id().to_string())
-        .output()
-        .ok()?;
-    if !output.status.success() {
+
+    #[cfg(target_os = "macos")]
+    {
+        darwin_peak_rss_bytes()
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        None
+    }
+}
+
+#[cfg(target_os = "macos")]
+#[allow(unsafe_code)]
+fn darwin_peak_rss_bytes() -> Option<u64> {
+    let mut usage = std::mem::MaybeUninit::<libc::rusage>::uninit();
+    // SAFETY: `usage` is valid writable storage and is read only when
+    // getrusage reports success.
+    if unsafe { libc::getrusage(libc::RUSAGE_SELF, usage.as_mut_ptr()) } != 0 {
         return None;
     }
-    String::from_utf8(output.stdout)
-        .ok()?
-        .trim()
-        .parse::<u64>()
-        .ok()?
-        .checked_mul(1024)
+    // SAFETY: successful getrusage initialized the complete value.
+    let usage = unsafe { usage.assume_init() };
+    u64::try_from(usage.ru_maxrss).ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn internal_child_flag_is_hidden_and_single_use() {
+        let arguments = parse_arguments(
+            [
+                "--internal-stress-child",
+                "--fixture",
+                "large.ts",
+                "--edits",
+                "1",
+            ]
+            .into_iter()
+            .map(str::to_owned),
+        )
+        .unwrap();
+        assert!(arguments.internal_stress_child);
+        assert!(parse_arguments(
+            [
+                "--internal-stress-child",
+                "--internal-stress-child",
+                "--fixture",
+                "large.ts",
+            ]
+            .into_iter()
+            .map(str::to_owned)
+        )
+        .is_err());
+    }
+
+    #[cfg(any(target_os = "linux", target_os = "macos"))]
+    #[test]
+    fn supported_platform_has_a_high_water_rss_measurement() {
+        assert!(peak_rss_bytes().is_some());
+    }
 }
