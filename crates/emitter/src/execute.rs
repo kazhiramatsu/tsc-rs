@@ -108,8 +108,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             options.allow_importing_ts_extensions == Some(true),
             "allowImportingTsExtensions",
         ),
-        (options.inline_source_map == Some(true), "inlineSourceMap"),
-        (options.inline_sources == Some(true), "inlineSources"),
         (options.declaration == Some(true), "declaration"),
         (options.declaration_map == Some(true), "declarationMap"),
         (
@@ -141,8 +139,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
     }
     for (present, name) in [
         (options.root_dir.is_some(), "rootDir"),
-        (options.source_root.is_some(), "sourceRoot"),
-        (options.map_root.is_some(), "mapRoot"),
         (options.declaration_dir.is_some(), "declarationDir"),
         (options.out_file.is_some(), "outFile"),
         (options.ts_build_info_file.is_some(), "tsBuildInfoFile"),
@@ -266,7 +262,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_6a_profile();
+    let mut activity = H2ActivityCanary::h2_6b_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -311,7 +307,7 @@ pub fn print_script_units_with_recording_for_harness(
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
-    let mut activity = H2ActivityCanary::h2_6a_profile();
+    let mut activity = H2ActivityCanary::h2_6b_profile();
     let mut printed_units = Vec::new();
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -670,9 +666,11 @@ pub fn emit_files_with_activity(
     // sink writes map THEN js (116784-116801): the list order is
     // plan-owned, never derived from the write order.
     let mut unit_listing: Vec<(std::path::PathBuf, Option<std::path::PathBuf>)> = Vec::new();
-    // sourceMapDataList is allocated iff a map option is on (116532);
-    // at this floor that is exactly `sourceMap`.
+    // sourceMapDataList is allocated iff a map option is on (116532):
+    // `sourceMap || inlineSourceMap` since the h2-6b-m-2 flip.
     let mut source_map_observations: Vec<SourceMapObservation> = Vec::new();
+    let map_options_enabled =
+        options.source_map == Some(true) || options.inline_source_map == Some(true);
     let mut emit_skipped = false;
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -706,14 +704,29 @@ pub fn emit_files_with_activity(
             false,
         )?;
         let transform_diagnostics = transformation.diagnostics().to_vec();
-        // shouldEmitSourceMaps (116805-116807) at this floor: a map path
-        // was planned exactly when `sourceMap` is on and the source is
-        // not JSON (G6), so the plan carries the gate.
+        // tsc-port: shouldEmitSourceMaps @6.0.3
+        // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
+        // tsc-span: _tsc.js:116805-116807
+        //
+        // h2-6b-m-2: `(sourceMap || inlineSourceMap)` and not a `.json`
+        // source. The plan's map path carries the EXTERNAL arm only
+        // (`sourceMap && !inlineSourceMap && !json`, plan.rs:328); the
+        // inline lane records with no planned map path.
+        let json_source = source.path().to_string_lossy().ends_with(".json");
+        let recording_enabled = map_options_enabled && !json_source;
         let javascript_map_path = unit
             .paths()
             .javascript_map_path()
             .map(std::path::Path::to_path_buf);
-        let recording_inputs = javascript_map_path.as_deref().map(|_| {
+        if recording_enabled && options.inline_source_map != Some(true) {
+            // the planner's invariant for the external arm
+            if javascript_map_path.is_none() {
+                return Err(EmitFailure::Contract(
+                    EmitContractViolation::SourceMapRecordingUnavailable,
+                ));
+            }
+        }
+        let recording_inputs = recording_enabled.then(|| {
             source_map_recording_inputs_for(
                 &map_lane_inputs(host),
                 options,
@@ -722,14 +735,26 @@ pub fn emit_files_with_activity(
             )
         });
         if recording_inputs.is_some() {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_6a);
+            // the slice that ADMITTED the shape: any 6b option on a
+            // mapped unit is H2.6b activity; the plain external
+            // `sourceMap` shape stays H2.6a (h2-6b-m-2 §3).
+            let six_b_option = options.inline_source_map == Some(true)
+                || options.inline_sources == Some(true)
+                || options.source_root.is_some()
+                || options.map_root.is_some();
+            activity.observe_runtime_slice(if six_b_option {
+                H2RuntimeSlice::H2_6b
+            } else {
+                H2RuntimeSlice::H2_6a
+            });
         }
         let printed = printer.print(
             &mut transformation,
             PrintRequest::SourceFile(transform_source),
             recording_inputs,
         )?;
-        if let Some(map_path) = javascript_map_path.as_ref() {
+        if recording_enabled {
+            let map_path = javascript_map_path.as_ref();
             let mut generator = printed.source_map().cloned().ok_or(EmitFailure::Contract(
                 EmitContractViolation::SourceMapRecordingUnavailable,
             ))?;
@@ -752,7 +777,7 @@ pub fn emit_files_with_activity(
                 options,
                 &map_json,
                 javascript_path,
-                Some(map_path),
+                map_path.map(std::path::PathBuf::as_path),
                 source.path(),
             )?;
             let mut javascript_text = printed.text().to_owned();
@@ -767,12 +792,16 @@ pub fn emit_files_with_activity(
             }
             javascript_text.push_str("//# sourceMappingURL=");
             javascript_text.push_str(&url);
-            // Map artifact BEFORE js (116784-116795): no BOM, no data.
-            artifacts.push(EmitArtifact::javascript_map(
-                map_path.clone(),
-                map_json,
-                Some(vec![source.path().to_path_buf()]),
-            ));
+            // Map artifact BEFORE js (116784-116795), EXTERNAL lane only:
+            // the inline lane writes no map artifact (116784 gates on
+            // sourceMapFilePath; h2-6b.md §4.4). No BOM, no data.
+            if let Some(map_path) = map_path {
+                artifacts.push(EmitArtifact::javascript_map(
+                    map_path.clone(),
+                    map_json,
+                    Some(vec![source.path().to_path_buf()]),
+                ));
+            }
             activity.create_javascript_artifact();
             artifacts.push(EmitArtifact::javascript(
                 javascript_path,
@@ -835,7 +864,7 @@ pub fn emit_files_with_activity(
         diagnostics,
         emit_skipped,
         emitted_files,
-        (options.source_map == Some(true)).then_some(source_map_observations),
+        map_options_enabled.then_some(source_map_observations),
         activity.counters(),
     ))
 }

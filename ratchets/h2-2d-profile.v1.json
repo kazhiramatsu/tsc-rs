@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2d-profile.mjs",
-    "sha256": "ed3f860d58c01cd63d578557e6ac791456e7450aeb43e1c048aefac46542a41d"
+    "sha256": "2d710326c2839cf28838fae2a4f2af8db71c0a167d37808f8e4cfa928254fbed"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2d-profile.schema.json",
@@ -28,19 +28,19 @@
     "historical": {
       "profile": {
         "path": "ratchets/h2-2c-profile.v1.json",
-        "sha256": "f8040ccdab917003785b2c58cfbed318e985539b9be65a91020cfbf3a5fd46b5"
+        "sha256": "7df6db398d8b9fef68627c720b02b284bbeca454a15989c4b993bdc01c138c47"
       },
       "qualification": {
         "path": "ratchets/h2-2c-qualification.v1.json",
-        "sha256": "e39e2fc69075b351a7b27e8f3f2807480896f50643ebe03a30ea5d6ee7d2eed3"
+        "sha256": "28a169775de742c78f5a4a0240ed5277dc74713e78a23f53ecb292d9272820a2"
       },
       "profile_generator": {
         "path": "crates/oracle/h2-2c-profile.mjs",
-        "sha256": "47ab7b49f40b19e8435de40c2248dd784cf4738c87bec8b5891175df7597c28b"
+        "sha256": "5e25d537d4d698cd213270b21bc2581ff0d115ec9144ccba4e06a548d5414401"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-2c-qualification.mjs",
-        "sha256": "362d8161619f59a4b5908f2e9addafe934fdce1a2a1c188ae048fef5c56d49a7"
+        "sha256": "58c94269fd1809078da8b4f0e81ba1500700c4031ee30c8d4e34a970adbd0267"
       },
       "profile_contract": {
         "path": ".github/ci/contracts/h2-2c-profile.schema.json",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-2d-qualification.v1.json",
-    "sha256": "8173668cf45b27abbcf88ebd56615916ffce7a7fde7b1f3593627c7dc3f1844d"
+    "sha256": "f39f236097f10c7f10986321728815ffde885fdc9ed6748c7b660b8d2ba142b2"
   },
   "runtime_inputs": [
     {
@@ -72,7 +72,7 @@
     },
     {
       "path": "crates/compiler/src/lib.rs",
-      "sha256": "4fee2244faa23bb4dd8bae2e8001a55bf0058234cff5327aa2b1d9e5f324d8fe"
+      "sha256": "c6322201cbdf689564f6c7c02f67038f0b463a97c885ff761e756e46d53c8d12"
     },
     {
       "path": "crates/compiler/tests/integration/emit_session_contract.rs",
@@ -92,11 +92,11 @@
     },
     {
       "path": "crates/emitter/src/activity.rs",
-      "sha256": "d0a783e287227feb92e71c47a0b1bb775058e9063f134b606b674293d45e0936"
+      "sha256": "6211665b744eb61f020c8a7e3151c09ecd71bc2b153ec512b5607bd12f7d7216"
     },
     {
       "path": "crates/emitter/src/builtins.rs",
-      "sha256": "01b71379d2fb9895fdc4677a574b32a91ea1b383b0d52dedd1e08ec485df407f"
+      "sha256": "2585928ad297b41d28e90319bd14c7167be2ef44dbe2e1027444103a8ca67b53"
     },
     {
       "path": "crates/emitter/src/builtins/system.rs",
@@ -104,7 +104,7 @@
     },
     {
       "path": "crates/emitter/src/execute.rs",
-      "sha256": "f98a20e34c72fcab40968c25ace10cbb2ff7b88df7ba614af277125852c34d52"
+      "sha256": "375e8b0fd8df9d67ec6813f2501ebb71f35fe36271468591f8a42a91964b233b"
     },
     {
       "path": "crates/emitter/src/factory.rs",
@@ -311,7 +311,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "1467752c4a295e51380b9f6c974861ca689abea426312a1ef3702d7e44de4a13"
+      "sha256": "610f3ec69ce25c15a03b909192d1af648dab8da8553e463a49a37755c049c203"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -319,7 +319,7 @@
     },
     "historical_h2_2c_profile": {
       "path": "ratchets/h2-2c-profile.v1.json",
-      "sha256": "f8040ccdab917003785b2c58cfbed318e985539b9be65a91020cfbf3a5fd46b5"
+      "sha256": "7df6db398d8b9fef68627c720b02b284bbeca454a15989c4b993bdc01c138c47"
     },
     "local_full_gate": "cargo xtask ci --baseline 8c61918365f186645d18724f50f125782754094c",
     "hosted_gate": "cargo xtask acceptance",
@@ -335,5 +335,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "e8606cd0692394124893501c67b199ea33f858956ffacaf998b140f404c22b4c"
+  "profile_fingerprint_sha256": "e8be58cfd1f81398cc71f9d71ab1596af672d744085f41963768f0609107595e"
 }

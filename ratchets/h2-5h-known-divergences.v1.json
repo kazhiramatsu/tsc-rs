@@ -645,33 +645,33 @@
       "case_id": "typescript-6.0.3/project/mapRootSourceRootWithNoSourceMapOption.json#module%3Damd",
       "owner": "h2-5h-project-r1",
       "writes_diverging": 0,
-      "diagnostics_diverging": false,
+      "diagnostics_diverging": true,
       "emit_result_diverging": false,
-      "emit_refused": true
+      "emit_refused": false
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootSourceRootWithNoSourceMapOption.json#module%3Dcommonjs",
       "owner": "h2-5h-project-r1",
       "writes_diverging": 0,
-      "diagnostics_diverging": false,
+      "diagnostics_diverging": true,
       "emit_result_diverging": false,
-      "emit_refused": true
+      "emit_refused": false
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootWithNoSourceMapOption.json#module%3Damd",
       "owner": "h2-5h-project-r1",
       "writes_diverging": 0,
-      "diagnostics_diverging": false,
+      "diagnostics_diverging": true,
       "emit_result_diverging": false,
-      "emit_refused": true
+      "emit_refused": false
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootWithNoSourceMapOption.json#module%3Dcommonjs",
       "owner": "h2-5h-project-r1",
       "writes_diverging": 0,
-      "diagnostics_diverging": false,
+      "diagnostics_diverging": true,
       "emit_result_diverging": false,
-      "emit_refused": true
+      "emit_refused": false
     },
     {
       "case_id": "typescript-6.0.3/project/nodeModulesImportHigher.json#module%3Damd",
@@ -725,17 +725,17 @@
       "case_id": "typescript-6.0.3/project/sourceRootWithNoSourceMapOption.json#module%3Damd",
       "owner": "h2-5h-project-r1",
       "writes_diverging": 0,
-      "diagnostics_diverging": false,
+      "diagnostics_diverging": true,
       "emit_result_diverging": false,
-      "emit_refused": true
+      "emit_refused": false
     },
     {
       "case_id": "typescript-6.0.3/project/sourceRootWithNoSourceMapOption.json#module%3Dcommonjs",
       "owner": "h2-5h-project-r1",
       "writes_diverging": 0,
-      "diagnostics_diverging": false,
+      "diagnostics_diverging": true,
       "emit_result_diverging": false,
-      "emit_refused": true
+      "emit_refused": false
     }
   ]
 }

@@ -16,19 +16,6 @@ use super::source_map_recording_witness_contract::{
     decode_base64, prepare_case_program, sha256_hex, vendored_library_files, WITNESSES,
 };
 
-/// The option name each refusal-control case must be refused on (the
-/// execute.rs preflight row that owns it while H2.6b is unlanded).
-fn expected_refusal_option(case_id: &str) -> &'static str {
-    match case_id {
-        "boundary-controls--control-sourceroot" => "sourceRoot",
-        "boundary-controls--control-maproot" => "mapRoot",
-        "boundary-controls--control-inline-map" => "inlineSourceMap",
-        "boundary-controls--control-inline-sources-with-map" => "inlineSources",
-        "boundary-controls--fault-inline-sources-alone" => "inlineSources",
-        other => panic!("unmapped refusal-control case {other}"),
-    }
-}
-
 #[test]
 fn every_witness_case_reproduces_through_the_production_emit_path() {
     let artifact: Value = serde_json::from_slice(WITNESSES).expect("witness artifact JSON");
@@ -42,21 +29,13 @@ fn every_witness_case_reproduces_through_the_production_emit_path() {
             let lane = case["rust_lane"].as_str().expect("rust lane");
             match lane {
                 "refusal-control" => {
-                    let prepared = prepare_case_program(case_id, case, &library_files);
-                    let mut sink = MemoryOutputSink::new();
-                    let error = ProgramSession::new(prepared)
-                        .emit(&mut sink)
-                        .expect_err("boundary-control options are refused until H2.6b");
-                    let rendered = format!("{error:?}");
-                    let option = expected_refusal_option(case_id);
-                    assert!(
-                        rendered.contains("UnsupportedCompilerOption") && rendered.contains(option),
-                        "{case_id}: expected a typed {option} refusal, got {rendered}"
-                    );
-                    assert!(
-                        sink.writes().is_empty(),
-                        "{case_id}: a refused emit must write nothing"
-                    );
+                    // h2-6b-m-2: the five 6a boundary controls FLIP to
+                    // parity — the four valid option shapes emit through
+                    // the m-1 lanes exactly as frozen, and the bare
+                    // `inlineSources` fault case emits UNMAPPED js
+                    // exactly as frozen (its TS5051 is a pre-emit config
+                    // diagnostic owned by conformance, not by emit).
+                    assert_parity_case(case_id, case, &library_files);
                     refusal_cases += 1;
                 }
                 "parity" => {
@@ -114,7 +93,7 @@ fn every_witness_case_reproduces_through_the_production_emit_path() {
     assert_eq!(
         (parity_cases, refusal_cases, deferred_cases),
         (29, 5, 2),
-        "witness emit census changed"
+        "witness emit census changed (the 5 boundary controls are parity since h2-6b-m-2)"
     );
 }
 
@@ -294,4 +273,177 @@ fn a_mapped_emit_is_deterministic_across_two_runs() {
         )
     };
     assert_eq!(run(), run(), "mapped emit is not deterministic");
+}
+
+// ---- H2.6b / m-2 emit gate (h2-6b-m-2.md §4.2) ----
+//
+// Every W-H2.6B case through the REAL ProgramSession::emit. The six
+// outDir cases take the typed H2.8a deferral arm (their byte parity is
+// m-1-suite-proven at the print/lane level — the path-shapes precedent
+// verbatim); the sink-fault fault cases drive a failing sink through the
+// sanctioned per-write error route.
+
+const WITNESSES_6B_EMIT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../ratchets/h2-6b-witnesses.v1.json"
+));
+
+/// Records every write attempt, failing the selected path (the Rust
+/// image of a host whose writeFile invokes onError).
+struct FaultSink {
+    inner: MemoryOutputSink,
+    fault_path: std::path::PathBuf,
+    attempts: Vec<std::path::PathBuf>,
+}
+
+impl tsc_emitter::OutputSink for FaultSink {
+    fn write(
+        &mut self,
+        artifact: tsc_emitter::EmitArtifact,
+    ) -> Result<tsc_emitter::EmitWriteDisposition, tsc_emitter::EmitIoError> {
+        self.attempts.push(artifact.path().to_path_buf());
+        if artifact.path() == self.fault_path {
+            return Err(tsc_emitter::EmitIoError::new(
+                tsc_emitter::EmitIoOperation::WriteFile,
+                artifact.path(),
+                "W-H2.6B simulated sink failure",
+            ));
+        }
+        self.inner.write(artifact)
+    }
+}
+
+#[test]
+fn h2_6b_witness_cases_reproduce_through_the_production_emit_path() {
+    let artifact: Value = serde_json::from_slice(WITNESSES_6B_EMIT).expect("W-H2.6B JSON");
+    let library_files = vendored_library_files();
+    let mut parity = 0usize;
+    let mut deferred_outdir = 0usize;
+    let mut sink_faults = 0usize;
+    for family in artifact["families"].as_array().expect("families") {
+        for case in family["cases"].as_array().expect("cases") {
+            let case_id = case["case_id"].as_str().expect("case id");
+            let options = &case["input"]["compiler_options"];
+            let observation = &case["observation"];
+            if options["outDir"].as_str().is_some() {
+                let prepared = prepare_case_program(case_id, case, &library_files);
+                let mut sink = MemoryOutputSink::new();
+                let error = ProgramSession::new(prepared)
+                    .emit(&mut sink)
+                    .expect_err("TS-source outDir is H2.8a-deferred");
+                let rendered = format!("{error:?}");
+                assert!(
+                    rendered.contains("UnsupportedCompilerOption") && rendered.contains("outDir"),
+                    "{case_id}: expected the typed outDir refusal, got {rendered}"
+                );
+                assert!(
+                    sink.writes().is_empty(),
+                    "{case_id}: refusal writes nothing"
+                );
+                deferred_outdir += 1;
+                continue;
+            }
+            let fault_paths: Vec<&str> = case["fault_sink_paths"]
+                .as_array()
+                .expect("fault paths")
+                .iter()
+                .map(|value| value.as_str().expect("fault path"))
+                .collect();
+            if let [fault_path] = fault_paths.as_slice() {
+                let prepared = prepare_case_program(case_id, case, &library_files);
+                let mut sink = FaultSink {
+                    inner: MemoryOutputSink::new(),
+                    fault_path: std::path::PathBuf::from(fault_path),
+                    attempts: Vec::new(),
+                };
+                let outcome = ProgramSession::new(prepared)
+                    .emit(&mut sink)
+                    .unwrap_or_else(|error| panic!("{case_id}: emit failed: {error:?}"));
+                let frozen_paths: Vec<&str> = observation["writes"]
+                    .as_array()
+                    .expect("writes")
+                    .iter()
+                    .map(|write| write["path"].as_str().expect("path"))
+                    .collect();
+                let attempted: Vec<String> = sink
+                    .attempts
+                    .iter()
+                    .map(|path: &std::path::PathBuf| path.to_string_lossy().into_owned())
+                    .collect();
+                assert_eq!(
+                    attempted, frozen_paths,
+                    "{case_id}: write attempts diverge from the frozen order"
+                );
+                let sink_diagnostics: Vec<String> = outcome
+                    .diagnostics()
+                    .iter()
+                    .map(|diagnostic| format!("{diagnostic:?}"))
+                    .filter(|rendered| rendered.contains("write"))
+                    .collect();
+                assert_eq!(
+                    sink_diagnostics.len(),
+                    1,
+                    "{case_id}: exactly one sink diagnostic expected, got {sink_diagnostics:?}"
+                );
+                assert!(
+                    sink_diagnostics[0].contains(*fault_path),
+                    "{case_id}: the sink diagnostic names the failing path"
+                );
+                assert!(
+                    !outcome.emit_skipped(),
+                    "{case_id}: emitSkipped stays false"
+                );
+                sink_faults += 1;
+                continue;
+            }
+            assert_parity_case(case_id, case, &library_files);
+            parity += 1;
+        }
+    }
+    assert_eq!(
+        (parity, deferred_outdir, sink_faults),
+        (26, 6, 2),
+        "6b emit gate census changed"
+    );
+}
+
+#[test]
+fn an_inline_mapped_emit_is_deterministic_across_two_runs() {
+    let artifact: Value = serde_json::from_slice(WITNESSES_6B_EMIT).expect("W-H2.6B JSON");
+    let library_files = vendored_library_files();
+    let case = artifact["families"]
+        .as_array()
+        .expect("families")
+        .iter()
+        .flat_map(|family| family["cases"].as_array().expect("cases"))
+        .find(|case| case["case_id"] == "inline-map--positive-inline-plain")
+        .expect("representative inline case");
+    let run = || {
+        let prepared =
+            prepare_case_program("inline-map--positive-inline-plain", case, &library_files);
+        let mut sink = MemoryOutputSink::new();
+        let outcome = ProgramSession::new(prepared)
+            .emit(&mut sink)
+            .expect("deterministic inline emit");
+        (
+            sink.writes()
+                .iter()
+                .map(|artifact| {
+                    (
+                        artifact.path().to_path_buf(),
+                        artifact.callback_text().to_owned(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            outcome
+                .source_maps()
+                .map(|maps| {
+                    maps.iter()
+                        .map(|map| map.canonical_json().to_owned())
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default(),
+        )
+    };
+    assert_eq!(run(), run(), "inline mapped emit is not deterministic");
 }
