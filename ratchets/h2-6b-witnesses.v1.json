@@ -1,0 +1,3393 @@
+{
+  "schema": 1,
+  "kind": "h2-6b-source-map-witnesses",
+  "status": "frozen-source-map-witnesses",
+  "phase": "H2.6b",
+  "slice_id": "H2.6b",
+  "sub_packet": "W-H2.6B",
+  "plan_step": "packet-witness-freeze",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    "lib": {
+      "path": "vendor/typescript-6.0.3/lib",
+      "default_libraries": 108,
+      "sha256": "fef3faa275a0e8111b1185a3f33018b38cf5b72c58159846d10a92ddc12d4fd3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-6b-witnesses.mjs",
+    "sha256": "ade016debafc04d02323a814f9f9b0730e6ba0161253c63d3d634129e251ce5a"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-6b-witnesses.schema.json",
+    "sha256": "8a26848f2694dd07ddc6d384ea75f6bd799fb703ccfd0c8c756cc3fd9a0898b9"
+  },
+  "lineage": {
+    "packet": "docs/design/greenfield/slices/h2-6b.md",
+    "trusted_base": "cd27f25a6f2f310878650a70705aacbd763ca2e7",
+    "interpretation": "W-H2.6B freezes oracle-captured inline-map/inline-sources/root-lane/URL-lane/sink-fault source-map bytes, callback metadata, and write/list order for the h2-6b ladder; it authorizes no production edit and activates nothing"
+  },
+  "composition_facets": [
+    "lowered-class",
+    "generators-machine",
+    "helper-prologue",
+    "module-wrapper",
+    "multi-unit",
+    "nested-sources"
+  ],
+  "families": [
+    {
+      "family_id": "inline-map",
+      "description": "inlineSourceMap alone: the URL comment is the base64 data URI whose payload byte-equals the emitResult map stringification, no .js.map write exists, emittedFiles lists the js only, and sourceMapUrlPos addresses the data-URI comment",
+      "cases": [
+        {
+          "case_id": "inline-map--positive-inline-plain",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "plain program under inlineSourceMap with listEmittedFiles: single js write carrying the data URI; the census proves its mappings equal the external lane's",
+          "option_overrides": {
+            "inlineSourceMap": true,
+            "listEmittedFiles": true,
+            "sourceMap": false
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "listEmittedFiles": true,
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZGF0YTphcHBsaWNhdGlvbi9qc29uO2Jhc2U2NCxleUoyWlhKemFXOXVJam96TENKbWFXeGxJam9pYVc1d2RYUXVhbk1pTENKemIzVnlZMlZTYjI5MElqb2lJaXdpYzI5MWNtTmxjeUk2V3lKcGJuQjFkQzUwY3lKZExDSnVZVzFsY3lJNlcxMHNJbTFoY0hCcGJtZHpJam9pTzBGQlEwRXNTVUZCVFN4TlFVRk5MRWRCUVVjc1JVRkJSU3hEUVVGRE8wRkJRMnhDTEZOQlFWTXNTVUZCU1N4RFFVRkRMRWxCUVdFN1NVRkRla0lzU1VGQlNTeEpRVUZKTEVWQlFVVXNRMEZCUXp0UlFVTlVMRTlCUVU4c1RVRkJUU3hEUVVGRE8wbEJRMmhDTEVOQlFVTTdTVUZEUkN4UFFVRlBMRU5CUVVNc1EwRkJRenRCUVVOWUxFTkJRVU03UVVGRFJDeEpRVUZKTEVOQlFVTXNTVUZCU1N4RFFVRkRMRWxCUVVrc1EwRkJReXhEUVVGRExFTkJRVU1pZlE9PQ==",
+                "callback_utf8_sha256": "8945b5b4831af8bc293c49f8fc150782a86c6d93086d10cb6c59f139143b0be2",
+                "callback_utf8_bytes": 562,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "8945b5b4831af8bc293c49f8fc150782a86c6d93086d10cb6c59f139143b0be2",
+                "materialized_utf8_bytes": 562,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": [
+              "/project/input.js"
+            ],
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "15ee05d65c15795ce96d6d3875fd28e170bd6230c4484c77dbb48157e8731580"
+          },
+          "case_fingerprint_sha256": "b6aaa19b65bc49c092f2da3aac0d749254efa7b08c95fa176a5a24599ff5536c"
+        },
+        {
+          "case_id": "inline-map--composition-inline-lowered-class",
+          "role": "composition",
+          "rust_lane": "parity",
+          "description": "ES5 class lowering under the inline lane: extends helper and prototype methods map inside the data URI",
+          "option_overrides": {
+            "inlineSourceMap": true,
+            "sourceMap": false
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [
+            "lowered-class"
+          ],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY2xhc3MgQmFzZSB7CiAgZ3JlZXQoKTogc3RyaW5nIHsKICAgIHJldHVybiAiYmFzZSI7CiAgfQp9CmNsYXNzIERlcml2ZWQgZXh0ZW5kcyBCYXNlIHsKICBsYWJlbCA9ICJkZXJpdmVkIjsKICBjb25zdHJ1Y3RvcigpIHsKICAgIHN1cGVyKCk7CiAgfQogIGdyZWV0KCk6IHN0cmluZyB7CiAgICByZXR1cm4gdGhpcy5sYWJlbCArIHN1cGVyLmdyZWV0KCk7CiAgfQp9CnNpbmsobmV3IERlcml2ZWQoKS5ncmVldCgpKTsK",
+                "utf8_sha256": "8abb64a2062f3ca6ca8671efdf8421e77d2204dcc003deaaaa89ded5051ec50c",
+                "utf8_bytes": 282
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19leHRlbmRzID0gKHRoaXMgJiYgdGhpcy5fX2V4dGVuZHMpIHx8IChmdW5jdGlvbiAoKSB7CiAgICB2YXIgZXh0ZW5kU3RhdGljcyA9IGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgZXh0ZW5kU3RhdGljcyA9IE9iamVjdC5zZXRQcm90b3R5cGVPZiB8fAogICAgICAgICAgICAoeyBfX3Byb3RvX186IFtdIH0gaW5zdGFuY2VvZiBBcnJheSAmJiBmdW5jdGlvbiAoZCwgYikgeyBkLl9fcHJvdG9fXyA9IGI7IH0pIHx8CiAgICAgICAgICAgIGZ1bmN0aW9uIChkLCBiKSB7IGZvciAodmFyIHAgaW4gYikgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChiLCBwKSkgZFtwXSA9IGJbcF07IH07CiAgICAgICAgcmV0dXJuIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICB9OwogICAgcmV0dXJuIGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgaWYgKHR5cGVvZiBiICE9PSAiZnVuY3Rpb24iICYmIGIgIT09IG51bGwpCiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoIkNsYXNzIGV4dGVuZHMgdmFsdWUgIiArIFN0cmluZyhiKSArICIgaXMgbm90IGEgY29uc3RydWN0b3Igb3IgbnVsbCIpOwogICAgICAgIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICAgICAgZnVuY3Rpb24gX18oKSB7IHRoaXMuY29uc3RydWN0b3IgPSBkOyB9CiAgICAgICAgZC5wcm90b3R5cGUgPSBiID09PSBudWxsID8gT2JqZWN0LmNyZWF0ZShiKSA6IChfXy5wcm90b3R5cGUgPSBiLnByb3RvdHlwZSwgbmV3IF9fKCkpOwogICAgfTsKfSkoKTsKdmFyIEJhc2UgPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7CiAgICBmdW5jdGlvbiBCYXNlKCkgewogICAgfQogICAgQmFzZS5wcm90b3R5cGUuZ3JlZXQgPSBmdW5jdGlvbiAoKSB7CiAgICAgICAgcmV0dXJuICJiYXNlIjsKICAgIH07CiAgICByZXR1cm4gQmFzZTsKfSgpKTsKdmFyIERlcml2ZWQgPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoX3N1cGVyKSB7CiAgICBfX2V4dGVuZHMoRGVyaXZlZCwgX3N1cGVyKTsKICAgIGZ1bmN0aW9uIERlcml2ZWQoKSB7CiAgICAgICAgdmFyIF90aGlzID0gX3N1cGVyLmNhbGwodGhpcykgfHwgdGhpczsKICAgICAgICBfdGhpcy5sYWJlbCA9ICJkZXJpdmVkIjsKICAgICAgICByZXR1cm4gX3RoaXM7CiAgICB9CiAgICBEZXJpdmVkLnByb3RvdHlwZS5ncmVldCA9IGZ1bmN0aW9uICgpIHsKICAgICAgICByZXR1cm4gdGhpcy5sYWJlbCArIF9zdXBlci5wcm90b3R5cGUuZ3JlZXQuY2FsbCh0aGlzKTsKICAgIH07CiAgICByZXR1cm4gRGVyaXZlZDsKfShCYXNlKSk7CnNpbmsobmV3IERlcml2ZWQoKS5ncmVldCgpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZGF0YTphcHBsaWNhdGlvbi9qc29uO2Jhc2U2NCxleUoyWlhKemFXOXVJam96TENKbWFXeGxJam9pYVc1d2RYUXVhbk1pTENKemIzVnlZMlZTYjI5MElqb2lJaXdpYzI5MWNtTmxjeUk2V3lKcGJuQjFkQzUwY3lKZExDSnVZVzFsY3lJNlcxMHNJbTFoY0hCcGJtZHpJam9pT3pzN096czdPenM3T3pzN096czdPMEZCUTBFN1NVRkJRVHRKUVVsQkxFTkJRVU03U1VGSVF5eHZRa0ZCU3l4SFFVRk1PMUZCUTBVc1QwRkJUeXhOUVVGTkxFTkJRVU03U1VGRGFFSXNRMEZCUXp0SlFVTklMRmRCUVVNN1FVRkJSQ3hEUVVGRExFRkJTa1FzU1VGSlF6dEJRVU5FTzBsQlFYTkNMREpDUVVGSk8wbEJSWGhDTzFGQlEwVXNXVUZCUVN4TlFVRkxMRmRCUVVVc1UwRkJRenRSUVVaV0xGZEJRVXNzUjBGQlJ5eFRRVUZUTEVOQlFVTTdPMGxCUjJ4Q0xFTkJRVU03U1VGRFJDeDFRa0ZCU3l4SFFVRk1PMUZCUTBVc1QwRkJUeXhKUVVGSkxFTkJRVU1zUzBGQlN5eEhRVUZITEdkQ1FVRkxMRU5CUVVNc1MwRkJTeXhYUVVGRkxFTkJRVU03U1VGRGNFTXNRMEZCUXp0SlFVTklMR05CUVVNN1FVRkJSQ3hEUVVGRExFRkJVa1FzUTBGQmMwSXNTVUZCU1N4SFFWRjZRanRCUVVORUxFbEJRVWtzUTBGQlF5eEpRVUZKTEU5QlFVOHNSVUZCUlN4RFFVRkRMRXRCUVVzc1JVRkJSU3hEUVVGRExFTkJRVU1pZlE9PQ==",
+                "callback_utf8_sha256": "a37c59a8f9569ccb6c1163fbf6deee3c902eb907a534ce630633d9d57826fcd0",
+                "callback_utf8_bytes": 2008,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "a37c59a8f9569ccb6c1163fbf6deee3c902eb907a534ce630633d9d57826fcd0",
+                "materialized_utf8_bytes": 2008,
+                "data_present": true,
+                "data_source_map_url_pos": 1326,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;AACA;IAAA;IAIA,CAAC;IAHC,oBAAK,GAAL;QACE,OAAO,MAAM,CAAC;IAChB,CAAC;IACH,WAAC;AAAD,CAAC,AAJD,IAIC;AACD;IAAsB,2BAAI;IAExB;QACE,YAAA,MAAK,WAAE,SAAC;QAFV,WAAK,GAAG,SAAS,CAAC;;IAGlB,CAAC;IACD,uBAAK,GAAL;QACE,OAAO,IAAI,CAAC,KAAK,GAAG,gBAAK,CAAC,KAAK,WAAE,CAAC;IACpC,CAAC;IACH,cAAC;AAAD,CAAC,AARD,CAAsB,IAAI,GAQzB;AACD,IAAI,CAAC,IAAI,OAAO,EAAE,CAAC,KAAK,EAAE,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "de1f194c9fde853021f62630e1d91bb77e3af157ccdadf385121c644c93b8a31"
+          },
+          "case_fingerprint_sha256": "7ee1545ab5ecac31f1e9fe2e55d49e3848e6fb4fdefe24d214455bc92c6fd2ab"
+        },
+        {
+          "case_id": "inline-map--adjacent-negative-external-plain",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "the identical program in the external H2.6a lane: map-then-js writes, basename URL",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "callback_utf8_bytes": 283,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "materialized_utf8_bytes": 283,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "9b6a7ee7998767658d0b729248198d4018809f2be856143f28e41b4e5f8ee1a2"
+          },
+          "case_fingerprint_sha256": "31dbabe04fe23fed45673b92a5c242283304f38a07ea73d4d77e67b78817fa45"
+        },
+        {
+          "case_id": "inline-map--fault-noemitonerror-inline",
+          "role": "fault",
+          "rust_lane": "parity",
+          "description": "noEmitOnError with a type error under inlineSourceMap: zero writes, emitSkipped, no sourceMaps entries",
+          "option_overrides": {
+            "inlineSourceMap": true,
+            "noEmitOnError": true,
+            "sourceMap": false
+          },
+          "expected_reported_codes": [
+            2322
+          ],
+          "expected_emit_codes": [
+            2322
+          ],
+          "expected_emit_skipped": true,
+          "expected_write_paths": [],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Y29uc3Qgd3Jvbmc6IG51bWJlciA9ICJ0ZXh0IjsKZXhwb3J0IGNvbnN0IGtlZXAgPSB3cm9uZzsK",
+                "utf8_sha256": "5fb0e67d6236655f763b7df8e26ba1e2f7e335fd7fcf7e6fdca78bcd72af5758",
+                "utf8_bytes": 57
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "module": 1,
+              "newLine": 1,
+              "noEmitOnError": true,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 2322,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 6,
+                "length": 5,
+                "message": "Type 'string' is not assignable to type 'number'."
+              }
+            ],
+            "emit_diagnostics": [
+              {
+                "phase": "emit",
+                "code": 2322,
+                "category": "Error",
+                "file": "/project/input.ts",
+                "start": 6,
+                "length": 5,
+                "message": "Type 'string' is not assignable to type 'number'."
+              }
+            ],
+            "emit_skipped": true,
+            "writes": [],
+            "source_maps": null,
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "1e183b59eef5d5118049d83ad4ab933ada3d1a1ce187a6173b0c079182b481b0"
+          },
+          "case_fingerprint_sha256": "3acc90a6f7a0398e910f359104e1e088dae734d800a9fc3f68f0baf61e7cfec7"
+        }
+      ],
+      "family_fingerprint_sha256": "ed19fbd5b93774622c66c6fe0de584d0b029695cb8ff35a31ef1c1b4c5351b4a"
+    },
+    {
+      "family_id": "inline-sources",
+      "description": "inlineSources populates sourcesContent (null-padded by registration index, key after mappings) under BOTH map modes; a registered source with zero mappings still contributes its full text",
+      "cases": [
+        {
+          "case_id": "inline-sources--positive-external-content",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "external map with inlineSources: sourcesContent joins the map JSON",
+          "option_overrides": {
+            "inlineSources": true
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSources": true,
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMiLCJzb3VyY2VzQ29udGVudCI6WyJkZWNsYXJlIGZ1bmN0aW9uIHNpbmsodmFsdWU6IHVua25vd24pOiB2b2lkO1xuY29uc3QgYW5zd2VyID0gNDI7XG5mdW5jdGlvbiBwaWNrKGZsYWc6IGJvb2xlYW4pOiBudW1iZXIge1xuICBpZiAoZmxhZykge1xuICAgIHJldHVybiBhbnN3ZXI7XG4gIH1cbiAgcmV0dXJuIDA7XG59XG5zaW5rKHBpY2sodHJ1ZSkpO1xuIl19",
+                "callback_utf8_sha256": "a8ae7efe68bb0b99ce72f1dd74b484f4a6e615e1eebc5d3aa2fcbf1d8676f53c",
+                "callback_utf8_bytes": 486,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "a8ae7efe68bb0b99ce72f1dd74b484f4a6e615e1eebc5d3aa2fcbf1d8676f53c",
+                "materialized_utf8_bytes": 486,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\",\"sourcesContent\":[\"declare function sink(value: unknown): void;\\nconst answer = 42;\\nfunction pick(flag: boolean): number {\\n  if (flag) {\\n    return answer;\\n  }\\n  return 0;\\n}\\nsink(pick(true));\\n\"]}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "76b55a22246c8cebb193a0ed281ae5a82f6a0634c997db0c47ca4309934e8ff5"
+          },
+          "case_fingerprint_sha256": "a413a0b3e50c73b78e372aaeaf869c1e38345a154880b5b5c5be91dd23df9927"
+        },
+        {
+          "case_id": "inline-sources--positive-inline-content",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "inline map with inlineSources: the data-URI payload carries sourcesContent",
+          "option_overrides": {
+            "inlineSourceMap": true,
+            "inlineSources": true,
+            "sourceMap": false
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "inlineSources": true,
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZGF0YTphcHBsaWNhdGlvbi9qc29uO2Jhc2U2NCxleUoyWlhKemFXOXVJam96TENKbWFXeGxJam9pYVc1d2RYUXVhbk1pTENKemIzVnlZMlZTYjI5MElqb2lJaXdpYzI5MWNtTmxjeUk2V3lKcGJuQjFkQzUwY3lKZExDSnVZVzFsY3lJNlcxMHNJbTFoY0hCcGJtZHpJam9pTzBGQlEwRXNTVUZCVFN4TlFVRk5MRWRCUVVjc1JVRkJSU3hEUVVGRE8wRkJRMnhDTEZOQlFWTXNTVUZCU1N4RFFVRkRMRWxCUVdFN1NVRkRla0lzU1VGQlNTeEpRVUZKTEVWQlFVVXNRMEZCUXp0UlFVTlVMRTlCUVU4c1RVRkJUU3hEUVVGRE8wbEJRMmhDTEVOQlFVTTdTVUZEUkN4UFFVRlBMRU5CUVVNc1EwRkJRenRCUVVOWUxFTkJRVU03UVVGRFJDeEpRVUZKTEVOQlFVTXNTVUZCU1N4RFFVRkRMRWxCUVVrc1EwRkJReXhEUVVGRExFTkJRVU1pTENKemIzVnlZMlZ6UTI5dWRHVnVkQ0k2V3lKa1pXTnNZWEpsSUdaMWJtTjBhVzl1SUhOcGJtc29kbUZzZFdVNklIVnVhMjV2ZDI0cE9pQjJiMmxrTzF4dVkyOXVjM1FnWVc1emQyVnlJRDBnTkRJN1hHNW1kVzVqZEdsdmJpQndhV05yS0dac1lXYzZJR0p2YjJ4bFlXNHBPaUJ1ZFcxaVpYSWdlMXh1SUNCcFppQW9abXhoWnlrZ2UxeHVJQ0FnSUhKbGRIVnliaUJoYm5OM1pYSTdYRzRnSUgxY2JpQWdjbVYwZFhKdUlEQTdYRzU5WEc1emFXNXJLSEJwWTJzb2RISjFaU2twTzF4dUlsMTk=",
+                "callback_utf8_sha256": "ce628fcfa0bee82caec636f19b956061a833e89fda8eacf9ed2cb7824840e95d",
+                "callback_utf8_bytes": 830,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "ce628fcfa0bee82caec636f19b956061a833e89fda8eacf9ed2cb7824840e95d",
+                "materialized_utf8_bytes": 830,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\",\"sourcesContent\":[\"declare function sink(value: unknown): void;\\nconst answer = 42;\\nfunction pick(flag: boolean): number {\\n  if (flag) {\\n    return answer;\\n  }\\n  return 0;\\n}\\nsink(pick(true));\\n\"]}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "195254e6dca68bfb657516455d7f44d1248a20bd9f97e21c6bb14159f136a598"
+          },
+          "case_fingerprint_sha256": "a610486aeb8c09c708c9e1a4091e532dda0bffca523ae5df5803753537761fd4"
+        },
+        {
+          "case_id": "inline-sources--positive-comments-only-content",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "a comments-only source under removeComments with inlineSources: the source registers with ZERO mappings yet sourcesContent carries its full text",
+          "option_overrides": {
+            "inlineSources": true,
+            "removeComments": true
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "Ly8gdGhlIG9ubHkgbGluZQo=",
+                "utf8_sha256": "03cd4ac7b48dd9d8a020d9a32c444a7e17958e37b70d370a2055f8104c74720a",
+                "utf8_bytes": 17
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSources": true,
+              "module": 1,
+              "newLine": 1,
+              "removeComments": true,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiIiwic291cmNlc0NvbnRlbnQiOlsiLy8gdGhlIG9ubHkgbGluZVxuIl19",
+                "callback_utf8_sha256": "580838c149e8f02455d88fc03b62f87aec9de304af0f95b5433597015cd8446b",
+                "callback_utf8_bytes": 135,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "580838c149e8f02455d88fc03b62f87aec9de304af0f95b5433597015cd8446b",
+                "materialized_utf8_bytes": 135,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovLyMgc291cmNlTWFwcGluZ1VSTD1pbnB1dC5qcy5tYXA=",
+                "callback_utf8_sha256": "e873e98e030f702d9e090208ac77c28ffea4c106e13f23323504628bd81f9617",
+                "callback_utf8_bytes": 47,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "e873e98e030f702d9e090208ac77c28ffea4c106e13f23323504628bd81f9617",
+                "materialized_utf8_bytes": 47,
+                "data_present": true,
+                "data_source_map_url_pos": 14,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\"\",\"sourcesContent\":[\"// the only line\\n\"]}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "b83afe19f73f3f7033627607914ce19490f823a75d19bf740c310066f6f964ff"
+          },
+          "case_fingerprint_sha256": "5f020efb43b22bb220da87d5efb8bddcabf1d1f59c4fe87db63164e4a6e6aaac"
+        },
+        {
+          "case_id": "inline-sources--adjacent-negative-no-content",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "the identical program without inlineSources: the sourcesContent key is dropped by JSON.stringify",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "callback_utf8_bytes": 283,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "materialized_utf8_bytes": 283,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "9b6a7ee7998767658d0b729248198d4018809f2be856143f28e41b4e5f8ee1a2"
+          },
+          "case_fingerprint_sha256": "a17b82200bb619d0630fb9d8b9cdffffb50939a1aa1e58a9cff747339b746757"
+        }
+      ],
+      "family_fingerprint_sha256": "8b7e89c1ab5d562dc2ca76d867a0338757640c431a4e379d3a3d8a44cf3a5182"
+    },
+    {
+      "family_id": "source-root-shapes",
+      "description": "sourceRoot value shapes: the map field carries the trailing-slash form verbatim and sources[] relativize against the COMMON SOURCE DIRECTORY instead of the js output directory",
+      "cases": [
+        {
+          "case_id": "source-root-shapes--positive-relative-root",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "relative sourceRoot ('src' -> 'src/') with a nested source under outDir: sources[] become common-directory-relative",
+          "option_overrides": {
+            "outDir": "/project/out",
+            "sourceRoot": "src"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/out/input.js.map",
+            "/project/out/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/src/nested/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/src/nested/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "outDir": "/project/out",
+              "sourceMap": true,
+              "sourceRoot": "src",
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/out/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290Ijoic3JjLyIsInNvdXJjZXMiOlsiaW5wdXQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLElBQU0sTUFBTSxHQUFHLEVBQUUsQ0FBQztBQUNsQixTQUFTLElBQUksQ0FBQyxJQUFhO0lBQ3pCLElBQUksSUFBSSxFQUFFLENBQUM7UUFDVCxPQUFPLE1BQU0sQ0FBQztJQUNoQixDQUFDO0lBQ0QsT0FBTyxDQUFDLENBQUM7QUFDWCxDQUFDO0FBQ0QsSUFBSSxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQyxDQUFDIn0=",
+                "callback_utf8_sha256": "8da727c03cb94decf3855760797781e7af9b9b2706741b25e0e409062916fd56",
+                "callback_utf8_bytes": 287,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "8da727c03cb94decf3855760797781e7af9b9b2706741b25e0e409062916fd56",
+                "materialized_utf8_bytes": 287,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/out/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/src/nested/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"src/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "6927b32b98f7069b096447809721ea2afbe19f0620fe7ba574b57e574ebe363f"
+          },
+          "case_fingerprint_sha256": "cbae04df0bfbd3d5529501e17e6acda1ca8041fc60a6142dd4ccff6910aa5814"
+        },
+        {
+          "case_id": "source-root-shapes--positive-url-root",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "URL sourceRoot passes through with a trailing slash appended",
+          "option_overrides": {
+            "sourceRoot": "https://cdn.example.invalid/app"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "sourceRoot": "https://cdn.example.invalid/app",
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiaHR0cHM6Ly9jZG4uZXhhbXBsZS5pbnZhbGlkL2FwcC8iLCJzb3VyY2VzIjpbImlucHV0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFDQSxJQUFNLE1BQU0sR0FBRyxFQUFFLENBQUM7QUFDbEIsU0FBUyxJQUFJLENBQUMsSUFBYTtJQUN6QixJQUFJLElBQUksRUFBRSxDQUFDO1FBQ1QsT0FBTyxNQUFNLENBQUM7SUFDaEIsQ0FBQztJQUNELE9BQU8sQ0FBQyxDQUFDO0FBQ1gsQ0FBQztBQUNELElBQUksQ0FBQyxJQUFJLENBQUMsSUFBSSxDQUFDLENBQUMsQ0FBQyJ9",
+                "callback_utf8_sha256": "1323404005f015b047f730e2c16c05c42cc257e9cf20b65ef071b6524ce48000",
+                "callback_utf8_bytes": 315,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "1323404005f015b047f730e2c16c05c42cc257e9cf20b65ef071b6524ce48000",
+                "materialized_utf8_bytes": 315,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"https://cdn.example.invalid/app/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "20d9690415861171608a231ee8fee80da9aee4575ffba0744c5d3fb2b01b8789"
+          },
+          "case_fingerprint_sha256": "2dc852789718147e8bbcbfa92b6a98a81aa9746db2028492f4921bc39ef5302a"
+        },
+        {
+          "case_id": "source-root-shapes--positive-absolute-root",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "absolute-path sourceRoot",
+          "option_overrides": {
+            "sourceRoot": "/served/sources"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "sourceRoot": "/served/sources",
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiL3NlcnZlZC9zb3VyY2VzLyIsInNvdXJjZXMiOlsiaW5wdXQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLElBQU0sTUFBTSxHQUFHLEVBQUUsQ0FBQztBQUNsQixTQUFTLElBQUksQ0FBQyxJQUFhO0lBQ3pCLElBQUksSUFBSSxFQUFFLENBQUM7UUFDVCxPQUFPLE1BQU0sQ0FBQztJQUNoQixDQUFDO0lBQ0QsT0FBTyxDQUFDLENBQUM7QUFDWCxDQUFDO0FBQ0QsSUFBSSxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQyxDQUFDIn0=",
+                "callback_utf8_sha256": "999858b099dbf3546e2e6304a14b60d3d53759651ab68f36a614f706071f6f46",
+                "callback_utf8_bytes": 299,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "999858b099dbf3546e2e6304a14b60d3d53759651ab68f36a614f706071f6f46",
+                "materialized_utf8_bytes": 299,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"/served/sources/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "bbc402322d79e094d7f61b9c9d376d6d570db0ead24a207ae9df3d32957a7664"
+          },
+          "case_fingerprint_sha256": "3ef85502986fe27c42c52b584f07a371978c4f7d829c320a8d125e6b863ac8af"
+        },
+        {
+          "case_id": "source-root-shapes--adjacent-negative-empty-root",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "no sourceRoot: the field stays the emitted empty string and sources relativize against the js output directory (the H2.6a lane)",
+          "option_overrides": {
+            "outDir": "/project/out"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/out/input.js.map",
+            "/project/out/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/src/nested/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/src/nested/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "outDir": "/project/out",
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/out/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvbmVzdGVkL2lucHV0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFDQSxJQUFNLE1BQU0sR0FBRyxFQUFFLENBQUM7QUFDbEIsU0FBUyxJQUFJLENBQUMsSUFBYTtJQUN6QixJQUFJLElBQUksRUFBRSxDQUFDO1FBQ1QsT0FBTyxNQUFNLENBQUM7SUFDaEIsQ0FBQztJQUNELE9BQU8sQ0FBQyxDQUFDO0FBQ1gsQ0FBQztBQUNELElBQUksQ0FBQyxJQUFJLENBQUMsSUFBSSxDQUFDLENBQUMsQ0FBQyJ9",
+                "callback_utf8_sha256": "f85b52182e9f6a71aad9e0aff9771044d593d3bbb6f63ad09b46e68ee68262c5",
+                "callback_utf8_bytes": 297,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "f85b52182e9f6a71aad9e0aff9771044d593d3bbb6f63ad09b46e68ee68262c5",
+                "materialized_utf8_bytes": 297,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/out/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/src/nested/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../src/nested/input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "39485d1227f8864a155ce9b1a6d7e3cab91ce62caaadb02dd71d3ce884c2ab29"
+          },
+          "case_fingerprint_sha256": "f6c835a5d315a100bab88d88cd98f77800edbcc55b63b657777e95e5e247290c"
+        },
+        {
+          "case_id": "source-root-shapes--composition-multi-unit-roots",
+          "role": "composition",
+          "rust_lane": "parity",
+          "description": "two importing units under sourceRoot + outDir: per-unit maps, CommonJS wrappers, both units' sources common-directory-relative",
+          "option_overrides": {
+            "outDir": "/project/out",
+            "sourceRoot": "src"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/out/lib/util.js.map",
+            "/project/out/lib/util.js",
+            "/project/out/nested/input.js.map",
+            "/project/out/nested/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [
+            "module-wrapper",
+            "multi-unit"
+          ],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/src/nested/input.ts",
+              "/project/src/lib/util.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/src/nested/input.ts",
+                "root": true,
+                "utf8_base64": "aW1wb3J0IHsgdXRpbCB9IGZyb20gIi4uL2xpYi91dGlsIjsKZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKc2luayh1dGlsKDMpKTsK",
+                "utf8_sha256": "272f0bbcc7ab2fa3b38aa7cebd56d1785413528de3b746245fbbf96cd04e6215",
+                "utf8_bytes": 96
+              },
+              {
+                "path": "/project/src/lib/util.ts",
+                "root": true,
+                "utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHV0aWwodmFsdWU6IG51bWJlcik6IG51bWJlciB7CiAgcmV0dXJuIHZhbHVlICogMjsKfQo=",
+                "utf8_sha256": "a7bc53d0dbd882b827a36b737f9fac0373a3c447edd351295db1fd0e27af5400",
+                "utf8_bytes": 68
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "outDir": "/project/out",
+              "sourceMap": true,
+              "sourceRoot": "src",
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/out/lib/util.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoidXRpbC5qcyIsInNvdXJjZVJvb3QiOiJzcmMvIiwic291cmNlcyI6WyJsaWIvdXRpbC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOztBQUFBLG9CQUVDO0FBRkQsU0FBZ0IsSUFBSSxDQUFDLEtBQWE7SUFDaEMsT0FBTyxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ25CLENBQUMifQ==",
+                "callback_utf8_sha256": "15de15ff268192cb7c5abdeea6c34710e38a463b93f8c4c294ca36624d90c260",
+                "callback_utf8_bytes": 181,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/lib/util.ts"
+                ],
+                "materialized_utf8_sha256": "15de15ff268192cb7c5abdeea6c34710e38a463b93f8c4c294ca36624d90c260",
+                "materialized_utf8_bytes": 181,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/out/lib/util.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnV0aWwgPSB1dGlsOwpmdW5jdGlvbiB1dGlsKHZhbHVlKSB7CiAgICByZXR1cm4gdmFsdWUgKiAyOwp9Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPXV0aWwuanMubWFw",
+                "callback_utf8_sha256": "758efbe62d8fadd6260db9651d143130ba7e5e4c7a2febb556092cb96a11ffa0",
+                "callback_utf8_bytes": 177,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/lib/util.ts"
+                ],
+                "materialized_utf8_sha256": "758efbe62d8fadd6260db9651d143130ba7e5e4c7a2febb556092cb96a11ffa0",
+                "materialized_utf8_bytes": 177,
+                "data_present": true,
+                "data_source_map_url_pos": 145,
+                "data_diagnostics_count": 0
+              },
+              {
+                "index": 2,
+                "path": "/project/out/nested/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290Ijoic3JjLyIsInNvdXJjZXMiOlsibmVzdGVkL2lucHV0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7O0FBQUEsb0NBQW1DO0FBRW5DLElBQUksQ0FBQyxJQUFBLFdBQUksRUFBQyxDQUFDLENBQUMsQ0FBQyxDQUFDIn0=",
+                "callback_utf8_sha256": "e510f408247fd01c2650fe2443b01faaeb21435beefd95b4f9b514b498970ac4",
+                "callback_utf8_bytes": 170,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "e510f408247fd01c2650fe2443b01faaeb21435beefd95b4f9b514b498970ac4",
+                "materialized_utf8_bytes": 170,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 3,
+                "path": "/project/out/nested/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp2YXIgdXRpbF8xID0gcmVxdWlyZSgiLi4vbGliL3V0aWwiKTsKc2luaygoMCwgdXRpbF8xLnV0aWwpKDMpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "fc91893fb7712f6cf3aca45503a00eea52dae74040edaa960eed896c3d655f8d",
+                "callback_utf8_bytes": 174,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "fc91893fb7712f6cf3aca45503a00eea52dae74040edaa960eed896c3d655f8d",
+                "materialized_utf8_bytes": 174,
+                "data_present": true,
+                "data_source_map_url_pos": 141,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/src/lib/util.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"util.js\",\"sourceRoot\":\"src/\",\"sources\":[\"lib/util.ts\"],\"names\":[],\"mappings\":\";;AAAA,oBAEC;AAFD,SAAgB,IAAI,CAAC,KAAa;IAChC,OAAO,KAAK,GAAG,CAAC,CAAC;AACnB,CAAC\"}"
+              },
+              {
+                "input_source_file_names": [
+                  "/project/src/nested/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"src/\",\"sources\":[\"nested/input.ts\"],\"names\":[],\"mappings\":\";;AAAA,oCAAmC;AAEnC,IAAI,CAAC,IAAA,WAAI,EAAC,CAAC,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "58a4d8e99ef5f24eccd68a10b141cb176e41aaeb37f9dc4460a4229a9582e8aa"
+          },
+          "case_fingerprint_sha256": "2cb1e6847190561045a6452c0808db25a7b269e118f43a0dc8014171d0847dd9"
+        }
+      ],
+      "family_fingerprint_sha256": "44f4e2b46ec2532bdfc934d8c1a9ca075aee810e3c049a6fc003fc3797361e93"
+    },
+    {
+      "family_id": "map-root-shapes",
+      "description": "mapRoot changes the URL the consumer follows (rooted = absolute encodeURI'd URL; relative = resolved against the common source directory then relativized FROM the js directory) and the sources relativization base, while the .js.map artifact stays beside the js",
+      "cases": [
+        {
+          "case_id": "map-root-shapes--positive-rooted",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "rooted mapRoot: absolute URL in the comment, map still written beside the js",
+          "option_overrides": {
+            "mapRoot": "/project/maps"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "mapRoot": "/project/maps",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "30ee4154612e9c4693e826c6581772bc9580a1962e6e7f9b1121482c1dec52fb",
+                "callback_utf8_bytes": 286,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "30ee4154612e9c4693e826c6581772bc9580a1962e6e7f9b1121482c1dec52fb",
+                "materialized_utf8_bytes": 286,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9L3Byb2plY3QvbWFwcy9pbnB1dC5qcy5tYXA=",
+                "callback_utf8_sha256": "ed08912b8878b947943d369aa00f7203fae1e937555dc028e91d48fb073ef604",
+                "callback_utf8_bytes": 179,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "ed08912b8878b947943d369aa00f7203fae1e937555dc028e91d48fb073ef604",
+                "materialized_utf8_bytes": 179,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "70ba3e654ed1136ccb10764b2c9acef1d18649ba6b0d40971afae1ba530e481f"
+          },
+          "case_fingerprint_sha256": "c19195d614f16e09cf007d07fef0a9fe513847b3d940250cdc4b999a3e713a76"
+        },
+        {
+          "case_id": "map-root-shapes--positive-relative",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "relative mapRoot with outDir: resolves against the common source directory and the URL climbs from the js output directory",
+          "option_overrides": {
+            "mapRoot": "maps",
+            "outDir": "/project/out"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/out/input.js.map",
+            "/project/out/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/src/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/src/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "mapRoot": "maps",
+              "module": 1,
+              "newLine": 1,
+              "outDir": "/project/out",
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/out/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "30ee4154612e9c4693e826c6581772bc9580a1962e6e7f9b1121482c1dec52fb",
+                "callback_utf8_bytes": 286,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/input.ts"
+                ],
+                "materialized_utf8_sha256": "30ee4154612e9c4693e826c6581772bc9580a1962e6e7f9b1121482c1dec52fb",
+                "materialized_utf8_bytes": 286,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/out/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9Li4vc3JjL21hcHMvaW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "bb04cca0f962ad0249f8c74920803679dc3efae96af31cd134e4285a83ae7557",
+                "callback_utf8_bytes": 177,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/input.ts"
+                ],
+                "materialized_utf8_sha256": "bb04cca0f962ad0249f8c74920803679dc3efae96af31cd134e4285a83ae7557",
+                "materialized_utf8_bytes": 177,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/src/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "ee67cced4c995bea9f6f770413e68e11cc53551423397752eb2f8c722dd6526f"
+          },
+          "case_fingerprint_sha256": "fb0ab21e089ab327205bf4ed911ca909fb1fe9fbbf7f0e32faa22790a1b47b1e"
+        },
+        {
+          "case_id": "map-root-shapes--positive-nested",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "two units in different directories under mapRoot + outDir: the per-file nesting arm (getSourceFilePathInNewDir) gives each unit its own map directory",
+          "option_overrides": {
+            "mapRoot": "/project/maps",
+            "outDir": "/project/out"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/out/lib/util.js.map",
+            "/project/out/lib/util.js",
+            "/project/out/nested/input.js.map",
+            "/project/out/nested/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/src/nested/input.ts",
+              "/project/src/lib/util.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/src/nested/input.ts",
+                "root": true,
+                "utf8_base64": "aW1wb3J0IHsgdXRpbCB9IGZyb20gIi4uL2xpYi91dGlsIjsKZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKc2luayh1dGlsKDMpKTsK",
+                "utf8_sha256": "272f0bbcc7ab2fa3b38aa7cebd56d1785413528de3b746245fbbf96cd04e6215",
+                "utf8_bytes": 96
+              },
+              {
+                "path": "/project/src/lib/util.ts",
+                "root": true,
+                "utf8_base64": "ZXhwb3J0IGZ1bmN0aW9uIHV0aWwodmFsdWU6IG51bWJlcik6IG51bWJlciB7CiAgcmV0dXJuIHZhbHVlICogMjsKfQo=",
+                "utf8_sha256": "a7bc53d0dbd882b827a36b737f9fac0373a3c447edd351295db1fd0e27af5400",
+                "utf8_bytes": 68
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "mapRoot": "/project/maps",
+              "module": 1,
+              "newLine": 1,
+              "outDir": "/project/out",
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/out/lib/util.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoidXRpbC5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbIi4uLy4uL3NyYy9saWIvdXRpbC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOztBQUFBLG9CQUVDO0FBRkQsU0FBZ0IsSUFBSSxDQUFDLEtBQWE7SUFDaEMsT0FBTyxLQUFLLEdBQUcsQ0FBQyxDQUFDO0FBQ25CLENBQUMifQ==",
+                "callback_utf8_sha256": "34668793a5756089aef089938e06887000fa3bb12b250cecc27818f64d410179",
+                "callback_utf8_bytes": 187,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/lib/util.ts"
+                ],
+                "materialized_utf8_sha256": "34668793a5756089aef089938e06887000fa3bb12b250cecc27818f64d410179",
+                "materialized_utf8_bytes": 187,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/out/lib/util.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwpleHBvcnRzLnV0aWwgPSB1dGlsOwpmdW5jdGlvbiB1dGlsKHZhbHVlKSB7CiAgICByZXR1cm4gdmFsdWUgKiAyOwp9Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPS9wcm9qZWN0L21hcHMvbGliL3V0aWwuanMubWFw",
+                "callback_utf8_sha256": "24c2896d16d81c873a3d61324061e62e2900a3417561b660e4dcb667b446e6a7",
+                "callback_utf8_bytes": 195,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/lib/util.ts"
+                ],
+                "materialized_utf8_sha256": "24c2896d16d81c873a3d61324061e62e2900a3417561b660e4dcb667b446e6a7",
+                "materialized_utf8_bytes": 195,
+                "data_present": true,
+                "data_source_map_url_pos": 145,
+                "data_diagnostics_count": 0
+              },
+              {
+                "index": 2,
+                "path": "/project/out/nested/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9zcmMvbmVzdGVkL2lucHV0LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7O0FBQUEsb0NBQW1DO0FBRW5DLElBQUksQ0FBQyxJQUFBLFdBQUksRUFBQyxDQUFDLENBQUMsQ0FBQyxDQUFDIn0=",
+                "callback_utf8_sha256": "1c89f2fa42fb316e7ff6a682e6136411a34cbdea966c3fe9eab70682634e9fd4",
+                "callback_utf8_bytes": 176,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "1c89f2fa42fb316e7ff6a682e6136411a34cbdea966c3fe9eab70682634e9fd4",
+                "materialized_utf8_bytes": 176,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 3,
+                "path": "/project/out/nested/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp2YXIgdXRpbF8xID0gcmVxdWlyZSgiLi4vbGliL3V0aWwiKTsKc2luaygoMCwgdXRpbF8xLnV0aWwpKDMpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9L3Byb2plY3QvbWFwcy9uZXN0ZWQvaW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "43248018b1d7d6f6398262f28d4bb1b20f01416c0c9ab5a6e65e8e9f13b36661",
+                "callback_utf8_bytes": 195,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "43248018b1d7d6f6398262f28d4bb1b20f01416c0c9ab5a6e65e8e9f13b36661",
+                "materialized_utf8_bytes": 195,
+                "data_present": true,
+                "data_source_map_url_pos": 141,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/src/lib/util.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"util.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/lib/util.ts\"],\"names\":[],\"mappings\":\";;AAAA,oBAEC;AAFD,SAAgB,IAAI,CAAC,KAAa;IAChC,OAAO,KAAK,GAAG,CAAC,CAAC;AACnB,CAAC\"}"
+              },
+              {
+                "input_source_file_names": [
+                  "/project/src/nested/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../../src/nested/input.ts\"],\"names\":[],\"mappings\":\";;AAAA,oCAAmC;AAEnC,IAAI,CAAC,IAAA,WAAI,EAAC,CAAC,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "ad1ab58ad3ce891c0c57465f75d776a61842bf58841b1caef7c08e24317452df"
+          },
+          "case_fingerprint_sha256": "6ae8d718318f2bf907b65fd97b85bd899092860ad6bebd721f6c13f2593f27fe"
+        },
+        {
+          "case_id": "map-root-shapes--adjacent-negative-plain",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "no mapRoot: basename URL (the H2.6a lane)",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "callback_utf8_bytes": 283,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "materialized_utf8_bytes": 283,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "9b6a7ee7998767658d0b729248198d4018809f2be856143f28e41b4e5f8ee1a2"
+          },
+          "case_fingerprint_sha256": "e2e4f0103e3eef0c2446d2f309a52241119aa15e673efd79c158e40b428443cb"
+        },
+        {
+          "case_id": "map-root-shapes--composition-lowered-maproot",
+          "role": "composition",
+          "rust_lane": "parity",
+          "description": "ES5 class lowering under a rooted mapRoot",
+          "option_overrides": {
+            "mapRoot": "/project/maps"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [
+            "lowered-class"
+          ],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY2xhc3MgQmFzZSB7CiAgZ3JlZXQoKTogc3RyaW5nIHsKICAgIHJldHVybiAiYmFzZSI7CiAgfQp9CmNsYXNzIERlcml2ZWQgZXh0ZW5kcyBCYXNlIHsKICBsYWJlbCA9ICJkZXJpdmVkIjsKICBjb25zdHJ1Y3RvcigpIHsKICAgIHN1cGVyKCk7CiAgfQogIGdyZWV0KCk6IHN0cmluZyB7CiAgICByZXR1cm4gdGhpcy5sYWJlbCArIHN1cGVyLmdyZWV0KCk7CiAgfQp9CnNpbmsobmV3IERlcml2ZWQoKS5ncmVldCgpKTsK",
+                "utf8_sha256": "8abb64a2062f3ca6ca8671efdf8421e77d2204dcc003deaaaa89ded5051ec50c",
+                "utf8_bytes": 282
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "mapRoot": "/project/maps",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9pbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiOzs7Ozs7Ozs7Ozs7Ozs7O0FBQ0E7SUFBQTtJQUlBLENBQUM7SUFIQyxvQkFBSyxHQUFMO1FBQ0UsT0FBTyxNQUFNLENBQUM7SUFDaEIsQ0FBQztJQUNILFdBQUM7QUFBRCxDQUFDLEFBSkQsSUFJQztBQUNEO0lBQXNCLDJCQUFJO0lBRXhCO1FBQ0UsWUFBQSxNQUFLLFdBQUUsU0FBQztRQUZWLFdBQUssR0FBRyxTQUFTLENBQUM7O0lBR2xCLENBQUM7SUFDRCx1QkFBSyxHQUFMO1FBQ0UsT0FBTyxJQUFJLENBQUMsS0FBSyxHQUFHLGdCQUFLLENBQUMsS0FBSyxXQUFFLENBQUM7SUFDcEMsQ0FBQztJQUNILGNBQUM7QUFBRCxDQUFDLEFBUkQsQ0FBc0IsSUFBSSxHQVF6QjtBQUNELElBQUksQ0FBQyxJQUFJLE9BQU8sRUFBRSxDQUFDLEtBQUssRUFBRSxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "d8dd2a802a819cab33a4a1242d33801290bb73f9dce4a5bbaf712b828955a830",
+                "callback_utf8_bytes": 475,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "d8dd2a802a819cab33a4a1242d33801290bb73f9dce4a5bbaf712b828955a830",
+                "materialized_utf8_bytes": 475,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19leHRlbmRzID0gKHRoaXMgJiYgdGhpcy5fX2V4dGVuZHMpIHx8IChmdW5jdGlvbiAoKSB7CiAgICB2YXIgZXh0ZW5kU3RhdGljcyA9IGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgZXh0ZW5kU3RhdGljcyA9IE9iamVjdC5zZXRQcm90b3R5cGVPZiB8fAogICAgICAgICAgICAoeyBfX3Byb3RvX186IFtdIH0gaW5zdGFuY2VvZiBBcnJheSAmJiBmdW5jdGlvbiAoZCwgYikgeyBkLl9fcHJvdG9fXyA9IGI7IH0pIHx8CiAgICAgICAgICAgIGZ1bmN0aW9uIChkLCBiKSB7IGZvciAodmFyIHAgaW4gYikgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChiLCBwKSkgZFtwXSA9IGJbcF07IH07CiAgICAgICAgcmV0dXJuIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICB9OwogICAgcmV0dXJuIGZ1bmN0aW9uIChkLCBiKSB7CiAgICAgICAgaWYgKHR5cGVvZiBiICE9PSAiZnVuY3Rpb24iICYmIGIgIT09IG51bGwpCiAgICAgICAgICAgIHRocm93IG5ldyBUeXBlRXJyb3IoIkNsYXNzIGV4dGVuZHMgdmFsdWUgIiArIFN0cmluZyhiKSArICIgaXMgbm90IGEgY29uc3RydWN0b3Igb3IgbnVsbCIpOwogICAgICAgIGV4dGVuZFN0YXRpY3MoZCwgYik7CiAgICAgICAgZnVuY3Rpb24gX18oKSB7IHRoaXMuY29uc3RydWN0b3IgPSBkOyB9CiAgICAgICAgZC5wcm90b3R5cGUgPSBiID09PSBudWxsID8gT2JqZWN0LmNyZWF0ZShiKSA6IChfXy5wcm90b3R5cGUgPSBiLnByb3RvdHlwZSwgbmV3IF9fKCkpOwogICAgfTsKfSkoKTsKdmFyIEJhc2UgPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoKSB7CiAgICBmdW5jdGlvbiBCYXNlKCkgewogICAgfQogICAgQmFzZS5wcm90b3R5cGUuZ3JlZXQgPSBmdW5jdGlvbiAoKSB7CiAgICAgICAgcmV0dXJuICJiYXNlIjsKICAgIH07CiAgICByZXR1cm4gQmFzZTsKfSgpKTsKdmFyIERlcml2ZWQgPSAvKiogQGNsYXNzICovIChmdW5jdGlvbiAoX3N1cGVyKSB7CiAgICBfX2V4dGVuZHMoRGVyaXZlZCwgX3N1cGVyKTsKICAgIGZ1bmN0aW9uIERlcml2ZWQoKSB7CiAgICAgICAgdmFyIF90aGlzID0gX3N1cGVyLmNhbGwodGhpcykgfHwgdGhpczsKICAgICAgICBfdGhpcy5sYWJlbCA9ICJkZXJpdmVkIjsKICAgICAgICByZXR1cm4gX3RoaXM7CiAgICB9CiAgICBEZXJpdmVkLnByb3RvdHlwZS5ncmVldCA9IGZ1bmN0aW9uICgpIHsKICAgICAgICByZXR1cm4gdGhpcy5sYWJlbCArIF9zdXBlci5wcm90b3R5cGUuZ3JlZXQuY2FsbCh0aGlzKTsKICAgIH07CiAgICByZXR1cm4gRGVyaXZlZDsKfShCYXNlKSk7CnNpbmsobmV3IERlcml2ZWQoKS5ncmVldCgpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9L3Byb2plY3QvbWFwcy9pbnB1dC5qcy5tYXA=",
+                "callback_utf8_sha256": "2e7aa07d90ab2629a7fe9b0efe4d7a9db8e8d938b24ad5a6f01e849bf2374198",
+                "callback_utf8_bytes": 1373,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "2e7aa07d90ab2629a7fe9b0efe4d7a9db8e8d938b24ad5a6f01e849bf2374198",
+                "materialized_utf8_bytes": 1373,
+                "data_present": true,
+                "data_source_map_url_pos": 1326,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../input.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;AACA;IAAA;IAIA,CAAC;IAHC,oBAAK,GAAL;QACE,OAAO,MAAM,CAAC;IAChB,CAAC;IACH,WAAC;AAAD,CAAC,AAJD,IAIC;AACD;IAAsB,2BAAI;IAExB;QACE,YAAA,MAAK,WAAE,SAAC;QAFV,WAAK,GAAG,SAAS,CAAC;;IAGlB,CAAC;IACD,uBAAK,GAAL;QACE,OAAO,IAAI,CAAC,KAAK,GAAG,gBAAK,CAAC,KAAK,WAAE,CAAC;IACpC,CAAC;IACH,cAAC;AAAD,CAAC,AARD,CAAsB,IAAI,GAQzB;AACD,IAAI,CAAC,IAAI,OAAO,EAAE,CAAC,KAAK,EAAE,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "dde00accfad293358a7657eb714838e08073c65c2c2585593f9a90c5193650ce"
+          },
+          "case_fingerprint_sha256": "715f68d22fa26a92743700be43e27e13a82975492f8cd9ea76ff54fce57488b5"
+        }
+      ],
+      "family_fingerprint_sha256": "8472db7fc6fac19cbb75f33110d27b280b1428b64c1e607ffdf98ab91edc0f0d"
+    },
+    {
+      "family_id": "root-composition",
+      "description": "sourceRoot and mapRoot together: sourceRoot wins the sources-directory selection (common source directory) while mapRoot still owns the URL",
+      "cases": [
+        {
+          "case_id": "root-composition--positive-both-roots",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "both roots on a flat program",
+          "option_overrides": {
+            "mapRoot": "/project/maps",
+            "sourceRoot": "src"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "mapRoot": "/project/maps",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "sourceRoot": "src",
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290Ijoic3JjLyIsInNvdXJjZXMiOlsiaW5wdXQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLElBQU0sTUFBTSxHQUFHLEVBQUUsQ0FBQztBQUNsQixTQUFTLElBQUksQ0FBQyxJQUFhO0lBQ3pCLElBQUksSUFBSSxFQUFFLENBQUM7UUFDVCxPQUFPLE1BQU0sQ0FBQztJQUNoQixDQUFDO0lBQ0QsT0FBTyxDQUFDLENBQUM7QUFDWCxDQUFDO0FBQ0QsSUFBSSxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQyxDQUFDIn0=",
+                "callback_utf8_sha256": "8da727c03cb94decf3855760797781e7af9b9b2706741b25e0e409062916fd56",
+                "callback_utf8_bytes": 287,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "8da727c03cb94decf3855760797781e7af9b9b2706741b25e0e409062916fd56",
+                "materialized_utf8_bytes": 287,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9L3Byb2plY3QvbWFwcy9pbnB1dC5qcy5tYXA=",
+                "callback_utf8_sha256": "ed08912b8878b947943d369aa00f7203fae1e937555dc028e91d48fb073ef604",
+                "callback_utf8_bytes": 179,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "ed08912b8878b947943d369aa00f7203fae1e937555dc028e91d48fb073ef604",
+                "materialized_utf8_bytes": 179,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"src/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "dc6f42b751a23aa3a420e8687256e2f9d6b68ee179251e67407781fdb6f28253"
+          },
+          "case_fingerprint_sha256": "98e363c9035ee9eedad0f766af9fe0b8039ed21a6477c39d086dfe75c046082c"
+        },
+        {
+          "case_id": "root-composition--adjacent-negative-sourceroot-only",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "sourceRoot alone as the adjacent control",
+          "option_overrides": {
+            "sourceRoot": "src"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "sourceRoot": "src",
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290Ijoic3JjLyIsInNvdXJjZXMiOlsiaW5wdXQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLElBQU0sTUFBTSxHQUFHLEVBQUUsQ0FBQztBQUNsQixTQUFTLElBQUksQ0FBQyxJQUFhO0lBQ3pCLElBQUksSUFBSSxFQUFFLENBQUM7UUFDVCxPQUFPLE1BQU0sQ0FBQztJQUNoQixDQUFDO0lBQ0QsT0FBTyxDQUFDLENBQUM7QUFDWCxDQUFDO0FBQ0QsSUFBSSxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQyxDQUFDIn0=",
+                "callback_utf8_sha256": "8da727c03cb94decf3855760797781e7af9b9b2706741b25e0e409062916fd56",
+                "callback_utf8_bytes": 287,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "8da727c03cb94decf3855760797781e7af9b9b2706741b25e0e409062916fd56",
+                "materialized_utf8_bytes": 287,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"src/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "e2c992d896ee33a27bbd2de717ffdeedd87773d337fd078e6221864b75174d8c"
+          },
+          "case_fingerprint_sha256": "0b394714afe2cedfe0c617406af30c490e7a26a111d7070431e1a0adb4c2a7ca"
+        },
+        {
+          "case_id": "root-composition--composition-generators-both-roots",
+          "role": "composition",
+          "rust_lane": "parity",
+          "description": "generator + captured for-of at ES5 under both roots, outDir, and a nested source: the state machine and helper prologue map under the root lanes",
+          "option_overrides": {
+            "downlevelIteration": true,
+            "mapRoot": "/project/maps",
+            "outDir": "/project/out",
+            "sourceRoot": "src"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/out/input.js.map",
+            "/project/out/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [
+            "generators-machine",
+            "helper-prologue",
+            "nested-sources"
+          ],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/src/nested/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/src/nested/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKZGVjbGFyZSBjb25zdCBpdGVtczogbnVtYmVyW107CmZ1bmN0aW9uKiB3YWxrKCkgewogIGZvciAoY29uc3QgZWxlbWVudCBvZiBpdGVtcykgewogICAgc2luaygoKSA9PiBlbGVtZW50KTsKICAgIHlpZWxkIGVsZW1lbnQ7CiAgfQp9CnNpbmsod2Fsayk7Cg==",
+                "utf8_sha256": "a0e58f9938375739f2a40cc72d896a084554889b7ec25158874045dc271f5355",
+                "utf8_bytes": 190
+              }
+            ],
+            "compiler_options": {
+              "downlevelIteration": true,
+              "ignoreDeprecations": "6.0",
+              "mapRoot": "/project/maps",
+              "module": 1,
+              "newLine": 1,
+              "outDir": "/project/out",
+              "sourceMap": true,
+              "sourceRoot": "src",
+              "target": 1
+            }
+          },
+          "markers": [
+            {
+              "token": "__generator",
+              "expectation": "present"
+            }
+          ],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/out/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290Ijoic3JjLyIsInNvdXJjZXMiOlsiaW5wdXQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7O0FBRUEsU0FBVSxJQUFJOzs7Ozs7b0NBQ0QsT0FBTzs7OztnQ0FDaEIsSUFBSSxDQUFDLGNBQU0sT0FBQSxPQUFPLEVBQVAsQ0FBTyxDQUFDLENBQUM7Z0NBQ3BCLHFCQUFNLE9BQU8sRUFBQTs7Z0NBQWIsU0FBYSxDQUFDOzs7Ozs7OztnQkFGTSxVQUFBLFNBQUEsS0FBSyxDQUFBOzs7O2dCQUFoQixPQUFPOzhDQUFQLE9BQU87Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7OztDQUluQjtBQUNELElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQyJ9",
+                "callback_utf8_sha256": "93cd9bb9166a33bddae9a12025dd7ae882ec5ab196663dfd963001a84f1faa56",
+                "callback_utf8_bytes": 378,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "93cd9bb9166a33bddae9a12025dd7ae882ec5ab196663dfd963001a84f1faa56",
+                "materialized_utf8_bytes": 378,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/out/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgX19nZW5lcmF0b3IgPSAodGhpcyAmJiB0aGlzLl9fZ2VuZXJhdG9yKSB8fCBmdW5jdGlvbiAodGhpc0FyZywgYm9keSkgewogICAgdmFyIF8gPSB7IGxhYmVsOiAwLCBzZW50OiBmdW5jdGlvbigpIHsgaWYgKHRbMF0gJiAxKSB0aHJvdyB0WzFdOyByZXR1cm4gdFsxXTsgfSwgdHJ5czogW10sIG9wczogW10gfSwgZiwgeSwgdCwgZyA9IE9iamVjdC5jcmVhdGUoKHR5cGVvZiBJdGVyYXRvciA9PT0gImZ1bmN0aW9uIiA/IEl0ZXJhdG9yIDogT2JqZWN0KS5wcm90b3R5cGUpOwogICAgcmV0dXJuIGcubmV4dCA9IHZlcmIoMCksIGdbInRocm93Il0gPSB2ZXJiKDEpLCBnWyJyZXR1cm4iXSA9IHZlcmIoMiksIHR5cGVvZiBTeW1ib2wgPT09ICJmdW5jdGlvbiIgJiYgKGdbU3ltYm9sLml0ZXJhdG9yXSA9IGZ1bmN0aW9uKCkgeyByZXR1cm4gdGhpczsgfSksIGc7CiAgICBmdW5jdGlvbiB2ZXJiKG4pIHsgcmV0dXJuIGZ1bmN0aW9uICh2KSB7IHJldHVybiBzdGVwKFtuLCB2XSk7IH07IH0KICAgIGZ1bmN0aW9uIHN0ZXAob3ApIHsKICAgICAgICBpZiAoZikgdGhyb3cgbmV3IFR5cGVFcnJvcigiR2VuZXJhdG9yIGlzIGFscmVhZHkgZXhlY3V0aW5nLiIpOwogICAgICAgIHdoaWxlIChnICYmIChnID0gMCwgb3BbMF0gJiYgKF8gPSAwKSksIF8pIHRyeSB7CiAgICAgICAgICAgIGlmIChmID0gMSwgeSAmJiAodCA9IG9wWzBdICYgMiA/IHlbInJldHVybiJdIDogb3BbMF0gPyB5WyJ0aHJvdyJdIHx8ICgodCA9IHlbInJldHVybiJdKSAmJiB0LmNhbGwoeSksIDApIDogeS5uZXh0KSAmJiAhKHQgPSB0LmNhbGwoeSwgb3BbMV0pKS5kb25lKSByZXR1cm4gdDsKICAgICAgICAgICAgaWYgKHkgPSAwLCB0KSBvcCA9IFtvcFswXSAmIDIsIHQudmFsdWVdOwogICAgICAgICAgICBzd2l0Y2ggKG9wWzBdKSB7CiAgICAgICAgICAgICAgICBjYXNlIDA6IGNhc2UgMTogdCA9IG9wOyBicmVhazsKICAgICAgICAgICAgICAgIGNhc2UgNDogXy5sYWJlbCsrOyByZXR1cm4geyB2YWx1ZTogb3BbMV0sIGRvbmU6IGZhbHNlIH07CiAgICAgICAgICAgICAgICBjYXNlIDU6IF8ubGFiZWwrKzsgeSA9IG9wWzFdOyBvcCA9IFswXTsgY29udGludWU7CiAgICAgICAgICAgICAgICBjYXNlIDc6IG9wID0gXy5vcHMucG9wKCk7IF8udHJ5cy5wb3AoKTsgY29udGludWU7CiAgICAgICAgICAgICAgICBkZWZhdWx0OgogICAgICAgICAgICAgICAgICAgIGlmICghKHQgPSBfLnRyeXMsIHQgPSB0Lmxlbmd0aCA+IDAgJiYgdFt0Lmxlbmd0aCAtIDFdKSAmJiAob3BbMF0gPT09IDYgfHwgb3BbMF0gPT09IDIpKSB7IF8gPSAwOyBjb250aW51ZTsgfQogICAgICAgICAgICAgICAgICAgIGlmIChvcFswXSA9PT0gMyAmJiAoIXQgfHwgKG9wWzFdID4gdFswXSAmJiBvcFsxXSA8IHRbM10pKSkgeyBfLmxhYmVsID0gb3BbMV07IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKG9wWzBdID09PSA2ICYmIF8ubGFiZWwgPCB0WzFdKSB7IF8ubGFiZWwgPSB0WzFdOyB0ID0gb3A7IGJyZWFrOyB9CiAgICAgICAgICAgICAgICAgICAgaWYgKHQgJiYgXy5sYWJlbCA8IHRbMl0pIHsgXy5sYWJlbCA9IHRbMl07IF8ub3BzLnB1c2gob3ApOyBicmVhazsgfQogICAgICAgICAgICAgICAgICAgIGlmICh0WzJdKSBfLm9wcy5wb3AoKTsKICAgICAgICAgICAgICAgICAgICBfLnRyeXMucG9wKCk7IGNvbnRpbnVlOwogICAgICAgICAgICB9CiAgICAgICAgICAgIG9wID0gYm9keS5jYWxsKHRoaXNBcmcsIF8pOwogICAgICAgIH0gY2F0Y2ggKGUpIHsgb3AgPSBbNiwgZV07IHkgPSAwOyB9IGZpbmFsbHkgeyBmID0gdCA9IDA7IH0KICAgICAgICBpZiAob3BbMF0gJiA1KSB0aHJvdyBvcFsxXTsgcmV0dXJuIHsgdmFsdWU6IG9wWzBdID8gb3BbMV0gOiB2b2lkIDAsIGRvbmU6IHRydWUgfTsKICAgIH0KfTsKdmFyIF9fdmFsdWVzID0gKHRoaXMgJiYgdGhpcy5fX3ZhbHVlcykgfHwgZnVuY3Rpb24obykgewogICAgdmFyIHMgPSB0eXBlb2YgU3ltYm9sID09PSAiZnVuY3Rpb24iICYmIFN5bWJvbC5pdGVyYXRvciwgbSA9IHMgJiYgb1tzXSwgaSA9IDA7CiAgICBpZiAobSkgcmV0dXJuIG0uY2FsbChvKTsKICAgIGlmIChvICYmIHR5cGVvZiBvLmxlbmd0aCA9PT0gIm51bWJlciIpIHJldHVybiB7CiAgICAgICAgbmV4dDogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBpZiAobyAmJiBpID49IG8ubGVuZ3RoKSBvID0gdm9pZCAwOwogICAgICAgICAgICByZXR1cm4geyB2YWx1ZTogbyAmJiBvW2krK10sIGRvbmU6ICFvIH07CiAgICAgICAgfQogICAgfTsKICAgIHRocm93IG5ldyBUeXBlRXJyb3IocyA/ICJPYmplY3QgaXMgbm90IGl0ZXJhYmxlLiIgOiAiU3ltYm9sLml0ZXJhdG9yIGlzIG5vdCBkZWZpbmVkLiIpOwp9OwpmdW5jdGlvbiB3YWxrKCkgewogICAgdmFyIF9sb29wXzEsIGl0ZW1zXzEsIGl0ZW1zXzFfMSwgZWxlbWVudCwgZV8xXzE7CiAgICB2YXIgZV8xLCBfYTsKICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2IpIHsKICAgICAgICBzd2l0Y2ggKF9iLmxhYmVsKSB7CiAgICAgICAgICAgIGNhc2UgMDoKICAgICAgICAgICAgICAgIF9sb29wXzEgPSBmdW5jdGlvbiAoZWxlbWVudCkgewogICAgICAgICAgICAgICAgICAgIHJldHVybiBfX2dlbmVyYXRvcih0aGlzLCBmdW5jdGlvbiAoX2MpIHsKICAgICAgICAgICAgICAgICAgICAgICAgc3dpdGNoIChfYy5sYWJlbCkgewogICAgICAgICAgICAgICAgICAgICAgICAgICAgY2FzZSAwOgogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHNpbmsoZnVuY3Rpb24gKCkgeyByZXR1cm4gZWxlbWVudDsgfSk7CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgcmV0dXJuIFs0IC8qeWllbGQqLywgZWxlbWVudF07CiAgICAgICAgICAgICAgICAgICAgICAgICAgICBjYXNlIDE6CiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgX2Muc2VudCgpOwogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIHJldHVybiBbMiAvKnJldHVybiovXTsKICAgICAgICAgICAgICAgICAgICAgICAgfQogICAgICAgICAgICAgICAgICAgIH0pOwogICAgICAgICAgICAgICAgfTsKICAgICAgICAgICAgICAgIF9iLmxhYmVsID0gMTsKICAgICAgICAgICAgY2FzZSAxOgogICAgICAgICAgICAgICAgX2IudHJ5cy5wdXNoKFsxLCA2LCA3LCA4XSk7CiAgICAgICAgICAgICAgICBpdGVtc18xID0gX192YWx1ZXMoaXRlbXMpLCBpdGVtc18xXzEgPSBpdGVtc18xLm5leHQoKTsKICAgICAgICAgICAgICAgIF9iLmxhYmVsID0gMjsKICAgICAgICAgICAgY2FzZSAyOgogICAgICAgICAgICAgICAgaWYgKCEhaXRlbXNfMV8xLmRvbmUpIHJldHVybiBbMyAvKmJyZWFrKi8sIDVdOwogICAgICAgICAgICAgICAgZWxlbWVudCA9IGl0ZW1zXzFfMS52YWx1ZTsKICAgICAgICAgICAgICAgIHJldHVybiBbNSAvKnlpZWxkKiovLCBfbG9vcF8xKGVsZW1lbnQpXTsKICAgICAgICAgICAgY2FzZSAzOgogICAgICAgICAgICAgICAgX2Iuc2VudCgpOwogICAgICAgICAgICAgICAgX2IubGFiZWwgPSA0OwogICAgICAgICAgICBjYXNlIDQ6CiAgICAgICAgICAgICAgICBpdGVtc18xXzEgPSBpdGVtc18xLm5leHQoKTsKICAgICAgICAgICAgICAgIHJldHVybiBbMyAvKmJyZWFrKi8sIDJdOwogICAgICAgICAgICBjYXNlIDU6IHJldHVybiBbMyAvKmJyZWFrKi8sIDhdOwogICAgICAgICAgICBjYXNlIDY6CiAgICAgICAgICAgICAgICBlXzFfMSA9IF9iLnNlbnQoKTsKICAgICAgICAgICAgICAgIGVfMSA9IHsgZXJyb3I6IGVfMV8xIH07CiAgICAgICAgICAgICAgICByZXR1cm4gWzMgLypicmVhayovLCA4XTsKICAgICAgICAgICAgY2FzZSA3OgogICAgICAgICAgICAgICAgdHJ5IHsKICAgICAgICAgICAgICAgICAgICBpZiAoaXRlbXNfMV8xICYmICFpdGVtc18xXzEuZG9uZSAmJiAoX2EgPSBpdGVtc18xLnJldHVybikpIF9hLmNhbGwoaXRlbXNfMSk7CiAgICAgICAgICAgICAgICB9CiAgICAgICAgICAgICAgICBmaW5hbGx5IHsgaWYgKGVfMSkgdGhyb3cgZV8xLmVycm9yOyB9CiAgICAgICAgICAgICAgICByZXR1cm4gWzcgLyplbmRmaW5hbGx5Ki9dOwogICAgICAgICAgICBjYXNlIDg6IHJldHVybiBbMiAvKnJldHVybiovXTsKICAgICAgICB9CiAgICB9KTsKfQpzaW5rKHdhbGspOwovLyMgc291cmNlTWFwcGluZ1VSTD0vcHJvamVjdC9tYXBzL2lucHV0LmpzLm1hcA==",
+                "callback_utf8_sha256": "efb803fa55eec4820978145fb330a7d36652e2df2f3fcb41af27d31b5df0c490",
+                "callback_utf8_bytes": 4204,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/src/nested/input.ts"
+                ],
+                "materialized_utf8_sha256": "efb803fa55eec4820978145fb330a7d36652e2df2f3fcb41af27d31b5df0c490",
+                "materialized_utf8_bytes": 4204,
+                "data_present": true,
+                "data_source_map_url_pos": 4157,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/src/nested/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"src/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;AAEA,SAAU,IAAI;;;;;;oCACD,OAAO;;;;gCAChB,IAAI,CAAC,cAAM,OAAA,OAAO,EAAP,CAAO,CAAC,CAAC;gCACpB,qBAAM,OAAO,EAAA;;gCAAb,SAAa,CAAC;;;;;;;;gBAFM,UAAA,SAAA,KAAK,CAAA;;;;gBAAhB,OAAO;8CAAP,OAAO;;;;;;;;;;;;;;;;;;;;;CAInB;AACD,IAAI,CAAC,IAAI,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [
+              {
+                "token": "__generator",
+                "occurrences": 4
+              }
+            ],
+            "observation_fingerprint_sha256": "5619d45bbd69f75de00441a32b60a09317b02b9a39261bfcfcab950b8b6dadb0"
+          },
+          "case_fingerprint_sha256": "7b7f4f8610c7a75715c01b56ab82d927be5694273b28b8fd8efce68d645034ad"
+        }
+      ],
+      "family_fingerprint_sha256": "beaf8f3be564abf0f907283a8bf6c232ebb69cb4c405934598d4e9cc352ab0a6"
+    },
+    {
+      "family_id": "url-placement",
+      "description": "URL comment placement polarities under the inline lane: CRLF vs LF change the emitted bytes but not the payload mappings; a percent-encodable file name affects the external URL (encodeURI) but never the data URI",
+      "cases": [
+        {
+          "case_id": "url-placement--positive-inline-crlf",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "CRLF inline output",
+          "option_overrides": {
+            "inlineSourceMap": true,
+            "newLine": 0,
+            "sourceMap": false
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgbGVmdCA9IDE7CmNvbnN0IHJpZ2h0ID0gMjsKc2luayhsZWZ0ICsgcmlnaHQpOwo=",
+                "utf8_sha256": "1d41185c23386d4c5ca0c0e367daeaa9c0e72eee61e3daf4b5066dbba5b07d13",
+                "utf8_bytes": 98
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "module": 1,
+              "newLine": 0,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KdmFyIGxlZnQgPSAxOw0KdmFyIHJpZ2h0ID0gMjsNCnNpbmsobGVmdCArIHJpZ2h0KTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaWFXNXdkWFF1YW5NaUxDSnpiM1Z5WTJWU2IyOTBJam9pSWl3aWMyOTFjbU5sY3lJNld5SnBibkIxZEM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRMEVzU1VGQlRTeEpRVUZKTEVkQlFVY3NRMEZCUXl4RFFVRkRPMEZCUTJZc1NVRkJUU3hMUVVGTExFZEJRVWNzUTBGQlF5eERRVUZETzBGQlEyaENMRWxCUVVrc1EwRkJReXhKUVVGSkxFZEJRVWNzUzBGQlN5eERRVUZETEVOQlFVTWlmUT09",
+                "callback_utf8_sha256": "729bfb7f84e34a9769bd5ab6f28718054b280df9fa06f0c115b63b55da2d1a05",
+                "callback_utf8_bytes": 381,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "729bfb7f84e34a9769bd5ab6f28718054b280df9fa06f0c115b63b55da2d1a05",
+                "materialized_utf8_bytes": 381,
+                "data_present": true,
+                "data_source_map_url_pos": 67,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,IAAI,GAAG,CAAC,CAAC;AACf,IAAM,KAAK,GAAG,CAAC,CAAC;AAChB,IAAI,CAAC,IAAI,GAAG,KAAK,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "1236366b15c030184cdf7a09807fa61e809dacb7eb1f608ae9f83ba90a32f283"
+          },
+          "case_fingerprint_sha256": "26128e9153917abf8e7ad12509224b04c747f2a377052d458b52e9ffb8fcf82b"
+        },
+        {
+          "case_id": "url-placement--adjacent-negative-inline-lf",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "LF inline output of the same program; the census asserts its payload mappings equal the CRLF case's",
+          "option_overrides": {
+            "inlineSourceMap": true,
+            "sourceMap": false
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgbGVmdCA9IDE7CmNvbnN0IHJpZ2h0ID0gMjsKc2luayhsZWZ0ICsgcmlnaHQpOwo=",
+                "utf8_sha256": "1d41185c23386d4c5ca0c0e367daeaa9c0e72eee61e3daf4b5066dbba5b07d13",
+                "utf8_bytes": 98
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgbGVmdCA9IDE7CnZhciByaWdodCA9IDI7CnNpbmsobGVmdCArIHJpZ2h0KTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZGF0YTphcHBsaWNhdGlvbi9qc29uO2Jhc2U2NCxleUoyWlhKemFXOXVJam96TENKbWFXeGxJam9pYVc1d2RYUXVhbk1pTENKemIzVnlZMlZTYjI5MElqb2lJaXdpYzI5MWNtTmxjeUk2V3lKcGJuQjFkQzUwY3lKZExDSnVZVzFsY3lJNlcxMHNJbTFoY0hCcGJtZHpJam9pTzBGQlEwRXNTVUZCVFN4SlFVRkpMRWRCUVVjc1EwRkJReXhEUVVGRE8wRkJRMllzU1VGQlRTeExRVUZMTEVkQlFVY3NRMEZCUXl4RFFVRkRPMEZCUTJoQ0xFbEJRVWtzUTBGQlF5eEpRVUZKTEVkQlFVY3NTMEZCU3l4RFFVRkRMRU5CUVVNaWZRPT0=",
+                "callback_utf8_sha256": "bd71d2b8d6467da07ba4c5197ee2f3b261177e435bd349dd86ad203fbe0c13da",
+                "callback_utf8_bytes": 377,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "bd71d2b8d6467da07ba4c5197ee2f3b261177e435bd349dd86ad203fbe0c13da",
+                "materialized_utf8_bytes": 377,
+                "data_present": true,
+                "data_source_map_url_pos": 63,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,IAAI,GAAG,CAAC,CAAC;AACf,IAAM,KAAK,GAAG,CAAC,CAAC;AAChB,IAAI,CAAC,IAAI,GAAG,KAAK,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "6d58d79ef3c9b7cd6203e610fe4548212de90898acd192210c6ba7b3add28e44"
+          },
+          "case_fingerprint_sha256": "e38ca03af6e9e41a04ec37fb8e825eac2a83534e7e3c2c6c8a4e5a7450a0c21d"
+        },
+        {
+          "case_id": "url-placement--positive-percent-inline",
+          "role": "positive",
+          "rust_lane": "parity",
+          "description": "a file name needing URL escaping under the inline lane: the data URI is unaffected by encodeURI",
+          "option_overrides": {
+            "inlineSourceMap": true,
+            "sourceMap": false
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input space.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input space.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input space.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input space.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZGF0YTphcHBsaWNhdGlvbi9qc29uO2Jhc2U2NCxleUoyWlhKemFXOXVJam96TENKbWFXeGxJam9pYVc1d2RYUWdjM0JoWTJVdWFuTWlMQ0p6YjNWeVkyVlNiMjkwSWpvaUlpd2ljMjkxY21ObGN5STZXeUpwYm5CMWRDQnpjR0ZqWlM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRMEVzU1VGQlRTeE5RVUZOTEVkQlFVY3NSVUZCUlN4RFFVRkRPMEZCUTJ4Q0xGTkJRVk1zU1VGQlNTeERRVUZETEVsQlFXRTdTVUZEZWtJc1NVRkJTU3hKUVVGSkxFVkJRVVVzUTBGQlF6dFJRVU5VTEU5QlFVOHNUVUZCVFN4RFFVRkRPMGxCUTJoQ0xFTkJRVU03U1VGRFJDeFBRVUZQTEVOQlFVTXNRMEZCUXp0QlFVTllMRU5CUVVNN1FVRkRSQ3hKUVVGSkxFTkJRVU1zU1VGQlNTeERRVUZETEVsQlFVa3NRMEZCUXl4RFFVRkRMRU5CUVVNaWZRPT0=",
+                "callback_utf8_sha256": "b0b8ae4cac8685d67e0a62c738c277cfc93668cdea0541586486dcddc203330a",
+                "callback_utf8_bytes": 578,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input space.ts"
+                ],
+                "materialized_utf8_sha256": "b0b8ae4cac8685d67e0a62c738c277cfc93668cdea0541586486dcddc203330a",
+                "materialized_utf8_bytes": 578,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input space.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input space.js\",\"sourceRoot\":\"\",\"sources\":[\"input space.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "6cffc8afcf7004d8ece6aca5738ec5967eecf14567ae6c8118f822215217ff14"
+          },
+          "case_fingerprint_sha256": "28cfec91cba7b099124ad485627a06ec524f38315b5218f8472b19017768b68d"
+        },
+        {
+          "case_id": "url-placement--adjacent-negative-percent-external",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "the same percent-encodable name in the external lane: the URL comment is encodeURI-escaped while sources[] stays raw",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input space.js.map",
+            "/project/input space.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input space.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input space.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input space.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQgc3BhY2UuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dCBzcGFjZS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "22da3a420aa3eac8c4d4b79a0acb5ebbc23ed42d3be3011ae26cd01ba3ed2098",
+                "callback_utf8_bytes": 295,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input space.ts"
+                ],
+                "materialized_utf8_sha256": "22da3a420aa3eac8c4d4b79a0acb5ebbc23ed42d3be3011ae26cd01ba3ed2098",
+                "materialized_utf8_bytes": 295,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input space.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQlMjBzcGFjZS5qcy5tYXA=",
+                "callback_utf8_sha256": "38b121a5bd52b7adcc7c26407a86facf51c0f462f41e3166f00984ef093eee07",
+                "callback_utf8_bytes": 173,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input space.ts"
+                ],
+                "materialized_utf8_sha256": "38b121a5bd52b7adcc7c26407a86facf51c0f462f41e3166f00984ef093eee07",
+                "materialized_utf8_bytes": 173,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input space.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input space.js\",\"sourceRoot\":\"\",\"sources\":[\"input space.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "52374b834aadbc76adda00c7830c6b12e1320a8e754a6a7a006998212b79e743"
+          },
+          "case_fingerprint_sha256": "ed140879285930c6519f4354f3b06ba43d8ae663e11f59dd3fce060003dc7fc6"
+        }
+      ],
+      "family_fingerprint_sha256": "de6810d86c3b9a8aa932c622d3789fb149269effe3d7bd9989f4fe81c3581ab2"
+    },
+    {
+      "family_id": "sink-fault",
+      "description": "map sink faults through the sanctioned onError route (writeFile helper 16644-16655): the failing path yields TS5033 in emitResult.diagnostics, both writes are still attempted in order, and emitSkipped stays false",
+      "cases": [
+        {
+          "case_id": "sink-fault--fault-map-sink",
+          "role": "fault",
+          "rust_lane": "parity",
+          "description": "the .js.map sink fails: map write attempted first, js write still follows, one TS5033",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_codes": [
+            5033
+          ],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [
+            "/project/input.js.map"
+          ],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [
+              {
+                "phase": "emit",
+                "code": 5033,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Could not write file '/project/input.js.map': W-H2.6B simulated sink failure."
+              }
+            ],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "callback_utf8_bytes": 283,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "materialized_utf8_bytes": 283,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "41dc91e14051ba0141f4b31ba80f9a4419710a5cde05049c860b995d516458c6"
+          },
+          "case_fingerprint_sha256": "e2ace9ef849333febd3a2c0abac28df3387e0f1113bde3f1d3684b27c45e6203"
+        },
+        {
+          "case_id": "sink-fault--fault-js-sink",
+          "role": "fault",
+          "rust_lane": "parity",
+          "description": "the .js sink fails: the map was already written cleanly, one TS5033 for the js path",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_codes": [
+            5033
+          ],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [
+            "/project/input.js"
+          ],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [
+              {
+                "phase": "emit",
+                "code": 5033,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Could not write file '/project/input.js': W-H2.6B simulated sink failure."
+              }
+            ],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "callback_utf8_bytes": 283,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "materialized_utf8_bytes": 283,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "b6961726ab968588235af87d92c83932d9efbfb0d40a9ba7f86f6c7b5cd0879c"
+          },
+          "case_fingerprint_sha256": "00361ee542d4780d458408aed5a7e037b317cc97096205561895328e95ff70d0"
+        },
+        {
+          "case_id": "sink-fault--adjacent-negative-healthy",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "the identical program with a healthy sink",
+          "option_overrides": {},
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJpbnB1dC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiO0FBQ0EsSUFBTSxNQUFNLEdBQUcsRUFBRSxDQUFDO0FBQ2xCLFNBQVMsSUFBSSxDQUFDLElBQWE7SUFDekIsSUFBSSxJQUFJLEVBQUUsQ0FBQztRQUNULE9BQU8sTUFBTSxDQUFDO0lBQ2hCLENBQUM7SUFDRCxPQUFPLENBQUMsQ0FBQztBQUNYLENBQUM7QUFDRCxJQUFJLENBQUMsSUFBSSxDQUFDLElBQUksQ0FBQyxDQUFDLENBQUMifQ==",
+                "callback_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "callback_utf8_bytes": 283,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "4d3318f7b376216cf38092652bf849f52c9a7534f1d1a88eba406c2fe7befee2",
+                "materialized_utf8_bytes": 283,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9aW5wdXQuanMubWFw",
+                "callback_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "callback_utf8_bytes": 165,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "104803862cb2e3f3b40c6ad03941246b8478328ccc28d7d33b6f7833005ee485",
+                "materialized_utf8_bytes": 165,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "9b6a7ee7998767658d0b729248198d4018809f2be856143f28e41b4e5f8ee1a2"
+          },
+          "case_fingerprint_sha256": "8352670d7b3643e433ce96f8a1ed8b4555db17e2df8f9d37167135694a3b83d2"
+        }
+      ],
+      "family_fingerprint_sha256": "eb43c612e6ce116180b3e89c5beed3f8d15b00d100fa9c3d920e160e0e0c4ed0"
+    },
+    {
+      "family_id": "option-conflicts",
+      "description": "the §4.1 option lattice as observed context: TS5053 inlineSourceMap conflicts, TS5051 map-option requirements, TS5069 mapRoot requirement; emit behavior under each conflict is frozen (the inline lane wins the artifact shape when inlineSourceMap is set)",
+      "cases": [
+        {
+          "case_id": "option-conflicts--fault-inline-with-sourcemap",
+          "role": "fault",
+          "rust_lane": "parity",
+          "description": "sourceMap + inlineSourceMap: TS5053; the emitted shape is the inline lane (no map write)",
+          "option_overrides": {
+            "inlineSourceMap": true
+          },
+          "expected_reported_codes": [
+            5053
+          ],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 5053,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Option 'sourceMap' cannot be specified with option 'inlineSourceMap'."
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZGF0YTphcHBsaWNhdGlvbi9qc29uO2Jhc2U2NCxleUoyWlhKemFXOXVJam96TENKbWFXeGxJam9pYVc1d2RYUXVhbk1pTENKemIzVnlZMlZTYjI5MElqb2lJaXdpYzI5MWNtTmxjeUk2V3lKcGJuQjFkQzUwY3lKZExDSnVZVzFsY3lJNlcxMHNJbTFoY0hCcGJtZHpJam9pTzBGQlEwRXNTVUZCVFN4TlFVRk5MRWRCUVVjc1JVRkJSU3hEUVVGRE8wRkJRMnhDTEZOQlFWTXNTVUZCU1N4RFFVRkRMRWxCUVdFN1NVRkRla0lzU1VGQlNTeEpRVUZKTEVWQlFVVXNRMEZCUXp0UlFVTlVMRTlCUVU4c1RVRkJUU3hEUVVGRE8wbEJRMmhDTEVOQlFVTTdTVUZEUkN4UFFVRlBMRU5CUVVNc1EwRkJRenRCUVVOWUxFTkJRVU03UVVGRFJDeEpRVUZKTEVOQlFVTXNTVUZCU1N4RFFVRkRMRWxCUVVrc1EwRkJReXhEUVVGRExFTkJRVU1pZlE9PQ==",
+                "callback_utf8_sha256": "8945b5b4831af8bc293c49f8fc150782a86c6d93086d10cb6c59f139143b0be2",
+                "callback_utf8_bytes": 562,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "8945b5b4831af8bc293c49f8fc150782a86c6d93086d10cb6c59f139143b0be2",
+                "materialized_utf8_bytes": 562,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "5e7b45e17bfb4707ba403ea88aa77f17575a100657198f17b9544189a10dbe2f"
+          },
+          "case_fingerprint_sha256": "d9b7664ccfddf962d0d950aaa543245ee9434f39d7314c0c83641d01afacf8d6"
+        },
+        {
+          "case_id": "option-conflicts--fault-inline-with-maproot",
+          "role": "fault",
+          "rust_lane": "parity",
+          "description": "inlineSourceMap + mapRoot: TS5053; inline shape",
+          "option_overrides": {
+            "inlineSourceMap": true,
+            "mapRoot": "/project/maps",
+            "sourceMap": false
+          },
+          "expected_reported_codes": [
+            5053,
+            5069
+          ],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSourceMap": true,
+              "mapRoot": "/project/maps",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 5053,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Option 'mapRoot' cannot be specified with option 'inlineSourceMap'."
+              },
+              {
+                "phase": "pre-emit",
+                "code": 5069,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9ZGF0YTphcHBsaWNhdGlvbi9qc29uO2Jhc2U2NCxleUoyWlhKemFXOXVJam96TENKbWFXeGxJam9pYVc1d2RYUXVhbk1pTENKemIzVnlZMlZTYjI5MElqb2lJaXdpYzI5MWNtTmxjeUk2V3lJdUxpOXBibkIxZEM1MGN5SmRMQ0p1WVcxbGN5STZXMTBzSW0xaGNIQnBibWR6SWpvaU8wRkJRMEVzU1VGQlRTeE5RVUZOTEVkQlFVY3NSVUZCUlN4RFFVRkRPMEZCUTJ4Q0xGTkJRVk1zU1VGQlNTeERRVUZETEVsQlFXRTdTVUZEZWtJc1NVRkJTU3hKUVVGSkxFVkJRVVVzUTBGQlF6dFJRVU5VTEU5QlFVOHNUVUZCVFN4RFFVRkRPMGxCUTJoQ0xFTkJRVU03U1VGRFJDeFBRVUZQTEVOQlFVTXNRMEZCUXp0QlFVTllMRU5CUVVNN1FVRkRSQ3hKUVVGSkxFTkJRVU1zU1VGQlNTeERRVUZETEVsQlFVa3NRMEZCUXl4RFFVRkRMRU5CUVVNaWZRPT0=",
+                "callback_utf8_sha256": "36ae0e9057a56274512444b6fbb6378fd9ebe961a08610369ac4bc6dc1bed207",
+                "callback_utf8_bytes": 566,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "36ae0e9057a56274512444b6fbb6378fd9ebe961a08610369ac4bc6dc1bed207",
+                "materialized_utf8_bytes": 566,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"\",\"sources\":[\"../input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\"}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "c5b7f33053dff208c16547c3423368da2af2656eb8f130759e9a1aa2cd5c4a5d"
+          },
+          "case_fingerprint_sha256": "437b3f0da13bb7c71f89f19e0f850f9f0b9f9cb4681408f732b66ace3b648ab1"
+        },
+        {
+          "case_id": "option-conflicts--fault-bare-inline-sources",
+          "role": "fault",
+          "rust_lane": "parity",
+          "description": "inlineSources without any map option: TS5051 and an unmapped emit",
+          "option_overrides": {
+            "inlineSources": true,
+            "sourceMap": false
+          },
+          "expected_reported_codes": [
+            5051
+          ],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSources": true,
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 5051,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Option 'inlineSources can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided."
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsK",
+                "callback_utf8_sha256": "43427cf75f2cddb567efa069827cda2f390af38831ce81b8c354ffb83fc99605",
+                "callback_utf8_bytes": 132,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "43427cf75f2cddb567efa069827cda2f390af38831ce81b8c354ffb83fc99605",
+                "materialized_utf8_bytes": 132,
+                "data_present": true,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": null,
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "ff28351b4c6a41f56d0bcf1d41caed1a00ac3209f444d75c9a891561a02b9e2a"
+          },
+          "case_fingerprint_sha256": "893124f702966a83b7966e90e2fe424f59aa7e46c52c3ee879e5acf0e87a1aad"
+        },
+        {
+          "case_id": "option-conflicts--fault-bare-sourceroot",
+          "role": "fault",
+          "rust_lane": "parity",
+          "description": "sourceRoot without any map option: TS5051 and an unmapped emit",
+          "option_overrides": {
+            "sourceMap": false,
+            "sourceRoot": "src"
+          },
+          "expected_reported_codes": [
+            5051
+          ],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "sourceRoot": "src",
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 5051,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Option 'sourceRoot can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided."
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsK",
+                "callback_utf8_sha256": "43427cf75f2cddb567efa069827cda2f390af38831ce81b8c354ffb83fc99605",
+                "callback_utf8_bytes": 132,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "43427cf75f2cddb567efa069827cda2f390af38831ce81b8c354ffb83fc99605",
+                "materialized_utf8_bytes": 132,
+                "data_present": true,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": null,
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "52dc89e272cde0de0ed618bdd8671d6058da81229a6f6aff36c308e0cf8b385c"
+          },
+          "case_fingerprint_sha256": "c68a63569c85582af1b3e4a75a261ffb142a821e22438b9f4c6af06e6d3afe8e"
+        },
+        {
+          "case_id": "option-conflicts--fault-maproot-alone",
+          "role": "fault",
+          "rust_lane": "parity",
+          "description": "mapRoot without sourceMap or declarationMap: TS5069 and an unmapped emit",
+          "option_overrides": {
+            "mapRoot": "/project/maps",
+            "sourceMap": false
+          },
+          "expected_reported_codes": [
+            5069
+          ],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "mapRoot": "/project/maps",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": false,
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [
+              {
+                "phase": "pre-emit",
+                "code": 5069,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+              }
+            ],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsK",
+                "callback_utf8_sha256": "43427cf75f2cddb567efa069827cda2f390af38831ce81b8c354ffb83fc99605",
+                "callback_utf8_bytes": 132,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "43427cf75f2cddb567efa069827cda2f390af38831ce81b8c354ffb83fc99605",
+                "materialized_utf8_bytes": 132,
+                "data_present": true,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": null,
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "3215499d15f335f208413e7ea08d9f690812ec997d9a1c218af36306960ce92d"
+          },
+          "case_fingerprint_sha256": "debce9b81562297bb9d0728a84f1e09f95c7402f19f09c60596f4039dc56df58"
+        },
+        {
+          "case_id": "option-conflicts--adjacent-negative-full-valid-combo",
+          "role": "adjacent-negative-control",
+          "rust_lane": "parity",
+          "description": "sourceMap + sourceRoot + mapRoot + inlineSources all together: the fully valid lattice corner, no diagnostics",
+          "option_overrides": {
+            "inlineSources": true,
+            "mapRoot": "/project/maps",
+            "sourceRoot": "src"
+          },
+          "expected_reported_codes": [],
+          "expected_emit_codes": [],
+          "expected_emit_skipped": false,
+          "expected_write_paths": [
+            "/project/input.js.map",
+            "/project/input.js"
+          ],
+          "fault_sink_paths": [],
+          "composition_facets": [],
+          "input": {
+            "current_directory": "/project",
+            "roots": [
+              "/project/input.ts"
+            ],
+            "files": [
+              {
+                "path": "/project/input.ts",
+                "root": true,
+                "utf8_base64": "ZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDsKY29uc3QgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZzogYm9vbGVhbik6IG51bWJlciB7CiAgaWYgKGZsYWcpIHsKICAgIHJldHVybiBhbnN3ZXI7CiAgfQogIHJldHVybiAwOwp9CnNpbmsocGljayh0cnVlKSk7Cg==",
+                "utf8_sha256": "665825c3dd06992c85edf9c8b4b41254a45546565e00fc3346b446f2cc305e66",
+                "utf8_bytes": 172
+              }
+            ],
+            "compiler_options": {
+              "ignoreDeprecations": "6.0",
+              "inlineSources": true,
+              "mapRoot": "/project/maps",
+              "module": 1,
+              "newLine": 1,
+              "sourceMap": true,
+              "sourceRoot": "src",
+              "target": 1
+            }
+          },
+          "markers": [],
+          "repetitions": 2,
+          "observation": {
+            "reported_diagnostics": [],
+            "emit_diagnostics": [],
+            "emit_skipped": false,
+            "writes": [
+              {
+                "index": 0,
+                "path": "/project/input.js.map",
+                "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiaW5wdXQuanMiLCJzb3VyY2VSb290Ijoic3JjLyIsInNvdXJjZXMiOlsiaW5wdXQudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUNBLElBQU0sTUFBTSxHQUFHLEVBQUUsQ0FBQztBQUNsQixTQUFTLElBQUksQ0FBQyxJQUFhO0lBQ3pCLElBQUksSUFBSSxFQUFFLENBQUM7UUFDVCxPQUFPLE1BQU0sQ0FBQztJQUNoQixDQUFDO0lBQ0QsT0FBTyxDQUFDLENBQUM7QUFDWCxDQUFDO0FBQ0QsSUFBSSxDQUFDLElBQUksQ0FBQyxJQUFJLENBQUMsQ0FBQyxDQUFDIiwic291cmNlc0NvbnRlbnQiOlsiZGVjbGFyZSBmdW5jdGlvbiBzaW5rKHZhbHVlOiB1bmtub3duKTogdm9pZDtcbmNvbnN0IGFuc3dlciA9IDQyO1xuZnVuY3Rpb24gcGljayhmbGFnOiBib29sZWFuKTogbnVtYmVyIHtcbiAgaWYgKGZsYWcpIHtcbiAgICByZXR1cm4gYW5zd2VyO1xuICB9XG4gIHJldHVybiAwO1xufVxuc2luayhwaWNrKHRydWUpKTtcbiJdfQ==",
+                "callback_utf8_sha256": "dcf70dd4ffcb4768f0bfa651409dc30447f5e3d50482d3908466752fa6902dab",
+                "callback_utf8_bytes": 490,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "dcf70dd4ffcb4768f0bfa651409dc30447f5e3d50482d3908466752fa6902dab",
+                "materialized_utf8_bytes": 490,
+                "data_present": false,
+                "data_source_map_url_pos": null,
+                "data_diagnostics_count": null
+              },
+              {
+                "index": 1,
+                "path": "/project/input.js",
+                "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp2YXIgYW5zd2VyID0gNDI7CmZ1bmN0aW9uIHBpY2soZmxhZykgewogICAgaWYgKGZsYWcpIHsKICAgICAgICByZXR1cm4gYW5zd2VyOwogICAgfQogICAgcmV0dXJuIDA7Cn0Kc2luayhwaWNrKHRydWUpKTsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9L3Byb2plY3QvbWFwcy9pbnB1dC5qcy5tYXA=",
+                "callback_utf8_sha256": "ed08912b8878b947943d369aa00f7203fae1e937555dc028e91d48fb073ef604",
+                "callback_utf8_bytes": 179,
+                "write_byte_order_mark": false,
+                "on_error_callback_present": true,
+                "source_files": [
+                  "/project/input.ts"
+                ],
+                "materialized_utf8_sha256": "ed08912b8878b947943d369aa00f7203fae1e937555dc028e91d48fb073ef604",
+                "materialized_utf8_bytes": 179,
+                "data_present": true,
+                "data_source_map_url_pos": 132,
+                "data_diagnostics_count": 0
+              }
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/input.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"input.js\",\"sourceRoot\":\"src/\",\"sources\":[\"input.ts\"],\"names\":[],\"mappings\":\";AACA,IAAM,MAAM,GAAG,EAAE,CAAC;AAClB,SAAS,IAAI,CAAC,IAAa;IACzB,IAAI,IAAI,EAAE,CAAC;QACT,OAAO,MAAM,CAAC;IAChB,CAAC;IACD,OAAO,CAAC,CAAC;AACX,CAAC;AACD,IAAI,CAAC,IAAI,CAAC,IAAI,CAAC,CAAC,CAAC\",\"sourcesContent\":[\"declare function sink(value: unknown): void;\\nconst answer = 42;\\nfunction pick(flag: boolean): number {\\n  if (flag) {\\n    return answer;\\n  }\\n  return 0;\\n}\\nsink(pick(true));\\n\"]}"
+              }
+            ],
+            "emitted_files": null,
+            "marker_occurrences": [],
+            "observation_fingerprint_sha256": "d32f5cede9a997b39c719d0165d6b1053cf75ebb9ee00c6c12602e9f4ce65c33"
+          },
+          "case_fingerprint_sha256": "f60c4ee2837ad62fa76cfa3550e70e2f76ea8a5e349f737908e9b5a668642630"
+        }
+      ],
+      "family_fingerprint_sha256": "69d509c08459d250bb7a2afa23f75711f21c16557fee8f97490dc808efcca479"
+    }
+  ],
+  "summary": {
+    "families": 8,
+    "cases": 34,
+    "positive_cases": 13,
+    "adjacent_negative_controls": 9,
+    "composition_cases": 4,
+    "fault_cases": 8,
+    "parity_cases": 34,
+    "refusal_control_cases": 0,
+    "composition_facets_covered": [
+      "generators-machine",
+      "helper-prologue",
+      "lowered-class",
+      "module-wrapper",
+      "multi-unit",
+      "nested-sources"
+    ],
+    "typescript_oracle_runs": 68,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0
+  },
+  "witnesses_fingerprint_sha256": "a3f494ae1b3ee8aaada1757fad87aaff8f80afa495bf9936d9b7203efce5ac89"
+}

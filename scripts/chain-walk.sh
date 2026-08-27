@@ -153,6 +153,7 @@ ORDER=(
   h2-5h-a-es2015-generators-witnesses
   h2-6a-witnesses
   h2-6a-qualification
+  h2-6b-witnesses
 )
 # Coverage self-check: ORDER must stay in sync with the chain scripts on
 # disk, so the slice that adds or retires an oracle script CANNOT forget to
