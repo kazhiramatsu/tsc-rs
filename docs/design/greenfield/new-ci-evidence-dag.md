@@ -287,3 +287,37 @@ promotion transaction ID, and reason-coded failures.  It never logs secret
 input bytes or treats execution metadata as semantic identity.  The shadow
 report follows the same rule: it records each masked pin span and both
 projection digests so a reviewer can reproduce the incident classification.
+
+## Sequencing amendment (2026-08-27 roadmap review, Codex-validated)
+
+Ratified insertion order for the CI levers relative to the H2 schedule
+(the substrate-first / tsgo-after decision above is unchanged):
+
+1. After the H2.6b closure train and BEFORE H2.6c: one
+   **infrastructure train** carrying gate-tax 6 (workspace-test
+   package+test-TARGET receipts) and the darwin RSS measurement fix
+   (they are file-disjoint). gt6 soundness bar: keys bind transitive
+   sources, proc macros, features, toolchain, linker, environment, and
+   the test inventory; fail-closed; the workspace-wide COMPILE check is
+   never skipped; an uncached lane exists for state-inspecting tests;
+   piloted against representative historical Rust changes before
+   enforcement. Expected recovery ≈20-30 min per local gate across the
+   remaining Rust trains.
+2. gate-tax 7 (per-case conformance receipts) is PREPARED during H2.6c
+   and lands after gt6 only when its pilot demonstrates meaningful
+   reuse — a corpus-local supplement with Merkle aggregate-case
+   coverage, never a replacement for the full conformance gate.
+3. Pre-H2.9 pull-forwards are LIMITED to contract-compatible
+   engineering: substrate tests, receipt client libraries, gt6/gt7, and
+   at most a report-only current-oracle shadow adapter. Trusted
+   promotion, hosted cache authority, the tsgo producer, public API,
+   and LSP work stay post-H2.9 behind the shadow criteria above.
+4. Before ANY trusted-cache promotion of this substrate: reconcile
+   README (custom SHA-256, incomplete blob/GC/remote paths) with
+   STATUS (M3 hardening complete) — the caveat list is the promotion
+   checklist, not historical color.
+5. The standing divergence burn-downs (H2.5h 92-row, H2.6a 45-row
+   manifests) become OWNED queues: every row carries an owner and its
+   earliest eligible slice, with bounded per-train attempts and
+   shrink-only checkpoints — never unowned opportunistic work.
+
