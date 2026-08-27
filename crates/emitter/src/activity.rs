@@ -462,6 +462,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.6b admits
+    /// inline maps/sources, `sourceRoot`, and `mapRoot` through the
+    /// h2-6b-m-1 orchestration lanes (h2-6b-m-2 §3).
+    #[doc(hidden)]
+    pub const fn h2_6b_profile() -> Self {
+        let mut profile = Self::h2_6a_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_6b.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }
