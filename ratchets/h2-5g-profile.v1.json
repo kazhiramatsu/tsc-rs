@@ -17,22 +17,22 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "6589a20a0d4aae806c583c1b6694d5b32e561a1cec819aeb0c96e2eb6155c2ec"
+    "sha256": "a548ffd27063c63ca09dc72e029ea92c68cf61fdf381ced1c2d8854928622085"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "66ef0ea6445ef0766123bc512197f0d80315c1dd6a4de393b86596b68aeb194c"
+    "sha256": "f1cb6ee778e88a372a0950b92da13b9e17fe963428c99b0ebe3c9c6a233cf469"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
     "historical": {
       "profile": {
         "path": "ratchets/h2-5f-profile.v1.json",
-        "sha256": "2b0ee48a0134fdfb53c2cce6ad8fa3519a505b4dd6d4f087d09ce6c5d8c65075"
+        "sha256": "7a6455b0797577bfa95f7098aad2ae6e706725f247a59fbf67594ff98e387443"
       },
       "qualification": {
         "path": "ratchets/h2-5f-qualification.v1.json",
-        "sha256": "8ca9b0faa0af9dc6be4f49dff35e0aeac20aa201e4cca3fdc8853cf8656f52a6"
+        "sha256": "0d2df6d3baa2e268757afee9325343c518e7c06f19b6eec76e07b46ef2ab66ec"
       },
       "owner_controls": {
         "path": "ratchets/h2-5f-owner-controls.v1.json",
@@ -40,11 +40,11 @@
       },
       "profile_generator": {
         "path": "crates/oracle/h2-5f-profile.mjs",
-        "sha256": "c248f94c86f7e8f44df88b47ebaae57c463d9d44358568a0f975f15d89b48a6b"
+        "sha256": "de8683999fffc11ae35dd1602bad478d5e7ad164d5c977675304bd7f920e0b31"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-5f-qualification.mjs",
-        "sha256": "d72eae54c4e5a0a0f1fcda43a5850a7500232cb1bdb11cc95339ae5af8beed25"
+        "sha256": "9810c4f0b4821000b7b4da03d0a7f86c0aaf62dfad175b60157629746bab70b1"
       },
       "owner_controls_generator": {
         "path": "crates/oracle/h2-5f-owner-controls.mjs",
@@ -67,7 +67,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-5g-qualification.v1.json",
-    "sha256": "99282a623518db58a4255ad573866e36b47d09eba21f8a36728ab3cd0dbb2776"
+    "sha256": "af672d872d81bd652e3aa678b527b0c893c41afbfddb065b0cee0c2fbd32a3aa"
   },
   "current_exact_promotions": [
     {
@@ -81,7 +81,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+        "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
       }
     },
     {
@@ -95,7 +95,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+        "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
       }
     },
     {
@@ -109,7 +109,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+        "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
       }
     },
     {
@@ -123,7 +123,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+        "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
       }
     },
     {
@@ -137,7 +137,7 @@
       "exact_writes": 1,
       "historical_qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+        "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
       }
     }
   ],
@@ -248,7 +248,7 @@
     },
     {
       "path": "crates/harness/src/upstream_suites/execution.rs",
-      "sha256": "fb2175087000d873598632cb9462cce77cf15e6f3c595ba755c8a4f26326b679"
+      "sha256": "41b1f979b06abf6f2718c98819a3d1a6aae4ffcd3028a824d284b78e5574c12e"
     },
     {
       "path": "crates/harness/src/upstream_suites/execution/project.rs",
@@ -320,7 +320,7 @@
     },
     {
       "path": "crates/xtask/src/h2_2c_acceptance.rs",
-      "sha256": "d5bff6cfe31a1b1e9ef98f27871f125a66821bb60b44d8250f4e7454c387e40f"
+      "sha256": "b9aa2d0a35835a44deaa9f50d9e41176ba2fa73cf06d7760ee0527bda4c8c2f7"
     },
     {
       "path": "crates/xtask/src/h2_2d_acceptance.rs",
@@ -340,7 +340,7 @@
     },
     {
       "path": "crates/xtask/src/main.rs",
-      "sha256": "582d7ff5a82342380f4350d3dc98b0c63ce877b879e686c7d6231ec3c92e1523"
+      "sha256": "03ec3301aaf42fb2b78c44ad7473d1993cf65c49e29a745822cdb8f117eda632"
     },
     {
       "path": "crates/xtask/tests/unit/h2_1d_acceptance/tests.rs",
@@ -1252,9 +1252,9 @@
   },
   "transition": {
     "completed_slice": "H2.5g",
-    "next_slice": "H2.6b",
-    "next_slice_scope": "inline-maps-sources-roots-and-multi-source-ranges",
-    "next_runtime_activation_slice": "H2.6b",
+    "next_slice": "H2.6c",
+    "next_slice_scope": "broad-source-map-observation-closure",
+    "next_runtime_activation_slice": "H2.6c",
     "active_runtime_slices": [
       "H2.1a",
       "H2.1b",
@@ -1279,9 +1279,10 @@
       "H2.5f",
       "H2.5g",
       "H2.5h",
-      "H2.6a"
+      "H2.6a",
+      "H2.6b"
     ],
-    "inactive_runtime_slice_count": 13,
+    "inactive_runtime_slice_count": 12,
     "classic_jsx_tsx_owner": "complete",
     "automatic_jsx_runtime_owner": "complete",
     "json_output_owner": "complete",
@@ -1309,6 +1310,11 @@
     "h2_6a_exact_cases": 130,
     "h2_6a_known_divergences": 45,
     "h2_6a_source_deferred_cases": 2,
+    "h2_6b_candidate_cases": 6,
+    "h2_6b_admitted_cases": 6,
+    "h2_6b_exact_cases": 4,
+    "h2_6b_known_divergences": 2,
+    "h2_6b_source_deferred_cases": 0,
     "h2_5g_global_future_rows": 2883,
     "h2_5g_source_deferred_cases": 516,
     "deferred_failure_boundary": "typed failure before first sink write"
@@ -1349,7 +1355,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "610f3ec69ce25c15a03b909192d1af648dab8da8553e463a49a37755c049c203"
+      "sha256": "59461c1227270cfbdbb8ead8c574e564c4cd87d63f767033d4a4d2bd616e5dab"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -1357,14 +1363,14 @@
     },
     "historical_h2_5f_profile": {
       "path": "ratchets/h2-5f-profile.v1.json",
-      "sha256": "2b0ee48a0134fdfb53c2cce6ad8fa3519a505b4dd6d4f087d09ce6c5d8c65075"
+      "sha256": "7a6455b0797577bfa95f7098aad2ae6e706725f247a59fbf67594ff98e387443"
     },
     "local_full_gate": "cargo xtask ci --baseline 11f5d0abb93fed4b109bdb1dc552721ceb05e707",
     "hosted_gate": "cargo xtask acceptance",
     "hosted_gate_scope": "fixed-unsplit-ts-tests-only"
   },
   "summary": {
-    "completed_runtime_slices": 23,
+    "completed_runtime_slices": 24,
     "next_slice_runtime_slice_delta": 0,
     "runtime_admissions": 9196,
     "executed_candidates": 9715,
@@ -1374,5 +1380,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "3999738e6123ed9c3984ed715201c3bc1c9c7565854d9400dd7b79c53c184a67"
+  "profile_fingerprint_sha256": "b36fa6d0597e438c8cbb333c200f435a8b27b2285c6b8f296b83b4a4e3295aba"
 }
