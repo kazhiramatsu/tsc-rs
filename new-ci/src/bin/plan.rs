@@ -91,6 +91,7 @@ const LADDER_ORDER: &[&str] = &[
     "h2-5h-a-es2015-generators-witnesses",
     "h2-6a-witnesses",
     "h2-6a-qualification",
+    "h2-6b-witnesses",
 ];
 
 #[derive(Clone, Debug, Default)]

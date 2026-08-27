@@ -149,6 +149,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     schema: ".github/ci/contracts/h2-6a-witnesses.schema.json",
     artifact: "ratchets/h2-6a-witnesses.v1.json",
   }),
+  Object.freeze({
+    label: "H2.6b source-map witnesses",
+    schema: ".github/ci/contracts/h2-6b-witnesses.schema.json",
+    artifact: "ratchets/h2-6b-witnesses.v1.json",
+  }),
 ]);
 
 const JSON_SCHEMA_KEYWORDS = new Set([
