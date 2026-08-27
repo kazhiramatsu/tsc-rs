@@ -3158,6 +3158,361 @@ pub fn run_h2_6a(workspace: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+const H2_6B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-6b-qualification.v1.json";
+const H2_6B_KNOWN_DIVERGENCES_RELATIVE_PATH: &str = "ratchets/h2-6b-known-divergences.v1.json";
+const H2_6B_WRITE_DIVERGENCES_ENV: &str = "TSRS_H2_6B_WRITE_DIVERGENCES";
+
+fn validate_h2_6b_qualification(artifact: &Value) -> Result<&[Value], Box<dyn Error>> {
+    if artifact["schema"] != 1
+        || artifact["status"] != "qualified-typescript-oracle"
+        || artifact["phase"] != "H2.6b-inline-and-roots"
+        || artifact["selection_contract"]["global_h2_6b_rows"] != 11
+        || artifact["selection_contract"]["global_candidate_denominator"] != 6
+        || artifact["selection_contract"]["observed_candidate_denominator"] != 6
+        || artifact["selection_contract"]["project_deferred_candidates"] != 0
+        || artifact["selection_contract"]["future_deferred_rows"] != 5
+        || artifact["summary"]["candidates"] != 6
+        || artifact["summary"]["observed_candidates"] != 6
+        || artifact["summary"]["compiler_candidates"] != 6
+        || artifact["summary"]["conformance_candidates"] != 0
+        || artifact["summary"]["recorded_compiler_plan_cases"] != 6
+        || artifact["summary"]["qualified_vfs_cases"] != 0
+        || artifact["summary"]["admitted_cases"] != 6
+        || artifact["summary"]["deferred_cases"] != 0
+        || artifact["summary"]["project_candidates"] != 0
+    {
+        return Err(failure(
+            "H2.6b qualification artifact contract differs from the ca-2 wiring",
+        ));
+    }
+    let cases = artifact["cases"]
+        .as_array()
+        .ok_or_else(|| failure("H2.6b qualification cases are not an array"))?;
+    if cases.len() != 6 {
+        return Err(failure(format!(
+            "H2.6b qualification case count changed: {}",
+            cases.len()
+        )));
+    }
+    Ok(cases)
+}
+
+/// The 6b prepare uses the complete map-family floor so the inline and root
+/// settings in each frozen row reach the production compiler options.
+fn prepare_h2_6b_case(
+    workspace: &Path,
+    case: &Value,
+    inputs: &H2_5gExecutionInputs,
+) -> Result<tsc_program::PreparedProgram, Box<dyn Error>> {
+    match string(case, "execution_route")? {
+        "qualified-vfs" => case_input_with_floor(workspace, case, EmitOptionFloor::MapFamily),
+        "recorded-compiler-plan" => {
+            let case_id = string(case, "case_id")?;
+            let recorded = inputs
+                .compiler_cases
+                .get(case_id)
+                .ok_or_else(|| failure(format!("{case_id}: recorded compiler plan is absent")))?;
+            if case["suite"] != "compiler"
+                || case["expansion_case"].as_u64() != Some(u64::from(recorded.expansion_case))
+            {
+                return Err(failure(format!(
+                    "{case_id}: recorded compiler-plan provenance differs"
+                )));
+            }
+            Ok(load_compiler_emit_with_option_floor(
+                workspace,
+                &recorded.plan,
+                limits(),
+                EmitOptionFloor::MapFamily,
+            )?)
+        }
+        route => Err(failure(format!(
+            "{}: unexpected H2.6b execution route {route}",
+            string(case, "case_id")?,
+        ))),
+    }
+}
+
+fn execute_h2_6b_case(
+    workspace: &Path,
+    case: &Value,
+    inputs: &H2_5gExecutionInputs,
+) -> Result<H2_5hCaseOutcome, Box<dyn Error>> {
+    let case_id = string(case, "case_id")?.to_owned();
+    match string(case, "disposition")? {
+        "admitted-for-execution" => {}
+        "deferred-to-slices" => {
+            return Ok(H2_5hCaseOutcome {
+                case_id,
+                deferred: true,
+                divergence: H2_5hDivergence::default(),
+            });
+        }
+        other => {
+            return Err(failure(format!(
+                "{case_id}: unexpected H2.6b disposition {other}"
+            )));
+        }
+    }
+    let expected = compact_typescript_observation(case)?;
+    match string(case, "execution_route")? {
+        "recorded-compiler-plan" | "qualified-vfs" => {}
+        "project-mount" => {
+            return Err(failure(format!(
+                "{case_id}: the H2.6b band carries no project rows (ca-1 census guard)"
+            )));
+        }
+        other => {
+            return Err(failure(format!(
+                "{case_id}: unexpected H2.6b execution route {other}"
+            )));
+        }
+    }
+    let first_program = prepare_h2_6b_case(workspace, case, inputs)?;
+    let second_program = first_program.clone();
+    let first_session = ProgramSession::new(first_program);
+    let harness_lib_bundle = first_session.prepare_harness_lib_bundle()?;
+    let mut first_sink = MemoryOutputSink::new();
+    let (first, first_reported) = match first_session
+        .emit_with_reported_diagnostics_for_harness_with_lib_bundle(
+            &mut first_sink,
+            harness_lib_bundle.as_ref(),
+        ) {
+        Ok(result) => result,
+        Err(error) => {
+            let message = error.to_string();
+            if message.contains("unsupported emit compiler option") {
+                return Ok(H2_5hCaseOutcome {
+                    case_id,
+                    deferred: false,
+                    divergence: H2_5hDivergence {
+                        emit_refused: true,
+                        ..H2_5hDivergence::default()
+                    },
+                });
+            }
+            return Err(failure(format!(
+                "{case_id}: first Rust emit failed: {message}"
+            )));
+        }
+    };
+    let mut second_sink = MemoryOutputSink::new();
+    let (second, second_reported) = ProgramSession::new(second_program)
+        .emit_with_reported_diagnostics_for_harness_with_lib_bundle(
+            &mut second_sink,
+            harness_lib_bundle.as_ref(),
+        )
+        .map_err(|error| failure(format!("{case_id}: second Rust emit failed: {error}")))?;
+    if first != second || first_sink != second_sink || first_reported != second_reported {
+        return Err(failure(format!(
+            "{case_id}: repeated Rust emit is not deterministic"
+        )));
+    }
+    // The unadmitted-runtime-slice guard with the H2.1a..H2.6b ladder.
+    let activity = first.h2_activity();
+    for slice in H2RuntimeSlice::ALL {
+        if !matches!(
+            slice,
+            H2RuntimeSlice::H2_1a
+                | H2RuntimeSlice::H2_1b
+                | H2RuntimeSlice::H2_1c
+                | H2RuntimeSlice::H2_1d
+                | H2RuntimeSlice::H2_1e
+                | H2RuntimeSlice::H2_2a
+                | H2RuntimeSlice::H2_2b
+                | H2RuntimeSlice::H2_2c
+                | H2RuntimeSlice::H2_2d
+                | H2RuntimeSlice::H2_3a
+                | H2RuntimeSlice::H2_3b
+                | H2RuntimeSlice::H2_3c
+                | H2RuntimeSlice::H2_3d
+                | H2RuntimeSlice::H2_4a
+                | H2RuntimeSlice::H2_4b
+                | H2RuntimeSlice::H2_5a
+                | H2RuntimeSlice::H2_5b
+                | H2RuntimeSlice::H2_5c
+                | H2RuntimeSlice::H2_5d
+                | H2RuntimeSlice::H2_5e
+                | H2RuntimeSlice::H2_5f
+                | H2RuntimeSlice::H2_5g
+                | H2RuntimeSlice::H2_5h
+                | H2RuntimeSlice::H2_6a
+                | H2RuntimeSlice::H2_6b
+        ) && activity.runtime_slice(slice) != 0
+        {
+            return Err(failure(format!(
+                "{case_id}: unadmitted {} activity",
+                slice.name()
+            )));
+        }
+    }
+    let expected_writes = array(expected, "writes")?;
+    let writes_diverging = count_diverging_writes_with_data(expected_writes, &first_sink);
+    let expected_reported = array(expected, "reported_diagnostics")?;
+    let diagnostics_diverging = !reported_diagnostics_match(expected_reported, &first_reported);
+    let actual_exit_code = if first.emit_skipped() && !first_reported.is_empty() {
+        1
+    } else if !first_reported.is_empty() {
+        2
+    } else {
+        0
+    };
+    let expected_emit_diagnostics = expected["emit_result"]["diagnostics"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    let emit_result_diverging = first.emit_skipped()
+        != expected["emit_result"]["emit_skipped"]
+            .as_bool()
+            .unwrap_or(true)
+        || !reported_diagnostics_match(expected_emit_diagnostics, first.diagnostics())
+        || !emitted_files_match(
+            &expected["emit_result"]["emitted_files"],
+            first.emitted_files(),
+        )
+        || !source_maps_match(&expected["emit_result"]["source_maps"], first.source_maps())
+        || !array(expected, "status_writes")?.is_empty()
+        || expected["exit_code"].as_i64() != Some(actual_exit_code);
+    Ok(H2_5hCaseOutcome {
+        case_id,
+        deferred: false,
+        divergence: H2_5hDivergence {
+            writes_diverging,
+            diagnostics_diverging,
+            emit_result_diverging,
+            emit_refused: false,
+        },
+    })
+}
+
+fn load_h2_6b_divergence_manifest(
+    workspace: &Path,
+) -> Result<HashMap<String, H2_5hDivergence>, Box<dyn Error>> {
+    let path = workspace.join(H2_6B_KNOWN_DIVERGENCES_RELATIVE_PATH);
+    // The expected steady state is an ABSENT manifest. A file is valid only
+    // after a first sweep proved at least one diverging row.
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+    let manifest: Value = serde_json::from_slice(&fs::read(path)?)?;
+    if manifest["schema"] != 1 {
+        return Err(failure("H2.6b divergence manifest schema differs"));
+    }
+    let entries = array(&manifest, "cases")?;
+    if entries.is_empty() {
+        return Err(failure(
+            "H2.6b divergence manifest must be absent when it is empty",
+        ));
+    }
+    let mut listed = HashMap::new();
+    for entry in entries {
+        let case_id = string(entry, "case_id")?.to_owned();
+        let owner = string(entry, "owner")?;
+        if !owner.starts_with("h2-6b-") {
+            return Err(failure(format!(
+                "H2.6b divergence manifest entry {case_id} carries an un-named owner {owner}"
+            )));
+        }
+        let divergence = H2_5hDivergence {
+            writes_diverging: entry["writes_diverging"].as_u64().unwrap_or(0),
+            diagnostics_diverging: entry["diagnostics_diverging"].as_bool().unwrap_or(false),
+            emit_result_diverging: entry["emit_result_diverging"].as_bool().unwrap_or(false),
+            emit_refused: entry["emit_refused"].as_bool().unwrap_or(false),
+        };
+        if divergence.is_exact() {
+            return Err(failure(format!(
+                "H2.6b divergence manifest entry {case_id} lists no divergence facet"
+            )));
+        }
+        if listed.insert(case_id.clone(), divergence).is_some() {
+            return Err(failure(format!(
+                "H2.6b divergence manifest duplicates {case_id}"
+            )));
+        }
+    }
+    Ok(listed)
+}
+
+fn write_h2_6b_divergence_manifest(
+    workspace: &Path,
+    diverging: &[(String, H2_5hDivergence)],
+) -> Result<(), Box<dyn Error>> {
+    let cases = diverging
+        .iter()
+        .map(|(case_id, divergence)| {
+            serde_json::json!({
+                "case_id": case_id,
+                "owner": "h2-6b-ca-2-option-conflict-diagnostics",
+                "writes_diverging": divergence.writes_diverging,
+                "diagnostics_diverging": divergence.diagnostics_diverging,
+                "emit_result_diverging": divergence.emit_result_diverging,
+                "emit_refused": divergence.emit_refused,
+            })
+        })
+        .collect::<Vec<_>>();
+    let body = serde_json::json!({ "schema": 1, "cases": cases });
+    let rendered = format!("{}\n", serde_json::to_string_pretty(&body)?);
+    fs::write(
+        workspace.join(H2_6B_KNOWN_DIVERGENCES_RELATIVE_PATH),
+        rendered,
+    )?;
+    println!(
+        "H2.6b divergence manifest written: {} entries (owner h2-6b-ca-2-option-conflict-diagnostics)",
+        diverging.len()
+    );
+    Ok(())
+}
+
+pub fn run_h2_6b(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_6B_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let cases = validate_h2_6b_qualification(&artifact)?;
+    let write_manifest = std::env::var_os(H2_6B_WRITE_DIVERGENCES_ENV).is_some();
+    let listed = if write_manifest {
+        HashMap::new()
+    } else {
+        load_h2_6b_divergence_manifest(workspace)?
+    };
+    let inputs = H2_5gExecutionInputs::load(workspace)?;
+    let worker_count = h2_5g_worker_count()?.min(cases.len());
+    println!(
+        "H2.6b ordered acceptance pipeline: cases={} workers={worker_count}",
+        cases.len()
+    );
+    let results = crate::bounded_pipeline::ordered_map(cases, worker_count, |index, case| {
+        execute_h2_6b_case(workspace, case, &inputs)
+            .map_err(|error| format!("H2.6b case index {index}: {error}"))
+    })?;
+    let (exact, deferred, mut diverging) =
+        h2_slice_ratchet_join("H2.6b", results, &listed, write_manifest)?;
+    if write_manifest {
+        if diverging.is_empty() {
+            println!("H2.6b first sweep proved zero diverging rows: no manifest is created");
+        } else {
+            diverging.sort_by(|left, right| left.0.cmp(&right.0));
+            write_h2_6b_divergence_manifest(workspace, &diverging)?;
+        }
+    } else if diverging.len() != listed.len() {
+        return Err(failure(format!(
+            "H2.6b divergence-manifest coverage differs: observed {} listed {}",
+            diverging.len(),
+            listed.len()
+        )));
+    }
+    if exact + diverging.len() as u64 != 6 || deferred != 0 {
+        return Err(failure(format!(
+            "H2.6b execution totals differ: exact={exact} known_diverging={} deferred={deferred}",
+            diverging.len()
+        )));
+    }
+    println!(
+        "H2.6b emit acceptance: candidates=6 exact={exact} known_diverging={} deferred={deferred} repetitions=2",
+        diverging.len()
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/h2_2c_acceptance/tests.rs"]
 mod tests;
