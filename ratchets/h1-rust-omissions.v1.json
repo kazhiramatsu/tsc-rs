@@ -42,8 +42,8 @@
     "file_count": 269,
     "rust_source_files": 248,
     "cargo_manifests": 21,
-    "bytes": 17464035,
-    "tree_sha256": "0fe3e3dcbd6bb43477bc9728132e775720de7cbf75249bd61b62190d34e7cb0b"
+    "bytes": 17476533,
+    "tree_sha256": "f4f4a257ea01265912aecffa0278ec280147a11f43f1419b4a6d16b7372a91b5"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -487,7 +487,7 @@
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "e24b839972ed2f7aa461f4c5cd95e135cf3ed8328022e2f1efa73568803c87be"
+        "file_sha256": "7fc49b2fa1c2f43423e7889a81487d5ed9f0681a39c05f44383386e0ab7a2f51"
       },
       {
         "id": "emitter-position-domains",
@@ -501,11 +501,11 @@
       {
         "id": "emitter-source-map-recorder",
         "path": "crates/emitter/src/source_map.rs",
-        "line": 441,
+        "line": 445,
         "column": 1,
         "text": "pub struct SourceMapRecording {",
         "text_sha256": "8613594a9379a1270da4e2ebbc614e8ac71571dad079e770f2b32e9e03e3ff91",
-        "file_sha256": "763f3f83a8e36d79eab31cbb84c340b4f35f2b9cfaa33525586030c4e21da772"
+        "file_sha256": "19f4e41afad886eba932028d3488a6cdd63a2e49f65267207cd8368f79c17717"
       },
       {
         "id": "emitter-resolver-protocol",
@@ -559,7 +559,7 @@
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "e24b839972ed2f7aa461f4c5cd95e135cf3ed8328022e2f1efa73568803c87be"
+        "file_sha256": "7fc49b2fa1c2f43423e7889a81487d5ed9f0681a39c05f44383386e0ab7a2f51"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -676,7 +676,7 @@
         "column": 1,
         "text": "pub fn emit_files(",
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "b1381283e5a6c766d78ac1474370519dfe1937c16d027138056514119065ba99"
+        "file_sha256": "f98a20e34c72fcab40968c25ace10cbb2ff7b88df7ba614af277125852c34d52"
       },
       {
         "id": "checker-live-emit-callback",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "ea8b13d50ef817cbd0780a9866eee20ecb5cbcfc53d25181fb1dace910774e1e"
+  "inventory_fingerprint_sha256": "e4322938ef0361a445e20674eb0eaf9d71ce69536342124d7279688969c6002f"
 }
