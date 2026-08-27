@@ -151,6 +151,16 @@ current H2 implementation maps.
   minutes into the gate; repair with `pin-audit.py --fix` + the affected
   harness integration tests, and classify newly discovered pin-holding
   files in the script's AUDITED/EXEMPT lists (it refuses until you do).
+  **Red-suite-first (gate-tax 5): when a Rust fix answers a red suite,
+  run that failing band/fixture on the fixed binary BEFORE walking —
+  set `PRE_SUITE="<command>"` and the driver runs it in preflight;
+  never converge unvalidated bytes.** The driver also reports ALL stale
+  pin surfaces at once in preflight and at the tail
+  (`scripts/walk-preflight.py`: harness, policy, schema-const, fuzz
+  manifests, pin-index), prints the prospective stale-cone plan, and
+  enforces zero 5g re-observation on pin-only cascades via the check
+  outcome record (`WALK_EXPECT_OBS` / `TSRS_H2_5G_FRESH` are the
+  recorded escapes).
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
   (from the repository root, using the trusted base recorded in the PR). Its
   full-corpus B2 producer reuses an existing exact-fingerprint artifact

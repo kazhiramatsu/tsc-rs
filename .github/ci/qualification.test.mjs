@@ -2,6 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
 
+// gate-tax 5 unit battery (pin grammar / normalizer / index / repin /
+// receipt terms): importing registers its node:test cases here, so the
+// walk tail and the gate structural preflight both run them.
+import "./gate-tax-5.test.mjs";
+
 import {
   ARTIFACT_SCHEMA_CONTRACTS,
   classifyPaths,

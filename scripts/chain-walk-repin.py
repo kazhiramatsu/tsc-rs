@@ -1,85 +1,120 @@
 #!/usr/bin/env python3
 """Refresh stale artifact-hash pins inside an oracle script.
-Patterns: ["key", "path", "hash"] triples and "path":\n  "hash" map entries.
-Only replaces when the path exists and its current sha256 differs."""
-import hashlib, re, sys
+The five pin grammars live in scripts/pin-grammar.py (gate-tax 5 single
+source; the extraction is behavior-preserving vs the pre-gt5 inline
+patterns). Only replaces when the path exists and its current sha256
+differs. Writes are same-directory temp+rename (atomic)."""
+import hashlib
+import importlib.util
+import json
+import os
+import pathlib
+import sys
+
+_spec = importlib.util.spec_from_file_location(
+    "pin_grammar", pathlib.Path(__file__).with_name("pin-grammar.py")
+)
+pin_grammar = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(pin_grammar)
+
+
 def cur(p):
     try:
-        return hashlib.sha256(open(p,'rb').read()).hexdigest()
+        return hashlib.sha256(open(p, "rb").read()).hexdigest()
     except OSError:
         return None
-script=sys.argv[1]
-s=open(script).read()
-changed=[]
-# pattern A: "path", "hash"  (array triple tail or adjacent pair, same or next line)
-patA=re.compile(r'"((?:ratchets|vendor|crates/oracle|\.github)/[^"\n]+)",\s*"([0-9a-f]{64})"')
-def subA(m):
-    path,old=m.group(1),m.group(2)
-    now=cur(path)
-    if now and now!=old:
-        changed.append((path,old[:8],now[:8]))
-        return f'"{path}", "{now}"'
+
+
+def write_atomic(path, contents):
+    temporary = os.path.join(
+        os.path.dirname(path) or ".", f".{os.path.basename(path)}.tmp"
+    )
+    with open(temporary, "w") as handle:
+        handle.write(contents)
+    os.replace(temporary, path)
+
+
+script = sys.argv[1]
+s = open(script).read()
+changed = []
+
+# Pin-index `semantic` entries are grammar-SHAPED constants that are
+# program logic: never masked by the normalizer and never auto-repinned
+# here (gate-tax 5). Absent index (or consumer) = no exclusions — the
+# pre-gt5 grammar-only behavior, which the behavior-preservation test
+# pins byte-identically.
+SEMANTIC = set()
+try:
+    _index = json.load(open(".github/ci/pin-index.v1.json", encoding="utf-8"))
+    _rel = os.path.relpath(script)
+    for _row in _index.get("consumers", {}).get(_rel, {}).get("semantic", []):
+        SEMANTIC.add((_row["path"], _row["grammar"]))
+except (OSError, ValueError):
+    pass
+
+
+# patterns A/B/C: quoted path + adjacent quoted hash forms
+def sub_pair(m, rebuild, grammar):
+    path, old = m.group(1), m.group(m.lastindex)
+    if (path, grammar) in SEMANTIC:
+        return m.group(0)
+    now = cur(path)
+    if now and now != old:
+        changed.append((path, old[:8], now[:8]))
+        return rebuild(m, now)
     return m.group(0)
-s=patA.sub(subA,s)
-# pattern B: "path":\n    "hash"
-patB=re.compile(r'"((?:ratchets|vendor|crates/oracle|\.github)/[^"\n]+)":\s*\n(\s*)"([0-9a-f]{64})"')
-def subB(m):
-    path,indent,old=m.group(1),m.group(2),m.group(3)
-    now=cur(path)
-    if now and now!=old:
-        changed.append((path,old[:8],now[:8]))
-        return f'"{path}":\n{indent}"{now}"'
-    return m.group(0)
-s=patB.sub(subB,s)
-# pattern C: "path": "hash" same-line map
-patC=re.compile(r'"((?:ratchets|vendor|crates/oracle|\.github)/[^"\n]+)": "([0-9a-f]{64})"')
-def subC(m):
-    path,old=m.group(1),m.group(2)
-    now=cur(path)
-    if now and now!=old:
-        changed.append((path,old[:8],now[:8]))
-        return f'"{path}": "{now}"'
-    return m.group(0)
-s=patC.sub(subC,s)
-open(script,'w').write(s)
-for path,old,new in changed:
+
+
+s = pin_grammar.PAT_A.sub(
+    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}", "{now}"', "A"), s
+)
+s = pin_grammar.PAT_B.sub(
+    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}":\n{mm.group(2)}"{now}"', "B"), s
+)
+s = pin_grammar.PAT_C.sub(
+    lambda m: sub_pair(m, lambda mm, now: f'"{mm.group(1)}": "{now}"', "C"), s
+)
+write_atomic(script, s)
+for path, old, new in changed:
     print(f"re-pinned {path}: {old}.. -> {new}..")
 if not changed:
     print("no stale pins found (failure may be a count const or deeper)")
 
 # pattern D: const X_RELATIVE_PATH = "path"; ... const X_SHA256 = "hash";
-s=open(script).read()
-changedD=[]
-pairs=dict(re.findall(r'const (\w+?)_RELATIVE_PATH =\s*\n?\s*"([^"]+)"', s))
-for name, path in pairs.items():
-    now=cur(path)
+s = open(script).read()
+changedD = []
+for name, path in pin_grammar.d_relative_path_pairs(s).items():
+    if (path, "D") in SEMANTIC:
+        continue
+    now = cur(path)
     if not now:
         continue
-    for const_name in (name+'_SHA256', 'EXPECTED_'+name+'_SHA256'):
-        patD=re.compile(r'(const '+re.escape(const_name)+r' =\s*\n?\s*")([0-9a-f]{64})(")')
-        m=patD.search(s)
-        if m and m.group(2)!=now:
-            s=patD.sub(lambda mm: mm.group(1)+now+mm.group(3), s)
-            changedD.append((path,m.group(2)[:8],now[:8]))
+    for const_name in (name + "_SHA256", "EXPECTED_" + name + "_SHA256"):
+        patD = pin_grammar.d_hash_pattern(const_name)
+        m = patD.search(s)
+        if m and m.group(2) != now:
+            s = patD.sub(lambda mm: mm.group(1) + now + mm.group(3), s)
+            changedD.append((path, m.group(2)[:8], now[:8]))
 if changedD:
-    open(script,'w').write(s)
-    for path,old,new in changedD:
+    write_atomic(script, s)
+    for path, old, new in changedD:
         print(f"re-pinned(const) {path}: {old}.. -> {new}..")
 
 # pattern E: computed keys — [PATH_CONST]:\n  "hash" where const PATH_CONST = "path"
-s=open(script).read()
-changedE=[]
-name_to_path=dict(re.findall(r'const (\w+) =\s*\n?\s*"((?:ratchets|vendor|crates|\.github)/[^"\n]+)"', s))
-for name, path in name_to_path.items():
-    now=cur(path)
+s = open(script).read()
+changedE = []
+for name, path in pin_grammar.e_path_constants(s).items():
+    if (path, "E") in SEMANTIC:
+        continue
+    now = cur(path)
     if not now:
         continue
-    patE=re.compile(r'(\['+re.escape(name)+r'\]:\s*\n?\s*")([0-9a-f]{64})(")')
+    patE = pin_grammar.e_hash_pattern(name)
     for m in list(patE.finditer(s)):
-        if m.group(2)!=now:
-            s=patE.sub(lambda mm: mm.group(1)+now+mm.group(3), s)
-            changedE.append((path,m.group(2)[:8],now[:8]))
+        if m.group(2) != now:
+            s = patE.sub(lambda mm: mm.group(1) + now + mm.group(3), s)
+            changedE.append((path, m.group(2)[:8], now[:8]))
 if changedE:
-    open(script,'w').write(s)
-    for path,old,new in changedE:
+    write_atomic(script, s)
+    for path, old, new in changedE:
         print(f"re-pinned(key) {path}: {old}.. -> {new}..")

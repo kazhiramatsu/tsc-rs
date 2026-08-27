@@ -1,0 +1,1717 @@
+{
+  "consumers": {
+    "crates/oracle/compiler-config-diagnostics.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/_tsc.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/compiler-config-plans.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/compiler-module-suffixes.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/compiler-package-redirects.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-active-transform.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/_tsc.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-compiler-classification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h1-emit-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/compiler-config-plans.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-conformance-classification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h1-emit-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-conformance-expansion.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-emit-oracle.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/_tsc.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-fourslash-equivalence.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h1-emit-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/fourslash-emit-projection.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suites-pin.v3.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-owner-inventory.mjs": {
+      "family": "oracle-script",
+      "pins": [],
+      "semantic": [],
+      "unmatched": [
+        {
+          "literal": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
+          "note": "expectedSourceSha256: frozen anchor of the vendored _tsc.js the owner inventory reads (camelCase const, outside the five grammars; vendor bytes are immutable)"
+        }
+      ]
+    },
+    "crates/oracle/h1-printer-foundation.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/_tsc.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-project-classification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h1-emit-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/project-node-modules-search.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h1-transpile-inventory.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h1-emit-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suites-pin.v2.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1a-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-profile-transition.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-runtime-baseline.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-baseline.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-transition.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-profile-transition.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-runtime-baseline.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1a-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [],
+      "semantic": [],
+      "unmatched": [
+        {
+          "literal": "6930d377041d755579e6dbcc1f5551ba84b8ebac29535e4b05e46b386e29b53a",
+          "note": "H2_0A_CANDIDATE_SHA256: frozen historical H2.0a candidate-selection anchor (no _RELATIVE_PATH pair; semantic, never repinned)"
+        }
+      ]
+    },
+    "crates/oracle/h2-1b-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1a-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1a-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1a-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1a-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1a-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1a-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1b-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-1a-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1c-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1b-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1b-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1b-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1b-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1b-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1b-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1c-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-1b-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1d-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1c-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1c-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1c-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1c-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1c-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1c-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1c-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1c-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1c-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1d-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-1c-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1e-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1d-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1d-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1d-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1d-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1d-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1d-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1d-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1d-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1d-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-1e-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-1d-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-2a-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1e-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1e-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-1e-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1e-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1e-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-1e-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1e-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1e-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-1e-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-2a-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-1e-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-2b-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-2a-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-2a-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-2a-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-2a-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-2a-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-2a-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-2b-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-2a-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-2c-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-2b-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-2b-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-2b-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-2b-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-2b-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-2b-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-2c-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-2b-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-2d-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-2c-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-2c-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-2c-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-2c-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-2c-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-2c-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-2d-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-2c-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-3a-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-2d-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-2d-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-2d-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-2d-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-2d-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-2d-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-3a-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-2d-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-3b-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3a-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3a-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3a-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3a-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3a-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3a-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3a-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3a-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3a-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-3b-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-3a-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-3c-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3b-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3b-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3b-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3b-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3b-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3b-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3b-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3b-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3b-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-3c-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-3b-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-3b-qualification.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-candidate-dispositions.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-3d-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3c-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3c-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3c-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3c-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3c-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3c-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3c-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3c-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3c-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-3d-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "E",
+          "path": "ratchets/h2-3c-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "E",
+          "path": "ratchets/h2-3c-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "E",
+          "path": "ratchets/h2-3c-qualification.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "E",
+          "path": "ratchets/h2-candidate-dispositions.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-4a-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3d-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3d-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-3d-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3d-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3d-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-3d-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3d-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3d-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-3d-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-4a-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-3d-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-4b-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-4a-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-4a-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-4a-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-4a-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-4a-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-4a-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-4a-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-4a-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-4a-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-4b-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-1a-qualification.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-4a-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5a-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-4b-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-4b-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-4b-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-4b-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-4b-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-4b-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-4b-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-4b-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-4b-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5a-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-4b-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5b-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5a-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5a-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5a-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5a-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5a-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5a-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5a-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5a-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5a-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5b-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-5a-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5c-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5b-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5b-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5b-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5b-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5b-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5b-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5b-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5b-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5b-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5c-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-5b-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5d-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5c-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5c-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5c-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5c-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5c-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5c-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5c-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5c-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5c-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5d-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-5c-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5e-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5d-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5d-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5d-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5d-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5d-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5d-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5d-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5d-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5d-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5e-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-5d-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5f-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5e-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5e-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5e-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5e-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5e-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5e-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5e-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5e-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5e-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5f-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-5e-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5g-profile.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5f-owner-controls.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5f-profile.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": ".github/ci/contracts/h2-5f-qualification.schema.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5f-owner-controls.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5f-profile.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "crates/oracle/h2-5f-qualification.mjs"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-1a-qualification.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5f-owner-controls.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5f-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-5f-qualification.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-5g-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-5f-profile.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/h2-transition.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "ratchets/h1-emit-oracle.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "ratchets/h1-emit-profile.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "ratchets/h1-emit-qualification.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "ratchets/h1-owner-inventory.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "ratchets/h1-rust-omissions.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "vendor/typescript-6.0.3/compiler-profile-classification.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "vendor/typescript-6.0.3/conformance-profile-classification.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "vendor/typescript-6.0.3/lib/_tsc.js"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "vendor/typescript-6.0.3/project-profile-classification.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "B",
+          "path": "vendor/typescript-6.0.3/transpile-suite-inventory.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
+    "crates/oracle/l1-performance.mjs": {
+      "family": "oracle-script",
+      "pins": [],
+      "semantic": [],
+      "unmatched": [
+        {
+          "literal": "0ca44ef5efb8d7e587db31474eda0cb4127553982730b407169cca5c439182e5",
+          "note": "frozenQualifiedDriverSha256: frozen L1 qualified-driver anchor (camelCase const, outside the five grammars)"
+        }
+      ]
+    },
+    "crates/oracle/project-node-modules-search.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/lib/typescript.js"
+        },
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    }
+  },
+  "grammar_source": "scripts/pin-grammar.py",
+  "kind": "pin-index",
+  "schema": 1,
+  "scope": "crates/oracle/*.mjs"
+}
