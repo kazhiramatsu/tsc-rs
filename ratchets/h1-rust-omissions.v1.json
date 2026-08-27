@@ -39,11 +39,11 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 269,
-    "rust_source_files": 248,
+    "file_count": 270,
+    "rust_source_files": 249,
     "cargo_manifests": 21,
-    "bytes": 17494210,
-    "tree_sha256": "7a9a39a6f9c9e45c8139afa225c9bc2cc0264f6a1954f7598c1d41827337091f"
+    "bytes": 17526328,
+    "tree_sha256": "25e6e87113b2ad2c6fc785598843527cbd3b6ff40d754e49b4b5ae929e6a540c"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "a35a5d4a09db8cf075c712edadfbf72780b1f23032fb51932f261c5294d642bb"
+  "inventory_fingerprint_sha256": "e75ab3d8d10fe91897852581b71e99cb4592d730709f191bfdfdb52620cc2143"
 }
