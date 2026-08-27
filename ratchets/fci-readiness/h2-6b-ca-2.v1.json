@@ -1,0 +1,48 @@
+{
+ "schemaVersion": 1,
+ "packetId": "h2-6b-ca-2",
+ "status": "ready",
+ "trustedBase": "5697c479f45a39d5d8944884744a5f44cd6912e6",
+ "packet": {
+  "path": "docs/design/greenfield/slices/h2-6b-ca-2.md",
+  "sha256": "2c9bb93ffa0827cde45169b020b48ed60bf3a592d49f3f87c8f1ab53e0d2bc61"
+ },
+ "predecessors": [
+  {
+   "packetId": "h2-6b-ca-1",
+   "receiptSha256": "fad401e9cde1f1172c9f804df3884c23ed62156d1acab1709d05f1482cd87f56"
+  }
+ ],
+ "allowedPaths": [
+  "docs/design/greenfield/slices/h2-6b-ca-2.md",
+  "docs/design/greenfield/slices/README.md",
+  "crates/xtask/src/h2_2c_acceptance.rs",
+  "crates/xtask/src/main.rs",
+  "crates/harness/src/upstream_suites/execution.rs",
+  "crates/oracle/h2-5g-profile.mjs",
+  ".github/ci/contracts/h2-5g-profile.schema.json",
+  "crates/oracle/h2-5h-a-foundation.mjs",
+  "crates/oracle/h2-transition.mjs",
+  "ratchets/h2-6b-known-divergences.v1.json",
+  ".github/ci/qualification-policy.v2.json",
+  ".github/ci/qualification.mjs",
+  "ratchets/fci-readiness/h2-6b-ca-2.v1.json",
+  "ratchets/fci-packet-bootstrap.v1.json"
+ ],
+ "forbiddenPrefixes": [
+  "crates/checker",
+  "crates/binder",
+  "crates/syntax",
+  "crates/types",
+  "crates/diags",
+  "crates/conformance",
+  ".github/workflows"
+ ],
+ "proof": {
+  "commands": [
+   "cargo xtask h2-6b-acceptance",
+   "node .github/ci/slice-readiness.mjs --check h2-6b-ca-2"
+  ],
+  "evidencePath": "ratchets/h2-6b-qualification.v1.json"
+ }
+}

@@ -151,7 +151,8 @@ function rustOwnerBoundaryFixture() {
     "h2_2c_acceptance::run_h2_5f(&workspace)?;",
     "h2_2c_acceptance::run_h2_5g(&workspace)?;",
     "h2_2c_acceptance::run_h2_5h(&workspace)?;",
-    "h2_2c_acceptance::run_h2_6a(&workspace)",
+    "h2_2c_acceptance::run_h2_6a(&workspace)?;",
+    "h2_2c_acceptance::run_h2_6b(&workspace)",
   ].map((statement) => `    ${statement}`).join("\n");
   const moduleDeclarations = HOSTED_MODULE_PATHS.map((modulePath) =>
     `mod ${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)};`,
@@ -184,7 +185,7 @@ pub fn run_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
 `
         : "";
       const targetFunctions = modulePath.endsWith("/h2_2c_acceptance.rs")
-        ? ["run_h2_4a", "run_h2_4b", "run_h2_5a", "run_h2_5b", "run_h2_5c", "run_h2_5d", "run_h2_5e", "run_h2_5f", "run_h2_5g", "run_h2_5h", "run_h2_6a"]
+        ? ["run_h2_4a", "run_h2_4b", "run_h2_5a", "run_h2_5b", "run_h2_5c", "run_h2_5d", "run_h2_5e", "run_h2_5f", "run_h2_5g", "run_h2_5h", "run_h2_6a", "run_h2_6b"]
           .map((functionName) => `
 pub fn ${functionName}(workspace: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
@@ -263,6 +264,10 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
       [
         ".github/ci/contracts/h2-6b-witnesses.schema.json",
         "ratchets/h2-6b-witnesses.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-6b-qualification.schema.json",
+        "ratchets/h2-6b-qualification.v1.json",
       ],
     ],
   );

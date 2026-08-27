@@ -80,7 +80,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+            "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
           }
         },
         {
@@ -94,7 +94,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+            "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
           }
         },
         {
@@ -108,7 +108,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+            "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
           }
         },
         {
@@ -122,7 +122,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+            "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
           }
         },
         {
@@ -136,7 +136,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "5858ffbdf455d7403dcba911850c773a31012ecc25fdacf602620aa12c196c53"
+            "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
           }
         }
       ]
@@ -225,9 +225,9 @@
     "transition": {
       "const": {
         "completed_slice": "H2.5g",
-        "next_slice": "H2.6b",
-        "next_slice_scope": "inline-maps-sources-roots-and-multi-source-ranges",
-        "next_runtime_activation_slice": "H2.6b",
+        "next_slice": "H2.6c",
+        "next_slice_scope": "broad-source-map-observation-closure",
+        "next_runtime_activation_slice": "H2.6c",
         "active_runtime_slices": [
           "H2.1a",
           "H2.1b",
@@ -252,9 +252,10 @@
           "H2.5f",
           "H2.5g",
           "H2.5h",
-          "H2.6a"
+          "H2.6a",
+          "H2.6b"
         ],
-        "inactive_runtime_slice_count": 13,
+        "inactive_runtime_slice_count": 12,
         "classic_jsx_tsx_owner": "complete",
         "automatic_jsx_runtime_owner": "complete",
         "json_output_owner": "complete",
@@ -282,6 +283,11 @@
         "h2_6a_exact_cases": 130,
         "h2_6a_known_divergences": 45,
         "h2_6a_source_deferred_cases": 2,
+        "h2_6b_candidate_cases": 6,
+        "h2_6b_admitted_cases": 6,
+        "h2_6b_exact_cases": 4,
+        "h2_6b_known_divergences": 2,
+        "h2_6b_source_deferred_cases": 0,
         "h2_5g_global_future_rows": 2883,
         "h2_5g_source_deferred_cases": 516,
         "deferred_failure_boundary": "typed failure before first sink write"
@@ -377,7 +383,7 @@
     },
     "summary": {
       "const": {
-        "completed_runtime_slices": 23,
+        "completed_runtime_slices": 24,
         "next_slice_runtime_slice_delta": 0,
         "runtime_admissions": 9196,
         "executed_candidates": 9715,

@@ -80,15 +80,16 @@ pub fn load_compiler_no_emit(
 /// loader.
 /// Which map-family options the fixture-settings projection admits.
 ///
-/// The established H2.5g/H2.5h acceptance floor DROPS `sourceMap` (both
-/// sides of those frozen bands are mapless); the H2.6a band projects it
-/// (h2-6a-ca-2 — the ca-1 oracle observed WITH maps). Every other
-/// map-family option stays dropped on both floors until its owning
-/// slice admits it.
+/// The established H2.5g/H2.5h acceptance floor DROPS the map family (both
+/// sides of those frozen bands are mapless); the H2.6a band projects only
+/// `sourceMap` (h2-6a-ca-2 — the ca-1 oracle observed WITH maps), and the
+/// H2.6b band projects the complete map family. Every other entry point keeps
+/// its existing floor.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EmitOptionFloor {
     Established,
     SourceMap,
+    MapFamily,
 }
 
 pub fn load_compiler_emit(
@@ -105,8 +106,8 @@ pub fn load_compiler_emit(
     )
 }
 
-/// [`load_compiler_emit`] with an explicit settings floor (the H2.6a
-/// acceptance lane).
+/// [`load_compiler_emit`] with an explicit settings floor (the H2.6a/H2.6b
+/// acceptance lanes).
 pub fn load_compiler_emit_with_option_floor(
     workspace: &Path,
     plan: &CompilerExecutionPlan,
@@ -145,7 +146,7 @@ pub fn load_qualified_compiler_emit(
 }
 
 /// [`load_qualified_compiler_emit`] with an explicit settings floor (the
-/// H2.6a acceptance lane).
+/// H2.6a/H2.6b acceptance lanes).
 #[allow(clippy::too_many_arguments)]
 pub fn load_qualified_compiler_emit_with_option_floor(
     workspace: &Path,
@@ -859,24 +860,43 @@ fn apply_compiler_setting(
         // hides the blocked-emit diagnostic set the observations record
         // (H2.5h CA-2b).
         "noemitonerror" => compiler_options.no_emit_on_error = Some(boolean()?),
-        // `sourcemap` projects on the H2.6a floor and stays dropped on
-        // the established floor (h2-6a-ca-2; the frozen 5g/5h bands are
+        // `sourcemap` projects on the H2.6a and H2.6b floors and stays
+        // dropped on the established floor (the frozen 5g/5h bands are
         // mapless on both sides).
         "sourcemap" => {
-            if floor == EmitOptionFloor::SourceMap {
+            if matches!(
+                floor,
+                EmitOptionFloor::SourceMap | EmitOptionFloor::MapFamily
+            ) {
                 compiler_options.source_map = Some(boolean()?);
+            }
+        }
+        "inlinesourcemap" => {
+            if floor == EmitOptionFloor::MapFamily {
+                compiler_options.inline_source_map = Some(boolean()?);
+            }
+        }
+        "inlinesources" => {
+            if floor == EmitOptionFloor::MapFamily {
+                compiler_options.inline_sources = Some(boolean()?);
+            }
+        }
+        "sourceroot" => {
+            if floor == EmitOptionFloor::MapFamily {
+                compiler_options.source_root = Some(value.to_owned());
+            }
+        }
+        "maproot" => {
+            if floor == EmitOptionFloor::MapFamily {
+                compiler_options.map_root = Some(value.to_owned());
             }
         }
         "noemithelpers"
         | "declarationmap"
         | "emitdeclarationonly"
-        | "inlinesourcemap"
-        | "inlinesources"
         | "emitbom"
         | "outdir"
         | "declarationdir"
-        | "sourceroot"
-        | "maproot"
         | "incremental"
         | "assumechangesonlyaffectdirectdependencies"
         | "stripinternal"

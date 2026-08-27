@@ -77,6 +77,7 @@ const HOSTED_ACCEPTANCE_QUALIFIED_CALLS = Object.freeze([
   "h2_2c_acceptance::run_h2_5g",
   "h2_2c_acceptance::run_h2_5h",
   "h2_2c_acceptance::run_h2_6a",
+  "h2_2c_acceptance::run_h2_6b",
 ]);
 
 const HOSTED_ACCEPTANCE_CANONICAL_BODY = [
@@ -153,6 +154,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     label: "H2.6b source-map witnesses",
     schema: ".github/ci/contracts/h2-6b-witnesses.schema.json",
     artifact: "ratchets/h2-6b-witnesses.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.6b qualification",
+    schema: ".github/ci/contracts/h2-6b-qualification.schema.json",
+    artifact: "ratchets/h2-6b-qualification.v1.json",
   }),
 ]);
 
@@ -1916,6 +1922,7 @@ export function validatePolicy(policy) {
     "h2-5g-profile",
     "h2-5h-qualification",
     "h2-6a-qualification",
+    "h2-6b-qualification",
     "h2-source-reachability",
     "h2-emit-observation",
   ]) {
