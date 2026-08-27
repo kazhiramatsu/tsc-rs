@@ -344,6 +344,23 @@ directive: never run the 5g check standalone at full width).
    at normal priority, mint round ≈45 min full-ladder demoted, 5g anchor
    89 min demoted, receipt-HIT adoption ≈3–4 min).
 
+   **Measured on the slice walk (2026-08-27, runs 20260827-080730 +
+   -084112, background-nice, TSRS_H2_5G_CHECK_SHARDS=2, user
+   present):** anchor = ONE full observation split across a live
+   SIGKILL — 1,426 cases journaled before the kill (zero committed
+   lines lost, torn tail dropped cleanly), resumed run adopted all
+   1,426 and observed the remaining 7,601 (~85 min at 2 shards);
+   round 1 total ≈1 h 53 incl. the 5g write (store reuse ≈8 min) and
+   the 8-rung downstream re-mint; round 2 ≈43 min incl. the sharded
+   journal-adoption pass (~10 min, 0 fresh observations) that minted
+   the first schema-2 receipt; **2 rounds structural, zero oracle
+   script repins, zero post-walk surface repairs**; the prospective
+   plan predicted the 8-rung cone and the empty surface set at
+   precision/recall 1.000; standalone post-mint HIT = **10 s**
+   hot-cache (the 3–4 min mid-walk constant stays the planning
+   figure); the stale-lock break and the enforcement rows
+   (cold-allowed, adoption-pass observed=0) all exercised live.
+
 ## Post-gt5 replay of the incident (measured constants)
 
 probe ~3 min + build ~2 min + walk ≈60–70 min (mint round ~35–45 with
