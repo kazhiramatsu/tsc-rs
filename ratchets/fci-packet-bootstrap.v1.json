@@ -49,7 +49,9 @@
     "h2-6a-ca-2",
     "h2-6b",
     "h2-6b-m-1",
-    "h2-6b-m-2"
+    "h2-6b-m-2",
+    "h2-6b-ca-1",
+    "h2-6b-ca-2"
   ],
   "forbiddenTransitions": [
     "h2-5g-authority",

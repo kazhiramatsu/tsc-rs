@@ -1,0 +1,47 @@
+{
+ "schemaVersion": 1,
+ "packetId": "h2-6b-ca-1",
+ "status": "ready",
+ "trustedBase": "5697c479f45a39d5d8944884744a5f44cd6912e6",
+ "packet": {
+  "path": "docs/design/greenfield/slices/h2-6b-ca-1.md",
+  "sha256": "0f5dc79982e49a9da0587244cd55748665830962e386324e8c7e2920214b8820"
+ },
+ "predecessors": [
+  {
+   "packetId": "h2-6b-m-2",
+   "receiptSha256": "fe566990e7ae096afee235d4b7f142768f80f24e9bf882b79aae9be8e99733e9"
+  }
+ ],
+ "allowedPaths": [
+  "docs/design/greenfield/slices/h2-6b-ca-1.md",
+  "docs/design/greenfield/slices/README.md",
+  "crates/oracle/h2-6b-qualification.mjs",
+  ".github/ci/contracts/h2-6b-qualification.schema.json",
+  "ratchets/h2-6b-qualification.v1.json",
+  ".github/ci/qualification.mjs",
+  ".github/ci/qualification.test.mjs",
+  "scripts/chain-walk.sh",
+  "new-ci/src/bin/plan.rs",
+  ".github/ci/pin-index.v1.json",
+  "ratchets/fci-readiness/h2-6b-ca-1.v1.json",
+  "ratchets/fci-packet-bootstrap.v1.json"
+ ],
+ "forbiddenPrefixes": [
+  "crates/checker",
+  "crates/binder",
+  "crates/syntax",
+  "crates/types",
+  "crates/diags",
+  "crates/conformance",
+  ".github/workflows"
+ ],
+ "proof": {
+  "commands": [
+   "node crates/oracle/h2-6b-qualification.mjs --check",
+   "node .github/ci/qualification.mjs check",
+   "node .github/ci/slice-readiness.mjs --check h2-6b-ca-1"
+  ],
+  "evidencePath": "ratchets/h2-6b-qualification.v1.json"
+ }
+}
