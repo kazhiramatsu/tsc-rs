@@ -1,0 +1,786 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-6c-census.schema.json",
+  "title": "H2.6c effective source-map applicability census (m-1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "origin",
+    "inputs",
+    "enumeration_contract",
+    "corpus",
+    "cases",
+    "summary",
+    "census_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "const": "h2-6c-map-applicability-census"
+    },
+    "status": {
+      "const": "measured-not-observed"
+    },
+    "phase": {
+      "const": "H2.6c-map-applicability"
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "source_commit",
+        "bundle",
+        "implementation"
+      ],
+      "properties": {
+        "version": {
+          "const": "6.0.3"
+        },
+        "source_commit": {
+          "$ref": "#/$defs/sha1"
+        },
+        "bundle": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "implementation": {
+          "$ref": "#/$defs/path_hash"
+        }
+      }
+    },
+    "generator": {
+      "$ref": "#/$defs/path_hash"
+    },
+    "contract": {
+      "$ref": "#/$defs/path_hash"
+    },
+    "origin": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet",
+        "static_estimate",
+        "measurement"
+      ],
+      "properties": {
+        "packet": {
+          "const": "docs/design/greenfield/slices/h2-6c.md"
+        },
+        "static_estimate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "positive_cases",
+            "literal_cases"
+          ],
+          "properties": {
+            "positive_cases": {
+              "const": 641
+            },
+            "literal_cases": {
+              "const": 689
+            }
+          }
+        },
+        "measurement": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "test_suite_expansion",
+        "conformance_expansion",
+        "compiler_classification",
+        "conformance_classification",
+        "compiler_config_plans",
+        "project_classification",
+        "transpile_inventory"
+      ],
+      "properties": {
+        "test_suite_expansion": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "conformance_expansion": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "compiler_classification": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "conformance_classification": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "compiler_config_plans": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "project_classification": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "transpile_inventory": {
+          "$ref": "#/$defs/path_hash"
+        }
+      }
+    },
+    "enumeration_contract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_root",
+        "suites",
+        "case_id",
+        "matrix_key",
+        "effective_option_order",
+        "map_options",
+        "positive_definition",
+        "negative_definition",
+        "observations"
+      ],
+      "properties": {
+        "corpus_root": {
+          "const": "ts-tests/tests/cases"
+        },
+        "suites": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "compiler",
+              "conformance",
+              "project",
+              "transpile"
+            ]
+          }
+        },
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "matrix_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "effective_option_order": {
+          "type": "string",
+          "minLength": 1
+        },
+        "map_options": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "sourceMap",
+              "inlineSourceMap",
+              "inlineSources",
+              "sourceRoot",
+              "mapRoot"
+            ]
+          }
+        },
+        "positive_definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "negative_definition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observations": {
+          "const": "none; this m-1 artifact is authoring-side census data only"
+        }
+      }
+    },
+    "corpus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "root",
+        "cases",
+        "source_files",
+        "suites"
+      ],
+      "properties": {
+        "root": {
+          "const": "ts-tests/tests/cases"
+        },
+        "cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "suites": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/corpus_suite"
+          }
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/case"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "census_fingerprint_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha1": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "corpus_suite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite",
+        "relative_root",
+        "source_files",
+        "cases"
+      ],
+      "properties": {
+        "suite": {
+          "enum": [
+            "compiler",
+            "conformance",
+            "project",
+            "transpile"
+          ]
+        },
+        "relative_root": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "backing_files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "cases": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "facet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "value",
+        "raw",
+        "origin"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "absent",
+            "true",
+            "false",
+            "set"
+          ]
+        },
+        "value": {
+          "type": [
+            "boolean",
+            "string",
+            "null"
+          ]
+        },
+        "raw": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "origin": {
+          "enum": [
+            "absent",
+            "virtual-config",
+            "fixture",
+            "matrix",
+            "project-config",
+            "descriptor"
+          ]
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256",
+        "git_blob_sha1"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "git_blob_sha1": {
+          "$ref": "#/$defs/sha1"
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "file",
+        "start",
+        "length",
+        "message"
+      ],
+      "properties": {
+        "code": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "length": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "option_facets": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sourceMap",
+        "inlineSourceMap",
+        "inlineSources",
+        "sourceRoot",
+        "mapRoot"
+      ],
+      "properties": {
+        "sourceMap": {
+          "$ref": "#/$defs/facet"
+        },
+        "inlineSourceMap": {
+          "$ref": "#/$defs/facet"
+        },
+        "inlineSources": {
+          "$ref": "#/$defs/facet"
+        },
+        "sourceRoot": {
+          "$ref": "#/$defs/facet"
+        },
+        "mapRoot": {
+          "$ref": "#/$defs/facet"
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "suite",
+        "case_id",
+        "fixture_id",
+        "matrix_key",
+        "source_index",
+        "expansion_case",
+        "configuration_index",
+        "configuration_variant",
+        "route",
+        "source",
+        "option_facets",
+        "positive_options",
+        "explicit_false_options",
+        "empty_root_options",
+        "classification",
+        "positive"
+      ],
+      "properties": {
+        "suite": {
+          "enum": [
+            "compiler",
+            "conformance",
+            "project",
+            "transpile"
+          ]
+        },
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "matrix_key": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expansion_case": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "configuration_index": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "configuration_variant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "route": {
+          "enum": [
+            "recorded-compiler-plan",
+            "qualified-vfs",
+            "project-mount",
+            "transpile-api"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "option_facets": {
+          "$ref": "#/$defs/option_facets"
+        },
+        "positive_options": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "sourceMap",
+              "inlineSourceMap",
+              "inlineSources",
+              "sourceRoot",
+              "mapRoot"
+            ]
+          }
+        },
+        "explicit_false_options": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "sourceMap",
+              "inlineSourceMap",
+              "inlineSources",
+              "sourceRoot",
+              "mapRoot"
+            ]
+          }
+        },
+        "empty_root_options": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "enum": [
+              "sourceMap",
+              "inlineSourceMap",
+              "inlineSources",
+              "sourceRoot",
+              "mapRoot"
+            ]
+          }
+        },
+        "classification": {
+          "enum": [
+            "positive",
+            "negative"
+          ]
+        },
+        "positive": {
+          "type": "boolean"
+        },
+        "virtual_config": {
+          "type": "boolean"
+        },
+        "selection_origin": {
+          "const": "full-corpus"
+        },
+        "classified_disposition": {
+          "type": "string",
+          "minLength": 1
+        },
+        "project_case": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "root_mode": {
+          "enum": [
+            "explicit-inputs",
+            "project-config",
+            "discovered-config"
+          ]
+        },
+        "project_config_path": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "config_diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        },
+        "reached_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "transpile_kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "api": {
+          "type": "string",
+          "minLength": 1
+        },
+        "case_index": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "summary_integer": {
+      "type": "integer",
+      "minimum": 0,
+      "const": 0,
+      "title": "TODO-first-mint: pin this measured summary integer after canonical --write"
+    },
+    "facet_count": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "literal_cases",
+        "true_cases",
+        "false_cases",
+        "set_cases",
+        "nonempty_cases",
+        "empty_cases"
+      ],
+      "properties": {
+        "literal_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "true_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "false_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "set_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "nonempty_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "empty_cases": {
+          "$ref": "#/$defs/summary_integer"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus_cases",
+        "census_cases",
+        "literal_cases",
+        "positive_cases",
+        "negative_cases",
+        "explicit_false_cases",
+        "unique_fixture_ids",
+        "compiler_census_cases",
+        "compiler_positive_cases",
+        "compiler_negative_cases",
+        "conformance_census_cases",
+        "conformance_positive_cases",
+        "conformance_negative_cases",
+        "project_census_cases",
+        "project_positive_cases",
+        "project_negative_cases",
+        "transpile_census_cases",
+        "transpile_positive_cases",
+        "transpile_negative_cases",
+        "facet_counts"
+      ],
+      "properties": {
+        "corpus_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "census_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "literal_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "positive_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "negative_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "explicit_false_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "unique_fixture_ids": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "compiler_census_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "compiler_positive_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "compiler_negative_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "conformance_census_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "conformance_positive_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "conformance_negative_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "project_census_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "project_positive_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "project_negative_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "transpile_census_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "transpile_positive_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "transpile_negative_cases": {
+          "$ref": "#/$defs/summary_integer"
+        },
+        "facet_counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sourceMap",
+            "inlineSourceMap",
+            "inlineSources",
+            "sourceRoot",
+            "mapRoot"
+          ],
+          "properties": {
+            "sourceMap": {
+              "$ref": "#/$defs/facet_count"
+            },
+            "inlineSourceMap": {
+              "$ref": "#/$defs/facet_count"
+            },
+            "inlineSources": {
+              "$ref": "#/$defs/facet_count"
+            },
+            "sourceRoot": {
+              "$ref": "#/$defs/facet_count"
+            },
+            "mapRoot": {
+              "$ref": "#/$defs/facet_count"
+            }
+          }
+        }
+      }
+    }
+  }
+}
