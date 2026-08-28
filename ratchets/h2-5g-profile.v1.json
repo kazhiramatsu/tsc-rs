@@ -340,7 +340,7 @@
     },
     {
       "path": "crates/xtask/src/main.rs",
-      "sha256": "90887803418096c0e2cec526ebb3f9e28d74db468e4d1c87f6b7ed5cb96282d5"
+      "sha256": "631aced55d2e5299d2c63734850748ca8304140d186d4aec7c9fb709257556c2"
     },
     {
       "path": "crates/xtask/tests/unit/h2_1d_acceptance/tests.rs",
@@ -1156,5 +1156,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "451fa5f6ea8d70269b00431f6909d1cd64982256841f9b542f09c98d7240452f"
+  "profile_fingerprint_sha256": "2483d106771e9168efb93dc08d684c4b0cab6e618fb39ba97196471d1c3cbbad"
 }
