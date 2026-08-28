@@ -490,6 +490,111 @@ fn collect_h2_5g_exact_differences_locally() {
     );
 }
 
+#[test]
+fn h2_6c_qualification_validator_pins_census_identity_and_counts() {
+    let workspace = workspace();
+    let mut artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::H2_6C_QUALIFICATION_RELATIVE_PATH))
+            .expect("read H2.6c qualification"),
+    )
+    .expect("parse H2.6c qualification");
+
+    assert_eq!(
+        super::validate_h2_6c_qualification(&artifact)
+            .expect("closed H2.6c qualification")
+            .len(),
+        643,
+    );
+
+    artifact["phase"] = serde_json::json!("H2.6b-inline-and-roots");
+    assert!(super::validate_h2_6c_qualification(&artifact).is_err());
+    artifact["phase"] = serde_json::json!("H2.6c-map-observation");
+
+    artifact["origin"]["census"]["fingerprint_sha256"] = serde_json::json!("changed");
+    assert!(super::validate_h2_6c_qualification(&artifact).is_err());
+    artifact["origin"]["census"]["fingerprint_sha256"] =
+        serde_json::json!(super::H2_6C_CENSUS_FINGERPRINT_SHA256);
+
+    artifact["summary"]["admitted_cases"] = serde_json::json!(638);
+    assert!(super::validate_h2_6c_qualification(&artifact).is_err());
+    artifact["summary"]["admitted_cases"] = serde_json::json!(639);
+
+    artifact["summary"]["deferred_cases"] = serde_json::json!(3);
+    assert!(super::validate_h2_6c_qualification(&artifact).is_err());
+    artifact["summary"]["deferred_cases"] = serde_json::json!(4);
+
+    artifact["cases"].as_array_mut().expect("H2.6c cases").pop();
+    assert!(super::validate_h2_6c_qualification(&artifact).is_err());
+}
+
+#[test]
+fn h2_6c_divergence_manifest_requires_absence_named_owner_and_nonempty_facets() {
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after epoch")
+        .as_nanos();
+    let root = std::env::temp_dir().join(format!(
+        "tsc-rs-h2-6c-manifest-{}-{nonce}",
+        std::process::id()
+    ));
+
+    assert!(super::load_h2_6c_divergence_manifest(&root)
+        .expect("absent H2.6c manifest")
+        .is_empty());
+
+    let path = root.join(super::H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH);
+    fs::create_dir_all(path.parent().expect("manifest parent")).expect("create ratchets dir");
+    let store = |body: serde_json::Value| {
+        fs::write(
+            &path,
+            format!(
+                "{}\n",
+                serde_json::to_string_pretty(&body).expect("render manifest")
+            ),
+        )
+        .expect("write manifest");
+    };
+
+    store(serde_json::json!({ "schema": 1, "cases": [] }));
+    assert!(super::load_h2_6c_divergence_manifest(&root).is_err());
+
+    let entry = serde_json::json!({
+        "case_id": "case-a",
+        "owner": super::H2_6C_DIVERGENCE_OWNER,
+        "writes_diverging": 2,
+        "diagnostics_diverging": false,
+        "emit_result_diverging": true,
+        "emit_refused": false,
+    });
+    store(serde_json::json!({ "schema": 1, "cases": [entry.clone()] }));
+    let listed = super::load_h2_6c_divergence_manifest(&root).expect("valid H2.6c manifest");
+    assert_eq!(
+        listed.get("case-a"),
+        Some(&super::H2_5hDivergence {
+            writes_diverging: 2,
+            diagnostics_diverging: false,
+            emit_result_diverging: true,
+            emit_refused: false,
+        })
+    );
+
+    let mut wrong_owner = entry.clone();
+    wrong_owner["owner"] = serde_json::json!("h2-6c-unnamed");
+    store(serde_json::json!({ "schema": 1, "cases": [wrong_owner] }));
+    assert!(super::load_h2_6c_divergence_manifest(&root).is_err());
+
+    let mut exact = entry.clone();
+    exact["writes_diverging"] = serde_json::json!(0);
+    exact["emit_result_diverging"] = serde_json::json!(false);
+    store(serde_json::json!({ "schema": 1, "cases": [exact] }));
+    assert!(super::load_h2_6c_divergence_manifest(&root).is_err());
+
+    store(serde_json::json!({ "schema": 1, "cases": [entry.clone(), entry] }));
+    assert!(super::load_h2_6c_divergence_manifest(&root).is_err());
+
+    fs::remove_dir_all(&root).expect("remove H2.6c manifest test directory");
+}
+
 // H2.5h CA-4: the divergence ratchet's four outcomes (packet §4).
 mod h2_5h_ratchet {
     use std::collections::HashMap;

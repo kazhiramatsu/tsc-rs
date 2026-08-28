@@ -3513,6 +3513,553 @@ pub fn run_h2_6b(workspace: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+const H2_6C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-6c-qualification.v1.json";
+const H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH: &str = "ratchets/h2-6c-known-divergences.v1.json";
+const H2_6C_WRITE_DIVERGENCES_ENV: &str = "TSRS_H2_6C_WRITE_DIVERGENCES";
+const H2_6C_CENSUS_SHA256: &str =
+    "ffea234acbff0cbe5e85f3750cd18361d5ea2bea51cf43ca8bab36a2333726bf";
+const H2_6C_CENSUS_FINGERPRINT_SHA256: &str =
+    "d0f0fd0ced5083ae9ee620f129dbbc341381d6fb44eafd9ae7eb4978d72a8522";
+const H2_6C_DIVERGENCE_OWNER: &str = "h2-6c-m-2-divergence-closure";
+
+fn validate_h2_6c_qualification(artifact: &Value) -> Result<&[Value], Box<dyn Error>> {
+    if artifact["schema"] != 1
+        || artifact["status"] != "qualified-typescript-oracle"
+        || artifact["phase"] != "H2.6c-map-observation"
+        || artifact["origin"]["census"]["path"] != "ratchets/h2-6c-census.v1.json"
+        || artifact["origin"]["census"]["sha256"] != H2_6C_CENSUS_SHA256
+        || artifact["origin"]["census"]["fingerprint_sha256"] != H2_6C_CENSUS_FINGERPRINT_SHA256
+        || artifact["origin"]["project_mount_decision"] != "mounted-all-project-rows"
+        || artifact["selection_contract"]["census_file_sha256"] != H2_6C_CENSUS_SHA256
+        || artifact["selection_contract"]["census_fingerprint_sha256"]
+            != H2_6C_CENSUS_FINGERPRINT_SHA256
+        || artifact["selection_contract"]["census_literal_denominator"] != 691
+        || artifact["selection_contract"]["census_positive_denominator"] != 643
+        || artifact["selection_contract"]["census_negative_denominator"] != 48
+        || artifact["selection_contract"]["global_candidate_denominator"] != 643
+        || artifact["selection_contract"]["observed_candidate_denominator"] != 643
+        || artifact["selection_contract"]["suite_counts"]["compiler"] != 199
+        || artifact["selection_contract"]["suite_counts"]["conformance"] != 32
+        || artifact["selection_contract"]["suite_counts"]["project"] != 410
+        || artifact["selection_contract"]["suite_counts"]["transpile"] != 2
+        || artifact["selection_contract"]["deferred_project_mount"]
+            .as_array()
+            .is_none_or(|cases| !cases.is_empty())
+        || artifact["summary"]["census_cases"] != 691
+        || artifact["summary"]["literal_cases"] != 691
+        || artifact["summary"]["positive_cases"] != 643
+        || artifact["summary"]["negative_cases"] != 48
+        || artifact["summary"]["candidates"] != 643
+        || artifact["summary"]["observed_candidates"] != 643
+        || artifact["summary"]["compiler_candidates"] != 199
+        || artifact["summary"]["conformance_candidates"] != 32
+        || artifact["summary"]["project_candidates"] != 410
+        || artifact["summary"]["transpile_candidates"] != 2
+        || artifact["summary"]["deferred_project_mount"] != 0
+        || artifact["summary"]["project_mount_cases"] != 410
+        || artifact["summary"]["recorded_compiler_plan_cases"] != 199
+        || artifact["summary"]["qualified_vfs_cases"] != 32
+        || artifact["summary"]["transpile_api_cases"] != 2
+        || artifact["summary"]["virtual_config_cases"] != 2
+        || artifact["summary"]["vfs_symlink_cases"] != 0
+        || artifact["summary"]["vfs_symlink_paths"] != 0
+        || artifact["summary"]["admitted_cases"] != 639
+        || artifact["summary"]["deferred_cases"] != 4
+        || artifact["summary"]["no_emit_control_cases"] != 2
+        || artifact["summary"]["typescript_runs"] != 1_286
+        || artifact["summary"]["deterministic_typescript_cases"] != 643
+        || artifact["summary"]["emit_refused_cases"] != 3
+        || artifact["summary"]["typescript_writes"] != 2_669
+        || artifact["summary"]["typescript_reported_diagnostics"] != 1_069
+        || artifact["summary"]["typescript_emit_diagnostics"] != 1
+        || artifact["summary"]["source_map_result_entries"] != 978
+        || artifact["summary"]["facet_agreement_cases"] != 643
+        || artifact["summary"]["unexecuted_candidates"] != 0
+        || artifact["summary"]["undispositioned_candidates"] != 0
+    {
+        return Err(failure(
+            "H2.6c qualification artifact contract differs from the m-2 wiring",
+        ));
+    }
+    let cases = artifact["cases"]
+        .as_array()
+        .ok_or_else(|| failure("H2.6c qualification cases are not an array"))?;
+    if cases.len() != 643 {
+        return Err(failure(format!(
+            "H2.6c qualification case count changed: {}",
+            cases.len()
+        )));
+    }
+    Ok(cases)
+}
+
+struct H2_6cExecutionInputs {
+    compiler: H2_5gExecutionInputs,
+    project_plans: HashMap<String, ProjectExecutionPlan>,
+}
+
+impl H2_6cExecutionInputs {
+    fn load(workspace: &Path) -> Result<Self, Box<dyn Error>> {
+        let compiler = H2_5gExecutionInputs::load(workspace)?;
+        let corpus = load_recorded_execution_plans(workspace)?;
+        let project_plans = corpus
+            .plans
+            .iter()
+            .filter_map(|recorded| match &recorded.input {
+                UpstreamExecutionInput::Project(plan) => {
+                    Some((recorded.provenance.case_id.to_string(), plan.clone()))
+                }
+                UpstreamExecutionInput::Compiler(_) => None,
+            })
+            .collect::<HashMap<_, _>>();
+        if project_plans.len() != 632 {
+            return Err(failure(format!(
+                "H2.6c recorded project-plan denominator changed: {}",
+                project_plans.len(),
+            )));
+        }
+        Ok(Self {
+            compiler,
+            project_plans,
+        })
+    }
+}
+
+/// The 6c prepare mirrors each frozen execution route. Compiler and
+/// conformance rows use the complete map-family floor; project rows use the
+/// established hermetic project mount, whose descriptor/config projection
+/// already includes the applicable map-family options.
+fn prepare_h2_6c_case(
+    workspace: &Path,
+    case: &Value,
+    inputs: &H2_6cExecutionInputs,
+) -> Result<tsc_program::PreparedProgram, Box<dyn Error>> {
+    match string(case, "execution_route")? {
+        "qualified-vfs" => case_input_with_floor(workspace, case, EmitOptionFloor::MapFamily),
+        "recorded-compiler-plan" => {
+            let case_id = string(case, "case_id")?;
+            let recorded = inputs
+                .compiler
+                .compiler_cases
+                .get(case_id)
+                .ok_or_else(|| failure(format!("{case_id}: recorded compiler plan is absent")))?;
+            if case["suite"] != "compiler"
+                || case["expansion_case"].as_u64() != Some(u64::from(recorded.expansion_case))
+            {
+                return Err(failure(format!(
+                    "{case_id}: recorded compiler-plan provenance differs"
+                )));
+            }
+            Ok(load_compiler_emit_with_option_floor(
+                workspace,
+                &recorded.plan,
+                limits(),
+                EmitOptionFloor::MapFamily,
+            )?)
+        }
+        "project-mount" => {
+            let case_id = string(case, "case_id")?;
+            if case["suite"] != "project" {
+                return Err(failure(format!(
+                    "{case_id}: project-mount route carries a non-project suite"
+                )));
+            }
+            let plan = inputs
+                .project_plans
+                .get(case_id)
+                .ok_or_else(|| failure(format!("{case_id}: recorded project plan is absent")))?;
+            // The H2.6c oracle's PROJECT_STRUCTURAL_KEYS contract excludes
+            // these runner controls before projecting compiler options. The
+            // shared 5h loader predates that breadth contract and otherwise
+            // rejects them as unknown descriptor options, so mirror the
+            // frozen route by removing only those structural controls from a
+            // case-local plan clone before entering the hermetic mount.
+            let mut project_plan = plan.clone();
+            let mut fixture = (*project_plan.fixture).clone();
+            fixture.properties = Arc::from(
+                fixture
+                    .properties
+                    .iter()
+                    .filter(|property| {
+                        !matches!(
+                            property.name.as_ref(),
+                            "emittedFiles" | "resolveMapRoot" | "resolveSourceRoot"
+                        )
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>(),
+            );
+            project_plan.fixture = Arc::new(fixture);
+            Ok(load_project_emit(workspace, &project_plan, limits())
+                .map_err(|error| failure(format!("{case_id}: project prepare failed: {error}")))?
+                .prepared_program)
+        }
+        "transpile-api" => Err(failure(format!(
+            "{}: admitted H2.6c transpile-api row is unexecuted_suite=transpile (H2.8c owns the production API)",
+            string(case, "case_id")?,
+        ))),
+        route => Err(failure(format!(
+            "{}: unexpected H2.6c execution route {route}",
+            string(case, "case_id")?,
+        ))),
+    }
+}
+
+fn execute_h2_6c_case(
+    workspace: &Path,
+    case: &Value,
+    inputs: &H2_6cExecutionInputs,
+) -> Result<H2_5hCaseOutcome, Box<dyn Error>> {
+    let case_id = string(case, "case_id")?.to_owned();
+    match string(case, "disposition")? {
+        "admitted-for-execution" => {}
+        "deferred-to-slices" => {
+            return Ok(H2_5hCaseOutcome {
+                case_id,
+                deferred: true,
+                divergence: H2_5hDivergence::default(),
+            });
+        }
+        other => {
+            return Err(failure(format!(
+                "{case_id}: unexpected H2.6c disposition {other}"
+            )));
+        }
+    }
+    let expected = compact_typescript_observation(case)?;
+    let first_program = prepare_h2_6c_case(workspace, case, inputs)?;
+    let second_program = first_program.clone();
+    let first_session = ProgramSession::new(first_program);
+    let harness_lib_bundle = first_session.prepare_harness_lib_bundle()?;
+    let mut first_sink = MemoryOutputSink::new();
+    let (first, first_reported) = match first_session
+        .emit_with_reported_diagnostics_for_harness_with_lib_bundle(
+            &mut first_sink,
+            harness_lib_bundle.as_ref(),
+        ) {
+        Ok(result) => result,
+        Err(error) => {
+            let message = error.to_string();
+            if message.contains("unsupported emit compiler option") {
+                return Ok(H2_5hCaseOutcome {
+                    case_id,
+                    deferred: false,
+                    divergence: H2_5hDivergence {
+                        emit_refused: true,
+                        ..H2_5hDivergence::default()
+                    },
+                });
+            }
+            return Err(failure(format!(
+                "{case_id}: first Rust emit failed: {message}"
+            )));
+        }
+    };
+    let mut second_sink = MemoryOutputSink::new();
+    let (second, second_reported) = ProgramSession::new(second_program)
+        .emit_with_reported_diagnostics_for_harness_with_lib_bundle(
+            &mut second_sink,
+            harness_lib_bundle.as_ref(),
+        )
+        .map_err(|error| failure(format!("{case_id}: second Rust emit failed: {error}")))?;
+    if first != second || first_sink != second_sink || first_reported != second_reported {
+        return Err(failure(format!(
+            "{case_id}: repeated Rust emit is not deterministic"
+        )));
+    }
+    // The unadmitted-runtime-slice guard with the H2.1a..H2.6c ladder.
+    let activity = first.h2_activity();
+    for slice in H2RuntimeSlice::ALL {
+        if !matches!(
+            slice,
+            H2RuntimeSlice::H2_1a
+                | H2RuntimeSlice::H2_1b
+                | H2RuntimeSlice::H2_1c
+                | H2RuntimeSlice::H2_1d
+                | H2RuntimeSlice::H2_1e
+                | H2RuntimeSlice::H2_2a
+                | H2RuntimeSlice::H2_2b
+                | H2RuntimeSlice::H2_2c
+                | H2RuntimeSlice::H2_2d
+                | H2RuntimeSlice::H2_3a
+                | H2RuntimeSlice::H2_3b
+                | H2RuntimeSlice::H2_3c
+                | H2RuntimeSlice::H2_3d
+                | H2RuntimeSlice::H2_4a
+                | H2RuntimeSlice::H2_4b
+                | H2RuntimeSlice::H2_5a
+                | H2RuntimeSlice::H2_5b
+                | H2RuntimeSlice::H2_5c
+                | H2RuntimeSlice::H2_5d
+                | H2RuntimeSlice::H2_5e
+                | H2RuntimeSlice::H2_5f
+                | H2RuntimeSlice::H2_5g
+                | H2RuntimeSlice::H2_5h
+                | H2RuntimeSlice::H2_6a
+                | H2RuntimeSlice::H2_6b
+                | H2RuntimeSlice::H2_6c
+        ) && activity.runtime_slice(slice) != 0
+        {
+            return Err(failure(format!(
+                "{case_id}: unadmitted {} activity",
+                slice.name()
+            )));
+        }
+    }
+    let expected_writes = array(expected, "writes")?;
+    let writes_diverging = count_diverging_writes_with_data(expected_writes, &first_sink);
+    let expected_reported = array(expected, "reported_diagnostics")?;
+    let diagnostics_diverging = !reported_diagnostics_match(expected_reported, &first_reported);
+    let actual_exit_code = if first.emit_skipped() && !first_reported.is_empty() {
+        1
+    } else if !first_reported.is_empty() {
+        2
+    } else {
+        0
+    };
+    let expected_emit_diagnostics = expected["emit_result"]["diagnostics"]
+        .as_array()
+        .map(Vec::as_slice)
+        .unwrap_or(&[]);
+    let emit_result_diverging = first.emit_skipped()
+        != expected["emit_result"]["emit_skipped"]
+            .as_bool()
+            .unwrap_or(true)
+        || !reported_diagnostics_match(expected_emit_diagnostics, first.diagnostics())
+        || !emitted_files_match(
+            &expected["emit_result"]["emitted_files"],
+            first.emitted_files(),
+        )
+        || !source_maps_match(&expected["emit_result"]["source_maps"], first.source_maps())
+        || !array(expected, "status_writes")?.is_empty()
+        || expected["exit_code"].as_i64() != Some(actual_exit_code);
+    Ok(H2_5hCaseOutcome {
+        case_id,
+        deferred: false,
+        divergence: H2_5hDivergence {
+            writes_diverging,
+            diagnostics_diverging,
+            emit_result_diverging,
+            emit_refused: false,
+        },
+    })
+}
+
+fn load_h2_6c_divergence_manifest(
+    workspace: &Path,
+) -> Result<HashMap<String, H2_5hDivergence>, Box<dyn Error>> {
+    let path = workspace.join(H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH);
+    // The steady state requires an ABSENT manifest. A file is valid only
+    // after the first production sweep proved at least one diverging row.
+    if !path.exists() {
+        return Ok(HashMap::new());
+    }
+    let manifest: Value = serde_json::from_slice(&fs::read(path)?)?;
+    if manifest["schema"] != 1 {
+        return Err(failure("H2.6c divergence manifest schema differs"));
+    }
+    let entries = array(&manifest, "cases")?;
+    if entries.is_empty() {
+        return Err(failure(
+            "H2.6c divergence manifest must be absent when it is empty",
+        ));
+    }
+    let mut listed = HashMap::new();
+    for entry in entries {
+        let case_id = string(entry, "case_id")?.to_owned();
+        let owner = string(entry, "owner")?;
+        if owner != H2_6C_DIVERGENCE_OWNER {
+            return Err(failure(format!(
+                "H2.6c divergence manifest entry {case_id} carries an un-named owner {owner}"
+            )));
+        }
+        let divergence = H2_5hDivergence {
+            writes_diverging: entry["writes_diverging"].as_u64().unwrap_or(0),
+            diagnostics_diverging: entry["diagnostics_diverging"].as_bool().unwrap_or(false),
+            emit_result_diverging: entry["emit_result_diverging"].as_bool().unwrap_or(false),
+            emit_refused: entry["emit_refused"].as_bool().unwrap_or(false),
+        };
+        if divergence.is_exact() {
+            return Err(failure(format!(
+                "H2.6c divergence manifest entry {case_id} lists no divergence facet"
+            )));
+        }
+        if listed.insert(case_id.clone(), divergence).is_some() {
+            return Err(failure(format!(
+                "H2.6c divergence manifest duplicates {case_id}"
+            )));
+        }
+    }
+    Ok(listed)
+}
+
+fn write_h2_6c_divergence_manifest(
+    workspace: &Path,
+    diverging: &[(String, H2_5hDivergence)],
+) -> Result<(), Box<dyn Error>> {
+    let cases = diverging
+        .iter()
+        .map(|(case_id, divergence)| {
+            serde_json::json!({
+                "case_id": case_id,
+                "owner": H2_6C_DIVERGENCE_OWNER,
+                "writes_diverging": divergence.writes_diverging,
+                "diagnostics_diverging": divergence.diagnostics_diverging,
+                "emit_result_diverging": divergence.emit_result_diverging,
+                "emit_refused": divergence.emit_refused,
+            })
+        })
+        .collect::<Vec<_>>();
+    let body = serde_json::json!({ "schema": 1, "cases": cases });
+    let rendered = format!("{}\n", serde_json::to_string_pretty(&body)?);
+    fs::write(
+        workspace.join(H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH),
+        rendered,
+    )?;
+    println!(
+        "H2.6c divergence manifest written: {} entries (owner {H2_6C_DIVERGENCE_OWNER})",
+        diverging.len()
+    );
+    Ok(())
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+struct H2_6cSuiteTotals {
+    candidates: u64,
+    exact: u64,
+    diverging: u64,
+    deferred: u64,
+    writes_diverging: u64,
+    diagnostics_diverging: u64,
+    emit_result_diverging: u64,
+    emit_refused: u64,
+}
+
+fn h2_6c_suite_index(suite: &str) -> Option<usize> {
+    match suite {
+        "compiler" => Some(0),
+        "conformance" => Some(1),
+        "project" => Some(2),
+        "transpile" => Some(3),
+        _ => None,
+    }
+}
+
+fn report_h2_6c_suite_outcomes(
+    cases: &[Value],
+    diverging: &[(String, H2_5hDivergence)],
+) -> Result<(), Box<dyn Error>> {
+    const SUITES: [&str; 4] = ["compiler", "conformance", "project", "transpile"];
+    let divergence_by_case = diverging
+        .iter()
+        .map(|(case_id, divergence)| (case_id.as_str(), divergence))
+        .collect::<HashMap<_, _>>();
+    if divergence_by_case.len() != diverging.len() {
+        return Err(failure("H2.6c suite report received duplicate divergences"));
+    }
+    let mut observed_divergences = 0usize;
+    let mut totals = [H2_6cSuiteTotals::default(); 4];
+    for case in cases {
+        let case_id = string(case, "case_id")?;
+        let suite = string(case, "suite")?;
+        let index = h2_6c_suite_index(suite)
+            .ok_or_else(|| failure(format!("{case_id}: unexpected H2.6c suite {suite}")))?;
+        let suite_totals = &mut totals[index];
+        suite_totals.candidates += 1;
+        match string(case, "disposition")? {
+            "deferred-to-slices" => suite_totals.deferred += 1,
+            "admitted-for-execution" => match divergence_by_case.get(case_id) {
+                Some(divergence) => {
+                    observed_divergences += 1;
+                    suite_totals.diverging += 1;
+                    suite_totals.writes_diverging += divergence.writes_diverging;
+                    suite_totals.diagnostics_diverging +=
+                        u64::from(divergence.diagnostics_diverging);
+                    suite_totals.emit_result_diverging +=
+                        u64::from(divergence.emit_result_diverging);
+                    suite_totals.emit_refused += u64::from(divergence.emit_refused);
+                }
+                None => suite_totals.exact += 1,
+            },
+            disposition => {
+                return Err(failure(format!(
+                    "{case_id}: unexpected H2.6c disposition {disposition}"
+                )));
+            }
+        }
+    }
+    if observed_divergences != diverging.len() {
+        return Err(failure(
+            "H2.6c suite report received an unknown or deferred divergence case",
+        ));
+    }
+    for (suite, totals) in SUITES.into_iter().zip(totals) {
+        println!(
+            "H2.6c suite acceptance: suite={suite} candidates={} exact={} known_diverging={} deferred={} unexecuted_suite=0 writes_diverging={} diagnostics_diverging={} emit_result_diverging={} emit_refused={}",
+            totals.candidates,
+            totals.exact,
+            totals.diverging,
+            totals.deferred,
+            totals.writes_diverging,
+            totals.diagnostics_diverging,
+            totals.emit_result_diverging,
+            totals.emit_refused,
+        );
+    }
+    Ok(())
+}
+
+pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    let artifact: Value = serde_json::from_slice(&fs::read(
+        workspace.join(H2_6C_QUALIFICATION_RELATIVE_PATH),
+    )?)?;
+    let cases = validate_h2_6c_qualification(&artifact)?;
+    let write_manifest = std::env::var_os(H2_6C_WRITE_DIVERGENCES_ENV).is_some();
+    let listed = if write_manifest {
+        HashMap::new()
+    } else {
+        load_h2_6c_divergence_manifest(workspace)?
+    };
+    let inputs = H2_6cExecutionInputs::load(workspace)?;
+    let worker_count = h2_5g_worker_count()?.min(cases.len());
+    println!(
+        "H2.6c ordered acceptance pipeline: cases={} workers={worker_count}",
+        cases.len()
+    );
+    let results = crate::bounded_pipeline::ordered_map(cases, worker_count, |index, case| {
+        execute_h2_6c_case(workspace, case, &inputs)
+            .map_err(|error| format!("H2.6c case index {index}: {error}"))
+    })?;
+    let (exact, deferred, mut diverging) =
+        h2_slice_ratchet_join("H2.6c", results, &listed, write_manifest)?;
+    if write_manifest {
+        if diverging.is_empty() {
+            println!("H2.6c first sweep proved zero diverging rows: no manifest is created");
+        } else {
+            diverging.sort_by(|left, right| left.0.cmp(&right.0));
+            write_h2_6c_divergence_manifest(workspace, &diverging)?;
+        }
+    } else if diverging.len() != listed.len() {
+        return Err(failure(format!(
+            "H2.6c divergence-manifest coverage differs: observed {} listed {}",
+            diverging.len(),
+            listed.len()
+        )));
+    }
+    if exact + diverging.len() as u64 != 639 || deferred != 4 {
+        return Err(failure(format!(
+            "H2.6c execution totals differ: exact={exact} known_diverging={} deferred={deferred}",
+            diverging.len()
+        )));
+    }
+    report_h2_6c_suite_outcomes(cases, &diverging)?;
+    println!(
+        "H2.6c emit acceptance: candidates=643 exact={exact} known_diverging={} deferred={deferred} repetitions=2",
+        diverging.len()
+    );
+    Ok(())
+}
+
 #[cfg(test)]
 #[path = "../tests/unit/h2_2c_acceptance/tests.rs"]
 mod tests;
