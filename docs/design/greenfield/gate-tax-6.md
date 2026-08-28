@@ -62,6 +62,25 @@ would-skip decision is validated by actually running the target and
 comparing outcomes; a single would-skip-but-failed case blocks
 enforcement until its scope is fixed.
 
+**§2-A Pilot record + the linked-code identity semantic (2026-08-28).**
+The pilot bank ran 7 historical states (docs-only control, xtask-only,
+the H2.6b m-2 emitter flip pair, and the mjs/ratchet-only ca-2 pair):
+every state exit 0, every hit's target ran green, fresh-mint misses
+exercised the miss path. The sharpest suspicious hit —
+`tsc-rs-emitter::source_comment_topology_contract` HIT across the m-2
+emitter flip — was investigated by direct measurement: the test
+executable is BYTE-IDENTICAL across the flip (same path, same sha256).
+This pins the binary term's precise semantic: it is **linked-code
+identity**, not source-tree identity. Static-archive linking pulls
+only referenced object code into a test executable, so a source change
+the test cannot observe (an unreferenced function, an unlinked module)
+produces an identical binary and a SOUND skip; any change that links
+in produces a different binary and a miss (demonstrated with a
+linked-code mutation). Source changes therefore never need a
+file-level term: the binary term is strictly tighter. The residual
+soundness surface remains exactly the DECLARED runtime-input trees
+(the curation rule and the undeclared-always-runs lane are unchanged).
+
 ## 3. The darwin RSS fix (design)
 
 Replace the darwin arm of `peak_rss_bytes` with
