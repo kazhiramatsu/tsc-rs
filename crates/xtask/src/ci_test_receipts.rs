@@ -11,7 +11,40 @@ use sha2::{Digest, Sha256};
 
 const RECEIPT_SCHEMA: u32 = 1;
 const RECEIPT_KIND: &str = "workspace-test-target-receipt";
-const PRODUCER_VERSION: &str = "gate-tax-6-report-only-v1";
+const PRODUCER_VERSION: &str = "gate-tax-6-enforce-v1";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Mode {
+    Enforce,
+    Fresh,
+    Report,
+}
+
+impl Mode {
+    pub(crate) fn from_environment() -> Self {
+        Self::parse(std::env::var("TSRS_TEST_RECEIPTS").ok().as_deref())
+    }
+
+    fn parse(value: Option<&str>) -> Self {
+        match value {
+            Some("fresh") => Self::Fresh,
+            Some("report") => Self::Report,
+            Some(_) | None => Self::Enforce,
+        }
+    }
+
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Enforce => "enforce",
+            Self::Fresh => "fresh",
+            Self::Report => "report",
+        }
+    }
+
+    pub(crate) const fn skips(self, decision: Decision) -> bool {
+        matches!((self, decision), (Self::Enforce, Decision::Hit))
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
 struct InputTree(&'static str);
@@ -24,8 +57,8 @@ struct TargetInputScope {
 
 const NO_RUNTIME_INPUTS: &[InputTree] = &[];
 
-/// Curated report-only pilot. Each label is package-qualified by the Cargo
-/// artifact reader. Tests outside this table are deliberately uncached.
+/// Curated receipt-eligible targets. Each label is package-qualified by the
+/// Cargo artifact reader. Tests outside this table are deliberately uncached.
 const TEST_TARGET_INPUT_SCOPES: &[TargetInputScope] = &[
     TargetInputScope {
         label: "tsc-rs-checker::authoritative_external_fact [test]",
@@ -169,8 +202,8 @@ pub(crate) fn rustc_version() -> Result<String, String> {
     Ok(version.trim().to_owned())
 }
 
-/// Prepare a report-only decision. Any receipt-side error becomes a miss so
-/// the caller can continue to run every test target.
+/// Prepare a receipt decision. Any receipt-side error becomes a miss so the
+/// caller runs the test target.
 pub(crate) fn prepare(
     workspace: &Path,
     label: &str,
