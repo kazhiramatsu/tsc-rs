@@ -5,11 +5,11 @@ fn paths(values: &[&str]) -> Vec<String> {
 }
 
 #[test]
-fn documentation_and_framework_edits_select_no_acceptance_slice() {
+fn documentation_framework_and_new_ci_edits_select_no_acceptance_slice() {
     let plan = plan_from_paths(&paths(&[
         "README.md",
         "docs/design/greenfield/foo.md",
-        "crates/ci-core/src/lib.rs",
+        "new-ci/src/lib.rs",
     ]));
     assert_eq!(plan.mode, "none");
     assert!(plan.selected.is_empty());

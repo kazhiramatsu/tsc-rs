@@ -16,7 +16,7 @@ fn temporary_workspace() -> PathBuf {
 
 #[test]
 fn curated_table_is_small_unique_and_package_qualified() {
-    assert!((5..=8).contains(&TEST_TARGET_INPUT_SCOPES.len()));
+    assert_eq!(TEST_TARGET_INPUT_SCOPES.len(), 3);
     let mut labels = TEST_TARGET_INPUT_SCOPES
         .iter()
         .map(|scope| scope.label)
@@ -36,26 +36,33 @@ fn green_receipt_hits_and_input_changes_name_the_miss_term() {
     let binary = workspace.join("test-binary");
     fs::write(&binary, b"binary").unwrap();
     let environment = [("TSRS_CI_TEST_WORKERS", Some("1".to_owned()))];
-    let label = "tsc-rs-ci-testkit::fixtures [test]";
+    let label = "test-only::input_invalidation [test]";
+    // Synthetic only: the production receipt table no longer names legacy crates.
+    let test_scope = TargetInputScope {
+        label,
+        inputs: &[InputTree("crates/ci-testkit/src/lib.rs")],
+    };
 
-    let first = prepare(
+    let first = prepare_with_test_scope(
         &workspace,
         label,
         &binary,
         &environment,
         1,
         Ok("rustc test"),
+        &test_scope,
     );
     assert_eq!(first.decision(), Decision::Miss("absent"));
     first.publish().unwrap();
     assert_eq!(
-        prepare(
+        prepare_with_test_scope(
             &workspace,
             label,
             &binary,
             &environment,
             1,
-            Ok("rustc test")
+            Ok("rustc test"),
+            &test_scope,
         )
         .decision(),
         Decision::Hit
@@ -63,63 +70,68 @@ fn green_receipt_hits_and_input_changes_name_the_miss_term() {
 
     fs::write(&binary, b"changed binary").unwrap();
     assert_eq!(
-        prepare(
+        prepare_with_test_scope(
             &workspace,
             label,
             &binary,
             &environment,
             1,
-            Ok("rustc test")
+            Ok("rustc test"),
+            &test_scope,
         )
         .decision(),
         Decision::Miss("binary")
     );
     fs::write(&binary, b"binary").unwrap();
     assert_eq!(
-        prepare(
+        prepare_with_test_scope(
             &workspace,
             label,
             &binary,
             &[("TSRS_CI_TEST_WORKERS", Some("2".to_owned()))],
             1,
-            Ok("rustc test")
+            Ok("rustc test"),
+            &test_scope,
         )
         .decision(),
         Decision::Miss("environment")
     );
     assert_eq!(
-        prepare(
+        prepare_with_test_scope(
             &workspace,
             label,
             &binary,
             &environment,
             2,
-            Ok("rustc test")
+            Ok("rustc test"),
+            &test_scope,
         )
         .decision(),
         Decision::Miss("harness-threads")
     );
     assert_eq!(
-        prepare(
+        prepare_with_test_scope(
             &workspace,
             label,
             &binary,
             &environment,
             1,
-            Ok("rustc changed")
+            Ok("rustc changed"),
+            &test_scope,
         )
         .decision(),
         Decision::Miss("rustc")
     );
     fs::write(source, b"second").unwrap();
     assert_eq!(
-        prepare(
+        prepare_with_test_scope(
             &workspace,
             label,
             &binary,
             &environment,
             1,
-            Ok("rustc test")
+            Ok("rustc test"),
+            &test_scope,
         )
         .decision(),
         Decision::Miss("inputs")
