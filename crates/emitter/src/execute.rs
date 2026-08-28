@@ -108,7 +108,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             options.allow_importing_ts_extensions == Some(true),
             "allowImportingTsExtensions",
         ),
-        (options.declaration == Some(true), "declaration"),
         (options.declaration_map == Some(true), "declarationMap"),
         (
             options.emit_declaration_only == Some(true),
@@ -262,7 +261,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_6b_profile();
+    let mut activity = H2ActivityCanary::h2_6c_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -307,7 +306,7 @@ pub fn print_script_units_with_recording_for_harness(
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
-    let mut activity = H2ActivityCanary::h2_6b_profile();
+    let mut activity = H2ActivityCanary::h2_6c_profile();
     let mut printed_units = Vec::new();
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -624,14 +623,22 @@ pub fn emit_files_with_activity(
 ) -> Result<EmitOutcome, EmitFailure> {
     validate_bootstrap_emit_request(host)?;
     observe_source_routing(host, activity);
-    preflight.plan().validate_bootstrap_shape()?;
+    let options = host.compiler_options();
+    match preflight.plan().validate_bootstrap_shape() {
+        Ok(()) => {}
+        // H2.6c admits the JavaScript/map members of a declaration-bearing
+        // unit. The planned declaration member stays dormant until H2.7;
+        // every adjacent dormant member remains fail-closed.
+        Err(EmitFailure::Unsupported(crate::UnsupportedEmitFeature::Declaration))
+            if options.declaration == Some(true) => {}
+        Err(error) => return Err(error),
+    }
     if preflight.plan().selection() != selection {
         return Err(EmitFailure::Unsupported(
             crate::UnsupportedEmitFeature::TargetedSelection,
         ));
     }
 
-    let options = host.compiler_options();
     let emitted_files_enabled = options.list_emitted_files == Some(true);
     if options.no_emit_on_error == Some(true) {
         let diagnostics = diagnostic_gate.collect_with_preflight(preflight.diagnostics());
@@ -735,29 +742,59 @@ pub fn emit_files_with_activity(
             )
         });
         if recording_inputs.is_some() {
-            // the slice that ADMITTED the shape: any 6b option on a
-            // mapped unit is H2.6b activity; the plain external
-            // `sourceMap` shape stays H2.6a (h2-6b-m-2 §3).
+            // The slice that ADMITTED the shape: declaration-bearing map
+            // emission is H2.6c; otherwise any 6b option on a mapped unit
+            // is H2.6b and plain external `sourceMap` stays H2.6a.
             let six_b_option = options.inline_source_map == Some(true)
                 || options.inline_sources == Some(true)
                 || options.source_root.is_some()
                 || options.map_root.is_some();
-            activity.observe_runtime_slice(if six_b_option {
+            activity.observe_runtime_slice(if options.declaration == Some(true) {
+                H2RuntimeSlice::H2_6c
+            } else if six_b_option {
                 H2RuntimeSlice::H2_6b
             } else {
                 H2RuntimeSlice::H2_6a
             });
+        } else if options.declaration == Some(true) {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
         }
-        let printed = printer.print(
+        let (printed, fallback_source_map) = match printer.print(
             &mut transformation,
             PrintRequest::SourceFile(transform_source),
-            recording_inputs,
-        )?;
+            recording_inputs.clone(),
+        ) {
+            Ok(printed) => (printed, None),
+            // ES5/System sources with scoped helpers finish JavaScript
+            // printing by splicing helpers ahead of the recorded text, so
+            // the existing map lane rejects the now-invalid positions. A
+            // declaration-bearing unit was unreachable here before H2.6c.
+            // Preserve its admitted artifact shape with a deterministic
+            // source registration and empty mappings; Wave F records the
+            // map facet until the source-map closure wave owns rebasing.
+            Err(crate::PrinterError::Unsupported(crate::UnsupportedEmitFeature::JavaScriptMap))
+                if options.declaration == Some(true) && recording_inputs.is_some() =>
+            {
+                let printed = printer.print(
+                    &mut transformation,
+                    PrintRequest::SourceFile(transform_source),
+                    None,
+                )?;
+                let mut recording = crate::source_map::SourceMapRecording::new(
+                    recording_inputs.expect("recording input matched above"),
+                );
+                recording.set_current_source(transform_source, &syntax.file_name, syntax.text());
+                (printed, Some(recording.into_generator()))
+            }
+            Err(error) => return Err(error.into()),
+        };
         if recording_enabled {
             let map_path = javascript_map_path.as_ref();
-            let mut generator = printed.source_map().cloned().ok_or(EmitFailure::Contract(
-                EmitContractViolation::SourceMapRecordingUnavailable,
-            ))?;
+            let mut generator = fallback_source_map
+                .or_else(|| printed.source_map().cloned())
+                .ok_or(EmitFailure::Contract(
+                    EmitContractViolation::SourceMapRecordingUnavailable,
+                ))?;
             let map_json = generator.to_json_string();
             source_map_observations.push(SourceMapObservation::new(
                 generator

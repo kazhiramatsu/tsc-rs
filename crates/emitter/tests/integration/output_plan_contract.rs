@@ -63,7 +63,7 @@ fn erasable_syntax_only_is_checker_policy_not_an_emit_preflight_axis() {
 }
 
 #[test]
-fn isolated_declarations_without_declaration_emit_reaches_the_option_diagnostic_gate() {
+fn declaration_is_admitted_while_composite_remains_refused() {
     assert_eq!(
         validate_bootstrap_emit_options(&CompilerOptions {
             target: Some(2),
@@ -74,29 +74,29 @@ fn isolated_declarations_without_declaration_emit_reaches_the_option_diagnostic_
         Ok(()),
     );
 
-    for options in [
-        CompilerOptions {
+    assert_eq!(
+        validate_bootstrap_emit_options(&CompilerOptions {
             target: Some(2),
             module: Some(1),
             isolated_declarations: Some(true),
             declaration: Some(true),
             ..CompilerOptions::default()
-        },
-        CompilerOptions {
+        }),
+        Ok(()),
+    );
+
+    assert_eq!(
+        validate_bootstrap_emit_options(&CompilerOptions {
             target: Some(2),
             module: Some(1),
             isolated_declarations: Some(true),
             composite: Some(true),
             ..CompilerOptions::default()
-        },
-    ] {
-        assert!(matches!(
-            validate_bootstrap_emit_options(&options),
-            Err(EmitFailure::UnsupportedCompilerOption {
-                option: "declaration" | "composite"
-            })
-        ));
-    }
+        }),
+        Err(EmitFailure::UnsupportedCompilerOption {
+            option: "composite"
+        }),
+    );
 }
 
 #[test]

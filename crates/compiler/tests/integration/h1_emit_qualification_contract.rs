@@ -431,6 +431,7 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                 | "parameter-property-control"
                 | "jsx-control"
                 | "source-map-control"
+                | "declaration-control"
         ) {
             let mut sink = MemoryOutputSink::new();
             let outcome = ProgramSession::new(prepared_control(
@@ -445,6 +446,19 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
             let expected_writes = case["observation"]["writes"]
                 .as_array()
                 .expect("expected writes");
+            let expected_writes = if id == "declaration-control" {
+                assert_eq!(
+                    expected_writes[0]["kind"], "javascript",
+                    "declaration admission emits the frozen JavaScript member"
+                );
+                assert_eq!(
+                    expected_writes[1]["kind"], "declaration",
+                    "the omitted frozen member remains the H2.7 declaration artifact"
+                );
+                &expected_writes[..1]
+            } else {
+                expected_writes.as_slice()
+            };
             assert_eq!(
                 sink.writes().len(),
                 expected_writes.len(),
@@ -471,6 +485,7 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                 "parameter-property-control" => H2RuntimeSlice::H2_2c,
                 "jsx-control" => H2RuntimeSlice::H2_3b,
                 "source-map-control" => H2RuntimeSlice::H2_6a,
+                "declaration-control" => H2RuntimeSlice::H2_6c,
                 _ => unreachable!("promoted adjacent control"),
             };
             assert_eq!(
