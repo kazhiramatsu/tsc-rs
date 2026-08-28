@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "ad60465c0361e0f41309db02d0e3f2fdf8031c75aeae892bd320de46cd5d5952";
+  "ba1e06439bc7652412fe6a184a05760f6c3468e79821f250af26a628b621c384";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "8f5099bbda54b8c472eb6d48907cd5d3f64bdeefdb150d88dfafa5b728e1f003"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "7120619055171570a2fede716f308aa7d884b2ccfbc037e0926f4783bffea160"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "abe11363b8a4855aa5af87c71d044e5082c1ca66a92acd27ce064b41dd93822a"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "402624c2150338dd26920254d0d55b1864cf2dd44ba322c7e3a6777a313d4021"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "344b02ad7484c95d2e9f0189701d0960442b9cefdfd01816fdba6a474591808c"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "8c3a4b7408913714bb26b4da1670154cd745fbe1cc2365910a43a206d5964659"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "417fd7616034c3beb8a4a6c255ab0bfc9e9b49a386aae86f9844da004bf1d604"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "a8ee8ecbae7951a2ab9fb62216f0f256469a97372a0c50d22fc72aacefd294b4"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
@@ -295,7 +295,9 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   // runtime (the local_ci_resume/m8_evidence class above).
   "crates/xtask/Cargo.toml",
   "crates/xtask/src/ci_test_receipts.rs",
+  "crates/xtask/tests/unit/ci_test_receipts/tests.rs",
   "crates/xtask/src/l1_incremental_stress.rs",
+  "crates/xtask/tests/unit/l1_incremental_stress/tests.rs",
   "crates/harness/tests/integration/h1_compiler_profile_classification.rs",
   "crates/harness/tests/integration/h1_conformance_profile_classification.rs",
   "crates/harness/tests/integration/h1_fourslash_whole_program_equivalence.rs",

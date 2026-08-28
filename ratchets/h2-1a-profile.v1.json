@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-1a-profile.mjs",
-    "sha256": "ee2b041c3e679739d54f88f7cb5b58bc666766f103875779ddcab4c0e9f802d2"
+    "sha256": "f5ef313c238c099340ca4815a67526e0a8cd3e49b67e407bb9bac2c38b6d9744"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-1a-profile.schema.json",
@@ -28,7 +28,7 @@
     "historical": {
       "profile_transition": {
         "path": "ratchets/h2-profile-transition.v1.json",
-        "sha256": "f0e504a8dee4e3f4fb32335514a137458f9afd35e3d3aacf4894a1c89a675ed4"
+        "sha256": "8f03abd9d577d0707f89aab51920cf08eb2bb8d1dd30eb5b6ceedc400f63ece5"
       },
       "runtime_baseline": {
         "path": "ratchets/h2-runtime-baseline.v1.json",
@@ -36,7 +36,7 @@
       },
       "transition_generator": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "37e66c46d42e1b423ab78936af854cb464807e866525dea8daae29f631acbadb"
+        "sha256": "c63af9d34035a0f4c50cac3bc69bbed4d7e0753de7cb5db73d887d2dbe6dcc56"
       },
       "baseline_generator": {
         "path": "crates/oracle/h2-baseline.mjs",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-1a-qualification.v1.json",
-    "sha256": "ad60465c0361e0f41309db02d0e3f2fdf8031c75aeae892bd320de46cd5d5952"
+    "sha256": "ba1e06439bc7652412fe6a184a05760f6c3468e79821f250af26a628b621c384"
   },
   "runtime_inputs": [
     {
@@ -157,7 +157,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "e76aa23b4d39d0a62ffdcaa9076a793cc1511afe4cc914ee601bd1719190c041"
+      "sha256": "469231b0900d47eb78f0d03eb6c3c21968b86a7e9c22602d507c14ec0254c40c"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -180,5 +180,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "790af8894d49d8ac2d7a881383427e9a07effff4c2d1ee1aac744846cc3c03a1"
+  "profile_fingerprint_sha256": "d166da9da9503c69ef47ac7093a17942766b0f3f47c894e3f506d1876629c7a7"
 }
