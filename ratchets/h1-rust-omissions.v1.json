@@ -39,11 +39,11 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 270,
-    "rust_source_files": 249,
-    "cargo_manifests": 21,
-    "bytes": 17521382,
-    "tree_sha256": "e4ada248d6b14b46eacfac8af78bed4ac1f74e0941723bbeffb22ff7e08c94cd"
+    "file_count": 238,
+    "rust_source_files": 223,
+    "cargo_manifests": 15,
+    "bytes": 17333699,
+    "tree_sha256": "fa17dd3226d1aac4d192ffb561e650fb962d8211ebaefe8b08d1617cbf35d414"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -343,7 +343,7 @@
         "column": 1,
         "text": "    \"crates/program\",\n    \"crates/emitter\",\n    \"crates/compiler\",",
         "text_sha256": "11d80371dad721c0702ded12bc7d6c64eaf97b4b14135a85a3fddb11f67ed08b",
-        "file_sha256": "5bca15a9a5a153019c3ee2de4603f2b3cf6fbdb7b2ea7691c259bf0869fa7039"
+        "file_sha256": "edd7e574f72487c69e900e43346058ce66e4052575bb2c48c3d552ea4db5edd5"
       },
       {
         "id": "emitter-manifest-owner",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "2ad1c9611a2a6844b19f2b9e5d3252dc6f57ea878834bb46f6fd4033aff0fc3b"
+  "inventory_fingerprint_sha256": "733df7a848d3ec9e69f9bf3d44af23f04c0f2c8c5c0504ade2d505ee53456331"
 }
