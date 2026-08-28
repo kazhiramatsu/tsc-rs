@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-1a-profile.mjs",
-    "sha256": "211a02a3d40103a608a4fd0f733b449bb5f78c774d7943d70526ae7325721004"
+    "sha256": "0d1195e348903115fce9350d0961bed43111aab81568b291ee3e9116cf8d3fc0"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-1a-profile.schema.json",
@@ -28,7 +28,7 @@
     "historical": {
       "profile_transition": {
         "path": "ratchets/h2-profile-transition.v1.json",
-        "sha256": "f673e9b4b93970a5c7c79213566fc310ac70c26119f89564a632af2ef375336f"
+        "sha256": "b057ff9c614db5f535ff8e962e8a146d2f22dcbfb0d5b2a08792808f591083fc"
       },
       "runtime_baseline": {
         "path": "ratchets/h2-runtime-baseline.v1.json",
@@ -36,7 +36,7 @@
       },
       "transition_generator": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "b5e0c03ed8492d76ec78c0e581d31fc6fd17bc3604ca1eb94646958426464793"
+        "sha256": "2f1d0be3baa4325f537ac0fe469d771d351b5792ae861ffd053b48541853fb0c"
       },
       "baseline_generator": {
         "path": "crates/oracle/h2-baseline.mjs",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-1a-qualification.v1.json",
-    "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
+    "sha256": "de6b76d5e2054a737f24d5e0f24abd95e671739f8b86765bf583dfcb7426dd96"
   },
   "runtime_inputs": [
     {
@@ -108,7 +108,7 @@
     },
     {
       "path": "crates/xtask/src/main.rs",
-      "sha256": "03ec3301aaf42fb2b78c44ad7473d1993cf65c49e29a745822cdb8f117eda632"
+      "sha256": "90887803418096c0e2cec526ebb3f9e28d74db468e4d1c87f6b7ed5cb96282d5"
     },
     {
       "path": "crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
@@ -157,7 +157,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "59461c1227270cfbdbb8ead8c574e564c4cd87d63f767033d4a4d2bd616e5dab"
+      "sha256": "7c572d106ca004e532d66739a7ee8e4579f9b6ad4d5dce5e86739bcf1dfbb759"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -180,5 +180,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "4abcd8e0938a31853cf4c1028333265a0b5d1614a23f88d7c459b1666f2fbc99"
+  "profile_fingerprint_sha256": "e811920ec0cc17837c2ec828e06f4a9d8d5b72b43ab4390b37d976abfad42ebd"
 }

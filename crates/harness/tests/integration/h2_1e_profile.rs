@@ -133,7 +133,7 @@ fn h2_1e_profile_is_content_addressed_and_closes_the_transition() {
     let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.1e profile JSON");
     assert_eq!(
         sha256(RECORDED),
-        "319ea5c7ff87bad45400c67116252927ea339f2efa948907c0cc5bbe54bd1b39"
+        "a6e35959e343fb6cdf3027fa3164873111ce6f90d369af3ace1037c287dddb99"
     );
     assert_eq!(artifact["schema"], 1);
     assert_eq!(artifact["kind"], "h2-runtime-profile");
@@ -163,7 +163,7 @@ fn h2_1e_profile_is_content_addressed_and_closes_the_transition() {
     assert_recorded_exact(
         &artifact["generator"],
         "crates/oracle/h2-1e-profile.mjs",
-        "bceeaf05305b802b01f92215d0fdafbf9e06e66931f0e76d2a3cb76e1f42dad4",
+        "ee378cec318258181824d8a88d1d3901d7caf330ea2680ea0d308e93d0fe4157",
     );
     assert_recorded_exact(
         &artifact["contract"],
@@ -173,7 +173,7 @@ fn h2_1e_profile_is_content_addressed_and_closes_the_transition() {
     assert_recorded_exact(
         &artifact["qualification"],
         "ratchets/h2-1e-qualification.v1.json",
-        "eee49e68f5eca87dc04f834d7ded72db0e8392a46fd1e7f53618bc7f9650014d",
+        "9cae73373d003b9fff62e9d8f608cc28d0a9f2978a5adde2c99083494df55109",
     );
     assert_recorded_exact(
         &artifact["evidence"]["owner_controls"]["artifact"],
@@ -200,12 +200,12 @@ fn h2_1e_profile_is_content_addressed_and_closes_the_transition() {
         (
             "profile",
             "ratchets/h2-1d-profile.v1.json",
-            "feec91acb4be061cbef895b68ab7d22184aac038cd3644d218c2bf8a6fc1d46a",
+            "0a13130d77d9fb412d57996bc7125a9d596e024c7deb0d0387cdb4ccb2c34001",
         ),
         (
             "qualification",
             "ratchets/h2-1d-qualification.v1.json",
-            "e3e8d3258bb2ce08d145de8f718ef7bf82f9b79dfeb566990ee95a3982e5f276",
+            "a953f6d9aa4d9d478143f6b7dd8b68c1df06721ead740b9519486aa04fd1b440",
         ),
     ] {
         let record = &artifact["origin"]["historical"][field];

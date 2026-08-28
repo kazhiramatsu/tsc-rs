@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-qualification.mjs",
-    "sha256": "746127130fe4c4a0f12bdc26e01b97cd2937524f382595fbcab661fa3c7c7e70"
+    "sha256": "2bbeeff8c3984b6358acefdc0f17a3cb771144ddca497e218962225c868a5464"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_2a_merge": "c402252a0d9df4ca0f5332c7f64084087fe55886",
     "h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "7b5cc6d3b150e2e3c02094ece337f4c2c11c6fd9c43b4b4d2039fac70e74b16f"
+      "sha256": "8db0a504b2107994075f9ff90a57372aa2204703d759adc46d146163a5f13c4b"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "a28436b3ec87e9ff0924568b5cb7a99725a27e6655ee8ed96971490cad707d3a"
+      "sha256": "e8f15aec75944606add01e2f06ed7805fdef4ac27d72fae696518cdd57f35adf"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "3344011220f435d5457e0cebd5ae6736462507d2fb3a3dfc51f013ad22994076"
+      "sha256": "de6b76d5e2054a737f24d5e0f24abd95e671739f8b86765bf583dfcb7426dd96"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "95cb1a2f8a2e60244da5b129912cde97a3aed2919bce1fc238141e8954098db7"
+      "sha256": "c29d1ab9aaf417f0de6a2b85ccdb6efce039ab77be3fadf2619be14589b430d0"
     },
     "h2_2a_qualification": {
       "path": "ratchets/h2-2a-qualification.v1.json",
-      "sha256": "c88b2f5049130e3a10ae2b4e4aefb99fb4ccfc5da6380b049b99bde6eacfa4c9"
+      "sha256": "791072f7fd570caae8f0b5ee56f2b5ff310c1dd449c23a0102b9016d507e14c0"
     }
   },
   "execution_contract": {
@@ -7217,5 +7217,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "7b671ca9b7fd5b84e5b8b338a37adcf3021226a788b9a425eadae299906fb20b"
+  "qualification_fingerprint_sha256": "faf0402ed0ee50a1a3cb226349cda3c0db183a88c9588c06b9a8e417cee50e61"
 }

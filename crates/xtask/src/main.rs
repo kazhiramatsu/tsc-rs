@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+#![deny(unsafe_code)]
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
@@ -20,6 +20,7 @@ mod acceptance_plan;
 mod acceptance_slices;
 mod bounded_pipeline;
 mod ci_conformance_receipt;
+mod ci_test_receipts;
 mod completion;
 mod h1_conformance;
 mod h1_emit_acceptance;
@@ -7892,6 +7893,43 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
         tests.len(),
         worker_count + usize::from(worker_count > 1)
     );
+    let rustc_version = ci_test_receipts::rustc_version();
+    let receipt_environment = [(CI_TEST_WORKERS_ENV, std::env::var(CI_TEST_WORKERS_ENV).ok())];
+    let receipts = tests
+        .iter()
+        .map(|test| {
+            let harness_threads = ci_test_target_harness_threads(test, worker_count);
+            ci_test_receipts::prepare(
+                workspace,
+                &test.label,
+                &test.executable,
+                &receipt_environment,
+                harness_threads,
+                rustc_version
+                    .as_ref()
+                    .map(String::as_str)
+                    .map_err(String::as_str),
+            )
+        })
+        .collect::<Vec<_>>();
+    let mut receipt_hits = 0_usize;
+    let mut receipt_misses = 0_usize;
+    let mut receipt_undeclared = 0_usize;
+    for (test, receipt) in tests.iter().zip(&receipts) {
+        println!(
+            "test receipt {}: {}",
+            receipt.decision().render(),
+            test.label
+        );
+        match receipt.decision() {
+            ci_test_receipts::Decision::Hit => receipt_hits += 1,
+            ci_test_receipts::Decision::Miss(_) => receipt_misses += 1,
+            ci_test_receipts::Decision::Undeclared => receipt_undeclared += 1,
+        }
+        if let Some(diagnostic) = receipt.diagnostic() {
+            eprintln!("test receipt diagnostic: {}: {diagnostic}", test.label);
+        }
+    }
     let captures = CiTestCaptureDirectory::new(workspace)?;
     let results = bounded_pipeline::ordered_map(&tests, worker_count, |index, test| {
         let started = std::time::Instant::now();
@@ -7901,7 +7939,7 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
     })?;
 
     let mut failed = Vec::new();
-    for (test, (elapsed, result)) in tests.iter().zip(results) {
+    for ((test, receipt), (elapsed, result)) in tests.iter().zip(&receipts).zip(results) {
         println!(
             "workspace test target {}: elapsed={:.3}s",
             test.label,
@@ -7918,10 +7956,22 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
                     // thousands of ordinary per-target progress lines.
                     std::io::stderr().write_all(&output.stderr)?;
                 }
+                if output.status.success() {
+                    if let Err(error) = receipt.publish() {
+                        // Report-only receipts are fail-closed convenience
+                        // state: a publication failure never changes the test
+                        // target's green result and can never cause a skip.
+                        eprintln!("test receipt mint failed: {}: {error}", test.label);
+                    }
+                }
             }
             Err(error) => failed.push(format!("{} ({error})", test.label)),
         }
     }
+    println!(
+        "test receipt summary: hit={receipt_hits} miss={receipt_misses} undeclared={receipt_undeclared} total={} report-only=all-ran",
+        tests.len()
+    );
     if failed.is_empty() {
         Ok(())
     } else {
@@ -8020,7 +8070,10 @@ fn run_ci_test_target(
 }
 
 fn ci_test_target_harness_threads(test: &CiTestExecutable, worker_count: usize) -> usize {
-    if worker_count > 1 && test.label == "tsc_conformance [lib]" {
+    if worker_count > 1
+        && (test.label == "tsc_conformance [lib]"
+            || test.label.ends_with("::tsc_conformance [lib]"))
+    {
         2
     } else {
         1
@@ -8085,13 +8138,29 @@ fn cargo_test_executables(stdout: &[u8]) -> Result<Vec<CiTestExecutable>, Box<dy
                     .ok_or_else(|| format!("test artifact {executable:?} has a non-string kind"))
             })
             .collect::<Result<Vec<_>, _>>()?;
+        let target_label = format!("{name} [{}]", kinds.join(","));
+        let label = message
+            .get("package_id")
+            .and_then(serde_json::Value::as_str)
+            .and_then(cargo_package_name)
+            .map_or(target_label.clone(), |package| {
+                format!("{package}::{target_label}")
+            });
         tests.push(CiTestExecutable {
-            label: format!("{name} [{}]", kinds.join(",")),
+            label,
             executable,
             package_directory,
         });
     }
     Ok(tests)
+}
+
+fn cargo_package_name(package_id: &str) -> Option<&str> {
+    if let Some((_, fragment)) = package_id.rsplit_once('#') {
+        let name = fragment.split_once('@').map_or(fragment, |(name, _)| name);
+        return (!name.is_empty()).then_some(name);
+    }
+    package_id.split_ascii_whitespace().next()
 }
 
 const CONFORMANCE_WORKERS_ENV: &str = "TSRS_CONFORMANCE_WORKERS";
@@ -8260,7 +8329,14 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             "--edits".to_owned(),
             "16".to_owned(),
             "--max-rss-bytes".to_owned(),
-            "268435456".to_owned(),
+            // Recalibrated 2026-08-28 for the gt6 child-scoped wait4 ru_maxrss
+            // high-water (the old darwin arm read the parent's CURRENT rss
+            // after cleanup and never saw the true peak). Measured stable
+            // 1064.5 MiB at 16 edits (0.1 MiB repeatability; append-only
+            // arena retains all edit generations); 1.25 GiB = +17.5% headroom.
+            // Generation-window reclamation is the backlogged optimization
+            // that could bring this back down (gate-tax-6.md §3 amendment).
+            "1342177280".to_owned(),
             "--report".to_owned(),
             workspace
                 .join("target/l1/incremental-stress-ci.json")
