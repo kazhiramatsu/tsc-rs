@@ -171,7 +171,7 @@ fn classify_path(path: &str) -> (Impact, Vec<&'static str>, &'static str) {
         || path.ends_with(".md")
         || path.starts_with("ratchets/fci-")
         || path.starts_with(".github/ci/fci-")
-        || path.starts_with("crates/ci-")
+        || path.starts_with("new-ci/")
     {
         return (
             Impact::None,

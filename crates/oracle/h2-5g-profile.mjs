@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "de6b76d5e2054a737f24d5e0f24abd95e671739f8b86765bf583dfcb7426dd96";
+  "6f5b3d97c6b7ab62c817bf1f4f135d6b5224f2fbea25c0dfc23ab45d86d9695e";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "fb5b524c037162a56563c3ed3a223e0543b42b8a7657316364b28ad8cc26d1ef"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "0c52853d0d594835d2105817087588b86c90177c91bb381874cef3a47360b69b"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "15165955e8e4470114c415ce3cba4f722da5244a9b53cfa7eea3e63fcecf9f21"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "56f5e21f32b98d41b80ff40a55a36efe48a05f50bd903db97a485f8b79b36a17"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "3c9b220114d6d4357bd8fab87f96a9542e20959ddad744faabf711a636898d6c"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "f57d3a9c105bf20140b3593308ea43bc3ffc551bcfce305b8db8825c64feb376"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "72af7452219f8181667bf3fd0fd9b68ef4c8b3055c9a79a41cc7af903ad78c14"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "175bf82132945528f0476324901b0992d7e6197a5229ac848f2eae473485f7ae"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
@@ -194,66 +194,6 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/syntax/tests/unit/scanner/tests.rs",
   "crates/xtask/tests/unit/h2_1a_acceptance/tests.rs",
   "crates/types/src/flags.rs",
-  // Pre-closure Functional-CI shadow packages are workspace inputs, but they
-  // do not participate in the H2 semantic action graph. Binding their exact
-  // bytes here keeps the legacy profile honest without granting them H2
-  // qualification or authority.
-  "crates/ci-adapter-tsc-rs-control/Cargo.toml",
-  "crates/ci-adapter-tsc-rs-control/src/lib.rs",
-  "crates/ci-adapter-tsc-rs-control/tests/plan.rs",
-  "crates/ci-adapter-tsc-rs-protocol/Cargo.toml",
-  "crates/ci-adapter-tsc-rs-protocol/src/lib.rs",
-  "crates/ci-adapter-tsc-rs-protocol/tests/protocol.rs",
-  "crates/ci-core/Cargo.toml",
-  "crates/ci-core/src/adapter.rs",
-  "crates/ci-core/src/canonical.rs",
-  "crates/ci-core/src/digest.rs",
-  "crates/ci-core/src/explain.rs",
-  "crates/ci-core/src/graph.rs",
-  "crates/ci-core/src/graph_schema.rs",
-  "crates/ci-core/src/graph_validation.rs",
-  "crates/ci-core/src/hash.rs",
-  "crates/ci-core/src/identity.rs",
-  "crates/ci-core/src/ids.rs",
-  "crates/ci-core/src/impact.rs",
-  "crates/ci-core/src/input.rs",
-  "crates/ci-core/src/inventory.rs",
-  "crates/ci-core/src/lib.rs",
-  "crates/ci-core/src/membership.rs",
-  "crates/ci-core/src/model.rs",
-  "crates/ci-core/src/registry.rs",
-  "crates/ci-harness-tsc-rs/Cargo.toml",
-  "crates/ci-harness-tsc-rs/src/main.rs",
-  "crates/ci-harness-tsc-rs/tests/process.rs",
-  "crates/ci-runner/Cargo.toml",
-  "crates/ci-runner/src/bounded.rs",
-  "crates/ci-runner/src/error.rs",
-  "crates/ci-runner/src/lib.rs",
-  "crates/ci-runner/src/resource.rs",
-  "crates/ci-runner/src/snapshot.rs",
-  "crates/ci-testkit/Cargo.toml",
-  "crates/ci-testkit/src/lib.rs",
-  "crates/ci-testkit/tests/fixtures.rs",
-  "crates/ci-core/tests/contracts.rs",
-  "crates/ci-core/tests/contracts/canonical.rs",
-  "crates/ci-core/tests/contracts/descriptors.rs",
-  "crates/ci-core/tests/contracts/explain.rs",
-  "crates/ci-core/tests/contracts/graph.rs",
-  "crates/ci-core/tests/contracts/graph_schema.rs",
-  "crates/ci-core/tests/contracts/graph_validation.rs",
-  "crates/ci-core/tests/contracts/hashes.rs",
-  "crates/ci-core/tests/contracts/identifiers.rs",
-  "crates/ci-core/tests/contracts/identity.rs",
-  "crates/ci-core/tests/contracts/impact.rs",
-  "crates/ci-core/tests/contracts/inventory.rs",
-  "crates/ci-core/tests/contracts/registry_membership.rs",
-  "crates/ci-harness-tsc-rs/tests/unit/main_tests.rs",
-  "crates/ci-runner/tests/contracts.rs",
-  "crates/ci-runner/tests/contracts/bounded_effect.rs",
-  "crates/ci-runner/tests/contracts/error_boundary.rs",
-  "crates/ci-runner/tests/contracts/snapshot_resource.rs",
-  "crates/ci-runner/tests/unit/bounded_tests.rs",
-  "crates/ci-runner/tests/unit/snapshot_tests.rs",
   "crates/emitter/tests/integration/tsx_type_argument_transform_contract.rs",
   "crates/emitter/tests/unit/builtins_jsx_tests.rs",
   "crates/emitter/tests/unit/target_bindings_tests.rs",
@@ -582,7 +522,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 259,
+    runtimeInputSet.size === 203,
     "H2.5g runtime input identity changed",
   );
 

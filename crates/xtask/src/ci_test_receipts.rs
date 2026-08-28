@@ -11,13 +11,43 @@ use sha2::{Digest, Sha256};
 
 const RECEIPT_SCHEMA: u32 = 1;
 const RECEIPT_KIND: &str = "workspace-test-target-receipt";
-const PRODUCER_VERSION: &str = "gate-tax-6-report-only-v1";
+const PRODUCER_VERSION: &str = "gate-tax-6-enforce-v1";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Mode {
+    Enforce,
+    Fresh,
+    Report,
+}
+
+impl Mode {
+    pub(crate) fn from_environment() -> Self {
+        Self::parse(std::env::var("TSRS_TEST_RECEIPTS").ok().as_deref())
+    }
+
+    fn parse(value: Option<&str>) -> Self {
+        match value {
+            Some("fresh") => Self::Fresh,
+            Some("report") => Self::Report,
+            Some(_) | None => Self::Enforce,
+        }
+    }
+
+    pub(crate) const fn label(self) -> &'static str {
+        match self {
+            Self::Enforce => "enforce",
+            Self::Fresh => "fresh",
+            Self::Report => "report",
+        }
+    }
+
+    pub(crate) const fn skips(self, decision: Decision) -> bool {
+        matches!((self, decision), (Self::Enforce, Decision::Hit))
+    }
+}
 
 #[derive(Clone, Copy, Debug)]
-enum InputTree {
-    File(&'static str),
-    Directory(&'static str),
-}
+struct InputTree(&'static str);
 
 #[derive(Clone, Copy, Debug)]
 struct TargetInputScope {
@@ -26,41 +56,13 @@ struct TargetInputScope {
 }
 
 const NO_RUNTIME_INPUTS: &[InputTree] = &[];
-const CONTROL_INPUTS: &[InputTree] = &[
-    InputTree::File(".github/ci/plans/h2-5g.v1.json"),
-    InputTree::File("crates/ci-adapter-tsc-rs-control/src/lib.rs"),
-    InputTree::File("crates/ci-adapter-tsc-rs-protocol/src/lib.rs"),
-];
-const TESTKIT_INPUTS: &[InputTree] = &[InputTree::File("crates/ci-testkit/src/lib.rs")];
-const CI_CORE_INPUTS: &[InputTree] = &[
-    InputTree::Directory("crates/ci-core/tests/contracts"),
-    InputTree::Directory("crates/ci-core/src"),
-    InputTree::File("docs/design/greenfield/slices/explanation-cases.v1.json"),
-    InputTree::File("docs/design/greenfield/slices/impact-cases.v1.json"),
-];
 
-/// Curated report-only pilot. Each label is package-qualified by the Cargo
-/// artifact reader. Tests outside this table are deliberately uncached.
+/// Curated receipt-eligible targets. Each label is package-qualified by the
+/// Cargo artifact reader. Tests outside this table are deliberately uncached.
 const TEST_TARGET_INPUT_SCOPES: &[TargetInputScope] = &[
     TargetInputScope {
         label: "tsc-rs-checker::authoritative_external_fact [test]",
         inputs: NO_RUNTIME_INPUTS,
-    },
-    TargetInputScope {
-        label: "tsc-rs-ci-adapter-control::plan [test]",
-        inputs: CONTROL_INPUTS,
-    },
-    TargetInputScope {
-        label: "tsc-rs-ci-adapter-protocol::protocol [test]",
-        inputs: NO_RUNTIME_INPUTS,
-    },
-    TargetInputScope {
-        label: "tsc-rs-ci-core::contracts [test]",
-        inputs: CI_CORE_INPUTS,
-    },
-    TargetInputScope {
-        label: "tsc-rs-ci-testkit::fixtures [test]",
-        inputs: TESTKIT_INPUTS,
     },
     TargetInputScope {
         label: "tsc-rs-emitter::source_comment_topology_contract [test]",
@@ -200,8 +202,8 @@ pub(crate) fn rustc_version() -> Result<String, String> {
     Ok(version.trim().to_owned())
 }
 
-/// Prepare a report-only decision. Any receipt-side error becomes a miss so
-/// the caller can continue to run every test target.
+/// Prepare a receipt decision. Any receipt-side error becomes a miss so the
+/// caller runs the test target.
 pub(crate) fn prepare(
     workspace: &Path,
     label: &str,
@@ -220,6 +222,47 @@ pub(crate) fn prepare(
             diagnostic: None,
         };
     };
+    prepare_for_scope(
+        workspace,
+        label,
+        binary,
+        environment,
+        harness_threads,
+        rustc_version,
+        scope,
+    )
+}
+
+#[cfg(test)]
+fn prepare_with_test_scope(
+    workspace: &Path,
+    label: &str,
+    binary: &Path,
+    environment: &[(&str, Option<String>)],
+    harness_threads: usize,
+    rustc_version: Result<&str, &str>,
+    scope: &TargetInputScope,
+) -> PreparedReceipt {
+    prepare_for_scope(
+        workspace,
+        label,
+        binary,
+        environment,
+        harness_threads,
+        rustc_version,
+        scope,
+    )
+}
+
+fn prepare_for_scope(
+    workspace: &Path,
+    label: &str,
+    binary: &Path,
+    environment: &[(&str, Option<String>)],
+    harness_threads: usize,
+    rustc_version: Result<&str, &str>,
+    scope: &TargetInputScope,
+) -> PreparedReceipt {
     let rustc_version = match rustc_version {
         Ok(version) => version,
         Err(error) => {
@@ -335,16 +378,8 @@ fn collect_inputs(
 ) -> Result<Vec<FileBinding>, Box<dyn Error>> {
     let mut paths = BTreeMap::<String, PathBuf>::new();
     for input in input_trees {
-        match input {
-            InputTree::File(relative) => {
-                let path = secure_input_path(workspace, Path::new(relative), false)?;
-                paths.insert((*relative).to_owned(), path);
-            }
-            InputTree::Directory(relative) => {
-                let directory = secure_input_path(workspace, Path::new(relative), true)?;
-                collect_directory_files(workspace, &directory, &mut paths)?;
-            }
-        }
+        let path = secure_input_path(workspace, Path::new(input.0))?;
+        paths.insert(input.0.to_owned(), path);
     }
     paths
         .into_iter()
@@ -359,35 +394,6 @@ fn collect_inputs(
         .collect()
 }
 
-fn collect_directory_files(
-    workspace: &Path,
-    directory: &Path,
-    paths: &mut BTreeMap<String, PathBuf>,
-) -> Result<(), Box<dyn Error>> {
-    let mut entries = fs::read_dir(directory)?.collect::<Result<Vec<_>, _>>()?;
-    entries.sort_by_key(fs::DirEntry::file_name);
-    for entry in entries {
-        let path = entry.path();
-        let metadata = fs::symlink_metadata(&path)?;
-        if metadata.file_type().is_symlink() {
-            return Err(format!("test receipt input is a symlink: {}", path.display()).into());
-        }
-        if metadata.is_dir() {
-            collect_directory_files(workspace, &path, paths)?;
-        } else if metadata.is_file() {
-            let relative = workspace_relative(workspace, &path)?;
-            paths.insert(relative, path);
-        } else {
-            return Err(format!(
-                "test receipt input is not a file or directory: {}",
-                path.display()
-            )
-            .into());
-        }
-    }
-    Ok(())
-}
-
 fn canonical_workspace(workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
     let metadata = fs::symlink_metadata(workspace)?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
@@ -396,11 +402,7 @@ fn canonical_workspace(workspace: &Path) -> Result<PathBuf, Box<dyn Error>> {
     Ok(workspace.canonicalize()?)
 }
 
-fn secure_input_path(
-    workspace: &Path,
-    relative: &Path,
-    require_directory: bool,
-) -> Result<PathBuf, Box<dyn Error>> {
+fn secure_input_path(workspace: &Path, relative: &Path) -> Result<PathBuf, Box<dyn Error>> {
     if relative.is_absolute()
         || relative.as_os_str().is_empty()
         || relative
@@ -421,12 +423,8 @@ fn secure_input_path(
         }
     }
     let metadata = fs::symlink_metadata(&current)?;
-    if (require_directory && !metadata.is_dir()) || (!require_directory && !metadata.is_file()) {
-        return Err(format!(
-            "test receipt input has the wrong type: {}",
-            current.display()
-        )
-        .into());
+    if !metadata.is_file() {
+        return Err(format!("test receipt input is not a file: {}", current.display()).into());
     }
     Ok(current)
 }
@@ -548,14 +546,6 @@ fn atomic_write(workspace: &Path, path: &Path, bytes: &[u8]) -> Result<(), Box<d
         let _ = fs::remove_file(&temporary);
     }
     result
-}
-
-fn workspace_relative(workspace: &Path, path: &Path) -> Result<String, Box<dyn Error>> {
-    Ok(path
-        .strip_prefix(workspace)?
-        .to_str()
-        .ok_or("test receipt input path is not UTF-8")?
-        .replace('\\', "/"))
 }
 
 #[cfg(test)]
