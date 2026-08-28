@@ -271,6 +271,8 @@ fn main() {
                 workspace_maintenance::run_workspace_command(args, &workspace)
             }))
         }
+        Some("workspace-audit") => run_or_exit(workspace_audit(args)),
+        Some("workspace-tests") => run_or_exit(workspace_tests(args)),
         Some("ci") => run_or_exit(ci(args)),
         Some("schema-audit") => run_or_exit(schema_audit(args)),
         Some("escapes") => run_or_exit(escapes(args)),
@@ -300,6 +302,31 @@ fn main() {
             std::process::exit(2);
         }
     }
+}
+
+fn workspace_audit(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(extra) = args.next() {
+        return Err(format!("unexpected workspace-audit argument: {extra}").into());
+    }
+    let workspace = find_workspace_root()?;
+    workspace_maintenance::audit(&workspace)
+}
+
+// The gt6 pilot's standalone entry: the exact gate workspace-test phase
+// (compile + receipt-tracked executable pipeline) against an explicit
+// workspace root, so replay states can be exercised by a fixed pilot
+// binary without the surrounding ci lanes or the resume journal.
+fn workspace_tests(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let workspace = match args.next() {
+        None => find_workspace_root()?,
+        Some(path) => {
+            if let Some(extra) = args.next() {
+                return Err(format!("unexpected workspace-tests argument: {extra}").into());
+            }
+            PathBuf::from(path)
+        }
+    };
+    ci_workspace_tests(&workspace)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -7888,10 +7915,12 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
     }
 
     let worker_count = ci_test_worker_count(workspace)?.min(tests.len());
+    let receipt_mode = ci_test_receipts::Mode::from_environment();
     println!(
-        "workspace test pipeline: executables={} workers={worker_count} peak_harness_threads={} ordinary_harness_threads=1",
+        "workspace test pipeline: executables={} workers={worker_count} peak_harness_threads={} ordinary_harness_threads=1 test_receipts_mode={}",
         tests.len(),
-        worker_count + usize::from(worker_count > 1)
+        worker_count + usize::from(worker_count > 1),
+        receipt_mode.label()
     );
     let rustc_version = ci_test_receipts::rustc_version();
     let receipt_environment = [(CI_TEST_WORKERS_ENV, std::env::var(CI_TEST_WORKERS_ENV).ok())];
@@ -7915,23 +7944,37 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let mut receipt_hits = 0_usize;
     let mut receipt_misses = 0_usize;
     let mut receipt_undeclared = 0_usize;
-    for (test, receipt) in tests.iter().zip(&receipts) {
-        println!(
-            "test receipt {}: {}",
-            receipt.decision().render(),
-            test.label
-        );
-        match receipt.decision() {
+    let mut run_indexes = Vec::with_capacity(tests.len());
+    for (index, (test, receipt)) in tests.iter().zip(&receipts).enumerate() {
+        let decision = receipt.decision();
+        println!("test receipt {}: {}", decision.render(), test.label);
+        if decision == ci_test_receipts::Decision::Hit {
+            println!(
+                "test receipt hit key terms: {}: producer-version binary inputs environment harness-threads rustc",
+                test.label
+            );
+        }
+        match decision {
             ci_test_receipts::Decision::Hit => receipt_hits += 1,
             ci_test_receipts::Decision::Miss(_) => receipt_misses += 1,
             ci_test_receipts::Decision::Undeclared => receipt_undeclared += 1,
+        }
+        if !receipt_mode.skips(decision) {
+            run_indexes.push(index);
         }
         if let Some(diagnostic) = receipt.diagnostic() {
             eprintln!("test receipt diagnostic: {}: {diagnostic}", test.label);
         }
     }
+    let receipt_skipped = tests.len() - run_indexes.len();
+    println!(
+        "test receipts: mode={} hit={receipt_hits} skipped={receipt_skipped} run={} undeclared={receipt_undeclared} miss={receipt_misses}",
+        receipt_mode.label(),
+        run_indexes.len()
+    );
     let captures = CiTestCaptureDirectory::new(workspace)?;
-    let results = bounded_pipeline::ordered_map(&tests, worker_count, |index, test| {
+    let results = bounded_pipeline::ordered_map(&run_indexes, worker_count, |_, &index| {
+        let test = &tests[index];
         let started = std::time::Instant::now();
         let harness_threads = ci_test_target_harness_threads(test, worker_count);
         let output = run_ci_test_target(test, index, harness_threads, captures.path());
@@ -7939,7 +7982,9 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
     })?;
 
     let mut failed = Vec::new();
-    for ((test, receipt), (elapsed, result)) in tests.iter().zip(&receipts).zip(results) {
+    for (index, (elapsed, result)) in run_indexes.into_iter().zip(results) {
+        let test = &tests[index];
+        let receipt = &receipts[index];
         println!(
             "workspace test target {}: elapsed={:.3}s",
             test.label,
@@ -7958,9 +8003,9 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
                 }
                 if output.status.success() {
                     if let Err(error) = receipt.publish() {
-                        // Report-only receipts are fail-closed convenience
-                        // state: a publication failure never changes the test
-                        // target's green result and can never cause a skip.
+                        // Receipts remain fail-closed convenience state: a
+                        // publication failure never changes the test target's
+                        // green result and leaves the next run as a miss.
                         eprintln!("test receipt mint failed: {}: {error}", test.label);
                     }
                 }
@@ -7968,10 +8013,6 @@ fn ci_workspace_tests(workspace: &Path) -> Result<(), Box<dyn Error>> {
             Err(error) => failed.push(format!("{} ({error})", test.label)),
         }
     }
-    println!(
-        "test receipt summary: hit={receipt_hits} miss={receipt_misses} undeclared={receipt_undeclared} total={} report-only=all-ran",
-        tests.len()
-    );
     if failed.is_empty() {
         Ok(())
     } else {
