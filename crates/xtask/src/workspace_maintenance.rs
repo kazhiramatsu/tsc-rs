@@ -117,6 +117,7 @@ pub(crate) fn audit(workspace: &Path) -> Result<(), Box<dyn Error>> {
 }
 
 fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Error>> {
+    let mut violations = Vec::new();
     for package in catalog.packages() {
         let crate_root = package.manifest_path().parent().ok_or_else(|| {
             format!(
@@ -150,6 +151,7 @@ fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Erro
             .into());
         }
 
+        let mut source_paths = Vec::new();
         let mut pending = VecDeque::from([crate_root.join("src")]);
         while let Some(directory) = pending.pop_front() {
             for entry in fs::read_dir(&directory)? {
@@ -161,28 +163,51 @@ fn audit_unit_test_layout(catalog: &WorkspaceCatalog) -> Result<(), Box<dyn Erro
                 if path.extension().and_then(|extension| extension.to_str()) != Some("rs") {
                     continue;
                 }
-                let text = fs::read_to_string(&path)?;
-                if let Some(line) = first_inline_test_module_line(&text) {
-                    return Err(format!(
-                        "{}:{line} defines tests inline; move the module body below the crate's tests/unit/ tree and retain only a #[path] declaration in src",
-                        path.display()
-                    )
-                    .into());
-                }
-                if package.package_name() == "tsc-rs-emitter" {
-                    if let Some((line, identifier)) = first_retired_comment_scope_identifier(&text)
-                    {
-                        return Err(format!(
-                            "{}:{line} references the retired contextless identifier `{identifier}`; every emission route threads EmitContext (h2-5h-a CS-5 deletion, pinned by CS-6)",
-                            path.display()
-                        )
-                        .into());
-                    }
-                }
+                source_paths.push(path);
             }
         }
+        source_paths.sort();
+
+        for path in source_paths {
+            let text = fs::read_to_string(&path)?;
+            let mut file_violations = test_module_layout_violations(&text)
+                .into_iter()
+                .map(|violation| {
+                    let message = match violation.kind {
+                        TestModuleLayoutViolationKind::InlineBody => format!(
+                            "{}:{} defines tests inline; move the module body below the crate's tests/unit/ tree and retain only a #[path] declaration in src",
+                            path.display(),
+                            violation.line
+                        ),
+                        TestModuleLayoutViolationKind::SrcResidentDeclaration => format!(
+                            "{}:{} declares a test module in src without #[path]; move the module body below the crate's tests/unit/ tree and add a #[path] attribute to the declaration in src",
+                            path.display(),
+                            violation.line
+                        ),
+                    };
+                    (violation.line, message)
+                })
+                .collect::<Vec<_>>();
+            if package.package_name() == "tsc-rs-emitter" {
+                if let Some((line, identifier)) = first_retired_comment_scope_identifier(&text) {
+                    file_violations.push((
+                        line,
+                        format!(
+                            "{}:{line} references the retired contextless identifier `{identifier}`; every emission route threads EmitContext (h2-5h-a CS-5 deletion, pinned by CS-6)",
+                            path.display()
+                        ),
+                    ));
+                }
+            }
+            file_violations.sort_by_key(|(line, _)| *line);
+            violations.extend(file_violations.into_iter().map(|(_, message)| message));
+        }
     }
-    Ok(())
+    if violations.is_empty() {
+        Ok(())
+    } else {
+        Err(violations.join("\n").into())
+    }
 }
 
 /// The comment-scope ladder retired the printer's contextless emission
@@ -212,10 +237,23 @@ fn first_retired_comment_scope_identifier(text: &str) -> Option<(usize, &'static
     None
 }
 
-fn first_inline_test_module_line(text: &str) -> Option<usize> {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TestModuleLayoutViolationKind {
+    InlineBody,
+    SrcResidentDeclaration,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct TestModuleLayoutViolation {
+    line: usize,
+    kind: TestModuleLayoutViolationKind,
+}
+
+fn test_module_layout_violations(text: &str) -> Vec<TestModuleLayoutViolation> {
+    let mut violations = Vec::new();
     let lines = text.lines().collect::<Vec<_>>();
     for (index, line) in lines.iter().enumerate() {
-        if line.trim() != "#[cfg(test)]" {
+        if !cfg_attribute_enables_test(line.trim()) {
             continue;
         }
         for candidate in &lines[index + 1..] {
@@ -239,13 +277,109 @@ fn first_inline_test_module_line(text: &str) -> Option<usize> {
                         })
                     })
             });
-            if module.is_some_and(|module| module.contains('{')) {
-                return Some(index + 1);
+            if let Some(module) = module {
+                let kind = if module.contains('{') {
+                    Some(TestModuleLayoutViolationKind::InlineBody)
+                } else if module
+                    .split_once(';')
+                    .is_some_and(|(name, _)| is_rust_identifier(name.trim()))
+                {
+                    Some(TestModuleLayoutViolationKind::SrcResidentDeclaration)
+                } else {
+                    None
+                };
+                if let Some(kind) = kind {
+                    violations.push(TestModuleLayoutViolation {
+                        line: index + 1,
+                        kind,
+                    });
+                }
             }
             break;
         }
     }
-    None
+    violations
+}
+
+#[cfg(test)]
+fn first_inline_test_module_line(text: &str) -> Option<usize> {
+    test_module_layout_violations(text)
+        .into_iter()
+        .find(|violation| violation.kind == TestModuleLayoutViolationKind::InlineBody)
+        .map(|violation| violation.line)
+}
+
+fn cfg_attribute_enables_test(attribute: &str) -> bool {
+    let Some(arguments) = attribute
+        .strip_prefix("#[cfg(")
+        .and_then(|attribute| attribute.strip_suffix(")]"))
+    else {
+        return false;
+    };
+    let bytes = arguments.as_bytes();
+    let mut index = 0;
+    let mut not_groups = Vec::new();
+    while index < bytes.len() {
+        match bytes[index] {
+            b'"' => {
+                index += 1;
+                while index < bytes.len() {
+                    match bytes[index] {
+                        b'\\' => index = (index + 2).min(bytes.len()),
+                        b'"' => {
+                            index += 1;
+                            break;
+                        }
+                        _ => index += 1,
+                    }
+                }
+            }
+            b'/' if bytes.get(index + 1) == Some(&b'/') => break,
+            b'/' if bytes.get(index + 1) == Some(&b'*') => {
+                index += 2;
+                while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/')
+                {
+                    index += 1;
+                }
+                index = (index + 2).min(bytes.len());
+            }
+            byte if byte == b'_' || byte.is_ascii_alphabetic() => {
+                let start = index;
+                index += 1;
+                while bytes
+                    .get(index)
+                    .is_some_and(|byte| *byte == b'_' || byte.is_ascii_alphanumeric())
+                {
+                    index += 1;
+                }
+                let identifier = &arguments[start..index];
+                let mut next = index;
+                while bytes.get(next).is_some_and(u8::is_ascii_whitespace) {
+                    next += 1;
+                }
+                if bytes.get(next) == Some(&b'(') {
+                    not_groups.push(identifier == "not");
+                    index = next + 1;
+                } else if identifier == "test" && !not_groups.contains(&true) {
+                    return true;
+                }
+            }
+            b')' => {
+                not_groups.pop();
+                index += 1;
+            }
+            _ => index += 1,
+        }
+    }
+    false
+}
+
+fn is_rust_identifier(candidate: &str) -> bool {
+    let mut bytes = candidate.bytes();
+    bytes
+        .next()
+        .is_some_and(|byte| byte == b'_' || byte.is_ascii_alphabetic())
+        && bytes.all(|byte| byte == b'_' || byte.is_ascii_alphanumeric())
 }
 
 /// Rewrites only the explicitly marked profile block from package role metadata.
