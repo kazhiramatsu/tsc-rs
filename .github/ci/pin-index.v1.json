@@ -1609,6 +1609,18 @@
       "semantic": [],
       "unmatched": []
     },
+    "crates/oracle/h2-6c-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "D",
+          "path": "ratchets/h2-6c-census.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
     "crates/oracle/h2-transition.mjs": {
       "family": "oracle-script",
       "pins": [
