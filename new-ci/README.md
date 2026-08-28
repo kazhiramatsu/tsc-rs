@@ -13,16 +13,17 @@ extraction feeding gate-tax 5's typed pin-index.
 
 ```
 cd new-ci
-cargo test --offline          # substrate unit tests (9)
-cargo run --offline --bin shadow   # regenerates shadow-report.md
+cargo test --offline          # substrate + shadow-adapter tests
+cargo run --offline --bin shadow   # one report-only sample
 ```
 
-The shadow adapter reads the repository READ-ONLY (pin grammars over
-`crates/oracle/h2-*.mjs`, `git show` for incident replays) and writes
-`new-ci/shadow-report.md` (generated — not committed): the ladder's
-dependency graph with core/envelope projection digests per script, and
-the classification of a named incident commit. Provenance of the
-mission and boundaries: `SPEC.md`.
+The shadow adapter reads the repository READ-ONLY (the H2 oracle and
+ratchet inventory, the typed pin grammar, the walk driver, and the
+latest real chain-walk certificate) and writes one deterministic run
+under `new-ci/target/new-ci-shadow/runs/<run-id>/report.{json,md}`.
+It is report-only: it does not couple to a gate, invoke oracle write
+mode, observe the 5g qualification rung, or schedule future samples.
+Provenance of the mission and boundaries: `SPEC.md`.
 
 ## Caveats before any trusted use
 

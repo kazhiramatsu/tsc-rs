@@ -5,6 +5,7 @@
 //! cache version.
 
 pub mod lease;
+pub mod shadow;
 pub mod status;
 pub mod transaction;
 
