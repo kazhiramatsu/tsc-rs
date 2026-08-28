@@ -634,8 +634,7 @@
     "summary_integer": {
       "type": "integer",
       "minimum": 0,
-      "const": 0,
-      "title": "TODO-first-mint: pin this measured summary integer after canonical --write"
+      "title": "measured summary integer (per-field consts pinned in the summary/facet defs below)"
     },
     "facet_count": {
       "type": "object",
@@ -696,87 +695,281 @@
       ],
       "properties": {
         "corpus_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 15642
         },
         "census_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 691
         },
         "literal_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 691
         },
         "positive_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 643
         },
         "negative_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 48
         },
         "explicit_false_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 48
         },
         "unique_fixture_ids": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 396
         },
         "compiler_census_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 241
         },
         "compiler_positive_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 199
         },
         "compiler_negative_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 42
         },
         "conformance_census_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 36
         },
         "conformance_positive_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 32
         },
         "conformance_negative_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 4
         },
         "project_census_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 410
         },
         "project_positive_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 410
         },
         "project_negative_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 0
         },
         "transpile_census_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 4
         },
         "transpile_positive_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 2
         },
         "transpile_negative_cases": {
-          "$ref": "#/$defs/summary_integer"
+          "type": "integer",
+          "const": 2
         },
         "facet_counts": {
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "sourceMap",
             "inlineSourceMap",
             "inlineSources",
-            "sourceRoot",
-            "mapRoot"
+            "mapRoot",
+            "sourceMap",
+            "sourceRoot"
           ],
           "properties": {
             "sourceMap": {
-              "$ref": "#/$defs/facet_count"
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "empty_cases",
+                "false_cases",
+                "literal_cases",
+                "nonempty_cases",
+                "set_cases",
+                "true_cases"
+              ],
+              "properties": {
+                "literal_cases": {
+                  "type": "integer",
+                  "const": 676
+                },
+                "true_cases": {
+                  "type": "integer",
+                  "const": 629
+                },
+                "false_cases": {
+                  "type": "integer",
+                  "const": 47
+                },
+                "set_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "nonempty_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "empty_cases": {
+                  "type": "integer",
+                  "const": 0
+                }
+              }
             },
             "inlineSourceMap": {
-              "$ref": "#/$defs/facet_count"
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "empty_cases",
+                "false_cases",
+                "literal_cases",
+                "nonempty_cases",
+                "set_cases",
+                "true_cases"
+              ],
+              "properties": {
+                "literal_cases": {
+                  "type": "integer",
+                  "const": 12
+                },
+                "true_cases": {
+                  "type": "integer",
+                  "const": 11
+                },
+                "false_cases": {
+                  "type": "integer",
+                  "const": 1
+                },
+                "set_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "nonempty_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "empty_cases": {
+                  "type": "integer",
+                  "const": 0
+                }
+              }
             },
             "inlineSources": {
-              "$ref": "#/$defs/facet_count"
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "empty_cases",
+                "false_cases",
+                "literal_cases",
+                "nonempty_cases",
+                "set_cases",
+                "true_cases"
+              ],
+              "properties": {
+                "literal_cases": {
+                  "type": "integer",
+                  "const": 7
+                },
+                "true_cases": {
+                  "type": "integer",
+                  "const": 7
+                },
+                "false_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "set_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "nonempty_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "empty_cases": {
+                  "type": "integer",
+                  "const": 0
+                }
+              }
             },
             "sourceRoot": {
-              "$ref": "#/$defs/facet_count"
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "empty_cases",
+                "false_cases",
+                "literal_cases",
+                "nonempty_cases",
+                "set_cases",
+                "true_cases"
+              ],
+              "properties": {
+                "literal_cases": {
+                  "type": "integer",
+                  "const": 212
+                },
+                "true_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "false_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "set_cases": {
+                  "type": "integer",
+                  "const": 212
+                },
+                "nonempty_cases": {
+                  "type": "integer",
+                  "const": 212
+                },
+                "empty_cases": {
+                  "type": "integer",
+                  "const": 0
+                }
+              }
             },
             "mapRoot": {
-              "$ref": "#/$defs/facet_count"
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "empty_cases",
+                "false_cases",
+                "literal_cases",
+                "nonempty_cases",
+                "set_cases",
+                "true_cases"
+              ],
+              "properties": {
+                "literal_cases": {
+                  "type": "integer",
+                  "const": 210
+                },
+                "true_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "false_cases": {
+                  "type": "integer",
+                  "const": 0
+                },
+                "set_cases": {
+                  "type": "integer",
+                  "const": 210
+                },
+                "nonempty_cases": {
+                  "type": "integer",
+                  "const": 210
+                },
+                "empty_cases": {
+                  "type": "integer",
+                  "const": 0
+                }
+              }
             }
           }
         }

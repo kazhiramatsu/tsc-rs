@@ -168,6 +168,7 @@ ORDER=(
   h2-6a-qualification
   h2-6b-witnesses
   h2-6b-qualification
+  h2-6c-census
 )
 # Coverage self-check: ORDER must stay in sync with the chain scripts on
 # disk, so the slice that adds or retires an oracle script CANNOT forget to
