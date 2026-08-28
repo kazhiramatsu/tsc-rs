@@ -86,14 +86,16 @@ if [ "${SKIP_PREFLIGHT:-0}" != "1" ]; then
     echo "change re-stales the profile ladder and repeats the whole converge."
     exit 2
   fi
-  # Inline-tests layout (gt6 lesson, 2026-08-28): the workspace-audit that
-  # rejects inline `mod tests {` bodies in src runs only in the FULL GATE —
+  # Test-module layout (gt6 lesson, 2026-08-28): the workspace-audit that
+  # rejects inline test-module bodies in src runs only in the FULL GATE —
   # i.e. after a walk — so a violating file converges a walk and then the
-  # layout fix re-stales the whole ladder. Catch the one rule here, pre-walk.
-  echo "preflight: inline mod tests scan (crates/*/src)"
-  if grep -rn --include='*.rs' -E '^[[:space:]]*mod tests \{' crates/*/src >/tmp/chain-walk-inline-tests.log 2>&1; then
-    echo "REFUSING TO WALK: inline 'mod tests {' body in src (see /tmp/chain-walk-inline-tests.log)."
-    echo "Move the body to crates/<crate>/tests/unit/<module>/tests.rs and keep"
+  # layout fix re-stales the whole ladder. The scanner mirrors the audit
+  # (ALL hits, not fail-fast) and covers its compound-cfg and src-resident
+  # declaration gaps; scripts/inline-tests-scan.py --self-test documents it.
+  echo "preflight: test-module layout scan (crates/*/src)"
+  if ! python3 scripts/inline-tests-scan.py >/tmp/chain-walk-inline-tests.log 2>&1; then
+    echo "REFUSING TO WALK: test-module layout violations (see /tmp/chain-walk-inline-tests.log)."
+    echo "Move bodies to crates/<crate>/tests/unit/<module>/tests.rs and keep"
     echo "only '#[cfg(test)] #[path = ...] mod tests;' in src (workspace-audit rule)."
     exit 2
   fi
