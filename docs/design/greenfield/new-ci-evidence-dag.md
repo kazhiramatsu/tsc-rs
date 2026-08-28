@@ -321,3 +321,65 @@ Ratified insertion order for the CI levers relative to the H2 schedule
    earliest eligible slice, with bounded per-train attempts and
    shrink-only checkpoints — never unowned opportunistic work.
 
+## Schedule plan (2026-08-28, sol-reviewed, user-adopted)
+
+A schedule-compression review (Codex gpt-5.6-sol, max reasoning,
+read-only; verified against this packet's amendment text) restructured
+the EXECUTION of the ratified sequence — the substrate-first /
+tsgo-after decisions above are unchanged:
+
+1. **Combined enforcement/deletion train** (after gt6 lands): the FCI
+   legacy-crate deletion (crates/ci-* x6, 5g closure 259→203, receipt
+   table 7→3, acceptance-plan `crates/ci-` exemption → `new-ci/`)
+   merges INTO the gt6 pilot/enforcement train — deletion first, the
+   report-only pilot runs against the FINAL receipt table, the
+   enforcement flip is the last commit. One walk+gate instead of two;
+   the pilot never validates soon-deleted targets. The FCI archaeology
+   record (new-ci/LEGACY-FCI-DISPOSITION.md) is markdown-only and
+   rides whatever train is open.
+2. **Phase 0 pull-forward** (amendment item 3's permitted maximum, not
+   a re-opening): the report-only current-oracle shadow adapter, its
+   report budget, sample/full-run schedule, semantic-vs-byte rules,
+   expected-difference taxonomy, and promotion/rollback policy are
+   built as a development lane DURING H2.6c-H2.8 and land report-only
+   (~elapsed day 4-6). Deferred behind H2.9 + shadow criteria exactly
+   as item 3 lists: trusted promotion, hosted authority, tsgo, stable
+   H2.9-root comparison. Sampled shadow comparisons run after merges;
+   full sweeps run off the gate's machine window.
+3. **Three-lane H2 execution** (H2.7a-e, H2.8a-e): at most three
+   slices in flight — ONE integrator/landing candidate on main (only
+   the integrator touches transition/profile/schema/ORDER/policy-pin
+   surfaces) plus TWO ahead-of-main development lanes in worktrees
+   (no 5g observation and no heavy builds from ahead worktrees; the
+   canonical-path rule stands). Landings serialize on the machine;
+   slice N+1 development hides behind slice N's walk+gate. Expected:
+   H2.7+H2.8 in 7-10 days vs 14-20 serial. H2.7c/7d may develop
+   concurrently after 7b; the four H2.6b-deferred rows are H2.7d
+   ACCEPTANCE (and the fifth closes in H2.8c), not later cleanup.
+4. **One gated transition train per slice** wherever the foundation
+   need not be on main mid-slice (each avoided crate-byte merge saves
+   50-95 min). Burn-down rows, witnesses, CA artifacts, and the
+   transition stay inside the owning slice train.
+5. **H2.9 preparation during H2.7/8**: the deferred-to-H2.9 surface is
+   ~592 qualification rows (510 first-deferred at 5g + 44 at 5h + the
+   rest), dominated by parse-diagnostic ROUTE CLUSTERS — cluster
+   analysis and diagnostic-route scaffolding are ahead-lane work, so
+   H2.9 closes in 2-3 days instead of 3-5.
+6. **gt7 discipline**: timeboxed to 0.5 day during H2.6c; lands only
+   if two REAL Rust slices measure ≥~10 min/gate saved with every
+   would-hit independently validated; otherwise dropped. Generation-
+   window reclamation stays post-H2.9 (the recalibrated ceiling
+   removed its schedule pressure).
+7. **Not compressed** (unchanged trust invariants): the gt6 pilot and
+   uncached lane; final-head full local gate + hosted acceptance per
+   merge; final-byte fmt/clippy before walking; canonical-path rule;
+   slice denominators/facets/transition order; no multi-transition
+   batched walk+gate without a ratified multi-head certificate (the
+   H2.7c+7d pair is the future experiment, carrying no schedule
+   credit today).
+
+Projected totals under this plan: H2.9 in 11-16 workdays (target
+12-14), Phase 0 report-only landed in parallel (~day 4-6), initial
+tsgo producer at 16-26 days (three post-H2.9 implementation lanes:
+producer/action, decoder/comparison, receipt/adversarial-test).
+

@@ -75,6 +75,27 @@ process, and the ceiling compares the CHILD's peak (`wait4` rusage
 The ceiling value itself does not move (never raise a ceiling to
 compensate). The Linux arm is untouched.
 
+**§3-A Ceiling recalibration (2026-08-28, user-ratified).** The "value
+does not move" sentence above assumed the true child peak fit under
+the 256 MiB ceiling; the first honest measurement FALSIFIED that. The
+old darwin arm read the parent's CURRENT rss after cleanup and never
+observed the high-water, so 256 MiB was never validated against the
+quantity it now names. Measured child peaks (same fixture/seed,
+`wait4 ru_maxrss`): 4 edits = 339.2 MiB (already over the old
+ceiling), 16 edits = 1064.5/1064.6 MiB across two runs (0.1 MiB
+repeatability — a deterministic working set, not noise), 32 edits =
+1445.8 MiB. The monotone per-edit growth is the parser arena's
+append-only generation retention (each edit's `node_range` extends
+the arena; ~17 generations at 16 edits), not a leak
+(`final_registry_entries` 0). New reviewed ceiling for the 16-edit CI
+invocation: **1.25 GiB (1342177280)** = measured + 17.5% headroom,
+tight enough to catch a per-edit-cost regression. This is a metric
+semantics change, not a compensating raise. BACKLOG (parser-owned,
+not this train): incremental reuse consumes only the immediately
+prior generation (~195k reused nodes/edit), so a two-generation
+arena window could bring the true peak back to the ~300-400 MiB
+class; re-review the ceiling downward when that slice lands.
+
 ## 4. Train shape
 
 Both deliverables are xtask-side Rust (+ the L1 harness spawn seam) —

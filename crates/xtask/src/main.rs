@@ -8329,7 +8329,14 @@ fn ci_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
             "--edits".to_owned(),
             "16".to_owned(),
             "--max-rss-bytes".to_owned(),
-            "268435456".to_owned(),
+            // Recalibrated 2026-08-28 for the gt6 child-scoped wait4 ru_maxrss
+            // high-water (the old darwin arm read the parent's CURRENT rss
+            // after cleanup and never saw the true peak). Measured stable
+            // 1064.5 MiB at 16 edits (0.1 MiB repeatability; append-only
+            // arena retains all edit generations); 1.25 GiB = +17.5% headroom.
+            // Generation-window reclamation is the backlogged optimization
+            // that could bring this back down (gate-tax-6.md §3 amendment).
+            "1342177280".to_owned(),
             "--report".to_owned(),
             workspace
                 .join("target/l1/incremental-stress-ci.json")
