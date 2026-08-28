@@ -272,6 +272,7 @@ fn main() {
             }))
         }
         Some("workspace-audit") => run_or_exit(workspace_audit(args)),
+        Some("workspace-tests") => run_or_exit(workspace_tests(args)),
         Some("ci") => run_or_exit(ci(args)),
         Some("schema-audit") => run_or_exit(schema_audit(args)),
         Some("escapes") => run_or_exit(escapes(args)),
@@ -309,6 +310,23 @@ fn workspace_audit(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn
     }
     let workspace = find_workspace_root()?;
     workspace_maintenance::audit(&workspace)
+}
+
+// The gt6 pilot's standalone entry: the exact gate workspace-test phase
+// (compile + receipt-tracked executable pipeline) against an explicit
+// workspace root, so replay states can be exercised by a fixed pilot
+// binary without the surrounding ci lanes or the resume journal.
+fn workspace_tests(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let workspace = match args.next() {
+        None => find_workspace_root()?,
+        Some(path) => {
+            if let Some(extra) = args.next() {
+                return Err(format!("unexpected workspace-tests argument: {extra}").into());
+            }
+            PathBuf::from(path)
+        }
+    };
+    ci_workspace_tests(&workspace)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
