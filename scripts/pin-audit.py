@@ -52,6 +52,11 @@ AUDITED = [
 EXEMPT = [
     "crates/conformance/src/host_resolution.rs",
     "crates/xtask/src/h2_1a_acceptance.rs",
+    # run_h2_6c pins the 6c census identity (file sha + internal
+    # fingerprint); the runner validates it at every execution, so the
+    # pin is self-enforcing exactly like h2_1a_acceptance.rs above. A
+    # census re-mint re-opens the m-1 rung and re-pins by hand there.
+    "crates/xtask/src/h2_2c_acceptance.rs",
 ]
 
 PAIR = re.compile(r'"((?:ratchets|vendor|goldens|crates/oracle|\.github)/[^"\n]+)",\s*\n?\s*"([0-9a-f]{64})"')
