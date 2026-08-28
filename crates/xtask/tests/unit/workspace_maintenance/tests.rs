@@ -21,6 +21,50 @@ fn inline_test_modules_are_rejected_but_external_test_modules_are_allowed() {
         None
     );
 }
+
+#[test]
+fn compound_cfg_test_module_is_rejected() {
+    assert_eq!(
+        first_inline_test_module_line(
+            "#[cfg(all(test, target_os = \"macos\"))]\n#[allow(dead_code)]\npub mod tests {\n}\n"
+        ),
+        Some(1)
+    );
+}
+
+#[test]
+fn cfg_not_test_module_is_allowed() {
+    for fixture in [
+        "#[cfg(not(test))]\nmod tests {\n}\n",
+        "#[cfg(all(not(test), not(any(test, unix))))]\nmod tests {\n}\n",
+    ] {
+        assert!(
+            test_module_layout_violations(fixture).is_empty(),
+            "fixture: {fixture}"
+        );
+    }
+}
+
+#[test]
+fn src_resident_test_module_declaration_is_rejected() {
+    assert_eq!(
+        test_module_layout_violations(
+            "#[cfg(test)]\npub(crate) mod tests; // resolves inside src\n"
+        ),
+        [TestModuleLayoutViolation {
+            line: 1,
+            kind: TestModuleLayoutViolationKind::SrcResidentDeclaration,
+        }]
+    );
+}
+
+#[test]
+fn path_routed_test_module_declaration_is_allowed() {
+    assert!(test_module_layout_violations(
+        "#[cfg(all(test, unix))]\n#[allow(dead_code)]\n#[path = \"../tests/unit/lib/tests.rs\"]\nmod tests;\n"
+    )
+    .is_empty());
+}
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static TEMP_WORKSPACE_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -53,6 +97,60 @@ impl Drop for TempWorkspace {
     fn drop(&mut self) {
         let _ = fs::remove_dir_all(&self.0);
     }
+}
+
+#[test]
+fn unit_test_layout_reports_all_violations_in_stable_order() {
+    let workspace = TempWorkspace::new("all-layout-violations");
+    workspace.write(
+        "Cargo.toml",
+        "[workspace]\nmembers = [\"first-package\", \"second-package\"]\nresolver = \"2\"\n",
+    );
+    for (directory, package, role) in [
+        ("first-package", "audit-fixture-first", "alpha"),
+        ("second-package", "audit-fixture-second", "beta"),
+    ] {
+        workspace.write(
+            &format!("{directory}/Cargo.toml"),
+            &format!(
+                "[package]\nname = \"{package}\"\nversion = \"0.0.0\"\nedition = \"2021\"\n\n[package.metadata.tsc-rs]\nrole = \"{role}\"\n"
+            ),
+        );
+        workspace.write(&format!("{directory}/src/lib.rs"), "");
+        workspace.write(&format!("{directory}/tests/.keep"), "");
+    }
+    workspace.write(
+        "first-package/src/a_declaration.rs",
+        "#[cfg(test)]\nmod tests;\n",
+    );
+    workspace.write(
+        "first-package/src/z_inline.rs",
+        "#[cfg(test)]\nmod tests {\n}\n",
+    );
+    workspace.write(
+        "second-package/src/compound.rs",
+        "#[cfg(all(test, unix))]\npub(super) mod tests {\n}\n",
+    );
+
+    let catalog = WorkspaceCatalog::discover(workspace.path()).unwrap();
+    let error = audit_unit_test_layout(&catalog).unwrap_err().to_string();
+    assert_eq!(
+        error.lines().collect::<Vec<_>>(),
+        [
+            format!(
+                "{}:1 declares a test module in src without #[path]; move the module body below the crate's tests/unit/ tree and add a #[path] attribute to the declaration in src",
+                workspace.path().join("first-package/src/a_declaration.rs").display()
+            ),
+            format!(
+                "{}:1 defines tests inline; move the module body below the crate's tests/unit/ tree and retain only a #[path] declaration in src",
+                workspace.path().join("first-package/src/z_inline.rs").display()
+            ),
+            format!(
+                "{}:1 defines tests inline; move the module body below the crate's tests/unit/ tree and retain only a #[path] declaration in src",
+                workspace.path().join("second-package/src/compound.rs").display()
+            ),
+        ]
+    );
 }
 
 #[test]

@@ -271,6 +271,7 @@ fn main() {
                 workspace_maintenance::run_workspace_command(args, &workspace)
             }))
         }
+        Some("workspace-audit") => run_or_exit(workspace_audit(args)),
         Some("ci") => run_or_exit(ci(args)),
         Some("schema-audit") => run_or_exit(schema_audit(args)),
         Some("escapes") => run_or_exit(escapes(args)),
@@ -300,6 +301,14 @@ fn main() {
             std::process::exit(2);
         }
     }
+}
+
+fn workspace_audit(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(extra) = args.next() {
+        return Err(format!("unexpected workspace-audit argument: {extra}").into());
+    }
+    let workspace = find_workspace_root()?;
+    workspace_maintenance::audit(&workspace)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
