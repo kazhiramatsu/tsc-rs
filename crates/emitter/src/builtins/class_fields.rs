@@ -7,9 +7,9 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 
 use crate::{
-    EmitFlags, EmitHint, EmitResolver, InternalEmitFlags, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext,
-    Transformer,
+    EmitFlags, EmitHint, EmitResolver, InternalEmitFlags, SourceMapRange, SourceRange,
+    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer,
 };
 
 use super::{
@@ -1202,6 +1202,24 @@ impl<'context> ClassFieldsVisitor<'context> {
         let assignment = self.create_assignment(target, self.node(initializer))?;
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, original)?;
+        let property_original = self.context.arena().get_original_node(original);
+        if self.context.arena().node(property_original)?.kind == SyntaxKind::Parameter {
+            let source_map_range = {
+                let arena = self.context.arena();
+                let record = arena.node(property_original)?;
+                let source = arena.source(property_original.source())?.syntax();
+                SourceRange::from_raw(record.pos, record.end, source.positions())
+                    .map(|range| SourceMapRange::new(property_original.source(), range))
+                    .map_err(|error| TransformError::InvalidSourceRange {
+                        node: property_original,
+                        error,
+                    })?
+            };
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .set_source_map_range(source_map_range);
+        }
         self.context
             .arena_mut()?
             .metadata_mut(statement)
