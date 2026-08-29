@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-1b-profile.mjs",
-    "sha256": "ba2f20a919db35e20e533d41d00951fc316e26a49cef927a21c91b896f38200c"
+    "sha256": "5d1552edc8ea87f97c3c188a71ce5f0dd0dd13aefbc3343e12e74cceb31d5107"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-1b-profile.schema.json",
@@ -28,15 +28,15 @@
     "historical": {
       "profile": {
         "path": "ratchets/h2-1a-profile.v1.json",
-        "sha256": "9ec02b3cda7b8e3a4617d80d6a4b98db0eaa9a3a06513cd03bcda5593f9103d3"
+        "sha256": "235f1dc3c5a8b29192d87cffea8b26610b777ca5b7a2cff209615a7f8a998346"
       },
       "qualification": {
         "path": "ratchets/h2-1a-qualification.v1.json",
-        "sha256": "6f5b3d97c6b7ab62c817bf1f4f135d6b5224f2fbea25c0dfc23ab45d86d9695e"
+        "sha256": "c2eddb477b3ce76d9c9ceeaa0dcdecd58ca07993bb2c433b6a8807f29d4aabbf"
       },
       "profile_generator": {
         "path": "crates/oracle/h2-1a-profile.mjs",
-        "sha256": "f8abf255c51209e1cd58408798e8ffd5d0f552bf673b5af13ae71b86d01aec99"
+        "sha256": "3ae7b1a590c6dc72ff8c12b0a13ff54213ebeaf8f231998421f2f0202a867419"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-1a-qualification.mjs",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-1b-qualification.v1.json",
-    "sha256": "b79bf11f83911d273c6570665d1137b8a47f3d9191b021ade88d39985950791b"
+    "sha256": "8b32702483ed27eaeff2227b122209f29c573782eee08b33a01c0c69894be1ed"
   },
   "runtime_inputs": [
     {
@@ -68,7 +68,7 @@
     },
     {
       "path": "crates/compiler/src/lib.rs",
-      "sha256": "c6322201cbdf689564f6c7c02f67038f0b463a97c885ff761e756e46d53c8d12"
+      "sha256": "b41ed4b497274bb56d82d114c5db504ef206b047abf3b3ac503a3eb7aeb26f20"
     },
     {
       "path": "crates/compiler/tests/integration/emit_session_contract.rs",
@@ -80,15 +80,15 @@
     },
     {
       "path": "crates/emitter/src/activity.rs",
-      "sha256": "6211665b744eb61f020c8a7e3151c09ecd71bc2b153ec512b5607bd12f7d7216"
+      "sha256": "3542317425e47a3fa90d657d419008feb9eb32864144c7356c00b54fd35a09b3"
     },
     {
       "path": "crates/emitter/src/builtins.rs",
-      "sha256": "2585928ad297b41d28e90319bd14c7167be2ef44dbe2e1027444103a8ca67b53"
+      "sha256": "f3d459159ceb87ac483463bb75493d49c019d1a80a0e14f493d6d9a87824009a"
     },
     {
       "path": "crates/emitter/src/execute.rs",
-      "sha256": "375e8b0fd8df9d67ec6813f2501ebb71f35fe36271468591f8a42a91964b233b"
+      "sha256": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae"
     },
     {
       "path": "crates/emitter/src/factory.rs",
@@ -120,7 +120,7 @@
     },
     {
       "path": "crates/xtask/src/main.rs",
-      "sha256": "bf9fe13af4e20ba7ae3e45b76dab6c4359359c5c6df53adca88f0cf0555703ee"
+      "sha256": "738bd84745bef0429c6f9a39fff28ccaa964db5421b89f5d5950640bd3480b90"
     },
     {
       "path": "crates/xtask/tests/unit/h2_1b_acceptance/tests.rs",
@@ -180,7 +180,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "935ee23ffaad50ec1ac330d92bd7db2e79232fcd2bd67eff6459944ac7b4605c"
+      "sha256": "549e3a308ccff42dc469a10c83aa745a9e6dceabfe410e9d1fd3ca3418bbeb4c"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -188,7 +188,7 @@
     },
     "historical_h2_1a_profile": {
       "path": "ratchets/h2-1a-profile.v1.json",
-      "sha256": "9ec02b3cda7b8e3a4617d80d6a4b98db0eaa9a3a06513cd03bcda5593f9103d3"
+      "sha256": "235f1dc3c5a8b29192d87cffea8b26610b777ca5b7a2cff209615a7f8a998346"
     },
     "local_full_gate": "cargo xtask ci --baseline 49a8a87c443972e3dc2a7a57d6f2e45b8581a601",
     "hosted_gate": "cargo xtask acceptance",
@@ -204,5 +204,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "0f0d2c9486d14f50e556f4d221c2881b1ee69c42ce1614172fb7af1dd41a10b8"
+  "profile_fingerprint_sha256": "e82d7b2169ed23896bfcefba16561bbdaab254676cb8eea5aa4e625b64362ac4"
 }
