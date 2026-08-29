@@ -14,11 +14,11 @@ const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-4a-profile.v1.json";
 const TRUSTED_BASE = "650d1f4ef43a1ad6ef28b8adb55f1308403e5625";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-4a-profile.v1.json", "706b791360329ce1dba7a625038a031f5f071b0dbe39644a67ba91063d8fa6ae"],
-  ["qualification", "ratchets/h2-4a-qualification.v1.json", "8a105971c90c8e5f2dd45e7102213bf9e3ded2c9e3416e269d2a88f89e3071dd"],
+  ["profile", "ratchets/h2-4a-profile.v1.json", "cd9875a1f5e1e3f0657b47988624b1d33281e74c66ef4d77a32b8be5a28f44e9"],
+  ["qualification", "ratchets/h2-4a-qualification.v1.json", "50c53c08335500cfb32e1d99eb0d1bbb8a08497f99aeee6f2f5aa7e9704b38dc"],
   ["owner_controls", "ratchets/h2-4a-owner-controls.v1.json", "03fa843083e4cc521f6876fd95c8852dd30682478ee17319bd9c61115f459f4a"],
-  ["profile_generator", "crates/oracle/h2-4a-profile.mjs", "284674e0db0690669810f196e0d85fa79ae556cc164f056e8051e35f07166b65"],
-  ["qualification_generator", "crates/oracle/h2-4a-qualification.mjs", "81852c9191624ae574ebf305cfd51baadd15e68b7d897bbb2bc997a7c97bb9ed"],
+  ["profile_generator", "crates/oracle/h2-4a-profile.mjs", "bbab35ba0ba65655001e636b49d543eee03ad78709cc71cfe26202ff6f0a697c"],
+  ["qualification_generator", "crates/oracle/h2-4a-qualification.mjs", "3b8b49a1b476a8e185e7edf26a2ad6b0ed0b8bea7a64063ef681c4d30c5d7356"],
   ["owner_controls_generator", "crates/oracle/h2-4a-owner-controls.mjs", "5bc3e108cd33c4f0d4027162b42e667f9ea502cce0fcd598a6b7457494ac5645"],
   ["profile_contract", ".github/ci/contracts/h2-4a-profile.schema.json", "7e7dac61f1517d3e7f2269c381776afed88dcf7ab6f6fb7a373ff1c0214963bb"],
   ["qualification_contract", ".github/ci/contracts/h2-4a-qualification.schema.json", "a13f94baacbf3eb4cde79be778e34fdf1b0f4108d058e015d9e1f9e27af15cb3"],

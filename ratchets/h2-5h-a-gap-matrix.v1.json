@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "d24d2d9d846efc6b543fc754fe15542056900a4b1995b5beb7a2cff7a0df07fd"
+      "sha256": "0ee6a42f5f7bc3eb4f744eef1c3c96deb06eb395e9415bac864f0c43d6f72506"
     },
-    "owner_graph_fingerprint_sha256": "bb7a16d9da13f5f6ee32640ff275ea319cf070ff01f6631fb64f0dd6d9144816",
+    "owner_graph_fingerprint_sha256": "d07f58de11feda1d5c8b1284a40971948edd0fff56ff03cd0acca626d2d97d49",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
@@ -44,7 +44,7 @@
           "symbol": "es2015::transform_es2015(options, resolver)",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "4d55324a72aff5e0787d3c644384ed7cf5a4c2114e5797fd8552af187e42dfbf"
+            "sha256": "bd455509b27dd15e45fcc9d48b2cbba980742f427d45eb051945305d256ea157"
           }
         },
         {
@@ -52,7 +52,7 @@
           "symbol": "generators::transform_generators(target, resolver)",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "4d55324a72aff5e0787d3c644384ed7cf5a4c2114e5797fd8552af187e42dfbf"
+            "sha256": "bd455509b27dd15e45fcc9d48b2cbba980742f427d45eb051945305d256ea157"
           }
         },
         {
@@ -66,7 +66,7 @@
       ],
       "absences": [],
       "note": "B-5 landed the live registration: the ES5 admission floor, the H2.5h activity profile, and the joint push in the upstream order (_tsc.js:115942-115945), verified end-to-end by the 32-case witness gate",
-      "capability_fingerprint_sha256": "3b70302289075817c371073a54640c81490ac0073ddbc88352822a9701ba46bc"
+      "capability_fingerprint_sha256": "30e5dc35131d0c5b14d526cef915464c2f105e2a493a3059349a0cac360b953b"
     },
     {
       "index": 1,
@@ -674,7 +674,7 @@
           "symbol": "mod flatten_destructuring;",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "4d55324a72aff5e0787d3c644384ed7cf5a4c2114e5797fd8552af187e42dfbf"
+            "sha256": "bd455509b27dd15e45fcc9d48b2cbba980742f427d45eb051945305d256ea157"
           }
         },
         {
@@ -696,7 +696,7 @@
       ],
       "absences": [],
       "note": "B-2 landed the 18-function shared family (both FlattenLevel arms behind the FlattenHost consumer seam) as crates/emitter/src/builtins/flatten_destructuring.rs, qualified by focused oracle projections; the module is dormant until the B-4/B-5 owners consume it; the ObjectRestSpread PRODUCTION path deliberately remains the independent plan-based lowering inside es2018.rs (re-basing it onto the shared family is a byte-identity-gated H2.5h-b-closure concern, B-2 packet section 12.3)",
-      "capability_fingerprint_sha256": "ec72b811291b1359a750045e445ef57d99f61a9e1e884c9f3e9d7fc3e7d9aa8e"
+      "capability_fingerprint_sha256": "147655fd33a4e0297e2a11ae3cd7b9889aea21be8a709138cd8d6feb8fc26792"
     },
     {
       "index": 12,
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "f6b8076cdcd39dc4f6ec1b05c1d85ce0f81f597f3909fe7f1110a0426de4ce5b"
+  "gap_matrix_fingerprint_sha256": "f2cfc1013f76537c5aba3365667a446421e46b635d5278e877144721e83d5cea"
 }

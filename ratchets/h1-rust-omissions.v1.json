@@ -42,8 +42,8 @@
     "file_count": 238,
     "rust_source_files": 223,
     "cargo_manifests": 15,
-    "bytes": 17369000,
-    "tree_sha256": "65ece611bab0cfefa32344040384859b272fde60f63482429afa3aa0647e9bb4"
+    "bytes": 17369134,
+    "tree_sha256": "babfff3bee64932028665a9f6644801090ed1831372df257c709a8eabf44c02e"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -523,7 +523,7 @@
         "column": 1,
         "text": "pub fn get_script_transformers<'resolver>(",
         "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
-        "file_sha256": "4d55324a72aff5e0787d3c644384ed7cf5a4c2114e5797fd8552af187e42dfbf"
+        "file_sha256": "bd455509b27dd15e45fcc9d48b2cbba980742f427d45eb051945305d256ea157"
       },
       {
         "id": "emitter-transform-typescript",
@@ -532,7 +532,7 @@
         "column": 1,
         "text": "pub fn transform_type_script<'resolver>(",
         "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
-        "file_sha256": "4d55324a72aff5e0787d3c644384ed7cf5a4c2114e5797fd8552af187e42dfbf"
+        "file_sha256": "bd455509b27dd15e45fcc9d48b2cbba980742f427d45eb051945305d256ea157"
       },
       {
         "id": "emitter-transform-class-fields",
@@ -541,7 +541,7 @@
         "column": 1,
         "text": "pub fn transform_class_fields<'resolver>(",
         "text_sha256": "6725dc3040c7b665e642b0595eb187992791ad9331c370100c1dfd03cbd38159",
-        "file_sha256": "4d55324a72aff5e0787d3c644384ed7cf5a4c2114e5797fd8552af187e42dfbf"
+        "file_sha256": "bd455509b27dd15e45fcc9d48b2cbba980742f427d45eb051945305d256ea157"
       },
       {
         "id": "emitter-transform-ecmascript-module",
@@ -550,7 +550,7 @@
         "column": 1,
         "text": "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
         "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
-        "file_sha256": "4d55324a72aff5e0787d3c644384ed7cf5a4c2114e5797fd8552af187e42dfbf"
+        "file_sha256": "bd455509b27dd15e45fcc9d48b2cbba980742f427d45eb051945305d256ea157"
       },
       {
         "id": "emitter-changed-import-printer",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "b34207f22991d2ef46596b65b28c75b3dc3e1f116b01a55346d5eb306b2fb9ad"
+  "inventory_fingerprint_sha256": "c4fc0598d851ce99ce172e1226720d7d3407156db3507579b7fc72561054feff"
 }

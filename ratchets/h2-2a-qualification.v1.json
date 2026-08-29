@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2a-qualification.mjs",
-    "sha256": "d0287ae50f750a03493840c9c6384b0ea3598592332a37155803ecaf3863fd90"
+    "sha256": "d58bb5d75ffc24e91541299e6277bb8c1bcad018a0eae85535db87b780bd1f07"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2a-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_1e_merge": "ba45ad089d903e632676950be9fcea3ab56fbb37",
     "h2_1e_profile": {
       "path": "ratchets/h2-1e-profile.v1.json",
-      "sha256": "3b6b50b3d28e94a7f0725e2a013b5e4e8a7c718f87c4e30062176e04d6a37131"
+      "sha256": "165fedbcdce57042396b5ac9e4fecf74a359affb0706ad7353f34060242cfcc4"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "803f4b140438708629e7663557f282075533268ea11127dbf6300e7b3f9b7e85"
+      "sha256": "598bfdfde820870e27a97fe5f7514bfe922b308f55d73d513dbe0a6925473b92"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "31a02ce64402ffcadc6994d36350c6124a25138a545bfd2a04088401f93b8554"
+      "sha256": "7f86d3730c5bca95678f8e157f002529add9fd5de683d9c66d41580916d7cda8"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "62f6246bab7494ef048d7c0c8141ed7fce7f921fd24130b1f90606ecc13a1297"
+      "sha256": "3e422953c3d6e1271d9e6d55106f746ac4e566f81d3283bcfcc566b1244ba237"
     },
     "h2_1d_qualification": {
       "path": "ratchets/h2-1d-qualification.v1.json",
-      "sha256": "e5e630aae46b851e4f48b36e8f429546e17df7b165b6b955b0946b7070bcfc25"
+      "sha256": "7060cc3a2ca6c5a42717f51b9dd2dae7d082d8e64f5e2dd81758cb8de2fc4dab"
     }
   },
   "execution_contract": {
@@ -5247,5 +5247,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "03f8fd6af9c915ede9549c77f92f30d9682756d7cc7cb4187b4b5ee2f0d0beef"
+  "qualification_fingerprint_sha256": "aada6da2864e523ca50ed136c7d4396e3d6f8afa4b159f35e559363276d65212"
 }
