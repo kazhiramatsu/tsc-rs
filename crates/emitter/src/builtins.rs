@@ -9692,6 +9692,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     {
                         None
                     } else {
+                        let original_modifiers = data.modifiers;
+                        let original_name = data.name;
                         // visitParameter 95029-95047 retains only
                         // decorators from a parameter's modifier-like
                         // list. Invalid JS modifiers such as `static`
@@ -9700,7 +9702,18 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         data.modifiers = self.parameter_runtime_modifiers(data.modifiers)?;
                         data.question_token = None;
                         data.r#type = None;
-                        Some(self.update_generic(original, NodeData::Parameter(data))?)
+                        let mut updated =
+                            self.update_generic(original, NodeData::Parameter(data))?;
+                        if updated != id {
+                            updated =
+                                self.isolate_updated_parameter_name(updated, original_name)?;
+                            self.apply_updated_parameter_metadata(
+                                self.node(updated),
+                                original,
+                                original_modifiers,
+                            )?;
+                        }
+                        Some(updated)
                     }
                 }
                 NodeData::VariableStatement(data) => {
@@ -11790,6 +11803,130 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     .array(),
             ))
         }
+    }
+
+    /// The transformed binding name owns visitParameter's emit flag. Keep an
+    /// unchanged parse name distinct from later synthetic projections (most
+    /// notably the parameter-property field) in the immutable transform arena.
+    fn isolate_updated_parameter_name(
+        &mut self,
+        updated: NodeId,
+        original_name: Option<NodeId>,
+    ) -> Result<NodeId, TransformError> {
+        let updated_node = self.node(updated);
+        let NodeData::Parameter(mut data) = self.context.arena().node(updated_node)?.data.clone()
+        else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::Parameter,
+                actual: self.context.arena().node(updated_node)?.kind,
+            });
+        };
+        if data.name != original_name {
+            return Ok(updated);
+        }
+        let Some(name) = data.name else {
+            return Ok(updated);
+        };
+        let name = self.node(name);
+        let cloned_name = self.context.factory()?.clone_node(name)?;
+        self.context.factory()?.set_text_range(cloned_name, name)?;
+        data.name = Some(cloned_name.node());
+        let data = NodeData::Parameter(data);
+        let flags = flags_after_update(self.context.arena(), updated_node, &data)?;
+        Ok(self
+            .context
+            .factory()?
+            .update_node(updated_node, data, flags)?
+            .node())
+    }
+
+    /// The metadata half of transformTypeScript's `visitParameter` update.
+    ///
+    /// tsc-port: visitParameter/moveRangePastModifiers @6.0.3
+    /// tsc-span: _tsc.js:95029-95047, 17311-17318
+    fn apply_updated_parameter_metadata(
+        &mut self,
+        updated: TransformNode,
+        original: TransformNode,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<(), TransformError> {
+        let (comment_range, moved_range) = {
+            let original_record = self.context.arena().node(original)?;
+            let source = self.context.arena().source(original.source())?.syntax();
+            let comment_range =
+                SourceRange::from_raw(original_record.pos, original_record.end, source.positions())
+                    .map_err(|error| TransformError::InvalidSourceRange {
+                        node: original,
+                        error,
+                    })?;
+            let modifier_nodes = modifiers
+                .and_then(|array| self.context.arena().node_array_ref(self.source, array))
+                .map(|array| self.context.arena().node_array(array))
+                .transpose()?
+                .map(|array| array.nodes.as_slice())
+                .unwrap_or_default();
+            let last_modifier_end = modifier_nodes
+                .last()
+                .and_then(|modifier| self.context.arena().node_ref(self.source, *modifier))
+                .and_then(|modifier| self.context.arena().node(modifier).ok())
+                .map(|modifier| modifier.end)
+                .filter(|end| *end != u32::MAX);
+            let last_decorator_end = modifier_nodes
+                .iter()
+                .rev()
+                .filter_map(|modifier| self.context.arena().node_ref(self.source, *modifier))
+                .find(|modifier| {
+                    self.context
+                        .arena()
+                        .node(*modifier)
+                        .ok()
+                        .filter(|record| record.kind == SyntaxKind::Decorator)
+                        .is_some()
+                })
+                .and_then(|modifier| self.context.arena().node(modifier).ok())
+                .map(|record| record.end)
+                .filter(|end| *end != u32::MAX);
+            let moved_range = SourceRange::from_raw(
+                last_modifier_end
+                    .or(last_decorator_end)
+                    .unwrap_or(original_record.pos),
+                original_record.end,
+                source.positions(),
+            )
+            .map_err(|error| TransformError::InvalidSourceRange {
+                node: original,
+                error,
+            })?;
+            (comment_range, moved_range)
+        };
+        self.context.factory()?.set_text_range_from_source_range(
+            updated,
+            original.source(),
+            moved_range,
+        )?;
+        {
+            let metadata = self.context.arena_mut()?.metadata_mut(updated);
+            metadata.set_comment_range(CommentRange::new(original.source(), comment_range));
+            metadata.set_source_map_range(SourceMapRange::new(original.source(), moved_range));
+        }
+        let name = match &self.context.arena().node(updated)?.data {
+            NodeData::Parameter(data) => data.name,
+            _ => None,
+        }
+        .ok_or(TransformError::RequiredChildRemoved {
+            parent: SyntaxKind::Parameter,
+            field: "updated parameter name",
+        })?;
+        let name = self
+            .context
+            .arena()
+            .node_ref(self.source, name)
+            .ok_or_else(|| TransformError::UnknownNode(self.node(name)))?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(name)
+            .set_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+        Ok(())
     }
 
     fn module_runtime_modifiers(
