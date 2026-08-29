@@ -11842,8 +11842,11 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
 
     /// The metadata half of transformTypeScript's `visitParameter` update.
     ///
-    /// tsc-port: visitParameter/moveRangePastModifiers @6.0.3
-    /// tsc-span: _tsc.js:95029-95047, 17311-17318
+    /// The helper `moveRangePastModifiers` half lives at _tsc.js:17311-17318.
+    ///
+    /// tsc-port: visitParameter @6.0.3
+    /// tsc-hash: 8821beb435c9aa4361f33f2c3d1ced5c9cdff74397318d5980641d9f2793480b
+    /// tsc-span: _tsc.js:95029-95047
     fn apply_updated_parameter_metadata(
         &mut self,
         updated: TransformNode,
