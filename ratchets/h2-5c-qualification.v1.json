@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5c-qualification.mjs",
-    "sha256": "93819d397d31d948891d001f4f67098a2b9086dff0f4e25126cb6b38e6bb74ce"
+    "sha256": "a82312f824336ed6f3021b957ed8b5ee5268ef3f71453e8af985a9f9116f3ffe"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5c-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_5b_merge": "564fcafebdc855ec09104c07f1f6622b9ffab60e",
     "h2_5b_profile": {
       "path": "ratchets/h2-5b-profile.v1.json",
-      "sha256": "1b9d896195f19060864a713a4942745928a7ad9e2cd24dcf30b19340672f59ea"
+      "sha256": "16e0c8f1a399ae1aa5b6c699b089194921ca1078fb3dc9ff2bf1a16b13bcdce3"
     }
   },
   "selection_contract": {
@@ -55,11 +55,11 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "d3e46e633ad50dfbb083247f17ad321ab093285f4b78317e4c32a83dfbc825fb"
+      "sha256": "0d933ff42cb2e332026a4ba7cc467873f04b5c11f8ea89b82624351cad8a7471"
     },
     "global_candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "9cc894082d0d6f083cc9d5f30ca78ee477c9426abc08462f1b25bf477c298b8c"
+      "sha256": "482d43ee61b1aac561df408c23a2757bdcd6032a288d39f17fd27d0c042c4b22"
     }
   },
   "execution_contract": {
@@ -2370,5 +2370,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "ead11f39e61e222ffce5bed541de4353ab6e7e5e56f2e2961edef220ac2e2c8b"
+  "qualification_fingerprint_sha256": "94c8efc141c90e2974394ff4bf60c0e51be2ed2ecca9898557de79b6f0c32111"
 }

@@ -4832,9 +4832,11 @@ impl Es2015Visitor<'_, '_, '_> {
             /*container*/ None,
         )?;
         let existing = self.emit_flags(function_expression);
+        // `moveRangePos(node, -1)` is an end-only range. This emitter's
+        // one-sided encoding retains the original end and suppresses Before.
         self.add_emit_flags(
             function_expression,
-            EmitFlags::NO_LEADING_COMMENTS | existing,
+            EmitFlags::NO_LEADING_COMMENTS | EmitFlags::NO_LEADING_SOURCE_MAP | existing,
         )?;
         let assignment = self.create_property_assignment(name, function_expression)?;
         self.set_text_range(assignment, node)?;
@@ -12075,16 +12077,23 @@ impl Es2015Visitor<'_, '_, '_> {
                     /*hoist_temp_variables*/ false,
                     /*skip_initializer*/ false,
                 )?;
-                let range = self.range_union(&flattened)?;
+                let range = {
+                    let first = flattened.first().copied().expect("flattened declaration");
+                    let last = flattened.last().copied().expect("flattened declaration");
+                    let first_pos = self.context.arena().node(first)?.pos;
+                    let last_end = self.context.arena().node(last)?.end;
+                    let source = self.context.arena().source(self.source)?.syntax();
+                    SourceRange::from_raw(first_pos, last_end, source.positions()).map_err(
+                        |error| TransformError::InvalidSourceRange { node: first, error },
+                    )?
+                };
                 let list = self.create_variable_declaration_list(flattened)?;
                 self.set_text_range(list, initializer)?;
                 self.set_original(list, initializer)?;
-                if let Some(range) = range {
-                    self.context
-                        .arena_mut()?
-                        .metadata_mut(list)
-                        .set_source_map_range(SourceMapRange::new(self.source, range));
-                }
+                self.context
+                    .arena_mut()?
+                    .metadata_mut(list)
+                    .set_source_map_range(SourceMapRange::new(self.source, range));
                 statements.push(self.create_variable_statement_from_list(list)?);
             } else {
                 let declaration_name = match first_original_declaration {

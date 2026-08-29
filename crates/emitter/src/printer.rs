@@ -6333,6 +6333,7 @@ impl Printer {
         }
         writer.write_line(false);
         writer.increase_indent();
+        let statement_count = statements.len();
         for (index, statement) in statements.into_iter().enumerate() {
             let statement = transformation
                 .arena()
@@ -6361,7 +6362,9 @@ impl Printer {
                 writer,
             )?;
             self.emit_trailing_comments_for_node(transformation, statement, writer)?;
-            writer.write_line(false);
+            if index + 1 < statement_count {
+                writer.write_line(false);
+            }
         }
         writer.decrease_indent();
         Ok(())

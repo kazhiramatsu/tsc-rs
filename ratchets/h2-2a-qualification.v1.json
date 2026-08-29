@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2a-qualification.mjs",
-    "sha256": "ceb2da03e8237869c49ae82b1928520513e7a079fb657e9f4f3ac0e68ca470a6"
+    "sha256": "b5aa57bdb779781ef5178ee1e21e4574454bef6b04cf7ad050364dd2894f6486"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2a-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_1e_merge": "ba45ad089d903e632676950be9fcea3ab56fbb37",
     "h2_1e_profile": {
       "path": "ratchets/h2-1e-profile.v1.json",
-      "sha256": "41ce953e9168d81b5b6f3d024c1845ec98fbc40a5ffcceb6163ea8ba1319f0fb"
+      "sha256": "42f254bb3172e3b9caf02f5dbac5e8143dcc065517cf922de872ccdbee350b06"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "d3e46e633ad50dfbb083247f17ad321ab093285f4b78317e4c32a83dfbc825fb"
+      "sha256": "0d933ff42cb2e332026a4ba7cc467873f04b5c11f8ea89b82624351cad8a7471"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "b9c2c497b948aa9d9846894b384cbf0cd66cf215414584cfb6d0daac0cc843e4"
+      "sha256": "05b855e13d3137c4a880da461a619634e5a1b54000aefe635f036947fb398e16"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "13539d249d12226dd46cb67c5b62396dbb8d154cb18da6dcaa999ddaae7a031d"
+      "sha256": "11ec5fb5b82149345339c2f2ef65f238a75abbcf088d34a06c76c5caf15ab38a"
     },
     "h2_1d_qualification": {
       "path": "ratchets/h2-1d-qualification.v1.json",
-      "sha256": "3c1c8a80a8354221d9310de644dee2bcb3c52ed4107cf2b6605ac8e1e1144e83"
+      "sha256": "fa09cec6ccde66308a46d8082f3a1e68bcbd4fcca2108ffbc384db26d38ff60b"
     }
   },
   "execution_contract": {
@@ -5247,5 +5247,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "1e172cf625ebdf9325fea1ad271208dc20d3a784ab9f19df4c6b58bc10985094"
+  "qualification_fingerprint_sha256": "503d56ffc276800d06f86b858d5e19ec13320e848e05dbdfff27b00e16160bc0"
 }

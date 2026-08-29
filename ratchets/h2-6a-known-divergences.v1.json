@@ -10,14 +10,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/compiler/derivedClassConstructorWithExplicitReturns01.ts#target%3Des5",
-      "owner": "h2-6a-r4-class-decorator-corners",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifier.ts#default",
       "owner": "h2-6a-r2-jsx-factory-names",
       "writes_diverging": 2,
@@ -154,70 +146,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPattern.ts#target%3Des5",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPatternDefaultValues.ts#target%3Des5",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPattern.ts#target%3Des5",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPatternDefaultValues.ts#target%3Des5",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterNestedObjectBindingPatternDefaultValues.ts#default",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterObjectBindingPatternDefaultValues.ts#default",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues.ts#target%3Des2015",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues2.ts#target%3Des2015",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/sourceMapValidationEnums.ts#default",
       "owner": "h2-6a-r1-ts-lowering-declaration-names",
       "writes_diverging": 1,
@@ -236,14 +164,6 @@
     {
       "case_id": "typescript-6.0.3/compiler/sourceMapValidationModule.ts#default",
       "owner": "h2-6a-r1-ts-lowering-declaration-names",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationSwitch.ts#default",
-      "owner": "h2-6a-r5-comment-literal-token-order",
       "writes_diverging": 1,
       "diagnostics_diverging": false,
       "emit_result_diverging": true,
@@ -282,31 +202,7 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of26.ts#target%3Des5",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of34.ts#target%3Des5",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of35.ts#target%3Des5",
-      "owner": "h2-6a-r3-destructuring-binding-ranges",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of36.ts#target%3Des5",
       "owner": "h2-6a-r3-destructuring-binding-ranges",
       "writes_diverging": 1,
       "diagnostics_diverging": false,
