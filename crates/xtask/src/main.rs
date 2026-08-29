@@ -93,6 +93,7 @@ fn main() {
         Some("h2-5h-acceptance") => run_or_exit(h2_5h_acceptance(args)),
         Some("h2-6a-acceptance") => run_or_exit(h2_6a_acceptance(args)),
         Some("h2-6b-acceptance") => run_or_exit(h2_6b_acceptance(args)),
+        Some("h2-6c-acceptance") => run_or_exit(h2_6c_acceptance(args)),
         Some("h2-5g-probe") => run_or_exit(h2_5g_probe(args)),
         Some("h2-5g-inventory") => run_or_exit(h2_5g_inventory(args)),
         Some("h2-5g-owner-controls") => run_or_exit(h2_5g_owner_controls(args)),
@@ -4543,6 +4544,14 @@ fn h2_6b_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dy
     }
     let workspace = find_workspace_root()?;
     h2_2c_acceptance::run_h2_6b(&workspace)
+}
+
+fn h2_6c_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected h2-6c-acceptance argument: {argument}").into());
+    }
+    let workspace = find_workspace_root()?;
+    h2_2c_acceptance::run_h2_6c(&workspace)
 }
 
 fn h2_5g_probe(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {

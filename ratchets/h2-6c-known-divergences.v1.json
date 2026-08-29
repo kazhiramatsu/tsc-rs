@@ -1,0 +1,4005 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/commonSourceDirectory.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commonSourceDirectory_dts.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/contextualTyping.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationMapsWithSourceMap.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/derivedClassConstructorWithExplicitReturns01.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/emitBOM.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/inlineSourceMap2.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/inlineSourceMap2.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/inlineSources.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/inlineSources.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/inlineSources2.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 3,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/inlineSources2.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 3,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/isolatedModulesSourceMap.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileCompilationWithMapFileAsJsWithOutDir.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifier.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifierAsParameter.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryIdentifierWithAbsentParameter.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryQualifiedName.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsxFactoryQualifiedNameResolutionError.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsInlineSourceMapMapRoot.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/optionsInlineSourceMapSourcemap.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/out-flag.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/out-flag.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/out-flag2.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/out-flag2.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/out-flag3.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/out-flag3.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatAmd.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatAmd.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatCommonjs.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatCommonjs.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatCommonjsDeclarationOnly.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatCommonjsDeclarationOnly.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatES6.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatSystem.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatSystem.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatUmd.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleConcatUmd.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleTripleSlashRefs.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 8,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/outModuleTripleSlashRefs.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 8,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/properties.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/properties.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/recursiveClassReferenceTest.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/requireOfJsonFileWithSourceMap.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comments.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-Comments.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-FileWithComments.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapForFunctionInInternalModuleWithCommentPrecedingStatement01.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapSample.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClasses.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 3,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDecorators.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDecorators.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForArrayBindingPattern.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPattern.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfArrayBindingPatternDefaultValues.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPattern.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringForOfObjectBindingPatternDefaultValues.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterNestedObjectBindingPatternDefaultValues.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParameterObjectBindingPatternDefaultValues.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationDestructuringParametertArrayBindingPatternDefaultValues2.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationEnums.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationImport.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationModule.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationSwitch.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapValidationVarInDownLevelGenerator.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 3,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithCaseSensitiveFileNames.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithCaseSensitiveFileNamesAndOutDir.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithMultipleFilesWithCopyright.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithMultipleFilesWithFileEndingWithInterface.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNamesAndOutDir.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/sourcemapValidationDuplicateNames.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/typeResolution.ts#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames01.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 20,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Des2022",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Desnext",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 5,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Desnext",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 3,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsx/tsxEmit3.tsx#default",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of26.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of34.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of35.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of36.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of8.ts#target%3Des5",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootSourceRootWithNoSourceMapOption.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootSourceRootWithNoSourceMapOption.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootWithNoSourceMapOption.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/mapRootWithNoSourceMapOption.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSingleFileNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSingleFileNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/rootDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/rootDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/rootDirectoryWithSourceRoot.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/rootDirectoryWithSourceRoot.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootWithNoSourceMapOption.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourceRootWithNoSourceMapOption.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSingleFileNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSingleFileNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 12,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 7,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": true,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 11,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderNoOutdir.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderNoOutdir.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputFile.json#module%3Damd",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    },
+    {
+      "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
+      "owner": "h2-6c-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": true
+    }
+  ]
+}

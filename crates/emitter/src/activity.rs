@@ -472,6 +472,16 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.6c admits
+    /// declaration-bearing JavaScript/map emission while declaration
+    /// artifacts remain owned by H2.7 (h2-6c-m-2 §4).
+    #[doc(hidden)]
+    pub const fn h2_6c_profile() -> Self {
+        let mut profile = Self::h2_6b_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_6c.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }
