@@ -11845,7 +11845,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     /// The helper `moveRangePastModifiers` half lives at _tsc.js:17311-17318.
     ///
     /// tsc-port: visitParameter @6.0.3
-    /// tsc-hash: 8821beb435c9aa4361f33f2c3d1ced5c9cdff74397318d5980641d9f2793480b
+    /// tsc-hash: 3612c271b5133805cd8d0b273136577b35ed71cbdd9963ef95039aeeebdf8276
     /// tsc-span: _tsc.js:95029-95047
     fn apply_updated_parameter_metadata(
         &mut self,
