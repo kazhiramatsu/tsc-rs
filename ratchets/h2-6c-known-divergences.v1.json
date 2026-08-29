@@ -378,47 +378,7 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapForFunctionInInternalModuleWithCommentPrecedingStatement01.ts#default",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/sourceMapSample.ts#default",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des5",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 1,
       "diagnostics_diverging": false,
