@@ -114,48 +114,8 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des2015",
-      "owner": "h2-6a-r5-comment-literal-token-order",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMap-StringLiteralWithNewLine.ts#target%3Des5",
-      "owner": "h2-6a-r5-comment-literal-token-order",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapForFunctionInInternalModuleWithCommentPrecedingStatement01.ts#default",
-      "owner": "h2-6a-r1-ts-lowering-declaration-names",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/sourceMapSample.ts#default",
       "owner": "h2-6a-r1-ts-lowering-declaration-names",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des2015",
-      "owner": "h2-6a-r4-class-decorator-corners",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationClass.ts#target%3Des5",
-      "owner": "h2-6a-r4-class-decorator-corners",
       "writes_diverging": 1,
       "diagnostics_diverging": false,
       "emit_result_diverging": true,
