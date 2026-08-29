@@ -20,8 +20,8 @@ use crate::{
     factory::EmitHelperName,
     metadata::{ClassExpressionDeclarationOrigin, RelocatedTrailingCommentOwner},
     EmitFlags, EmitHelper, EmitResolver, EmitResolverNode, InternalEmitFlags,
-    LexicalEnvironmentFlags, SourceRange, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformSourceId, TransformationContext,
+    LexicalEnvironmentFlags, SourceMapRange, SourceRange, TransformArena, TransformError,
+    TransformFlags, TransformNode, TransformNodeArray, TransformSourceId, TransformationContext,
 };
 
 use super::super::{
@@ -6318,6 +6318,24 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         };
         let statement = self.create_expression_statement(expression)?;
         self.set_original_and_range(statement, operation.original)?;
+        let property_original = self.context.arena().get_original_node(operation.original);
+        if self.context.arena().node(property_original)?.kind == SyntaxKind::Parameter {
+            let source_map_range = {
+                let arena = self.context.arena();
+                let record = arena.node(property_original)?;
+                let source = arena.source(property_original.source())?.syntax();
+                SourceRange::from_raw(record.pos, record.end, source.positions())
+                    .map(|range| SourceMapRange::new(property_original.source(), range))
+                    .map_err(|error| TransformError::InvalidSourceRange {
+                        node: property_original,
+                        error,
+                    })?
+            };
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .set_source_map_range(source_map_range);
+        }
         self.context
             .arena_mut()?
             .metadata_mut(statement)

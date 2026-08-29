@@ -10511,9 +10511,10 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             statements.push(statement);
         }
 
-        let parameter_name = self.namespace_parameter_name(id, data.body, &name)?;
+        let (parameter_name, parameter_identifier) =
+            self.namespace_parameter_name(id, data.body, &name, original_name)?;
         let body = self.transform_module_body(id, data.body, &parameter_name, variable_flags)?;
-        let parameter = self.create_parameter(&parameter_name)?;
+        let parameter = self.create_parameter(parameter_identifier)?;
         let function = self.create_function_expression(vec![parameter], body)?;
         let function = self.create_parenthesized(function)?;
         let module_arg = if exported_from_namespace {
@@ -11573,7 +11574,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             member_statements.push(self.transform_enum_member(member, &name)?);
         }
         let body = self.create_block_from_array(member_statements, data.members, true)?;
-        let parameter = self.create_parameter(&name)?;
+        let parameter_name = self.create_identifier(&name)?;
+        let parameter = self.create_parameter(parameter_name)?;
         let function = self.create_function_expression(vec![parameter], body)?;
         let function = self.create_parenthesized(function)?;
 
@@ -11873,6 +11875,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
     ) -> Result<TransformNode, TransformError> {
         let identifier = self.create_identifier(text)?;
         self.context
+            .factory()?
+            .set_text_range(identifier, original)?;
+        self.context
             .arena_mut()?
             .set_original_node(identifier, Some(original))?;
         Ok(identifier)
@@ -12143,8 +12148,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         )
     }
 
-    fn create_parameter(&mut self, name: &str) -> Result<TransformNode, TransformError> {
-        let name = self.create_identifier(name)?;
+    fn create_parameter(&mut self, name: TransformNode) -> Result<TransformNode, TransformError> {
         self.context.factory()?.create_node(
             self.source,
             NodeData::Parameter(tsc_syntax::nodes::ParameterData {
@@ -12873,7 +12877,8 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         declaration: NodeId,
         body: Option<NodeId>,
         base: &str,
-    ) -> Result<String, TransformError> {
+        source_name: TransformNode,
+    ) -> Result<(String, TransformNode), TransformError> {
         let declaration_node = self.resolver_node(self.node(declaration))?;
         let unique = match self.resolver.is_unique_local_name(declaration_node, base) {
             Ok(unique) => unique,
@@ -12886,19 +12891,37 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             },
             Err(error) => return Err(error.into()),
         };
-        if unique {
-            return Ok(base.to_owned());
-        }
-        let mut ordinal = 1usize;
-        loop {
-            let candidate = format!("{base}_{ordinal}");
-            if !self.source_identifier_names.contains(&candidate)
-                && self.generated_namespace_names.insert(candidate.clone())
-            {
-                return Ok(candidate);
+        let text = if unique {
+            base.to_owned()
+        } else {
+            let mut ordinal = 1usize;
+            loop {
+                let candidate = format!("{base}_{ordinal}");
+                if !self.source_identifier_names.contains(&candidate)
+                    && self.generated_namespace_names.insert(candidate.clone())
+                {
+                    break candidate;
+                }
+                ordinal += 1;
             }
-            ordinal += 1;
-        }
+        };
+        let name = self.create_identifier(&text)?;
+        let source_map_range = {
+            let arena = self.context.arena();
+            let record = arena.node(source_name)?;
+            let source = arena.source(source_name.source())?.syntax();
+            SourceRange::from_raw(record.pos, record.end, source.positions())
+                .map(|range| SourceMapRange::new(source_name.source(), range))
+                .map_err(|error| TransformError::InvalidSourceRange {
+                    node: source_name,
+                    error,
+                })?
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(name)
+            .set_source_map_range(source_map_range);
+        Ok((text, name))
     }
 
     /// Rust-side equivalent of the binder-backed `isUniqueLocalName` used by
