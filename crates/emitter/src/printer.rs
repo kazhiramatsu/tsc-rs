@@ -3882,11 +3882,15 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                let erased_type = transformation
+                    .arena()
+                    .metadata(name)
+                    .and_then(crate::EmitMetadata::type_node);
+                if erased_type.is_some() {
+                    self.emit_trailing_comments_at_node_position(transformation, name, writer)?;
+                }
                 if let Some(initializer) = data.initializer {
-                    let equal_cursor = transformation
-                        .arena()
-                        .metadata(name)
-                        .and_then(crate::EmitMetadata::type_node)
+                    let equal_cursor = erased_type
                         .map(|r#type| self.original_node_end_cursor(transformation, r#type))
                         .transpose()?
                         .unwrap_or(self.original_node_end_cursor(transformation, name)?);
