@@ -501,6 +501,13 @@ impl EmitResolver for ExportedVariableResolver {
         Ok(None)
     }
 
+    fn get_enum_member_value(
+        &self,
+        _node: EmitResolverNode,
+    ) -> Result<Option<EmitEnumMemberValue>, EmitResolverError> {
+        Ok(None)
+    }
+
     fn get_referenced_export_container(
         &self,
         node: EmitResolverNode,
@@ -529,6 +536,10 @@ impl EmitResolver for ExportedVariableResolver {
             .get(&node.node())
             .copied()
             .map(|declaration| EmitResolverNode::new(node.source(), declaration)))
+    }
+
+    fn is_instantiated_module(&self, _node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Ok(true)
     }
 
     fn is_referenced_alias_declaration(
@@ -3744,6 +3755,109 @@ fn common_js_exported_updates_publish_new_values_and_preserve_postfix_results() 
             "exports.bizz = ++bizz;\n",
             "let previous = (exports.bizz = (_a = bizz++, bizz), _a);\n",
         )
+    );
+}
+
+#[test]
+fn common_js_exported_updates_use_direct_storage_and_publish_only_aliases() {
+    let source_text = concat!(
+        "export let direct = 0;\n",
+        "direct++;\n",
+        "direct--;\n",
+        "++direct;\n",
+        "--direct;\n",
+        "let direct_postfix = direct++;\n",
+        "let direct_postfix_dec = direct--;\n",
+        "let direct_prefix = ++direct;\n",
+        "let direct_prefix_dec = --direct;\n",
+        "let local = 0;\n",
+        "export { local as alias };\n",
+        "local++;\n",
+        "let alias_postfix = local++;\n",
+        "++local;\n",
+        "let alias_prefix = ++local;\n",
+        "export let multiple = 0;\n",
+        "export { multiple as secondary };\n",
+        "multiple++;\n",
+        "let multiple_postfix = multiple++;\n",
+        "++multiple;\n",
+        "let multiple_prefix = ++multiple;\n",
+        "export namespace Ns {\n",
+        "    export const value = 0;\n",
+        "}\n",
+        "export enum En { A }\n",
+        "En.A++;\n",
+        "const enum_previous = En.A++;\n",
+    );
+    let parsed = parse_source_file(
+        "direct-exported-updates.ts",
+        source_text,
+        Default::default(),
+        None,
+    );
+    let resolver = ExportedVariableResolver::new(&parsed);
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, Some(SourceFileId::from_raw(0)));
+    let options = CompilerOptions {
+        target: Some(ScriptTarget::ES2015.bits()),
+        module: Some(ModuleKind::COMMON_JS.bits()),
+        always_strict: Some(false),
+        ..CompilerOptions::default()
+    };
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        vec![
+            transform_type_script(&options, &resolver),
+            transform_module(&options, &resolver),
+        ],
+        false,
+    )
+    .expect("CommonJS direct exported-update transform");
+    let output = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed).with_target(ScriptTarget::ES2015),
+    )
+    .print(&mut result, PrintRequest::SourceFile(source), None)
+    .expect("print CommonJS direct exported updates")
+    .text()
+    .to_owned();
+
+    for expected in [
+        "exports.direct++;",
+        "exports.direct--;",
+        "++exports.direct;",
+        "--exports.direct;",
+        "let direct_postfix = exports.direct++;",
+        "let direct_postfix_dec = exports.direct--;",
+        "let direct_prefix = ++exports.direct;",
+        "let direct_prefix_dec = --exports.direct;",
+        "exports.alias = (local++, local);",
+        "let alias_postfix = (exports.alias = (_a = local++, local), _a);",
+        "exports.alias = ++local;",
+        "let alias_prefix = exports.alias = ++local;",
+        "exports.secondary = (exports.multiple++, exports.multiple);",
+        concat!(
+            "let multiple_postfix = (exports.secondary = ",
+            "(_b = exports.multiple++, exports.multiple), _b);"
+        ),
+        "exports.secondary = ++exports.multiple;",
+        "let multiple_prefix = exports.secondary = ++exports.multiple;",
+        "(function (Ns) {",
+        "})(Ns || (Ns = {}));",
+        "(function (En) {",
+        "})(En || (En = {}));",
+        "En.A++;",
+        "const enum_previous = En.A++;",
+    ] {
+        assert!(output.contains(expected), "missing {expected:?}:\n{output}");
+    }
+    assert!(
+        !output.contains("exports.direct = (exports.direct++"),
+        "{output}"
+    );
+    assert!(
+        !output.contains("exports.direct = ++exports.direct"),
+        "{output}"
     );
 }
 
