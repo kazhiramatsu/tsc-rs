@@ -1,27 +1,34 @@
 # H2.6c W5 — frozen class-membership evidence (Appendix A companion)
 
-Generated 2026-08-31 from the path-joined detail dumps of all 91
-byte-diverging pool rows (w5-membership-gen.py over w5-divdumps/;
-the census + probe artifacts are the byte evidence). Every diverging
-write/line carries exactly one class attribution; zero UNPINNED.
+Revision 2 (2026-08-31), regenerated after the sol round-2 review:
+jsx absent trailing-export lines are K15 (finding 1), the
+sourceMapValidationImport lines split K13 / K24 / K24+K15
+(finding 2), absent .d.ts.map lines are blocked-H2.7e (finding 3),
+and the extended-escape map rows are K15(b′) (finding 4).
+Generated from the path-joined detail dumps of all 91
+byte-diverging pool rows; every diverging write/line carries
+exactly one attribution (one compound K24+K15 line); zero
+unpinned.
 
 ## Class totals (diverging lines/writes)
 
 ```
   H2.8b-carryover: 31
-  K13: 21
+  K13: 22
   K14: 12
-  K15: 585
+  K15: 587
   K16: 2
   K17: 13
-  K18: 102
+  K18: 84
   K19: 2
-  K19-map: 4
+  K19-map: 2
   K20: 14
   K21: 1
-  K23: 7
+  K23: 4
+  K24: 1
+  K24+K15: 1
+  blocked-H2.7e: 18
 
-=== per-case attribution ===
 ```
 
 ## Per-case roster
@@ -31,10 +38,10 @@ write/line carries exactly one class attribution; zero UNPINNED.
 | compiler/contextualTyping.ts#default | K13 |
 | compiler/emitBOM.ts#default | K21 |
 | compiler/jsxFactoryIdentifier.ts#default | K15×3 + K23×2 |
-| compiler/jsxFactoryIdentifierAsParameter.ts#default | K23 |
-| compiler/jsxFactoryIdentifierWithAbsentParameter.ts#default | K23 |
+| compiler/jsxFactoryIdentifierAsParameter.ts#default | K15 |
+| compiler/jsxFactoryIdentifierWithAbsentParameter.ts#default | K15 |
 | compiler/jsxFactoryQualifiedName.ts#default | K15×3 + K23×2 |
-| compiler/jsxFactoryQualifiedNameResolutionError.ts#default | K23 |
+| compiler/jsxFactoryQualifiedNameResolutionError.ts#default | K15 |
 | compiler/out-flag.ts#target%3Des5 | K20×14 |
 | compiler/recursiveClassReferenceTest.ts#default | K13×4 + K14×8 |
 | compiler/sourceMap-Comments.ts#target%3Des2015 | K13 + K14 |
@@ -44,14 +51,14 @@ write/line carries exactly one class attribution; zero UNPINNED.
 | compiler/sourceMapValidationClasses.ts#default | K14 |
 | compiler/sourceMapValidationDecorators.ts#target%3Des2015 | K17×4 |
 | compiler/sourceMapValidationDecorators.ts#target%3Des5 | K17×9 |
-| compiler/sourceMapValidationImport.ts#default | K15×3 |
+| compiler/sourceMapValidationImport.ts#default | K13 + K24 + K24+K15 |
 | compiler/sourceMapValidationModule.ts#default | K13×2 |
 | compiler/sourceMapValidationVarInDownLevelGenerator.ts#target%3Des5 | H2.8b-carryover×31 |
 | compiler/sourcemapValidationDuplicateNames.ts#default | K13 |
 | compiler/typeResolution.ts#default | K13×7 |
-| compiler/unicodeEscapesInNames01.ts#target%3Des5 | K19×2 + K19-map×4 |
-| conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 | K18×32 |
-| conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 | K18×70 |
+| compiler/unicodeEscapesInNames01.ts#target%3Des5 | K15×2 + K19×2 + K19-map×2 |
+| conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 | K18×23 + blocked-H2.7e×9 |
+| conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 | K18×61 + blocked-H2.7e×9 |
 | conformance/jsx/tsxEmit3.tsx#default | K13×2 |
 | conformance/statements/for-ofStatements/ES5For-of34.ts#target%3Des5 | K16 |
 | conformance/statements/for-ofStatements/ES5For-of8.ts#target%3Des5 | K16 |
@@ -130,14 +137,14 @@ K15       compiler/jsxFactoryIdentifier.ts#default                              
 K15       compiler/jsxFactoryIdentifier.ts#default                                    Element.js.map                           line 14
 K23       compiler/jsxFactoryIdentifier.ts#default                                    test.js.map                              line 8
 K23       compiler/jsxFactoryIdentifier.ts#default                                    test.js.map                              line 9
-K23       compiler/jsxFactoryIdentifierAsParameter.ts#default                         test.js.map                              line 8
-K23       compiler/jsxFactoryIdentifierWithAbsentParameter.ts#default                 test.js.map                              line 8
+K15       compiler/jsxFactoryIdentifierAsParameter.ts#default                         test.js.map                              line 8
+K15       compiler/jsxFactoryIdentifierWithAbsentParameter.ts#default                 test.js.map                              line 8
 K15       compiler/jsxFactoryQualifiedName.ts#default                                 Element.js.map                           line 8
 K15       compiler/jsxFactoryQualifiedName.ts#default                                 Element.js.map                           line 12
 K15       compiler/jsxFactoryQualifiedName.ts#default                                 Element.js.map                           line 14
 K23       compiler/jsxFactoryQualifiedName.ts#default                                 test.js.map                              line 7
 K23       compiler/jsxFactoryQualifiedName.ts#default                                 test.js.map                              line 8
-K23       compiler/jsxFactoryQualifiedNameResolutionError.ts#default                  test.js.map                              line 8
+K15       compiler/jsxFactoryQualifiedNameResolutionError.ts#default                  test.js.map                              line 8
 K20       compiler/out-flag.ts#target%3Des5                                           out-flag.js                              js-bytes
 K20       compiler/out-flag.ts#target%3Des5                                           out-flag.js.map                          line 4
 K20       compiler/out-flag.ts#target%3Des5                                           out-flag.js.map                          line 5
@@ -185,9 +192,9 @@ K17       compiler/sourceMapValidationDecorators.ts#target%3Des5                
 K17       compiler/sourceMapValidationDecorators.ts#target%3Des5                      sourceMapValidationDecorators.js.map     line 39
 K17       compiler/sourceMapValidationDecorators.ts#target%3Des5                      sourceMapValidationDecorators.js.map     line 43
 K17       compiler/sourceMapValidationDecorators.ts#target%3Des5                      sourceMapValidationDecorators.js.map     line 64
-K15       compiler/sourceMapValidationImport.ts#default                               sourceMapValidationImport.js.map         line 7
-K15       compiler/sourceMapValidationImport.ts#default                               sourceMapValidationImport.js.map         line 9
-K15       compiler/sourceMapValidationImport.ts#default                               sourceMapValidationImport.js.map         line 10
+K13       compiler/sourceMapValidationImport.ts#default                               sourceMapValidationImport.js.map         line 7
+K24       compiler/sourceMapValidationImport.ts#default                               sourceMapValidationImport.js.map         line 9
+K24+K15   compiler/sourceMapValidationImport.ts#default                               sourceMapValidationImport.js.map         line 10
 K13       compiler/sourceMapValidationModule.ts#default                               sourceMapValidationModule.js.map         line 10
 K13       compiler/sourceMapValidationModule.ts#default                               sourceMapValidationModule.js.map         line 15
 H2.8b-carryover compiler/sourceMapValidationVarInDownLevelGenerator.ts#target%3Des5         sourceMapValidationVarInDownLevelGenerator.js js-bytes
@@ -233,18 +240,18 @@ K19       compiler/unicodeEscapesInNames01.ts#target%3Des5                      
 K19       compiler/unicodeEscapesInNames01.ts#target%3Des5                            identifierVariableWithEscape2.js         js-bytes
 K19-map   compiler/unicodeEscapesInNames01.ts#target%3Des5                            identifierVariableWithEscape2.js.map     line 3
 K19-map   compiler/unicodeEscapesInNames01.ts#target%3Des5                            identifierVariableWithEscape1.js.map     line 3
-K19-map   compiler/unicodeEscapesInNames01.ts#target%3Des5                            identifierVariableWithExtendedEscape2.js.map line 3
-K19-map   compiler/unicodeEscapesInNames01.ts#target%3Des5                            identifierVariableWithExtendedEscape1.js.map line 3
+K15       compiler/unicodeEscapesInNames01.ts#target%3Des5                            identifierVariableWithExtendedEscape2.js.map line 3
+K15       compiler/unicodeEscapesInNames01.ts#target%3Des5                            identifierVariableWithExtendedEscape1.js.map line 3
 K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.js js-bytes
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 0
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 1
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 2
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 3
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 4
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 5
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 6
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 7
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 8
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 0
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 1
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 2
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 3
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 4
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 5
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 6
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 7
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.d.ts.map line 8
 K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.js.map line 86
 K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.js.map line 87
 K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015 esDecorators-classDeclaration-sourceMap.js.map line 88
@@ -328,15 +335,15 @@ K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaratio
 K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.js.map line 130
 K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.js.map line 131
 K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.js.map line 132
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 0
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 1
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 2
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 3
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 4
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 5
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 6
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 7
-K18       conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 8
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 0
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 1
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 2
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 3
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 4
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 5
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 6
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 7
+blocked-H2.7e conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022 esDecorators-classDeclaration-sourceMap.d.ts.map line 8
 K13       conformance/jsx/tsxEmit3.tsx#default                                        file.jsx.map                             line 6
 K13       conformance/jsx/tsxEmit3.tsx#default                                        file.jsx.map                             line 11
 K16       conformance/statements/for-ofStatements/ES5For-of34.ts#target%3Des5         ES5For-of34.js.map                       line 18
