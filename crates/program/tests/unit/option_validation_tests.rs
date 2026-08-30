@@ -101,6 +101,89 @@ fn valid_dependency_options_close_their_relationships() {
 }
 
 #[test]
+fn source_map_relationships_follow_tsc_order_and_messages() {
+    assert_eq!(
+        validate_compiler_options(&CompilerOptions {
+            source_root: Some("sources".to_owned()),
+            map_root: Some("maps".to_owned()),
+            ..CompilerOptions::default()
+        }),
+        [
+            CompilerOptionViolation::SourceRootRequiresSourceMap,
+            CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap,
+        ]
+    );
+    assert_eq!(
+        validate_compiler_options(&CompilerOptions {
+            inline_source_map: Some(true),
+            map_root: Some("maps".to_owned()),
+            ..CompilerOptions::default()
+        }),
+        [
+            CompilerOptionViolation::MapRootConflictsWithInlineSourceMap,
+            CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap,
+        ]
+    );
+    assert_eq!(
+        validate_compiler_options(&CompilerOptions {
+            source_map: Some(true),
+            inline_source_map: Some(true),
+            ..CompilerOptions::default()
+        }),
+        [CompilerOptionViolation::SourceMapConflictsWithInlineSourceMap]
+    );
+    assert_eq!(
+        validate_compiler_options(&CompilerOptions {
+            inline_sources: Some(true),
+            ..CompilerOptions::default()
+        }),
+        [CompilerOptionViolation::InlineSourcesRequiresSourceMap]
+    );
+
+    let source_root = CompilerOptionViolation::SourceRootRequiresSourceMap;
+    assert_eq!(
+        source_root.location(),
+        CompilerOptionValidationLocation::CompilerLevel
+    );
+    assert_eq!(source_root.message().code, 5051);
+    assert_eq!(
+        source_root.message().text,
+        "Option 'sourceRoot can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided."
+    );
+    let map_root = CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap;
+    assert_eq!(map_root.message().code, 5069);
+    assert_eq!(
+        map_root.message().text,
+        "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+    );
+}
+
+#[test]
+fn source_map_relationships_accept_their_prerequisites() {
+    for options in [
+        CompilerOptions {
+            source_map: Some(true),
+            source_root: Some("sources".to_owned()),
+            map_root: Some("maps".to_owned()),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            declaration_map: Some(true),
+            map_root: Some("maps".to_owned()),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            inline_source_map: Some(true),
+            source_root: Some("sources".to_owned()),
+            inline_sources: Some(true),
+            ..CompilerOptions::default()
+        },
+    ] {
+        assert!(validate_compiler_options(&options).is_empty());
+    }
+}
+
+#[test]
 fn empty_jsx_strings_follow_javascript_truthiness() {
     let options = CompilerOptions {
         jsx: Some(2),

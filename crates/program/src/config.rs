@@ -3144,10 +3144,16 @@ fn option_relationship_diagnostics(
         declaration: config_option_bool(options, "declaration"),
         composite: config_option_bool(options, "composite"),
         jsx: config_option_i32(options, "jsx"),
+        source_map: config_option_bool(options, "sourceMap"),
+        inline_source_map: config_option_bool(options, "inlineSourceMap"),
+        inline_sources: config_option_bool(options, "inlineSources"),
+        source_root: config_option_string(options, "sourceRoot"),
+        map_root: config_option_string(options, "mapRoot"),
         jsx_factory: config_option_string(options, "jsxFactory"),
         jsx_fragment_factory: config_option_string(options, "jsxFragmentFactory"),
         jsx_import_source: config_option_string(options, "jsxImportSource"),
         react_namespace: config_option_string(options, "reactNamespace"),
+        declaration_map: config_option_bool(options, "declarationMap"),
         ..CompilerOptions::default()
     };
     let module_kind = projected.emit_module_kind();
@@ -3296,19 +3302,25 @@ fn emit_option_validation_diagnostic_for_properties(
 ) {
     let message = violation.message();
     let names = violation.option_names();
-    let mut locations = properties
-        .iter()
-        .filter(|property| names.contains(&property.name.as_str()))
-        .filter_map(|property| {
-            config_location(
-                source,
-                match violation.location() {
-                    CompilerOptionValidationLocation::Name => property.name_node,
-                    CompilerOptionValidationLocation::Value => property.initializer,
-                },
-            )
-        })
-        .collect::<Vec<_>>();
+    let mut locations = match violation.location() {
+        CompilerOptionValidationLocation::CompilerLevel => Vec::new(),
+        CompilerOptionValidationLocation::Name | CompilerOptionValidationLocation::Value => {
+            properties
+                .iter()
+                .filter(|property| names.contains(&property.name.as_str()))
+                .filter_map(|property| {
+                    config_location(
+                        source,
+                        match violation.location() {
+                            CompilerOptionValidationLocation::Name => property.name_node,
+                            CompilerOptionValidationLocation::Value => property.initializer,
+                            CompilerOptionValidationLocation::CompilerLevel => unreachable!(),
+                        },
+                    )
+                })
+                .collect::<Vec<_>>()
+        }
+    };
     locations.sort_unstable_by_key(|location| location.start);
     if locations.is_empty() {
         diagnostics.push(config_diagnostic_from_chain(message, fallback.clone()));
