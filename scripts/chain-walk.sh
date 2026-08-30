@@ -199,6 +199,11 @@ done
 [ $drift -eq 0 ] || exit 2
 echo "coverage: ORDER in sync (${#ORDER[@]} chain scripts)"
 
+# Planner coverage self-check (gate-tax 8, S4): the prospective plan's
+# LADDER_ORDER must equal ORDER exactly — a lagging planner reports an
+# incomplete stale cone (measured 63/65 on the 2026-08-30 W4 runs).
+python3 scripts/walk-planner-coverage.py "${ORDER[@]}" || exit 2
+
 # ORDER-topology audit (gate-tax 5-D): a producer appearing after its
 # consumer costs a third full round every converge; refuse like drift.
 python3 scripts/walk-topology-audit.py "${ORDER[@]}" || exit 2
