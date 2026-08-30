@@ -6867,6 +6867,13 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             self.update_generic_without_visit(original, NodeData::PrefixUnaryExpression(data))?;
         if let Some(plan) = plan {
             for export in plan.exports {
+                // A directly exported variable was substituted in the operand
+                // visit above (`x` -> `exports.x`). Publishing that same name
+                // again would produce `exports.x = ++exports.x`; only aliases
+                // still require an enclosing assignment.
+                if plan.direct_export_storage && export.as_ref() == plan.local_name.as_str() {
+                    continue;
+                }
                 let target = self.create_export_access(&export)?;
                 expression = self.create_assignment(target, expression)?;
                 self.set_original_and_range(expression, original)?;
@@ -6914,6 +6921,19 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let Some(plan) = plan else {
             return Ok(update);
         };
+        let exports = plan
+            .exports
+            .into_iter()
+            .filter(|export| {
+                !plan.direct_export_storage || export.as_ref() != plan.local_name.as_str()
+            })
+            .collect::<Vec<_>>();
+        // The operand visit has already substituted a direct export with its
+        // `exports.name` access. With no aliases left to publish, preserve the
+        // original postfix expression in both used and discarded contexts.
+        if exports.is_empty() {
+            return Ok(update);
+        }
         let Some(visited_operand) = visited_operand else {
             return Ok(update);
         };
@@ -6931,7 +6951,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         let current_value = self.context.factory()?.clone_node(visited_operand)?;
         expression = self.create_binary(expression, SyntaxKind::CommaToken, current_value)?;
         self.set_original_and_range(expression, original)?;
-        for export in plan.exports {
+        for export in exports {
             let target = self.create_export_access(&export)?;
             expression = self.create_assignment(target, expression)?;
             self.set_original_and_range(expression, original)?;
@@ -9811,7 +9831,11 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                                 class_is_decorated || facts.has_member_decorators,
                             )?)
                         } else {
-                            Some(self.update_class_declaration(original, id, data)?)
+                            let updated = self.update_class_declaration(original, id, data)?;
+                            Some(self.finish_typescript_class_declaration(
+                                updated,
+                                facts.has_static_initialized_properties,
+                            )?)
                         }
                     }
                 }
@@ -13191,6 +13215,24 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     .and_then(|node| self.context.arena().node(node).ok())
                     .is_some_and(|node| node.kind == expected)
             }))
+    }
+
+    /// tsc-port: visitClassDeclaration @6.0.3
+    /// tsc-hash: b65f1d056d5afaa84f5420844a39d469a276b33d08b874f57bae9afcda3a13c5
+    /// tsc-span: _tsc.js:94458-94471
+    fn finish_typescript_class_declaration(
+        &mut self,
+        class: NodeId,
+        has_static_initialized_properties: bool,
+    ) -> Result<NodeId, TransformError> {
+        if has_static_initialized_properties {
+            let class_node = self.node(class);
+            self.context
+                .arena_mut()?
+                .metadata_mut(class_node)
+                .add_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+        }
+        Ok(class)
     }
 
     /// tsc-port: getClassFacts @6.0.3

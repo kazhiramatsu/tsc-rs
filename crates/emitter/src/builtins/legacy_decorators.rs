@@ -10,9 +10,9 @@ use tsc_types::{CompilerOptions, NodeCheckFlags, NodeFlags, ScriptTarget};
 use crate::{
     factory::EmitHelperName, metadata::ClassExpressionDeclarationOrigin, CommentRange, EmitFlags,
     EmitHelper, EmitResolver, EmitResolverError, EmitResolverNode,
-    EmitTypeReferenceSerializationKind, InternalEmitFlags, SourceRange, TransformError,
-    TransformFlags, TransformNode, TransformNodeArray, TransformRoot, TransformSourceId,
-    TransformationContext, Transformer, UnsupportedEmitFeature,
+    EmitTypeReferenceSerializationKind, InternalEmitFlags, SourceMapRange, SourceRange,
+    TransformError, TransformFlags, TransformNode, TransformNodeArray, TransformRoot,
+    TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
 };
 
 use super::{
@@ -283,6 +283,7 @@ enum PreparedDecoratorRuntimeRole {
 
 #[derive(Clone, Copy, Debug)]
 struct PreparedDecoratorExpression {
+    original_expression: TransformNode,
     visited: TransformNode,
     runtime_role: PreparedDecoratorRuntimeRole,
     contains_private_identifier_in_expression: bool,
@@ -514,19 +515,26 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 Some(self.update_function_like(original, NodeData::Constructor(data))?)
             }
             NodeData::MethodDeclaration(mut data) => {
+                let original_modifiers = data.modifiers;
                 data.name = self.rewrite_computed_member_name(original, data.name)?;
                 data.modifiers = self.strip_decorators(data.modifiers)?;
-                Some(self.update_function_like(original, NodeData::MethodDeclaration(data))?)
+                let updated =
+                    self.update_function_like(original, NodeData::MethodDeclaration(data))?;
+                Some(self.finish_class_element(updated, original, original_modifiers)?)
             }
             NodeData::GetAccessor(mut data) => {
+                let original_modifiers = data.modifiers;
                 data.name = self.rewrite_computed_member_name(original, data.name)?;
                 data.modifiers = self.strip_decorators(data.modifiers)?;
-                Some(self.update_function_like(original, NodeData::GetAccessor(data))?)
+                let updated = self.update_function_like(original, NodeData::GetAccessor(data))?;
+                Some(self.finish_class_element(updated, original, original_modifiers)?)
             }
             NodeData::SetAccessor(mut data) => {
+                let original_modifiers = data.modifiers;
                 data.name = self.rewrite_computed_member_name(original, data.name)?;
                 data.modifiers = self.strip_decorators(data.modifiers)?;
-                Some(self.update_function_like(original, NodeData::SetAccessor(data))?)
+                let updated = self.update_function_like(original, NodeData::SetAccessor(data))?;
+                Some(self.finish_class_element(updated, original, original_modifiers)?)
             }
             NodeData::ArrowFunction(data) => {
                 Some(self.update_function_like(original, NodeData::ArrowFunction(data))?)
@@ -544,9 +552,12 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 {
                     None
                 } else {
+                    let original_modifiers = data.modifiers;
                     data.name = self.rewrite_computed_member_name(original, data.name)?;
                     data.modifiers = self.strip_decorators(data.modifiers)?;
-                    Some(self.update_generic(original, NodeData::PropertyDeclaration(data))?)
+                    let updated =
+                        self.update_generic(original, NodeData::PropertyDeclaration(data))?;
+                    Some(self.finish_class_element(updated, original, original_modifiers)?)
                 }
             }
             NodeData::Parameter(mut data) => {
@@ -747,11 +758,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             // the original exported class and wrap it in `exports.name =`.
             // The variable declaration above owns the local binding.
             let assignment = self.create_assignment(class_name, decorate)?;
-            let statement = self.create_expression_statement(assignment)?;
-            self.context
-                .arena_mut()?
-                .metadata_mut(statement)
-                .add_flags(EmitFlags::NO_COMMENTS);
+            let statement = self.create_class_decoration_statement(assignment, current)?;
             statements.push(statement);
         }
         if has_constructor_decoration && is_export {
@@ -1325,6 +1332,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     parent: SyntaxKind::Decorator,
                     field: "expression",
                 })?;
+            let original_expression = expression;
             // Static-block placement consumes transformTypeScript's handoff
             // fact. Visiting a nested decorated class can erase the inner
             // decorator expression, so recomputing from the post-legacy node
@@ -1337,6 +1345,7 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                     field: "expression",
                 })?;
             expressions.push(PreparedDecoratorExpression {
+                original_expression,
                 visited: expression,
                 runtime_role,
                 contains_private_identifier_in_expression,
@@ -1448,6 +1457,34 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         Ok(())
     }
 
+    /// tsc-port: addConstructorDecorationStatement @6.0.3
+    /// tsc-hash: 0e0f2f68d84a584eabf26db394d4dad074add936235b9d1441a7b0d65dbdff5b
+    /// tsc-span: _tsc.js:98821-98825
+    /// tsc-port: generateConstructorDecorationExpression @6.0.3
+    /// tsc-hash: cf33274a7db678cabc7637cfd67d1267fa4863f14130d0fb8d86f050c14c791b
+    /// tsc-span: _tsc.js:98827-98855
+    fn create_class_decoration_statement(
+        &mut self,
+        assignment: TransformNode,
+        class: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let modifiers = match &self.context.arena().node(class)?.data {
+            NodeData::ClassDeclaration(data) => data.modifiers,
+            _ => None,
+        };
+        let location = self.move_range_past_modifiers(class, modifiers)?;
+        {
+            let metadata = self.context.arena_mut()?.metadata_mut(assignment);
+            metadata.add_flags(EmitFlags::NO_COMMENTS);
+            metadata.set_source_map_range(SourceMapRange::new(location.source, location.range));
+        }
+        let statement = self.create_expression_statement(assignment)?;
+        self.set_original_only(statement, class)
+    }
+
+    /// tsc-port: generateClassElementDecorationExpression @6.0.3
+    /// tsc-hash: f7b40c5466642382252a1d94ef7281fafbfd6c932ec9469e23667983fa852306
+    /// tsc-span: _tsc.js:98793-98819
     fn create_member_decoration_statement(
         &mut self,
         class_name: &str,
@@ -1486,7 +1523,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 );
                 continue;
             };
-            decorators.push(self.create_param(runtime_index, parameter.visited)?);
+            decorators.push(self.create_param(
+                runtime_index,
+                parameter.visited,
+                parameter.original_expression,
+            )?);
         }
         debug_assert!(!decorators.is_empty());
         decorators.extend(metadata);
@@ -1518,11 +1559,13 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             };
         let call =
             self.create_decorate_call(decorators, target, Some(member_name), Some(descriptor))?;
+        let location = self.move_range_past_modifiers(member, modifiers)?;
+        {
+            let metadata = self.context.arena_mut()?.metadata_mut(call);
+            metadata.add_flags(EmitFlags::NO_COMMENTS);
+            metadata.set_source_map_range(SourceMapRange::new(location.source, location.range));
+        }
         let statement = self.create_expression_statement(call)?;
-        self.context
-            .arena_mut()?
-            .metadata_mut(statement)
-            .add_flags(EmitFlags::NO_COMMENTS);
         Ok(statement)
     }
 
@@ -1542,7 +1585,11 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 debug_assert!(false, "constructor handoff must carry a parameter role");
                 continue;
             };
-            decorators.push(self.create_param(runtime_index, parameter.visited)?);
+            decorators.push(self.create_param(
+                runtime_index,
+                parameter.visited,
+                parameter.original_expression,
+            )?);
         }
         if let Some(metadata) = prepared.metadata {
             decorators.push(metadata);
@@ -3533,10 +3580,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         self.create_call(helper, vec![key, value])
     }
 
+    /// tsc-port: transformDecoratorsOfParameter @6.0.3
+    /// tsc-hash: 40551c83e14f35d45d66a50f894a4ebf9c70948b3edae33898dc93281e5c9bf6
+    /// tsc-span: _tsc.js:98860-98872
     fn create_param(
         &mut self,
         index: usize,
         decorator: TransformNode,
+        original_expression: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         self.context.request_emit_helper(EmitHelper::with_text(
             "typescript:param",
@@ -3550,7 +3601,15 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             .factory()?
             .create_unscoped_helper_identifier(self.source, EmitHelperName::Param)?;
         let index = self.create_numeric_literal(&index.to_string())?;
-        self.create_call(helper, vec![index, decorator])
+        let call = self.create_call(helper, vec![index, decorator])?;
+        self.context
+            .factory()?
+            .set_text_range(call, original_expression)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(call)
+            .add_flags(EmitFlags::NO_COMMENTS);
+        Ok(call)
     }
 
     fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
@@ -4135,6 +4194,29 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         let range = SourceRange::from_raw(record.pos, record.end, source.positions())
             .map_err(|error| TransformError::InvalidSourceRange { node, error })?;
         Ok(CommentRange::new(node.source(), range))
+    }
+
+    /// tsc-port: finishClassElement @6.0.3
+    /// tsc-hash: f5fe546a5b8108257c634ae6c6b5d889d5ae27fdf7338d2d0716931fafcb114b
+    /// tsc-span: _tsc.js:98667-98672
+    fn finish_class_element(
+        &mut self,
+        updated: NodeId,
+        original: TransformNode,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<NodeId, TransformError> {
+        let updated_node = self.node(updated);
+        if updated_node != original {
+            let comment_range = self.raw_comment_range(original)?;
+            let source_map_range = self.move_range_past_modifiers(original, modifiers)?;
+            let metadata = self.context.arena_mut()?.metadata_mut(updated_node);
+            metadata.set_comment_range(comment_range);
+            metadata.set_source_map_range(SourceMapRange::new(
+                source_map_range.source,
+                source_map_range.range,
+            ));
+        }
+        Ok(updated)
     }
 
     /// Typed class-declaration branch of tsc's `moveRangePastModifiers`.
