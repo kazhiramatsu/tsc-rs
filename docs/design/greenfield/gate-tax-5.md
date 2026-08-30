@@ -385,7 +385,7 @@ and itself resumable per-case via B.
 | 4 | first check after a mint re-observes | by-design trust anchor | keep; fires once, resumable via B |
 | 5 | conformance ×3 + full-corpus invariants re-sweeps | ~40–90 min per gate | gate-tax 4 (landed) |
 | 6 | workspace tests ~40 min regardless of change scope | 40 min/gate | partially gt4 (`cargo xtask train`); gt6 candidate |
-| 7 | mint round linear in stale-cone size | ~45 min on a Rust change | inherent until new-CI pin restamp; D's repin-early trims it |
+| 7 | mint round linear in stale-cone size | ~45 min on a Rust change | inherent until new-CI pin restamp; D's repin-early trims it; gt8 landed the one-walk repairs (schema-const in-walk, harness pin manifest) + the report-only restamp shadow — trusted restamp remains new-CI-reserved (gate-tax-8.md §8) |
 | 8 | B2 full-corpus producer single-thread regen on miss | bounded, legit | no action (post-H2.9) |
 | 9 | hosted ~35 min per push, no cache, red found post-converge | 35 min + tail-chase | gt5-E prevents the tail-chase; caching = new-CI era |
 | 10 | h1 rungs re-mint on any Rust byte | minutes | inherent (they scan Rust); fine |

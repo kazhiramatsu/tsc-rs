@@ -162,7 +162,7 @@ fn h2_3c_profile_is_content_addressed_and_closes_the_transition() {
     let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.3c profile JSON");
     assert_eq!(
         sha256(RECORDED),
-        "9450cedf0285471970fce51c94d21fab3fe852590c151a559fa61e48d1fa40a2"
+        crate::pins::expected("h2_3c_profile", "ratchets/h2-3c-profile.v1.json")
     );
     assert_eq!(artifact["schema"], 1);
     assert_eq!(artifact["kind"], "h2-runtime-profile");
@@ -197,32 +197,38 @@ fn h2_3c_profile_is_content_addressed_and_closes_the_transition() {
         (
             &artifact["generator"],
             "crates/oracle/h2-3c-profile.mjs",
-            "9865eda8d3db145f9cedde18e253598e39cea150efb47358c110466c6d4d75ef",
+            &crate::pins::expected("h2_3c_profile", "crates/oracle/h2-3c-profile.mjs"),
         ),
         (
             &artifact["contract"],
             ".github/ci/contracts/h2-3c-profile.schema.json",
-            "aa9b14c064e5be1ee77c3fd43b81994b81bcce0f930582730e24e2a3fe70ef70",
+            &crate::pins::expected(
+                "h2_3c_profile",
+                ".github/ci/contracts/h2-3c-profile.schema.json",
+            ),
         ),
         (
             &artifact["qualification"],
             "ratchets/h2-3c-qualification.v1.json",
-            "9957e9c5dfe7c5062822e7f8bb88c72f9c0a7a6ef6273be4731d823e9d5eeaf9",
+            &crate::pins::expected("h2_3c_profile", "ratchets/h2-3c-qualification.v1.json"),
         ),
         (
             &artifact["evidence"]["owner_controls"]["artifact"],
             "ratchets/h2-3c-owner-controls.v1.json",
-            "7e158b0311f5c3a6b3fcb60dcfbbebb5cd418d603502022382473ac3ac7b916b",
+            &crate::pins::expected("h2_3c_profile", "ratchets/h2-3c-owner-controls.v1.json"),
         ),
         (
             &artifact["evidence"]["owner_controls"]["generator"],
             "crates/oracle/h2-3c-owner-controls.mjs",
-            "351b828df9d01025702d15cc7ea9e368bf6fd9218b6eedaccb7fcfbe7be49def",
+            &crate::pins::expected("h2_3c_profile", "crates/oracle/h2-3c-owner-controls.mjs"),
         ),
         (
             &artifact["evidence"]["owner_controls"]["contract"],
             ".github/ci/contracts/h2-3c-owner-controls.schema.json",
-            "a0a0d54df71862647cfd21d58ea960ddfdded1d8c4df8b552e943297e5579ed1",
+            &crate::pins::expected(
+                "h2_3c_profile",
+                ".github/ci/contracts/h2-3c-owner-controls.schema.json",
+            ),
         ),
     ] {
         assert_recorded_exact(record, expected_path, expected_hash);
@@ -238,17 +244,17 @@ fn h2_3c_profile_is_content_addressed_and_closes_the_transition() {
         (
             "profile",
             "ratchets/h2-3b-profile.v1.json",
-            "1610422044d1e92466e73716400bf2f024987d88f4635f8549ecfb12a6a92331",
+            &crate::pins::expected("h2_3c_profile", "ratchets/h2-3b-profile.v1.json"),
         ),
         (
             "qualification",
             "ratchets/h2-3b-qualification.v1.json",
-            "3a3cce902a5ae0f79f38770138eab58ab1485508da7f244675a19bb01ba1f6a6",
+            &crate::pins::expected("h2_3c_profile", "ratchets/h2-3b-qualification.v1.json"),
         ),
         (
             "owner_controls",
             "ratchets/h2-3b-owner-controls.v1.json",
-            "7cb7058d0b2130a196ba0352093c531fc7ea059a69bd7438585936d04e2e7e72",
+            &crate::pins::expected("h2_3c_profile", "ratchets/h2-3b-owner-controls.v1.json"),
         ),
     ] {
         assert_recorded_exact(

@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "d5d0ad935001f56ce05b991823708c1b03304f19579a30e337ba215d3b391e91"
+    "sha256": "f592726eea4cb4c654f349aae51f4e18bcd39e8210a663756a140a5cf62d2dcb"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
@@ -1156,5 +1156,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "e69f5c02d567a680039fc7c334a7ffd1a24ffc5ca47e3e7de09966cadf07e1f5"
+  "profile_fingerprint_sha256": "b03f30a80ba88ce0ae98dfab47551926ab19b87187bf264605140d2b73caef6a"
 }

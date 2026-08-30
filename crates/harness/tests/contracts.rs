@@ -44,6 +44,8 @@ mod h2_baseline;
 mod h2_transition;
 #[path = "integration/module_suffixes_oracle_contract.rs"]
 mod module_suffixes_oracle_contract;
+#[path = "integration/support/pins.rs"]
+mod pins;
 #[path = "integration/transpile_suite_inventory.rs"]
 mod transpile_suite_inventory;
 #[path = "integration/upstream_execution_plan.rs"]

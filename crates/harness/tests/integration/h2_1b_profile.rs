@@ -119,7 +119,7 @@ fn h2_1b_profile_is_content_addressed_and_closes_the_transition() {
     let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.1b profile JSON");
     assert_eq!(
         sha256(RECORDED),
-        "e8da0de3ddc8ac456d798b149c47b172b995a1fe5ab57e86f72fbf880dd372e3"
+        crate::pins::expected("h2_1b_profile", "ratchets/h2-1b-profile.v1.json")
     );
     assert_eq!(artifact["schema"], 1);
     assert_eq!(artifact["kind"], "h2-runtime-profile");
@@ -149,17 +149,20 @@ fn h2_1b_profile_is_content_addressed_and_closes_the_transition() {
     assert_recorded_exact(
         &artifact["generator"],
         "crates/oracle/h2-1b-profile.mjs",
-        "8cf4be2a99a077f633cec9983f407d9538b7bb1e9b43a2285c4d5cb576a41eff",
+        &crate::pins::expected("h2_1b_profile", "crates/oracle/h2-1b-profile.mjs"),
     );
     assert_recorded_exact(
         &artifact["contract"],
         ".github/ci/contracts/h2-1b-profile.schema.json",
-        "4881d93dd418fd23cc0af5ad092fb979fb74211821dbebc29618f834d450792d",
+        &crate::pins::expected(
+            "h2_1b_profile",
+            ".github/ci/contracts/h2-1b-profile.schema.json",
+        ),
     );
     assert_recorded_exact(
         &artifact["qualification"],
         "ratchets/h2-1b-qualification.v1.json",
-        "98f0df7740c85f18bde2adea8a80f9aa511102388c369bcb405b36396d72bdb1",
+        &crate::pins::expected("h2_1b_profile", "ratchets/h2-1b-qualification.v1.json"),
     );
     let inputs = array(&artifact["runtime_inputs"], "runtime inputs");
     assert_eq!(inputs.len(), RUNTIME_INPUTS.len());
@@ -171,17 +174,17 @@ fn h2_1b_profile_is_content_addressed_and_closes_the_transition() {
         (
             "profile",
             "ratchets/h2-1a-profile.v1.json",
-            "7e838cf92ddea5c49a36d42a25471552a3d103a617fd428511ab5b92b0f0d1c6",
+            &crate::pins::expected("h2_1b_profile", "ratchets/h2-1a-profile.v1.json"),
         ),
         (
             "qualification",
             "ratchets/h2-1a-qualification.v1.json",
-            "d8fa008746f9c509d9dfc1253a986e8b6437b4f0199903506161a75da9bd7d76",
+            &crate::pins::expected("h2_1b_profile", "ratchets/h2-1a-qualification.v1.json"),
         ),
     ] {
         let record = &artifact["origin"]["historical"][field];
         assert_eq!(record["path"], expected_path);
-        assert_eq!(record["sha256"], expected_hash);
+        assert_eq!(record["sha256"], expected_hash.as_str());
     }
 
     let mut semantic = artifact.clone();

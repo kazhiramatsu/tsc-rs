@@ -256,6 +256,10 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/harness/tests/integration/h2_3a_profile.rs",
   "crates/harness/tests/integration/h2_3b_profile.rs",
   "crates/harness/tests/integration/h2_3c_profile.rs",
+  // gate-tax 8 S3: shared pin-manifest helper for the converted harness
+  // tests above — gate evidence plumbing, not read by the fixed H2.5g
+  // acceptance command.
+  "crates/harness/tests/integration/support/pins.rs",
   "crates/harness/tests/integration/transpile_suite_inventory.rs",
   // h2-6a-m-2 replay suite: gate evidence over the frozen W-H2.6A
   // witnesses through the harness print bridge; not read by the fixed

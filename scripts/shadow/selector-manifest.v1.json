@@ -1,0 +1,9 @@
+{
+ "schema": 1,
+ "comment": "gate-tax 8 S5 selector manifest (report-only). Zero producers are modeled at the seed: every mint event abstains `unmodeled` and the shadow report says so truthfully — modeled coverage grows producer-by-producer in later trains as each generator's consumed projections and recipes are analyzed and reviewed (packet §7). The synthetic canary models live in the gate-tax-8 test fixtures, never here.",
+ "flags": {
+  "h2-5g-profile": "undeclared-reads: git diff + untracked enumeration (review round 1)",
+  "h2-3c-qualification": "undeclared-reads: .node-version / process.version (review round 1)"
+ },
+ "producers": {}
+}

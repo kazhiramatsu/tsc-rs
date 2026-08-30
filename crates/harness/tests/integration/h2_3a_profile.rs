@@ -155,7 +155,7 @@ fn h2_3a_profile_is_content_addressed_and_closes_the_transition() {
     let artifact: Value = serde_json::from_slice(RECORDED).expect("H2.3a profile JSON");
     assert_eq!(
         sha256(RECORDED),
-        "68bf0fded2425c3e9733a38f0d924645a9cb2cc04fab849d09cc4a4527572694"
+        crate::pins::expected("h2_3a_profile", "ratchets/h2-3a-profile.v1.json")
     );
     assert_eq!(artifact["schema"], 1);
     assert_eq!(artifact["kind"], "h2-runtime-profile");
@@ -188,32 +188,38 @@ fn h2_3a_profile_is_content_addressed_and_closes_the_transition() {
     assert_recorded_exact(
         &artifact["generator"],
         "crates/oracle/h2-3a-profile.mjs",
-        "26fb822b11c3ffb46c13db3da46adafdbf09d37f317e6271efe1d429940a1dce",
+        &crate::pins::expected("h2_3a_profile", "crates/oracle/h2-3a-profile.mjs"),
     );
     assert_recorded_exact(
         &artifact["contract"],
         ".github/ci/contracts/h2-3a-profile.schema.json",
-        "da917ede3387e0a3c8ecf7d96f7b74358fd47c22c5ee6199169c672262e5c0df",
+        &crate::pins::expected(
+            "h2_3a_profile",
+            ".github/ci/contracts/h2-3a-profile.schema.json",
+        ),
     );
     assert_recorded_exact(
         &artifact["qualification"],
         "ratchets/h2-3a-qualification.v1.json",
-        "512548f6c53eafb32364d606f6e1eee106f917d76abb6ba149c1667b5052f790",
+        &crate::pins::expected("h2_3a_profile", "ratchets/h2-3a-qualification.v1.json"),
     );
     assert_recorded_exact(
         &artifact["evidence"]["owner_controls"]["artifact"],
         "ratchets/h2-3a-owner-controls.v1.json",
-        "76ac4421892d434f9b6ee5113994776644e506263d9fc94c2cca79670cadb622",
+        &crate::pins::expected("h2_3a_profile", "ratchets/h2-3a-owner-controls.v1.json"),
     );
     assert_recorded_exact(
         &artifact["evidence"]["owner_controls"]["generator"],
         "crates/oracle/h2-3a-owner-controls.mjs",
-        "535fc11cd834a061ccc28b914e423ec984d484dd3411a2d6d985ec61f6674beb",
+        &crate::pins::expected("h2_3a_profile", "crates/oracle/h2-3a-owner-controls.mjs"),
     );
     assert_recorded_exact(
         &artifact["evidence"]["owner_controls"]["contract"],
         ".github/ci/contracts/h2-3a-owner-controls.schema.json",
-        "ea587f45ae303e20dd2f6ca8e630bbe8c8f8250984e38861be36535b6b73e4d7",
+        &crate::pins::expected(
+            "h2_3a_profile",
+            ".github/ci/contracts/h2-3a-owner-controls.schema.json",
+        ),
     );
     let inputs = array(&artifact["runtime_inputs"], "runtime inputs");
     assert_eq!(inputs.len(), RUNTIME_INPUTS.len());
@@ -225,17 +231,17 @@ fn h2_3a_profile_is_content_addressed_and_closes_the_transition() {
         (
             "profile",
             "ratchets/h2-2d-profile.v1.json",
-            "92a349ab72e6cd2885cf81596ad5119e912366b3604b36a57068c9fcb91e259d",
+            &crate::pins::expected("h2_3a_profile", "ratchets/h2-2d-profile.v1.json"),
         ),
         (
             "qualification",
             "ratchets/h2-2d-qualification.v1.json",
-            "e756d2f51c7a6d4e5eca9739261ed2378b17ed0b43a5e92a55dd2c116b6a0671",
+            &crate::pins::expected("h2_3a_profile", "ratchets/h2-2d-qualification.v1.json"),
         ),
     ] {
         let record = &artifact["origin"]["historical"][field];
         assert_eq!(record["path"], expected_path);
-        assert_eq!(record["sha256"], expected_hash);
+        assert_eq!(record["sha256"], expected_hash.as_str());
     }
 
     let mut semantic = artifact.clone();

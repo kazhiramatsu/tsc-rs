@@ -78,6 +78,55 @@ if [ "${WALK_DRY:-0}" != "1" ]; then
   summary "chain walk run $RUN_ID (logs: $RUN_DIR)"
 fi
 
+# gate-tax 8 §3: enumerated recovery phase. Repair ONLY the surfaces
+# whose values are pure functions of on-disk artifacts (the S2
+# schema-const family today; the S3 harness-manifest values join the
+# same phase) — BEFORE fmt/clippy or any PRE_SUITE command observes
+# them, and before the strict preflight would refuse on them (a kill
+# inside a prior walk's write window otherwise strands a stale surface
+# nothing repairs). Write-ahead journal: INTENT precedes the repair,
+# COMPLETION follows; a dangling INTENT reconciles by the idempotent
+# re-run. Everything else keeps strict-refusal semantics. WALK_DRY
+# reports and never writes.
+if [ "${WALK_DRY:-0}" = "1" ]; then
+  if ! python3 scripts/schema-const-repin.py --check; then
+    echo "recovery (dry): schema-const stale — a real walk repairs it in this phase"
+  fi
+  if ! python3 scripts/harness-pins.py --check; then
+    echo "recovery (dry): harness-manifest not clean — a real walk repairs stale values in this phase (descriptor anomalies refuse)"
+  fi
+else
+  if ! sc_status=$(python3 scripts/schema-const-repin.py --check); then
+    echo "recovery INTENT: schema-const ($sc_status)" >> "$RUN_DIR/recovery.log"
+    if sc_line=$(python3 scripts/schema-const-repin.py --fix); then
+      echo "recovery COMPLETION: $sc_line" >> "$RUN_DIR/recovery.log"
+      summary "recovery: $sc_line"
+    else
+      echo "$sc_line"
+      echo "REFUSING TO WALK: recovery could not repair the schema-const surface."
+      exit 2
+    fi
+  fi
+  hp_status=$(python3 scripts/harness-pins.py --check); hp_rc=$?
+  if [ $hp_rc -eq 1 ]; then
+    # Stale values only — a pure function of on-disk artifacts.
+    echo "recovery INTENT: harness-manifest values" >> "$RUN_DIR/recovery.log"
+    if hp_line=$(python3 scripts/harness-pins.py --write); then
+      echo "recovery COMPLETION: $hp_line" >> "$RUN_DIR/recovery.log"
+      summary "recovery: $hp_line"
+    else
+      echo "$hp_line"
+      echo "REFUSING TO WALK: recovery could not refresh the harness manifest."
+      exit 2
+    fi
+  elif [ $hp_rc -ne 0 ]; then
+    # Structural/anchor anomaly: NEVER recoverable.
+    echo "$hp_status"
+    echo "REFUSING TO WALK: harness-manifest descriptor anomaly (never auto-repaired)."
+    exit 2
+  fi
+fi
+
 if [ "${SKIP_PREFLIGHT:-0}" != "1" ]; then
   echo "preflight: cargo fmt --all -- --check"
   if ! taskpolicy -b nice -n 15 cargo fmt --all -- --check >/tmp/chain-walk-fmt.log 2>&1; then
@@ -199,6 +248,11 @@ done
 [ $drift -eq 0 ] || exit 2
 echo "coverage: ORDER in sync (${#ORDER[@]} chain scripts)"
 
+# Planner coverage self-check (gate-tax 8, S4): the prospective plan's
+# LADDER_ORDER must equal ORDER exactly — a lagging planner reports an
+# incomplete stale cone (measured 63/65 on the 2026-08-30 W4 runs).
+python3 scripts/walk-planner-coverage.py "${ORDER[@]}" || exit 2
+
 # ORDER-topology audit (gate-tax 5-D): a producer appearing after its
 # consumer costs a third full round every converge; refuse like drift.
 python3 scripts/walk-topology-audit.py "${ORDER[@]}" || exit 2
@@ -279,7 +333,12 @@ while true; do
     # a stale outcome record from a prior run must never feed enforcement:
     # absent = "no outcome" notice, never a false verdict
     [ "$name" = "h2-5g-qualification" ] && rm -f target/h2-5g/check-outcome.v1.json
+    # gate-tax 8 S5 (report-only): per-phase event rows for the shadow
+    # report. Wall-clock, advisory weight only — the promotion-grade
+    # tick protocol is spec-frozen for the Stage-2 window opening.
+    echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"check\",\"start\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
     taskpolicy -b nice -n 15 node "$script" --check >"$rung_log" 2>&1 || check_rc=1
+    echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"check-end\",\"end\":$(date +%s),\"rc\":$check_rc}" >> "$RUN_DIR/events.jsonl"
     if [ "$name" = "h2-5g-qualification" ]; then
       # gate-tax 5-C: read the machine outcome record, never prose.
       enforce_line=$(python3 scripts/walk-5g-enforce.py \
@@ -301,8 +360,33 @@ while true; do
       # write attempt (repin is idempotent and only rewrites stale pin
       # values), instead of check->write(fail)->repin->write.
       python3 "$REPIN" "$script" | tee -a "$rung_log"
+      # gate-tax 8 S5 (report-only): pre-write capture of the producer's
+      # DECLARED outputs (selector manifest); unmodeled producers have
+      # no declared outputs and abstain by construction. Never red.
+      python3 scripts/shadow/capture.py pre "$round" "$name" "$RUN_DIR" \
+        >> "$RUN_DIR/events.jsonl" 2>/dev/null || true
+      echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"write\",\"start\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
       taskpolicy -b nice -n 15 node "$script" --write >>"$rung_log" 2>&1 \
         || { echo "WRITE FAILED after repin: $name (see $rung_log)"; exit 1; }
+      echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"write-end\",\"end\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
+      python3 scripts/shadow/capture.py post "$round" "$name" "$RUN_DIR" \
+        >> "$RUN_DIR/events.jsonl" 2>/dev/null || true
+      if [ "$name" = "h2-1a-qualification" ]; then
+        # gate-tax 8 S2: the enumerated schema-const pin (the five
+        # h2-5g-profile contract leaves) re-derives from the artifact
+        # this rung just wrote. Repin it NOW — before any rung that
+        # pins the contract hash — or the staleness surfaces at the
+        # tail and costs a second full walk (measured ~69 min,
+        # 2026-08-30 W4). Idempotent; REFUSED (exit 2) stops the walk.
+        if sc_line=$(python3 scripts/schema-const-repin.py --fix); then
+          echo "$sc_line" >> "$rung_log"
+          summary "round $round $sc_line"
+        else
+          echo "$sc_line"
+          echo "SCHEMA-CONST REPIN REFUSED — fix the contract shape, then walk once."
+          exit 1
+        fi
+      fi
     fi
   done
   if [ ${#stale[@]} -eq 0 ]; then
@@ -313,6 +397,27 @@ while true; do
   round=$((round+1))
   [ $round -gt 6 ] && { echo "walk did not converge in 6 rounds"; exit 1; }
 done
+
+# gate-tax 8 S3: refresh the harness pin manifest AFTER the final
+# minting round (later rounds may re-mint), so the tail's pin surfaces
+# are clean and the convergence certificate lands in THIS invocation
+# (the 2026-08-30 W4 baseline paid a second ~69-min walk here).
+# Values-only + atomic; a descriptor anomaly refuses, never repairs.
+if hp_line=$(python3 scripts/harness-pins.py --write); then
+  summary "harness-manifest: $hp_line"
+else
+  echo "$hp_line"
+  echo "HARNESS-MANIFEST REFRESH REFUSED — descriptor anomaly needs review."
+  exit 1
+fi
+
+# gate-tax 8 S5: the restamp shadow report (REPORT-ONLY — an internal
+# failure warns and never reds the walk; G3).
+if shadow_line=$(python3 scripts/shadow/shadow-report.py "$RUN_DIR" 2>&1); then
+  summary "$shadow_line"
+else
+  summary "shadow: FAILED (report-only; see $RUN_DIR)"
+fi
 
 # Owner-control artifacts should be crate-byte-insensitive; verify, never
 # auto-write (a stale one needs explicit review).
