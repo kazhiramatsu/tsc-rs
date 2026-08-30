@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "26cc7026f3ad01a4a2205177c7ac9899164500b16984d102e8452c63a8578b75"
+      "sha256": "f9d6e1aed14c2892f7718f11246b15124f7c231ac80d91266634a273c9dfaecd"
     },
-    "owner_graph_fingerprint_sha256": "c2ca2904fb8b7dfa0f75d5b312cf73d9fe3f894676486049abaddcaff497c699",
+    "owner_graph_fingerprint_sha256": "4e740b0238f090200a644c966df4104d9f3857b741b4dc4f35044f4b1bb476a6",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
@@ -44,7 +44,7 @@
           "symbol": "es2015::transform_es2015(options, resolver)",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "0313e43bc044d7278cf4626b28c778efbb28333cdf9889192267df1b4a0d66fe"
+            "sha256": "2a88390ebf1fd8d9a9e004b8ac4288d921b6f88fc49cb27aa5e35ca2e9dd2806"
           }
         },
         {
@@ -52,7 +52,7 @@
           "symbol": "generators::transform_generators(target, resolver)",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "0313e43bc044d7278cf4626b28c778efbb28333cdf9889192267df1b4a0d66fe"
+            "sha256": "2a88390ebf1fd8d9a9e004b8ac4288d921b6f88fc49cb27aa5e35ca2e9dd2806"
           }
         },
         {
@@ -66,7 +66,7 @@
       ],
       "absences": [],
       "note": "B-5 landed the live registration: the ES5 admission floor, the H2.5h activity profile, and the joint push in the upstream order (_tsc.js:115942-115945), verified end-to-end by the 32-case witness gate",
-      "capability_fingerprint_sha256": "f8ec6fae84a017060b6aeb6506e14373aa6f41755544147fe37ff5d89aa31635"
+      "capability_fingerprint_sha256": "c7db1ba9b3a5bb51846dad6e6e92c92dcb4957f98c41792fe8118476a59ece72"
     },
     {
       "index": 1,
@@ -573,7 +573,7 @@
           "symbol": "fn transform_es2015",
           "file": {
             "path": "crates/emitter/src/builtins/es2015.rs",
-            "sha256": "c3ab13d14e094112881d28664edbc2057beb8a9ea13c0023b40c51f85b62eae8"
+            "sha256": "24e7269c40656a43fd9a06c7d89dd947df38acf92b8eeff5df6e46a7f78ba9d0"
           }
         },
         {
@@ -581,7 +581,7 @@
           "symbol": "fn convert_iteration_statement_body_if_necessary",
           "file": {
             "path": "crates/emitter/src/builtins/es2015.rs",
-            "sha256": "c3ab13d14e094112881d28664edbc2057beb8a9ea13c0023b40c51f85b62eae8"
+            "sha256": "24e7269c40656a43fd9a06c7d89dd947df38acf92b8eeff5df6e46a7f78ba9d0"
           }
         },
         {
@@ -589,13 +589,13 @@
           "symbol": "fn generate_call_to_converted_loop_snapshot",
           "file": {
             "path": "crates/emitter/src/builtins/es2015.rs",
-            "sha256": "c3ab13d14e094112881d28664edbc2057beb8a9ea13c0023b40c51f85b62eae8"
+            "sha256": "24e7269c40656a43fd9a06c7d89dd947df38acf92b8eeff5df6e46a7f78ba9d0"
           }
         }
       ],
       "absences": [],
       "note": "B-4 landed the complete owner (171 pinned local functions) as the dormant Es2015Transformer behind transform_es2015 - class lowering lanes, captured this/arguments/new.target, parameters, block-scoped bindings, loop conversion with BOTH pinned yield* synthesis sites (the EmitFlags Iterator producer half), spread, templates, object-literal chunking, for-of both modes, the first production FlattenHost - qualified by 123 byte-equal focused oracle projections through the real [transformES2015, transformGenerators] chain; registration and tagged-template lowering stay with B-5",
-      "capability_fingerprint_sha256": "36f5dd64497576b563e5f39b768d7a843612599a8eae3aa96b905b9b712a9f79"
+      "capability_fingerprint_sha256": "50c3625a290fd546de251f216bee4831cababdb9a26fa3bdeb649e7ef18d68c0"
     },
     {
       "index": 10,
@@ -674,7 +674,7 @@
           "symbol": "mod flatten_destructuring;",
           "file": {
             "path": "crates/emitter/src/builtins.rs",
-            "sha256": "0313e43bc044d7278cf4626b28c778efbb28333cdf9889192267df1b4a0d66fe"
+            "sha256": "2a88390ebf1fd8d9a9e004b8ac4288d921b6f88fc49cb27aa5e35ca2e9dd2806"
           }
         },
         {
@@ -696,7 +696,7 @@
       ],
       "absences": [],
       "note": "B-2 landed the 18-function shared family (both FlattenLevel arms behind the FlattenHost consumer seam) as crates/emitter/src/builtins/flatten_destructuring.rs, qualified by focused oracle projections; the module is dormant until the B-4/B-5 owners consume it; the ObjectRestSpread PRODUCTION path deliberately remains the independent plan-based lowering inside es2018.rs (re-basing it onto the shared family is a byte-identity-gated H2.5h-b-closure concern, B-2 packet section 12.3)",
-      "capability_fingerprint_sha256": "5cb4084989c5c61d3fb929574ee5e0cd8e2a8f0cbb6fb6076a0f1d71a884f7a3"
+      "capability_fingerprint_sha256": "9f4d17861a8f1c502b929eebde842a8d1254f987941e8865cd67e55e339835a4"
     },
     {
       "index": 12,
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "3665f4d83aa40a2b575931e89ea222c44a3125feb312893e28156c5c35ab0e75"
+  "gap_matrix_fingerprint_sha256": "d503fb6c164325620f4f5488f7cf18d1b20400b92395cbb353902714c62a97f4"
 }

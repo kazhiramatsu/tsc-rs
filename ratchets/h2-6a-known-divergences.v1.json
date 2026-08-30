@@ -146,14 +146,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationEnums.ts#default",
-      "owner": "h2-6a-r1-ts-lowering-declaration-names",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/sourceMapValidationImport.ts#default",
       "owner": "h2-6a-r1-ts-lowering-declaration-names",
       "writes_diverging": 1,
@@ -188,7 +180,7 @@
     {
       "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames01.ts#target%3Des5",
       "owner": "h2-6a-r5-comment-literal-token-order",
-      "writes_diverging": 20,
+      "writes_diverging": 8,
       "diagnostics_diverging": false,
       "emit_result_diverging": true,
       "emit_refused": false

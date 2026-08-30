@@ -410,14 +410,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/compiler/sourceMapValidationEnums.ts#default",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": true,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/sourceMapValidationImport.ts#default",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 1,
@@ -508,7 +500,7 @@
     {
       "case_id": "typescript-6.0.3/compiler/unicodeEscapesInNames01.ts#target%3Des5",
       "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 20,
+      "writes_diverging": 8,
       "diagnostics_diverging": false,
       "emit_result_diverging": true,
       "emit_refused": false
@@ -548,7 +540,7 @@
     {
       "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Desnext",
       "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 3,
+      "writes_diverging": 2,
       "diagnostics_diverging": false,
       "emit_result_diverging": true,
       "emit_refused": false

@@ -1183,6 +1183,9 @@ impl<'context> ClassFieldsVisitor<'context> {
         )
     }
 
+    /// tsc-port: transformPropertyOrClassStaticBlock @6.0.3
+    /// tsc-hash: b86b07fb81b4ec313a647283e7ecf39e8071848b80454d149aad9c3237d123f2
+    /// tsc-span: _tsc.js:97444-97465
     fn create_property_initializer_statement(
         &mut self,
         original: TransformNode,
@@ -1214,6 +1217,38 @@ impl<'context> ClassFieldsVisitor<'context> {
                         node: property_original,
                         error,
                     })?
+            };
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .set_source_map_range(source_map_range);
+        } else {
+            let source_map_range = {
+                let arena = self.context.arena();
+                let record = arena.node(original)?;
+                let modifiers = match &record.data {
+                    NodeData::PropertyDeclaration(data) => data.modifiers,
+                    _ => None,
+                };
+                let modifier_end = modifiers
+                    .and_then(|modifiers| arena.node_array_ref(self.source, modifiers))
+                    .and_then(|modifiers| arena.node_array(modifiers).ok())
+                    .and_then(|modifiers| modifiers.nodes.last())
+                    .and_then(|modifier| arena.node_ref(self.source, *modifier))
+                    .and_then(|modifier| arena.node(modifier).ok())
+                    .map(|modifier| modifier.end)
+                    .filter(|end| *end != u32::MAX);
+                let source = arena.source(original.source())?.syntax();
+                SourceRange::from_raw(
+                    modifier_end.unwrap_or(record.pos),
+                    record.end,
+                    source.positions(),
+                )
+                .map(|range| SourceMapRange::new(original.source(), range))
+                .map_err(|error| TransformError::InvalidSourceRange {
+                    node: original,
+                    error,
+                })?
             };
             self.context
                 .arena_mut()?

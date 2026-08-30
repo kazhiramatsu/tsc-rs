@@ -8050,6 +8050,10 @@ impl Es2015Visitor<'_, '_, '_> {
         node: TransformNode,
     ) -> Result<VisitOutcome, TransformError> {
         let local_name = self.get_local_name(node, /*allow_comments*/ true)?;
+        let original_name = match &self.context.arena().node(node)?.data {
+            NodeData::ClassDeclaration(data) => data.name.map(|name| self.node(name)),
+            _ => None,
+        };
         let class_expression = self.transform_class_like_declaration_to_expression(node)?;
         let variable =
             self.create_variable_declaration_plain(local_name, Some(class_expression))?;
@@ -8064,9 +8068,15 @@ impl Es2015Visitor<'_, '_, '_> {
         if self.has_syntactic_export_modifier(node)? {
             let export_statement = if self.has_syntactic_default_modifier(node)? {
                 let name = self.get_local_name(node, /*allow_comments*/ false)?;
+                if let Some(original_name) = original_name {
+                    self.set_text_range(name, original_name)?;
+                }
                 self.create_export_default(name)?
             } else {
                 let name = self.get_local_name(node, /*allow_comments*/ false)?;
+                if let Some(original_name) = original_name {
+                    self.set_text_range(name, original_name)?;
+                }
                 self.create_external_module_export(name)?
             };
             self.set_original(export_statement, statement)?;
