@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "05b855e13d3137c4a880da461a619634e5a1b54000aefe635f036947fb398e16";
+  "80a69cd636420c75e045ded30810fbbc61898d4934bc1de89f38732a2fcbe000";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "0f5b7259403eac4c50d5c51bdb07d9f46af12f458ba58a41ce37a80aca938284"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "2f0f8725efb627cdc3d1015e57938ac833cd3a3256aace68e65d6c3ad8fda5a1"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "dd3a56366f2391d76401f02b043dfcb83f762f592dcaaa5ecdda2d7c6d6d93fb"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "a2057dd5aac18f358053b17c2af8487e0b67d20e5d817cd5b300932f2c721f99"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "a1e72764cbb1d23f5fdb8055d9b116a3d25b74257b0cd6da7c3cd8edb59d060b"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "ad2f5846bf1c244beb2b1ab1ec21a0b2428c9f7563fbcda20e49a6a1f44e56e4"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "5360fa9de7e7b41bdb8ffce0c7104fd28b6e3312fa502caf580365c4f32905fa"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "a882e4d5ffe36c18741b98dc333283cbecfc9253dee62dbf78da946bea3034f7"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
