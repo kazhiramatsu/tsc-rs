@@ -9123,7 +9123,14 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     ) -> Result<TransformNode, TransformError> {
         let exports = self.create_identifier("exports")?;
         let text = identifier_or_literal_text(self.context.arena(), name)?;
-        let property_name = if self.identifier_name_uses_extended_escape(name)? {
+        // Extended `\u{...}` escapes normalize in upstream's ES2015
+        // visitIdentifier, which the transformer selection runs only for
+        // targets below ES2015 (_tsc.js:105072, :115942). ES2015+ module
+        // lowering keeps the positioned name, so the printed spelling stays
+        // the source's.
+        let property_name = if self.target < ScriptTarget::ES2015
+            && self.identifier_name_uses_extended_escape(name)?
+        {
             let normalized = self.create_identifier(&text)?;
             self.set_source_map_range_from(normalized, name)?;
             normalized
