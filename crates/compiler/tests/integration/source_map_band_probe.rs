@@ -555,13 +555,44 @@ fn dump_h2_6c(
     let expected_writes = case["typescript_observation"]["writes"]
         .as_array()
         .expect("6c expected writes");
-    let count = expected_writes.len().max(sink.writes().len());
     let case_slug = case_file_slug(case_id);
-    let mut manifest_writes = Vec::with_capacity(count);
 
-    for index in 0..count {
-        let actual = sink.writes().get(index);
-        let expected = expected_writes.get(index);
+    // Path-joined pairing (W5): a declaration-absence sequence shift must not
+    // make the detail tables compare different paths. Expected rows keep
+    // their frozen order; rust-only writes follow in sink order.
+    let mut rust_by_path: std::collections::BTreeMap<String, &EmitArtifact> = Default::default();
+    for write in sink.writes() {
+        let path = write.path().to_string_lossy().into_owned();
+        assert!(
+            rust_by_path.insert(path, write).is_none(),
+            "{case_id}: rust write paths are not unique"
+        );
+    }
+    let expected_paths: std::collections::BTreeSet<&str> = expected_writes
+        .iter()
+        .map(|write| write["path"].as_str().expect("expected write path"))
+        .collect();
+    assert_eq!(
+        expected_paths.len(),
+        expected_writes.len(),
+        "{case_id}: expected write paths are not unique"
+    );
+    let mut pairs: Vec<(Option<&EmitArtifact>, Option<&Value>)> = expected_writes
+        .iter()
+        .map(|expected| {
+            let path = expected["path"].as_str().expect("expected write path");
+            (rust_by_path.remove(path), Some(expected))
+        })
+        .collect();
+    for write in sink.writes() {
+        let path = write.path().to_string_lossy();
+        if rust_by_path.remove(path.as_ref()).is_some() {
+            pairs.push((Some(write), None));
+        }
+    }
+    let mut manifest_writes = Vec::with_capacity(pairs.len());
+
+    for (index, (actual, expected)) in pairs.into_iter().enumerate() {
         let actual_path = actual.map(|write| write.path().to_string_lossy().into_owned());
         let expected_path = expected
             .and_then(|write| write["path"].as_str())
@@ -609,11 +640,11 @@ fn dump_h2_6c(
 
         let rust_map_bytes = actual_path
             .as_deref()
-            .filter(|path| path.ends_with(".js.map"))
+            .filter(|path| path.ends_with(".map"))
             .and(actual_callback.as_deref());
         let expected_map_bytes = expected_path
             .as_deref()
-            .filter(|path| path.ends_with(".js.map"))
+            .filter(|path| path.ends_with(".map"))
             .and(expected_callback.as_deref());
         let mapping_segments_file = if rust_map_bytes.is_some() || expected_map_bytes.is_some() {
             let name = format!("{prefix}.mapping-segments.txt");
