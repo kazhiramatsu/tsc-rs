@@ -102,6 +102,17 @@ current H2 implementation maps.
    body before the merge. Manually dispatched approved-runner performance workflows are
    separate qualification tools, not ordinary GitHub CI.
 
+## Train loading (standing directive, 2026-08-30)
+
+Maximize passengers per train: every walk+gate cycle costs ~3-4h of
+fixed tax, so bundle EVERY ready item into the departing train —
+all signed fix classes, facet/manifest shrinks, packet updates,
+docs, and any small repairs — rather than giving each its own train.
+Sequence conflicting-file work WITHIN the train (implement lane B on
+top of lane A's committed state in the same worktree) instead of
+splitting into two trains. A train departs (walk+gate) only when
+nothing else is ready to board or a dependent needs main.
+
 ## Parallel work during waits (standing directive, 2026-08-30)
 
 Whenever a long-running step is in flight (walk, gate, hosted check,
