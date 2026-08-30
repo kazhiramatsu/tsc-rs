@@ -12240,6 +12240,11 @@ impl Es2015Visitor<'_, '_, '_> {
                 let visited = self.visit_required_expression(assignment)?;
                 let statement = self.create_expression_statement(visited)?;
                 self.set_text_range(statement, initializer)?;
+                // setTextRange(factory.createExpressionStatement(assignment),
+                // moveRangeEnd(initializer, -1)) suppresses only the
+                // statement's trailing boundary in the typed range model
+                // (`_tsc.js:106639-106640`).
+                self.add_emit_flags(statement, EmitFlags::NO_TRAILING_SOURCE_MAP)?;
                 statements.push(statement);
             }
         }

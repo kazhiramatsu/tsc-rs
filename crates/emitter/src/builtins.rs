@@ -10841,7 +10841,42 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 }
                 NodeData::ModuleDeclaration(_) => {
                     let statements = self.visit_module_declaration(body)?;
-                    self.create_block_from_array(statements, None, true)
+                    let block = self.create_block_from_array(statements, None, true)?;
+                    if let Some(end) =
+                        self.inner_module_block_statements_end(self.node(declaration))?
+                    {
+                        let statements = {
+                            let NodeData::Block(data) = &self.context.arena().node(block)?.data
+                            else {
+                                return Err(TransformError::RequiredChildRemoved {
+                                    parent: SyntaxKind::ModuleDeclaration,
+                                    field: "dotted namespace block",
+                                });
+                            };
+                            data.statements
+                                .ok_or(TransformError::RequiredChildRemoved {
+                                    parent: SyntaxKind::Block,
+                                    field: "dotted namespace statements",
+                                })?
+                        };
+                        // transformModuleBody uses moveRangePos on the
+                        // innermost ModuleBlock's statements array: only the
+                        // array end is retained; the synthesized block stays
+                        // unranged (`_tsc.js:95492-95509`).
+                        self.context.factory()?.set_node_array_text_range(
+                            TransformNodeArray::new(self.source, statements),
+                            u32::MAX,
+                            end,
+                        )?;
+                    }
+                    // Dotted transformModuleBody blocks are synthetic and
+                    // carry NoComments; the innermost ModuleBlock remains
+                    // the sole owner of the source trailing comment.
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(block)
+                        .add_flags(EmitFlags::NO_COMMENTS);
+                    Ok(block)
                 }
                 _ => Err(TransformError::RequiredChildRemoved {
                     parent: SyntaxKind::ModuleDeclaration,
@@ -10853,6 +10888,43 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         self.namespace_stack.pop();
         let block = result?;
         self.merge_namespace_lexical_environment(block, lexical_environment?)
+    }
+
+    /// tsc-port: getInnerMostModuleDeclarationFromDottedModule @6.0.3
+    /// tsc-hash: 6481ab357a8b64d5e119b42e9e20d9a703381c08e13036a5fd1a5ac06ce8a58f
+    /// tsc-span: _tsc.js:95515-95520
+    fn inner_module_block_statements_end(
+        &self,
+        declaration: TransformNode,
+    ) -> Result<Option<u32>, TransformError> {
+        let mut current = declaration;
+        loop {
+            let body = match &self.context.arena().node(current)?.data {
+                NodeData::ModuleDeclaration(data) => data.body,
+                _ => return Ok(None),
+            };
+            let Some(body) = body.map(|id| self.node(id)) else {
+                return Ok(None);
+            };
+            match self.context.arena().node(body)?.kind {
+                SyntaxKind::ModuleDeclaration => current = body,
+                SyntaxKind::ModuleBlock => {
+                    let statements = match &self.context.arena().node(body)?.data {
+                        NodeData::ModuleBlock(data) => data.statements,
+                        _ => unreachable!("module block kind has module block data"),
+                    };
+                    let Some(statements) = statements else {
+                        return Ok(None);
+                    };
+                    let array = self
+                        .context
+                        .arena()
+                        .node_array(TransformNodeArray::new(self.source, statements))?;
+                    return Ok(Some(array.end));
+                }
+                _ => return Ok(None),
+            }
+        }
     }
 
     /// `transformModuleBody` owns a lexical environment in tsc. Destructuring
