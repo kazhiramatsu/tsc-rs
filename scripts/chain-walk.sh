@@ -333,7 +333,12 @@ while true; do
     # a stale outcome record from a prior run must never feed enforcement:
     # absent = "no outcome" notice, never a false verdict
     [ "$name" = "h2-5g-qualification" ] && rm -f target/h2-5g/check-outcome.v1.json
+    # gate-tax 8 S5 (report-only): per-phase event rows for the shadow
+    # report. Wall-clock, advisory weight only — the promotion-grade
+    # tick protocol is spec-frozen for the Stage-2 window opening.
+    echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"check\",\"start\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
     taskpolicy -b nice -n 15 node "$script" --check >"$rung_log" 2>&1 || check_rc=1
+    echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"check-end\",\"end\":$(date +%s),\"rc\":$check_rc}" >> "$RUN_DIR/events.jsonl"
     if [ "$name" = "h2-5g-qualification" ]; then
       # gate-tax 5-C: read the machine outcome record, never prose.
       enforce_line=$(python3 scripts/walk-5g-enforce.py \
@@ -355,8 +360,17 @@ while true; do
       # write attempt (repin is idempotent and only rewrites stale pin
       # values), instead of check->write(fail)->repin->write.
       python3 "$REPIN" "$script" | tee -a "$rung_log"
+      # gate-tax 8 S5 (report-only): pre-write capture of the producer's
+      # DECLARED outputs (selector manifest); unmodeled producers have
+      # no declared outputs and abstain by construction. Never red.
+      python3 scripts/shadow/capture.py pre "$round" "$name" "$RUN_DIR" \
+        >> "$RUN_DIR/events.jsonl" 2>/dev/null || true
+      echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"write\",\"start\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
       taskpolicy -b nice -n 15 node "$script" --write >>"$rung_log" 2>&1 \
         || { echo "WRITE FAILED after repin: $name (see $rung_log)"; exit 1; }
+      echo "{\"round\":$round,\"rung\":\"$name\",\"phase\":\"write-end\",\"end\":$(date +%s)}" >> "$RUN_DIR/events.jsonl"
+      python3 scripts/shadow/capture.py post "$round" "$name" "$RUN_DIR" \
+        >> "$RUN_DIR/events.jsonl" 2>/dev/null || true
       if [ "$name" = "h2-1a-qualification" ]; then
         # gate-tax 8 S2: the enumerated schema-const pin (the five
         # h2-5g-profile contract leaves) re-derives from the artifact
@@ -395,6 +409,14 @@ else
   echo "$hp_line"
   echo "HARNESS-MANIFEST REFRESH REFUSED — descriptor anomaly needs review."
   exit 1
+fi
+
+# gate-tax 8 S5: the restamp shadow report (REPORT-ONLY — an internal
+# failure warns and never reds the walk; G3).
+if shadow_line=$(python3 scripts/shadow/shadow-report.py "$RUN_DIR" 2>&1); then
+  summary "$shadow_line"
+else
+  summary "shadow: FAILED (report-only; see $RUN_DIR)"
 fi
 
 # Owner-control artifacts should be crate-byte-insensitive; verify, never
