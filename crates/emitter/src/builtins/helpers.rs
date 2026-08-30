@@ -7,6 +7,49 @@
 
 use crate::EmitHelper;
 
+/// Below ES2022, Rust's class-plan ownership reaches the decoration block
+/// before it materializes the private method definitions. Restore upstream's
+/// request order by moving `in` after the get/set helpers in that target band.
+/// The ES2022 selective path intentionally retains its natural `in`, get, set
+/// order.
+///
+/// tsc-port: compareEmitHelpers @6.0.3
+/// tsc-hash: 6aded4fcda1966f22031b02be6fe60fbdae9bb1e3376f2b691778902f370edfe
+/// tsc-span: _tsc.js:26023-26030
+/// tsc-port: classPrivateFieldGetHelper/classPrivateFieldSetHelper/classPrivateFieldInHelper @6.0.3
+/// tsc-hash: 55400ded83254461bb2435b8b96808f768117a37bcc2b5eed2fedceda7c23226
+/// tsc-span: _tsc.js:26440-26472
+pub(crate) fn order_private_field_helpers(helpers: &mut Vec<EmitHelper>, in_after_access: bool) {
+    if !in_after_access {
+        return;
+    }
+    let Some(in_index) = helpers
+        .iter()
+        .position(|helper| helper.name() == "typescript:classPrivateFieldIn")
+    else {
+        return;
+    };
+    let last_access_index = helpers
+        .iter()
+        .enumerate()
+        .fold(None, |last, (index, helper)| {
+            matches!(
+                helper.name(),
+                "typescript:classPrivateFieldGet" | "typescript:classPrivateFieldSet"
+            )
+            .then_some(index)
+            .or(last)
+        });
+    let Some(last_access_index) = last_access_index else {
+        return;
+    };
+    if in_index > last_access_index {
+        return;
+    }
+    let helper = helpers.remove(in_index);
+    helpers.insert(last_access_index, helper);
+}
+
 const SET_FUNCTION_NAME_HELPER_TEXT: &str = r#"var __setFunctionName = (this && this.__setFunctionName) || function (f, name, prefix) {
     if (typeof name === "symbol") name = name.description ? "[".concat(name.description, "]") : "";
     return Object.defineProperty(f, "name", { configurable: true, value: prefix ? "".concat(prefix, " ", name) : name });

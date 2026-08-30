@@ -1042,13 +1042,74 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         node: TransformNode,
         range_source: TransformNode,
     ) -> Result<(), TransformError> {
-        if let Some(range) = self.effective_source_range(range_source)? {
+        let source_map_range = self
+            .context
+            .arena()
+            .metadata(range_source)
+            .and_then(crate::EmitMetadata::source_map_range);
+        let source_map_range = match source_map_range {
+            Some(source_map_range) => Some(source_map_range),
+            None => self
+                .effective_source_range(range_source)?
+                .map(|range| SourceMapRange::new(range_source.source(), range)),
+        };
+        if let Some(source_map_range) = source_map_range {
             self.context
                 .arena_mut()?
                 .metadata_mut(node)
-                .set_source_map_range(SourceMapRange::new(range_source.source(), range));
+                .set_source_map_range(source_map_range);
         }
         Ok(())
+    }
+
+    /// tsc-port: moveRangePastModifiers @6.0.3
+    /// tsc-hash: 73817b5909d5365c19c1e4a239cd76eb22760d3d4e3670127916de190d11df7a
+    /// tsc-span: _tsc.js:17311-17318
+    fn source_map_range_past_original_modifiers(
+        &self,
+        node: TransformNode,
+    ) -> Result<SourceMapRange, TransformError> {
+        let original = self.context.arena().get_original_node(node);
+        let record = self.context.arena().node(original)?;
+        let (name, modifiers) = match &record.data {
+            NodeData::PropertyDeclaration(data) => (data.name, data.modifiers),
+            NodeData::MethodDeclaration(data) => (data.name, data.modifiers),
+            NodeData::GetAccessor(data) => (None, data.modifiers),
+            NodeData::SetAccessor(data) => (None, data.modifiers),
+            NodeData::ClassDeclaration(data) => (None, data.modifiers),
+            NodeData::ClassExpression(data) => (None, data.modifiers),
+            _ => (None, None),
+        };
+        let start = if matches!(
+            record.kind,
+            SyntaxKind::PropertyDeclaration | SyntaxKind::MethodDeclaration
+        ) {
+            name.and_then(|name| self.context.arena().node_ref(original.source(), name))
+                .map(|name| self.context.arena().node(name).map(|record| record.pos))
+                .transpose()?
+                .unwrap_or(record.pos)
+        } else {
+            self.array_nodes(modifiers)?
+                .last()
+                .map(|modifier| {
+                    self.context
+                        .arena()
+                        .node(*modifier)
+                        .map(|record| record.end)
+                })
+                .transpose()?
+                .filter(|end| *end != u32::MAX)
+                .unwrap_or(record.pos)
+        };
+        let source = self.context.arena().source(original.source())?.syntax();
+        let range =
+            SourceRange::from_raw(start, record.end, source.positions()).map_err(|error| {
+                TransformError::InvalidSourceRange {
+                    node: original,
+                    error,
+                }
+            })?;
+        Ok(SourceMapRange::new(original.source(), range))
     }
 
     fn set_comment_range_from(
@@ -5244,6 +5305,8 @@ impl Es2015Visitor<'_, '_, '_> {
         &mut self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, TransformError> {
+        let is_type_script_class_wrapper =
+            self.is_variable_statement_of_type_script_class_wrapper(node)?;
         let is_exported = self.has_syntactic_export_modifier(node)?;
         let ancestor = enter_subtree(
             &mut self.print_state.hierarchy_facts,
@@ -5271,7 +5334,7 @@ impl Es2015Visitor<'_, '_, '_> {
         };
         if self.converted_loop_state.is_some()
             && !list_is_block_scoped
-            && !self.is_variable_statement_of_type_script_class_wrapper(node)?
+            && !is_type_script_class_wrapper
         {
             // hoist `var` declarations declared in the converted loop and
             // rewrite initializers as assignments.
@@ -5344,6 +5407,21 @@ impl Es2015Visitor<'_, '_, '_> {
             HierarchyFacts::NONE,
             HierarchyFacts::NONE,
         );
+        if is_type_script_class_wrapper {
+            if let Some(updated) = updated {
+                let original = self.context.arena().get_original_node(node);
+                if matches!(
+                    self.context.arena().node(original)?.kind,
+                    SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
+                ) {
+                    let range = self.source_map_range_past_original_modifiers(original)?;
+                    self.context
+                        .arena_mut()?
+                        .metadata_mut(updated)
+                        .set_source_map_range(range);
+                }
+            }
+        }
         Ok(updated)
     }
 
@@ -8544,6 +8622,9 @@ impl Es2015Visitor<'_, '_, '_> {
         };
         let range_source = constructor.unwrap_or(node);
         self.set_text_range(constructor_function, range_source)?;
+        if constructor.is_none() {
+            self.add_emit_flags(constructor_function, EmitFlags::NO_LEADING_COMMENTS)?;
+        }
         if extends_clause_element.is_some() {
             self.add_emit_flags(constructor_function, EmitFlags::CAPTURES_THIS)?;
         }

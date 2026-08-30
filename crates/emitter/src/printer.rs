@@ -1231,6 +1231,12 @@ impl Printer {
                     .priority()
                     .map_or((true, 0), |priority| (false, priority))
             });
+            crate::builtins::helpers::order_private_field_helpers(
+                &mut helpers,
+                self.options
+                    .target
+                    .is_none_or(|target| target < ScriptTarget::ES2022),
+            );
             helpers
         };
         let system_scoped_helpers = !helpers.is_empty()
