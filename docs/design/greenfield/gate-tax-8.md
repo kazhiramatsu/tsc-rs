@@ -374,3 +374,16 @@ workflow.
   tick/window/snapshot-execution protocol (§7 window-opening scope)
   stays spec-frozen until the Stage-2 window opens.
 - Landing walk/gate record: appended at the train head (below).
+- Walk-1 repair (2026-08-30, run 20260830-213616): the S3-created
+  `crates/harness/tests/integration/support/pins.rs` was unclassified
+  in the h2-5g-profile changed-crate-path partition, so the round-1
+  h2-5g-profile write refused ("runtime input closure is missing ...";
+  the S2 repin correctly reported "no stale pins found" — a
+  classification gap, not a pin). Disposition: NON_RUNTIME_SHADOW_INPUTS
+  (the helper serves the shadow-classified converted tests; not read by
+  the fixed H2.5g acceptance command; runtime closure stays 203).
+  Verified standalone: the check now reports ordinary staleness
+  (generator-fingerprint-only, payload-unchanged — the gt8 restamp
+  class) instead of the closure refusal. Rule (the gt6 class-sweep
+  form): a slice that ADDS a non-oracle crate file classifies it in
+  the same slice — runtime closure or shadow set.
