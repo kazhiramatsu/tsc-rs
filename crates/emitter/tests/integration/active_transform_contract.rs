@@ -4021,6 +4021,50 @@ fn parameter_lists_retain_comments_at_each_delimiter_boundary() {
 }
 
 #[test]
+fn erased_parameter_types_keep_both_comment_boundaries() {
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            "function retainedRest(...rest /* name side */: string[] /* type side */) { return rest; }\n",
+            ScriptTarget::ES2015,
+        ),
+        "function retainedRest(...rest /* name side */ /* type side */) { return rest; }\n",
+    );
+
+    let downlevel_rest = transform_and_print_canonical_at_target(
+        "function downlevelRest(...rest /* name side */: string[]) { return rest; }\n",
+        ScriptTarget::ES5,
+    );
+    assert_eq!(
+        downlevel_rest,
+        concat!(
+            "function downlevelRest() {\n",
+            "    var rest /* name side */ = [];\n",
+            "    for (var _i = 0; _i < arguments.length; _i++) {\n",
+            "        rest[_i] = arguments[_i];\n",
+            "    }\n",
+            "    return rest;\n",
+            "}\n",
+        ),
+    );
+
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            "function intersection({ value } /* name side */: { value: string } & { tag?: number } /* type side */) { return value; }\n",
+            ScriptTarget::ES2015,
+        ),
+        "function intersection({ value } /* name side */ /* type side */) { return value; }\n",
+    );
+
+    assert_eq!(
+        transform_and_print_canonical_at_target(
+            "function untyped(value /* untyped control */) { return value; }\n",
+            ScriptTarget::ES2015,
+        ),
+        "function untyped(value /* untyped control */) { return value; }\n",
+    );
+}
+
+#[test]
 fn parenthesized_open_token_owns_its_same_line_trailing_comment() {
     assert_eq!(
         transform_and_print_canonical_at_target(
