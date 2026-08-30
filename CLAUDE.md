@@ -191,7 +191,20 @@ execute it — never idle on a wait. Rules:
   manifests, pin-index), prints the prospective stale-cone plan, and
   enforces zero 5g re-observation on pin-only cascades via the check
   outcome record (`WALK_EXPECT_OBS` / `TSRS_H2_5G_FRESH` are the
-  recorded escapes).
+  recorded escapes). Gate-tax 8 (2026-08-30): the walk is ONE
+  invocation per converge — a §3 recovery phase repairs the two
+  pure-function surfaces (the enumerated h2-5g-profile schema-const
+  five via `scripts/schema-const-repin.py`, and the harness pin
+  manifest `ratchets/pins/harness-expected.v1.json` values via
+  `scripts/harness-pins.py`) before fmt/clippy; the schema-const
+  repins in-round right after h2-1a-qualification writes; the
+  manifest refreshes after the final minting round. The converted
+  harness tests hold NO raw artifact-hash literals (pin-audit's
+  discovery guard refuses reintroduction; descriptor changes need the
+  dual-anchor update in the same slice). The planner must cover
+  ORDER 65/65 (`scripts/walk-planner-coverage.py` refuses drift). A
+  report-only restamp shadow (scripts/shadow/) runs at walk end and
+  never reds a walk.
 - Full gate suite: `cargo xtask ci [--baseline <trusted-ref-or-sha>]`
   (from the repository root, using the trusted base recorded in the PR). Its
   full-corpus B2 producer reuses an existing exact-fingerprint artifact

@@ -328,3 +328,49 @@ note + memory. Rungs verify with targeted tests (gate-tax-5.test.mjs
 pattern); ONE full walk (Rust train — S3 touches harness .rs) + the
 complete local gate at the head; PR opens early per standing
 workflow.
+
+## 13. Implementation record (landed with this slice, 2026-08-30)
+
+- S4: `scripts/walk-planner-coverage.py` + plan.rs 6c rows (65/65;
+  drift canary exit 1 verified; planner builds).
+- S2: `scripts/schema-const-repin.py` (--check/--fix/--root); driver
+  repins in-round after the h2-1a-qualification write. Canaries:
+  current/stale+fix/idempotent/count-mismatch-refuse (6 occurrences)/
+  case-tamper-refuse — all verified.
+- §3 recovery phase: after lock+run-dir, before fmt/clippy/PRE_SUITE;
+  WAL INTENT/COMPLETION rows in runs/<id>/recovery.log; WALK_DRY
+  check-only. Covers the schema-const family and the harness-manifest
+  `values` section (exit 1 = recover; exit 2 = descriptor anomaly,
+  never recovered).
+- S3: 94 assert sites across 13 tests converted to
+  `ratchets/pins/harness-expected.v1.json` via the shared
+  `integration/support/pins.rs` helper (contracts binary; full suite
+  83 passed post-conversion). Uniform disk-sha256 value derivation —
+  the converted asserts prove the artifact records the CURRENT
+  on-disk file, strictly stronger than the literals they replace.
+  Verifier at startup+tail through walk-preflight ("harness-manifest"
+  surface). Prohibition = pin-audit's existing discovery guard
+  (canary: reintroduced literal → exit 2). h2_baseline.rs kept as the
+  enumerated frozen residue (AUDITED, 6 files remain).
+  DEVIATION (recorded): the second descriptor anchor lives as
+  `FROZEN_DESCRIPTOR_SHA256` in `scripts/harness-pins.py`, not a
+  pin-index row — pin-index's --check regenerates its fixed key set
+  byte-exactly and cannot host a foreign row; the verifier const is
+  the same reviewed-surface trust class, and BOTH anchors are
+  required (canaries: descriptor tamper → anchor refusal at check;
+  value-row deletion → bijection refusal; stale value → recovery
+  write repairs, byte-exact round-trip).
+- S5 (pragmatic Stage-1 scope per §9): driver event rows + pre/post
+  captures + `scripts/shadow/` (canonical_json.py with the four
+  normative rejections golden-verified; capture.py;
+  shadow-report.py). Selector manifest seeded with ZERO modeled
+  producers (truthful 0% coverage; every mint event abstains
+  `unmodeled`); round-1 undeclared-read flags recorded. Truth-table
+  canaries: true-skip P=1.0 / false-negative R=0.0 / UNKNOWN /
+  precision-miss P=0.0; model digest varies per model file set.
+  PHASING (operator judgment under the 2026-08-30 calibration
+  directive): the mjs encoder mirror and live input-diff prediction
+  land with the first REAL modeled producer; the promotion-grade
+  tick/window/snapshot-execution protocol (§7 window-opening scope)
+  stays spec-frozen until the Stage-2 window opens.
+- Landing walk/gate record: appended at the train head (below).
