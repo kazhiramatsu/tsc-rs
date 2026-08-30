@@ -25,20 +25,15 @@ import hashlib, json, re, subprocess, sys
 
 FIX = "--fix" in sys.argv[1:]
 
+# gate-tax 8 S3: the h2_transition + h2_{1a..3c}_profile integration
+# tests were CONVERTED to the harness pin manifest
+# (ratchets/pins/harness-expected.v1.json, scripts/harness-pins.py) and
+# hold no raw artifact-hash literals any more; the discovery guard below
+# is their reintroduction PROHIBITION (a converted file that regrows a
+# 64-hex literal refuses as UNCLASSIFIED). h2_baseline.rs stays audited:
+# its hashes pin the frozen approved-runner baseline (immutable by
+# design) — the enumerated permanent residue.
 AUDITED = [
-    "crates/harness/tests/integration/h2_transition.rs",
-    "crates/harness/tests/integration/h2_1a_profile.rs",
-    "crates/harness/tests/integration/h2_1b_profile.rs",
-    "crates/harness/tests/integration/h2_1c_profile.rs",
-    "crates/harness/tests/integration/h2_1d_profile.rs",
-    "crates/harness/tests/integration/h2_1e_profile.rs",
-    "crates/harness/tests/integration/h2_2a_profile.rs",
-    "crates/harness/tests/integration/h2_2b_profile.rs",
-    "crates/harness/tests/integration/h2_2c_profile.rs",
-    "crates/harness/tests/integration/h2_2d_profile.rs",
-    "crates/harness/tests/integration/h2_3a_profile.rs",
-    "crates/harness/tests/integration/h2_3b_profile.rs",
-    "crates/harness/tests/integration/h2_3c_profile.rs",
     "crates/harness/tests/integration/h2_baseline.rs",
     "crates/harness/tests/integration/h1_compiler_profile_classification.rs",
     "crates/harness/tests/integration/h1_conformance_profile_classification.rs",

@@ -104,6 +104,13 @@ def pair_surface(problems, label, pairs):
 def main():
     problems = []
     subprocess_surface(problems, "harness-pins", ["python3", "scripts/pin-audit.py"])
+    # gate-tax 8 S3: the harness pin manifest verifier (dual descriptor
+    # anchor -> identity/bijection -> per-value re-derivation). Runs here
+    # at startup AND at the walk tail; a stale `values` section is
+    # recovery-phase repairable, a descriptor anomaly never is.
+    subprocess_surface(
+        problems, "harness-manifest", ["python3", "scripts/harness-pins.py", "--check"]
+    )
     subprocess_surface(
         problems, "pin-index", ["python3", "scripts/pin-index.py", "--check"]
     )
@@ -140,7 +147,7 @@ def main():
         for problem in problems:
             print(f"  {problem}")
         return 1
-    print("walk-preflight: all pin surfaces clean (harness, pin-index, policy, schema-consts, fuzz-manifests)")
+    print("walk-preflight: all pin surfaces clean (harness, harness-manifest, pin-index, policy, schema-consts, fuzz-manifests)")
     return 0
 
 

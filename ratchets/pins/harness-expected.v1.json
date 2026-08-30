@@ -1,0 +1,1041 @@
+{
+ "schema": 1,
+ "descriptors": [
+  {
+   "test_file": "h2_1a_profile",
+   "check_id": "ratchets/h2-1a-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-1a-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1a_profile",
+   "check_id": "ratchets/h2-profile-transition.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-profile-transition.v1.json"
+  },
+  {
+   "test_file": "h2_1a_profile",
+   "check_id": "ratchets/h2-runtime-baseline.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-runtime-baseline.v1.json"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": ".github/ci/contracts/h2-1b-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-1b-profile.schema.json"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "crates/oracle/h2-1b-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-1b-profile.mjs"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "ratchets/h2-1a-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1a-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "ratchets/h2-1a-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1a-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "ratchets/h2-1b-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-1b-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "ratchets/h2-1b-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1b-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": ".github/ci/contracts/h2-1c-owner-controls.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-1c-owner-controls.schema.json"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": ".github/ci/contracts/h2-1c-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-1c-profile.schema.json"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "crates/oracle/h2-1c-owner-controls.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-1c-owner-controls.mjs"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "crates/oracle/h2-1c-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-1c-profile.mjs"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1b-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1b-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1b-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1b-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1c-owner-controls.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1c-owner-controls.v1.json"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1c-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-1c-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1c-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1c-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": ".github/ci/contracts/h2-1d-owner-controls.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-1d-owner-controls.schema.json"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": ".github/ci/contracts/h2-1d-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-1d-profile.schema.json"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "crates/oracle/h2-1d-owner-controls.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-1d-owner-controls.mjs"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "crates/oracle/h2-1d-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-1d-profile.mjs"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1c-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1c-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1c-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1c-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1d-owner-controls.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1d-owner-controls.v1.json"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1d-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-1d-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1d-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1d-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": ".github/ci/contracts/h2-1e-owner-controls.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-1e-owner-controls.schema.json"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": ".github/ci/contracts/h2-1e-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-1e-profile.schema.json"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "crates/oracle/h2-1e-owner-controls.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-1e-owner-controls.mjs"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "crates/oracle/h2-1e-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-1e-profile.mjs"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1d-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1d-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1d-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1d-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1e-owner-controls.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1e-owner-controls.v1.json"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1e-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-1e-profile.v1.json"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1e-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1e-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": ".github/ci/contracts/h2-2a-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-2a-profile.schema.json"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "crates/oracle/h2-2a-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-2a-profile.mjs"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "ratchets/h2-1e-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1e-profile.v1.json"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "ratchets/h2-1e-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-1e-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "ratchets/h2-2a-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-2a-profile.v1.json"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "ratchets/h2-2a-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2a-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": ".github/ci/contracts/h2-2b-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-2b-profile.schema.json"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "crates/oracle/h2-2b-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-2b-profile.mjs"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "ratchets/h2-2a-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2a-profile.v1.json"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "ratchets/h2-2a-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2a-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "ratchets/h2-2b-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-2b-profile.v1.json"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "ratchets/h2-2b-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2b-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": ".github/ci/contracts/h2-2c-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-2c-profile.schema.json"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "crates/oracle/h2-2c-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-2c-profile.mjs"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "ratchets/h2-2b-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2b-profile.v1.json"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "ratchets/h2-2b-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2b-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "ratchets/h2-2c-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-2c-profile.v1.json"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "ratchets/h2-2c-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2c-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": ".github/ci/contracts/h2-2d-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-2d-profile.schema.json"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "crates/oracle/h2-2d-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-2d-profile.mjs"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "ratchets/h2-2c-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2c-profile.v1.json"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "ratchets/h2-2c-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2c-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "ratchets/h2-2d-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-2d-profile.v1.json"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "ratchets/h2-2d-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2d-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": ".github/ci/contracts/h2-3a-owner-controls.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-3a-owner-controls.schema.json"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": ".github/ci/contracts/h2-3a-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-3a-profile.schema.json"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "crates/oracle/h2-3a-owner-controls.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-3a-owner-controls.mjs"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "crates/oracle/h2-3a-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-3a-profile.mjs"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-2d-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2d-profile.v1.json"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-2d-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-2d-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-3a-owner-controls.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3a-owner-controls.v1.json"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-3a-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-3a-profile.v1.json"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-3a-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3a-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": ".github/ci/contracts/h2-3b-owner-controls.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-3b-owner-controls.schema.json"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": ".github/ci/contracts/h2-3b-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-3b-profile.schema.json"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "crates/oracle/h2-3b-owner-controls.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-3b-owner-controls.mjs"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "crates/oracle/h2-3b-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-3b-profile.mjs"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3a-owner-controls.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3a-owner-controls.v1.json"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3a-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3a-profile.v1.json"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3a-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3a-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3b-owner-controls.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3b-owner-controls.v1.json"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3b-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-3b-profile.v1.json"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3b-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3b-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": ".github/ci/contracts/h2-3c-owner-controls.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-3c-owner-controls.schema.json"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": ".github/ci/contracts/h2-3c-profile.schema.json",
+   "kind": "file-hash",
+   "path": ".github/ci/contracts/h2-3c-profile.schema.json"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "crates/oracle/h2-3c-owner-controls.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-3c-owner-controls.mjs"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "crates/oracle/h2-3c-profile.mjs",
+   "kind": "file-hash",
+   "path": "crates/oracle/h2-3c-profile.mjs"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3b-owner-controls.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3b-owner-controls.v1.json"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3b-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3b-profile.v1.json"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3b-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3b-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3c-owner-controls.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3c-owner-controls.v1.json"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3c-profile.v1.json",
+   "kind": "self-hash",
+   "path": "ratchets/h2-3c-profile.v1.json"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3c-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h2-3c-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-emit-oracle.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h1-emit-oracle.v1.json"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-emit-profile.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h1-emit-profile.v1.json"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-emit-qualification.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h1-emit-qualification.v1.json"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-owner-inventory.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h1-owner-inventory.v1.json"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-rust-omissions.v1.json",
+   "kind": "file-hash",
+   "path": "ratchets/h1-rust-omissions.v1.json"
+  }
+ ],
+ "values": [
+  {
+   "test_file": "h2_1a_profile",
+   "check_id": "ratchets/h2-1a-profile.v1.json",
+   "sha256": "7e838cf92ddea5c49a36d42a25471552a3d103a617fd428511ab5b92b0f0d1c6"
+  },
+  {
+   "test_file": "h2_1a_profile",
+   "check_id": "ratchets/h2-profile-transition.v1.json",
+   "sha256": "0b59a53a30827e87ce20062ba55afcc055d1ede26701d61d0eb9b9b924c6c9fd"
+  },
+  {
+   "test_file": "h2_1a_profile",
+   "check_id": "ratchets/h2-runtime-baseline.v1.json",
+   "sha256": "634492148d44c374c922ed6bd0545c43cdcabe913c78dbffd9d2f940c4ac7cd9"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": ".github/ci/contracts/h2-1b-profile.schema.json",
+   "sha256": "4881d93dd418fd23cc0af5ad092fb979fb74211821dbebc29618f834d450792d"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "crates/oracle/h2-1b-profile.mjs",
+   "sha256": "8cf4be2a99a077f633cec9983f407d9538b7bb1e9b43a2285c4d5cb576a41eff"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "ratchets/h2-1a-profile.v1.json",
+   "sha256": "7e838cf92ddea5c49a36d42a25471552a3d103a617fd428511ab5b92b0f0d1c6"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "ratchets/h2-1a-qualification.v1.json",
+   "sha256": "d8fa008746f9c509d9dfc1253a986e8b6437b4f0199903506161a75da9bd7d76"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "ratchets/h2-1b-profile.v1.json",
+   "sha256": "e8da0de3ddc8ac456d798b149c47b172b995a1fe5ab57e86f72fbf880dd372e3"
+  },
+  {
+   "test_file": "h2_1b_profile",
+   "check_id": "ratchets/h2-1b-qualification.v1.json",
+   "sha256": "98f0df7740c85f18bde2adea8a80f9aa511102388c369bcb405b36396d72bdb1"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": ".github/ci/contracts/h2-1c-owner-controls.schema.json",
+   "sha256": "9c25aade0699776dcf7d9d1d7ad42389e6c8df20d978a219247e6ebda01425bc"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": ".github/ci/contracts/h2-1c-profile.schema.json",
+   "sha256": "23fad428ca467c2af1d821081dd58e26d3d637125e5d9a1295af3e7b9f6f4cdd"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "crates/oracle/h2-1c-owner-controls.mjs",
+   "sha256": "d6e7a70b8ec85a82b0f68c7884bdf9c2b15b0f41d0dfffa82cfca2f6a0ed0362"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "crates/oracle/h2-1c-profile.mjs",
+   "sha256": "ba81504ec511762b3d2234dfa2f812bd204efadeedd6e3ea4e48c4145cf13787"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1b-profile.v1.json",
+   "sha256": "e8da0de3ddc8ac456d798b149c47b172b995a1fe5ab57e86f72fbf880dd372e3"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1b-qualification.v1.json",
+   "sha256": "98f0df7740c85f18bde2adea8a80f9aa511102388c369bcb405b36396d72bdb1"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1c-owner-controls.v1.json",
+   "sha256": "6aa502734a38a0905d5e996dd3d1a61ce20617c9d1ffa4f7b72d689fd95596de"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1c-profile.v1.json",
+   "sha256": "09878721ed87d4383889aeee0e1861a270a5c905aec987a6cddfc7db120f9076"
+  },
+  {
+   "test_file": "h2_1c_profile",
+   "check_id": "ratchets/h2-1c-qualification.v1.json",
+   "sha256": "369651bb4f465a7f116bf337c7b863dfd19a59af8bd19b31ecc81042a6095a87"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": ".github/ci/contracts/h2-1d-owner-controls.schema.json",
+   "sha256": "cc203640d70cc4427cd3dc2a9491a91b53a5c898308b61c4101d87d32d8c095d"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": ".github/ci/contracts/h2-1d-profile.schema.json",
+   "sha256": "bb34e87b872b5f35f223ec424f4dcd621f63d1b8cd224d5ac5230eac7d966310"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "crates/oracle/h2-1d-owner-controls.mjs",
+   "sha256": "1b2e2abdd44dc4cf394a55a3b90c28deae27d801576bf5597de71485fe31437b"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "crates/oracle/h2-1d-profile.mjs",
+   "sha256": "d200c672e37c5cc5c2bd2b417d84ef5b0b27c49e56d39a9323371d5fe13b01c3"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1c-profile.v1.json",
+   "sha256": "09878721ed87d4383889aeee0e1861a270a5c905aec987a6cddfc7db120f9076"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1c-qualification.v1.json",
+   "sha256": "369651bb4f465a7f116bf337c7b863dfd19a59af8bd19b31ecc81042a6095a87"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1d-owner-controls.v1.json",
+   "sha256": "aba2b26cbd92fab4bd6525274b5d4561bf168e45353a3c3ab6f8dea070054916"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1d-profile.v1.json",
+   "sha256": "de59aa5dccb156e260a5ca082c0547d0f08cfc2080c8d01c1bd5bc814037694f"
+  },
+  {
+   "test_file": "h2_1d_profile",
+   "check_id": "ratchets/h2-1d-qualification.v1.json",
+   "sha256": "7db16e37ffcf97c182dd38b830a64fb3b78ff6c8d0264b093d3a1e318acb30f8"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": ".github/ci/contracts/h2-1e-owner-controls.schema.json",
+   "sha256": "3ffaff1f62f94a036225dfe1e9cdb382a42968ea5aa98f4828e3bce1f8ac7956"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": ".github/ci/contracts/h2-1e-profile.schema.json",
+   "sha256": "1f174584838885f3e26edb5bb8425056194bc285289820201237c1fc5660a305"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "crates/oracle/h2-1e-owner-controls.mjs",
+   "sha256": "e3feec8f379215a3beb47342e57cf8b3bd6e5481cc83070b732358fde3bb57f1"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "crates/oracle/h2-1e-profile.mjs",
+   "sha256": "33e5793519a7b2eed685569a9565ab9996120d5f40adad088897312c25a63a3a"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1d-profile.v1.json",
+   "sha256": "de59aa5dccb156e260a5ca082c0547d0f08cfc2080c8d01c1bd5bc814037694f"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1d-qualification.v1.json",
+   "sha256": "7db16e37ffcf97c182dd38b830a64fb3b78ff6c8d0264b093d3a1e318acb30f8"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1e-owner-controls.v1.json",
+   "sha256": "259edadf2d0db814353b5de2060bb1ea9164e2c4f2a10a990ddc1594d7e9f6f4"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1e-profile.v1.json",
+   "sha256": "5de73cf3518b5f7b4c9c41bc89ce9d4a1147a574767e7c2bc0aa88d01af3317a"
+  },
+  {
+   "test_file": "h2_1e_profile",
+   "check_id": "ratchets/h2-1e-qualification.v1.json",
+   "sha256": "def9b1323d16bb2b472dd908a1b9982cb5b728896219da895b4ffa76d85543cc"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": ".github/ci/contracts/h2-2a-profile.schema.json",
+   "sha256": "1d4e4442d206d85793aa7987a8e67b4a13afa5b7cb678a1a786afae2f2c00ca7"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "crates/oracle/h2-2a-profile.mjs",
+   "sha256": "559fc20dbd150d1a8f0e81d9b0883bc3a622fbb17260bea58d2324b3bcac4c71"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "ratchets/h2-1e-profile.v1.json",
+   "sha256": "5de73cf3518b5f7b4c9c41bc89ce9d4a1147a574767e7c2bc0aa88d01af3317a"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "ratchets/h2-1e-qualification.v1.json",
+   "sha256": "def9b1323d16bb2b472dd908a1b9982cb5b728896219da895b4ffa76d85543cc"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "ratchets/h2-2a-profile.v1.json",
+   "sha256": "46d50d85cd50199eabf60a658adf4c9a59dc0a65b9bbcf15d87298568c7a9d18"
+  },
+  {
+   "test_file": "h2_2a_profile",
+   "check_id": "ratchets/h2-2a-qualification.v1.json",
+   "sha256": "94134badd97e434c751b0c3dd53c999f757b0c12110fa48d5cea19b8528c4b90"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": ".github/ci/contracts/h2-2b-profile.schema.json",
+   "sha256": "44dbbd10e0ce2898f669b0929cac06a6728e59dd6bdc66134507a98f6e14aabc"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "crates/oracle/h2-2b-profile.mjs",
+   "sha256": "aacc164bcfc94394cdfe1b96ed0cc9711fec440b728358dbd6439676edec4e4f"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "ratchets/h2-2a-profile.v1.json",
+   "sha256": "46d50d85cd50199eabf60a658adf4c9a59dc0a65b9bbcf15d87298568c7a9d18"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "ratchets/h2-2a-qualification.v1.json",
+   "sha256": "94134badd97e434c751b0c3dd53c999f757b0c12110fa48d5cea19b8528c4b90"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "ratchets/h2-2b-profile.v1.json",
+   "sha256": "edcad179754ddec8329ac7bffd9c2cfb16f82d264c116e134427cd7c735a8a65"
+  },
+  {
+   "test_file": "h2_2b_profile",
+   "check_id": "ratchets/h2-2b-qualification.v1.json",
+   "sha256": "f2e815e6fbad3300e4db6feb9d07235c8886cd46d4528dc51306b58b0bae25a3"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": ".github/ci/contracts/h2-2c-profile.schema.json",
+   "sha256": "e66208499e81d6004ff43232138a2989a72d55cc6284a5d2a795b475523dd333"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "crates/oracle/h2-2c-profile.mjs",
+   "sha256": "524e77499bacb2b84f0c033d5cf723b6fb1d213a5c723062fb51011972ecfe0e"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "ratchets/h2-2b-profile.v1.json",
+   "sha256": "edcad179754ddec8329ac7bffd9c2cfb16f82d264c116e134427cd7c735a8a65"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "ratchets/h2-2b-qualification.v1.json",
+   "sha256": "f2e815e6fbad3300e4db6feb9d07235c8886cd46d4528dc51306b58b0bae25a3"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "ratchets/h2-2c-profile.v1.json",
+   "sha256": "b7b71765721d92f47478e86da5ae0f7317252f85e2dc9038d9ef694dc20f86b5"
+  },
+  {
+   "test_file": "h2_2c_profile",
+   "check_id": "ratchets/h2-2c-qualification.v1.json",
+   "sha256": "00a6ebb1291507cdf79eb2114869618540834701cd62e6011e069a4df3f5d13a"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": ".github/ci/contracts/h2-2d-profile.schema.json",
+   "sha256": "a935234328e34a87cd295e894410ca23e9cb3ba3736634d9aba786212ce58804"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "crates/oracle/h2-2d-profile.mjs",
+   "sha256": "1c7d6f51e3dfaf307326934b002880071f3bdb614df361c436369fe9aa167dd5"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "ratchets/h2-2c-profile.v1.json",
+   "sha256": "b7b71765721d92f47478e86da5ae0f7317252f85e2dc9038d9ef694dc20f86b5"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "ratchets/h2-2c-qualification.v1.json",
+   "sha256": "00a6ebb1291507cdf79eb2114869618540834701cd62e6011e069a4df3f5d13a"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "ratchets/h2-2d-profile.v1.json",
+   "sha256": "92a349ab72e6cd2885cf81596ad5119e912366b3604b36a57068c9fcb91e259d"
+  },
+  {
+   "test_file": "h2_2d_profile",
+   "check_id": "ratchets/h2-2d-qualification.v1.json",
+   "sha256": "e756d2f51c7a6d4e5eca9739261ed2378b17ed0b43a5e92a55dd2c116b6a0671"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": ".github/ci/contracts/h2-3a-owner-controls.schema.json",
+   "sha256": "ea587f45ae303e20dd2f6ca8e630bbe8c8f8250984e38861be36535b6b73e4d7"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": ".github/ci/contracts/h2-3a-profile.schema.json",
+   "sha256": "da917ede3387e0a3c8ecf7d96f7b74358fd47c22c5ee6199169c672262e5c0df"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "crates/oracle/h2-3a-owner-controls.mjs",
+   "sha256": "535fc11cd834a061ccc28b914e423ec984d484dd3411a2d6d985ec61f6674beb"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "crates/oracle/h2-3a-profile.mjs",
+   "sha256": "26fb822b11c3ffb46c13db3da46adafdbf09d37f317e6271efe1d429940a1dce"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-2d-profile.v1.json",
+   "sha256": "92a349ab72e6cd2885cf81596ad5119e912366b3604b36a57068c9fcb91e259d"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-2d-qualification.v1.json",
+   "sha256": "e756d2f51c7a6d4e5eca9739261ed2378b17ed0b43a5e92a55dd2c116b6a0671"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-3a-owner-controls.v1.json",
+   "sha256": "76ac4421892d434f9b6ee5113994776644e506263d9fc94c2cca79670cadb622"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-3a-profile.v1.json",
+   "sha256": "68bf0fded2425c3e9733a38f0d924645a9cb2cc04fab849d09cc4a4527572694"
+  },
+  {
+   "test_file": "h2_3a_profile",
+   "check_id": "ratchets/h2-3a-qualification.v1.json",
+   "sha256": "512548f6c53eafb32364d606f6e1eee106f917d76abb6ba149c1667b5052f790"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": ".github/ci/contracts/h2-3b-owner-controls.schema.json",
+   "sha256": "fb1f709a9c0b468b1c1849f2a6c4268e94729869d7bc5a91f742101c486b3f12"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": ".github/ci/contracts/h2-3b-profile.schema.json",
+   "sha256": "d21a658c8fc4d004130074deb38b60b7d133e3ace6b7b497a1a54cc2beb48f04"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "crates/oracle/h2-3b-owner-controls.mjs",
+   "sha256": "d2bee6c116d2f98a31e4bf67b0601d80384236f9db8e851a82d72fc8bec283de"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "crates/oracle/h2-3b-profile.mjs",
+   "sha256": "9ce48a659081eee2b629a10e2eb51d6d75aa0f16fdd02a9b45f8ffabb61c1b0f"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3a-owner-controls.v1.json",
+   "sha256": "76ac4421892d434f9b6ee5113994776644e506263d9fc94c2cca79670cadb622"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3a-profile.v1.json",
+   "sha256": "68bf0fded2425c3e9733a38f0d924645a9cb2cc04fab849d09cc4a4527572694"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3a-qualification.v1.json",
+   "sha256": "512548f6c53eafb32364d606f6e1eee106f917d76abb6ba149c1667b5052f790"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3b-owner-controls.v1.json",
+   "sha256": "7cb7058d0b2130a196ba0352093c531fc7ea059a69bd7438585936d04e2e7e72"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3b-profile.v1.json",
+   "sha256": "1610422044d1e92466e73716400bf2f024987d88f4635f8549ecfb12a6a92331"
+  },
+  {
+   "test_file": "h2_3b_profile",
+   "check_id": "ratchets/h2-3b-qualification.v1.json",
+   "sha256": "3a3cce902a5ae0f79f38770138eab58ab1485508da7f244675a19bb01ba1f6a6"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": ".github/ci/contracts/h2-3c-owner-controls.schema.json",
+   "sha256": "a0a0d54df71862647cfd21d58ea960ddfdded1d8c4df8b552e943297e5579ed1"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": ".github/ci/contracts/h2-3c-profile.schema.json",
+   "sha256": "aa9b14c064e5be1ee77c3fd43b81994b81bcce0f930582730e24e2a3fe70ef70"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "crates/oracle/h2-3c-owner-controls.mjs",
+   "sha256": "351b828df9d01025702d15cc7ea9e368bf6fd9218b6eedaccb7fcfbe7be49def"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "crates/oracle/h2-3c-profile.mjs",
+   "sha256": "9865eda8d3db145f9cedde18e253598e39cea150efb47358c110466c6d4d75ef"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3b-owner-controls.v1.json",
+   "sha256": "7cb7058d0b2130a196ba0352093c531fc7ea059a69bd7438585936d04e2e7e72"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3b-profile.v1.json",
+   "sha256": "1610422044d1e92466e73716400bf2f024987d88f4635f8549ecfb12a6a92331"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3b-qualification.v1.json",
+   "sha256": "3a3cce902a5ae0f79f38770138eab58ab1485508da7f244675a19bb01ba1f6a6"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3c-owner-controls.v1.json",
+   "sha256": "7e158b0311f5c3a6b3fcb60dcfbbebb5cd418d603502022382473ac3ac7b916b"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3c-profile.v1.json",
+   "sha256": "9450cedf0285471970fce51c94d21fab3fe852590c151a559fa61e48d1fa40a2"
+  },
+  {
+   "test_file": "h2_3c_profile",
+   "check_id": "ratchets/h2-3c-qualification.v1.json",
+   "sha256": "9957e9c5dfe7c5062822e7f8bb88c72f9c0a7a6ef6273be4731d823e9d5eeaf9"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-emit-oracle.v1.json",
+   "sha256": "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-emit-profile.v1.json",
+   "sha256": "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-emit-qualification.v1.json",
+   "sha256": "ea84909c5d26b3ca1953712761c82d57ccdf0a31de7e1b11565e9d926a778273"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-owner-inventory.v1.json",
+   "sha256": "6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5"
+  },
+  {
+   "test_file": "h2_transition",
+   "check_id": "ratchets/h1-rust-omissions.v1.json",
+   "sha256": "ba883eebe5606f470150d6b18fc0935b843c18c6dc76cb6c0c9765dd27a084d9"
+  }
+ ]
+}

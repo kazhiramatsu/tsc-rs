@@ -92,6 +92,9 @@ if [ "${WALK_DRY:-0}" = "1" ]; then
   if ! python3 scripts/schema-const-repin.py --check; then
     echo "recovery (dry): schema-const stale — a real walk repairs it in this phase"
   fi
+  if ! python3 scripts/harness-pins.py --check; then
+    echo "recovery (dry): harness-manifest not clean — a real walk repairs stale values in this phase (descriptor anomalies refuse)"
+  fi
 else
   if ! sc_status=$(python3 scripts/schema-const-repin.py --check); then
     echo "recovery INTENT: schema-const ($sc_status)" >> "$RUN_DIR/recovery.log"
@@ -103,6 +106,24 @@ else
       echo "REFUSING TO WALK: recovery could not repair the schema-const surface."
       exit 2
     fi
+  fi
+  hp_status=$(python3 scripts/harness-pins.py --check); hp_rc=$?
+  if [ $hp_rc -eq 1 ]; then
+    # Stale values only — a pure function of on-disk artifacts.
+    echo "recovery INTENT: harness-manifest values" >> "$RUN_DIR/recovery.log"
+    if hp_line=$(python3 scripts/harness-pins.py --write); then
+      echo "recovery COMPLETION: $hp_line" >> "$RUN_DIR/recovery.log"
+      summary "recovery: $hp_line"
+    else
+      echo "$hp_line"
+      echo "REFUSING TO WALK: recovery could not refresh the harness manifest."
+      exit 2
+    fi
+  elif [ $hp_rc -ne 0 ]; then
+    # Structural/anchor anomaly: NEVER recoverable.
+    echo "$hp_status"
+    echo "REFUSING TO WALK: harness-manifest descriptor anomaly (never auto-repaired)."
+    exit 2
   fi
 fi
 
@@ -362,6 +383,19 @@ while true; do
   round=$((round+1))
   [ $round -gt 6 ] && { echo "walk did not converge in 6 rounds"; exit 1; }
 done
+
+# gate-tax 8 S3: refresh the harness pin manifest AFTER the final
+# minting round (later rounds may re-mint), so the tail's pin surfaces
+# are clean and the convergence certificate lands in THIS invocation
+# (the 2026-08-30 W4 baseline paid a second ~69-min walk here).
+# Values-only + atomic; a descriptor anomaly refuses, never repairs.
+if hp_line=$(python3 scripts/harness-pins.py --write); then
+  summary "harness-manifest: $hp_line"
+else
+  echo "$hp_line"
+  echo "HARNESS-MANIFEST REFRESH REFUSED — descriptor anomaly needs review."
+  exit 1
+fi
 
 # Owner-control artifacts should be crate-byte-insensitive; verify, never
 # auto-write (a stale one needs explicit review).

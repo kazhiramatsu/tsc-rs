@@ -9,27 +9,12 @@ const OWNER_PATH: &str = "ratchets/h2-owner-inventory.v1.json";
 const CANDIDATE_PATH: &str = "ratchets/h2-candidate-dispositions.v1.json";
 const PROFILE_PATH: &str = "ratchets/h2-profile-transition.v1.json";
 
-const H1_FROZEN: [(&str, &str); 5] = [
-    (
-        "ratchets/h1-owner-inventory.v1.json",
-        "6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5",
-    ),
-    (
-        "ratchets/h1-rust-omissions.v1.json",
-        "ba883eebe5606f470150d6b18fc0935b843c18c6dc76cb6c0c9765dd27a084d9",
-    ),
-    (
-        "ratchets/h1-emit-profile.v1.json",
-        "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db",
-    ),
-    (
-        "ratchets/h1-emit-oracle.v1.json",
-        "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d",
-    ),
-    (
-        "ratchets/h1-emit-qualification.v1.json",
-        "ea84909c5d26b3ca1953712761c82d57ccdf0a31de7e1b11565e9d926a778273",
-    ),
+const H1_FROZEN: [&str; 5] = [
+    "ratchets/h1-owner-inventory.v1.json",
+    "ratchets/h1-rust-omissions.v1.json",
+    "ratchets/h1-emit-profile.v1.json",
+    "ratchets/h1-emit-oracle.v1.json",
+    "ratchets/h1-emit-qualification.v1.json",
 ];
 
 const SLICE_ORDER: [&str; 39] = [
@@ -143,10 +128,11 @@ fn h2_transition_is_fresh_and_preserves_every_historical_h1_input() {
         let record = object(record);
         assert_eq!(record.len(), 2);
         let relative = string(&record["path"]);
-        let expected = H1_FROZEN
-            .iter()
-            .find_map(|(path, sha256)| (*path == relative).then_some(*sha256))
-            .unwrap_or_else(|| panic!("unexpected historical H1 input: {relative}"));
+        assert!(
+            H1_FROZEN.contains(&relative),
+            "unexpected historical H1 input: {relative}"
+        );
+        let expected = crate::pins::expected("h2_transition", relative);
         assert_eq!(string(&record["sha256"]), expected, "{relative}");
     }
     assert_path_hash(&workspace, &profile["h2_inputs"]["owner_inventory"]);
