@@ -102,6 +102,26 @@ current H2 implementation maps.
    body before the merge. Manually dispatched approved-runner performance workflows are
    separate qualification tools, not ordinary GitHub CI.
 
+## Parallel work during waits (standing directive, 2026-08-30)
+
+Whenever a long-running step is in flight (walk, gate, hosted check,
+mint, delegated implementation), ALWAYS look for parallel work and
+execute it — never idle on a wait. Rules:
+
+1. **Isolation**: parallel work runs in its own `git worktree` (or is
+   read-only analysis / docs / scratchpad work). Never touch the
+   canonical checkout's crates/oracle/ratchet surfaces while a walk,
+   gate, or canonical mint is running there.
+2. **Non-interference**: no heavy competing builds during a gate's
+   measurement phases (the perf ceiling is wall-clock sensitive;
+   codex sandbox builds run non-demoted — schedule them off the
+   measurement window). Observation minting stays canonical-path-only.
+3. **Typical wait-time work**: next-wave investigation from existing
+   probe/census data (read-only), design-packet drafting and
+   cross-review rounds, delegation SPEC authoring + launching
+   implementation lanes in worktrees, memory/docs updates, residue
+   analysis for the following train.
+
 ## Verification quick reference
 
 - **Merge cadence:** few-line changes ride closure trains — verify each
