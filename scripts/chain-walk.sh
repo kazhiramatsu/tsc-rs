@@ -78,6 +78,34 @@ if [ "${WALK_DRY:-0}" != "1" ]; then
   summary "chain walk run $RUN_ID (logs: $RUN_DIR)"
 fi
 
+# gate-tax 8 §3: enumerated recovery phase. Repair ONLY the surfaces
+# whose values are pure functions of on-disk artifacts (the S2
+# schema-const family today; the S3 harness-manifest values join the
+# same phase) — BEFORE fmt/clippy or any PRE_SUITE command observes
+# them, and before the strict preflight would refuse on them (a kill
+# inside a prior walk's write window otherwise strands a stale surface
+# nothing repairs). Write-ahead journal: INTENT precedes the repair,
+# COMPLETION follows; a dangling INTENT reconciles by the idempotent
+# re-run. Everything else keeps strict-refusal semantics. WALK_DRY
+# reports and never writes.
+if [ "${WALK_DRY:-0}" = "1" ]; then
+  if ! python3 scripts/schema-const-repin.py --check; then
+    echo "recovery (dry): schema-const stale — a real walk repairs it in this phase"
+  fi
+else
+  if ! sc_status=$(python3 scripts/schema-const-repin.py --check); then
+    echo "recovery INTENT: schema-const ($sc_status)" >> "$RUN_DIR/recovery.log"
+    if sc_line=$(python3 scripts/schema-const-repin.py --fix); then
+      echo "recovery COMPLETION: $sc_line" >> "$RUN_DIR/recovery.log"
+      summary "recovery: $sc_line"
+    else
+      echo "$sc_line"
+      echo "REFUSING TO WALK: recovery could not repair the schema-const surface."
+      exit 2
+    fi
+  fi
+fi
+
 if [ "${SKIP_PREFLIGHT:-0}" != "1" ]; then
   echo "preflight: cargo fmt --all -- --check"
   if ! taskpolicy -b nice -n 15 cargo fmt --all -- --check >/tmp/chain-walk-fmt.log 2>&1; then
@@ -308,6 +336,22 @@ while true; do
       python3 "$REPIN" "$script" | tee -a "$rung_log"
       taskpolicy -b nice -n 15 node "$script" --write >>"$rung_log" 2>&1 \
         || { echo "WRITE FAILED after repin: $name (see $rung_log)"; exit 1; }
+      if [ "$name" = "h2-1a-qualification" ]; then
+        # gate-tax 8 S2: the enumerated schema-const pin (the five
+        # h2-5g-profile contract leaves) re-derives from the artifact
+        # this rung just wrote. Repin it NOW — before any rung that
+        # pins the contract hash — or the staleness surfaces at the
+        # tail and costs a second full walk (measured ~69 min,
+        # 2026-08-30 W4). Idempotent; REFUSED (exit 2) stops the walk.
+        if sc_line=$(python3 scripts/schema-const-repin.py --fix); then
+          echo "$sc_line" >> "$rung_log"
+          summary "round $round $sc_line"
+        else
+          echo "$sc_line"
+          echo "SCHEMA-CONST REPIN REFUSED — fix the contract shape, then walk once."
+          exit 1
+        fi
+      fi
     fi
   done
   if [ ${#stale[@]} -eq 0 ]; then
