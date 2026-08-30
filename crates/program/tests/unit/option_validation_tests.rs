@@ -143,7 +143,7 @@ fn source_map_relationships_follow_tsc_order_and_messages() {
     let source_root = CompilerOptionViolation::SourceRootRequiresSourceMap;
     assert_eq!(
         source_root.location(),
-        CompilerOptionValidationLocation::CompilerLevel
+        CompilerOptionValidationLocation::Name
     );
     assert_eq!(source_root.message().code, 5051);
     assert_eq!(
@@ -223,4 +223,30 @@ fn one_snapshot_can_report_multiple_violations_without_filtering() {
             },
         ]
     );
+}
+
+#[test]
+fn source_map_relationship_diagnostics_stay_non_fatal_in_the_config_gate() {
+    // The W5 K22 rows report like the 5101/5107 family: the program still
+    // loads, checks, and emits (verifyCompilerOptions rows are not a
+    // source-loading gate). A fatal classification would suppress the
+    // frozen target writes and flip emit_skipped.
+    for (code, violation) in [
+        (5051, CompilerOptionViolation::SourceRootRequiresSourceMap),
+        (
+            5053,
+            CompilerOptionViolation::SourceMapConflictsWithInlineSourceMap,
+        ),
+        (
+            5069,
+            CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap,
+        ),
+    ] {
+        assert_eq!(violation.message().code, code);
+        let diagnostic = tsc_diagnostics::Diagnostic::new(None, None, None, violation.message());
+        assert!(
+            crate::is_non_fatal_option_diagnostic(&diagnostic),
+            "code {code} must pass the non-fatal option gate"
+        );
+    }
 }

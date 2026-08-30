@@ -1588,9 +1588,6 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
                 CompilerOptionValidationLocation::Value => {
                     ProgrammaticOptionDiagnosticLocation::Value
                 }
-                CompilerOptionValidationLocation::CompilerLevel => {
-                    ProgrammaticOptionDiagnosticLocation::CompilerLevel
-                }
             },
             true,
             violation.message(),
@@ -1855,7 +1852,6 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
 enum ProgrammaticOptionDiagnosticLocation {
     Name,
     Value,
-    CompilerLevel,
 }
 
 fn push_programmatic_option_diagnostic(
@@ -1866,14 +1862,6 @@ fn push_programmatic_option_diagnostic(
     use_compiler_options_fallback: bool,
     message: MessageChain,
 ) {
-    if matches!(
-        location,
-        ProgrammaticOptionDiagnosticLocation::CompilerLevel
-    ) {
-        diagnostics.push(Diagnostic::new(None, None, None, message));
-        return;
-    }
-
     let Some(config_file) = prepared.program_options().config_file() else {
         diagnostics.push(Diagnostic::new(None, None, None, message));
         return;
@@ -1888,7 +1876,6 @@ fn push_programmatic_option_diagnostic(
             ProgrammaticOptionDiagnosticLocation::Value => {
                 config_file.compiler_option_value_locations(name)
             }
-            ProgrammaticOptionDiagnosticLocation::CompilerLevel => unreachable!(),
         })
         .copied()
         .collect::<Vec<_>>();

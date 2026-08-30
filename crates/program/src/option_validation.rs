@@ -15,14 +15,12 @@ use crate::prepared::{
     ProgramOptions,
 };
 
-/// How TypeScript locates an option diagnostic on an option key, its converted
-/// value, or at compiler level without a source location.
+/// How TypeScript locates an option diagnostic on an option key or its
+/// converted value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CompilerOptionValidationLocation {
     Name,
     Value,
-    /// TypeScript creates the diagnostic without a config-file location.
-    CompilerLevel,
 }
 
 /// A failed relationship in the effective [`CompilerOptions`] snapshot.
@@ -90,13 +88,6 @@ impl CompilerOptionViolation {
             Self::InvalidJsxFactory { .. }
             | Self::InvalidReactNamespace { .. }
             | Self::InvalidJsxFragmentFactory { .. } => CompilerOptionValidationLocation::Value,
-            Self::InlineSourcesRequiresSourceMap
-            | Self::SourceRootRequiresSourceMap
-            | Self::MapRootConflictsWithInlineSourceMap
-            | Self::SourceMapConflictsWithInlineSourceMap
-            | Self::MapRootRequiresSourceMapOrDeclarationMap => {
-                CompilerOptionValidationLocation::CompilerLevel
-            }
             _ => CompilerOptionValidationLocation::Name,
         }
     }

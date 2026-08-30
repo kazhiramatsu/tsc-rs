@@ -1398,7 +1398,7 @@ fn validate_config_plan_for_mode(
 /// the checker. TypeScript 6.0 deprecation rows are non-fatal; malformed
 /// values and structural option errors remain a source-loading gate.
 pub fn is_non_fatal_option_diagnostic(diagnostic: &Diagnostic) -> bool {
-    matches!(diagnostic.code(), 5101 | 5107)
+    matches!(diagnostic.code(), 5051 | 5053 | 5069 | 5101 | 5107)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -3302,25 +3302,19 @@ fn emit_option_validation_diagnostic_for_properties(
 ) {
     let message = violation.message();
     let names = violation.option_names();
-    let mut locations = match violation.location() {
-        CompilerOptionValidationLocation::CompilerLevel => Vec::new(),
-        CompilerOptionValidationLocation::Name | CompilerOptionValidationLocation::Value => {
-            properties
-                .iter()
-                .filter(|property| names.contains(&property.name.as_str()))
-                .filter_map(|property| {
-                    config_location(
-                        source,
-                        match violation.location() {
-                            CompilerOptionValidationLocation::Name => property.name_node,
-                            CompilerOptionValidationLocation::Value => property.initializer,
-                            CompilerOptionValidationLocation::CompilerLevel => unreachable!(),
-                        },
-                    )
-                })
-                .collect::<Vec<_>>()
-        }
-    };
+    let mut locations = properties
+        .iter()
+        .filter(|property| names.contains(&property.name.as_str()))
+        .filter_map(|property| {
+            config_location(
+                source,
+                match violation.location() {
+                    CompilerOptionValidationLocation::Name => property.name_node,
+                    CompilerOptionValidationLocation::Value => property.initializer,
+                },
+            )
+        })
+        .collect::<Vec<_>>();
     locations.sort_unstable_by_key(|location| location.start);
     if locations.is_empty() {
         diagnostics.push(config_diagnostic_from_chain(message, fallback.clone()));
