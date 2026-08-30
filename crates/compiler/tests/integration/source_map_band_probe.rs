@@ -15,13 +15,13 @@ use std::path::{Path, PathBuf};
 use base64::Engine as _;
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
-use tsc_compiler::{EmitArtifact, EmitWriteMetadata, MemoryOutputSink, ProgramSession};
 use std::sync::Arc;
+use tsc_compiler::{EmitArtifact, EmitWriteMetadata, MemoryOutputSink, ProgramSession};
 
 use tsc_harness::upstream_suites::execution::{
     load_compiler_emit_with_option_floor, load_project_emit,
-    load_qualified_compiler_emit_with_option_floor, load_recorded_execution_plans,
-    EmitOptionFloor, UpstreamExecutionCorpus, UpstreamExecutionInput,
+    load_qualified_compiler_emit_with_option_floor, load_recorded_execution_plans, EmitOptionFloor,
+    UpstreamExecutionCorpus, UpstreamExecutionInput,
 };
 use tsc_program::ProgramLoadLimits;
 
@@ -447,7 +447,7 @@ fn run_h2_6c_census(list_path: &str) {
         let case = select_case(&artifact, selector, "H2.6c census");
         lines.push(census_h2_6c_case(&workspace, case, &corpus));
         done += 1;
-        if done % 10 == 0 {
+        if done.is_multiple_of(10) {
             eprintln!("H2.6c census: {done} cases done");
         }
     }
@@ -463,11 +463,7 @@ fn run_h2_6c_census(list_path: &str) {
     );
 }
 
-fn census_h2_6c_case(
-    workspace: &Path,
-    case: &Value,
-    corpus: &UpstreamExecutionCorpus,
-) -> Value {
+fn census_h2_6c_case(workspace: &Path, case: &Value, corpus: &UpstreamExecutionCorpus) -> Value {
     let case_id = case_id(case);
     let program = prepare_h2_6c_route(workspace, case, corpus);
     let session = ProgramSession::new(program);
