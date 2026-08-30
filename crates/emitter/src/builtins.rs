@@ -9694,6 +9694,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                     } else {
                         let original_modifiers = data.modifiers;
                         let original_name = data.name;
+                        let erased_type = data.r#type.map(|r#type| self.node(r#type));
                         // visitParameter 95029-95047 retains only
                         // decorators from a parameter's modifier-like
                         // list. Invalid JS modifiers such as `static`
@@ -9712,6 +9713,21 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                                 original,
                                 original_modifiers,
                             )?;
+                            if let Some(erased_type) = erased_type {
+                                let name =
+                                    match &self.context.arena().node(self.node(updated))?.data {
+                                        NodeData::Parameter(data) => data.name,
+                                        _ => None,
+                                    };
+                                if let Some(name) = name.and_then(|name| {
+                                    self.context.arena().node_ref(self.source, name)
+                                }) {
+                                    self.context
+                                        .arena_mut()?
+                                        .metadata_mut(name)
+                                        .set_type_node(erased_type);
+                                }
+                            }
                         }
                         Some(updated)
                     }

@@ -80,7 +80,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "05b855e13d3137c4a880da461a619634e5a1b54000aefe635f036947fb398e16"
+            "sha256": "80a69cd636420c75e045ded30810fbbc61898d4934bc1de89f38732a2fcbe000"
           }
         },
         {
@@ -94,7 +94,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "05b855e13d3137c4a880da461a619634e5a1b54000aefe635f036947fb398e16"
+            "sha256": "80a69cd636420c75e045ded30810fbbc61898d4934bc1de89f38732a2fcbe000"
           }
         },
         {
@@ -108,7 +108,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "05b855e13d3137c4a880da461a619634e5a1b54000aefe635f036947fb398e16"
+            "sha256": "80a69cd636420c75e045ded30810fbbc61898d4934bc1de89f38732a2fcbe000"
           }
         },
         {
@@ -122,7 +122,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "05b855e13d3137c4a880da461a619634e5a1b54000aefe635f036947fb398e16"
+            "sha256": "80a69cd636420c75e045ded30810fbbc61898d4934bc1de89f38732a2fcbe000"
           }
         },
         {
@@ -136,7 +136,7 @@
           "exact_writes": 1,
           "historical_qualification": {
             "path": "ratchets/h2-1a-qualification.v1.json",
-            "sha256": "05b855e13d3137c4a880da461a619634e5a1b54000aefe635f036947fb398e16"
+            "sha256": "80a69cd636420c75e045ded30810fbbc61898d4934bc1de89f38732a2fcbe000"
           }
         }
       ]

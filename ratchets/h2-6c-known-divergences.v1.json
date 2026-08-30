@@ -380,7 +380,7 @@
     {
       "case_id": "typescript-6.0.3/compiler/sourceMapValidationClasses.ts#default",
       "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 3,
+      "writes_diverging": 1,
       "diagnostics_diverging": false,
       "emit_result_diverging": true,
       "emit_refused": false
