@@ -10955,6 +10955,12 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                         "initializer",
                     )?;
                     let target = self.create_namespace_export_target(&name_text)?;
+                    // getNamespaceMemberName ranges the substituted access to
+                    // the declaration name, so the printer emits the
+                    // name-end boundary after `N.member`. The metadata
+                    // source-map channel carries it; a text range would give
+                    // the synthesized access a parse-looking identity.
+                    self.set_source_map_range_from(target, name)?;
                     let assignment = self.create_assignment(target, value)?;
                     self.set_original_and_range(assignment, declaration_node)?
                 }
@@ -11545,6 +11551,26 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .clone();
         let container = self.create_identifier(&container_name)?;
         let target = self.create_property_access(container, name)?;
+        // getNamespaceMemberName ranges the exported access to the
+        // declaration name (position-carrying clone), so the printer emits
+        // the name-end boundary after `N.member` on the export statement.
+        // The metadata source-map channel carries it; a text range would
+        // give the synthesized access a parse-looking identity.
+        {
+            let name_node = {
+                let arena = self.context.arena();
+                match &arena.node(original)?.data {
+                    NodeData::FunctionDeclaration(data) => data.name,
+                    NodeData::ClassDeclaration(data) => data.name,
+                    _ => None,
+                }
+            };
+            if let Some(name_node) =
+                name_node.and_then(|name| self.context.arena().node_ref(original.source(), name))
+            {
+                self.set_source_map_range_from(target, name_node)?;
+            }
+        }
         let value = self.create_identifier(name)?;
         let assignment = self.create_assignment(target, value)?;
         // createExportMemberAssignmentStatement gives the assignment a
