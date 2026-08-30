@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-qualification.mjs",
-    "sha256": "1f6d31e3a3b24ccbb06235154e4af225678729243d70f761656d2eafcc8f4380"
+    "sha256": "fed63b6548909681c9c936e710b48747459cfbfc3410ac5888191d2783b4c974"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_2a_merge": "c402252a0d9df4ca0f5332c7f64084087fe55886",
     "h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "46d50d85cd50199eabf60a658adf4c9a59dc0a65b9bbcf15d87298568c7a9d18"
+      "sha256": "499f69d54c02b66750d7c6b54faf875deed7679f688c5134344a3260c661ac6e"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "5f961f217cf08c797be413d2f90e1524c732c42ff7d5cf6859fcd846bb2d7e8d"
+      "sha256": "93bb9f03a3d2a823603277b9de89c0b7246303c454148a1cd08895c62ba8bbae"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "d8fa008746f9c509d9dfc1253a986e8b6437b4f0199903506161a75da9bd7d76"
+      "sha256": "f279bccce14179bacfcd3e8a73d4b144441fb38bb7e4ead1f6102e261516487f"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "98f0df7740c85f18bde2adea8a80f9aa511102388c369bcb405b36396d72bdb1"
+      "sha256": "d9e79b3ec5c39d0bcc856388c71c8ef0920314cfa046e671624046012d24d8dc"
     },
     "h2_2a_qualification": {
       "path": "ratchets/h2-2a-qualification.v1.json",
-      "sha256": "94134badd97e434c751b0c3dd53c999f757b0c12110fa48d5cea19b8528c4b90"
+      "sha256": "a20512331d18772f570600aea3edc750809779e06bf1e360b7a994e0e125c354"
     }
   },
   "execution_contract": {
@@ -7217,5 +7217,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "8865dcfe77438804ac12c53d7dcf6d3f6843b43bbe883f2eb2f8062ea506cf77"
+  "qualification_fingerprint_sha256": "1b626e51530dd6801a69c479c817c9a66363a1d917fd70e1f68bc229e11db61d"
 }

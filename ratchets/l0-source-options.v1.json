@@ -260,7 +260,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/config.rs",
         "line": 268,
-        "source_sha256": "231fc3623742065c1398975a2323dd2edb257749526efdc4801c3c9432a511cd",
+        "source_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c",
         "evidence": "pub struct ConfigSourceText {"
       },
       {
@@ -327,8 +327,8 @@
         "from": "ConfigSourceText.snapshot",
         "to": "ProgramConfigFile.snapshot",
         "path": "crates/program/src/config.rs",
-        "line": 4949,
-        "source_sha256": "231fc3623742065c1398975a2323dd2edb257749526efdc4801c3c9432a511cd",
+        "line": 4955,
+        "source_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c",
         "evidence": "    let mut config_file = ProgramConfigFile::from_snapshot(path, Arc::clone(source.snapshot()))"
       },
       {
