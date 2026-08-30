@@ -793,6 +793,9 @@ impl TypeScriptTransformer<'_> {
         Ok(Some(substitute))
     }
 
+    /// tsc-port: trySubstituteNamespaceExportedName @6.0.3
+    /// tsc-hash: a3e2a75d1877f53a89aa08f61a487e83adabeba271208dfd8a7c99f1e96ab102
+    /// tsc-span: _tsc.js:95798-95816
     fn try_substitute_exported_name(
         &self,
         context: &mut TransformationContext,
@@ -855,6 +858,11 @@ impl TypeScriptTransformer<'_> {
                 NodeData::Identifier(identifier),
                 TransformFlags::NONE,
             )?;
+            // `trySubstituteNamespaceExportedName` keeps the original
+            // identifier as the property-name child. The clone is needed by
+            // this immutable arena, but it must carry the same text range
+            // before the outer access receives its own range.
+            factory.set_text_range(name, node)?;
             let access = factory.create_node(
                 source,
                 NodeData::PropertyAccessExpression(
@@ -4120,6 +4128,7 @@ struct DeclarationExportPlan {
     local: TransformNode,
     exported_name: Box<str>,
     location: TransformNode,
+    source_map_location: TransformNode,
 }
 
 struct AliasedAsynchronousDependency {
@@ -6006,14 +6015,43 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     // only explicit export specifiers.
                     continue;
                 };
+                let source_map_location = self.declaration_export_source_map_location(location)?;
                 plans.push(DeclarationExportPlan {
                     local: leaf.name,
                     exported_name,
                     location,
+                    source_map_location,
                 });
             }
         }
         Ok(plans)
+    }
+
+    fn declaration_export_source_map_location(
+        &self,
+        location: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.context.arena().node(location)?;
+        if record.kind != SyntaxKind::ExportSpecifier
+            || record.pos != u32::MAX
+            || record.end != u32::MAX
+        {
+            return Ok(location);
+        }
+        let NodeData::ExportSpecifier(data) = &record.data else {
+            return Ok(location);
+        };
+        let Some(name) = data
+            .name
+            .and_then(|name| self.context.arena().node_ref(self.source, name))
+        else {
+            return Ok(location);
+        };
+        let name_record = self.context.arena().node(name)?;
+        if name_record.pos == u32::MAX || name_record.end == u32::MAX {
+            return Ok(location);
+        }
+        Ok(name)
     }
 
     fn create_declaration_export_statements(
@@ -6028,9 +6066,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let target = self.create_export_access(&plan.exported_name)?;
             let assignment = self.create_assignment(target, value)?;
             let statement = self.create_expression_statement(assignment)?;
+            self.set_original_and_range(statement, plan.location)?;
             self.context
                 .factory()?
-                .set_text_range(statement, plan.location)?;
+                .set_text_range(statement, plan.source_map_location)?;
             self.context
                 .arena_mut()?
                 .metadata_mut(statement)
@@ -10578,9 +10617,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .container_name
                 .clone();
             let container = self.create_identifier(&container_name)?;
-            let export_name = self.create_property_access(container, &name)?;
+            let export_name = self.namespace_member_name(container, original_name)?;
             let container = self.create_identifier(&container_name)?;
-            let assignment_name = self.create_property_access(container, &name)?;
+            let assignment_name = self.namespace_member_name(container, original_name)?;
             let object = self.create_object_literal()?;
             let assignment = self.create_assignment(assignment_name, object)?;
             let assignment = self.create_parenthesized(assignment)?;
@@ -11605,7 +11644,22 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             let modifiers = self.enum_runtime_modifiers(data.modifiers)?;
             let flags = lexical_scope.variable_flags();
             let statement = self.create_variable_statement(vec![declaration], modifiers, flags)?;
-            self.set_original_and_range(statement, original)?;
+            // tsc keeps the variable statement synthetic and moves the
+            // source-map range to its declaration list for enums. Namespace
+            // variables deliberately retain the statement range.
+            self.context
+                .arena_mut()?
+                .set_original_node(statement, Some(original))?;
+            self.set_comment_range_from(statement, original)?;
+            let declaration_list_id = match &self.context.arena().node(statement)?.data {
+                NodeData::VariableStatement(data) => data.declaration_list,
+                _ => None,
+            }
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::VariableStatement,
+                field: "declaration_list",
+            })?;
+            self.set_source_map_range_from(self.node(declaration_list_id), original)?;
             self.context
                 .arena_mut()?
                 .metadata_mut(statement)
@@ -11628,6 +11682,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         }
         let body = self.create_block_from_array(member_statements, data.members, true)?;
         let parameter_name = self.create_identifier(&name)?;
+        self.set_source_map_range_from(parameter_name, original_name)?;
         let parameter = self.create_parameter(parameter_name)?;
         let function = self.create_function_expression(vec![parameter], body)?;
         let function = self.create_parenthesized(function)?;
@@ -11642,9 +11697,9 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
                 .container_name
                 .clone();
             let container = self.create_identifier(&container_name)?;
-            let export_name = self.create_property_access(container, &name)?;
+            let export_name = self.namespace_member_name(container, original_name)?;
             let container = self.create_identifier(&container_name)?;
-            let assignment_left = self.create_property_access(container, &name)?;
+            let assignment_left = self.namespace_member_name(container, original_name)?;
             let object = self.create_object_literal()?;
             let assignment = self.create_assignment(assignment_left, object)?;
             let assignment = self.create_parenthesized(assignment)?;
@@ -13102,6 +13157,68 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             .metadata_mut(name)
             .set_source_map_range(source_map_range);
         Ok((text, name))
+    }
+
+    /// tsc-port: getNamespaceMemberName @6.0.3
+    /// tsc-hash: b3471b16463a28d1c79b35c73fa5627a463fc3df9e93ff2b9e35f410cd8a1bec
+    /// tsc-span: _tsc.js:24812-24819
+    fn namespace_member_name(
+        &mut self,
+        container: TransformNode,
+        original_name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let name = self.identifier_text(original_name.node())?.to_owned();
+        let access = self.create_property_access(container, &name)?;
+        self.context
+            .factory()?
+            .set_text_range(access, original_name)?;
+        Ok(access)
+    }
+
+    fn set_source_map_range_from(
+        &mut self,
+        node: TransformNode,
+        range_source: TransformNode,
+    ) -> Result<(), TransformError> {
+        let source_map_range = {
+            let arena = self.context.arena();
+            let record = arena.node(range_source)?;
+            let source = arena.source(range_source.source())?.syntax();
+            SourceRange::from_raw(record.pos, record.end, source.positions())
+                .map(|range| SourceMapRange::new(range_source.source(), range))
+                .map_err(|error| TransformError::InvalidSourceRange {
+                    node: range_source,
+                    error,
+                })?
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_source_map_range(source_map_range);
+        Ok(())
+    }
+
+    fn set_comment_range_from(
+        &mut self,
+        node: TransformNode,
+        range_source: TransformNode,
+    ) -> Result<(), TransformError> {
+        let comment_range = {
+            let arena = self.context.arena();
+            let record = arena.node(range_source)?;
+            let source = arena.source(range_source.source())?.syntax();
+            SourceRange::from_raw(record.pos, record.end, source.positions())
+                .map(|range| CommentRange::new(range_source.source(), range))
+                .map_err(|error| TransformError::InvalidSourceRange {
+                    node: range_source,
+                    error,
+                })?
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_comment_range(comment_range);
+        Ok(())
     }
 
     /// Rust-side equivalent of the binder-backed `isUniqueLocalName` used by
