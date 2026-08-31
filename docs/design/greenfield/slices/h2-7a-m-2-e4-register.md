@@ -64,8 +64,23 @@ Total events 15,845 across 112 cases.
 - selector drift: NO (mint reproduces the frozen lists).
 - nonzero fallbackSweep: NO (0).
 - migration-proof inequality: FIRED, diagnosed, resolved by
-  disposition 6 (decision projection); narrow-scope sol review of
-  the disposition requested (see packet §16 record).
+  disposition 6 (decision projection). Narrow-scope sol review:
+  **AGREE** (2026-09-01, three advisories, recorded here as the
+  E-phase continuation of the packet §16 record): (1) bilateral
+  projection verified correct; hash and family volumes
+  independently reproduced (993 = 415 visitSubtree + 578
+  topLevel; 498 = 334 typeOf + 164 returnType). (2) diagnosis
+  refined — the syntactic families capture the SAME
+  `result = body()` on both schemas; the delta is raw-tuple vs
+  provenance/sentinel ENCODING (not a different captured object);
+  transform side confirmed via setOriginal+setTextRange
+  (:24995-25000): 963 copied-coordinate outputs, 6 synthetic
+  kind/-1/-1, 24 absent, all 969 present outputs kind-preserving.
+  (3) USE CONSTRAINT: this equality is the one-time m-2 DECISION
+  migration proof ONLY — it is NOT evidence of m-3/m-4
+  output-node equivalence (whole-tuple normalization could
+  conceal output-kind changes at those sites); the m-3/m-3.5/m-4
+  design gates must not cite it for output-node claims.
 - unpredicted exclusion class: NONE (zero-declaration 0; uniqueness
   clean; synthetic-without-original counts are P4-frozen per §7.5).
 - floor miss: NO.
