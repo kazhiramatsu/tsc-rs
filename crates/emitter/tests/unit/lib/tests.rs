@@ -5,9 +5,162 @@ use tsc_syntax::{parse_source_file, NodeData, SyntaxKind};
 use super::{
     builtins::rewrite_relative_module_specifier,
     factory::{EmitHelperName, NodeFactory},
-    EmitFlags, EmitOutcome, SourceMapObservation, TransformArena, TransformFlags, TransformNode,
-    TransformSourceId,
+    EmitFlags, EmitOutcome, EmitResolver, EmitResolverMethod, EmitResolverNode, EmitResolverSymbol,
+    EmitSymbolAccessibility, EmitSymbolMeaning, SourceMapObservation, TransformArena,
+    TransformFlags, TransformNode, TransformSourceId, UnavailableEmitResolver,
 };
+
+#[test]
+fn declaration_emit_resolver_surface_preserves_pinned_values_and_names() {
+    assert_eq!(EmitSymbolAccessibility::Accessible as u8, 0);
+    assert_eq!(EmitSymbolAccessibility::NotAccessible as u8, 1);
+    assert_eq!(EmitSymbolAccessibility::CannotBeNamed as u8, 2);
+    assert_eq!(EmitSymbolAccessibility::NotResolved as u8, 3);
+    assert_eq!(EmitSymbolMeaning::VALUE_EXPORT_VALUE.0, 1_160_127);
+    assert_eq!(EmitSymbolMeaning::NAMESPACE.0, 1_920);
+    assert_eq!(EmitSymbolMeaning::TYPE.0, 788_968);
+    assert_eq!(EmitSymbolMeaning::ALIAS_RESOLVE.0, 2_998_271);
+    assert_eq!(EmitSymbolMeaning::IMPORT_EQUALS_RESOLVE.0, 901_119);
+
+    let methods = [
+        (
+            EmitResolverMethod::IsDefinitelyReferenceToGlobalSymbolObject,
+            "isDefinitelyReferenceToGlobalSymbolObject",
+        ),
+        (EmitResolverMethod::IsSymbolAccessible, "isSymbolAccessible"),
+        (
+            EmitResolverMethod::IsEntityNameVisible,
+            "isEntityNameVisible",
+        ),
+        (
+            EmitResolverMethod::IsDeclarationVisible,
+            "isDeclarationVisible",
+        ),
+        (
+            EmitResolverMethod::IsOptionalParameter,
+            "isOptionalParameter",
+        ),
+        (
+            EmitResolverMethod::IsImplementationOfOverload,
+            "isImplementationOfOverload",
+        ),
+        (
+            EmitResolverMethod::RequiresAddingImplicitUndefined,
+            "requiresAddingImplicitUndefined",
+        ),
+        (
+            EmitResolverMethod::IsExpandoFunctionDeclaration,
+            "isExpandoFunctionDeclaration",
+        ),
+        (
+            EmitResolverMethod::GetPropertiesOfContainerFunction,
+            "getPropertiesOfContainerFunction",
+        ),
+        (
+            EmitResolverMethod::IsLiteralConstDeclaration,
+            "isLiteralConstDeclaration",
+        ),
+        (EmitResolverMethod::IsLateBound, "isLateBound"),
+        (
+            EmitResolverMethod::IsImportRequiredByAugmentation,
+            "isImportRequiredByAugmentation",
+        ),
+    ];
+    for (method, name) in methods {
+        assert_eq!(method.name(), name);
+    }
+
+    let resolver = UnavailableEmitResolver;
+    let node = EmitResolverNode::from_raw_source(0, tsc_syntax::NodeId(0));
+    let symbol = EmitResolverSymbol {
+        session_token: 1,
+        symbol_index: 0,
+    };
+    assert!(matches!(
+        resolver.is_definitely_reference_to_global_symbol_object(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsDefinitelyReferenceToGlobalSymbolObject,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_symbol_accessible(symbol, node, EmitSymbolMeaning::TYPE, false),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsSymbolAccessible,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_entity_name_visible(node, node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsEntityNameVisible,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_declaration_visible(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsDeclarationVisible,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_optional_parameter(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsOptionalParameter,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_implementation_of_overload(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsImplementationOfOverload,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.requires_adding_implicit_undefined(node, None),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::RequiresAddingImplicitUndefined,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_expando_function_declaration(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsExpandoFunctionDeclaration,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.get_properties_of_container_function(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::GetPropertiesOfContainerFunction,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_literal_const_declaration(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsLiteralConstDeclaration,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_late_bound(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsLateBound,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.is_import_required_by_augmentation(node),
+        Err(crate::EmitResolverError::Unavailable {
+            method: EmitResolverMethod::IsImportRequiredByAugmentation,
+            ..
+        })
+    ));
+}
 
 #[test]
 fn outcome_retains_optional_presence_and_independent_emitted_file_order() {

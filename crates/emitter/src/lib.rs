@@ -71,8 +71,10 @@ pub use printer::{
     SourceFileTextMode,
 };
 pub use resolver::{
-    EmitExportContainerMode, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
-    EmitTypeReferenceSerializationKind, UnavailableEmitResolver,
+    EmitExportContainerMode, EmitFunctionProperty, EmitResolver, EmitResolverError,
+    EmitResolverMethod, EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility,
+    EmitSymbolAccessibilityResult, EmitSymbolMeaning, EmitTypeReferenceSerializationKind,
+    UnavailableEmitResolver,
 };
 pub use sink::{EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink, OutputSink};
 pub use source_map::{SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields};

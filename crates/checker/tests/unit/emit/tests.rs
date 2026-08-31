@@ -7,8 +7,9 @@ use tsc_binder::BinderWorker;
 use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_emitter::{
     create_printer, get_script_transformers, get_script_transformers_for_source, transform_nodes,
-    EmitHost, EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitSource, NewLineKind,
-    PrintRequest, PrinterOptions, SourceFileId, TransformArena, TransformRoot,
+    EmitHost, EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitResolverSymbol,
+    EmitSource, EmitSymbolMeaning, NewLineKind, PrintRequest, PrinterOptions, SourceFileId,
+    TransformArena, TransformRoot,
 };
 use tsc_syntax::{LanguageVariant, NodeId, ParseOptions, SyntaxKind};
 use tsc_types::{CompilerOptions, IdentityDomain, ModuleKind, ScriptTarget};
@@ -153,6 +154,11 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
     let mut state = CheckerState::from_snapshot(&snapshot, &options);
     state.check_source_file(0);
     state.check_source_file(1);
+    let symbol_index = state
+        .binder
+        .node_symbol(export_aliases[0])
+        .expect("export alias symbol")
+        .0;
     let session = CheckerSession::from_checked_state(state);
 
     let printed = session.with_emit_resolver(|resolver| {
@@ -210,6 +216,99 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
             })
         ));
 
+        assert!(matches!(
+            resolver.is_definitely_reference_to_global_symbol_object(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsDefinitelyReferenceToGlobalSymbolObject,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_symbol_accessible(
+                EmitResolverSymbol {
+                    session_token: session.session_token,
+                    symbol_index,
+                },
+                node(export_aliases[0]),
+                EmitSymbolMeaning::VALUE_EXPORT_VALUE,
+                true,
+            ),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsSymbolAccessible,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_entity_name_visible(node(export_aliases[0]), node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsEntityNameVisible,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_declaration_visible(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsDeclarationVisible,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_optional_parameter(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsOptionalParameter,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_implementation_of_overload(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsImplementationOfOverload,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.requires_adding_implicit_undefined(node(export_aliases[0]), None),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::RequiresAddingImplicitUndefined,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_expando_function_declaration(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsExpandoFunctionDeclaration,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.get_properties_of_container_function(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::GetPropertiesOfContainerFunction,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_literal_const_declaration(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsLiteralConstDeclaration,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_late_bound(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsLateBound,
+                ..
+            })
+        ));
+        assert!(matches!(
+            resolver.is_import_required_by_augmentation(node(export_aliases[0])),
+            Err(EmitResolverError::Unavailable {
+                method: EmitResolverMethod::IsImportRequiredByAugmentation,
+                ..
+            })
+        ));
+
         let mut arena = TransformArena::new();
         let source = arena.add_source(
             snapshot.document(1).source(),
@@ -240,6 +339,60 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
 
     let state = session.into_state();
     assert_eq!(state.binder.file_count(), 2);
+}
+
+#[test]
+fn emit_resolver_validates_symbol_session_before_symbol_bounds() {
+    let (snapshot, options, _, export_aliases) = checked_alias_session();
+    let mut state = CheckerState::from_snapshot(&snapshot, &options);
+    state.check_source_file(0);
+    state.check_source_file(1);
+    let symbol_index = state
+        .binder
+        .node_symbol(export_aliases[0])
+        .expect("export alias symbol")
+        .0;
+    let session = CheckerSession::from_checked_state(state);
+    let node = EmitResolverNode::from_raw_source(1, export_aliases[0]);
+
+    session.with_emit_resolver(|resolver| {
+        assert!(matches!(
+            resolver.is_symbol_accessible(
+                EmitResolverSymbol {
+                    session_token: session.session_token.wrapping_add(1),
+                    symbol_index,
+                },
+                node,
+                EmitSymbolMeaning::TYPE,
+                false,
+            ),
+            Err(EmitResolverError::ForeignSymbol {
+                method: EmitResolverMethod::IsSymbolAccessible,
+                symbol: EmitResolverSymbol {
+                    symbol_index: actual_index,
+                    ..
+                },
+            }) if actual_index == symbol_index
+        ));
+        assert!(matches!(
+            resolver.is_symbol_accessible(
+                EmitResolverSymbol {
+                    session_token: session.session_token,
+                    symbol_index: u32::MAX,
+                },
+                node,
+                EmitSymbolMeaning::TYPE,
+                false,
+            ),
+            Err(EmitResolverError::UnknownSymbol {
+                method: EmitResolverMethod::IsSymbolAccessible,
+                symbol: EmitResolverSymbol {
+                    symbol_index: u32::MAX,
+                    ..
+                },
+            })
+        ));
+    });
 }
 
 #[test]
