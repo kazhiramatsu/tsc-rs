@@ -525,7 +525,7 @@
               {
                 "properties": {
                   "parent_completed_runtime_slices": {
-                    "const": 24
+                    "const": 25
                   },
                   "runtime_admissions_before": {
                     "const": 9196
@@ -970,8 +970,8 @@
             "integer",
             "null"
           ],
-          "minimum": 24,
-          "maximum": 24
+          "minimum": 25,
+          "maximum": 25
         },
         "runtime_admissions_before": {
           "type": [

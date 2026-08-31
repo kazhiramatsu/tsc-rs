@@ -225,9 +225,9 @@
     "transition": {
       "const": {
         "completed_slice": "H2.5g",
-        "next_slice": "H2.6c",
-        "next_slice_scope": "broad-source-map-observation-closure",
-        "next_runtime_activation_slice": "H2.6c",
+        "next_slice": "H2.7a",
+        "next_slice_scope": "declaration-owner-inventory-and-dormant-foundation",
+        "next_runtime_activation_slice": "H2.7b",
         "active_runtime_slices": [
           "H2.1a",
           "H2.1b",
@@ -253,9 +253,10 @@
           "H2.5g",
           "H2.5h",
           "H2.6a",
-          "H2.6b"
+          "H2.6b",
+          "H2.6c"
         ],
-        "inactive_runtime_slice_count": 12,
+        "inactive_runtime_slice_count": 11,
         "classic_jsx_tsx_owner": "complete",
         "automatic_jsx_runtime_owner": "complete",
         "json_output_owner": "complete",
@@ -288,6 +289,11 @@
         "h2_6b_exact_cases": 4,
         "h2_6b_known_divergences": 2,
         "h2_6b_source_deferred_cases": 0,
+        "h2_6c_candidate_cases": 643,
+        "h2_6c_admitted_cases": 639,
+        "h2_6c_exact_cases": 188,
+        "h2_6c_known_divergences": 451,
+        "h2_6c_source_deferred_cases": 4,
         "h2_5g_global_future_rows": 2883,
         "h2_5g_source_deferred_cases": 516,
         "deferred_failure_boundary": "typed failure before first sink write"
@@ -383,7 +389,7 @@
     },
     "summary": {
       "const": {
-        "completed_runtime_slices": 24,
+        "completed_runtime_slices": 25,
         "next_slice_runtime_slice_delta": 0,
         "runtime_admissions": 9196,
         "executed_candidates": 9715,
