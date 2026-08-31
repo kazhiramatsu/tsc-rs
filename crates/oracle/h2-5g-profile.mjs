@@ -529,7 +529,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 203,
+    runtimeInputSet.size === 206,
     "H2.5g runtime input identity changed",
   );
 
