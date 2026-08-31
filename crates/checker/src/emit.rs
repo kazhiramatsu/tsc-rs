@@ -127,8 +127,9 @@ impl<'program> CheckerSession<'program> {
 /// tsc-span: _tsc.js:88545-88718
 ///
 /// Resolver producers are exposed only as their consuming transform slices
-/// become live. H2.2a adds constant and enum-member values while later
-/// consumer-owned methods retain the trait's typed unavailable default.
+/// become live. H2.2a adds constant and enum-member values; P2/P3 add the
+/// declaration-visibility and predicate workers while later consumer-owned
+/// methods retain the trait's typed unavailable default.
 impl EmitResolver for CheckerSession<'_> {
     fn get_constant_value(
         &self,
@@ -403,8 +404,11 @@ impl EmitResolver for CheckerSession<'_> {
         node: EmitResolverNode,
     ) -> Result<bool, EmitResolverError> {
         let method = EmitResolverMethod::IsDefinitelyReferenceToGlobalSymbolObject;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        self.with_resolver_node(
+            method,
+            node,
+            CheckerState::emit_is_definitely_reference_to_global_symbol_object,
+        )
     }
 
     fn is_symbol_accessible(
@@ -459,18 +463,22 @@ impl EmitResolver for CheckerSession<'_> {
     }
 
     fn is_optional_parameter(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
-        let method = EmitResolverMethod::IsOptionalParameter;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        self.with_resolver_node(
+            EmitResolverMethod::IsOptionalParameter,
+            node,
+            CheckerState::emit_is_optional_parameter,
+        )
     }
 
     fn is_implementation_of_overload(
         &self,
         node: EmitResolverNode,
     ) -> Result<bool, EmitResolverError> {
-        let method = EmitResolverMethod::IsImplementationOfOverload;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        self.with_resolver_node(
+            EmitResolverMethod::IsImplementationOfOverload,
+            node,
+            CheckerState::emit_is_implementation_of_overload,
+        )
     }
 
     fn requires_adding_implicit_undefined(
@@ -479,26 +487,34 @@ impl EmitResolver for CheckerSession<'_> {
         enclosing_declaration: Option<EmitResolverNode>,
     ) -> Result<bool, EmitResolverError> {
         let method = EmitResolverMethod::RequiresAddingImplicitUndefined;
-        let result = if let Some(enclosing_declaration) = enclosing_declaration {
+        if let Some(enclosing_declaration) = enclosing_declaration {
             self.with_resolver_node_and_location(
                 method,
                 parameter,
                 enclosing_declaration,
-                |_, _, _| Ok(()),
+                |state, parameter, enclosing_declaration| {
+                    state.emit_requires_adding_implicit_undefined(
+                        parameter,
+                        Some(enclosing_declaration),
+                    )
+                },
             )
         } else {
-            self.with_resolver_node(method, parameter, |_, _| Ok(()))
-        };
-        result.and_then(|_| Err(unavailable(method, parameter)))
+            self.with_resolver_node(method, parameter, |state, parameter| {
+                state.emit_requires_adding_implicit_undefined(parameter, None)
+            })
+        }
     }
 
     fn is_expando_function_declaration(
         &self,
         node: EmitResolverNode,
     ) -> Result<bool, EmitResolverError> {
-        let method = EmitResolverMethod::IsExpandoFunctionDeclaration;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        self.with_resolver_node(
+            EmitResolverMethod::IsExpandoFunctionDeclaration,
+            node,
+            CheckerState::emit_is_expando_function_declaration,
+        )
     }
 
     fn get_properties_of_container_function(
@@ -506,32 +522,40 @@ impl EmitResolver for CheckerSession<'_> {
         node: EmitResolverNode,
     ) -> Result<Vec<EmitFunctionProperty>, EmitResolverError> {
         let method = EmitResolverMethod::GetPropertiesOfContainerFunction;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        let session_token = self.session_token;
+        self.with_resolver_node(method, node, move |state, node| {
+            state.emit_get_properties_of_container_function(node, session_token)
+        })
     }
 
     fn is_literal_const_declaration(
         &self,
         node: EmitResolverNode,
     ) -> Result<bool, EmitResolverError> {
-        let method = EmitResolverMethod::IsLiteralConstDeclaration;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        self.with_resolver_node(
+            EmitResolverMethod::IsLiteralConstDeclaration,
+            node,
+            CheckerState::emit_is_literal_const_declaration,
+        )
     }
 
     fn is_late_bound(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
-        let method = EmitResolverMethod::IsLateBound;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        self.with_resolver_node(
+            EmitResolverMethod::IsLateBound,
+            node,
+            CheckerState::emit_is_late_bound,
+        )
     }
 
     fn is_import_required_by_augmentation(
         &self,
         node: EmitResolverNode,
     ) -> Result<bool, EmitResolverError> {
-        let method = EmitResolverMethod::IsImportRequiredByAugmentation;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        self.with_resolver_node(
+            EmitResolverMethod::IsImportRequiredByAugmentation,
+            node,
+            CheckerState::emit_is_import_required_by_augmentation,
+        )
     }
 }
 
@@ -666,10 +690,6 @@ fn validate_resolver_symbol(
         return Err(EmitResolverError::UnknownSymbol { method, symbol });
     }
     Ok(symbol_id)
-}
-
-fn unavailable(method: EmitResolverMethod, node: EmitResolverNode) -> EmitResolverError {
-    EmitResolverError::Unavailable { method, node }
 }
 
 #[cfg(test)]

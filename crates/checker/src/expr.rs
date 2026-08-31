@@ -3734,7 +3734,7 @@ impl<'a> CheckerState<'a> {
 
     /// tsc isDeclarationReadonly (14128-14130): combined readonly
     /// modifier, excluding parameter properties.
-    fn is_declaration_readonly(&self, declaration: NodeId) -> bool {
+    pub(crate) fn is_declaration_readonly(&self, declaration: NodeId) -> bool {
         let source = self.binder.source_of_node(declaration);
         node_util::has_syntactic_modifier(source, declaration, ModifierFlags::READONLY)
             && !(self.kind_of(declaration) == SyntaxKind::Parameter
