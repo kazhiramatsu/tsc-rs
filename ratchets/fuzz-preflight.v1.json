@@ -8,7 +8,7 @@
     },
     {
       "path": "ratchets/fuzz-oracle-deviations.v1.json",
-      "sha256": "834828d875ba4f0e9ce7a3a96aca0be822bca9b26f8714db7293cff8d7e1c402"
+      "sha256": "5509d2ca5cdc2db6dd46155d51cbffc387c755cfd494a8f5491d6abb9f580d48"
     },
     {
       "path": "m8-evidence.json",
@@ -20,7 +20,7 @@
     },
     {
       "path": "m8-emitter-dispositions.json",
-      "sha256": "b0647092e86d77f7e75ef3cf04181e9fb8805a377bdca2eac93c6399436489e1"
+      "sha256": "4abd837e0c433d3b80a75e4d482c26bf5902cbcfcf29e9d40e88d541b922a5a3"
     },
     {
       "path": "ratchets/oracle-inputs.v1.json.zst",
@@ -40,7 +40,7 @@
     },
     {
       "path": "crates/checker/src/lib.rs",
-      "sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f"
+      "sha256": "de596ef1bcbac584bdfdf4ce29ced8d94fa6b40e79264f7326936fcb4610c917"
     },
     {
       "path": "crates/diagnostics/src/lib.rs",
