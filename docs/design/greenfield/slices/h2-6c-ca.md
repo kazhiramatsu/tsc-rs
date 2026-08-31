@@ -36,8 +36,13 @@ markers close against the census artifact, not the static sweep.
    twice with byte-stable output (`deterministic_typescript_cases`
    = 643, `facet_agreement_cases` = 643); lane semantics were enforced
    per-wave by the path-joined census/detail instruments
-   (h2-6c-w5.md §1) instead of a separately named W-H2.6C artifact —
-   the wave packets' sol rounds ratified that substitution.
+   (h2-6c-w5.md §1) instead of a separately named W-H2.6C artifact.
+   THIS close record is the authority amendment ratifying that
+   artifact-shape substitution (the wave reviews validated the
+   instruments but did not record the substitution itself); the
+   qualification artifact's 643 repeated observations plus the
+   runner's admitted-row exactness/determinism checks
+   (h2_2c_acceptance.rs:3708-3845/:4049-4059) are its evidence.
 2. **Frozen denominator (§6.2):** 691 literal / 643 positive
    candidates, per the census artifact above.
 3. **Exact observations (§6.3):** 188 of 639 admitted rows are exact
@@ -84,8 +89,10 @@ outDir refusal probe-confirmed 2026-08-31):
 | `isolatedModules` (`isolatedModulesSourceMap.ts`) | 1 | H2.8c |
 
 (project 276 = 144 outFile + 128 outDir + 4 rootDir; compiler 3 =
-2 outDir + 1 isolatedModules. Owner assignment per the option-owner
-map, h2-transition.mjs:462/:467.)
+2 outDir + 1 isolatedModules. Owner assignment: outFile/outDir/
+isolatedModules per the option-owner map, h2-transition.mjs:462/:467;
+rootDir is absent from that map — its H2.8a authority is the schedule
+row, post-h1-completion-slices.md §4.5 H2.8a.)
 
 **Non-refused band — 172 rows** (128 project / 39 compiler /
 5 conformance), per the sol-signed W5 dispositions (h2-6c-w5.md §4):
@@ -97,6 +104,9 @@ map, h2-transition.mjs:462/:467.)
 | non-declaration `outDir` relocation rows (SPECIAL-5(a) three + `jsFileCompilationWithMapFileAsJsWithOutDir`) | 4 | H2.8a |
 | `sourceMapValidationVarInDownLevelGenerator.ts#es5` (the sole byte-diverging carry-over, 31 shifted lines) | 1 | H2.8b |
 | `sourceMapValidationDestructuringForArrayBindingPattern.ts#es2015` (missing TS2318; joined to the standing h2-6a owner `h2-6a-r3-destructuring-binding-ranges` — both manifests shrink together) | 1 | h2-6a queue |
+
+(Suite split of the 157 declaration-bearing rows, round-1 recount:
+compiler 24 / conformance 5 / project 128.)
 
 W5's census proves the js/map facets of the declaration-bearing rows
 exact where matched writes exist; the H2.7d bundle facets are
@@ -167,3 +177,23 @@ its downstream hash cone; zero 5g re-observation expected — pin-only
 cascade); full local gate `cargo xtask ci --baseline 7c4710f0` green
 at the final head; hosted `gates` green on the PR; merge closes
 H2.6c and opens the H2.7a era.
+
+## 9. Cross-review record
+
+Round 1: operator draft (with two pre-verdict self-audit amendments:
+the four-file landing surface and the refusal-table outDir recount)
+→ sol **AGREE, zero blocking findings, 7 advisories** (2026-08-31):
+close accounting independently recomputed exact (1); the corrected
+refusal table re-derived exactly, with the rootDir-owner citation
+moved to the schedule row (2 — incorporated); the non-refused
+decomposition confirmed without remainder, incl. the 312 expected
+`.d.ts` writes and the 157-row suite split compiler 24 / conformance
+5 / project 128 (3 — split recorded); the transition values verified
+against the 37-slice lattice and the `next_runtime_activation_slice
+= "H2.7b"` divergence endorsed as sound (4); the four-file direct
+pin surface confirmed complete by repository-wide consumer search
+(5); the 451-row standing handoff confirmed authorized under
+h2-6c.md §6.4 and the 5h/6a precedents, with W5's 481→451 shrink
+independently re-verified as removal-only (6); the W-H2.6C
+substitution provenance clarified — this close record itself is the
+authority amendment (7 — incorporated in §3.1).
