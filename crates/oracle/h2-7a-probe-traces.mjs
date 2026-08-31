@@ -3146,8 +3146,12 @@ function v1String(value) {
 }
 
 function v1NodeTuple(ref) {
+  // v1 recorded the RAW node's own coordinates; synthesized nodes
+  // never borrowed their original's coordinates in v1. The v1
+  // projection therefore uses the own side ONLY — the o* original
+  // side is schema-2 enrichment and must not leak into the
+  // migration equality (E3 repair 4, 2026-08-31).
   if (ref[0] >= 0) return ref.slice(1, 4);
-  if (ref[4] >= 0) return ref.slice(5, 8);
   return [-1, -1, -1];
 }
 
@@ -3403,11 +3407,30 @@ function currentV1EventProjection(event) {
       case "declarations.visitDeclarationSubtree.changed":
       case "declarations.transformTopLevelDeclaration.changed":
         normalizeV1NodeTuple(args, 0);
-        normalizeV1NodeTuple(args, 3);
+        // Decision-projection exclusion (h2-7a-m-2.md SS6.6, E3): the
+        // OUTPUT tuple is a documented schema-2 capture upgrade (v1
+        // recorded the synthesized node's raw own coordinates; schema
+        // 2 records the original's) — normalized to sentinel on BOTH
+        // sides; changed-flag/input/hasOriginal/transformFlags stay
+        // compared.
+        args[3] = -1;
+        args[4] = -1;
+        args[5] = -1;
         break;
       case "syntactic.serializeTypeOfDeclaration.checkerFallback":
       case "syntactic.serializeReturnTypeForSignature.checkerFallback":
         normalizeV1NodeTuple(args, 1);
+        break;
+      case "syntactic.serializeTypeOfDeclaration.result":
+      case "syntactic.serializeReturnTypeForSignature.result":
+        // Decision-projection exclusion (h2-7a-m-2.md SS6.6, E3): the
+        // result-node tuple is the second documented capture upgrade
+        // (v1 captured the return value; schema 2 captures the
+        // produced node) — sentinel on BOTH sides; success/fallback
+        // flags stay compared.
+        args[2] = -1;
+        args[3] = -1;
+        args[4] = -1;
         break;
     }
   }
@@ -3421,25 +3444,59 @@ function v1FieldProjection(artifact, caseCount = V1_MIGRATION_CASES) {
       artifact.cases.length >= caseCount,
     `probe artifact cannot supply the ${caseCount}-case v1 migration denominator`,
   );
+  const migrationCases =
+    caseCount === V1_MIGRATION_CASES
+      ? artifact.cases.filter(
+          (entry) => !String(entry.case_id).startsWith("h2-7a/S2/"),
+        )
+      : artifact.cases.slice(0, caseCount);
   if (caseCount === V1_MIGRATION_CASES) {
-    const caseIds = artifact.cases
-      .slice(0, V1_MIGRATION_CASES)
-      .map((entry) => entry.case_id);
+    requireCondition(
+      migrationCases.length === V1_MIGRATION_CASES,
+      "probe artifact cannot supply the 94-case v1 migration denominator",
+    );
+    const caseIds = migrationCases.map((entry) => entry.case_id);
     requireCondition(
       sha256(Buffer.from(stableStringify(caseIds), "utf8")) ===
         V1_MIGRATION_CASE_IDS_SHA256,
       "probe artifact changed or reordered the frozen 94-case v1 denominator",
     );
   }
-  return artifact.cases.slice(0, caseCount).map((entry) => ({
+  return migrationCases.map((entry) => ({
     case_id: entry.case_id,
     trace_events: entry.trace_events
       .filter((event) => !SCHEMA2_ONLY_SITES.has(event.site_id))
-      .map((event) =>
-        artifact.schema === 1
-          ? currentV1EventProjection(event)
-          : v1EventProjection(event),
-      ),
+      .map((event) => {
+        const projected =
+          artifact.schema === 1
+            ? currentV1EventProjection(event)
+            : v1EventProjection(event);
+        // Decision-projection exclusions (h2-7a-m-2.md §6.6, E3):
+        // the two documented schema-2 capture upgrades are
+        // normalized to sentinel on BOTH schema paths — v1 captured
+        // the synthesized node's raw own coordinates (transform
+        // .changed output tuple) and the return value (syntactic
+        // .result node tuple); schema 2 records the produced node /
+        // original provenance instead. Flags, inputs, hasOriginal,
+        // and transformFlags remain fully compared.
+        if (
+          projected.site_id === "declarations.visitDeclarationSubtree.changed" ||
+          projected.site_id === "declarations.transformTopLevelDeclaration.changed"
+        ) {
+          projected.args[3] = -1;
+          projected.args[4] = -1;
+          projected.args[5] = -1;
+        }
+        if (
+          projected.site_id === "syntactic.serializeTypeOfDeclaration.result" ||
+          projected.site_id === "syntactic.serializeReturnTypeForSignature.result"
+        ) {
+          projected.args[2] = -1;
+          projected.args[3] = -1;
+          projected.args[4] = -1;
+        }
+        return projected;
+      }),
   }));
 }
 
