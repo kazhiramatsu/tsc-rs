@@ -124,3 +124,12 @@ envelope.
   expansion manifest + the load_qualified_compiler_emit pattern).
   Final literal commands are recorded in the close record at the
   train head.
+
+- Packet §4 prose correction (observation-superseded): the
+  `aliases_to_make_visible` row reads "(Some=nonempty)"; the frozen
+  traces record upstream PRESENT-EMPTY arrays (first:
+  h2-7a/F2/inferred-type-alias-8), so the contract is
+  absent-vs-present-vs-present-empty with Some(vec![]) legal. The
+  trait type already permits it; the worker rule follows the traces
+  and the vendored composition spans. (P4 harness discovery,
+  2026-09-01.)
