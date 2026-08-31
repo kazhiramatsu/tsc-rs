@@ -132,7 +132,7 @@ const PROBE_RUNTIME_LINE = [
   "const __h27aScalar = (value) => [typeof value, typeof value === \"string\" ? value : \"\", typeof value === \"number\" ? __h27aInteger(value) : 0, typeof value === \"boolean\" ? value : false];",
   "function __h27aInternSourceFile(node) { const sourceFile = getSourceFileOfNode(node); if (!sourceFile || typeof sourceFile.fileName !== \"string\") throw new Error(\"h2-7a probe node has no source file\"); const fileName = __h27aNormalizePath(sourceFile.fileName); const sourceKey = __h27aSourceIndex.get(fileName); let row; if (sourceKey !== void 0) row = [\"src\", sourceKey]; else { const baseName = fileName.slice(fileName.lastIndexOf(\"/\") + 1); if (!/^lib(?:\\..*)?\\.d\\.ts$/.test(baseName)) throw new Error(`h2-7a probe unclassified source file ${fileName}`); row = [\"lib\", baseName]; } const identity = `${row[0]}\\0${row[1]}`; let tag = __h27aFileTags.get(identity); if (tag === void 0) { tag = __h27aFileTable.length; __h27aFileTags.set(identity, tag); __h27aFileTable.push(row); } return tag; }",
   "const __h27aSentinelNodeRef = () => [-1, -1, -1, -1, -1, -1, -1, -1];",
-  "function __h27aNodeRef(value) { const node = __h27aNode(value); if (!node) return __h27aSentinelNodeRef(); const original = getParseTreeNode(node); if (original === node) return [__h27aInternSourceFile(node), __h27aInteger(node.kind), __h27aInteger(node.pos), __h27aInteger(node.end), -1, -1, -1, -1]; if (original) return [-1, -1, -1, -1, __h27aInternSourceFile(original), __h27aInteger(original.kind), __h27aInteger(original.pos), __h27aInteger(original.end)]; return __h27aSentinelNodeRef(); }",
+  "function __h27aNodeRef(value) { const node = __h27aNode(value); if (!node) return __h27aSentinelNodeRef(); const original = getParseTreeNode(node); if (original === node) { if (node.pos >= 0 && node.end >= 0) return [__h27aInternSourceFile(node), __h27aInteger(node.kind), __h27aInteger(node.pos), __h27aInteger(node.end), -1, -1, -1, -1]; return __h27aSentinelNodeRef(); } if (original && original.pos >= 0 && original.end >= 0) return [-1, -1, -1, -1, __h27aInternSourceFile(original), __h27aInteger(original.kind), __h27aInteger(original.pos), __h27aInteger(original.end)]; return __h27aSentinelNodeRef(); }",
   "function __h27aSymbolRef(value) { const declarations = Array.isArray(value && value.declarations) ? value.declarations : []; return [__h27aName(value), declarations.length, declarations.slice(0, 8).map(__h27aNodeRef)]; }",
   "function __h27aEmit(site, callId, depth, args) { const hook = globalThis.__H2_7A_TRACE__; if (hook) hook(site, __h27aEventSeq++, callId, depth, [site, ...args]); }",
   "const __h27aTrace = (site, ...args) => __h27aEmit(site, -1, __h27aCallStack.length, args);",
@@ -2028,7 +2028,7 @@ function validateNodeRef(ref, state, label) {
         own[1] >= 0 &&
         own[2] >= 0 &&
         own[3] >= own[2]),
-    `${label} has invalid parse-tree coordinates`,
+    `${label} has invalid parse-tree coordinates ${stableStringify(ref)}`,
   );
   requireCondition(
     originalSentinel ||
@@ -2037,7 +2037,7 @@ function validateNodeRef(ref, state, label) {
         original[1] >= 0 &&
         original[2] >= 0 &&
         original[3] >= original[2]),
-    `${label} has invalid original coordinates`,
+    `${label} has invalid original coordinates ${stableStringify(ref)}`,
   );
   for (const fileTag of [ownSentinel ? -1 : own[0], originalSentinel ? -1 : original[0]]) {
     if (fileTag < 0 || state.seenFileTags.has(fileTag)) continue;
