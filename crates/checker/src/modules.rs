@@ -3604,6 +3604,34 @@ impl<'a> CheckerState<'a> {
         )
     }
 
+    /// tsc-port: getExternalModuleFileFromDeclaration @6.0.3
+    /// tsc-hash: b1d92eecc4c854409d14d155534bda3b0cc44c709b9f3f2eeb970f1a233861a0
+    /// tsc-span: _tsc.js:88719-88731
+    pub(crate) fn get_external_module_file_from_declaration(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        let specifier = if self.kind_of(declaration) == SyntaxKind::ModuleDeclaration {
+            match self.data_of(declaration) {
+                NodeData::ModuleDeclaration(data) => data
+                    .name
+                    .filter(|&name| self.kind_of(name) == SyntaxKind::StringLiteral),
+                _ => None,
+            }
+        } else {
+            self.get_external_module_name_of(declaration)
+        };
+        let Some(specifier) = specifier else {
+            return Ok(None);
+        };
+        let Some(module_symbol) =
+            self.resolve_external_module_name_worker(specifier, specifier, None, false, false)?
+        else {
+            return Ok(None);
+        };
+        Ok(self.get_declaration_of_kind(module_symbol, SyntaxKind::SourceFile))
+    }
+
     /// tsc-port: needAllowArbitraryExtensions @6.0.3
     /// tsc-hash: 218db975c24f70e1412394af9b0edcaaa36921aac70037002e2cd662e533af6e
     /// tsc-span: _tsc.js:125718-125720

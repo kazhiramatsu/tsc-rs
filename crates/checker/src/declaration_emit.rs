@@ -9,10 +9,11 @@ use std::collections::HashSet;
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
-    EmitResolverNode, EmitSymbolAccessibility, EmitSymbolAccessibilityResult, EmitSymbolMeaning,
+    EmitFunctionProperty, EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility,
+    EmitSymbolAccessibilityResult, EmitSymbolMeaning,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
-use tsc_types::{CompilerOptions, ModifierFlags, SymbolFlags};
+use tsc_types::{CheckFlags, CompilerOptions, ModifierFlags, NodeFlags, SymbolFlags};
 
 use crate::state::{CheckResult, CheckerState};
 
@@ -43,6 +44,469 @@ pub(crate) fn emit_declarations(options: &CompilerOptions) -> bool {
 }
 
 impl CheckerState<'_> {
+    /// tsc-port: isDefinitelyReferenceToGlobalSymbolObject @6.0.3
+    /// tsc-hash: 0a9f99b8eb62eb0a85b6019c76e13f9934dd0be091a0ebebf82f54a888ea237e
+    /// tsc-span: _tsc.js:47469-47483
+    pub(crate) fn emit_is_definitely_reference_to_global_symbol_object(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<bool> {
+        let NodeData::PropertyAccessExpression(data) = self.data_of(node) else {
+            return Ok(false);
+        };
+        let Some(name) = data.name else {
+            return Ok(false);
+        };
+        if self.kind_of(name) != SyntaxKind::Identifier {
+            return Ok(false);
+        }
+        let Some(expression) = data.expression else {
+            return Ok(false);
+        };
+
+        match self.data_of(expression) {
+            NodeData::Identifier(_) => {
+                if self.identifier_text_of(expression) != Some("Symbol") {
+                    return Ok(false);
+                }
+                let resolved = self
+                    .get_resolved_symbol(expression)?
+                    .unwrap_or(self.unknown_symbol);
+                let global = self
+                    .get_global_symbol(
+                        "Symbol",
+                        SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE,
+                        None,
+                    )?
+                    .unwrap_or(self.unknown_symbol);
+                Ok(resolved == global)
+            }
+            NodeData::PropertyAccessExpression(expression_data) => {
+                let Some(global_this) = expression_data.expression else {
+                    return Ok(false);
+                };
+                let Some(property_name) = expression_data.name else {
+                    return Ok(false);
+                };
+                if self.kind_of(global_this) != SyntaxKind::Identifier
+                    || self.identifier_text_of(global_this) != Some("globalThis")
+                    || self.identifier_text_of(property_name) != Some("Symbol")
+                {
+                    return Ok(false);
+                }
+                Ok(self
+                    .get_resolved_symbol(global_this)?
+                    .unwrap_or(self.unknown_symbol)
+                    == self.global_this_symbol)
+            }
+            _ => Ok(false),
+        }
+    }
+
+    /// tsc-port: isOptionalParameter @6.0.3
+    /// tsc-hash: 230cc8ce09e27fc4b9b6e370079e26817941e278127f592eca3c51ecb55ac67b
+    /// tsc-span: _tsc.js:59509-59527
+    ///
+    /// The effective-question-token test deliberately precedes the
+    /// Parameter-kind guard. The display slice retains its recorded
+    /// post-guard order and is not routed through this worker.
+    ///
+    /// tsc's Debug.assert(parameterIndex >= 0) is a binder invariant. A
+    /// malformed/recovery tree cannot carry that invariant across this
+    /// typed boundary, so the Rust worker fails closed with `false`.
+    pub(crate) fn emit_is_optional_parameter(&mut self, node: NodeId) -> CheckResult<bool> {
+        if self.has_question_token(node) || self.is_optional_declaration(node) {
+            return Ok(true);
+        }
+        let NodeData::Parameter(data) = self.data_of(node) else {
+            return Ok(false);
+        };
+        let Some(parent) = self.parent_of(node) else {
+            return Ok(false);
+        };
+        if data.initializer.is_some() {
+            let signature = self.get_signature_from_declaration(parent)?;
+            let parameters = self.parameters_of_function(parent);
+            let Some(parameter_index) = parameters.iter().position(|&parameter| parameter == node)
+            else {
+                return Ok(false);
+            };
+            return Ok(parameter_index >= self.min_argument_count_without_void_trimming(signature)?);
+        }
+        let Some(iife) = self.get_immediately_invoked_function_expression(parent) else {
+            return Ok(false);
+        };
+        let parameters = self.parameters_of_function(parent);
+        let Some(parameter_index) = parameters.iter().position(|&parameter| parameter == node)
+        else {
+            return Ok(false);
+        };
+        Ok(data.r#type.is_none()
+            && data.dot_dot_dot_token.is_none()
+            && parameter_index >= self.get_effective_call_arguments(iife)?.len())
+    }
+
+    /// tsc-port: isImplementationOfOverload @6.0.3
+    /// tsc-hash: 8e84478797279cd09461d21f45d61335f27c12c7711fac1678ef91e806cfd378
+    /// tsc-span: _tsc.js:88055-88068
+    pub(crate) fn emit_is_implementation_of_overload(&mut self, node: NodeId) -> CheckResult<bool> {
+        let source = self.binder.source_of_node(node);
+        let body_is_present = node_util::body_of(source, node)
+            .is_some_and(|body| !node_util::node_is_missing(source, Some(body)));
+        if !body_is_present
+            || matches!(
+                self.kind_of(node),
+                SyntaxKind::GetAccessor | SyntaxKind::SetAccessor
+            )
+        {
+            return Ok(false);
+        }
+        let Some(_) = self.node_symbol(node) else {
+            return Ok(false);
+        };
+        let symbol = self.get_symbol_of_declaration(node)?;
+        if symbol == self.unknown_symbol {
+            return Ok(false);
+        }
+        let signatures = self.get_signatures_of_symbol(Some(symbol))?;
+        Ok(signatures.len() > 1
+            || signatures.len() == 1 && self.signature_of(signatures[0]).declaration != Some(node))
+    }
+
+    /// tsc-port: requiresAddingImplicitUndefined @6.0.3
+    /// tsc-hash: 520f7a6ffc45898f262773b00042189eaf39127a40ed129daa103f6ce663e2d7
+    /// tsc-span: _tsc.js:88075-88077
+    ///
+    /// The optional enclosing declaration is retained for the parameter
+    /// property/function-like gate. The declared-type check uses the
+    /// nonlocal effective annotation and keeps the `isErrorType` disjunct.
+    pub(crate) fn emit_requires_adding_implicit_undefined(
+        &mut self,
+        parameter: NodeId,
+        enclosing_declaration: Option<NodeId>,
+    ) -> CheckResult<bool> {
+        let required =
+            self.emit_is_required_initialized_parameter(parameter, enclosing_declaration)?;
+        let optional_property =
+            self.emit_is_optional_uninitialized_parameter_property(parameter)?;
+        if !(required || optional_property) {
+            return Ok(false);
+        }
+        Ok(!self.emit_declared_parameter_type_contains_undefined(parameter)?)
+    }
+
+    /// tsc-port: isRequiredInitializedParameter @6.0.3
+    /// tsc-hash: ae6983141d7e5b9362ccdc291c29334c9e591a7946b073dcbcd36db38215ebe7
+    /// tsc-span: _tsc.js:88078-88085
+    fn emit_is_required_initialized_parameter(
+        &mut self,
+        parameter: NodeId,
+        enclosing_declaration: Option<NodeId>,
+    ) -> CheckResult<bool> {
+        if !self
+            .options
+            .strict_option_value(self.options.strict_null_checks)
+        {
+            return Ok(false);
+        }
+        if self.emit_is_optional_parameter(parameter)?
+            || self.kind_of(parameter) == SyntaxKind::JSDocParameterTag
+        {
+            return Ok(false);
+        }
+        let has_initializer = matches!(
+            self.data_of(parameter),
+            NodeData::Parameter(data) if data.initializer.is_some()
+        );
+        if !has_initializer {
+            return Ok(false);
+        }
+        let source = self.binder.source_of_node(parameter);
+        if node_util::has_syntactic_modifier(
+            source,
+            parameter,
+            ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+        ) {
+            return Ok(enclosing_declaration.is_some_and(|enclosing| {
+                node_util::is_function_like_declaration_kind(self.kind_of(enclosing))
+            }));
+        }
+        Ok(true)
+    }
+
+    /// tsc-port: isOptionalUninitializedParameterProperty @6.0.3
+    /// tsc-hash: 19516da065e7ffd2f46cc49e81f3bab132778d45a8898827c93c870187dd10cb
+    /// tsc-span: _tsc.js:88086-88089
+    fn emit_is_optional_uninitialized_parameter_property(
+        &mut self,
+        parameter: NodeId,
+    ) -> CheckResult<bool> {
+        if !self
+            .options
+            .strict_option_value(self.options.strict_null_checks)
+            || !self.emit_is_optional_parameter(parameter)?
+        {
+            return Ok(false);
+        }
+        let is_jsdoc_parameter = self.kind_of(parameter) == SyntaxKind::JSDocParameterTag;
+        let has_initializer = matches!(
+            self.data_of(parameter),
+            NodeData::Parameter(data) if data.initializer.is_some()
+        );
+        if !is_jsdoc_parameter && has_initializer {
+            return Ok(false);
+        }
+        Ok(node_util::has_syntactic_modifier(
+            self.binder.source_of_node(parameter),
+            parameter,
+            ModifierFlags::PARAMETER_PROPERTY_MODIFIER,
+        ))
+    }
+
+    /// tsc-port: getNonlocalEffectiveTypeAnnotationNode @6.0.3
+    /// tsc-hash: b538286bbef1aab02c6fac684de28e6c03ab0dd7768a651831492609e8cd2561
+    /// tsc-span: _tsc.js:88532-88542
+    fn emit_nonlocal_effective_type_annotation_node(
+        &mut self,
+        parameter: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        if let Some(annotation) = self.effective_type_annotation_node(parameter) {
+            return Ok(Some(annotation));
+        }
+        if self.kind_of(parameter) != SyntaxKind::Parameter {
+            return Ok(None);
+        }
+        let Some(setter) = self.parent_of(parameter) else {
+            return Ok(None);
+        };
+        if self.kind_of(setter) != SyntaxKind::SetAccessor {
+            return Ok(None);
+        }
+        let symbol = self.get_symbol_of_declaration(setter)?;
+        if symbol == self.unknown_symbol {
+            return Ok(None);
+        }
+        let getter = self
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| self.kind_of(declaration) == SyntaxKind::GetAccessor);
+        Ok(getter.and_then(|getter| self.effective_return_type_node(getter)))
+    }
+
+    /// tsc-port: declaredParameterTypeContainsUndefined @6.0.3
+    /// tsc-hash: ae4d909ece83865a74023d1c5e686c3373d3e94c91cc204c7b2e3af1a89eb274
+    /// tsc-span: _tsc.js:88068-88074
+    fn emit_declared_parameter_type_contains_undefined(
+        &mut self,
+        parameter: NodeId,
+    ) -> CheckResult<bool> {
+        let Some(annotation) = self.emit_nonlocal_effective_type_annotation_node(parameter)? else {
+            return Ok(false);
+        };
+        let ty = self.get_type_from_type_node(annotation)?;
+        Ok(self.tables.is_error_type(ty) || self.contains_undefined_type(ty))
+    }
+
+    /// tsc-port: isExpandoPropertyDeclaration @6.0.3
+    /// tsc-hash: e024c7cc528f204e53cddc596e1c0868a39641128c07a23886290b97d61bd188
+    /// tsc-span: _tsc.js:19363-19367
+    fn emit_is_expando_property_declaration(&self, declaration: Option<NodeId>) -> bool {
+        declaration.is_some_and(|declaration| {
+            matches!(
+                self.kind_of(declaration),
+                SyntaxKind::PropertyAccessExpression
+                    | SyntaxKind::ElementAccessExpression
+                    | SyntaxKind::BinaryExpression
+            )
+        })
+    }
+
+    /// tsc-port: isExpandoFunctionDeclaration @6.0.3
+    /// tsc-hash: ed2afab33ef4b7bc2c878b2943e881dedafba9030fa884dbf9155c3578fe9554
+    /// tsc-span: _tsc.js:88090-88112
+    pub(crate) fn emit_is_expando_function_declaration(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<bool> {
+        if !self.emit_is_parse_tree_node(node) {
+            return Ok(false);
+        }
+        let declaration = match self.kind_of(node) {
+            SyntaxKind::FunctionDeclaration | SyntaxKind::VariableDeclaration => node,
+            _ => return Ok(false),
+        };
+        let symbol = if self.kind_of(declaration) == SyntaxKind::VariableDeclaration {
+            let source = self.binder.source_of_node(declaration);
+            let (has_type, initializer) = match self.data_of(declaration) {
+                NodeData::VariableDeclaration(data) => (
+                    data.r#type.is_some(),
+                    tsc_binder::assignment::get_declared_expando_initializer(source, declaration),
+                ),
+                _ => (false, None),
+            };
+            if has_type
+                || (!self.is_in_js_file(declaration) && !self.is_var_const_like(declaration))
+            {
+                return Ok(false);
+            }
+            let Some(initializer) = initializer else {
+                return Ok(false);
+            };
+            if self.node_symbol(initializer).is_none() {
+                return Ok(false);
+            }
+            self.get_symbol_of_declaration(initializer)?
+        } else {
+            if self.node_symbol(declaration).is_none() {
+                return Ok(false);
+            }
+            self.get_symbol_of_declaration(declaration)?
+        };
+        if symbol == self.unknown_symbol
+            || !self
+                .symbol_flags(symbol)
+                .intersects(SymbolFlags::FUNCTION | SymbolFlags::VARIABLE)
+        {
+            return Ok(false);
+        }
+        let exports = self.get_exports_of_symbol(symbol)?;
+        for &property in exports.values() {
+            let property_data = self.binder.symbol(property);
+            if property_data.flags.intersects(SymbolFlags::VALUE)
+                && self.emit_is_expando_property_declaration(property_data.value_declaration)
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    /// tsc-port: getPropertiesOfContainerFunction @6.0.3
+    /// tsc-hash: a194d2629e8413c8dd13b4a67567fdb2dba8a6a09f563e8b705d9488c0e588a3
+    /// tsc-span: _tsc.js:88113-88120
+    pub(crate) fn emit_get_properties_of_container_function(
+        &mut self,
+        node: NodeId,
+        session_token: u64,
+    ) -> CheckResult<Vec<EmitFunctionProperty>> {
+        if !self.emit_is_parse_tree_node(node)
+            || self.kind_of(node) != SyntaxKind::FunctionDeclaration
+        {
+            return Ok(Vec::new());
+        }
+        let Some(_) = self.node_symbol(node) else {
+            return Ok(Vec::new());
+        };
+        let container_symbol = self.get_symbol_of_declaration(node)?;
+        if container_symbol == self.unknown_symbol {
+            return Ok(Vec::new());
+        }
+        let ty = self.get_type_of_symbol(container_symbol)?;
+        let properties = self.get_properties_of_type(ty)?;
+        let parent = EmitResolverSymbol {
+            session_token,
+            symbol_index: container_symbol.0,
+        };
+        let mut result = Vec::with_capacity(properties.len());
+        for property in properties {
+            let property_data = self.binder.symbol(property);
+            let value_declaration = property_data
+                .value_declaration
+                .filter(|&declaration| self.emit_is_parse_tree_node(declaration))
+                .map(|declaration| self.declaration_emit_resolver_node(declaration));
+            result.push(EmitFunctionProperty {
+                name: property_data.escaped_name.clone(),
+                symbol: EmitResolverSymbol {
+                    session_token,
+                    symbol_index: property.0,
+                },
+                parent,
+                value_declaration,
+            });
+        }
+        Ok(result)
+    }
+
+    /// tsc-port: isLiteralConstDeclaration @6.0.3
+    /// tsc-hash: 1c1cef46271c6fce5e62c4307e8471561e2f10782682ef7dfff2a10013b1f1d6
+    /// tsc-span: _tsc.js:88485-88490
+    pub(crate) fn emit_is_literal_const_declaration(&mut self, node: NodeId) -> CheckResult<bool> {
+        let is_literal_const = self.is_declaration_readonly(node)
+            || self.kind_of(node) == SyntaxKind::VariableDeclaration
+                && self.is_var_const_like(node);
+        if !is_literal_const {
+            return Ok(false);
+        }
+        let symbol = self.get_symbol_of_declaration(node)?;
+        if symbol == self.unknown_symbol {
+            return Ok(false);
+        }
+        let ty = self.get_type_of_symbol(symbol)?;
+        Ok(self.tables.is_fresh_literal_type(ty))
+    }
+
+    /// tsc-port: isLateBound @6.0.3
+    /// tsc-hash: d11842db30b0440c571390f2deed480c5a03d4e45ef954902841c3178c938112
+    /// tsc-span: _tsc.js:88600-88604
+    pub(crate) fn emit_is_late_bound(&mut self, node: NodeId) -> CheckResult<bool> {
+        if !self.emit_is_parse_tree_node(node)
+            || !node_util::is_declaration(self.binder.source_of_node(node), node)
+        {
+            return Ok(false);
+        }
+        let Some(_) = self.node_symbol(node) else {
+            return Ok(false);
+        };
+        let symbol = self.get_symbol_of_declaration(node)?;
+        Ok(symbol != self.unknown_symbol
+            && self.get_check_flags(symbol).intersects(CheckFlags::LATE))
+    }
+
+    /// tsc-port: isImportRequiredByAugmentation @6.0.3
+    /// tsc-hash: 7498ec7545df67711e0cdeb1967852809c42964ae9f0f61444d3ca2c3124c
+    /// tsc-span: _tsc.js:88696-88717
+    pub(crate) fn emit_is_import_required_by_augmentation(
+        &mut self,
+        node: NodeId,
+    ) -> CheckResult<bool> {
+        let source_root = self.binder.source_of_node(node).root;
+        let Some(file_symbol) = self.node_symbol(source_root) else {
+            return Ok(false);
+        };
+        let Some(import_target) = self.get_external_module_file_from_declaration(node)? else {
+            return Ok(false);
+        };
+        if import_target == source_root {
+            return Ok(false);
+        }
+        let exports = self.get_exports_of_module(file_symbol)?;
+        for &exported in exports.values() {
+            // tsc's `s.mergeId` is represented by membership in the
+            // merged-symbol source-key table. Do not treat a merge target
+            // alone as a recorded source key.
+            if !self.merged_symbols.contains_key(&exported) {
+                continue;
+            }
+            let merged = self.get_merged_symbol(exported);
+            let declarations = self.binder.symbol(merged).declarations.clone();
+            if declarations
+                .into_iter()
+                .any(|declaration| self.binder.source_of_node(declaration).root == import_target)
+            {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn emit_is_parse_tree_node(&self, node: NodeId) -> bool {
+        !node_util::node_flags(self.binder.source_of_node(node), node)
+            .intersects(NodeFlags::SYNTHESIZED)
+    }
+
     /// tsc-port: isDeclarationVisible @6.0.3
     /// tsc-hash: b569e8243cf2db9de0dbec7462f29fa1e70f4b94405adb5a134b6571d4c8fbeb
     /// tsc-span: _tsc.js:55589-55674

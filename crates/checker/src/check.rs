@@ -9613,7 +9613,7 @@ impl<'a> CheckerState<'a> {
     /// (StrongArityForUntypedJS|VoidIsNonOptional), which reduces to
     /// the min-argument integer without the void-trimming loop
     /// (structural.rs's variant).
-    fn is_optional_parameter_slice(&mut self, node: NodeId) -> CheckResult<bool> {
+    pub(crate) fn is_optional_parameter_slice(&mut self, node: NodeId) -> CheckResult<bool> {
         let NodeData::Parameter(data) = self.data_of(node) else {
             return Ok(false);
         };
@@ -9671,7 +9671,10 @@ impl<'a> CheckerState<'a> {
     /// isRequiredInitializedParameter + isOptionalUninitializedParameterProperty
     /// folded in. The parameter-property arms consult the syntactic modifier mask
     /// (accessibility/readonly/override) on the declaration.
-    fn requires_adding_implicit_undefined_slice(&mut self, parameter: NodeId) -> CheckResult<bool> {
+    pub(crate) fn requires_adding_implicit_undefined_slice(
+        &mut self,
+        parameter: NodeId,
+    ) -> CheckResult<bool> {
         let NodeData::Parameter(data) = self.data_of(parameter) else {
             return Ok(false);
         };

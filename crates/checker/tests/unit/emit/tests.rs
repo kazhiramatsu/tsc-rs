@@ -146,6 +146,67 @@ fn checked_alias_session() -> (ProgramSnapshot, CompilerOptions, Vec<NodeId>, Ve
     (program, options, import_aliases, export_aliases)
 }
 
+fn named_declaration(
+    state: &CheckerState<'_>,
+    file: usize,
+    kind: SyntaxKind,
+    name: &str,
+) -> NodeId {
+    declarations_named(state, file, kind, name)
+        .into_iter()
+        .next()
+        .unwrap_or_else(|| panic!("missing {kind:?} declaration {name}"))
+}
+
+fn declarations_named(
+    state: &CheckerState<'_>,
+    file: usize,
+    kind: SyntaxKind,
+    name: &str,
+) -> Vec<NodeId> {
+    state
+        .binder
+        .source(file)
+        .arena
+        .node_ids()
+        .filter(|&node| {
+            state.kind_of(node) == kind
+                && node_util::get_name_of_declaration(state.binder.source_of_node(node), node)
+                    .and_then(|name_node| state.identifier_text_of(name_node))
+                    == Some(name)
+        })
+        .collect()
+}
+
+fn parameter_named(state: &CheckerState<'_>, function: NodeId, name: &str) -> NodeId {
+    state
+        .parameters_of_function(function)
+        .into_iter()
+        .find(|&parameter| {
+            matches!(
+                state.data_of(parameter),
+                NodeData::Parameter(data)
+                    if data
+                        .name
+                        .and_then(|name_node| state.identifier_text_of(name_node))
+                        == Some(name)
+            )
+        })
+        .unwrap_or_else(|| panic!("missing parameter {name}"))
+}
+
+fn node_with_text(state: &CheckerState<'_>, file: usize, kind: SyntaxKind, text: &str) -> NodeId {
+    state
+        .binder
+        .source(file)
+        .arena
+        .node_ids()
+        .find(|&node| {
+            state.kind_of(node) == kind && state.text_of_node(node).ok().as_deref() == Some(text)
+        })
+        .unwrap_or_else(|| panic!("missing {kind:?} with text {text:?}"))
+}
+
 #[test]
 fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_elsewhere() {
     let (snapshot, options, import_aliases, export_aliases) = checked_alias_session();
@@ -217,13 +278,9 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
             })
         ));
 
-        assert!(matches!(
-            resolver.is_definitely_reference_to_global_symbol_object(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsDefinitelyReferenceToGlobalSymbolObject,
-                ..
-            })
-        ));
+        assert!(!resolver
+            .is_definitely_reference_to_global_symbol_object(node(export_aliases[0]))
+            .expect("global Symbol predicate on an export alias"));
         let accessibility = resolver
             .is_symbol_accessible(
                 EmitResolverSymbol {
@@ -245,62 +302,31 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
         assert!(!resolver
             .is_declaration_visible(node(export_aliases[0]))
             .expect("visibility-cluster declaration query"));
-        assert!(matches!(
-            resolver.is_optional_parameter(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsOptionalParameter,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.is_implementation_of_overload(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsImplementationOfOverload,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.requires_adding_implicit_undefined(node(export_aliases[0]), None),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::RequiresAddingImplicitUndefined,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.is_expando_function_declaration(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsExpandoFunctionDeclaration,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.get_properties_of_container_function(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::GetPropertiesOfContainerFunction,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.is_literal_const_declaration(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsLiteralConstDeclaration,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.is_late_bound(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsLateBound,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.is_import_required_by_augmentation(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsImportRequiredByAugmentation,
-                ..
-            })
-        ));
+        assert!(!resolver
+            .is_optional_parameter(node(export_aliases[0]))
+            .expect("optional-parameter predicate on an export alias"));
+        assert!(!resolver
+            .is_implementation_of_overload(node(export_aliases[0]))
+            .expect("overload predicate on an export alias"));
+        assert!(!resolver
+            .requires_adding_implicit_undefined(node(export_aliases[0]), None)
+            .expect("implicit-undefined predicate on an export alias"));
+        assert!(!resolver
+            .is_expando_function_declaration(node(export_aliases[0]))
+            .expect("expando predicate on an export alias"));
+        assert!(resolver
+            .get_properties_of_container_function(node(export_aliases[0]))
+            .expect("container properties on an export alias")
+            .is_empty());
+        assert!(!resolver
+            .is_literal_const_declaration(node(export_aliases[0]))
+            .expect("literal-const predicate on an export alias"));
+        assert!(!resolver
+            .is_late_bound(node(export_aliases[0]))
+            .expect("late-bound predicate on an export alias"));
+        assert!(!resolver
+            .is_import_required_by_augmentation(node(export_aliases[0]))
+            .expect("augmentation predicate on an export alias"));
 
         let mut arena = TransformArena::new();
         let source = arena.add_source(
@@ -332,6 +358,428 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
 
     let state = session.into_state();
     assert_eq!(state.binder.file_count(), 2);
+}
+
+#[test]
+fn dm_global_optional_and_overload_predicates_cover_adjacent_negative_shapes() {
+    let source = concat!(
+        "export {};\n",
+        "const Symbol = {};\n",
+        "globalThis.Symbol.value;\n",
+        "Symbol.value;\n",
+        "other.value;\n",
+        "function optional(a?: string, b = 1) {}\n",
+        "function required(c: number) {}\n",
+        "(function (first, second) {})(1);\n",
+        "function overloaded(value: string): string;\n",
+        "function overloaded(value: number): number;\n",
+        "function overloaded(value: string | number): string | number { return value; }\n",
+        "function plain(value: string) { return value; }\n",
+    );
+    with_program_state(
+        &[("predicates.ts", source)],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+
+            let global_this_access = node_with_text(
+                state,
+                0,
+                SyntaxKind::PropertyAccessExpression,
+                "globalThis.Symbol.value",
+            );
+            let shadowed_symbol_access = node_with_text(
+                state,
+                0,
+                SyntaxKind::PropertyAccessExpression,
+                "Symbol.value",
+            );
+            let unrelated_access = node_with_text(
+                state,
+                0,
+                SyntaxKind::PropertyAccessExpression,
+                "other.value",
+            );
+            assert!(state
+                .emit_is_definitely_reference_to_global_symbol_object(global_this_access)
+                .expect("globalThis.Symbol property predicate"));
+            assert!(!state
+                .emit_is_definitely_reference_to_global_symbol_object(shadowed_symbol_access)
+                .expect("shadowed Symbol property predicate"));
+            assert!(!state
+                .emit_is_definitely_reference_to_global_symbol_object(unrelated_access)
+                .expect("unrelated property predicate"));
+
+            let optional = named_declaration(state, 0, SyntaxKind::FunctionDeclaration, "optional");
+            assert!(state
+                .emit_is_optional_parameter(parameter_named(state, optional, "a"))
+                .expect("question-mark parameter"));
+            assert!(state
+                .emit_is_optional_parameter(parameter_named(state, optional, "b"))
+                .expect("initializer parameter"));
+            let required = named_declaration(state, 0, SyntaxKind::FunctionDeclaration, "required");
+            assert!(!state
+                .emit_is_optional_parameter(parameter_named(state, required, "c"))
+                .expect("required parameter"));
+
+            let iife = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| {
+                    state.kind_of(node) == SyntaxKind::FunctionExpression
+                        && state.parameters_of_function(node).len() == 2
+                })
+                .expect("IIFE function expression");
+            assert!(!state
+                .emit_is_optional_parameter(parameter_named(state, iife, "first"))
+                .expect("provided IIFE parameter"));
+            assert!(state
+                .emit_is_optional_parameter(parameter_named(state, iife, "second"))
+                .expect("omitted IIFE parameter"));
+
+            let overloads =
+                declarations_named(state, 0, SyntaxKind::FunctionDeclaration, "overloaded");
+            let implementation = overloads
+                .iter()
+                .copied()
+                .find(|&node| {
+                    node_util::body_of(state.binder.source_of_node(node), node).is_some_and(
+                        |body| {
+                            !node_util::node_is_missing(
+                                state.binder.source_of_node(node),
+                                Some(body),
+                            )
+                        },
+                    )
+                })
+                .expect("overload implementation");
+            let overload_signature = overloads
+                .iter()
+                .copied()
+                .find(|&node| node != implementation)
+                .unwrap_or(overloads[0]);
+            assert!(state
+                .emit_is_implementation_of_overload(implementation)
+                .expect("overload implementation predicate"));
+            assert!(!state
+                .emit_is_implementation_of_overload(overload_signature)
+                .expect("overload signature predicate"));
+            let plain = named_declaration(state, 0, SyntaxKind::FunctionDeclaration, "plain");
+            assert!(!state
+                .emit_is_implementation_of_overload(plain)
+                .expect("single implementation predicate"));
+        },
+    );
+}
+
+#[test]
+fn dm_implicit_undefined_and_expando_predicates_cover_type_and_modifier_gates() {
+    let source = concat!(
+        "function requiredInitialized(initialized = 1, required: number) {}\n",
+        "function typedInitialized(initialized: number | undefined = 1, required: number) {}\n",
+        "function errorInitialized(initialized: Missing = 1, required: number) {}\n",
+        "class InitializedParameters { constructor(public initialized = 1, required: number) {} }\n",
+        "class Parameters { constructor(public optional?: number) {} }\n",
+        "function functionExpando() {}\n",
+        "functionExpando.extra = 1;\n",
+        "const variableExpando = function () {};\n",
+        "variableExpando.extra = 1;\n",
+        "const typedExpando: any = function () {};\n",
+        "typedExpando.extra = 1;\n",
+        "let mutableExpando = function () {};\n",
+        "mutableExpando.extra = 1;\n",
+    );
+    let mut options = CompilerOptions::default();
+    options.strict_null_checks = Some(true);
+    with_program_state(&[("expandos.ts", source)], &options, |state| {
+        state.check_source_file(0);
+
+        let required = named_declaration(
+            state,
+            0,
+            SyntaxKind::FunctionDeclaration,
+            "requiredInitialized",
+        );
+        let required_parameter = parameter_named(state, required, "initialized");
+        assert!(state
+            .emit_requires_adding_implicit_undefined(required_parameter, Some(required))
+            .expect("required initialized parameter"));
+        assert!(state
+            .emit_requires_adding_implicit_undefined(required_parameter, None)
+            .expect("ordinary parameter does not require an enclosing declaration"));
+
+        let typed = named_declaration(
+            state,
+            0,
+            SyntaxKind::FunctionDeclaration,
+            "typedInitialized",
+        );
+        assert!(!state
+            .emit_requires_adding_implicit_undefined(
+                parameter_named(state, typed, "initialized"),
+                Some(typed),
+            )
+            .expect("undefined annotation suppresses implicit undefined"));
+
+        let error = named_declaration(
+            state,
+            0,
+            SyntaxKind::FunctionDeclaration,
+            "errorInitialized",
+        );
+        assert!(!state
+            .emit_requires_adding_implicit_undefined(
+                parameter_named(state, error, "initialized"),
+                Some(error),
+            )
+            .expect("error type suppresses implicit undefined"));
+
+        let initialized_parameters = named_declaration(
+            state,
+            0,
+            SyntaxKind::ClassDeclaration,
+            "InitializedParameters",
+        );
+        let initialized_constructor = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| {
+                state.kind_of(node) == SyntaxKind::Constructor
+                    && state.parent_of(node) == Some(initialized_parameters)
+            })
+            .expect("initialized parameter-property constructor");
+        let initialized_parameter = parameter_named(state, initialized_constructor, "initialized");
+        assert!(state
+            .emit_requires_adding_implicit_undefined(
+                initialized_parameter,
+                Some(initialized_constructor),
+            )
+            .expect("initialized parameter property"));
+        assert!(!state
+            .emit_requires_adding_implicit_undefined(initialized_parameter, None)
+            .expect("initialized parameter property requires its enclosing declaration"));
+
+        let parameters = named_declaration(state, 0, SyntaxKind::ClassDeclaration, "Parameters");
+        let constructor = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| {
+                state.kind_of(node) == SyntaxKind::Constructor
+                    && state.parent_of(node) == Some(parameters)
+            })
+            .expect("parameter-property constructor");
+        let optional_parameter = parameter_named(state, constructor, "optional");
+        assert!(state
+            .emit_requires_adding_implicit_undefined(optional_parameter, Some(constructor),)
+            .expect("optional parameter property"));
+
+        let function_expando =
+            named_declaration(state, 0, SyntaxKind::FunctionDeclaration, "functionExpando");
+        assert!(state
+            .emit_is_expando_function_declaration(function_expando)
+            .expect("function declaration expando"));
+        let variable_expando =
+            named_declaration(state, 0, SyntaxKind::VariableDeclaration, "variableExpando");
+        assert!(state
+            .emit_is_expando_function_declaration(variable_expando)
+            .expect("const function expression expando"));
+        let typed_expando =
+            named_declaration(state, 0, SyntaxKind::VariableDeclaration, "typedExpando");
+        assert!(!state
+            .emit_is_expando_function_declaration(typed_expando)
+            .expect("typed variable is not an expando declaration"));
+        let mutable_expando =
+            named_declaration(state, 0, SyntaxKind::VariableDeclaration, "mutableExpando");
+        assert!(!state
+            .emit_is_expando_function_declaration(mutable_expando)
+            .expect("mutable variable is not an expando declaration"));
+    });
+}
+
+#[test]
+fn dm_container_properties_literal_const_and_late_bound_predicates_preserve_shape() {
+    let source = concat!(
+        "function container() {}\n",
+        "container.first = 1;\n",
+        "container.second = 'two';\n",
+        "function noProperties() {}\n",
+        "const literal = 'literal';\n",
+        "let mutable = 'mutable';\n",
+        "const number = 42;\n",
+        "const key = 'computed' as const;\n",
+        "class Late { [key] = 1; regular = 2; }\n",
+    );
+    with_program_state(
+        &[("shapes.ts", source)],
+        &CompilerOptions::default(),
+        |state| {
+            state.check_source_file(0);
+
+            let container =
+                named_declaration(state, 0, SyntaxKind::FunctionDeclaration, "container");
+            let properties = state
+                .emit_get_properties_of_container_function(container, 17)
+                .expect("container function properties");
+            assert_eq!(
+                properties
+                    .iter()
+                    .map(|property| property.name.as_str())
+                    .collect::<Vec<_>>(),
+                vec!["first", "second"]
+            );
+            let parent = properties[0].parent;
+            assert_eq!(parent.session_token, 17);
+            assert!(properties.iter().all(|property| {
+                property.parent == parent
+                    && property.symbol.session_token == 17
+                    && property.value_declaration.is_some()
+            }));
+            assert!(state
+                .emit_get_properties_of_container_function(
+                    named_declaration(state, 0, SyntaxKind::FunctionDeclaration, "noProperties"),
+                    17,
+                )
+                .expect("non-expando function properties")
+                .is_empty());
+
+            assert!(state
+                .emit_is_literal_const_declaration(named_declaration(
+                    state,
+                    0,
+                    SyntaxKind::VariableDeclaration,
+                    "literal",
+                ))
+                .expect("const string literal"));
+            assert!(state
+                .emit_is_literal_const_declaration(named_declaration(
+                    state,
+                    0,
+                    SyntaxKind::VariableDeclaration,
+                    "number",
+                ))
+                .expect("const numeric literal"));
+            assert!(!state
+                .emit_is_literal_const_declaration(named_declaration(
+                    state,
+                    0,
+                    SyntaxKind::VariableDeclaration,
+                    "mutable",
+                ))
+                .expect("mutable literal"));
+
+            let late = named_declaration(state, 0, SyntaxKind::ClassDeclaration, "Late");
+            let mut computed = None;
+            let mut regular = None;
+            for node in state.binder.source(0).arena.node_ids() {
+                if state.kind_of(node) != SyntaxKind::PropertyDeclaration
+                    || state.parent_of(node) != Some(late)
+                {
+                    continue;
+                }
+                let Some(name) = state.name_of_node(node) else {
+                    continue;
+                };
+                if state.kind_of(name) == SyntaxKind::ComputedPropertyName {
+                    computed = Some(node);
+                } else if state.identifier_text_of(name) == Some("regular") {
+                    regular = Some(node);
+                }
+            }
+            let computed = computed.expect("computed late-bound property");
+            let regular = regular.expect("ordinary property");
+            assert!(state
+                .emit_is_late_bound(computed)
+                .expect("late-bound computed property"));
+            assert!(!state
+                .emit_is_late_bound(regular)
+                .expect("ordinary property is not late-bound"));
+        },
+    );
+}
+
+#[test]
+fn dm_import_required_by_augmentation_uses_the_merged_source_key() {
+    let files = [
+        (
+            "child1.ts",
+            concat!(
+                "import { ParentThing } from './parent';\n",
+                "declare module './parent' {\n",
+                "  interface ParentThing { add: (a: number, b: number) => number; }\n",
+                "}\n",
+                "export function child1(prototype: ParentThing) {\n",
+                "  prototype.add = (a: number, b: number) => a + b;\n",
+                "}\n",
+            ),
+        ),
+        (
+            "parent.ts",
+            concat!(
+                "import { child1 } from './child1';\n",
+                "export class ParentThing implements ParentThing {}\n",
+                "child1(ParentThing.prototype);\n",
+            ),
+        ),
+        ("plain.ts", "import { ParentThing } from './parent';\n"),
+    ];
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        for file in 0..files.len() {
+            state.check_source_file(file);
+        }
+        let augmentation_import = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ImportDeclaration)
+            .expect("augmentation import");
+        let parent_import = state
+            .binder
+            .source(1)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ImportDeclaration)
+            .expect("parent import");
+        let plain_import = state
+            .binder
+            .source(2)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ImportDeclaration)
+            .expect("ordinary import");
+        assert!(state
+            .emit_is_import_required_by_augmentation(parent_import)
+            .expect("parent import required by augmentation"));
+        assert!(!state
+            .emit_is_import_required_by_augmentation(augmentation_import)
+            .expect("import in augmentation source predicate"));
+        assert!(!state
+            .emit_is_import_required_by_augmentation(plain_import)
+            .expect("ordinary import predicate"));
+
+        let module_augmentation = state
+            .binder
+            .source(0)
+            .arena
+            .node_ids()
+            .find(|&node| {
+                matches!(
+                    state.data_of(node),
+                    NodeData::ModuleDeclaration(data)
+                        if data.name.is_some_and(|name| state.kind_of(name) == SyntaxKind::StringLiteral)
+                )
+            })
+            .expect("module augmentation");
+        assert!(!state
+            .emit_is_import_required_by_augmentation(module_augmentation)
+            .expect("module augmentation itself is not an import"));
+    });
 }
 
 #[test]
