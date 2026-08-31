@@ -841,6 +841,7 @@ fn dm_visibility_walk_collects_and_monotonically_paints_linked_aliases() {
     let source = concat!(
         "namespace N { export class Value {} }\n",
         "import Alias = N.Value;\n",
+        "export interface Painted {}\n",
         "export = Alias;\n",
     );
     with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
@@ -874,6 +875,20 @@ fn dm_visibility_walk_collects_and_monotonically_paints_linked_aliases() {
                         .is_some_and(|parent| state.kind_of(parent) == SyntaxKind::ExportAssignment)
             })
             .expect("export-assignment identifier");
+        let painted_interface = nodes
+            .iter()
+            .copied()
+            .find(|&node| state.kind_of(node) == SyntaxKind::InterfaceDeclaration)
+            .expect("exported interface declaration");
+        let source_file = state.binder.source(0).root;
+
+        assert_eq!(state.links.node(painted_interface).is_visible, None);
+        assert_eq!(state.links.node(source_file).is_visible, None);
+        assert!(state
+            .emit_is_declaration_visible(painted_interface)
+            .expect("recursive visibility memo"));
+        assert_eq!(state.links.node(painted_interface).is_visible, Some(true));
+        assert_eq!(state.links.node(source_file).is_visible, Some(true));
 
         assert_eq!(state.links.node(import_equals).is_visible, None);
         assert!(!state
@@ -1079,6 +1094,7 @@ fn dm_symbol_and_entity_visibility_preserve_result_codes_aliases_and_error_nodes
             public_access.accessibility,
             EmitSymbolAccessibility::Accessible
         );
+        assert_eq!(public_access.aliases_to_make_visible, Some(Vec::new()));
 
         let hidden_access = state
             .emit_is_symbol_accessible(symbols[1], use_declaration, EmitSymbolMeaning::TYPE, true)

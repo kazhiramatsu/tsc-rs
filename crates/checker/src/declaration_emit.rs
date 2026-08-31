@@ -5,7 +5,8 @@
 //! decisions, while this module owns declaration-emit memoization, alias
 //! painting, and result-shaped accessibility.
 
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
@@ -115,6 +116,7 @@ impl CheckerState<'_> {
     /// malformed/recovery tree cannot carry that invariant across this
     /// typed boundary, so the Rust worker fails closed with `false`.
     pub(crate) fn emit_is_optional_parameter(&mut self, node: NodeId) -> CheckResult<bool> {
+        let _replay_call = DeclarationReplayCallGuard::enter("resolver.isOptionalParameter");
         if self.has_question_token(node) || self.is_optional_declaration(node) {
             return Ok(true);
         }
@@ -185,6 +187,8 @@ impl CheckerState<'_> {
         parameter: NodeId,
         enclosing_declaration: Option<NodeId>,
     ) -> CheckResult<bool> {
+        let _replay_call =
+            DeclarationReplayCallGuard::enter("resolver.requiresAddingImplicitUndefined");
         let required =
             self.emit_is_required_initialized_parameter(parameter, enclosing_declaration)?;
         let optional_property =
@@ -511,18 +515,156 @@ impl CheckerState<'_> {
     /// tsc-hash: b569e8243cf2db9de0dbec7462f29fa1e70f4b94405adb5a134b6571d4c8fbeb
     /// tsc-span: _tsc.js:55589-55674
     ///
-    /// The kind walk is shared with the existing display slice. Only this
-    /// emit worker reads and writes NodeLinks.isVisible, preserving the
-    /// display-path invariant while giving declaration emit its upstream
-    /// memo-and-paint behavior.
+    /// This emit-only kind walk recurses through this memoizing worker so
+    /// every declaration visited by the decision gets its own
+    /// NodeLinks.isVisible write. The display slice remains read-only.
     pub(crate) fn emit_is_declaration_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
+        let _replay_call = DeclarationReplayCallGuard::enter("resolver.isDeclarationVisible");
         if let Some(visible) = self.links.node(declaration).is_visible {
             return Ok(visible);
         }
-        let visible = self.reused_declaration_is_visible_slice(declaration);
+        let visible = self.emit_determine_declaration_is_visible(declaration)?;
         self.links
             .set_node_is_visible(self.speculation_depth, declaration, visible);
+        record_declaration_replay_visibility_write(declaration, visible);
         Ok(self.links.node(declaration).is_visible.unwrap_or(visible))
+    }
+
+    fn emit_determine_declaration_is_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
+        match self.kind_of(declaration) {
+            SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocEnumTag => Ok(self
+                .parent_of(declaration)
+                .and_then(|parent| self.parent_of(parent))
+                .and_then(|parent| self.parent_of(parent))
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile)),
+            SyntaxKind::BindingElement => {
+                let parent = self
+                    .parent_of(declaration)
+                    .and_then(|parent| self.parent_of(parent));
+                match parent {
+                    Some(parent) => self.emit_is_declaration_visible(parent),
+                    None => Ok(false),
+                }
+            }
+            SyntaxKind::VariableDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::ImportEqualsDeclaration => {
+                let source = self.binder.source_of_node(declaration);
+                if self.kind_of(declaration) == SyntaxKind::VariableDeclaration {
+                    let empty_pattern = match self.data_of(declaration) {
+                        NodeData::VariableDeclaration(data) => {
+                            data.name.is_some_and(|name| match self.data_of(name) {
+                                NodeData::ObjectBindingPattern(data) => {
+                                    self.nodes_of(data.elements).is_empty()
+                                }
+                                NodeData::ArrayBindingPattern(data) => {
+                                    self.nodes_of(data.elements).is_empty()
+                                }
+                                _ => false,
+                            })
+                        }
+                        _ => false,
+                    };
+                    if empty_pattern {
+                        return Ok(false);
+                    }
+                }
+                if node_util::is_ambient_module(source, declaration)
+                    && node_util::is_module_augmentation_external(source, declaration)
+                {
+                    return Ok(true);
+                }
+                let Some(container) = self.declaration_emit_declaration_container(declaration)
+                else {
+                    return Ok(false);
+                };
+                let exported = node_util::get_combined_modifier_flags(source, declaration)
+                    .intersects(ModifierFlags::EXPORT);
+                let ambient_nested = self.kind_of(declaration)
+                    != SyntaxKind::ImportEqualsDeclaration
+                    && self.kind_of(container) != SyntaxKind::SourceFile
+                    && self.node_flags(container) & NodeFlags::AMBIENT.bits() != 0;
+                if !exported && !ambient_nested {
+                    return Ok(self.kind_of(container) == SyntaxKind::SourceFile
+                        && !self
+                            .binder
+                            .is_external_or_common_js_module_of_node(container));
+                }
+                self.emit_is_declaration_visible(container)
+            }
+            SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature => {
+                let source = self.binder.source_of_node(declaration);
+                if node_util::get_effective_modifier_flags(source, declaration)
+                    .intersects(ModifierFlags::PRIVATE | ModifierFlags::PROTECTED)
+                {
+                    return Ok(false);
+                }
+                match self.parent_of(declaration) {
+                    Some(parent) => self.emit_is_declaration_visible(parent),
+                    None => Ok(false),
+                }
+            }
+            SyntaxKind::Constructor
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::CallSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::Parameter
+            | SyntaxKind::ModuleBlock
+            | SyntaxKind::FunctionType
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::TypeReference
+            | SyntaxKind::ArrayType
+            | SyntaxKind::TupleType
+            | SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::ParenthesizedType
+            | SyntaxKind::NamedTupleMember => match self.parent_of(declaration) {
+                Some(parent) => self.emit_is_declaration_visible(parent),
+                None => Ok(false),
+            },
+            SyntaxKind::TypeParameter
+            | SyntaxKind::SourceFile
+            | SyntaxKind::NamespaceExportDeclaration => Ok(true),
+            SyntaxKind::ImportClause
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::ExportAssignment => Ok(false),
+            _ => Ok(false),
+        }
+    }
+
+    /// tsc-port: getDeclarationContainer @6.0.3
+    /// tsc-hash: 3d4b993da842ea191877ffad47fb0c8045a3d1086066350235a4992e74413283
+    /// tsc-span: _tsc.js:55784-55798
+    fn declaration_emit_declaration_container(&self, declaration: NodeId) -> Option<NodeId> {
+        let source = self.binder.source_of_node(declaration);
+        let root = node_util::get_root_declaration(source, declaration);
+        let mut current = Some(root);
+        while let Some(node) = current {
+            match self.kind_of(node) {
+                SyntaxKind::VariableDeclaration
+                | SyntaxKind::VariableDeclarationList
+                | SyntaxKind::ImportSpecifier
+                | SyntaxKind::NamedImports
+                | SyntaxKind::NamespaceImport
+                | SyntaxKind::ImportClause => current = self.parent_of(node),
+                _ => return self.parent_of(node),
+            }
+        }
+        None
     }
 
     /// tsc-port: hasVisibleDeclarations (+ addVisibleAlias) @6.0.3
@@ -549,18 +691,25 @@ impl CheckerState<'_> {
                 return Ok(None);
             }
         }
-        Ok(Some(self.accessibility_result(
-            EmitSymbolAccessibility::Accessible,
-            (!aliases_to_make_visible.is_empty()).then(|| {
-                aliases_to_make_visible
-                    .into_iter()
-                    .map(|node| self.declaration_emit_resolver_node(node))
-                    .collect()
-            }),
-            None,
-            None,
-            None,
-        )))
+        // The upstream object literal always owns the
+        // `aliasesToMakeVisible` property on this success path. When no
+        // alias was appended its value is `undefined`; schema-2 records that
+        // present property as a present empty array, distinct from result
+        // shapes which omit the property entirely.
+        Ok(Some(
+            self.accessibility_result(
+                EmitSymbolAccessibility::Accessible,
+                Some(
+                    aliases_to_make_visible
+                        .into_iter()
+                        .map(|node| self.declaration_emit_resolver_node(node))
+                        .collect(),
+                ),
+                None,
+                None,
+                None,
+            ),
+        ))
     }
 
     fn declaration_is_visible_or_alias(
@@ -727,6 +876,7 @@ impl CheckerState<'_> {
         }
         self.links
             .set_node_is_visible(self.speculation_depth, declaration, true);
+        record_declaration_replay_visibility_write(declaration, true);
         if !aliases_to_make_visible.contains(&aliasing_statement) {
             aliases_to_make_visible.push(aliasing_statement);
         }
@@ -750,11 +900,37 @@ impl CheckerState<'_> {
         let mut had_accessible_chain = None;
         let mut early_module_bail = false;
         for &symbol in symbols {
-            let accessible_symbol_chain = self.declaration_emit_accessible_symbol_chain(
-                symbol,
-                meaning,
-                Some(enclosing_declaration),
-            )?;
+            // JSDoc template parameters are lexical declarations in tsc's
+            // class/interface Type-member scope. The shared display slice
+            // intentionally omits that table, so recover the exact direct
+            // chain through the ordinary enclosing-name lookup before using
+            // the shared chain worker. Without this arm the container walk
+            // incorrectly substitutes the owning class and paints it.
+            let symbol_flags = self.binder.symbol(symbol).flags;
+            let directly_accessible_type_parameter =
+                if symbol_flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+                    let name = self.binder.symbol(symbol).escaped_name.clone();
+                    self.resolve_name(
+                        Some(enclosing_declaration),
+                        &name,
+                        meaning,
+                        /*name_not_found_message*/ None,
+                        /*is_use*/ false,
+                        /*exclude_globals*/ false,
+                    )?
+                    .is_some_and(|resolved| self.get_merged_symbol(resolved) == symbol)
+                } else {
+                    false
+                };
+            let accessible_symbol_chain = if directly_accessible_type_parameter {
+                Some(vec![symbol])
+            } else {
+                self.declaration_emit_accessible_symbol_chain(
+                    symbol,
+                    meaning,
+                    Some(enclosing_declaration),
+                )?
+            };
             if let Some(accessible_symbol_chain) = accessible_symbol_chain {
                 had_accessible_chain = Some(symbol);
                 if let Some(result) = self.has_visible_declarations_with_aliases(
@@ -833,6 +1009,7 @@ impl CheckerState<'_> {
         meaning: EmitSymbolMeaning,
         should_compute_aliases_to_make_visible: bool,
     ) -> CheckResult<EmitSymbolAccessibilityResult> {
+        let _replay_call = DeclarationReplayCallGuard::enter("resolver.isSymbolAccessible");
         self.is_symbol_accessible_worker(
             Some(symbol),
             Some(enclosing_declaration),
@@ -1003,6 +1180,7 @@ impl CheckerState<'_> {
         enclosing_declaration: NodeId,
         should_compute_aliases_to_make_visible: bool,
     ) -> CheckResult<EmitSymbolAccessibilityResult> {
+        let _replay_call = DeclarationReplayCallGuard::enter("resolver.isEntityNameVisible");
         let emit_meaning = self.get_meaning_of_entity_name_reference(entity_name);
         let meaning = Self::symbol_flags_from_emit_meaning(emit_meaning);
         let first_identifier = self.first_identifier(entity_name);
@@ -1149,6 +1327,7 @@ impl CheckerState<'_> {
             if set_visibility {
                 self.links
                     .set_node_is_visible(self.speculation_depth, declaration, true);
+                record_declaration_replay_visibility_write(declaration, true);
             } else {
                 let result = result.get_or_insert_with(Vec::new);
                 if !result.contains(&result_node) {
@@ -1264,4 +1443,1567 @@ impl CheckerState<'_> {
         };
         EmitResolverNode::from_raw_source(source, node)
     }
+}
+
+// The P4 replay lives in the compiler integration target, where `cfg(test)`
+// is not set for this dependency. Keep the hook inert unless that target
+// installs one owned request on its current thread. The production checker
+// takes the same path and observes only the empty TLS slot.
+thread_local! {
+    static DECLARATION_REPLAY_PENDING: RefCell<Option<DeclarationReplayPending>> = const { RefCell::new(None) };
+    static DECLARATION_REPLAY_CAPTURE: RefCell<Option<DeclarationReplayCapture>> = const { RefCell::new(None) };
+}
+
+struct DeclarationReplayPending {
+    request: Option<serde_json::Value>,
+    report: Option<Result<serde_json::Value, String>>,
+}
+
+#[derive(Default)]
+struct DeclarationReplayCapture {
+    calls: Vec<&'static str>,
+    edges: BTreeMap<String, u64>,
+    visibility_writes: Vec<(NodeId, bool)>,
+}
+
+struct DeclarationReplayCallGuard {
+    active: bool,
+}
+
+impl DeclarationReplayCallGuard {
+    fn enter(member: &'static str) -> Self {
+        let active = DECLARATION_REPLAY_CAPTURE.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            let Some(capture) = slot.as_mut() else {
+                return false;
+            };
+            if let Some(parent) = capture.calls.last() {
+                *capture
+                    .edges
+                    .entry(format!("{parent} -> {member}"))
+                    .or_default() += 1;
+            }
+            capture.calls.push(member);
+            true
+        });
+        Self { active }
+    }
+}
+
+impl Drop for DeclarationReplayCallGuard {
+    fn drop(&mut self) {
+        if !self.active {
+            return;
+        }
+        DECLARATION_REPLAY_CAPTURE.with(|slot| {
+            let popped = slot
+                .borrow_mut()
+                .as_mut()
+                .and_then(|capture| capture.calls.pop());
+            debug_assert!(popped.is_some());
+        });
+    }
+}
+
+fn record_declaration_replay_visibility_write(node: NodeId, value: bool) {
+    DECLARATION_REPLAY_CAPTURE.with(|slot| {
+        if let Some(capture) = slot.borrow_mut().as_mut() {
+            capture.visibility_writes.push((node, value));
+        }
+    });
+}
+
+struct DeclarationReplayPendingGuard {
+    armed: bool,
+}
+
+impl Drop for DeclarationReplayPendingGuard {
+    fn drop(&mut self) {
+        if self.armed {
+            DECLARATION_REPLAY_PENDING.with(|slot| {
+                slot.borrow_mut().take();
+            });
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct DeclarationReplayCoordinate {
+    file_tag: usize,
+    kind: u16,
+    pos: u32,
+    end: u32,
+}
+
+impl DeclarationReplayCoordinate {
+    fn json(self) -> serde_json::Value {
+        serde_json::json!([self.file_tag, self.kind, self.pos, self.end])
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum DeclarationReplayFileClass {
+    Source,
+    Library,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct DeclarationReplayFile {
+    class: DeclarationReplayFileClass,
+    program_index: usize,
+}
+
+struct DeclarationReplayFileMap {
+    files: Vec<DeclarationReplayFile>,
+    tag_by_program_index: BTreeMap<usize, usize>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum DeclarationReplayExclusion {
+    LibTarget,
+    SyntheticWithoutOriginal,
+    AmbiguousSymbol,
+    ZeroDeclarationSymbol,
+}
+
+impl DeclarationReplayExclusion {
+    const fn name(self) -> &'static str {
+        match self {
+            Self::LibTarget => "lib-target",
+            Self::SyntheticWithoutOriginal => "synthetic-without-original",
+            Self::AmbiguousSymbol => "ambiguous-symbol",
+            Self::ZeroDeclarationSymbol => "zero-declaration-symbol",
+        }
+    }
+}
+
+enum DeclarationReplayResolutionError {
+    Excluded(DeclarationReplayExclusion),
+    Invalid(String),
+}
+
+impl From<String> for DeclarationReplayResolutionError {
+    fn from(value: String) -> Self {
+        Self::Invalid(value)
+    }
+}
+
+struct DeclarationReplayFrame {
+    call_id: i64,
+    member: String,
+    entry: serde_json::Value,
+    maximal_domain_call: Option<i64>,
+    root: bool,
+}
+
+struct DeclarationReplayRoot {
+    member: String,
+    entry: serde_json::Value,
+    result: serde_json::Value,
+    result_sequence: u64,
+    visibility_writes: Vec<(serde_json::Value, bool)>,
+    nested_edges: BTreeMap<String, u64>,
+}
+
+#[derive(Default)]
+struct DeclarationReplayMemberCounts {
+    replayed: u64,
+    excluded: BTreeMap<&'static str, u64>,
+    shadow: u64,
+}
+
+enum DeclarationReplayInvocation {
+    Unary {
+        member: String,
+        node: NodeId,
+    },
+    SymbolAccessible {
+        symbol: SymbolId,
+        enclosing: NodeId,
+        meaning: EmitSymbolMeaning,
+        should_compute_aliases: bool,
+    },
+    EntityNameVisible {
+        entity_name: NodeId,
+        enclosing: NodeId,
+        should_compute_aliases: bool,
+    },
+    RequiresImplicitUndefined {
+        parameter: NodeId,
+        enclosing: Option<NodeId>,
+    },
+    CollectLinkedAliases {
+        node: NodeId,
+        set_visibility: bool,
+    },
+}
+
+enum DeclarationReplayDecision {
+    Boolean(bool),
+    Accessibility(EmitSymbolAccessibilityResult),
+    Properties(Vec<EmitFunctionProperty>),
+    Enum(crate::evaluate::EvaluatorResult),
+    Void,
+}
+
+impl CheckerState<'_> {
+    /// Run one compiler-integration operation with an owned, thread-scoped
+    /// declaration replay request. The request is consumed by the live
+    /// CheckerState after the ordinary check pass and before that state is
+    /// released. Nothing is injected into NodeLinks.
+    #[doc(hidden)]
+    pub fn with_declaration_emit_replay_observer_for_harness<T>(
+        request: serde_json::Value,
+        operation: impl FnOnce() -> T,
+    ) -> Result<(T, serde_json::Value), String> {
+        DECLARATION_REPLAY_PENDING.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            if slot.is_some() {
+                return Err(
+                    "a declaration replay request is already active on this thread".to_owned(),
+                );
+            }
+            *slot = Some(DeclarationReplayPending {
+                request: Some(request),
+                report: None,
+            });
+            Ok(())
+        })?;
+        let mut guard = DeclarationReplayPendingGuard { armed: true };
+        let output = operation();
+        let pending = DECLARATION_REPLAY_PENDING.with(|slot| slot.borrow_mut().take());
+        guard.armed = false;
+        let pending = pending.ok_or_else(|| "declaration replay slot disappeared".to_owned())?;
+        let report = pending
+            .report
+            .ok_or_else(|| "checker did not consume the declaration replay request".to_owned())??;
+        Ok((output, report))
+    }
+
+    pub(crate) fn run_declaration_emit_replay_observer_for_harness(&mut self) {
+        let request = DECLARATION_REPLAY_PENDING.with(|slot| {
+            slot.borrow_mut()
+                .as_mut()
+                .and_then(|pending| pending.request.take())
+        });
+        let Some(request) = request else {
+            return;
+        };
+        let report = self.declaration_emit_replay_case(&request);
+        DECLARATION_REPLAY_PENDING.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            let pending = slot
+                .as_mut()
+                .expect("declaration replay pending slot remains installed");
+            pending.report = Some(report);
+        });
+    }
+
+    fn declaration_emit_replay_case(
+        &mut self,
+        request: &serde_json::Value,
+    ) -> Result<serde_json::Value, String> {
+        let case_id = replay_string_field(request, "case_id")?;
+        let file_map = self.declaration_replay_file_map(request)?;
+        let events = replay_array_field(request, "trace_events")?;
+        let (roots, traced_nested_edges) = declaration_replay_roots(events, case_id)?;
+        let roots_by_sequence = roots
+            .into_iter()
+            .map(|root| (root.result_sequence, root))
+            .collect::<BTreeMap<_, _>>();
+
+        let mut member_counts = declaration_replay_domain_members()
+            .iter()
+            .map(|member| {
+                (
+                    (*member).to_owned(),
+                    DeclarationReplayMemberCounts::default(),
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        let mut gating_mismatches = Vec::new();
+        let mut seed_checks = 0_u64;
+        let mut replayed_nested_edges = BTreeMap::new();
+        let mut rust_nested_edges = BTreeMap::new();
+
+        for event in events {
+            let sequence = replay_u64_field(event, "event_seq")?;
+            let site = replay_string_field(event, "site_id")?;
+            if matches!(site, "probe.checkSeed" | "probe.transformSeed") {
+                seed_checks += 1;
+                if let Err(detail) = self.declaration_replay_compare_seed(event, &file_map) {
+                    gating_mismatches.push(format!("{case_id} event {sequence} {site}: {detail}"));
+                }
+            }
+            let Some(root) = roots_by_sequence.get(&sequence) else {
+                continue;
+            };
+            let counts = member_counts
+                .get_mut(&root.member)
+                .ok_or_else(|| format!("{case_id}: missing count row for {}", root.member))?;
+            match self.declaration_replay_root(root, &file_map) {
+                Ok(DeclarationReplayRootOutcome::Excluded(class)) => {
+                    *counts.excluded.entry(class.name()).or_default() += 1;
+                }
+                Ok(DeclarationReplayRootOutcome::Replayed {
+                    gating_mismatch,
+                    shadow_divergences,
+                    expected_nested_edges,
+                    actual_nested_edges,
+                }) => {
+                    counts.replayed += 1;
+                    counts.shadow += shadow_divergences;
+                    if let Some(detail) = gating_mismatch {
+                        gating_mismatches.push(format!(
+                            "{case_id} event {sequence} {}: {detail}",
+                            root.member
+                        ));
+                    }
+                    merge_replay_counts(&mut replayed_nested_edges, &expected_nested_edges);
+                    merge_replay_counts(&mut rust_nested_edges, &actual_nested_edges);
+                }
+                Err(detail) => gating_mismatches.push(format!(
+                    "{case_id} event {sequence} {}: {detail}",
+                    root.member
+                )),
+            }
+        }
+
+        let nested_topology_divergences =
+            replay_count_distance(&replayed_nested_edges, &rust_nested_edges);
+        let counts_json = member_counts
+            .into_iter()
+            .map(|(member, counts)| {
+                let excluded = declaration_replay_exclusion_names()
+                    .iter()
+                    .map(|class| {
+                        (
+                            (*class).to_owned(),
+                            serde_json::json!(counts.excluded.get(class).copied().unwrap_or(0)),
+                        )
+                    })
+                    .collect::<serde_json::Map<_, _>>();
+                (
+                    member,
+                    serde_json::json!({
+                        "replayed": counts.replayed,
+                        "excluded": excluded,
+                        "shadow": counts.shadow,
+                    }),
+                )
+            })
+            .collect::<serde_json::Map<_, _>>();
+
+        Ok(serde_json::json!({
+            "case_id": case_id,
+            "seed_checks": seed_checks,
+            "member_counts": counts_json,
+            "gating_mismatches": gating_mismatches,
+            "traced_nested_edges": replay_counts_json(&traced_nested_edges),
+            "replayed_nested_edges": replay_counts_json(&replayed_nested_edges),
+            "rust_nested_edges": replay_counts_json(&rust_nested_edges),
+            "nested_topology_divergences": nested_topology_divergences,
+        }))
+    }
+}
+
+enum DeclarationReplayRootOutcome {
+    Excluded(DeclarationReplayExclusion),
+    Replayed {
+        gating_mismatch: Option<String>,
+        shadow_divergences: u64,
+        expected_nested_edges: BTreeMap<String, u64>,
+        actual_nested_edges: BTreeMap<String, u64>,
+    },
+}
+
+fn declaration_replay_domain_members() -> &'static [&'static str] {
+    &[
+        "resolver.collectLinkedAliases",
+        "resolver.getEnumMemberValue",
+        "resolver.getPropertiesOfContainerFunction",
+        "resolver.isDeclarationVisible",
+        "resolver.isDefinitelyReferenceToGlobalSymbolObject",
+        "resolver.isEntityNameVisible",
+        "resolver.isExpandoFunctionDeclaration",
+        "resolver.isImplementationOfOverload",
+        "resolver.isImportRequiredByAugmentation",
+        "resolver.isLateBound",
+        "resolver.isLiteralConstDeclaration",
+        "resolver.isOptionalParameter",
+        "resolver.isSymbolAccessible",
+        "resolver.requiresAddingImplicitUndefined",
+    ]
+}
+
+fn declaration_replay_exclusion_names() -> &'static [&'static str] {
+    &[
+        "lib-target",
+        "synthetic-without-original",
+        "ambiguous-symbol",
+        "zero-declaration-symbol",
+    ]
+}
+
+fn declaration_replay_is_domain_member(member: &str) -> bool {
+    declaration_replay_domain_members().contains(&member)
+}
+
+fn merge_replay_counts(target: &mut BTreeMap<String, u64>, source: &BTreeMap<String, u64>) {
+    for (key, value) in source {
+        *target.entry(key.clone()).or_default() += value;
+    }
+}
+
+fn replay_count_distance(left: &BTreeMap<String, u64>, right: &BTreeMap<String, u64>) -> u64 {
+    left.keys()
+        .chain(right.keys())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .map(|key| {
+            left.get(key)
+                .copied()
+                .unwrap_or(0)
+                .abs_diff(right.get(key).copied().unwrap_or(0))
+        })
+        .sum()
+}
+
+fn replay_counts_json(counts: &BTreeMap<String, u64>) -> serde_json::Value {
+    serde_json::Value::Object(
+        counts
+            .iter()
+            .map(|(key, value)| (key.clone(), serde_json::json!(value)))
+            .collect(),
+    )
+}
+
+fn replay_string_field<'a>(value: &'a serde_json::Value, field: &str) -> Result<&'a str, String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_str)
+        .ok_or_else(|| format!("missing string field {field:?}"))
+}
+
+fn replay_u64_field(value: &serde_json::Value, field: &str) -> Result<u64, String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| format!("missing unsigned field {field:?}"))
+}
+
+fn replay_i64_field(value: &serde_json::Value, field: &str) -> Result<i64, String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_i64)
+        .ok_or_else(|| format!("missing integer field {field:?}"))
+}
+
+fn replay_array_field<'a>(
+    value: &'a serde_json::Value,
+    field: &str,
+) -> Result<&'a [serde_json::Value], String> {
+    value
+        .get(field)
+        .and_then(serde_json::Value::as_array)
+        .map(Vec::as_slice)
+        .ok_or_else(|| format!("missing array field {field:?}"))
+}
+
+fn declaration_replay_roots(
+    events: &[serde_json::Value],
+    case_id: &str,
+) -> Result<(Vec<DeclarationReplayRoot>, BTreeMap<String, u64>), String> {
+    let mut stack: Vec<DeclarationReplayFrame> = Vec::new();
+    let mut writes: BTreeMap<i64, Vec<(serde_json::Value, bool)>> = BTreeMap::new();
+    let mut nested_by_root: BTreeMap<i64, BTreeMap<String, u64>> = BTreeMap::new();
+    let mut all_nested = BTreeMap::new();
+    let mut roots = Vec::new();
+
+    for event in events {
+        let site = replay_string_field(event, "site_id")?;
+        let call_id = replay_i64_field(event, "call_id")?;
+        if call_id >= 0 && site.ends_with(".entry") {
+            let member = site.trim_end_matches(".entry").to_owned();
+            let parent_domain = stack
+                .iter()
+                .rev()
+                .find(|frame| declaration_replay_is_domain_member(&frame.member));
+            let inherited_root = stack.last().and_then(|frame| frame.maximal_domain_call);
+            let is_domain = declaration_replay_is_domain_member(&member);
+            let root = is_domain && inherited_root.is_none();
+            let maximal_domain_call = if root { Some(call_id) } else { inherited_root };
+            if is_domain {
+                if let Some(parent) = parent_domain {
+                    let edge = format!("{} -> {member}", parent.member);
+                    *all_nested.entry(edge.clone()).or_default() += 1;
+                    if let Some(root_id) = maximal_domain_call {
+                        *nested_by_root
+                            .entry(root_id)
+                            .or_default()
+                            .entry(edge)
+                            .or_default() += 1;
+                    }
+                }
+            }
+            stack.push(DeclarationReplayFrame {
+                call_id,
+                member,
+                entry: event.clone(),
+                maximal_domain_call,
+                root,
+            });
+            continue;
+        }
+        if call_id >= 0 && site.ends_with(".result") {
+            let frame = stack
+                .pop()
+                .ok_or_else(|| format!("{case_id}: result {site} call {call_id} has no entry"))?;
+            if frame.call_id != call_id || frame.member != site.trim_end_matches(".result") {
+                return Err(format!(
+                    "{case_id}: call stack mismatch at {site} call {call_id}"
+                ));
+            }
+            if frame.root {
+                roots.push(DeclarationReplayRoot {
+                    member: frame.member,
+                    entry: frame.entry,
+                    result: event.clone(),
+                    result_sequence: replay_u64_field(event, "event_seq")?,
+                    visibility_writes: writes.remove(&call_id).unwrap_or_default(),
+                    nested_edges: nested_by_root.remove(&call_id).unwrap_or_default(),
+                });
+            }
+            continue;
+        }
+        if site.starts_with("isVisible.") {
+            let Some(root_id) = stack.last().and_then(|frame| frame.maximal_domain_call) else {
+                continue;
+            };
+            let args = replay_array_field(event, "args")?;
+            let node = args
+                .get(1)
+                .ok_or_else(|| format!("{case_id}: writer {site} lacks node"))?
+                .clone();
+            let value = args
+                .get(2)
+                .and_then(serde_json::Value::as_bool)
+                .ok_or_else(|| format!("{case_id}: writer {site} lacks value"))?;
+            writes.entry(root_id).or_default().push((node, value));
+        }
+    }
+    if !stack.is_empty() {
+        return Err(format!("{case_id}: trace ended with open call frames"));
+    }
+    Ok((roots, all_nested))
+}
+
+impl CheckerState<'_> {
+    fn declaration_replay_file_map(
+        &self,
+        request: &serde_json::Value,
+    ) -> Result<DeclarationReplayFileMap, String> {
+        let source_paths = replay_array_field(request, "source_paths")?;
+        let file_table = replay_array_field(request, "file_table")?;
+        let mut files = Vec::with_capacity(file_table.len());
+        let mut tag_by_program_index = BTreeMap::new();
+
+        for (file_tag, row) in file_table.iter().enumerate() {
+            let row = row
+                .as_array()
+                .ok_or_else(|| format!("fileTable row {file_tag} is not an array"))?;
+            if row.len() != 2 {
+                return Err(format!("fileTable row {file_tag} has wrong arity"));
+            }
+            let class = row[0]
+                .as_str()
+                .ok_or_else(|| format!("fileTable row {file_tag} lacks a class"))?;
+            let (class, program_index) = match class {
+                "src" => {
+                    let source_index = row[1]
+                        .as_u64()
+                        .and_then(|index| usize::try_from(index).ok())
+                        .ok_or_else(|| {
+                            format!("fileTable row {file_tag} has invalid source index")
+                        })?;
+                    let source_path = source_paths
+                        .get(source_index)
+                        .and_then(serde_json::Value::as_str)
+                        .ok_or_else(|| {
+                            format!("fileTable row {file_tag} source index is out of range")
+                        })?;
+                    let program_index = self
+                        .declaration_replay_find_source(source_path, false)
+                        .ok_or_else(|| {
+                            format!(
+                                "fileTable row {file_tag} source {source_path:?} is absent from the Program"
+                            )
+                        })?;
+                    (DeclarationReplayFileClass::Source, program_index)
+                }
+                "lib" => {
+                    let basename = row[1]
+                        .as_str()
+                        .ok_or_else(|| format!("fileTable row {file_tag} lacks a lib name"))?;
+                    let program_index = self
+                        .declaration_replay_find_source(basename, true)
+                        .ok_or_else(|| {
+                            format!(
+                                "fileTable row {file_tag} library {basename:?} is absent from the Program"
+                            )
+                        })?;
+                    (DeclarationReplayFileClass::Library, program_index)
+                }
+                other => return Err(format!("unknown fileTable class {other:?}")),
+            };
+            if tag_by_program_index
+                .insert(program_index, file_tag)
+                .is_some()
+            {
+                return Err(format!(
+                    "fileTable rows alias Program source index {program_index}"
+                ));
+            }
+            files.push(DeclarationReplayFile {
+                class,
+                program_index,
+            });
+        }
+        Ok(DeclarationReplayFileMap {
+            files,
+            tag_by_program_index,
+        })
+    }
+
+    fn declaration_replay_find_source(&self, expected: &str, basename_only: bool) -> Option<usize> {
+        let expected = expected.replace('\\', "/");
+        let matches = (0..self.binder.file_count())
+            .filter(|&index| {
+                let actual = self.binder.source(index).file_name.replace('\\', "/");
+                if basename_only {
+                    actual.rsplit('/').next() == Some(expected.as_str())
+                } else {
+                    actual == expected
+                }
+            })
+            .collect::<Vec<_>>();
+        (matches.len() == 1).then_some(matches[0])
+    }
+
+    fn declaration_replay_compare_seed(
+        &self,
+        event: &serde_json::Value,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<(), String> {
+        let args = replay_array_field(event, "args")?;
+        let rows = args
+            .get(1)
+            .and_then(serde_json::Value::as_array)
+            .ok_or_else(|| "seed event lacks rows".to_owned())?;
+        let mut expected = Vec::with_capacity(rows.len());
+        for row in rows {
+            let row = row
+                .as_array()
+                .filter(|row| row.len() == 2)
+                .ok_or_else(|| "seed row is malformed".to_owned())?;
+            // Seed dumps cover every defined isVisible slot, including
+            // default-library nodes.  Library targeting is an invocation
+            // exclusion only; it must not erase seed state.
+            let coordinate = declaration_replay_coordinate(&row[0], file_map, false)
+                .map_err(declaration_replay_resolution_message)?
+                .ok_or_else(|| "seed row uses a sentinel node".to_owned())?;
+            let value = row[1]
+                .as_bool()
+                .ok_or_else(|| "seed row lacks a boolean value".to_owned())?;
+            expected.push((coordinate, value));
+        }
+        declaration_replay_sort_visibility_rows(&mut expected);
+
+        let mut actual = Vec::new();
+        for file_index in 0..self.binder.file_count() {
+            let source = self.binder.source(file_index);
+            for node in source.arena.node_ids() {
+                let Some(value) = self.links.node(node).is_visible else {
+                    continue;
+                };
+                let coordinate = self.declaration_replay_project_node(node, file_map)?;
+                actual.push((coordinate, value));
+            }
+        }
+        declaration_replay_sort_visibility_rows(&mut actual);
+        if actual == expected {
+            Ok(())
+        } else {
+            Err(format!(
+                "visibility seed differs: expected {}, actual {}",
+                declaration_replay_visibility_json(&expected),
+                declaration_replay_visibility_json(&actual)
+            ))
+        }
+    }
+
+    fn declaration_replay_root(
+        &mut self,
+        root: &DeclarationReplayRoot,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<DeclarationReplayRootOutcome, String> {
+        let preparation = match self.declaration_replay_prepare_root(root, file_map) {
+            Ok(preparation) => preparation,
+            Err(DeclarationReplayResolutionError::Excluded(class)) => {
+                return Ok(DeclarationReplayRootOutcome::Excluded(class));
+            }
+            Err(DeclarationReplayResolutionError::Invalid(detail)) => return Err(detail),
+        };
+
+        DECLARATION_REPLAY_CAPTURE.with(|slot| {
+            let mut slot = slot.borrow_mut();
+            assert!(slot.is_none(), "declaration replay capture cannot nest");
+            *slot = Some(DeclarationReplayCapture::default());
+        });
+        let decision = self.declaration_replay_invoke(preparation.invocation);
+        let capture = DECLARATION_REPLAY_CAPTURE.with(|slot| {
+            slot.borrow_mut()
+                .take()
+                .expect("declaration replay capture remains installed")
+        });
+        if !capture.calls.is_empty() {
+            return Err("Rust replay ended with open call frames".to_owned());
+        }
+        let decision = decision?;
+        let actual = self.declaration_replay_project_decision(&decision, file_map)?;
+        let actual_paint = capture
+            .visibility_writes
+            .into_iter()
+            .map(|(node, value)| {
+                self.declaration_replay_project_node(node, file_map)
+                    .map(|coordinate| (coordinate, value))
+            })
+            .collect::<Result<BTreeSet<_>, _>>()?;
+
+        let mut mismatches = Vec::new();
+        if actual != preparation.expected {
+            mismatches.push(format!(
+                "result differs: expected {}, actual {}",
+                preparation.expected, actual
+            ));
+        }
+        if actual_paint != preparation.expected_paint {
+            mismatches.push(format!(
+                "paint set differs: expected {}, actual {}",
+                declaration_replay_visibility_set_json(&preparation.expected_paint),
+                declaration_replay_visibility_set_json(&actual_paint)
+            ));
+        }
+        mismatches.extend(preparation.input_mismatches);
+        let shadow_divergences = declaration_replay_shadow_divergences(
+            &decision,
+            &preparation.expected_shadow_symbol,
+            &preparation.expected_shadow_module,
+        );
+
+        Ok(DeclarationReplayRootOutcome::Replayed {
+            gating_mismatch: (!mismatches.is_empty()).then(|| mismatches.join("; ")),
+            shadow_divergences,
+            expected_nested_edges: root.nested_edges.clone(),
+            actual_nested_edges: capture.edges,
+        })
+    }
+}
+
+struct DeclarationReplayPreparation {
+    invocation: DeclarationReplayInvocation,
+    expected: serde_json::Value,
+    expected_paint: BTreeSet<(DeclarationReplayCoordinate, bool)>,
+    expected_shadow_symbol: Option<String>,
+    expected_shadow_module: Option<Option<String>>,
+    input_mismatches: Vec<String>,
+}
+
+type DeclarationReplayExpectedDecision =
+    (serde_json::Value, Option<String>, Option<Option<String>>);
+
+fn declaration_replay_sort_visibility_rows(rows: &mut [(DeclarationReplayCoordinate, bool)]) {
+    rows.sort_by_key(|(coordinate, value)| {
+        (
+            coordinate.file_tag,
+            coordinate.pos,
+            coordinate.end,
+            coordinate.kind,
+            *value,
+        )
+    });
+}
+
+fn declaration_replay_visibility_json(
+    rows: &[(DeclarationReplayCoordinate, bool)],
+) -> serde_json::Value {
+    serde_json::Value::Array(
+        rows.iter()
+            .map(|(coordinate, value)| serde_json::json!([coordinate.json(), value]))
+            .collect(),
+    )
+}
+
+fn declaration_replay_visibility_set_json(
+    rows: &BTreeSet<(DeclarationReplayCoordinate, bool)>,
+) -> serde_json::Value {
+    declaration_replay_visibility_json(&rows.iter().copied().collect::<Vec<_>>())
+}
+
+fn declaration_replay_resolution_message(error: DeclarationReplayResolutionError) -> String {
+    match error {
+        DeclarationReplayResolutionError::Excluded(class) => {
+            format!("reference belongs to excluded class {}", class.name())
+        }
+        DeclarationReplayResolutionError::Invalid(detail) => detail,
+    }
+}
+
+fn declaration_replay_coordinate(
+    value: &serde_json::Value,
+    file_map: &DeclarationReplayFileMap,
+    reject_library: bool,
+) -> Result<Option<DeclarationReplayCoordinate>, DeclarationReplayResolutionError> {
+    let values = value
+        .as_array()
+        .filter(|values| values.len() == 8)
+        .ok_or_else(|| "node reference is not an eight-element array".to_owned())?;
+    let numbers = values
+        .iter()
+        .map(|value| {
+            value
+                .as_i64()
+                .ok_or_else(|| "node reference contains a non-integer".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let coordinate = if numbers[0] >= 0 {
+        &numbers[0..4]
+    } else if numbers[4] >= 0 {
+        &numbers[4..8]
+    } else {
+        return Ok(None);
+    };
+    let file_tag = usize::try_from(coordinate[0])
+        .map_err(|_| "node reference file tag is negative".to_owned())?;
+    let file = file_map
+        .files
+        .get(file_tag)
+        .ok_or_else(|| "node reference file tag is out of range".to_owned())?;
+    if reject_library && file.class == DeclarationReplayFileClass::Library {
+        return Err(DeclarationReplayResolutionError::Excluded(
+            DeclarationReplayExclusion::LibTarget,
+        ));
+    }
+    Ok(Some(DeclarationReplayCoordinate {
+        file_tag,
+        kind: u16::try_from(coordinate[1])
+            .map_err(|_| "node reference kind is out of range".to_owned())?,
+        pos: u32::try_from(coordinate[2])
+            .map_err(|_| "node reference pos is out of range".to_owned())?,
+        end: u32::try_from(coordinate[3])
+            .map_err(|_| "node reference end is out of range".to_owned())?,
+    }))
+}
+
+impl CheckerState<'_> {
+    fn declaration_replay_resolve_node(
+        &self,
+        value: &serde_json::Value,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<NodeId, DeclarationReplayResolutionError> {
+        let coordinate = declaration_replay_coordinate(value, file_map, true)?.ok_or(
+            DeclarationReplayResolutionError::Excluded(
+                DeclarationReplayExclusion::SyntheticWithoutOriginal,
+            ),
+        )?;
+        let file = file_map.files[coordinate.file_tag];
+        let source = self.binder.source(file.program_index);
+        let matches = source
+            .arena
+            .node_ids()
+            .filter(|&node| {
+                let data = source.arena.node(node);
+                (node == source.root || data.parent.is_some())
+                    && data.kind as u16 == coordinate.kind
+                    && data.pos == coordinate.pos
+                    && data.end == coordinate.end
+            })
+            .collect::<Vec<_>>();
+        match matches.as_slice() {
+            [node] => Ok(*node),
+            [] => {
+                let same_kind = source
+                    .arena
+                    .node_ids()
+                    .filter_map(|node| {
+                        let data = source.arena.node(node);
+                        (data.kind as u16 == coordinate.kind).then_some((data.pos, data.end))
+                    })
+                    .take(8)
+                    .collect::<Vec<_>>();
+                let same_span = source
+                    .arena
+                    .node_ids()
+                    .filter_map(|node| {
+                        let data = source.arena.node(node);
+                        (data.pos == coordinate.pos && data.end == coordinate.end)
+                            .then_some(data.kind as u16)
+                    })
+                    .take(8)
+                    .collect::<Vec<_>>();
+                let sample = source
+                    .arena
+                    .node_ids()
+                    .take(12)
+                    .map(|node| {
+                        let data = source.arena.node(node);
+                        (data.kind as u16, data.pos, data.end)
+                    })
+                    .collect::<Vec<_>>();
+                Err(DeclarationReplayResolutionError::Invalid(format!(
+                    "node {:?} has no Rust parse-tree match (file {:?}, same-kind spans {:?}, same-span kinds {:?}, sample {:?})",
+                    coordinate, source.file_name, same_kind, same_span, sample
+                )))
+            }
+            _ => Err(DeclarationReplayResolutionError::Invalid(format!(
+                "node {:?} has {} Rust parse-tree matches",
+                coordinate,
+                matches.len()
+            ))),
+        }
+    }
+
+    fn declaration_replay_project_node(
+        &self,
+        node: NodeId,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<DeclarationReplayCoordinate, String> {
+        let program_index = self.binder.file_index_of_node(node);
+        let file_tag = file_map
+            .tag_by_program_index
+            .get(&program_index)
+            .copied()
+            .ok_or_else(|| {
+                format!(
+                    "Rust node {:?} belongs to Program file {:?}, absent from fileTable",
+                    node,
+                    self.binder.source(program_index).file_name
+                )
+            })?;
+        let data = self.binder.source(program_index).arena.node(node);
+        Ok(DeclarationReplayCoordinate {
+            file_tag,
+            kind: data.kind as u16,
+            pos: data.pos,
+            end: data.end,
+        })
+    }
+
+    fn declaration_replay_prepare_root(
+        &mut self,
+        root: &DeclarationReplayRoot,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<DeclarationReplayPreparation, DeclarationReplayResolutionError> {
+        let entry_args = replay_array_field(&root.entry, "args")?;
+        let result_args = replay_array_field(&root.result, "args")?;
+        let mut input_mismatches = Vec::new();
+        let invocation = match root.member.as_str() {
+            "resolver.isSymbolAccessible" => {
+                let symbol_ref = entry_args
+                    .get(2)
+                    .ok_or_else(|| "isSymbolAccessible entry lacks symbol".to_owned())?;
+                let (symbol, mismatch) =
+                    self.declaration_replay_resolve_symbol(symbol_ref, file_map)?;
+                if let Some(mismatch) = mismatch {
+                    input_mismatches.push(mismatch);
+                }
+                let enclosing = self.declaration_replay_resolve_node(
+                    entry_args.get(3).ok_or_else(|| {
+                        "isSymbolAccessible entry lacks enclosing node".to_owned()
+                    })?,
+                    file_map,
+                )?;
+                let meaning = entry_args
+                    .get(4)
+                    .and_then(serde_json::Value::as_u64)
+                    .and_then(|value| u32::try_from(value).ok())
+                    .ok_or_else(|| "isSymbolAccessible entry has invalid meaning".to_owned())?;
+                let should_compute_aliases = entry_args
+                    .get(5)
+                    .and_then(serde_json::Value::as_bool)
+                    .ok_or_else(|| {
+                        "isSymbolAccessible entry lacks shouldComputeAliases".to_owned()
+                    })?;
+                DeclarationReplayInvocation::SymbolAccessible {
+                    symbol,
+                    enclosing,
+                    meaning: EmitSymbolMeaning(meaning),
+                    should_compute_aliases,
+                }
+            }
+            "resolver.isEntityNameVisible" => {
+                let entity_name = self.declaration_replay_resolve_node(
+                    entry_args
+                        .get(2)
+                        .ok_or_else(|| "isEntityNameVisible entry lacks entity name".to_owned())?,
+                    file_map,
+                )?;
+                let enclosing = self.declaration_replay_resolve_node(
+                    entry_args.get(3).ok_or_else(|| {
+                        "isEntityNameVisible entry lacks enclosing node".to_owned()
+                    })?,
+                    file_map,
+                )?;
+                let should_compute_aliases = entry_args
+                    .get(4)
+                    .and_then(serde_json::Value::as_bool)
+                    .ok_or_else(|| {
+                        "isEntityNameVisible entry lacks shouldComputeAliases".to_owned()
+                    })?;
+                DeclarationReplayInvocation::EntityNameVisible {
+                    entity_name,
+                    enclosing,
+                    should_compute_aliases,
+                }
+            }
+            "resolver.requiresAddingImplicitUndefined" => {
+                let parameter = self.declaration_replay_generic_first_node(entry_args, file_map)?;
+                let arity = entry_args
+                    .get(1)
+                    .and_then(serde_json::Value::as_u64)
+                    .ok_or_else(|| "generic entry lacks arity".to_owned())?;
+                let enclosing = if arity >= 2 {
+                    Some(
+                        self.declaration_replay_resolve_node(
+                            entry_args
+                                .get(4)
+                                .ok_or_else(|| "generic entry lacks second node".to_owned())?,
+                            file_map,
+                        )?,
+                    )
+                } else {
+                    None
+                };
+                DeclarationReplayInvocation::RequiresImplicitUndefined {
+                    parameter,
+                    enclosing,
+                }
+            }
+            "resolver.collectLinkedAliases" => {
+                let node = self.declaration_replay_resolve_node(
+                    entry_args
+                        .get(1)
+                        .ok_or_else(|| "collectLinkedAliases entry lacks node".to_owned())?,
+                    file_map,
+                )?;
+                let set_visibility = entry_args
+                    .get(2)
+                    .and_then(serde_json::Value::as_bool)
+                    .ok_or_else(|| "collectLinkedAliases entry lacks setVisibility".to_owned())?;
+                if !set_visibility {
+                    return Err(DeclarationReplayResolutionError::Invalid(
+                        "replay domain admits only collectLinkedAliases(true)".to_owned(),
+                    ));
+                }
+                DeclarationReplayInvocation::CollectLinkedAliases {
+                    node,
+                    set_visibility,
+                }
+            }
+            member => DeclarationReplayInvocation::Unary {
+                member: member.to_owned(),
+                node: self.declaration_replay_generic_first_node(entry_args, file_map)?,
+            },
+        };
+
+        let (expected, expected_shadow_symbol, expected_shadow_module) =
+            self.declaration_replay_expected_decision(&root.member, result_args, file_map)?;
+        let expected_paint = root
+            .visibility_writes
+            .iter()
+            .map(|(node, value)| {
+                let coordinate = declaration_replay_coordinate(node, file_map, true)?.ok_or(
+                    DeclarationReplayResolutionError::Excluded(
+                        DeclarationReplayExclusion::SyntheticWithoutOriginal,
+                    ),
+                )?;
+                Ok((coordinate, *value))
+            })
+            .collect::<Result<BTreeSet<_>, DeclarationReplayResolutionError>>()?;
+
+        Ok(DeclarationReplayPreparation {
+            invocation,
+            expected,
+            expected_paint,
+            expected_shadow_symbol,
+            expected_shadow_module,
+            input_mismatches,
+        })
+    }
+
+    fn declaration_replay_generic_first_node(
+        &self,
+        args: &[serde_json::Value],
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<NodeId, DeclarationReplayResolutionError> {
+        self.declaration_replay_resolve_node(
+            args.get(3)
+                .ok_or_else(|| "generic entry lacks first node".to_owned())?,
+            file_map,
+        )
+    }
+
+    fn declaration_replay_expected_decision(
+        &self,
+        member: &str,
+        args: &[serde_json::Value],
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<DeclarationReplayExpectedDecision, DeclarationReplayResolutionError> {
+        match member {
+            "resolver.isSymbolAccessible" | "resolver.isEntityNameVisible" => {
+                let accessibility = args
+                    .get(1)
+                    .and_then(serde_json::Value::as_u64)
+                    .ok_or_else(|| "accessibility result lacks accessibility".to_owned())?;
+                let error_symbol = args
+                    .get(2)
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| "accessibility result lacks errorSymbolName".to_owned())?
+                    .to_owned();
+                let error_module = match args.get(3) {
+                    Some(serde_json::Value::Null) => None,
+                    Some(value) => Some(
+                        value
+                            .as_str()
+                            .ok_or_else(|| {
+                                "accessibility result has invalid errorModuleName".to_owned()
+                            })?
+                            .to_owned(),
+                    ),
+                    None => {
+                        return Err(DeclarationReplayResolutionError::Invalid(
+                            "accessibility result lacks errorModuleName".to_owned(),
+                        ));
+                    }
+                };
+                let error_node = declaration_replay_expected_optional_node(
+                    args.get(4)
+                        .ok_or_else(|| "accessibility result lacks errorNode".to_owned())?,
+                    file_map,
+                )?;
+                let aliases = match args.get(5) {
+                    Some(serde_json::Value::Null) => serde_json::Value::Null,
+                    Some(serde_json::Value::Array(values)) => serde_json::Value::Array(
+                        values
+                            .iter()
+                            .map(|value| {
+                                declaration_replay_expected_required_node(value, file_map)
+                                    .map(DeclarationReplayCoordinate::json)
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
+                    ),
+                    _ => {
+                        return Err(DeclarationReplayResolutionError::Invalid(
+                            "accessibility result has invalid aliases".to_owned(),
+                        ));
+                    }
+                };
+                Ok((
+                    serde_json::json!({
+                        "kind": "accessibility",
+                        "accessibility": accessibility,
+                        "error_node": error_node.map_or(serde_json::Value::Null, DeclarationReplayCoordinate::json),
+                        "aliases": aliases,
+                    }),
+                    Some(error_symbol),
+                    Some(error_module),
+                ))
+            }
+            "resolver.getPropertiesOfContainerFunction" => {
+                let rows = args
+                    .get(1)
+                    .and_then(serde_json::Value::as_array)
+                    .ok_or_else(|| "property result lacks rows".to_owned())?;
+                let rows = rows
+                    .iter()
+                    .map(|row| {
+                        let row = row
+                            .as_array()
+                            .filter(|row| row.len() == 3)
+                            .ok_or_else(|| "property row is malformed".to_owned())?;
+                        let name = row[0]
+                            .as_str()
+                            .ok_or_else(|| "property row lacks name".to_owned())?;
+                        let parent = declaration_replay_expected_symbol(&row[1], file_map)?;
+                        let value_declaration = match &row[2] {
+                            serde_json::Value::Null => serde_json::Value::Null,
+                            value => {
+                                declaration_replay_expected_required_node(value, file_map)?.json()
+                            }
+                        };
+                        Ok(serde_json::json!([name, parent, value_declaration]))
+                    })
+                    .collect::<Result<Vec<_>, DeclarationReplayResolutionError>>()?;
+                Ok((
+                    serde_json::json!({"kind": "properties", "rows": rows}),
+                    None,
+                    None,
+                ))
+            }
+            "resolver.getEnumMemberValue" => {
+                let value_type = args
+                    .get(1)
+                    .and_then(serde_json::Value::as_str)
+                    .ok_or_else(|| "enum result lacks value type".to_owned())?;
+                let value = args
+                    .get(2)
+                    .cloned()
+                    .ok_or_else(|| "enum result lacks value".to_owned())?;
+                let syntactically_string = args
+                    .get(3)
+                    .and_then(serde_json::Value::as_bool)
+                    .ok_or_else(|| "enum result lacks string marker".to_owned())?;
+                Ok((
+                    serde_json::json!({
+                        "kind": "enum",
+                        "value_type": value_type,
+                        "value": value,
+                        "is_syntactically_string": syntactically_string,
+                    }),
+                    None,
+                    None,
+                ))
+            }
+            "resolver.collectLinkedAliases" => {
+                Ok((serde_json::json!({"kind": "void"}), None, None))
+            }
+            _ => {
+                let value = args
+                    .get(1)
+                    .and_then(serde_json::Value::as_array)
+                    .and_then(|scalar| scalar.get(3))
+                    .and_then(serde_json::Value::as_bool)
+                    .ok_or_else(|| "boolean result lacks scalar value".to_owned())?;
+                Ok((
+                    serde_json::json!({"kind": "boolean", "value": value}),
+                    None,
+                    None,
+                ))
+            }
+        }
+    }
+
+    fn declaration_replay_invoke(
+        &mut self,
+        invocation: DeclarationReplayInvocation,
+    ) -> Result<DeclarationReplayDecision, String> {
+        let result = match invocation {
+            DeclarationReplayInvocation::SymbolAccessible {
+                symbol,
+                enclosing,
+                meaning,
+                should_compute_aliases,
+            } => self
+                .emit_is_symbol_accessible(symbol, enclosing, meaning, should_compute_aliases)
+                .map(DeclarationReplayDecision::Accessibility),
+            DeclarationReplayInvocation::EntityNameVisible {
+                entity_name,
+                enclosing,
+                should_compute_aliases,
+            } => self
+                .emit_is_entity_name_visible(entity_name, enclosing, should_compute_aliases)
+                .map(DeclarationReplayDecision::Accessibility),
+            DeclarationReplayInvocation::RequiresImplicitUndefined {
+                parameter,
+                enclosing,
+            } => self
+                .emit_requires_adding_implicit_undefined(parameter, enclosing)
+                .map(DeclarationReplayDecision::Boolean),
+            DeclarationReplayInvocation::CollectLinkedAliases {
+                node,
+                set_visibility,
+            } => self
+                .collect_linked_aliases(node, set_visibility)
+                .map(|_| DeclarationReplayDecision::Void),
+            DeclarationReplayInvocation::Unary { member, node } => match member.as_str() {
+                "resolver.isDefinitelyReferenceToGlobalSymbolObject" => self
+                    .emit_is_definitely_reference_to_global_symbol_object(node)
+                    .map(DeclarationReplayDecision::Boolean),
+                "resolver.isDeclarationVisible" => self
+                    .emit_is_declaration_visible(node)
+                    .map(DeclarationReplayDecision::Boolean),
+                "resolver.isOptionalParameter" => self
+                    .emit_is_optional_parameter(node)
+                    .map(DeclarationReplayDecision::Boolean),
+                "resolver.isImplementationOfOverload" => self
+                    .emit_is_implementation_of_overload(node)
+                    .map(DeclarationReplayDecision::Boolean),
+                "resolver.isExpandoFunctionDeclaration" => self
+                    .emit_is_expando_function_declaration(node)
+                    .map(DeclarationReplayDecision::Boolean),
+                "resolver.getPropertiesOfContainerFunction" => self
+                    .emit_get_properties_of_container_function(node, 0)
+                    .map(DeclarationReplayDecision::Properties),
+                "resolver.getEnumMemberValue" => self
+                    .get_enum_member_value(node)
+                    .map(DeclarationReplayDecision::Enum),
+                "resolver.isLiteralConstDeclaration" => self
+                    .emit_is_literal_const_declaration(node)
+                    .map(DeclarationReplayDecision::Boolean),
+                "resolver.isLateBound" => self
+                    .emit_is_late_bound(node)
+                    .map(DeclarationReplayDecision::Boolean),
+                "resolver.isImportRequiredByAugmentation" => self
+                    .emit_is_import_required_by_augmentation(node)
+                    .map(DeclarationReplayDecision::Boolean),
+                other => return Err(format!("unsupported replay member {other}")),
+            },
+        };
+        result.map_err(|abort| format!("checker aborted: {}", abort.description()))
+    }
+
+    fn declaration_replay_project_decision(
+        &self,
+        decision: &DeclarationReplayDecision,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<serde_json::Value, String> {
+        match decision {
+            DeclarationReplayDecision::Boolean(value) => {
+                Ok(serde_json::json!({"kind": "boolean", "value": value}))
+            }
+            DeclarationReplayDecision::Void => Ok(serde_json::json!({"kind": "void"})),
+            DeclarationReplayDecision::Enum(result) => {
+                let (value_type, value) = match &result.value {
+                    Some(crate::evaluate::EvalValue::Str(value)) => {
+                        ("string", serde_json::json!(value))
+                    }
+                    Some(crate::evaluate::EvalValue::Num(value)) => {
+                        let number = serde_json::Number::from_f64(*value)
+                            .ok_or_else(|| "Rust enum value is not JSON-finite".to_owned())?;
+                        ("number", serde_json::Value::Number(number))
+                    }
+                    None => ("undefined", serde_json::Value::Null),
+                };
+                Ok(serde_json::json!({
+                    "kind": "enum",
+                    "value_type": value_type,
+                    "value": value,
+                    "is_syntactically_string": result.is_syntactically_string,
+                }))
+            }
+            DeclarationReplayDecision::Accessibility(result) => {
+                let error_node = result
+                    .error_node
+                    .map(|node| self.declaration_replay_project_node(node.node(), file_map))
+                    .transpose()?
+                    .map_or(serde_json::Value::Null, DeclarationReplayCoordinate::json);
+                let aliases = match &result.aliases_to_make_visible {
+                    Some(aliases) => serde_json::Value::Array(
+                        aliases
+                            .iter()
+                            .map(|node| {
+                                self.declaration_replay_project_node(node.node(), file_map)
+                                    .map(DeclarationReplayCoordinate::json)
+                            })
+                            .collect::<Result<Vec<_>, _>>()?,
+                    ),
+                    None => serde_json::Value::Null,
+                };
+                Ok(serde_json::json!({
+                    "kind": "accessibility",
+                    "accessibility": result.accessibility as u8,
+                    "error_node": error_node,
+                    "aliases": aliases,
+                }))
+            }
+            DeclarationReplayDecision::Properties(properties) => {
+                let rows = properties
+                    .iter()
+                    .map(|property| {
+                        let parent = self.declaration_replay_project_symbol(
+                            SymbolId(property.parent.symbol_index),
+                            file_map,
+                        )?;
+                        let value_declaration = property
+                            .value_declaration
+                            .map(|node| self.declaration_replay_project_node(node.node(), file_map))
+                            .transpose()?
+                            .map_or(serde_json::Value::Null, DeclarationReplayCoordinate::json);
+                        Ok(serde_json::json!([
+                            property.name,
+                            parent,
+                            value_declaration
+                        ]))
+                    })
+                    .collect::<Result<Vec<_>, String>>()?;
+                Ok(serde_json::json!({"kind": "properties", "rows": rows}))
+            }
+        }
+    }
+
+    fn declaration_replay_resolve_symbol(
+        &mut self,
+        value: &serde_json::Value,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<(SymbolId, Option<String>), DeclarationReplayResolutionError> {
+        let values = value
+            .as_array()
+            .filter(|values| values.len() == 3)
+            .ok_or_else(|| "symbol reference is malformed".to_owned())?;
+        let declaration_count = values[1]
+            .as_u64()
+            .and_then(|value| usize::try_from(value).ok())
+            .ok_or_else(|| "symbol reference has invalid declaration count".to_owned())?;
+        if declaration_count == 0 {
+            return Err(DeclarationReplayResolutionError::Excluded(
+                DeclarationReplayExclusion::ZeroDeclarationSymbol,
+            ));
+        }
+        let declarations = values[2]
+            .as_array()
+            .ok_or_else(|| "symbol reference lacks declaration prefix".to_owned())?
+            .iter()
+            .map(|node| self.declaration_replay_resolve_node(node, file_map))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut candidates = BTreeSet::new();
+        for declaration in declarations.iter().copied() {
+            if let Some(symbol) = self.node_symbol(declaration) {
+                candidates.insert(self.get_merged_symbol(symbol));
+            }
+            let symbol = self
+                .get_symbol_of_declaration(declaration)
+                .map_err(|abort| format!("symbol resolution aborted: {}", abort.description()))?;
+            if symbol != self.unknown_symbol {
+                candidates.insert(symbol);
+            }
+        }
+        if candidates.is_empty() {
+            return Err(DeclarationReplayResolutionError::Invalid(
+                "symbol declaration prefix resolves to no Rust symbol".to_owned(),
+            ));
+        }
+        let expected = declaration_replay_expected_symbol(value, file_map)?;
+        let exact = candidates
+            .iter()
+            .copied()
+            .filter(|&symbol| {
+                self.declaration_replay_project_symbol(symbol, file_map)
+                    .is_ok_and(|actual| actual == expected)
+            })
+            .collect::<Vec<_>>();
+        if exact.len() > 1 {
+            return Err(DeclarationReplayResolutionError::Excluded(
+                DeclarationReplayExclusion::AmbiguousSymbol,
+            ));
+        }
+        if let Some(symbol) = exact.first() {
+            return Ok((*symbol, None));
+        }
+        if candidates.len() > 1 {
+            return Err(DeclarationReplayResolutionError::Excluded(
+                DeclarationReplayExclusion::AmbiguousSymbol,
+            ));
+        }
+        let symbol = *candidates.iter().next().expect("nonempty candidates");
+        let actual = self.declaration_replay_project_symbol(symbol, file_map)?;
+        Ok((
+            symbol,
+            Some(format!(
+                "symbol input differs: expected {expected}, actual {actual}"
+            )),
+        ))
+    }
+
+    fn declaration_replay_project_symbol(
+        &self,
+        symbol: SymbolId,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<serde_json::Value, String> {
+        let data = self.binder.symbol(symbol);
+        let declarations = data
+            .declarations
+            .iter()
+            .take(8)
+            .map(|&node| {
+                self.declaration_replay_project_node(node, file_map)
+                    .map(DeclarationReplayCoordinate::json)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(serde_json::json!([
+            data.escaped_name,
+            data.declarations.len(),
+            declarations
+        ]))
+    }
+}
+
+fn declaration_replay_expected_required_node(
+    value: &serde_json::Value,
+    file_map: &DeclarationReplayFileMap,
+) -> Result<DeclarationReplayCoordinate, DeclarationReplayResolutionError> {
+    declaration_replay_coordinate(value, file_map, true)?.ok_or(
+        DeclarationReplayResolutionError::Excluded(
+            DeclarationReplayExclusion::SyntheticWithoutOriginal,
+        ),
+    )
+}
+
+fn declaration_replay_expected_optional_node(
+    value: &serde_json::Value,
+    file_map: &DeclarationReplayFileMap,
+) -> Result<Option<DeclarationReplayCoordinate>, DeclarationReplayResolutionError> {
+    declaration_replay_coordinate(value, file_map, true)
+}
+
+fn declaration_replay_expected_symbol(
+    value: &serde_json::Value,
+    file_map: &DeclarationReplayFileMap,
+) -> Result<serde_json::Value, DeclarationReplayResolutionError> {
+    let values = value
+        .as_array()
+        .filter(|values| values.len() == 3)
+        .ok_or_else(|| "symbol reference is malformed".to_owned())?;
+    let name = values[0]
+        .as_str()
+        .ok_or_else(|| "symbol reference lacks name".to_owned())?;
+    let declaration_count = values[1]
+        .as_u64()
+        .ok_or_else(|| "symbol reference lacks declaration count".to_owned())?;
+    if declaration_count == 0 {
+        return Err(DeclarationReplayResolutionError::Excluded(
+            DeclarationReplayExclusion::ZeroDeclarationSymbol,
+        ));
+    }
+    let declarations = values[2]
+        .as_array()
+        .ok_or_else(|| "symbol reference lacks declarations".to_owned())?
+        .iter()
+        .map(|value| {
+            declaration_replay_expected_required_node(value, file_map)
+                .map(DeclarationReplayCoordinate::json)
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(serde_json::json!([name, declaration_count, declarations]))
+}
+
+fn declaration_replay_shadow_divergences(
+    decision: &DeclarationReplayDecision,
+    expected_symbol: &Option<String>,
+    expected_module: &Option<Option<String>>,
+) -> u64 {
+    let DeclarationReplayDecision::Accessibility(result) = decision else {
+        return 0;
+    };
+    let mut divergences = 0;
+    if let Some(expected) = expected_symbol {
+        if result.error_symbol_name.as_deref().unwrap_or("") != expected {
+            divergences += 1;
+        }
+    }
+    if let Some(expected) = expected_module {
+        if &result.error_module_name != expected {
+            divergences += 1;
+        }
+    }
+    divergences
 }
