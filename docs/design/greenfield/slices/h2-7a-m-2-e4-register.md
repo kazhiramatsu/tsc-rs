@@ -109,3 +109,18 @@ diagnostic volumes are derived by the P4 harness from the FINAL
 artifacts and frozen as test constants (packet §7.5-7.7); this
 register records the artifact-level volumes above as their upper
 envelope.
+
+## Post-E4 operational corrections (packet frozen; recorded here)
+
+- §12.2 harness command superseded: the replay test homes in
+  `crates/compiler/tests/integration/` (checker has no dev-dependency
+  edge to tsc-harness; compiler already dev-depends on it — the
+  h2_5h_ca2a_promote_contract replay precedent). Expansion =
+  `tsc_harness::…::load_recorded_execution_plans` + suite loaders;
+  lib/file split per `project_checker_inputs`
+  (compiler/src/lib.rs:1399). Known gap carried to P4: the two
+  conformance witness cases need a hand-built plan (the conformance
+  suite has no Rust execution-plan builder; deserialize the pub
+  expansion manifest + the load_qualified_compiler_emit pattern).
+  Final literal commands are recorded in the close record at the
+  train head.
