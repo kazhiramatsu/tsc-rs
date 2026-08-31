@@ -2409,11 +2409,15 @@ function validateNonCallArgs(event, state, label) {
 }
 
 function programRootSubstrings(control) {
+  // Machine-specific roots only. Canonical virtual overlay roots
+  // (control.roots, e.g. "/.src") are legitimate recorded content:
+  // external-module symbols are NAMED by their virtual path, so
+  // errorModuleName/escapedName must be able to carry them
+  // (h2-7a-m-2.md §6.4 hygiene intent; E3 repair 2026-08-31).
   const values = new Set([
     WORKSPACE,
     fs.realpathSync(WORKSPACE),
     control.current_directory,
-    ...control.roots,
   ]);
   return [...values]
     .filter((value) => typeof value === "string" && value.length > 1)
