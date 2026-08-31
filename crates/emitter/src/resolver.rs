@@ -700,7 +700,7 @@ pub trait EmitResolver {
     }
 
     /// tsc-port: isImportRequiredByAugmentation @6.0.3
-    /// tsc-hash: 7498ec7545df67711e0cdeb1967852809c42964ae9f0f61444d3ca2c3124c
+    /// tsc-hash: 7498ec7545df67711e0cdeb1967852804859c42964ae9f0f61444d3ca2c3124c
     /// tsc-span: _tsc.js:88696-88717
     fn is_import_required_by_augmentation(
         &self,
