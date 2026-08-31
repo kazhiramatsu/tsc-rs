@@ -1252,6 +1252,23 @@ impl<'a> ProgramBinder<'a> {
         }
     }
 
+    /// Fallible counterpart to [`Self::symbol`] for externally supplied
+    /// checker identities. Unlike the ordinary accessor, this never routes an
+    /// unknown id into an arena index and therefore never panics.
+    pub(crate) fn try_symbol(&self, id: SymbolId) -> Option<&Symbol> {
+        if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
+            return self
+                .transient
+                .contains(id)
+                .then(|| self.transient.symbol(id));
+        }
+        let file = Self::try_owner_file(&self.symbol_owners, id.0)?;
+        Some(match &self.file_entries[file] {
+            ProgramEntry::Legacy(entry) => entry.binder.symbols.symbol(id),
+            ProgramEntry::Owned(document) => document.data.symbols.symbol(id),
+        })
+    }
+
     /// TRANSIENT symbols only: file binders are read-only after bind
     /// (shared lib binders make this structural — merge writes go to
     /// transient clones, and the merged-symbol mapping lives on
