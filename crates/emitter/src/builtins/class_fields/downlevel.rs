@@ -160,6 +160,7 @@ struct FieldOperation {
     receiver: FieldReceiver,
     name: NodeId,
     value: FieldValuePlan,
+    range_static_expression_to_name: bool,
 }
 
 #[derive(Clone)]
@@ -298,11 +299,15 @@ struct PrivateEnvironment {
     /// last index remains visible through `effective_slots`; a legal accessor
     /// pair shares one slot index.
     declarations: Vec<PrivateDeclarationSlot>,
+    /// Native private names retained at ES2022 shadow transformed names in
+    /// enclosing classes, but have no helper-backed slot of their own.
+    untransformed_names: BTreeSet<String>,
     class_alias: Option<ClassBinding>,
     instance_brand: Option<ClassBinding>,
     static_receiver: Option<StaticReceiver>,
     static_super_policy: StaticSuperPolicy,
     super_alias: Option<ClassBinding>,
+    is_legacy_decorated: bool,
 }
 
 #[derive(Clone)]
@@ -595,6 +600,7 @@ struct PrivateDeclaration {
 /// several ordinary private declarations while `getClassFacts` is reproduced.
 struct PrivateEnvironmentPlan {
     declarations: Vec<PrivateDeclaration>,
+    untransformed_names: BTreeSet<String>,
     instance_brand_owner: Option<LexicalBindingOwner>,
 }
 
@@ -1866,18 +1872,21 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             class_facts.static_facts,
         )?;
         data.members = self.stabilize_auto_accessor_names(data.members)?;
-        if let Some(alias) = private_environment.class_alias.as_ref() {
-            self.register_class_alias(original, alias)?;
+        if !self.selectively_transforms_private_static_elements() {
+            if let Some(alias) = private_environment.class_alias.as_ref() {
+                self.register_class_alias(original, alias)?;
+            }
         }
         self.private_environments.push(private_environment);
 
         let mut operations = self.plan_members(data.members)?;
-        let has_trailing_operations = !operations.pending.is_empty()
-            || !operations.static_.is_empty()
-            || self
-                .private_environments
-                .last()
-                .is_some_and(|environment| environment.class_alias.is_some());
+        let has_trailing_operations = (!self.selectively_transforms_private_static_elements()
+            && (!operations.pending.is_empty()
+                || self
+                    .private_environments
+                    .last()
+                    .is_some_and(|environment| environment.class_alias.is_some())))
+            || !operations.static_.is_empty();
         let split_default_export = is_export_default && has_trailing_operations;
         if split_default_export {
             data.modifiers = self.filter_modifier(data.modifiers, SyntaxKind::ExportKeyword)?;
@@ -1894,6 +1903,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 data.members,
             )?;
         }
+        self.install_private_static_pending_block(&mut retained, &mut operations.pending)?;
         let members = self.rebuild_class_member_array(data.members, retained)?;
         data.members = Some(members.array());
         let flags = flags_after_update(
@@ -1989,7 +1999,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let has_transformable_static_member =
             self.class_has_transformable_static_member(data.members)?;
         let already_has_named_evaluation = self.class_has_named_evaluation_member(data.members)?;
-        let needs_named_evaluation = assigned_class_name.is_some()
+        let needs_named_evaluation = !self.selectively_transforms_private_static_elements()
+            && assigned_class_name.is_some()
             && has_transformable_static_member
             && !already_has_named_evaluation;
         data.members = self.expand_auto_accessors(data.members)?;
@@ -2036,15 +2047,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let private_expression_binding = private_environment.class_alias.clone();
         self.private_environments.push(private_environment);
         let mut operations = self.plan_members(data.members)?;
-        let needs_expression_binding = private_expression_binding.is_some()
-            || !operations.pending.is_empty()
+        let needs_expression_binding = (!self.selectively_transforms_private_static_elements()
+            && (private_expression_binding.is_some() || !operations.pending.is_empty()))
             || !operations.static_.is_empty();
         // A semantic constructor identity was reserved before heritage/member
         // transforms. If getClassFacts did not require one, the ordinary
         // class-expression sequence temp is allocated only now, after member
         // keys and private declarations, matching createClassTempVar's second
         // call site in tsc.
-        let expression_binding = match private_expression_binding.clone() {
+        let expression_binding = match private_expression_binding
+            .clone()
+            .filter(|_| !self.selectively_transforms_private_static_elements())
+        {
             Some(binding) => Some(binding),
             // A decorated declaration normally materializes static operations
             // against its public variable and needs no extra class-expression
@@ -2070,6 +2084,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 data.members,
             )?;
         }
+        self.install_private_static_pending_block(&mut retained, &mut operations.pending)?;
         let members = self.rebuild_class_member_array(data.members, retained)?;
         data.members = Some(members.array());
         let flags = flags_after_update(
@@ -2114,7 +2129,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         }
         if operations.pending.is_empty()
             && operations.static_.is_empty()
-            && private_environment.class_alias.is_none()
+            && (private_environment.class_alias.is_none()
+                || self.selectively_transforms_private_static_elements())
         {
             return Ok(class.node());
         }
@@ -2244,6 +2260,19 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     ) -> Result<bool, TransformError> {
         for member in self.array_nodes(members)? {
             let record = self.context.arena().node(member)?;
+            if self.selectively_transforms_private_static_elements() {
+                let modifiers = match &record.data {
+                    NodeData::PropertyDeclaration(data) => data.modifiers,
+                    NodeData::MethodDeclaration(data) => data.modifiers,
+                    NodeData::GetAccessor(data) => data.modifiers,
+                    NodeData::SetAccessor(data) => data.modifiers,
+                    _ => None,
+                };
+                if self.should_transform_private_class_element(member, modifiers)? {
+                    return Ok(true);
+                }
+                continue;
+            }
             match &record.data {
                 NodeData::ClassStaticBlockDeclaration(_) => return Ok(true),
                 NodeData::PropertyDeclaration(data)
@@ -2259,6 +2288,33 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             }
         }
         Ok(false)
+    }
+
+    fn selectively_transforms_private_static_elements(&self) -> bool {
+        self.target >= ScriptTarget::ES2022
+    }
+
+    /// tsc-port: shouldTransformClassElementToWeakMap @6.0.3
+    /// tsc-hash: fbed5640e00a4833b08f75371b47646671f0125dcb7d222e4efa6b858c2f0e6a
+    /// tsc-span: _tsc.js:96185-96225
+    fn should_transform_private_class_element(
+        &self,
+        member: TransformNode,
+        modifiers: Option<NodeArrayId>,
+    ) -> Result<bool, TransformError> {
+        if !self.selectively_transforms_private_static_elements() {
+            return Ok(true);
+        }
+        Ok(self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?
+            && self
+                .context
+                .arena()
+                .metadata(member)
+                .is_some_and(|metadata| {
+                    metadata
+                        .internal_flags()
+                        .contains(InternalEmitFlags::TRANSFORM_PRIVATE_STATIC_ELEMENTS)
+                }))
     }
 
     fn class_has_named_evaluation_member(
@@ -3227,7 +3283,8 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             let is_static = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
 
             if is_static {
-                has_static_private_or_auto_accessor |= name_is_private || is_auto_accessor;
+                has_static_private_or_auto_accessor |= (name_is_private || is_auto_accessor)
+                    && self.should_transform_private_class_element(member, modifiers)?;
                 continue;
             }
             if is_auto_accessor
@@ -3255,6 +3312,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
     ) -> Result<PrivateEnvironmentPlan, TransformError> {
         let mut declarations = Vec::<PrivateDeclaration>::new();
         let mut auto_accessor_backings = Vec::<PrivateDeclaration>::new();
+        let mut untransformed_names = BTreeSet::new();
         for member in self.array_nodes(members)? {
             let record = self.context.arena().node(member)?;
             let (name, modifiers, kind) = match &record.data {
@@ -3280,6 +3338,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 continue;
             };
             let private_name = private_name.to_owned();
+            let is_static = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
+            if !self.should_transform_private_class_element(member, modifiers)? {
+                untransformed_names.insert(private_name);
+                continue;
+            }
             let binding_owner = if self.resolver.has_node_check_flag(
                 self.resolver_node(name)?,
                 NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32,
@@ -3288,7 +3351,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             } else {
                 LexicalBindingOwner::Hoisted
             };
-            let is_static = self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?;
             if self
                 .generated_auto_accessor_backings
                 .contains(&member.node())
@@ -3332,6 +3394,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
 
         Ok(PrivateEnvironmentPlan {
             declarations,
+            untransformed_names,
             instance_brand_owner,
         })
     }
@@ -3408,16 +3471,22 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         } else {
             StaticSuperPolicy::Available
         };
-        let declarations = plan.declarations;
+        let PrivateEnvironmentPlan {
+            declarations,
+            untransformed_names,
+            instance_brand_owner: _,
+        } = plan;
         let mut environment = PrivateEnvironment {
             effective_slots: BTreeMap::new(),
             private_slots: Vec::with_capacity(declarations.len()),
             declarations: Vec::with_capacity(declarations.len()),
+            untransformed_names,
             class_alias: class_alias.clone(),
             instance_brand: instance_brand.clone(),
             static_receiver,
             static_super_policy,
             super_alias,
+            is_legacy_decorated,
         };
         for declaration in declarations {
             let PrivateDeclaration {
@@ -3713,11 +3782,15 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                     parent: SyntaxKind::PrivateIdentifier,
                     field: "private identifier text",
                 })?;
-        Ok(self
-            .private_environments
-            .iter()
-            .rev()
-            .find_map(|environment| environment.effective_slot(private_name)))
+        for environment in self.private_environments.iter().rev() {
+            if environment.untransformed_names.contains(private_name) {
+                return Ok(None);
+            }
+            if let Some(slot) = environment.effective_slot(private_name) {
+                return Ok(Some(slot));
+            }
+        }
+        Ok(None)
     }
 
     /// Recover an invalid, unresolved private identifier exactly where tsc's
@@ -3733,6 +3806,17 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         &mut self,
         original: TransformNode,
     ) -> Result<NodeId, TransformError> {
+        if self
+            .private_name_text(original)
+            .is_some_and(|private_name| {
+                self.private_environments
+                    .iter()
+                    .rev()
+                    .any(|environment| environment.untransformed_names.contains(private_name))
+            })
+        {
+            return Ok(original.node());
+        }
         let parent_is_statement = self
             .tree_ownership
             .unique_parent(original.node())
@@ -4999,7 +5083,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             match record.data {
                 NodeData::PropertyDeclaration(mut data)
                     if self.name_is_private(data.name)?
-                        && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)? =>
+                        && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
+                        && self
+                            .should_transform_private_class_element(member, data.modifiers)? =>
                 {
                     let private_name = data.name.ok_or(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::PropertyDeclaration,
@@ -5030,16 +5116,26 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         initializer: data.initializer,
                     };
                     if is_static_member {
-                        operations
-                            .static_
-                            .push(StaticOperation::PrivateField(Box::new(operation)));
+                        if self.selectively_transforms_private_static_elements() {
+                            operations
+                                .retained_members
+                                .push(self.materialize_private_static_field_block(&operation)?);
+                        } else {
+                            operations
+                                .static_
+                                .push(StaticOperation::PrivateField(Box::new(operation)));
+                        }
                     } else {
                         operations
                             .instance
                             .push(InstanceOperation::PrivateField(operation));
                     }
                 }
-                NodeData::MethodDeclaration(data) if self.name_is_private(data.name)? => {
+                NodeData::MethodDeclaration(data)
+                    if self.name_is_private(data.name)?
+                        && self
+                            .should_transform_private_class_element(member, data.modifiers)? =>
+                {
                     let name = data.name.ok_or(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::MethodDeclaration,
                         field: "private name",
@@ -5064,7 +5160,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             function,
                         });
                 }
-                NodeData::GetAccessor(data) if self.name_is_private(data.name)? => {
+                NodeData::GetAccessor(data)
+                    if self.name_is_private(data.name)?
+                        && self
+                            .should_transform_private_class_element(member, data.modifiers)? =>
+                {
                     let name = data.name.ok_or(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::GetAccessor,
                         field: "private name",
@@ -5104,7 +5204,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                             function,
                         });
                 }
-                NodeData::SetAccessor(data) if self.name_is_private(data.name)? => {
+                NodeData::SetAccessor(data)
+                    if self.name_is_private(data.name)?
+                        && self
+                            .should_transform_private_class_element(member, data.modifiers)? =>
+                {
                     let name = data.name.ok_or(TransformError::RequiredChildRemoved {
                         parent: SyntaxKind::SetAccessor,
                         field: "private name",
@@ -5146,7 +5250,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 }
                 NodeData::PropertyDeclaration(mut data)
                     if !self.name_is_private(data.name)?
-                        && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)? =>
+                        && !self.has_modifier(data.modifiers, SyntaxKind::AccessorKeyword)?
+                        && (!self.selectively_transforms_private_static_elements()
+                            || self.mode == PublicFieldMode::Assignment) =>
                 {
                     let receiver =
                         if self.has_modifier(data.modifiers, SyntaxKind::StaticKeyword)? {
@@ -5218,6 +5324,11 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         receiver,
                         name,
                         value,
+                        range_static_expression_to_name: receiver == FieldReceiver::Static
+                            && self
+                                .private_environments
+                                .last()
+                                .is_some_and(|environment| environment.is_legacy_decorated),
                     };
                     match receiver {
                         FieldReceiver::Instance => {
@@ -5240,7 +5351,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                         }
                     }
                 }
-                NodeData::ClassStaticBlockDeclaration(data) => {
+                NodeData::ClassStaticBlockDeclaration(data)
+                    if !self.selectively_transforms_private_static_elements() =>
+                {
                     let body = data
                         .body
                         .and_then(|body| self.context.arena().node_ref(self.source, body))
@@ -5914,6 +6027,77 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             .collect()
     }
 
+    /// At ES2022, only flagged private static elements leave the native class.
+    /// Their hoisted method/accessor definitions stay in a synthetic leading
+    /// static block, after the class-this and named-evaluation transport
+    /// blocks and before all ordinary members.
+    ///
+    /// tsc-port: transformClassMembers @6.0.3
+    /// tsc-hash: 8f02dc71f423a197caae79451edbed69e643ef5b909248bf13a649c2c2491071
+    /// tsc-span: _tsc.js:97143-97237
+    fn install_private_static_pending_block(
+        &mut self,
+        members: &mut Vec<TransformNode>,
+        pending: &mut ClassPendingPlan,
+    ) -> Result<(), TransformError> {
+        if !self.selectively_transforms_private_static_elements() || pending.is_empty() {
+            return Ok(());
+        }
+        let expressions = self.materialize_class_pending_expressions(pending)?;
+        if expressions.is_empty() {
+            return Ok(());
+        }
+        let expression = self.inline_expressions(expressions)?;
+        let statement = self.create_expression_statement(expression)?;
+        let body = self.create_block(vec![statement], false)?;
+        let static_block = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ClassStaticBlockDeclaration(
+                tsc_syntax::nodes::ClassStaticBlockDeclarationData {
+                    body: Some(body.node()),
+                    modifiers: None,
+                },
+            ),
+            TransformFlags::NONE,
+        )?;
+
+        let class_this = members.iter().position(|member| {
+            self.context
+                .arena()
+                .metadata(*member)
+                .and_then(|metadata| metadata.class_this)
+                .is_some()
+        });
+        let named_evaluation = members.iter().position(|member| {
+            self.context
+                .arena()
+                .metadata(*member)
+                .and_then(|metadata| metadata.assigned_name)
+                .is_some()
+        });
+        let mut leading = Vec::with_capacity(3);
+        if let Some(index) = class_this {
+            leading.push(members[index]);
+        }
+        if let Some(index) = named_evaluation {
+            if Some(index) != class_this {
+                leading.push(members[index]);
+            }
+        }
+        leading.push(static_block);
+        leading.extend(
+            members
+                .iter()
+                .copied()
+                .enumerate()
+                .filter_map(|(index, member)| {
+                    (Some(index) != class_this && Some(index) != named_evaluation).then_some(member)
+                }),
+        );
+        *members = leading;
+        Ok(())
+    }
+
     fn visit_property_assignment(
         &mut self,
         original: TransformNode,
@@ -6269,6 +6453,9 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         })
     }
 
+    /// tsc-port: transformProperty @6.0.3
+    /// tsc-hash: c4e9fbf0eb6953a64ba8257f83a5a79f3f8d904f06c12336d30b94ad5cdfd847
+    /// tsc-span: _tsc.js:97488-97500
     /// tsc-port: transformPropertyWorker @6.0.3
     /// tsc-hash: fb5e7b8fdfc4fab54f8fdd4ea6f48902c80207af52647e23cb47491f0ce46edd
     /// tsc-span: _tsc.js:97501-97575
@@ -6316,6 +6503,27 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 self.create_define_property(receiver, operation.name, initializer)?
             }
         };
+        if operation.range_static_expression_to_name {
+            let name = self.node(operation.name);
+            let source_map_range = self
+                .context
+                .arena()
+                .metadata(name)
+                .and_then(crate::EmitMetadata::source_map_range)
+                .or_else(|| {
+                    let arena = self.context.arena();
+                    let record = arena.node(name).ok()?;
+                    let source = arena.source(name.source()).ok()?.syntax();
+                    SourceRange::from_raw(record.pos, record.end, source.positions())
+                        .ok()
+                        .map(|range| SourceMapRange::new(name.source(), range))
+                });
+            let metadata = self.context.arena_mut()?.metadata_mut(expression);
+            metadata.add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
+            if let Some(source_map_range) = source_map_range {
+                metadata.set_source_map_range(source_map_range);
+            }
+        }
         let statement = self.create_expression_statement(expression)?;
         self.set_original_and_range(statement, operation.original)?;
         let property_original = self.context.arena().get_original_node(operation.original);
@@ -6497,6 +6705,14 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let call = self.create_call(set, vec![receiver, initializer])?;
         let statement = self.create_expression_statement(call)?;
         self.set_original_and_range(statement, operation.original)?;
+        if let Some(source_map_range) =
+            self.private_property_source_map_range(operation.original)?
+        {
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .set_source_map_range(source_map_range);
+        }
         self.context
             .arena_mut()?
             .metadata_mut(statement)
@@ -6552,9 +6768,126 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 .metadata_mut(assignment)
                 .class_field_initializer_comment_source = Some(comment_source);
         }
+        if let Some(source_map_range) =
+            self.private_property_name_source_map_range(operation.original)?
+        {
+            let metadata = self.context.arena_mut()?.metadata_mut(assignment);
+            metadata.add_flags(EmitFlags::ADVISE_ON_EMIT_NODE);
+            metadata.set_source_map_range(source_map_range);
+        }
         let statement = self.create_expression_statement(assignment)?;
         self.set_original_and_range(statement, operation.original)?;
+        if let Some(source_map_range) =
+            self.private_property_source_map_range(operation.original)?
+        {
+            self.context
+                .arena_mut()?
+                .metadata_mut(statement)
+                .set_source_map_range(source_map_range);
+        }
         Ok(statement)
+    }
+
+    fn materialize_private_static_field_block(
+        &mut self,
+        operation: &PrivateFieldOperation,
+    ) -> Result<TransformNode, TransformError> {
+        let statement = self.materialize_private_static_field(operation)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(statement)
+            .set_comment_range(crate::CommentRange::new(
+                self.source,
+                SourceRange::Synthesized,
+            ));
+        let body = self.create_block(vec![statement], true)?;
+        let block = self.context.factory()?.create_node(
+            self.source,
+            NodeData::ClassStaticBlockDeclaration(
+                tsc_syntax::nodes::ClassStaticBlockDeclarationData {
+                    body: Some(body.node()),
+                    modifiers: None,
+                },
+            ),
+            TransformFlags::NONE,
+        )?;
+        self.context
+            .arena_mut()?
+            .set_semantic_original_node(block, operation.original)?;
+        let record = self.context.arena().node(operation.original)?;
+        let positions = self
+            .context
+            .arena()
+            .source(operation.original.source())?
+            .syntax()
+            .positions();
+        let range = SourceRange::from_raw(record.pos, record.end, positions).map_err(|error| {
+            TransformError::InvalidSourceRange {
+                node: operation.original,
+                error,
+            }
+        })?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(block)
+            .set_comment_range(crate::CommentRange::new(operation.original.source(), range));
+        Ok(block)
+    }
+
+    /// The class-fields pass applies `moveRangePastModifiers` to each
+    /// property expression before it becomes a constructor/static statement.
+    /// Property declarations start that range at their name, including the
+    /// generated backing field of an auto-accessor.
+    ///
+    /// tsc-port: generateInitializedPropertyExpressionsOrClassStaticBlock @6.0.3
+    /// tsc-hash: 8e776d62fb988da8525039a9b7246226f4a003e34a285cec156b79e7f02a09a3
+    /// tsc-span: _tsc.js:97460-97487
+    fn private_property_source_map_range(
+        &self,
+        property: TransformNode,
+    ) -> Result<Option<SourceMapRange>, TransformError> {
+        let original = self.context.arena().get_original_node(property);
+        let record = self.context.arena().node(original)?;
+        let NodeData::PropertyDeclaration(data) = &record.data else {
+            return Ok(None);
+        };
+        let Some(name) = data
+            .name
+            .and_then(|name| self.context.arena().node_ref(original.source(), name))
+        else {
+            return Ok(None);
+        };
+        let start = self.context.arena().node(name)?.pos;
+        let source = self.context.arena().source(original.source())?.syntax();
+        let range =
+            SourceRange::from_raw(start, record.end, source.positions()).map_err(|error| {
+                TransformError::InvalidSourceRange {
+                    node: original,
+                    error,
+                }
+            })?;
+        Ok(Some(SourceMapRange::new(original.source(), range)))
+    }
+
+    fn private_property_name_source_map_range(
+        &self,
+        property: TransformNode,
+    ) -> Result<Option<SourceMapRange>, TransformError> {
+        let original = self.context.arena().get_original_node(property);
+        let NodeData::PropertyDeclaration(data) = &self.context.arena().node(original)?.data else {
+            return Ok(None);
+        };
+        let Some(name) = data
+            .name
+            .and_then(|name| self.context.arena().node_ref(original.source(), name))
+        else {
+            return Ok(None);
+        };
+        let record = self.context.arena().node(name)?;
+        let source = self.context.arena().source(original.source())?.syntax();
+        let range = SourceRange::from_raw(record.pos, record.end, source.positions())
+            .map_err(|error| TransformError::InvalidSourceRange { node: name, error })?;
+        Ok(Some(SourceMapRange::new(original.source(), range)))
     }
 
     fn create_private_get(

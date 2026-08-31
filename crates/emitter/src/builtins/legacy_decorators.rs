@@ -744,6 +744,9 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         if has_constructor_decoration {
             let decorators = self.materialize_class_decorators(class_decoration)?;
             let class_name = self.create_identifier(&name_text)?;
+            if let Some(explicit_name) = explicit_name {
+                self.set_original_and_range(class_name, self.node(explicit_name))?;
+            }
             let mut decorate = self.create_decorate_call(decorators, class_name, None, None)?;
             if let Some(alias) = class_alias.as_ref() {
                 let alias = self.create_generated_identifier(alias)?;
@@ -1559,7 +1562,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
             };
         let call =
             self.create_decorate_call(decorators, target, Some(member_name), Some(descriptor))?;
-        let location = self.move_range_past_modifiers(member, modifiers)?;
+        let original_modifiers = match &record.data {
+            NodeData::PropertyDeclaration(data) => data.modifiers,
+            NodeData::MethodDeclaration(data) => data.modifiers,
+            NodeData::GetAccessor(data) => data.modifiers,
+            NodeData::SetAccessor(data) => data.modifiers,
+            _ => None,
+        };
+        let location = self.move_range_past_modifiers(owner_member, original_modifiers)?;
         {
             let metadata = self.context.arena_mut()?.metadata_mut(call);
             metadata.add_flags(EmitFlags::NO_COMMENTS);
@@ -4230,6 +4240,14 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
         modifiers: Option<NodeArrayId>,
     ) -> Result<RangePastModifiers, TransformError> {
         let declaration_record = self.context.arena().node(declaration)?.clone();
+        let member_name_pos = match &declaration_record.data {
+            NodeData::PropertyDeclaration(data) => data.name,
+            NodeData::MethodDeclaration(data) => data.name,
+            _ => None,
+        }
+        .and_then(|name| self.context.arena().node_ref(declaration.source(), name))
+        .map(|name| self.context.arena().node(name).map(|record| record.pos))
+        .transpose()?;
         let mut last_modifier_end = None;
         let mut last_decorator_end = None;
         for modifier in self.array_nodes(modifiers)? {
@@ -4239,10 +4257,12 @@ impl<'context, 'resolver> LegacyDecoratorVisitor<'context, 'resolver> {
                 last_decorator_end = Some(record.end);
             }
         }
-        let start = last_modifier_end
-            .filter(|end| *end != u32::MAX)
-            .or_else(|| last_decorator_end.filter(|end| *end != u32::MAX))
-            .unwrap_or(declaration_record.pos);
+        let start = member_name_pos.unwrap_or_else(|| {
+            last_modifier_end
+                .filter(|end| *end != u32::MAX)
+                .or_else(|| last_decorator_end.filter(|end| *end != u32::MAX))
+                .unwrap_or(declaration_record.pos)
+        });
         let source = self.context.arena().source(declaration.source())?.syntax();
         let range = SourceRange::from_raw(start, declaration_record.end, source.positions())
             .map_err(|error| TransformError::InvalidSourceRange {

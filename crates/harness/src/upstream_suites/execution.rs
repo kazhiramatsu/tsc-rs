@@ -891,10 +891,18 @@ fn apply_compiler_setting(
                 compiler_options.map_root = Some(value.to_owned());
             }
         }
+        // W5 K21: the production emitter honors emitBOM on the JavaScript
+        // write's byte-order-mark flag (execute.rs). The breadth floor
+        // projects it so the observation's BOM facet is comparable; the
+        // 5g/5h/6a floors keep the historical drop.
+        "emitbom" => {
+            if floor == EmitOptionFloor::MapFamily {
+                compiler_options.emit_bom = Some(boolean()?);
+            }
+        }
         "noemithelpers"
         | "declarationmap"
         | "emitdeclarationonly"
-        | "emitbom"
         | "outdir"
         | "declarationdir"
         | "incremental"

@@ -101,6 +101,89 @@ fn valid_dependency_options_close_their_relationships() {
 }
 
 #[test]
+fn source_map_relationships_follow_tsc_order_and_messages() {
+    assert_eq!(
+        validate_compiler_options(&CompilerOptions {
+            source_root: Some("sources".to_owned()),
+            map_root: Some("maps".to_owned()),
+            ..CompilerOptions::default()
+        }),
+        [
+            CompilerOptionViolation::SourceRootRequiresSourceMap,
+            CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap,
+        ]
+    );
+    assert_eq!(
+        validate_compiler_options(&CompilerOptions {
+            inline_source_map: Some(true),
+            map_root: Some("maps".to_owned()),
+            ..CompilerOptions::default()
+        }),
+        [
+            CompilerOptionViolation::MapRootConflictsWithInlineSourceMap,
+            CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap,
+        ]
+    );
+    assert_eq!(
+        validate_compiler_options(&CompilerOptions {
+            source_map: Some(true),
+            inline_source_map: Some(true),
+            ..CompilerOptions::default()
+        }),
+        [CompilerOptionViolation::SourceMapConflictsWithInlineSourceMap]
+    );
+    assert_eq!(
+        validate_compiler_options(&CompilerOptions {
+            inline_sources: Some(true),
+            ..CompilerOptions::default()
+        }),
+        [CompilerOptionViolation::InlineSourcesRequiresSourceMap]
+    );
+
+    let source_root = CompilerOptionViolation::SourceRootRequiresSourceMap;
+    assert_eq!(
+        source_root.location(),
+        CompilerOptionValidationLocation::Name
+    );
+    assert_eq!(source_root.message().code, 5051);
+    assert_eq!(
+        source_root.message().text,
+        "Option 'sourceRoot can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided."
+    );
+    let map_root = CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap;
+    assert_eq!(map_root.message().code, 5069);
+    assert_eq!(
+        map_root.message().text,
+        "Option 'mapRoot' cannot be specified without specifying option 'sourceMap' or option 'declarationMap'."
+    );
+}
+
+#[test]
+fn source_map_relationships_accept_their_prerequisites() {
+    for options in [
+        CompilerOptions {
+            source_map: Some(true),
+            source_root: Some("sources".to_owned()),
+            map_root: Some("maps".to_owned()),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            declaration_map: Some(true),
+            map_root: Some("maps".to_owned()),
+            ..CompilerOptions::default()
+        },
+        CompilerOptions {
+            inline_source_map: Some(true),
+            source_root: Some("sources".to_owned()),
+            inline_sources: Some(true),
+            ..CompilerOptions::default()
+        },
+    ] {
+        assert!(validate_compiler_options(&options).is_empty());
+    }
+}
+
+#[test]
 fn empty_jsx_strings_follow_javascript_truthiness() {
     let options = CompilerOptions {
         jsx: Some(2),
@@ -140,4 +223,30 @@ fn one_snapshot_can_report_multiple_violations_without_filtering() {
             },
         ]
     );
+}
+
+#[test]
+fn source_map_relationship_diagnostics_stay_non_fatal_in_the_config_gate() {
+    // The W5 K22 rows report like the 5101/5107 family: the program still
+    // loads, checks, and emits (verifyCompilerOptions rows are not a
+    // source-loading gate). A fatal classification would suppress the
+    // frozen target writes and flip emit_skipped.
+    for (code, violation) in [
+        (5051, CompilerOptionViolation::SourceRootRequiresSourceMap),
+        (
+            5053,
+            CompilerOptionViolation::SourceMapConflictsWithInlineSourceMap,
+        ),
+        (
+            5069,
+            CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap,
+        ),
+    ] {
+        assert_eq!(violation.message().code, code);
+        let diagnostic = tsc_diagnostics::Diagnostic::new(None, None, None, violation.message());
+        assert!(
+            crate::is_non_fatal_option_diagnostic(&diagnostic),
+            "code {code} must pass the non-fatal option gate"
+        );
+    }
 }

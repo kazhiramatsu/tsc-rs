@@ -15,8 +15,8 @@ use crate::prepared::{
     ProgramOptions,
 };
 
-/// Whether TypeScript locates an option diagnostic on an option key or its
-/// converted value when config syntax is available.
+/// How TypeScript locates an option diagnostic on an option key or its
+/// converted value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CompilerOptionValidationLocation {
     Name,
@@ -43,6 +43,11 @@ pub enum CompilerOptionViolation {
     InvalidJsxFragmentFactory { value: String },
     ReactNamespaceConflictsWithAutomaticRuntime { jsx: &'static str },
     JsxImportSourceConflictsWithClassicRuntime,
+    InlineSourcesRequiresSourceMap,
+    SourceRootRequiresSourceMap,
+    MapRootConflictsWithInlineSourceMap,
+    SourceMapConflictsWithInlineSourceMap,
+    MapRootRequiresSourceMapOrDeclarationMap,
 }
 
 impl CompilerOptionViolation {
@@ -70,6 +75,11 @@ impl CompilerOptionViolation {
             Self::JsxFragmentFactoryConflictsWithAutomaticRuntime { .. }
             | Self::InvalidJsxFragmentFactory { .. } => &["jsxFragmentFactory"],
             Self::JsxImportSourceConflictsWithClassicRuntime => &["jsxImportSource"],
+            Self::InlineSourcesRequiresSourceMap => &["inlineSources"],
+            Self::SourceRootRequiresSourceMap => &["sourceRoot"],
+            Self::MapRootConflictsWithInlineSourceMap => &["mapRoot"],
+            Self::SourceMapConflictsWithInlineSourceMap => &["sourceMap"],
+            Self::MapRootRequiresSourceMapOrDeclarationMap => &["mapRoot"],
         }
     }
 
@@ -149,6 +159,30 @@ impl CompilerOptionViolation {
                 &gen::Option_0_cannot_be_specified_when_option_jsx_is_1,
                 &["jsxImportSource".to_owned(), "react".to_owned()],
             ),
+            Self::InlineSourcesRequiresSourceMap => MessageChain::new(
+                &gen::Option_0_can_only_be_used_when_either_option_inlineSourceMap_or_option_sourceMap_is_provided,
+                &["inlineSources".to_owned()],
+            ),
+            Self::SourceRootRequiresSourceMap => MessageChain::new(
+                &gen::Option_0_can_only_be_used_when_either_option_inlineSourceMap_or_option_sourceMap_is_provided,
+                &["sourceRoot".to_owned()],
+            ),
+            Self::MapRootConflictsWithInlineSourceMap => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_with_option_1,
+                &["mapRoot".to_owned(), "inlineSourceMap".to_owned()],
+            ),
+            Self::SourceMapConflictsWithInlineSourceMap => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_with_option_1,
+                &["sourceMap".to_owned(), "inlineSourceMap".to_owned()],
+            ),
+            Self::MapRootRequiresSourceMapOrDeclarationMap => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                &[
+                    "mapRoot".to_owned(),
+                    "sourceMap".to_owned(),
+                    "declarationMap".to_owned(),
+                ],
+            ),
         }
     }
 }
@@ -162,6 +196,12 @@ impl CompilerOptionViolation {
 /// tsc-port: verifyCompilerOptions @6.0.3 (JSX block)
 /// tsc-hash: 1972328cb915ef83d963c4d5f7f8abf148aa8651d6188a0dbdeee377490f69ad
 /// tsc-span: _tsc.js:124954-124986
+/// tsc-port: verifyCompilerOptions @6.0.3 (inline source-map conflicts)
+/// tsc-hash: 73b19528c7f4dd48641c7b22cc9849d6ac109ee09517fde4e029e897166e8c62
+/// tsc-span: _tsc.js:124770-124777
+/// tsc-port: verifyCompilerOptions @6.0.3 (source-root/map-root prerequisites)
+/// tsc-hash: 669a5b208c175af80f80a6a49fbaa43b7afcbe4d3cde9777804a682934d39513
+/// tsc-span: _tsc.js:124855-124865
 pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptionViolation> {
     let mut violations = Vec::new();
     if options.strict_property_initialization == Some(true)
@@ -183,6 +223,41 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         if options.declaration != Some(true) && options.composite != Some(true) {
             violations.push(CompilerOptionViolation::IsolatedDeclarationsRequiresDeclaration);
         }
+    }
+
+    let source_map = options.source_map == Some(true);
+    let inline_source_map = options.inline_source_map == Some(true);
+    let inline_sources = options.inline_sources == Some(true);
+    let source_root = options
+        .source_root
+        .as_deref()
+        .is_some_and(|value| !value.is_empty());
+    let map_root = options
+        .map_root
+        .as_deref()
+        .is_some_and(|value| !value.is_empty());
+
+    // Keep this in the same order as verifyCompilerOptions. The final
+    // diagnostic collection applies TypeScript's sorting, but callers of the
+    // typed validator also rely on this upstream emission order.
+    if inline_source_map {
+        if source_map {
+            violations.push(CompilerOptionViolation::SourceMapConflictsWithInlineSourceMap);
+        }
+        if map_root {
+            violations.push(CompilerOptionViolation::MapRootConflictsWithInlineSourceMap);
+        }
+    }
+    if !source_map && !inline_source_map {
+        if inline_sources {
+            violations.push(CompilerOptionViolation::InlineSourcesRequiresSourceMap);
+        }
+        if source_root {
+            violations.push(CompilerOptionViolation::SourceRootRequiresSourceMap);
+        }
+    }
+    if map_root && !(source_map || options.declaration_map == Some(true)) {
+        violations.push(CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap);
     }
 
     let target = options.emit_script_target();

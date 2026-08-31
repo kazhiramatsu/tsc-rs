@@ -2385,7 +2385,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     fn create_export_star_prelude(&mut self) -> Result<Vec<TransformNode>, TransformError> {
         let mut output = Vec::new();
         let mut exported_names = self.info.non_function_exported_names.clone();
-        for (export, _) in self.info.common.hoisted_function_exports.clone() {
+        for (export, _, _) in self.info.common.hoisted_function_exports.clone() {
             push_unique(&mut exported_names, &export);
         }
         let local_names = if exported_names.is_empty() {

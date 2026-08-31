@@ -1398,7 +1398,7 @@ fn validate_config_plan_for_mode(
 /// the checker. TypeScript 6.0 deprecation rows are non-fatal; malformed
 /// values and structural option errors remain a source-loading gate.
 pub fn is_non_fatal_option_diagnostic(diagnostic: &Diagnostic) -> bool {
-    matches!(diagnostic.code(), 5101 | 5107)
+    matches!(diagnostic.code(), 5051 | 5053 | 5069 | 5101 | 5107)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -3144,10 +3144,16 @@ fn option_relationship_diagnostics(
         declaration: config_option_bool(options, "declaration"),
         composite: config_option_bool(options, "composite"),
         jsx: config_option_i32(options, "jsx"),
+        source_map: config_option_bool(options, "sourceMap"),
+        inline_source_map: config_option_bool(options, "inlineSourceMap"),
+        inline_sources: config_option_bool(options, "inlineSources"),
+        source_root: config_option_string(options, "sourceRoot"),
+        map_root: config_option_string(options, "mapRoot"),
         jsx_factory: config_option_string(options, "jsxFactory"),
         jsx_fragment_factory: config_option_string(options, "jsxFragmentFactory"),
         jsx_import_source: config_option_string(options, "jsxImportSource"),
         react_namespace: config_option_string(options, "reactNamespace"),
+        declaration_map: config_option_bool(options, "declarationMap"),
         ..CompilerOptions::default()
     };
     let module_kind = projected.emit_module_kind();

@@ -42,8 +42,8 @@
     "file_count": 238,
     "rust_source_files": 223,
     "cargo_manifests": 15,
-    "bytes": 17382953,
-    "tree_sha256": "91ea009125cef48fb65432625756c56106106759b29924cdbd0b6e517e1773c9"
+    "bytes": 17434546,
+    "tree_sha256": "eaa5f97b0ac61c6a3597e9585c86b3e57865e1ff7431187438811b86e0fe069f"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -487,7 +487,7 @@
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "df64be0abebb73350e4a2465bba8585a57d25c426f12b893f0a83cbb5585f3ec"
+        "file_sha256": "985f597373f11140ea423f0c518865d6d9801b9a96c35a668cf7124ec283f97d"
       },
       {
         "id": "emitter-position-domains",
@@ -523,7 +523,7 @@
         "column": 1,
         "text": "pub fn get_script_transformers<'resolver>(",
         "text_sha256": "88f607a40f2d43018feaa22538fc6ccec9553ddedee9f5c57b5d53482625ad1b",
-        "file_sha256": "2a88390ebf1fd8d9a9e004b8ac4288d921b6f88fc49cb27aa5e35ca2e9dd2806"
+        "file_sha256": "7be7fd5615bad10ac5968d1ccd0a29c127f059576ff4064af69d7539721a532a"
       },
       {
         "id": "emitter-transform-typescript",
@@ -532,7 +532,7 @@
         "column": 1,
         "text": "pub fn transform_type_script<'resolver>(",
         "text_sha256": "848a2eea9bbbb33aa08e7d3a84951a26791e61eeeea736dba1b7370193ffeee5",
-        "file_sha256": "2a88390ebf1fd8d9a9e004b8ac4288d921b6f88fc49cb27aa5e35ca2e9dd2806"
+        "file_sha256": "7be7fd5615bad10ac5968d1ccd0a29c127f059576ff4064af69d7539721a532a"
       },
       {
         "id": "emitter-transform-class-fields",
@@ -541,7 +541,7 @@
         "column": 1,
         "text": "pub fn transform_class_fields<'resolver>(",
         "text_sha256": "6725dc3040c7b665e642b0595eb187992791ad9331c370100c1dfd03cbd38159",
-        "file_sha256": "2a88390ebf1fd8d9a9e004b8ac4288d921b6f88fc49cb27aa5e35ca2e9dd2806"
+        "file_sha256": "7be7fd5615bad10ac5968d1ccd0a29c127f059576ff4064af69d7539721a532a"
       },
       {
         "id": "emitter-transform-ecmascript-module",
@@ -550,16 +550,16 @@
         "column": 1,
         "text": "pub fn transform_ecmascript_module(options: &CompilerOptions) -> Box<dyn Transformer> {",
         "text_sha256": "29640dfc9438abcb5ec228a2ef9199a2afcacc2b58bf8f5adc8adafd45f57e40",
-        "file_sha256": "2a88390ebf1fd8d9a9e004b8ac4288d921b6f88fc49cb27aa5e35ca2e9dd2806"
+        "file_sha256": "7be7fd5615bad10ac5968d1ccd0a29c127f059576ff4064af69d7539721a532a"
       },
       {
         "id": "emitter-changed-import-printer",
         "path": "crates/emitter/src/printer.rs",
-        "line": 2200,
+        "line": 2206,
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "df64be0abebb73350e4a2465bba8585a57d25c426f12b893f0a83cbb5585f3ec"
+        "file_sha256": "985f597373f11140ea423f0c518865d6d9801b9a96c35a668cf7124ec283f97d"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -865,7 +865,7 @@
         "column": 1,
         "text": "pub fn load_emitting_config_program_with_overrides(\n    host: &dyn CompilerHost,",
         "text_sha256": "63acf5cb745e1348e9ab12605e59631e792b10440cd3fd2a84110e3c58017cbd",
-        "file_sha256": "231fc3623742065c1398975a2323dd2edb257749526efdc4801c3c9432a511cd"
+        "file_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c"
       },
       {
         "id": "config-no-emit-gate",
@@ -874,7 +874,7 @@
         "column": 5,
         "text": "A config without an explicit\n/// `noEmit: true` is rejected before `load_program`",
         "text_sha256": "161a551a4d1b128d9d948b1d08261a98bd294a5e7bb6fecdfc5aa1dfb3ff004d",
-        "file_sha256": "231fc3623742065c1398975a2323dd2edb257749526efdc4801c3c9432a511cd"
+        "file_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c"
       },
       {
         "id": "cli-mode-dispatch",
@@ -901,7 +901,7 @@
         "column": 5,
         "text": "out_dir: Option<String>,\n    declaration_dir: Option<String>,",
         "text_sha256": "a8617177e430f042fb859063fe81c6befc627994db9f901f674fb6b6c436373d",
-        "file_sha256": "231fc3623742065c1398975a2323dd2edb257749526efdc4801c3c9432a511cd"
+        "file_sha256": "af6facf270d10e2131c447e1314a3acd211bb6448b5008def40946c1e8fce97c"
       },
       {
         "id": "program-snapshot-owner",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "6837538d88c3ef29ac9df8c99fef217fe642277db541af402bfea5f711216425"
+  "inventory_fingerprint_sha256": "f7b4f86c39181b5dda6770f5f2a29bb801c64e7f901c927d7ea0f870146a9fd4"
 }

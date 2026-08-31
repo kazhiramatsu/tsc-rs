@@ -81,19 +81,30 @@ impl Transformer for ClassFieldsTransformer<'_> {
         // derived from the current arena, just as tsc's factory-propagated
         // transform flags are when transformClassFields begins.
         initialize_transform_flags(context.arena_mut()?, source)?;
-        if self.target < ScriptTarget::ES2022 {
+        let root = context.arena().root(source)?;
+        let transform_private_static_elements =
+            context.arena().metadata(root).is_some_and(|metadata| {
+                metadata
+                    .internal_flags()
+                    .contains(InternalEmitFlags::TRANSFORM_PRIVATE_STATIC_ELEMENTS)
+            });
+        // tsc-port: transformSourceFile private-static handoff @6.0.3
+        // tsc-hash: 6b4e789c9f79058aedb753f6e48b04c3b3966d3c02761c111fc08dabdc16c473
+        // tsc-span: _tsc.js:95875-95920
+        if self.target < ScriptTarget::ES2022
+            || self.target == ScriptTarget::ES2022 && transform_private_static_elements
+        {
             downlevel::transform_source(
                 context,
                 source,
                 self.resolver,
                 self.target,
                 self.use_define_for_class_fields,
-                self.target == ScriptTarget::ES2021,
+                self.target >= ScriptTarget::ES2021,
                 &mut self.class_aliases,
             )?;
             return Ok(TransformRoot::SourceFile(source));
         }
-        let root = context.arena().root(source)?;
         let mut visitor = ClassFieldsVisitor::new(
             context,
             source,

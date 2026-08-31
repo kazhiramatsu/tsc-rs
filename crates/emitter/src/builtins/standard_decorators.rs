@@ -102,6 +102,9 @@ impl Transformer for StandardDecoratorTransformer {
         Ok(())
     }
 
+    /// tsc-port: transformSourceFile @6.0.3
+    /// tsc-hash: 7d3feb5348f0eb42475696e86a21c67b94f94b863eb41a092e280f3bda7f157c
+    /// tsc-span: _tsc.js:98960-98970
     fn transform_root(
         &mut self,
         context: &mut TransformationContext,
@@ -124,6 +127,24 @@ impl Transformer for StandardDecoratorTransformer {
                     parent: SyntaxKind::SourceFile,
                     field: "root",
                 })?;
+        if visitor.should_transform_private_static_elements_in_file {
+            let root = TransformNode::new(source, transformed);
+            let internal_flags = visitor
+                .context
+                .arena()
+                .metadata(root)
+                .map_or(InternalEmitFlags::NONE, |metadata| {
+                    metadata.internal_flags()
+                });
+            visitor
+                .context
+                .arena_mut()?
+                .metadata_mut(root)
+                .set_internal_flags(InternalEmitFlags::from_bits(
+                    internal_flags.bits()
+                        | InternalEmitFlags::TRANSFORM_PRIVATE_STATIC_ELEMENTS.bits(),
+                ));
+        }
         visitor
             .context
             .arena_mut()?
@@ -152,6 +173,7 @@ struct PropertyPlan {
 
 #[derive(Clone)]
 struct ClassDecorationPlan {
+    original: TransformNode,
     decorators: Vec<TransformNode>,
     decorators_name: String,
     descriptor_name: String,
@@ -395,16 +417,22 @@ enum DecoratorInitializerReceiver {
 
 #[derive(Clone, Debug)]
 enum PendingDecoratorInitializer {
-    MethodExtra { initializers_name: String },
-    FieldExtra { initializers_name: String },
+    MethodExtra {
+        initializers_name: String,
+        class: TransformNode,
+    },
+    FieldExtra {
+        initializers_name: String,
+    },
 }
 
 impl PendingDecoratorInitializer {
     fn initializers_name(&self) -> &str {
         match self {
-            Self::MethodExtra { initializers_name } | Self::FieldExtra { initializers_name } => {
-                initializers_name
+            Self::MethodExtra {
+                initializers_name, ..
             }
+            | Self::FieldExtra { initializers_name } => initializers_name,
         }
     }
 }
@@ -556,6 +584,7 @@ struct StandardDecoratorVisitor<'context> {
     used_names: BTreeSet<String>,
     generated_reference_names: BTreeSet<String>,
     computed_temp_ordinal: usize,
+    should_transform_private_static_elements_in_file: bool,
 }
 
 impl<'context> StandardDecoratorVisitor<'context> {
@@ -576,6 +605,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             used_names,
             generated_reference_names: BTreeSet::new(),
             computed_temp_ordinal: 0,
+            should_transform_private_static_elements_in_file: false,
         }
     }
 
@@ -850,6 +880,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
         Ok(())
     }
 
+    /// tsc-port: transformClassLike @6.0.3
+    /// tsc-hash: 81ca1253994891573290dc0bff9915660cf030bc5f7a1b69ae5f71288ebe1d43
+    /// tsc-span: _tsc.js:99335-99375
     fn transform_class_like(
         &mut self,
         route: DecoratedClassRoute,
@@ -890,13 +923,21 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 !class_decorators.is_empty(),
             )?,
         };
+        let has_static_private_class_elements = self.array_nodes(data.members)?.iter().try_fold(
+            false,
+            |found, member| -> Result<bool, TransformError> {
+                Ok(found || self.is_private_static_class_element(*member)?)
+            },
+        )?;
         // A decorated named class still receives its name from the direct
         // variable initializer while native static blocks survive. Below
         // ES2022, class-field lowering extracts the `_classThis = this`
         // block and makes the anonymous class the right side of another
         // assignment, so that named-evaluation position no longer survives.
         let emitted_binding_infers_name = explicit_class_name.is_some()
-            && (class_decorators.is_empty() || self.target >= ScriptTarget::ES2022);
+            && (class_decorators.is_empty()
+                || self.target > ScriptTarget::ES2022
+                || self.target == ScriptTarget::ES2022 && !has_static_private_class_elements);
         let needs_set_function_name = !emitted_binding_infers_name && runtime_class_name.is_some();
         let mut class_decoration = if class_decorators.is_empty() {
             None
@@ -940,6 +981,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 }
             };
             Some(ClassDecorationPlan {
+                original,
                 decorators: class_decorators,
                 decorators_name: self.allocate_name("_classDecorators"),
                 descriptor_name: self.allocate_name("_classDescriptor"),
@@ -984,13 +1026,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
                             "_{static_prefix}{private_prefix}{helper_name}_descriptor"
                         ))
                     });
-                    let backing_name = is_accessor.then(|| {
-                        if computed_expression.is_some() {
-                            self.allocate_computed_private_storage(&mut used_private)
-                        } else {
-                            self.allocate_private_storage(&name, &mut used_private)
-                        }
-                    });
+                    let backing_name = (is_accessor
+                        && (is_private || self.target > ScriptTarget::ES2022))
+                        .then(|| {
+                            if computed_expression.is_some() {
+                                self.allocate_computed_private_storage(&mut used_private)
+                            } else {
+                                self.allocate_private_storage(&name, &mut used_private)
+                            }
+                        });
                     plans.push(PropertyPlan {
                         original: *member,
                         data: member_data,
@@ -1182,9 +1226,14 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .as_ref()
             .filter(|_| needs_set_function_name && explicitly_assigned_name.is_none())
         {
-            let target = class_decoration
-                .as_ref()
-                .map(|plan| plan.class_this_name.as_str());
+            let target = (!(self.target == ScriptTarget::ES2022
+                && has_static_private_class_elements))
+                .then(|| {
+                    class_decoration
+                        .as_ref()
+                        .map(|plan| plan.class_this_name.as_str())
+                })
+                .flatten();
             transformed_members
                 .push(self.create_set_function_name_block(runtime_class_name.text(), target)?);
         }
@@ -1229,6 +1278,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 DecoratorInitializerPlacement::Static,
                 PendingDecoratorInitializer::MethodExtra {
                     initializers_name: initializers_name.clone(),
+                    class: original,
                 },
             );
         }
@@ -1237,6 +1287,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 DecoratorInitializerPlacement::Instance,
                 PendingDecoratorInitializer::MethodExtra {
                     initializers_name: initializers_name.clone(),
+                    class: original,
                 },
             );
         }
@@ -1295,7 +1346,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                             field: "decorated initializer",
                         })?;
                     let static_accessor_receiver =
-                        if plan.is_static && self.target < ScriptTarget::ES_NEXT {
+                        if plan.is_static && self.target < ScriptTarget::ES2022 {
                             if let Some(class_plan) = class_decoration.as_ref() {
                                 Some(StaticAccessorReceiver::GeneratedBinding(
                                     class_plan.class_this_name.clone(),
@@ -1316,7 +1367,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
                         } else {
                             None
                         };
-                    if plan.is_accessor {
+                    if plan.descriptor_name.is_some()
+                        || plan.is_accessor && self.target > ScriptTarget::ES2022
+                    {
                         let backing_name = plan.backing_name.as_deref().ok_or(
                             TransformError::RequiredChildRemoved {
                                 parent: SyntaxKind::PropertyDeclaration,
@@ -1423,6 +1476,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 &class_plan.class_this_name,
                 &class_plan.extra_initializers_name,
             )?;
+            let statement = self.set_class_finalizer_source_map_range(statement, class_plan)?;
             trailing_static_statements.push(statement);
         }
         if !trailing_static_statements.is_empty() {
@@ -1449,6 +1503,26 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 .metadata(*member)
                 .and_then(|metadata| metadata.assigned_name)
         });
+        let should_transform_private_static_elements = class_decoration.is_some()
+            && transformed_members.iter().try_fold(
+                false,
+                |found, member| -> Result<bool, TransformError> {
+                    Ok(found || self.is_private_static_class_element(*member)?)
+                },
+            )?;
+        if should_transform_private_static_elements {
+            // tsc-port: transformClassLike private-static class-fields handoff @6.0.3
+            // tsc-hash: e9f9d45ff72748b5c675933e394408bf146fdffe93091079edd1a1e57cd684e3
+            // tsc-span: _tsc.js:99588-99615
+            for member in &transformed_members {
+                if self.is_private_static_class_element(*member)? {
+                    self.add_internal_emit_flag(
+                        *member,
+                        InternalEmitFlags::TRANSFORM_PRIVATE_STATIC_ELEMENTS,
+                    )?;
+                }
+            }
+        }
         let members = self
             .context
             .factory()?
@@ -1470,6 +1544,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         }
         if let Some(assigned_name) = assigned_name_metadata {
             self.context.arena_mut()?.metadata_mut(class).assigned_name = Some(assigned_name);
+        }
+        if should_transform_private_static_elements {
+            self.add_internal_emit_flag(
+                class,
+                InternalEmitFlags::TRANSFORM_PRIVATE_STATIC_ELEMENTS,
+            )?;
+            self.should_transform_private_static_elements_in_file = true;
         }
         if let Some(class_plan) = class_decoration.as_ref() {
             let reference = self.materialize_decorated_class_reference(&class_plan.reference)?;
@@ -1589,7 +1670,15 @@ impl<'context> StandardDecoratorVisitor<'context> {
                     extra,
                 )?);
             } else {
-                statements.push(self.create_es_decorate_statement(&plans[index], metadata_name)?);
+                let static_receiver = (plans[index].is_static
+                    && self.target < ScriptTarget::ES2022)
+                    .then(|| class_plan.map(|plan| plan.class_this_name.as_str()))
+                    .flatten();
+                statements.push(self.create_es_decorate_statement(
+                    &plans[index],
+                    metadata_name,
+                    static_receiver,
+                )?);
             }
         }
         if let Some(class_plan) = class_plan {
@@ -1603,10 +1692,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
         statements
             .extend(self.materialize_pending_initializer_statements(leading_static_initializers)?);
         if let Some(class_plan) = class_plan.filter(|plan| !plan.has_static_initializers) {
-            statements.push(self.create_run_initializers_statement_with_target(
+            let statement = self.create_run_initializers_statement_with_target(
                 &class_plan.class_this_name,
                 &class_plan.extra_initializers_name,
-            )?);
+            )?;
+            statements.push(self.set_class_finalizer_source_map_range(statement, class_plan)?);
         }
         self.create_static_block(statements, true)
     }
@@ -2121,6 +2211,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         &mut self,
         plan: &PropertyPlan,
         metadata_name: &str,
+        static_receiver: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
         let helper = self
             .context
@@ -2132,7 +2223,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             self.create_null()?
         };
         let descriptor = if let Some(descriptor_name) = plan.descriptor_name.as_deref() {
-            let descriptor = self.create_private_accessor_descriptor(plan)?;
+            let descriptor = self.create_private_accessor_descriptor(plan, static_receiver)?;
             let descriptor_name = self.create_identifier(descriptor_name)?;
             self.create_assignment(descriptor_name, descriptor)?
         } else {
@@ -2146,7 +2237,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             helper,
             vec![ctor, descriptor, decorators, context, initializers, extra],
         )?;
-        self.create_expression_statement(call)
+        let statement = self.create_expression_statement(call)?;
+        self.set_source_map_range_past_decorators(statement, plan.original, plan.data.modifiers)
     }
 
     fn create_method_es_decorate_statement(
@@ -2175,7 +2267,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
             helper,
             vec![ctor, descriptor, decorators, context, initializers, extra],
         )?;
-        self.create_expression_statement(call)
+        let statement = self.create_expression_statement(call)?;
+        let modifiers = self.declaration_modifiers(plan.original)?;
+        self.set_source_map_range_past_decorators(statement, plan.original, modifiers)
     }
 
     fn create_private_method_descriptor(
@@ -2221,6 +2315,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         };
         let function =
             self.create_function_expression(parameters, body, asterisk_token, modifiers)?;
+        self.set_original_only(function, plan.original)?;
+        let original_modifiers = self.declaration_modifiers(plan.original)?;
+        self.set_source_map_range_past_decorators(function, plan.original, original_modifiers)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(function)
+            .add_flags(EmitFlags::NO_COMMENTS);
         let prefix = match plan.kind {
             MethodKind::Method => None,
             MethodKind::Getter => Some("get"),
@@ -2233,12 +2334,19 @@ impl<'context> StandardDecoratorVisitor<'context> {
             MethodKind::Setter => "set",
         };
         let property = self.create_property(property_name, named)?;
+        self.set_original_only(property, plan.original)?;
+        self.set_source_map_range_past_decorators(property, plan.original, original_modifiers)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(property)
+            .add_flags(EmitFlags::NO_COMMENTS);
         self.create_object_literal(vec![property], false)
     }
 
     fn create_private_accessor_descriptor(
         &mut self,
         plan: &PropertyPlan,
+        static_receiver: Option<&str>,
     ) -> Result<TransformNode, TransformError> {
         let backing_name =
             plan.backing_name
@@ -2251,13 +2359,23 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .context
             .factory()?
             .create_node_array(self.source, Vec::new())?;
-        let this = self.create_this()?;
+        let this = if let Some(receiver) = static_receiver {
+            self.create_identifier(receiver)?
+        } else {
+            self.create_this()?
+        };
         let backing = self.create_private_identifier(backing_name)?;
         let access = self.create_property_access_node(this, backing)?;
         let statement = self.create_return_statement(access)?;
         let body = self.create_block(vec![statement], false)?;
         let getter =
             self.create_function_expression(Some(empty_parameters.array()), body, None, None)?;
+        self.set_original_only(getter, plan.original)?;
+        self.set_source_map_range_past_decorators(getter, plan.original, plan.data.modifiers)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(getter)
+            .add_flags(EmitFlags::NO_COMMENTS);
         let getter = self.create_set_function_name(getter, &plan.name, Some("get"))?;
 
         let value = self.create_parameter("value")?;
@@ -2265,7 +2383,11 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .context
             .factory()?
             .create_node_array(self.source, vec![value])?;
-        let this = self.create_this()?;
+        let this = if let Some(receiver) = static_receiver {
+            self.create_identifier(receiver)?
+        } else {
+            self.create_this()?
+        };
         let backing = self.create_private_identifier(backing_name)?;
         let target = self.create_property_access_node(this, backing)?;
         let value = self.create_identifier("value")?;
@@ -2273,10 +2395,28 @@ impl<'context> StandardDecoratorVisitor<'context> {
         let statement = self.create_expression_statement(assignment)?;
         let body = self.create_block(vec![statement], false)?;
         let setter = self.create_function_expression(Some(parameters.array()), body, None, None)?;
+        self.set_original_only(setter, plan.original)?;
+        self.set_source_map_range_past_decorators(setter, plan.original, plan.data.modifiers)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(setter)
+            .add_flags(EmitFlags::NO_COMMENTS);
         let setter = self.create_set_function_name(setter, &plan.name, Some("set"))?;
 
         let getter = self.create_property("get", getter)?;
+        self.set_original_only(getter, plan.original)?;
+        self.set_source_map_range_past_decorators(getter, plan.original, plan.data.modifiers)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(getter)
+            .add_flags(EmitFlags::NO_COMMENTS);
         let setter = self.create_property("set", setter)?;
+        self.set_original_only(setter, plan.original)?;
+        self.set_source_map_range_past_decorators(setter, plan.original, plan.data.modifiers)?;
+        self.context
+            .arena_mut()?
+            .metadata_mut(setter)
+            .add_flags(EmitFlags::NO_COMMENTS);
         self.create_object_literal(vec![getter, setter], false)
     }
 
@@ -2303,7 +2443,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan: &MethodPlan,
     ) -> Result<TransformNode, TransformError> {
         let data = self.context.arena().node(plan.original)?.data.clone();
-        let (name, modifiers) = match &data {
+        let (name, original_modifiers) = match &data {
             NodeData::MethodDeclaration(data) => (data.name, data.modifiers),
             NodeData::GetAccessor(data) => (data.name, data.modifiers),
             NodeData::SetAccessor(data) => (data.name, data.modifiers),
@@ -2319,7 +2459,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             field: "private method name",
         })?;
         let modifiers =
-            self.filter_modifiers(modifiers, |kind| kind == SyntaxKind::StaticKeyword)?;
+            self.filter_modifiers(original_modifiers, |kind| kind == SyntaxKind::StaticKeyword)?;
         let descriptor_name =
             plan.descriptor_name
                 .as_deref()
@@ -2383,11 +2523,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 TransformFlags::NONE,
             )?
         };
-        self.set_original_and_range(result, plan.original)
+        let result = self.set_original_and_range(result, plan.original)?;
+        self.set_source_map_range_past_decorators(result, plan.original, original_modifiers)
     }
 
     fn update_public_method(&mut self, plan: &MethodPlan) -> Result<TransformNode, TransformError> {
         let data = self.context.arena().node(plan.original)?.data.clone();
+        let modifiers = self.declaration_modifiers(plan.original)?;
         let data = match data {
             NodeData::MethodDeclaration(mut data) => {
                 if let Some(name) = plan.emitted_name {
@@ -2418,7 +2560,8 @@ impl<'context> StandardDecoratorVisitor<'context> {
             }
         };
         let updated = self.update_generic(plan.original, data)?;
-        Ok(self.node(updated))
+        let updated = self.node(updated);
+        self.set_source_map_range_past_decorators(updated, plan.original, modifiers)
     }
 
     fn create_class_decorate_statement(
@@ -2452,7 +2595,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
             helper,
             vec![ctor, descriptor, decorators, context, initializers, extra],
         )?;
-        self.create_expression_statement(call)
+        let statement = self.create_expression_statement(call)?;
+        let modifiers = self.declaration_modifiers(plan.original)?;
+        self.set_source_map_range_past_decorators(statement, plan.original, modifiers)
     }
 
     fn create_class_replacement_statement(
@@ -2473,6 +2618,10 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan: &PropertyPlan,
         metadata_name: &str,
     ) -> Result<TransformNode, TransformError> {
+        let source_name = plan
+            .data
+            .name
+            .and_then(|name| self.context.arena().node_ref(self.source, name));
         let kind = if plan.is_accessor {
             "accessor"
         } else {
@@ -2500,6 +2649,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             true,
             plan.is_private,
             plan.computed_temp_name.as_deref(),
+            source_name,
         )?;
         let metadata = self.create_identifier(metadata_name)?;
         let properties = vec![
@@ -2518,6 +2668,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
         plan: &MethodPlan,
         metadata_name: &str,
     ) -> Result<TransformNode, TransformError> {
+        let source_name = self.declaration_property_name(plan.original)?;
         let kind = self.create_string_literal(plan.kind.context_name())?;
         let name = if let Some(temporary) = plan.computed_temp_name.as_deref() {
             self.create_identifier(temporary)?
@@ -2540,6 +2691,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             plan.kind == MethodKind::Setter,
             plan.is_private,
             plan.computed_temp_name.as_deref(),
+            source_name,
         )?;
         let metadata = self.create_identifier(metadata_name)?;
         let properties = vec![
@@ -2560,12 +2712,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
         include_set: bool,
         is_private: bool,
         computed_temp_name: Option<&str>,
+        source_name: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let obj = self.create_parameter("obj")?;
         let property = if let Some(temporary) = computed_temp_name {
             self.create_identifier(temporary)?
         } else if is_private {
-            self.create_private_identifier(name)?
+            source_name.unwrap_or(self.create_private_identifier(name)?)
         } else {
             self.create_string_literal(name)?
         };
@@ -2579,11 +2732,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let get_body = if let Some(temporary) = computed_temp_name {
                 let name = self.create_identifier(temporary)?;
                 self.create_element_access(obj_expression, name)?
-            } else if is_private {
-                let name = self.create_private_identifier(name)?;
-                self.create_property_access_node(obj_expression, name)?
             } else {
-                self.create_property_access(obj_expression, name)?
+                let name = match source_name {
+                    Some(source_name) => source_name,
+                    None if is_private => self.create_private_identifier(name)?,
+                    None => self.create_identifier(name)?,
+                };
+                self.create_property_access_node(obj_expression, name)?
             };
             let get = self.create_arrow(vec![obj], get_body)?;
             properties.push(self.create_property("get", get)?);
@@ -2595,11 +2750,13 @@ impl<'context> StandardDecoratorVisitor<'context> {
             let target = if let Some(temporary) = computed_temp_name {
                 let name = self.create_identifier(temporary)?;
                 self.create_element_access(obj_expression, name)?
-            } else if is_private {
-                let name = self.create_private_identifier(name)?;
-                self.create_property_access_node(obj_expression, name)?
             } else {
-                self.create_property_access(obj_expression, name)?
+                let name = match source_name {
+                    Some(source_name) => source_name,
+                    None if is_private => self.create_private_identifier(name)?,
+                    None => self.create_identifier(name)?,
+                };
+                self.create_property_access_node(obj_expression, name)?
             };
             let value_expression = self.create_identifier("value")?;
             let assignment = self.create_assignment(target, value_expression)?;
@@ -2662,11 +2819,18 @@ impl<'context> StandardDecoratorVisitor<'context> {
         } = pending;
         let mut expressions = Vec::with_capacity(initializers.len());
         for initializer in initializers {
-            expressions.push(self.create_run_initializers_for_receiver(
+            let expression = self.create_run_initializers_for_receiver(
                 initializer.initializers_name(),
                 None,
                 &receiver,
-            )?);
+            )?;
+            let expression = match initializer {
+                PendingDecoratorInitializer::MethodExtra { class, .. } => {
+                    self.set_class_source_map_range(expression, class)?
+                }
+                PendingDecoratorInitializer::FieldExtra { .. } => expression,
+            };
+            expressions.push(expression);
         }
         Ok(expressions)
     }
@@ -2805,11 +2969,12 @@ impl<'context> StandardDecoratorVisitor<'context> {
             plan.original,
             &NodeData::PropertyDeclaration(data.clone()),
         )?;
-        self.context.factory()?.update_node(
+        let updated = self.context.factory()?.update_node(
             plan.original,
             NodeData::PropertyDeclaration(data),
             flags,
-        )
+        )?;
+        self.set_source_map_range_past_decorators(updated, plan.original, plan.data.modifiers)
     }
 
     fn create_auto_accessor_members(
@@ -2848,6 +3013,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             TransformFlags::CONTAINS_CLASS_FIELDS,
         )?;
         self.set_original_and_range(field, plan.original)?;
+        self.set_source_map_range_past_decorators(field, plan.original, plan.data.modifiers)?;
         self.context
             .arena_mut()?
             .metadata_mut(field)
@@ -2882,7 +3048,9 @@ impl<'context> StandardDecoratorVisitor<'context> {
             static_receiver,
         )?;
         self.set_original_and_range(getter, plan.original)?;
+        self.set_source_map_range_past_decorators(getter, plan.original, plan.data.modifiers)?;
         self.set_original_and_range(setter, plan.original)?;
+        self.set_source_map_range_past_decorators(setter, plan.original, plan.data.modifiers)?;
         self.context
             .arena_mut()?
             .metadata_mut(setter)
@@ -4387,6 +4555,40 @@ impl<'context> StandardDecoratorVisitor<'context> {
         }))
     }
 
+    fn is_private_static_class_element(
+        &self,
+        member: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let (name, modifiers) = match &self.context.arena().node(member)?.data {
+            NodeData::PropertyDeclaration(data) => (data.name, data.modifiers),
+            NodeData::MethodDeclaration(data) => (data.name, data.modifiers),
+            NodeData::GetAccessor(data) => (data.name, data.modifiers),
+            NodeData::SetAccessor(data) => (data.name, data.modifiers),
+            _ => return Ok(false),
+        };
+        Ok(self.name_is_private(name)?
+            && self.has_modifier(modifiers, SyntaxKind::StaticKeyword)?)
+    }
+
+    fn add_internal_emit_flag(
+        &mut self,
+        node: TransformNode,
+        flag: InternalEmitFlags,
+    ) -> Result<(), TransformError> {
+        let flags = self
+            .context
+            .arena()
+            .metadata(node)
+            .map_or(InternalEmitFlags::NONE, |metadata| {
+                metadata.internal_flags()
+            });
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_internal_flags(InternalEmitFlags::from_bits(flags.bits() | flag.bits()));
+        Ok(())
+    }
+
     fn decorator_property_name(
         &mut self,
         name: Option<NodeId>,
@@ -4628,6 +4830,99 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .metadata_mut(node)
             .set_comment_range(comment_range);
         Ok(node)
+    }
+
+    fn declaration_modifiers(
+        &self,
+        declaration: TransformNode,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        Ok(match &self.context.arena().node(declaration)?.data {
+            NodeData::ClassDeclaration(data) => data.modifiers,
+            NodeData::ClassExpression(data) => data.modifiers,
+            NodeData::PropertyDeclaration(data) => data.modifiers,
+            NodeData::MethodDeclaration(data) => data.modifiers,
+            NodeData::GetAccessor(data) => data.modifiers,
+            NodeData::SetAccessor(data) => data.modifiers,
+            NodeData::Constructor(data) => data.modifiers,
+            _ => None,
+        })
+    }
+
+    fn declaration_name(
+        &self,
+        declaration: TransformNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let name = match &self.context.arena().node(declaration)?.data {
+            NodeData::ClassDeclaration(data) => data.name,
+            NodeData::ClassExpression(data) => data.name,
+            _ => None,
+        };
+        Ok(name.and_then(|name| self.context.arena().node_ref(self.source, name)))
+    }
+
+    fn declaration_property_name(
+        &self,
+        declaration: TransformNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        let name = match &self.context.arena().node(declaration)?.data {
+            NodeData::PropertyDeclaration(data) => data.name,
+            NodeData::MethodDeclaration(data) => data.name,
+            NodeData::GetAccessor(data) => data.name,
+            NodeData::SetAccessor(data) => data.name,
+            _ => None,
+        };
+        Ok(name.and_then(|name| self.context.arena().node_ref(self.source, name)))
+    }
+
+    fn set_source_map_range_from(
+        &mut self,
+        node: TransformNode,
+        range_source: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let source_map_range = self
+            .context
+            .arena()
+            .metadata(range_source)
+            .and_then(crate::EmitMetadata::source_map_range);
+        let source_map_range = match source_map_range {
+            Some(range) => range,
+            None => {
+                let record = self.context.arena().node(range_source)?;
+                let source = self.context.arena().source(range_source.source())?.syntax();
+                let range = SourceRange::from_raw(record.pos, record.end, source.positions())
+                    .map_err(|error| TransformError::InvalidSourceRange {
+                        node: range_source,
+                        error,
+                    })?;
+                SourceMapRange::new(range_source.source(), range)
+            }
+        };
+        self.context
+            .arena_mut()?
+            .metadata_mut(node)
+            .set_source_map_range(source_map_range);
+        Ok(node)
+    }
+
+    fn set_class_finalizer_source_map_range(
+        &mut self,
+        statement: TransformNode,
+        plan: &ClassDecorationPlan,
+    ) -> Result<TransformNode, TransformError> {
+        self.set_class_source_map_range(statement, plan.original)
+    }
+
+    fn set_class_source_map_range(
+        &mut self,
+        node: TransformNode,
+        class: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if let Some(name) = self.declaration_name(class)? {
+            self.set_source_map_range_from(node, name)
+        } else {
+            let modifiers = self.declaration_modifiers(class)?;
+            self.set_source_map_range_past_decorators(node, class, modifiers)
+        }
     }
 
     /// tsc-port: moveRangePastDecorators @6.0.3

@@ -674,7 +674,13 @@ impl<'context> JsxVisitor<'context> {
         let name_node = self.node(name_id);
         let name = match self.context.arena().node(name_node)?.data.clone() {
             NodeData::Identifier(data) if is_identifier_attribute_name(&data.text) => {
-                self.create_identifier(&data.text)?
+                // getAttributeName returns the ORIGINAL identifier for
+                // identifier-safe attribute names, so the printed property
+                // name maps to the source attribute name (start and end
+                // boundaries). The clone carries the range plus the
+                // original link (parse-tree identity).
+                let identifier = self.create_identifier(&data.text)?;
+                self.set_original_and_range(identifier, name_node)?
             }
             NodeData::Identifier(data) => {
                 self.create_string_literal(data.text.encode_utf16().collect(), false)?
