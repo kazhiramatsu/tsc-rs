@@ -79,13 +79,13 @@ outDir refusal probe-confirmed 2026-08-31):
 | refusing option | rows | owner |
 | --- | ---: | --- |
 | `outFile` (project bundle descriptors) | 144 | H2.7d |
-| `outDir` (126 relative project + 2 `commonSourceDirectory*` compiler) | 128 | H2.8a |
+| `outDir` (128 relative-path project descriptors + 2 compiler embedded-tsconfig `commonSourceDirectory*` rows) | 130 | H2.8a |
 | `rootDir` (project) | 4 | H2.8a |
-| `outDir` general (project, non-admissible source mix) | 2 | H2.8a |
 | `isolatedModules` (`isolatedModulesSourceMap.ts`) | 1 | H2.8c |
 
-(project 276 = 144 outFile + 128 outDir + 4 rootDir; compiler 3.
-Owner assignment per the option-owner map, h2-transition.mjs:462/:467.)
+(project 276 = 144 outFile + 128 outDir + 4 rootDir; compiler 3 =
+2 outDir + 1 isolatedModules. Owner assignment per the option-owner
+map, h2-transition.mjs:462/:467.)
 
 **Non-refused band — 172 rows** (128 project / 39 compiler /
 5 conformance), per the sol-signed W5 dispositions (h2-6c-w5.md §4):
