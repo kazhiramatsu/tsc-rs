@@ -1,0 +1,984 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tsc-rs.invalid/contracts/h2-7a-witnesses.schema.json",
+  "title": "tsc-rs H2.7a W-H2.7A public-observable witness artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "inputs",
+    "population",
+    "case_manifest",
+    "coverage_matrix",
+    "quotas",
+    "stratum",
+    "observations",
+    "summary",
+    "observation_content_roll_sha256",
+    "witnesses_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "const": "h2-7a-public-observable-witnesses"
+    },
+    "status": {
+      "const": "qualified-typescript-oracle"
+    },
+    "phase": {
+      "const": "H2.7a-witnesses"
+    },
+    "typescript": {
+      "$ref": "#/$defs/typescript"
+    },
+    "generator": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/path_hash"
+        },
+        {
+          "properties": {
+            "path": {
+              "const": "crates/oracle/h2-7a-witnesses.mjs"
+            }
+          }
+        }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/path_hash"
+        },
+        {
+          "properties": {
+            "path": {
+              "const": ".github/ci/contracts/h2-7a-witnesses.schema.json"
+            }
+          }
+        }
+      ]
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet",
+        "parent_packet",
+        "test_suite_expansion",
+        "conformance_expansion",
+        "compiler_classification",
+        "conformance_classification",
+        "project_classification",
+        "transpile_inventory",
+        "h2_6c_census",
+        "h2_6c_qualification",
+        "h2_6c_divergences",
+        "vfs_directory_overlay"
+      ],
+      "properties": {
+        "packet": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "parent_packet": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "test_suite_expansion": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "conformance_expansion": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "compiler_classification": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "conformance_classification": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "project_classification": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "transpile_inventory": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "h2_6c_census": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "h2_6c_qualification": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "h2_6c_divergences": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "vfs_directory_overlay": {
+          "$ref": "#/$defs/path_hash"
+        }
+      }
+    },
+    "population": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "literal_directive_fixture_population",
+        "effective_declaration_case_population",
+        "selector"
+      ],
+      "properties": {
+        "literal_directive_fixture_population": {
+          "type": "object",
+          "required": [
+            "compiler",
+            "conformance"
+          ],
+          "properties": {
+            "compiler": {
+              "$ref": "#/$defs/literal_population"
+            },
+            "conformance": {
+              "$ref": "#/$defs/literal_population"
+            }
+          }
+        },
+        "effective_declaration_case_population": {
+          "type": "object",
+          "required": [
+            "compiler",
+            "conformance",
+            "project",
+            "transpile"
+          ],
+          "properties": {
+            "compiler": {
+              "$ref": "#/$defs/effective_population"
+            },
+            "conformance": {
+              "$ref": "#/$defs/effective_population"
+            },
+            "project": {
+              "$ref": "#/$defs/effective_population"
+            },
+            "transpile": {
+              "type": "object"
+            }
+          }
+        },
+        "selector": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "case_manifest": {
+      "$ref": "#/$defs/case_manifest"
+    },
+    "coverage_matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lanes",
+        "families",
+        "lane_coverage"
+      ],
+      "properties": {
+        "lanes": {
+          "const": [
+            "visibility/export graph",
+            "type serialization",
+            "late-bound/computed names",
+            "signatures/overloads/accessors",
+            "JS declaration synthesis",
+            "directives/references",
+            "diagnostics channel",
+            "printer grammar/shape",
+            "NodeBuilder result contracts",
+            "symbol tracking/accessibility",
+            "syntactic-builder arms",
+            "generated/global names",
+            "AST identity/provenance",
+            "upstream-observation controls"
+          ]
+        },
+        "families": {
+          "type": "array",
+          "minItems": 15,
+          "maxItems": 15,
+          "items": {
+            "$ref": "#/$defs/family_matrix_row"
+          }
+        },
+        "lane_coverage": {
+          "type": "array",
+          "minItems": 14,
+          "maxItems": 14,
+          "items": {
+            "$ref": "#/$defs/lane_coverage_row"
+          }
+        }
+      }
+    },
+    "quotas": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "positive_cases",
+        "adjacent_negative_cases",
+        "composition_cases",
+        "fault_cases"
+      ],
+      "properties": {
+        "positive_cases": {
+          "type": "integer",
+          "minimum": 20
+        },
+        "adjacent_negative_cases": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "composition_cases": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "fault_cases": {
+          "type": "integer",
+          "minimum": 2
+        }
+      }
+    },
+    "stratum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stratum_id",
+        "description",
+        "count",
+        "source_pool_rows",
+        "compiler_cases",
+        "project_cases",
+        "selection_contract",
+        "census_jsonl_sha256",
+        "case_ids"
+      ],
+      "properties": {
+        "stratum_id": {
+          "const": "S"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "count": {
+          "const": 67
+        },
+        "source_pool_rows": {
+          "const": 172
+        },
+        "compiler_cases": {
+          "const": 3
+        },
+        "project_cases": {
+          "const": 64
+        },
+        "selection_contract": {
+          "type": "string",
+          "minLength": 1
+        },
+        "census_jsonl_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "case_ids": {
+          "type": "array",
+          "minItems": 67,
+          "maxItems": 67,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 94,
+      "maxItems": 94,
+      "items": {
+        "$ref": "#/$defs/case_observation"
+      }
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "observation_content_roll_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "witnesses_fingerprint_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "base64": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9+/]*={0,2}$"
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "source_commit",
+        "bundle",
+        "implementation",
+        "lib"
+      ],
+      "properties": {
+        "version": {
+          "const": "6.0.3"
+        },
+        "source_commit": {
+          "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+        },
+        "bundle": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "implementation": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "lib": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "default_libraries",
+            "sha256"
+          ],
+          "properties": {
+            "path": {
+              "const": "vendor/typescript-6.0.3/lib"
+            },
+            "default_libraries": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "sha256": {
+              "$ref": "#/$defs/sha256"
+            }
+          }
+        }
+      }
+    },
+    "literal_population": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unique_files",
+        "directive_lines"
+      ],
+      "properties": {
+        "unique_files": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "directive_lines": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "effective_population": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases",
+        "unique_fixtures"
+      ],
+      "properties": {
+        "cases": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "unique_fixtures": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "role": {
+      "enum": [
+        "positive",
+        "adjacent-negative-control",
+        "composition",
+        "fault"
+      ]
+    },
+    "lane": {
+      "enum": [
+        "visibility/export graph",
+        "type serialization",
+        "late-bound/computed names",
+        "signatures/overloads/accessors",
+        "JS declaration synthesis",
+        "directives/references",
+        "diagnostics channel",
+        "printer grammar/shape",
+        "NodeBuilder result contracts",
+        "symbol tracking/accessibility",
+        "syntactic-builder arms",
+        "generated/global names",
+        "AST identity/provenance",
+        "upstream-observation controls"
+      ]
+    },
+    "input_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "configuration_index",
+        "fixture_variant",
+        "observation_variant"
+      ],
+      "properties": {
+        "configuration_index": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "fixture_variant": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observation_variant": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "manifest_case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "suite",
+        "fixture_id",
+        "matrix",
+        "family_id",
+        "roles",
+        "lanes",
+        "option_record",
+        "input_files"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suite": {
+          "enum": [
+            "compiler",
+            "conformance",
+            "project"
+          ]
+        },
+        "fixture_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "matrix": {
+          "$ref": "#/$defs/matrix"
+        },
+        "family_id": {
+          "type": "string",
+          "pattern": "^(F(?:[1-9]|1[0-4])|S)$"
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/role"
+          }
+        },
+        "lanes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/lane"
+          }
+        },
+        "option_record": {
+          "type": "object"
+        },
+        "input_files": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/input_identity"
+          }
+        }
+      }
+    },
+    "case_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cases",
+        "source_universe",
+        "source_universe_sha256",
+        "case_manifest_fingerprint"
+      ],
+      "properties": {
+        "cases": {
+          "type": "array",
+          "minItems": 94,
+          "maxItems": 94,
+          "items": {
+            "$ref": "#/$defs/manifest_case"
+          }
+        },
+        "source_universe": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/input_identity"
+          }
+        },
+        "source_universe_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "case_manifest_fingerprint": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "family_matrix_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "family_id",
+        "description",
+        "lanes",
+        "case_ids"
+      ],
+      "properties": {
+        "family_id": {
+          "type": "string",
+          "pattern": "^(F(?:[1-9]|1[0-4])|S)$"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "lanes": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/lane"
+          }
+        },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "lane_coverage_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "lane",
+        "families"
+      ],
+      "properties": {
+        "lane": {
+          "$ref": "#/$defs/lane"
+        },
+        "families": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^(F(?:[1-9]|1[0-4])|S)$"
+          }
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "category",
+        "message",
+        "file",
+        "start",
+        "length"
+      ],
+      "properties": {
+        "code": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "file": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            }
+          ]
+        },
+        "start": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        },
+        "length": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "integer",
+              "minimum": 0
+            }
+          ]
+        }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "kind",
+        "callback_utf8_sha256",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_sha256",
+        "materialized_utf8_bytes",
+        "declaration_callback_base64",
+        "declaration_materialized_base64",
+        "source_files"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "declaration",
+            "javascript",
+            "source-map",
+            "other"
+          ]
+        },
+        "callback_utf8_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "callback_utf8_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "write_byte_order_mark": {
+          "type": "boolean"
+        },
+        "materialized_utf8_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "materialized_utf8_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "declaration_callback_base64": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/base64"
+            }
+          ]
+        },
+        "declaration_materialized_base64": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/base64"
+            }
+          ]
+        },
+        "source_files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "emit_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "emit_skipped",
+        "emitted_files",
+        "diagnostics"
+      ],
+      "properties": {
+        "emit_skipped": {
+          "type": "boolean"
+        },
+        "emitted_files": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          ]
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reported_diagnostics",
+        "writes",
+        "emit_result",
+        "observation_fingerprint_sha256"
+      ],
+      "properties": {
+        "reported_diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/write"
+          }
+        },
+        "emit_result": {
+          "$ref": "#/$defs/emit_result"
+        },
+        "observation_fingerprint_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "case_observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "repetitions",
+        "observation",
+        "case_observation_fingerprint_sha256"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repetitions": {
+          "const": 2
+        },
+        "observation": {
+          "$ref": "#/$defs/observation"
+        },
+        "case_observation_fingerprint_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "frozen_families",
+        "declared_strata",
+        "curated_cases",
+        "stratum_cases",
+        "cases",
+        "positive_cases",
+        "adjacent_negative_cases",
+        "composition_cases",
+        "fault_cases",
+        "declaration_writes",
+        "javascript_writes",
+        "source_map_writes",
+        "other_writes",
+        "reported_diagnostics",
+        "emit_diagnostics",
+        "typescript_oracle_runs",
+        "deterministic_cases",
+        "rust_runs"
+      ],
+      "properties": {
+        "frozen_families": {
+          "const": 14
+        },
+        "declared_strata": {
+          "const": 1
+        },
+        "curated_cases": {
+          "const": 27
+        },
+        "stratum_cases": {
+          "const": 67
+        },
+        "cases": {
+          "const": 94
+        },
+        "positive_cases": {
+          "type": "integer",
+          "minimum": 20
+        },
+        "adjacent_negative_cases": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "composition_cases": {
+          "type": "integer",
+          "minimum": 3
+        },
+        "fault_cases": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "declaration_writes": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "javascript_writes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_map_writes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "other_writes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reported_diagnostics": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "emit_diagnostics": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "typescript_oracle_runs": {
+          "const": 188
+        },
+        "deterministic_cases": {
+          "const": 94
+        },
+        "rust_runs": {
+          "const": 0
+        }
+      }
+    }
+  }
+}
