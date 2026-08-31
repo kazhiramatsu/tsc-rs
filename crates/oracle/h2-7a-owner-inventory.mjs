@@ -157,18 +157,418 @@ const PRINTER_SEED_NAMES = Object.freeze([
   "emitParameters",
 ]);
 
-const PRINTER_RUST_ANCHORS = Object.freeze({
-  createPrinter: "crates/emitter/src/printer.rs:903",
-  emitCaseBlock: "crates/emitter/src/printer.rs:6169",
-  emitDecorator: "crates/emitter/src/printer.rs:8349",
-  emitDecoratorsAndModifiers: "crates/emitter/src/printer.rs:8349",
-  emitHelpers: "crates/emitter/src/printer.rs:6152",
-  emitList: "crates/emitter/src/printer.rs:8646",
-  emitParameters: "crates/emitter/src/printer.rs:7589",
-  emitSignatureHead: "crates/emitter/src/printer.rs:7546",
-  emitTypeArguments: "crates/emitter/src/printer.rs:7513",
-  printFile: "crates/emitter/src/printer.rs:931",
-  writeLineOrSpace: "crates/emitter/src/printer.rs:7305",
+const AUDIT_FOUNDATION_NEEDED = Object.freeze({
+  disposition: "audit-foundation-needed",
+  rust_anchor: null,
+});
+
+function auditAlreadyExact(rustAnchor) {
+  return Object.freeze({
+    disposition: "audit-already-exact",
+    rust_anchor: rustAnchor,
+  });
+}
+
+// H2.7a m-1 deliverable 4: curated current-Rust coverage of every measured
+// printer, factory, and parenthesizer row. An exact row names the concrete
+// Rust arm which owns its current behavior; a foundation row deliberately has
+// no anchor, so generic create_node reachability cannot masquerade as a typed
+// constructor or declaration printer implementation.
+const AUDIT_ROWS = Object.freeze({
+  // create_printer exists, but PrintRequest::Declaration is refused and the
+  // declaration-only options are absent from PrinterOptions.
+  createPrinter: AUDIT_FOUNDATION_NEEDED,
+  setSourceFile: auditAlreadyExact("crates/emitter/src/printer.rs:931"),
+  getCurrentLineMap: auditAlreadyExact("crates/emitter/src/printer.rs:12517"),
+  emit: auditAlreadyExact("crates/emitter/src/printer.rs:9197"),
+  emitIdentifierName: auditAlreadyExact("crates/emitter/src/printer.rs:1612"),
+  emitExpression: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
+  // Rust has no preserveSourceNewlines control, so the paired per-node save
+  // and restore workers are not declaration-ready.
+  beforeEmitNode: AUDIT_FOUNDATION_NEEDED,
+  afterEmitNode: AUDIT_FOUNDATION_NEEDED,
+  pipelineEmit: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
+  shouldEmitComments: auditAlreadyExact("crates/emitter/src/printer.rs:10355"),
+  shouldEmitSourceMaps: auditAlreadyExact("crates/emitter/src/printer.rs:1508"),
+  getPipelinePhase: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
+  getNextPipelinePhase: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
+  pipelineEmitWithNotification: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
+  pipelineEmitWithHint: auditAlreadyExact("crates/emitter/src/printer.rs:9197"),
+  // The Rust dispatch owns the JS arms, but not the declaration/TypeNode arms
+  // selected by this audit's independently seeded TypeNode switch closure.
+  pipelineEmitWithHintWorker: AUDIT_FOUNDATION_NEEDED,
+  pipelineEmitWithSubstitution: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
+  emitHelpers: auditAlreadyExact("crates/emitter/src/printer.rs:6152"),
+  getSortedEmitHelpers: auditAlreadyExact("crates/emitter/src/printer.rs:1225"),
+
+  // Declaration and TypeNode workers. Existing JS declaration-shaped arms
+  // are foundation-needed when they erase or omit declaration fields (types,
+  // optional markers, type parameters, or the bodyless-signature semicolon).
+  emitTypeParameter: AUDIT_FOUNDATION_NEEDED,
+  emitParameter: AUDIT_FOUNDATION_NEEDED,
+  emitDecorator: auditAlreadyExact("crates/emitter/src/printer.rs:1636"),
+  emitPropertySignature: AUDIT_FOUNDATION_NEEDED,
+  emitPropertyDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitMethodSignature: AUDIT_FOUNDATION_NEEDED,
+  emitMethodDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitConstructor: AUDIT_FOUNDATION_NEEDED,
+  emitAccessorDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitCallSignature: AUDIT_FOUNDATION_NEEDED,
+  emitConstructSignature: AUDIT_FOUNDATION_NEEDED,
+  emitIndexSignature: AUDIT_FOUNDATION_NEEDED,
+  emitTemplateTypeSpan: AUDIT_FOUNDATION_NEEDED,
+  emitTypePredicate: AUDIT_FOUNDATION_NEEDED,
+  emitTypeReference: AUDIT_FOUNDATION_NEEDED,
+  emitFunctionType: AUDIT_FOUNDATION_NEEDED,
+  emitFunctionTypeHead: AUDIT_FOUNDATION_NEEDED,
+  emitFunctionTypeBody: AUDIT_FOUNDATION_NEEDED,
+  emitJSDocFunctionType: AUDIT_FOUNDATION_NEEDED,
+  emitJSDocNullableType: auditAlreadyExact("crates/emitter/src/printer.rs:3590"),
+  emitJSDocNonNullableType: auditAlreadyExact("crates/emitter/src/printer.rs:3602"),
+  emitJSDocOptionalType: auditAlreadyExact("crates/emitter/src/printer.rs:3614"),
+  emitConstructorType: AUDIT_FOUNDATION_NEEDED,
+  emitTypeQuery: AUDIT_FOUNDATION_NEEDED,
+  emitTypeLiteral: AUDIT_FOUNDATION_NEEDED,
+  emitArrayType: AUDIT_FOUNDATION_NEEDED,
+  // Rust owns the JSDocVariadicType arm, but not the RestType half of this
+  // shared upstream worker; the row is therefore conservatively foundation.
+  emitRestOrJSDocVariadicType: AUDIT_FOUNDATION_NEEDED,
+  emitTupleType: AUDIT_FOUNDATION_NEEDED,
+  emitNamedTupleMember: AUDIT_FOUNDATION_NEEDED,
+  emitOptionalType: AUDIT_FOUNDATION_NEEDED,
+  emitUnionType: AUDIT_FOUNDATION_NEEDED,
+  emitIntersectionType: AUDIT_FOUNDATION_NEEDED,
+  emitConditionalType: AUDIT_FOUNDATION_NEEDED,
+  emitInferType: AUDIT_FOUNDATION_NEEDED,
+  emitParenthesizedType: AUDIT_FOUNDATION_NEEDED,
+  emitThisType: AUDIT_FOUNDATION_NEEDED,
+  emitTypeOperator: AUDIT_FOUNDATION_NEEDED,
+  emitIndexedAccessType: AUDIT_FOUNDATION_NEEDED,
+  emitMappedType: AUDIT_FOUNDATION_NEEDED,
+  emitLiteralType: AUDIT_FOUNDATION_NEEDED,
+  emitTemplateType: AUDIT_FOUNDATION_NEEDED,
+  emitImportTypeNode: AUDIT_FOUNDATION_NEEDED,
+  emitExpressionWithTypeArguments: auditAlreadyExact("crates/emitter/src/printer.rs:3547"),
+
+  emitBlockStatements: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
+  // The token/comment arm exists, but omitBraceSourceMapPositions does not.
+  emitTokenWithComment: AUDIT_FOUNDATION_NEEDED,
+  emitFunctionDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitFunctionDeclarationOrExpression: AUDIT_FOUNDATION_NEEDED,
+  emitSignatureAndBody: AUDIT_FOUNDATION_NEEDED,
+  emitFunctionBody: AUDIT_FOUNDATION_NEEDED,
+  emitEmptyFunctionBody: AUDIT_FOUNDATION_NEEDED,
+  emitSignatureHead: auditAlreadyExact("crates/emitter/src/printer.rs:7546"),
+  shouldEmitBlockFunctionBodyOnSingleLine: auditAlreadyExact(
+    "crates/emitter/src/printer.rs:5801",
+  ),
+  emitBlockFunctionBody: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
+  emitBlockFunctionBodyOnSingleLine: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
+  emitBlockFunctionBodyWorker: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
+  emitClassDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitClassDeclarationOrExpression: AUDIT_FOUNDATION_NEEDED,
+  emitInterfaceDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitTypeAliasDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitEnumDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitModuleDeclaration: AUDIT_FOUNDATION_NEEDED,
+  emitModuleBlock: AUDIT_FOUNDATION_NEEDED,
+  emitHeritageClause: auditAlreadyExact("crates/emitter/src/printer.rs:3520"),
+  emitPrologueDirectives: auditAlreadyExact("crates/emitter/src/printer.rs:1256"),
+  emitNodeWithWriter: auditAlreadyExact("crates/emitter/src/printer.rs:9177"),
+  // emit_modifiers has no allowDecorators lane, which is observable on the
+  // declaration forms that deliberately suppress decorators.
+  emitDecoratorsAndModifiers: AUDIT_FOUNDATION_NEEDED,
+  emitModifierList: auditAlreadyExact("crates/emitter/src/printer.rs:8349"),
+  emitTypeAnnotation: auditAlreadyExact("crates/emitter/src/printer.rs:7546"),
+  emitInitializer: auditAlreadyExact("crates/emitter/src/printer.rs:2910"),
+  emitDecoratorList: auditAlreadyExact("crates/emitter/src/printer.rs:8349"),
+  // The delimiters exist, but the TypeArgument parenthesizer callback and the
+  // TypeParameter arrow/trailing-comma face do not.
+  emitTypeArguments: AUDIT_FOUNDATION_NEEDED,
+  emitTypeParameters: AUDIT_FOUNDATION_NEEDED,
+  emitParameters: auditAlreadyExact("crates/emitter/src/printer.rs:7589"),
+  canEmitSimpleArrowHead: auditAlreadyExact("crates/emitter/src/printer.rs:7789"),
+  emitParametersForArrow: auditAlreadyExact("crates/emitter/src/printer.rs:7614"),
+  emitParametersForIndexSignature: AUDIT_FOUNDATION_NEEDED,
+  // Rust's live lists are specialized per JS construct. The generic
+  // delimiter/list-format surface needed by type and declaration lists is not
+  // equivalent to emit_node_array's separator-only helper.
+  writeDelimiter: AUDIT_FOUNDATION_NEEDED,
+  emitList: AUDIT_FOUNDATION_NEEDED,
+  emitNodeList: AUDIT_FOUNDATION_NEEDED,
+  emitNodeListItems: AUDIT_FOUNDATION_NEEDED,
+
+  writePunctuation: auditAlreadyExact("crates/emitter/src/writer.rs:307"),
+  writeTrailingSemicolon: auditAlreadyExact("crates/emitter/src/writer.rs:323"),
+  writeKeyword: auditAlreadyExact("crates/emitter/src/writer.rs:291"),
+  writeOperator: auditAlreadyExact("crates/emitter/src/writer.rs:295"),
+  writeParameter: auditAlreadyExact("crates/emitter/src/writer.rs:299"),
+  writeSpace: auditAlreadyExact("crates/emitter/src/writer.rs:311"),
+  writeProperty: auditAlreadyExact("crates/emitter/src/writer.rs:303"),
+  writeLine: auditAlreadyExact("crates/emitter/src/writer.rs:200"),
+  increaseIndent: auditAlreadyExact("crates/emitter/src/writer.rs:219"),
+  decreaseIndent: auditAlreadyExact("crates/emitter/src/writer.rs:226"),
+  writeToken: auditAlreadyExact("crates/emitter/src/printer.rs:11384"),
+  writeTokenText: auditAlreadyExact("crates/emitter/src/printer.rs:11829"),
+  writeLines: auditAlreadyExact("crates/emitter/src/printer.rs:6710"),
+  // The current Rust helper intentionally implements only the collapsed 0/1
+  // ordinary-emit face; preserveSourceNewlines and its effective-line scans
+  // remain declaration foundation work.
+  getLeadingLineTerminatorCount: AUDIT_FOUNDATION_NEEDED,
+  getSeparatingLineTerminatorCount: AUDIT_FOUNDATION_NEEDED,
+  getClosingLineTerminatorCount: AUDIT_FOUNDATION_NEEDED,
+  getEffectiveLines: AUDIT_FOUNDATION_NEEDED,
+  synthesizedNodeStartsOnNewLine: auditAlreadyExact("crates/emitter/src/printer.rs:6676"),
+  isEmptyBlock: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
+  getTextOfNode2: auditAlreadyExact("crates/emitter/src/printer.rs:9705"),
+
+  // Rust resolves generated names before printing. These anchors are the
+  // eager equivalents of the upstream printer's scope walk/cache, and are
+  // already corpus-exact for the JS node families that reach this closure.
+  pushNameGenerationScope: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:89",
+  ),
+  popNameGenerationScope: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:111",
+  ),
+  reserveNameInNestedScopes: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:458",
+  ),
+  reservePrivateNameInNestedScopes: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:495",
+  ),
+  generateNames: auditAlreadyExact("crates/emitter/src/builtins/target_bindings.rs:728"),
+  generateMemberNames: auditAlreadyExact(
+    "crates/emitter/src/builtins/target_bindings.rs:728",
+  ),
+  generateNameIfNeeded: auditAlreadyExact(
+    "crates/emitter/src/builtins/target_bindings.rs:902",
+  ),
+  generateName: auditAlreadyExact("crates/emitter/src/builtins/target_bindings.rs:510"),
+  generateNameCached: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:214",
+  ),
+  isUniqueName: auditAlreadyExact("crates/emitter/src/builtins/generated_bindings.rs:458"),
+  isReservedName: auditAlreadyExact("crates/emitter/src/builtins/generated_bindings.rs:518"),
+  isFileLevelUniqueNameInCurrentFile: auditAlreadyExact(
+    "crates/emitter/src/builtins/target_bindings.rs:458",
+  ),
+  isUniqueLocalName: auditAlreadyExact("crates/emitter/src/builtins.rs:13382"),
+  getTempFlags: auditAlreadyExact("crates/emitter/src/builtins/generated_bindings.rs:130"),
+  setTempFlags: auditAlreadyExact("crates/emitter/src/builtins/generated_bindings.rs:130"),
+  makeTempVariableName: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:130",
+  ),
+  makeUniqueName: auditAlreadyExact("crates/emitter/src/builtins/generated_bindings.rs:326"),
+  makeFileLevelOptimisticUniqueName: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:415",
+  ),
+  generateNameForModuleOrEnum: auditAlreadyExact("crates/emitter/src/builtins.rs:13382"),
+  generateNameForImportOrExportDeclaration: auditAlreadyExact(
+    "crates/emitter/src/builtins.rs:2398",
+  ),
+  generateNameForExportDefault: auditAlreadyExact("crates/emitter/src/builtins.rs:2641"),
+  generateNameForClassExpression: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:326",
+  ),
+  generateNameForMethodOrAccessor: auditAlreadyExact(
+    "crates/emitter/src/builtins/generated_bindings.rs:289",
+  ),
+  generateNameForNode: auditAlreadyExact(
+    "crates/emitter/src/builtins/target_bindings.rs:510",
+  ),
+  makeName: auditAlreadyExact("crates/emitter/src/builtins/target_bindings.rs:510"),
+
+  pipelineEmitWithComments: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
+  emitCommentsBeforeNode: auditAlreadyExact("crates/emitter/src/printer.rs:9684"),
+  emitCommentsAfterNode: auditAlreadyExact("crates/emitter/src/printer.rs:9598"),
+  emitLeadingCommentsOfNode: auditAlreadyExact("crates/emitter/src/printer.rs:9822"),
+  emitTrailingCommentsOfNode: auditAlreadyExact("crates/emitter/src/printer.rs:10669"),
+  emitLeadingSynthesizedComment: auditAlreadyExact("crates/emitter/src/printer.rs:11933"),
+  emitTrailingSynthesizedComment: auditAlreadyExact("crates/emitter/src/printer.rs:11963"),
+  writeSynthesizedComment: auditAlreadyExact("crates/emitter/src/printer.rs:13633"),
+  formatSynthesizedComment: auditAlreadyExact("crates/emitter/src/printer.rs:13633"),
+  emitBodyWithDetachedComments: auditAlreadyExact("crates/emitter/src/printer.rs:10617"),
+  originalNodesHaveSameParent: auditAlreadyExact("crates/emitter/src/printer.rs:10583"),
+  siblingNodePositionsAreComparable: auditAlreadyExact("crates/emitter/src/printer.rs:6575"),
+  // Declaration-file leading comments need the non-triple-slash branch, and
+  // the three direct source-comment writers need onlyPrintJsDocStyle/pinned
+  // filtering. The surrounding comment topology remains already exact.
+  emitLeadingComments: AUDIT_FOUNDATION_NEEDED,
+  emitTripleSlashLeadingComment: auditAlreadyExact("crates/emitter/src/printer.rs:13274"),
+  emitNonTripleSlashLeadingComment: AUDIT_FOUNDATION_NEEDED,
+  shouldWriteComment: AUDIT_FOUNDATION_NEEDED,
+  emitLeadingComment: AUDIT_FOUNDATION_NEEDED,
+  emitLeadingCommentsOfPosition: auditAlreadyExact("crates/emitter/src/printer.rs:12780"),
+  emitTrailingComments: auditAlreadyExact("crates/emitter/src/printer.rs:12807"),
+  emitTrailingComment: AUDIT_FOUNDATION_NEEDED,
+  emitTrailingCommentsOfPosition: auditAlreadyExact("crates/emitter/src/printer.rs:12807"),
+  emitTrailingCommentOfPositionNoNewline: auditAlreadyExact(
+    "crates/emitter/src/printer.rs:12967",
+  ),
+  emitTrailingCommentOfPosition: auditAlreadyExact("crates/emitter/src/printer.rs:12807"),
+  forEachLeadingCommentToEmit: auditAlreadyExact("crates/emitter/src/printer.rs:12780"),
+  forEachTrailingCommentToEmit: auditAlreadyExact("crates/emitter/src/printer.rs:12807"),
+  hasDetachedComments: auditAlreadyExact("crates/emitter/src/printer.rs:10523"),
+  forEachLeadingCommentWithoutDetachedComments: auditAlreadyExact(
+    "crates/emitter/src/printer.rs:10355",
+  ),
+  emitDetachedCommentsAndUpdateCommentsInfo: auditAlreadyExact(
+    "crates/emitter/src/printer.rs:10617",
+  ),
+  emitComment: AUDIT_FOUNDATION_NEEDED,
+  isTripleSlashComment: auditAlreadyExact("crates/emitter/src/printer.rs:13216"),
+
+  pipelineEmitWithSourceMaps: auditAlreadyExact("crates/emitter/src/printer.rs:1508"),
+  emitSourceMapsBeforeNode: auditAlreadyExact("crates/emitter/src/printer.rs:12467"),
+  emitSourceMapsAfterNode: auditAlreadyExact("crates/emitter/src/printer.rs:12467"),
+  skipSourceTrivia: auditAlreadyExact("crates/emitter/src/printer.rs:12517"),
+  emitPos: auditAlreadyExact("crates/emitter/src/printer.rs:12517"),
+  emitSourcePos: auditAlreadyExact("crates/emitter/src/printer.rs:12517"),
+  emitTokenWithSourceMap: auditAlreadyExact("crates/emitter/src/printer.rs:12558"),
+  setSourceMapSource: auditAlreadyExact("crates/emitter/src/printer.rs:12517"),
+  resetSourceMapSource: auditAlreadyExact("crates/emitter/src/printer.rs:12517"),
+  isJsonSourceMapSource: auditAlreadyExact("crates/emitter/src/printer.rs:1073"),
+
+  // Factory audit. Only real named Rust constructors/updaters count; the
+  // generic create_node/update_node entry points do not substitute for the
+  // NodeBuilder/declaration-transformer member surface.
+  "factory.cloneNode": auditAlreadyExact("crates/emitter/src/factory.rs:1361"),
+  "factory.createComputedPropertyName": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateClassDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.replaceModifiers": AUDIT_FOUNDATION_NEEDED,
+  "factory.createKeywordTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTypeReferenceNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createIndexedAccessTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createLiteralTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createStringLiteral": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTypeQueryNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNumericLiteral": AUDIT_FOUNDATION_NEEDED,
+  "factory.createPrefixUnaryExpression": AUDIT_FOUNDATION_NEEDED,
+  "factory.createBigIntLiteral": AUDIT_FOUNDATION_NEEDED,
+  "factory.createFalse": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTrue": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTypeOperatorNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNull": AUDIT_FOUNDATION_NEEDED,
+  "factory.createThisTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createIdentifier": AUDIT_FOUNDATION_NEEDED,
+  "factory.createArrayTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createInferTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createIntersectionTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createUnionTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTemplateHead": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNodeArray": auditAlreadyExact("crates/emitter/src/factory.rs:1271"),
+  "factory.createTemplateLiteralTypeSpan": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTemplateLiteralType": AUDIT_FOUNDATION_NEEDED,
+  "factory.createConditionalTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTypeParameterDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createToken": auditAlreadyExact("crates/emitter/src/factory.rs:1250"),
+  "factory.createMappedTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTypeLiteralNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNamedTupleMember": AUDIT_FOUNDATION_NEEDED,
+  "factory.createOptionalTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createRestTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTupleTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateQualifiedName": AUDIT_FOUNDATION_NEEDED,
+  "factory.createQualifiedName": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateImportTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateTypeReferenceNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createPropertySignature": AUDIT_FOUNDATION_NEEDED,
+  "factory.createModifier": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNotEmittedTypeElement": AUDIT_FOUNDATION_NEEDED,
+  "factory.createParameterDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createIndexSignature": AUDIT_FOUNDATION_NEEDED,
+  "factory.createModifiersFromModifierFlags": AUDIT_FOUNDATION_NEEDED,
+  "factory.createCallSignature": AUDIT_FOUNDATION_NEEDED,
+  "factory.createConstructSignature": AUDIT_FOUNDATION_NEEDED,
+  "factory.createMethodDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createMethodSignature": AUDIT_FOUNDATION_NEEDED,
+  "factory.createConstructorDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createGetAccessorDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createSetAccessorDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createConstructorTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createFunctionDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createFunctionTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createJSDocFunctionType": AUDIT_FOUNDATION_NEEDED,
+  "factory.createFunctionExpression": AUDIT_FOUNDATION_NEEDED,
+  "factory.createBlock": AUDIT_FOUNDATION_NEEDED,
+  "factory.createArrowFunction": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTypePredicateNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateBindingElement": AUDIT_FOUNDATION_NEEDED,
+  "factory.createImportAttributes": AUDIT_FOUNDATION_NEEDED,
+  "factory.createImportAttribute": AUDIT_FOUNDATION_NEEDED,
+  "factory.createImportTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.createParenthesizedType": AUDIT_FOUNDATION_NEEDED,
+  "factory.createPropertyAccessExpression": AUDIT_FOUNDATION_NEEDED,
+  "factory.createElementAccessExpression": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateModuleDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateModuleBlock": AUDIT_FOUNDATION_NEEDED,
+  "factory.createExportDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createExportSpecifier": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNamedExports": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateExportDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateNamedExports": AUDIT_FOUNDATION_NEEDED,
+  "factory.createVariableStatement": AUDIT_FOUNDATION_NEEDED,
+  "factory.createVariableDeclarationList": AUDIT_FOUNDATION_NEEDED,
+  "factory.createVariableDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createExportAssignment": AUDIT_FOUNDATION_NEEDED,
+  "factory.createTypeAliasDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createHeritageClause": AUDIT_FOUNDATION_NEEDED,
+  "factory.createInterfaceDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createPropertyDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createModuleBlock": AUDIT_FOUNDATION_NEEDED,
+  "factory.createModuleDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createEnumMember": AUDIT_FOUNDATION_NEEDED,
+  "factory.createEnumDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createEmptyStatement": AUDIT_FOUNDATION_NEEDED,
+  "factory.createExpressionStatement": AUDIT_FOUNDATION_NEEDED,
+  "factory.createExpressionWithTypeArguments": AUDIT_FOUNDATION_NEEDED,
+  "factory.createPrivateIdentifier": AUDIT_FOUNDATION_NEEDED,
+  "factory.createClassDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createImportDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createImportClause": AUDIT_FOUNDATION_NEEDED,
+  "factory.createImportSpecifier": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNamedImports": AUDIT_FOUNDATION_NEEDED,
+  "factory.createUniqueName": AUDIT_FOUNDATION_NEEDED,
+  "factory.createImportEqualsDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createExternalModuleReference": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNamespaceExportDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNamespaceImport": AUDIT_FOUNDATION_NEEDED,
+  "factory.createNamespaceExport": AUDIT_FOUNDATION_NEEDED,
+
+  // Expression-level parenthesization exists in the current Rust emitter;
+  // all type-level parenthesizer members remain declaration foundation.
+  "parenthesizer.parenthesizeLeadingTypeArgument": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeExpressionForDisallowedComma": auditAlreadyExact(
+    "crates/emitter/src/factory.rs:1870",
+  ),
+  "parenthesizer.parenthesizeLeftSideOfAccess": auditAlreadyExact(
+    "crates/emitter/src/printer.rs:7932",
+  ),
+  "parenthesizer.parenthesizeNonArrayTypeOfPostfixType": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeElementTypeOfTupleType": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeTypeOfOptionalType": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeConstituentTypeOfUnionType": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeConstituentTypeOfIntersectionType": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeCheckTypeOfConditionalType": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeExtendsTypeOfConditionalType": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeOperandOfReadonlyTypeOperator": AUDIT_FOUNDATION_NEEDED,
+  "parenthesizer.parenthesizeOperandOfTypeOperator": AUDIT_FOUNDATION_NEEDED,
+
+  "factory.updateIndexedAccessTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateTypeOperatorNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateTypeQueryNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateTypeParameterDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateComputedPropertyName": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateTypePredicateNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateConditionalTypeNode": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateParameterDeclaration": AUDIT_FOUNDATION_NEEDED,
+  "factory.updateGetAccessorDeclaration": auditAlreadyExact(
+    "crates/emitter/src/factory.rs:1501",
+  ),
+  "factory.updateSetAccessorDeclaration": auditAlreadyExact(
+    "crates/emitter/src/factory.rs:1556",
+  ),
 });
 
 // Curated ownership overrides for one-hop top-level helpers reached directly
@@ -234,6 +634,12 @@ function requireCondition(condition, message) {
   if (!condition) fail(message);
 }
 
+function auditRow(name) {
+  const audit = AUDIT_ROWS[name];
+  requireCondition(audit !== undefined, `missing curated audit row ${name}`);
+  return audit;
+}
+
 function sha256(value) {
   return crypto.createHash("sha256").update(value).digest("hex");
 }
@@ -267,27 +673,6 @@ function readBytes(relativePath) {
 
 function pathHash(relativePath) {
   return { path: relativePath, sha256: sha256(readBytes(relativePath)) };
-}
-
-function camelToSnake(name) {
-  return name
-    .replace(/([a-z0-9])([A-Z])/gu, "$1_$2")
-    .replace(/([A-Z])([A-Z][a-z])/gu, "$1_$2")
-    .toLowerCase();
-}
-
-function rustFunctionAnchors(relativePath) {
-  const lines = splitLines(readBytes(relativePath).toString("utf8"));
-  const anchors = new Map();
-  for (let index = 0; index < lines.length; index += 1) {
-    const match = lines[index].match(
-      /^\s*(?:pub(?:\([^)]*\))?\s+)?(?:const\s+)?(?:async\s+)?fn\s+([A-Za-z0-9_]+)\s*(?:<[^>]*>)?\s*\(/u,
-    );
-    if (match && !anchors.has(match[1])) {
-      anchors.set(match[1], `${relativePath}:${index + 1}`);
-    }
-  }
-  return anchors;
 }
 
 function splitLines(text) {
@@ -481,15 +866,6 @@ function resolvedFunction(identifier) {
   const symbol = checker.getSymbolAtLocation(identifier);
   const declarations = symbol?.declarations?.filter(ts.isFunctionDeclaration) ?? [];
   return declarations.length === 1 ? declarations[0] : null;
-}
-
-const matchingRustAnchors = new Map([
-  ...rustFunctionAnchors(RUST_WRITER_SOURCE),
-  ...rustFunctionAnchors(RUST_PRINTER_SOURCE),
-]);
-
-function printerRustAnchor(name) {
-  return PRINTER_RUST_ANCHORS[name] ?? matchingRustAnchors.get(camelToSnake(name)) ?? null;
 }
 
 const rows = [];
@@ -874,6 +1250,7 @@ while (printerQueue.length > 0) {
 }
 // The owner is contextual identity, not a closure seed: traversing its lexical
 // children would collapse the selected numerator into all 370 workers.
+const createPrinterAudit = auditRow("createPrinter");
 rows.push(
   rowForNode({
     surface: "printer-subgraph",
@@ -882,13 +1259,17 @@ rows.push(
     node: createPrinter,
     reachability: "context",
     consumers: ["H2.7a", "H2.7b", "H2.7d", "API1"],
-    rustAnchor: printerRustAnchor("createPrinter"),
-    disposition: "audit-pending",
-    targetRung: "h2-7a-m-3.5",
+    rustAnchor: createPrinterAudit.rust_anchor,
+    disposition: createPrinterAudit.disposition,
+    targetRung:
+      createPrinterAudit.disposition === "audit-foundation-needed"
+        ? "h2-7a-m-3.5"
+        : null,
   }),
 );
 for (const node of printerSubgraph) {
   const name = functionName(node);
+  const audit = auditRow(name);
   rows.push(
     rowForNode({
       surface: "printer-subgraph",
@@ -897,9 +1278,10 @@ for (const node of printerSubgraph) {
       node,
       reachability: printerSeedSet.has(node) ? "direct" : "reached",
       consumers: ["H2.7a", "H2.7b", "H2.7d", "API1"],
-      rustAnchor: printerRustAnchor(name),
-      disposition: "audit-pending",
-      targetRung: "h2-7a-m-3.5",
+      rustAnchor: audit.rust_anchor,
+      disposition: audit.disposition,
+      targetRung:
+        audit.disposition === "audit-foundation-needed" ? "h2-7a-m-3.5" : null,
     }),
   );
 }
@@ -957,6 +1339,7 @@ const parenthesizerMemberSites = groupMemberSites(
 );
 
 function memberRangeRow(receiver, name, sites) {
+  const audit = auditRow(`${receiver}.${name}`);
   const spans = sites.map(nodeSpan);
   const span = {
     start_line: Math.min(...spans.map((item) => item.start_line)),
@@ -971,12 +1354,10 @@ function memberRangeRow(receiver, name, sites) {
     nesting_parent: null,
     reachability: "direct",
     consumers: ["H2.7a", "H2.7b", "API1"],
-    rust_anchor:
-      receiver === "factory"
-        ? "crates/emitter/src/factory.rs:1182"
-        : "crates/emitter/src/factory.rs:2004",
-    disposition: "audit-pending",
-    target_rung: "h2-7a-m-3.5",
+    rust_anchor: audit.rust_anchor,
+    disposition: audit.disposition,
+    target_rung:
+      audit.disposition === "audit-foundation-needed" ? "h2-7a-m-3.5" : null,
     partition: null,
     call_count: sites.length,
   };
@@ -988,6 +1369,56 @@ for (const [name, sites] of parenthesizerMemberSites) {
 }
 requireCondition(factoryMemberSites.size > 0, "factory member inventory is empty");
 requireCondition(parenthesizerMemberSites.size > 0, "parenthesizer member inventory is empty");
+
+const measuredAuditNames = [
+  "createPrinter",
+  ...[...printerSubgraph].map(functionName),
+  ...[...factoryMemberSites.keys()].map((name) => `factory.${name}`),
+  ...[...parenthesizerMemberSites.keys()].map((name) => `parenthesizer.${name}`),
+];
+const measuredAuditNameSet = new Set(measuredAuditNames);
+const curatedAuditNames = Object.keys(AUDIT_ROWS);
+const rustAnchorLineCounts = new Map();
+requireCondition(printerSubgraph.size + 1 === 184, "printer audit must contain 184 rows");
+requireCondition(
+  factoryMemberSites.size + parenthesizerMemberSites.size === 124,
+  "factory/parenthesizer audit must contain 124 rows",
+);
+requireCondition(measuredAuditNames.length === 308, "audit must contain 308 measured rows");
+requireCondition(measuredAuditNameSet.size === 308, "audit names must be unique");
+requireCondition(curatedAuditNames.length === 308, "curated audit must contain 308 rows");
+for (const name of curatedAuditNames) {
+  requireCondition(measuredAuditNameSet.has(name), `extra curated audit row ${name}`);
+  const audit = auditRow(name);
+  requireCondition(
+    audit.disposition === "audit-already-exact" ||
+      audit.disposition === "audit-foundation-needed",
+    `invalid curated audit disposition for ${name}`,
+  );
+  requireCondition(
+    audit.disposition === "audit-already-exact"
+      ? typeof audit.rust_anchor === "string"
+      : audit.rust_anchor === null,
+    `invalid curated Rust anchor for ${name}`,
+  );
+  if (audit.rust_anchor !== null) {
+    const match = audit.rust_anchor.match(
+      /^(crates\/emitter\/[A-Za-z0-9_./-]+):([1-9][0-9]*)$/u,
+    );
+    requireCondition(match !== null, `malformed curated Rust anchor for ${name}`);
+    const [, relativePath, lineText] = match;
+    if (!rustAnchorLineCounts.has(relativePath)) {
+      rustAnchorLineCounts.set(
+        relativePath,
+        splitLines(readBytes(relativePath).toString("utf8")).length,
+      );
+    }
+    requireCondition(
+      Number(lineText) <= rustAnchorLineCounts.get(relativePath),
+      `out-of-range curated Rust anchor for ${name}`,
+    );
+  }
+}
 
 // One-hop reached-helper closure. Only identifiers bound by TypeScript to a
 // SourceFile-level FunctionDeclaration qualify; local callbacks and nested
@@ -1113,6 +1544,22 @@ const reachedRows = [...reachedBySurface.values()].reduce(
   0,
 );
 const countSurfaceRows = (surface) => rows.filter((row) => row.surface === surface).length;
+const auditRows = rows.filter(
+  (row) => row.surface === "printer-subgraph" || row.surface === "factory-parenthesizer",
+);
+const auditCounts = {
+  already_exact: auditRows.filter((row) => row.disposition === "audit-already-exact").length,
+  foundation_needed: auditRows.filter(
+    (row) => row.disposition === "audit-foundation-needed",
+  ).length,
+  pending: auditRows.filter((row) => row.disposition === "audit-pending").length,
+};
+requireCondition(auditRows.length === 308, "generated audit must contain 308 rows");
+requireCondition(
+  auditCounts.already_exact + auditCounts.foundation_needed === auditRows.length,
+  "every generated audit row must have a final disposition",
+);
+requireCondition(auditCounts.pending === 0, "generated audit must have zero pending rows");
 const summary = {
   total_rows: rows.length,
   surface_rows: {
@@ -1160,6 +1607,7 @@ const summary = {
     parenthesizer_members: parenthesizerMemberSites.size,
     parenthesizer_calls: parenthesizerReferences.length,
   },
+  audit: auditCounts,
   partition: partitionCounts,
   reached_rows: reachedRows,
   reached_by_surface: {
@@ -1218,7 +1666,8 @@ const summaryLine =
   `printer=${summary.printer.function_rows} ` +
   `resolver=${summary.resolver.consumed_members}/${summary.resolver.declarations_module_call_sites} ` +
   `partition=${summary.partition.m_3_head}/${summary.partition.m_2} ` +
-  `reached=${summary.reached_rows} options=${summary.option_rows}`;
+  `reached=${summary.reached_rows} options=${summary.option_rows} ` +
+  `audit=${summary.audit.already_exact}/${summary.audit.foundation_needed}/${summary.audit.pending}`;
 
 if (MODE === "--write") {
   fs.writeFileSync(targetPath, rendered);

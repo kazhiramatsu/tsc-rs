@@ -353,6 +353,8 @@
         "script-orchestration",
         "shared/printer-hook",
         "audit-pending",
+        "audit-already-exact",
+        "audit-foundation-needed",
         "audit-already-exact-candidate",
         "audit-foundation-candidate",
         "shared/emit-factory",
@@ -455,7 +457,11 @@
           "if": {
             "properties": {
               "disposition": {
-                "const": "audit-pending"
+                "enum": [
+                  "audit-pending",
+                  "audit-already-exact",
+                  "audit-foundation-needed"
+                ]
               }
             },
             "required": [
@@ -469,6 +475,44 @@
                   "printer-subgraph",
                   "factory-parenthesizer"
                 ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "audit-already-exact"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rust_anchor": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "audit-foundation-needed"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rust_anchor": {
+                "const": null
               }
             }
           }
@@ -513,6 +557,7 @@
         "resolver",
         "printer",
         "factory_parenthesizer",
+        "audit",
         "partition",
         "reached_rows",
         "reached_by_surface",
@@ -716,6 +761,28 @@
             "parenthesizer_calls": {
               "type": "integer",
               "minimum": 1
+            }
+          }
+        },
+        "audit": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "already_exact",
+            "foundation_needed",
+            "pending"
+          ],
+          "properties": {
+            "already_exact": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "foundation_needed": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "pending": {
+              "const": 0
             }
           }
         },
