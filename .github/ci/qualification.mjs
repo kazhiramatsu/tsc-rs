@@ -160,6 +160,21 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     schema: ".github/ci/contracts/h2-6b-qualification.schema.json",
     artifact: "ratchets/h2-6b-qualification.v1.json",
   }),
+  Object.freeze({
+    label: "H2.7a owner inventory",
+    schema: ".github/ci/contracts/h2-7a-owner-inventory.schema.json",
+    artifact: "ratchets/h2-7a-owner-inventory.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.7a witnesses",
+    schema: ".github/ci/contracts/h2-7a-witnesses.schema.json",
+    artifact: "ratchets/h2-7a-witnesses.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.7a probe traces",
+    schema: ".github/ci/contracts/h2-7a-probe-traces.schema.json",
+    artifact: "ratchets/h2-7a-probe-traces.v1.json",
+  }),
 ]);
 
 const JSON_SCHEMA_KEYWORDS = new Set([
