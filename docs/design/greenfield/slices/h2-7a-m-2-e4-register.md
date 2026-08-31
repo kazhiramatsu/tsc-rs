@@ -1,0 +1,88 @@
+# h2-7a-m-2 — Phase-E frozen-constant register (E4)
+
+Companion to [h2-7a-m-2.md](h2-7a-m-2.md) §10. This file is outside
+every generator input closure (see §10 "Register location"); it
+records the E3/E4 evidence-derived constants. Values marked FINAL
+were read from the last E3 mints; fingerprint rows are filled after
+the final assembly mints on this branch.
+
+## S2 selection (mint-reproduced; §8.4-8.6 predictions all hit)
+
+- selector_version: m2-s2-v1; fixtures 16; cases 18; observations 36;
+  trim rows: NONE.
+- Case IDs: exactly the 18 §8.6 frozen IDs (expando-1..4,
+  latebound-1..4, augment-1..4, entityname-1, -2, -3-c0, -3-c1,
+  -4-c0, -4-c1).
+- Witness totals: cases 112, oracle runs 224, strata S=67 + S2,
+  lanes 14, coverage/quota projections = the m-1 94-case set
+  (S2 excluded before validation).
+- m-1 projection guard: H2_7A_M1_PROJECTION_SHA256 =
+  44b0cca40a9ae8869ee219e6bbb6e449ce87346556084dfd622f167bd3f55b72
+  (operator-rederived independently; enforced on every
+  --write/--check).
+
+## Probe schema-2 volumes (per-member entry/result pairs; FINAL)
+
+isDeclarationVisible 2036; isLiteralConstDeclaration 612;
+isExpandoFunctionDeclaration 456; isSymbolAccessible 407;
+isOptionalParameter 344; isImplementationOfOverload 192;
+isEntityNameVisible 195; requiresAddingImplicitUndefined 133;
+isImportRequiredByAugmentation 15;
+isDefinitelyReferenceToGlobalSymbolObject 10;
+getPropertiesOfContainerFunction 5; isLateBound 4;
+getEnumMemberValue 3. resolver.collectLinkedAliases 12;
+probe.checkSeed 194; probe.transformSeed 194;
+probe.fallbackSweep **0** (zero-fallback confirmed corpus-wide).
+Total events 15,845 across 112 cases.
+
+## §8.9 floors (FINAL)
+
+- getPropertiesOfContainerFunction: 5 results, ALL NONEMPTY (floor
+  "≥1 nonempty ordered result" MET).
+- Every §8.1 target member has ≥1 replayed-eligible event; the sole
+  named residual gap remains the
+  isDefinitelyReferenceToGlobalSymbolObject `globalThis.Symbol`
+  property-access arm (zero population yield, §8.4).
+
+## v1 migration proof (FINAL; §6.6 / disposition 6)
+
+- Decision-projection equality HOLDS. Both sides:
+  b5b4516d54dae23f14d54e31abe6e5aefdbe4744809f484b6a7bedcd802fbfac
+  (v1 artifact @7e452aa8 vs schema-2 re-observation).
+- Excluded capture-upgrade families (both-sides sentinel): transform
+  `.changed` output tuple (993 v1 events); syntactic `.result` node
+  tuple (498 v1 events). All flags/inputs/hasOriginal/transformFlags
+  compared and equal.
+- Historical whole-field hashes for the record: v1-of-current
+  d166283b… (original projection definition, pre-disposition-6);
+  intermediate own-side-only b5b4516d… (= final decision hash).
+- Zero-declaration symbol refs: 0. Mint-side node-ref uniqueness:
+  passed (no collisions).
+
+## E4 surprise-trigger assessment (§9.E4)
+
+- selector drift: NO (mint reproduces the frozen lists).
+- nonzero fallbackSweep: NO (0).
+- migration-proof inequality: FIRED, diagnosed, resolved by
+  disposition 6 (decision projection); narrow-scope sol review of
+  the disposition requested (see packet §16 record).
+- unpredicted exclusion class: NONE (zero-declaration 0; uniqueness
+  clean; synthetic-without-original counts are P4-frozen per §7.5).
+- floor miss: NO.
+
+## Final fingerprints (post-final-assembly mints)
+
+- witness artifact fingerprint: (filled at final mint)
+- witness case-manifest fingerprint: 89bb0627… (stable across
+  assembly re-mints; full value recorded at final mint)
+- probe artifact fingerprint: (filled at final mint)
+- witness artifact file sha256 pinned by the probe: (filled at
+  final mint)
+
+## Harness constants for P4 transcription
+
+Per-member replayed/excluded/shadow counts and nested-edge
+diagnostic volumes are derived by the P4 harness from the FINAL
+artifacts and frozen as test constants (packet §7.5-7.7); this
+register records the artifact-level volumes above as their upper
+envelope.
