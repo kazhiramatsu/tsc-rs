@@ -491,8 +491,10 @@ fn dm_implicit_undefined_and_expando_predicates_cover_type_and_modifier_gates() 
         "let mutableExpando = function () {};\n",
         "mutableExpando.extra = 1;\n",
     );
-    let mut options = CompilerOptions::default();
-    options.strict_null_checks = Some(true);
+    let options = CompilerOptions {
+        strict_null_checks: Some(true),
+        ..Default::default()
+    };
     with_program_state(&[("expandos.ts", source)], &options, |state| {
         state.check_source_file(0);
 
