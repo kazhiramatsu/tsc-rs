@@ -95,6 +95,9 @@ const LADDER_ORDER: &[&str] = &[
     "h2-6b-qualification",
     "h2-6c-census",
     "h2-6c-qualification",
+    "h2-7a-owner-inventory",
+    "h2-7a-witnesses",
+    "h2-7a-probe-traces",
 ];
 
 #[derive(Clone, Debug, Default)]
