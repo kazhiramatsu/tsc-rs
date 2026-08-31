@@ -122,6 +122,12 @@ pub struct NodeLinks {
     /// TypeChecked bit lands with M4 5.4; later stages OR in their own
     /// bits (a flags word accumulates, unlike the write-once slots).
     pub check_flags: tsc_types::NodeCheckFlags,
+    /// tsc NodeLinks.isVisible (isDeclarationVisible 55591 and the
+    /// declaration-emit alias painters). This is the deliberate MONOTONE
+    /// exception to the table's write-once policy: absent→false,
+    /// absent→true, and false→true are valid; true is absorbing. Emit and
+    /// check-phase writers are forbidden in speculative contexts.
+    pub(crate) is_visible: Option<bool>,
     /// tsc links.capturedBlockScopeBindings
     /// (checkNestedBlockScopedBinding 72267-72268): the block-scoped
     /// symbols a for-statement part captures, recorded beside the
@@ -2092,6 +2098,21 @@ impl LinksTables {
         let links = self.node.entry(id).or_default();
         links.check_flags =
             tsc_types::NodeCheckFlags::from_bits(links.check_flags.bits() | bits.bits());
+    }
+
+    /// `links.isVisible = value` — the declaration-emit visibility slot is
+    /// monotone rather than write-once because late alias discovery paints a
+    /// previously memoized `false` declaration `true`. Once true, later memo
+    /// attempts cannot make it invisible again.
+    /// tsrs-native: Rust Links-table protocol for tsc's direct mutable
+    /// links-field access; no standalone tsc function.
+    pub(crate) fn set_node_is_visible(&mut self, speculation_depth: u32, id: NodeId, value: bool) {
+        debug_assert_eq!(
+            speculation_depth, 0,
+            "NodeLinks.isVisible writes are forbidden during speculation"
+        );
+        let slot = &mut self.node.entry(id).or_default().is_visible;
+        *slot = Some(slot.unwrap_or(false) || value);
     }
 
     /// tsc `pushIfUnique(links.capturedBlockScopeBindings ||= [], symbol)`

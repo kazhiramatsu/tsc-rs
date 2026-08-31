@@ -8,6 +8,7 @@ pub mod class;
 pub mod conditional;
 pub mod constraints;
 pub mod contextual;
+mod declaration_emit;
 mod display_clone;
 mod display_clone_body;
 mod display_clone_module;
