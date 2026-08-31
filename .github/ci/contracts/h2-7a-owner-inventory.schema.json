@@ -1,0 +1,774 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-7a-owner-inventory.schema.json",
+  "title": "H2.7a m-1 declaration owner inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "status",
+    "phase",
+    "generator",
+    "contract",
+    "inputs",
+    "counting_grammar",
+    "printer_closure",
+    "reached_helper_closure",
+    "unresolved_candidates",
+    "summary",
+    "rows",
+    "inventory_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "status": {
+      "const": "measured"
+    },
+    "phase": {
+      "const": "H2.7a-owner-inventory"
+    },
+    "generator": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/path_hash"
+        },
+        {
+          "properties": {
+            "path": {
+              "const": "crates/oracle/h2-7a-owner-inventory.mjs"
+            }
+          }
+        }
+      ]
+    },
+    "contract": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/path_hash"
+        },
+        {
+          "properties": {
+            "path": {
+              "const": ".github/ci/contracts/h2-7a-owner-inventory.schema.json"
+            }
+          }
+        }
+      ]
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "typescript",
+        "option_owner",
+        "rust_evidence"
+      ],
+      "properties": {
+        "typescript": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "version",
+            "implementation"
+          ],
+          "properties": {
+            "version": {
+              "const": "6.0.3"
+            },
+            "implementation": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/path_hash"
+                },
+                {
+                  "properties": {
+                    "path": {
+                      "const": "vendor/typescript-6.0.3/lib/_tsc.js"
+                    },
+                    "sha256": {
+                      "const": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "option_owner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "span"
+          ],
+          "properties": {
+            "source": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/path_hash"
+                },
+                {
+                  "properties": {
+                    "path": {
+                      "const": "crates/oracle/h2-transition.mjs"
+                    }
+                  }
+                }
+              ]
+            },
+            "span": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "start_line",
+                "end_line",
+                "sha256"
+              ],
+              "properties": {
+                "start_line": {
+                  "const": 448
+                },
+                "end_line": {
+                  "const": 467
+                },
+                "sha256": {
+                  "const": "25632b51bf9ea161a1b472e97f66b8d46f8b9e92b980e4effd4c0b1472d6cdd2"
+                }
+              }
+            }
+          }
+        },
+        "rust_evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "printer",
+            "writer",
+            "factory",
+            "resolver"
+          ],
+          "properties": {
+            "printer": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/path_hash"
+                },
+                {
+                  "properties": {
+                    "path": {
+                      "const": "crates/emitter/src/printer.rs"
+                    }
+                  }
+                }
+              ]
+            },
+            "writer": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/path_hash"
+                },
+                {
+                  "properties": {
+                    "path": {
+                      "const": "crates/emitter/src/writer.rs"
+                    }
+                  }
+                }
+              ]
+            },
+            "factory": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/path_hash"
+                },
+                {
+                  "properties": {
+                    "path": {
+                      "const": "crates/emitter/src/factory.rs"
+                    }
+                  }
+                }
+              ]
+            },
+            "resolver": {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/path_hash"
+                },
+                {
+                  "properties": {
+                    "path": {
+                      "const": "crates/emitter/src/resolver.rs"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
+    },
+    "counting_grammar": {
+      "type": "string",
+      "minLength": 1
+    },
+    "printer_closure": {
+      "type": "string",
+      "minLength": 1
+    },
+    "reached_helper_closure": {
+      "type": "string",
+      "minLength": 1
+    },
+    "unresolved_candidates": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    },
+    "inventory_fingerprint_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start_line",
+        "end_line"
+      ],
+      "properties": {
+        "start_line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "end_line": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "surface": {
+      "enum": [
+        "declarations-module",
+        "selection-seam",
+        "node-builder",
+        "syntactic-builder",
+        "resolver-declaration-subset",
+        "printer-subgraph",
+        "factory-parenthesizer",
+        "option-owner-closure"
+      ]
+    },
+    "consumer": {
+      "enum": [
+        "H2.1e",
+        "H2.3a",
+        "H2.3b",
+        "H2.4a",
+        "H2.6b",
+        "H2.7a",
+        "H2.7b",
+        "H2.7c",
+        "H2.7d",
+        "H2.7e",
+        "H2.8a",
+        "H2.8b",
+        "H2.8c",
+        "H2.8d",
+        "BLD1",
+        "API1",
+        "shared/build-info"
+      ]
+    },
+    "target_rung": {
+      "enum": [
+        null,
+        "h2-7a-m-2",
+        "h2-7a-m-3",
+        "h2-7a-m-3.5",
+        "h2-7a-m-4",
+        "H2.1e",
+        "H2.3a",
+        "H2.3b",
+        "H2.4a",
+        "H2.6b",
+        "H2.7b",
+        "H2.7c",
+        "H2.7d",
+        "H2.7e",
+        "H2.8a",
+        "H2.8b",
+        "H2.8c",
+        "H2.8d",
+        "BLD1",
+        "API1"
+      ]
+    },
+    "disposition": {
+      "enum": [
+        "declaration-transformer-foundation",
+        "declaration-diagnostics-owner",
+        "declaration-selection-foundation",
+        "shared/build-info",
+        "node-builder-foundation",
+        "syntactic-builder-foundation",
+        "checker-native-resolver",
+        "node-builder-dependent-resolver",
+        "existing-resolver-api",
+        "node-builder-internal-api-surface",
+        "declaration-orchestration",
+        "script-orchestration",
+        "shared/printer-hook",
+        "audit-pending",
+        "audit-already-exact-candidate",
+        "audit-foundation-candidate",
+        "shared/emit-factory",
+        "shared/path",
+        "shared/diagnostics",
+        "shared/core",
+        "shared/core-utility",
+        "option-owner"
+      ]
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "surface",
+        "name",
+        "kind",
+        "span",
+        "sha256",
+        "nesting_parent",
+        "reachability",
+        "consumers",
+        "rust_anchor",
+        "disposition",
+        "target_rung",
+        "partition"
+      ],
+      "properties": {
+        "surface": {
+          "$ref": "#/$defs/surface"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "enum": [
+            "owner",
+            "nested",
+            "sibling",
+            "member",
+            "use_site",
+            "reached"
+          ]
+        },
+        "span": {
+          "$ref": "#/$defs/span"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "nesting_parent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reachability": {
+          "enum": [
+            "direct",
+            "reached",
+            "context"
+          ]
+        },
+        "consumers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/consumer"
+          }
+        },
+        "rust_anchor": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^crates/[A-Za-z0-9_./-]+:[1-9][0-9]*$"
+        },
+        "disposition": {
+          "$ref": "#/$defs/disposition"
+        },
+        "target_rung": {
+          "$ref": "#/$defs/target_rung"
+        },
+        "partition": {
+          "enum": [
+            null,
+            "m-3-head",
+            "m-2"
+          ]
+        },
+        "call_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "audit-pending"
+              }
+            },
+            "required": [
+              "disposition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "surface": {
+                "enum": [
+                  "printer-subgraph",
+                  "factory-parenthesizer"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "partition": {
+                "enum": [
+                  "m-3-head",
+                  "m-2"
+                ]
+              }
+            },
+            "required": [
+              "partition"
+            ]
+          },
+          "then": {
+            "properties": {
+              "surface": {
+                "const": "resolver-declaration-subset"
+              },
+              "kind": {
+                "const": "member"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total_rows",
+        "surface_rows",
+        "declarations_module",
+        "selection_seam",
+        "node_builder",
+        "syntactic_builder",
+        "resolver",
+        "printer",
+        "factory_parenthesizer",
+        "partition",
+        "reached_rows",
+        "reached_by_surface",
+        "option_rows",
+        "unresolved_candidates"
+      ],
+      "properties": {
+        "total_rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "surface_rows": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declarations_module",
+            "selection_seam",
+            "node_builder",
+            "syntactic_builder",
+            "resolver_declaration_subset",
+            "printer_subgraph",
+            "factory_parenthesizer",
+            "option_owner_closure"
+          ],
+          "properties": {
+            "declarations_module": {
+              "type": "integer",
+              "minimum": 68
+            },
+            "selection_seam": {
+              "const": 2
+            },
+            "node_builder": {
+              "type": "integer",
+              "minimum": 149
+            },
+            "syntactic_builder": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "resolver_declaration_subset": {
+              "type": "integer",
+              "minimum": 54
+            },
+            "printer_subgraph": {
+              "type": "integer",
+              "minimum": 59,
+              "maximum": 370
+            },
+            "factory_parenthesizer": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "option_owner_closure": {
+              "const": 18
+            }
+          }
+        },
+        "declarations_module": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "function_rows",
+            "owner_rows",
+            "nested_function_rows",
+            "sibling_function_rows"
+          ],
+          "properties": {
+            "function_rows": {
+              "const": 68
+            },
+            "owner_rows": {
+              "const": 1
+            },
+            "nested_function_rows": {
+              "const": 60
+            },
+            "sibling_function_rows": {
+              "const": 7
+            }
+          }
+        },
+        "selection_seam": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rows",
+            "no_transformers_consumers"
+          ],
+          "properties": {
+            "rows": {
+              "const": 2
+            },
+            "no_transformers_consumers": {
+              "const": 1
+            }
+          }
+        },
+        "node_builder": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "function_rows",
+            "nested_function_rows"
+          ],
+          "properties": {
+            "function_rows": {
+              "const": 149
+            },
+            "nested_function_rows": {
+              "const": 148
+            }
+          }
+        },
+        "syntactic_builder": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "function_rows"
+          ],
+          "properties": {
+            "function_rows": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "resolver": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "consumed_members",
+            "member_rows",
+            "declarations_module_call_sites",
+            "orchestration_use_sites"
+          ],
+          "properties": {
+            "consumed_members": {
+              "const": 19
+            },
+            "member_rows": {
+              "const": 20
+            },
+            "declarations_module_call_sites": {
+              "const": 28
+            },
+            "orchestration_use_sites": {
+              "const": 6
+            }
+          }
+        },
+        "printer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "function_rows",
+            "seed_workers",
+            "type_dispatch_workers",
+            "subgraph_rows"
+          ],
+          "properties": {
+            "function_rows": {
+              "const": 370
+            },
+            "seed_workers": {
+              "const": 58
+            },
+            "type_dispatch_workers": {
+              "type": "integer",
+              "minimum": 20
+            },
+            "subgraph_rows": {
+              "type": "integer",
+              "minimum": 59,
+              "maximum": 370
+            }
+          }
+        },
+        "factory_parenthesizer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "factory_members",
+            "factory_calls",
+            "parenthesizer_members",
+            "parenthesizer_calls"
+          ],
+          "properties": {
+            "factory_members": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "factory_calls": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "parenthesizer_members": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "parenthesizer_calls": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "partition": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "m_3_head",
+            "m_2"
+          ],
+          "properties": {
+            "m_3_head": {
+              "const": 7
+            },
+            "m_2": {
+              "const": 12
+            }
+          }
+        },
+        "reached_rows": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reached_by_surface": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "declarations_module",
+            "node_builder",
+            "syntactic_builder"
+          ],
+          "properties": {
+            "declarations_module": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "node_builder": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "syntactic_builder": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "option_rows": {
+          "const": 18
+        },
+        "unresolved_candidates": {
+          "const": 0
+        }
+      }
+    }
+  }
+}
