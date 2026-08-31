@@ -515,20 +515,156 @@ impl CheckerState<'_> {
     /// tsc-hash: b569e8243cf2db9de0dbec7462f29fa1e70f4b94405adb5a134b6571d4c8fbeb
     /// tsc-span: _tsc.js:55589-55674
     ///
-    /// The kind walk is shared with the existing display slice. Only this
-    /// emit worker reads and writes NodeLinks.isVisible, preserving the
-    /// display-path invariant while giving declaration emit its upstream
-    /// memo-and-paint behavior.
+    /// This emit-only kind walk recurses through this memoizing worker so
+    /// every declaration visited by the decision gets its own
+    /// NodeLinks.isVisible write. The display slice remains read-only.
     pub(crate) fn emit_is_declaration_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
         let _replay_call = DeclarationReplayCallGuard::enter("resolver.isDeclarationVisible");
         if let Some(visible) = self.links.node(declaration).is_visible {
             return Ok(visible);
         }
-        let visible = self.reused_declaration_is_visible_slice(declaration);
+        let visible = self.emit_determine_declaration_is_visible(declaration)?;
         self.links
             .set_node_is_visible(self.speculation_depth, declaration, visible);
         record_declaration_replay_visibility_write(declaration, visible);
         Ok(self.links.node(declaration).is_visible.unwrap_or(visible))
+    }
+
+    fn emit_determine_declaration_is_visible(&mut self, declaration: NodeId) -> CheckResult<bool> {
+        match self.kind_of(declaration) {
+            SyntaxKind::JSDocCallbackTag
+            | SyntaxKind::JSDocTypedefTag
+            | SyntaxKind::JSDocEnumTag => Ok(self
+                .parent_of(declaration)
+                .and_then(|parent| self.parent_of(parent))
+                .and_then(|parent| self.parent_of(parent))
+                .is_some_and(|parent| self.kind_of(parent) == SyntaxKind::SourceFile)),
+            SyntaxKind::BindingElement => {
+                let parent = self
+                    .parent_of(declaration)
+                    .and_then(|parent| self.parent_of(parent));
+                match parent {
+                    Some(parent) => self.emit_is_declaration_visible(parent),
+                    None => Ok(false),
+                }
+            }
+            SyntaxKind::VariableDeclaration
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ClassDeclaration
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::FunctionDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::ImportEqualsDeclaration => {
+                let source = self.binder.source_of_node(declaration);
+                if self.kind_of(declaration) == SyntaxKind::VariableDeclaration {
+                    let empty_pattern = match self.data_of(declaration) {
+                        NodeData::VariableDeclaration(data) => {
+                            data.name.is_some_and(|name| match self.data_of(name) {
+                                NodeData::ObjectBindingPattern(data) => {
+                                    self.nodes_of(data.elements).is_empty()
+                                }
+                                NodeData::ArrayBindingPattern(data) => {
+                                    self.nodes_of(data.elements).is_empty()
+                                }
+                                _ => false,
+                            })
+                        }
+                        _ => false,
+                    };
+                    if empty_pattern {
+                        return Ok(false);
+                    }
+                }
+                if node_util::is_ambient_module(source, declaration)
+                    && node_util::is_module_augmentation_external(source, declaration)
+                {
+                    return Ok(true);
+                }
+                let Some(container) = self.declaration_emit_declaration_container(declaration)
+                else {
+                    return Ok(false);
+                };
+                let exported = node_util::get_combined_modifier_flags(source, declaration)
+                    .intersects(ModifierFlags::EXPORT);
+                let ambient_nested = self.kind_of(declaration)
+                    != SyntaxKind::ImportEqualsDeclaration
+                    && self.kind_of(container) != SyntaxKind::SourceFile
+                    && self.node_flags(container) & NodeFlags::AMBIENT.bits() != 0;
+                if !exported && !ambient_nested {
+                    return Ok(self.kind_of(container) == SyntaxKind::SourceFile
+                        && !self
+                            .binder
+                            .is_external_or_common_js_module_of_node(container));
+                }
+                self.emit_is_declaration_visible(container)
+            }
+            SyntaxKind::PropertyDeclaration
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::GetAccessor
+            | SyntaxKind::SetAccessor
+            | SyntaxKind::MethodDeclaration
+            | SyntaxKind::MethodSignature => {
+                let source = self.binder.source_of_node(declaration);
+                if node_util::get_effective_modifier_flags(source, declaration)
+                    .intersects(ModifierFlags::PRIVATE | ModifierFlags::PROTECTED)
+                {
+                    return Ok(false);
+                }
+                match self.parent_of(declaration) {
+                    Some(parent) => self.emit_is_declaration_visible(parent),
+                    None => Ok(false),
+                }
+            }
+            SyntaxKind::Constructor
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::CallSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::Parameter
+            | SyntaxKind::ModuleBlock
+            | SyntaxKind::FunctionType
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::TypeReference
+            | SyntaxKind::ArrayType
+            | SyntaxKind::TupleType
+            | SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::ParenthesizedType
+            | SyntaxKind::NamedTupleMember => match self.parent_of(declaration) {
+                Some(parent) => self.emit_is_declaration_visible(parent),
+                None => Ok(false),
+            },
+            SyntaxKind::TypeParameter
+            | SyntaxKind::SourceFile
+            | SyntaxKind::NamespaceExportDeclaration => Ok(true),
+            SyntaxKind::ImportClause
+            | SyntaxKind::NamespaceImport
+            | SyntaxKind::ImportSpecifier
+            | SyntaxKind::ExportAssignment => Ok(false),
+            _ => Ok(false),
+        }
+    }
+
+    /// tsc-port: getDeclarationContainer @6.0.3
+    /// tsc-hash: 3d4b993da842ea191877ffad47fb0c8045a3d1086066350235a4992e74413283
+    /// tsc-span: _tsc.js:55784-55798
+    fn declaration_emit_declaration_container(&self, declaration: NodeId) -> Option<NodeId> {
+        let source = self.binder.source_of_node(declaration);
+        let root = node_util::get_root_declaration(source, declaration);
+        let mut current = Some(root);
+        while let Some(node) = current {
+            match self.kind_of(node) {
+                SyntaxKind::VariableDeclaration
+                | SyntaxKind::VariableDeclarationList
+                | SyntaxKind::ImportSpecifier
+                | SyntaxKind::NamedImports
+                | SyntaxKind::NamespaceImport
+                | SyntaxKind::ImportClause => current = self.parent_of(node),
+                _ => return self.parent_of(node),
+            }
+        }
+        None
     }
 
     /// tsc-port: hasVisibleDeclarations (+ addVisibleAlias) @6.0.3
@@ -555,18 +691,25 @@ impl CheckerState<'_> {
                 return Ok(None);
             }
         }
-        Ok(Some(self.accessibility_result(
-            EmitSymbolAccessibility::Accessible,
-            (!aliases_to_make_visible.is_empty()).then(|| {
-                aliases_to_make_visible
-                    .into_iter()
-                    .map(|node| self.declaration_emit_resolver_node(node))
-                    .collect()
-            }),
-            None,
-            None,
-            None,
-        )))
+        // The upstream object literal always owns the
+        // `aliasesToMakeVisible` property on this success path. When no
+        // alias was appended its value is `undefined`; schema-2 records that
+        // present property as a present empty array, distinct from result
+        // shapes which omit the property entirely.
+        Ok(Some(
+            self.accessibility_result(
+                EmitSymbolAccessibility::Accessible,
+                Some(
+                    aliases_to_make_visible
+                        .into_iter()
+                        .map(|node| self.declaration_emit_resolver_node(node))
+                        .collect(),
+                ),
+                None,
+                None,
+                None,
+            ),
+        ))
     }
 
     fn declaration_is_visible_or_alias(
@@ -757,11 +900,37 @@ impl CheckerState<'_> {
         let mut had_accessible_chain = None;
         let mut early_module_bail = false;
         for &symbol in symbols {
-            let accessible_symbol_chain = self.declaration_emit_accessible_symbol_chain(
-                symbol,
-                meaning,
-                Some(enclosing_declaration),
-            )?;
+            // JSDoc template parameters are lexical declarations in tsc's
+            // class/interface Type-member scope. The shared display slice
+            // intentionally omits that table, so recover the exact direct
+            // chain through the ordinary enclosing-name lookup before using
+            // the shared chain worker. Without this arm the container walk
+            // incorrectly substitutes the owning class and paints it.
+            let symbol_flags = self.binder.symbol(symbol).flags;
+            let directly_accessible_type_parameter =
+                if symbol_flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+                    let name = self.binder.symbol(symbol).escaped_name.clone();
+                    self.resolve_name(
+                        Some(enclosing_declaration),
+                        &name,
+                        meaning,
+                        /*name_not_found_message*/ None,
+                        /*is_use*/ false,
+                        /*exclude_globals*/ false,
+                    )?
+                    .is_some_and(|resolved| self.get_merged_symbol(resolved) == symbol)
+                } else {
+                    false
+                };
+            let accessible_symbol_chain = if directly_accessible_type_parameter {
+                Some(vec![symbol])
+            } else {
+                self.declaration_emit_accessible_symbol_chain(
+                    symbol,
+                    meaning,
+                    Some(enclosing_declaration),
+                )?
+            };
             if let Some(accessible_symbol_chain) = accessible_symbol_chain {
                 had_accessible_chain = Some(symbol);
                 if let Some(result) = self.has_visible_declarations_with_aliases(
