@@ -1293,16 +1293,17 @@ function loadParentProfile(requireParent) {
       parent.status === "qualified" &&
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
-      // The H2.6b ca-2 landing rewrote the live transition block again:
-      // H2.6b is ACTIVE, the ladder points at H2.6c, and the inline/root
-      // adoption fields ride the h2_6b_* block (h2-6b-ca-2 packet §4;
-      // the 6a-era values are history).
-      parent.transition.next_slice === "H2.6c" &&
+      // The H2.6c ca landing rewrote the live transition block again:
+      // H2.6c is ACTIVE, the ladder points at H2.7a (dormant declaration
+      // foundation — the next RUNTIME activation is H2.7b), and the
+      // map-era adoption fields ride the h2_6c_* block (h2-6c-ca.md §5;
+      // the 6a/6b-era values are history).
+      parent.transition.next_slice === "H2.7a" &&
       parent.transition.next_slice_scope ===
-        "broad-source-map-observation-closure" &&
-      parent.transition.next_runtime_activation_slice === "H2.6c" &&
+        "declaration-owner-inventory-and-dormant-foundation" &&
+      parent.transition.next_runtime_activation_slice === "H2.7b" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h", "H2.6a", "H2.6b"]) &&
+        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h", "H2.6a", "H2.6b", "H2.6c"]) &&
       parent.transition.target_es2015_transform_owner ===
         "complete-with-h2-5h-divergence-ratchet" &&
       parent.transition.target_generators_transform_owner ===
@@ -1317,7 +1318,12 @@ function loadParentProfile(requireParent) {
       parent.transition.h2_6b_exact_cases === 4 &&
       parent.transition.h2_6b_known_divergences === 2 &&
       parent.transition.h2_6b_source_deferred_cases === 0 &&
-      parent.summary.completed_runtime_slices === 24 &&
+      parent.transition.h2_6c_candidate_cases === 643 &&
+      parent.transition.h2_6c_admitted_cases === 639 &&
+      parent.transition.h2_6c_exact_cases === 188 &&
+      parent.transition.h2_6c_known_divergences === 451 &&
+      parent.transition.h2_6c_source_deferred_cases === 4 &&
+      parent.summary.completed_runtime_slices === 25 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
       // 9,191 at the H2.5g candidate plus the five reviewed H2.1a exact
       // promotions recorded in the closed profile's

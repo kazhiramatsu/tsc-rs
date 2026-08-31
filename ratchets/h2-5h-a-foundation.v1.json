@@ -23,18 +23,18 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5h-a-foundation.mjs",
-    "sha256": "0d0410d972ded9c471b6a2e57e27a309e39b2c89c50f5322e0237a08b011dbe4"
+    "sha256": "0fa6d603a6f07aa3981e268047b627ff23aa91123ffe8a204c5d2b9dac8e9f06"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-foundation.schema.json",
-    "sha256": "efbd10d6ab10d5211e8acbe864d734012dbc03ea0ee3bbfe2fb1a23ad9e5450d"
+    "sha256": "74744757394cafc75dbd87a62c4fc5a17660a473f1f4882087adc333ce133057"
   },
   "lineage": {
     "state": "closed-h2-5g-parent",
     "parent_phase": "H2.5g",
     "parent_profile": {
       "path": "ratchets/h2-5g-profile.v1.json",
-      "sha256": "d1f0832e6a4baac1142ded6e6156a18166319f459319c093c4d6ccf05d798060"
+      "sha256": "ccd581c3e7a38996f60fe652644cc905e75689e2c3554bc2360e5d5362ee7d08"
     },
     "interpretation": "H2.5h-a freezes candidate identity and semantic controls without activating either H2.5h production transformer"
   },
@@ -233,7 +233,7 @@
     "candidate_execution_state": "not-run",
     "candidate_typescript_runs": 0,
     "rust_runs": 0,
-    "parent_completed_runtime_slices": 24,
+    "parent_completed_runtime_slices": 25,
     "runtime_admissions_before": 9196,
     "runtime_admissions_after": 9196,
     "runtime_admissions_delta": 0,
@@ -21299,5 +21299,5 @@
     "unexecuted_candidates": 932,
     "undispositioned_candidates": 0
   },
-  "foundation_fingerprint_sha256": "54a6179df07619becd20a6c659c6eada43ea7b1ad935bd5ca4bb285a79098fd9"
+  "foundation_fingerprint_sha256": "66ff523cb36f4422ee4833958afffcb6550670fe0f4e1188960a81da2210608c"
 }

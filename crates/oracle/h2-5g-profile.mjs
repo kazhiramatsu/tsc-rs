@@ -583,17 +583,21 @@ function buildArtifact() {
       },
       transition: {
         completed_slice: "H2.5g",
-        next_slice: "H2.6c",
-        next_slice_scope: "broad-source-map-observation-closure",
-        next_runtime_activation_slice: "H2.6c",
+        // The H2.6c ca landing (h2-6c-ca.md §5): the map-observation era
+        // closes with the 451-row standing manifest handed to its named
+        // later owners; H2.7a is dormant-foundation-only, so the next
+        // RUNTIME activation is H2.7b's non-bundle declaration output.
+        next_slice: "H2.7a",
+        next_slice_scope: "declaration-owner-inventory-and-dormant-foundation",
+        next_runtime_activation_slice: "H2.7b",
         active_runtime_slices: [
           "H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a",
           "H2.2b", "H2.2c", "H2.2d", "H2.3a", "H2.3b", "H2.3c",
           "H2.3d", "H2.4a", "H2.4b", "H2.5a", "H2.5b", "H2.5c",
           "H2.5d", "H2.5e", "H2.5f", "H2.5g", "H2.5h", "H2.6a",
-          "H2.6b",
+          "H2.6b", "H2.6c",
         ],
-        inactive_runtime_slice_count: 12,
+        inactive_runtime_slice_count: 11,
         classic_jsx_tsx_owner: "complete",
         automatic_jsx_runtime_owner: "complete",
         json_output_owner: "complete",
@@ -626,6 +630,11 @@ function buildArtifact() {
         h2_6b_exact_cases: 4,
         h2_6b_known_divergences: 2,
         h2_6b_source_deferred_cases: 0,
+        h2_6c_candidate_cases: 643,
+        h2_6c_admitted_cases: 639,
+        h2_6c_exact_cases: 188,
+        h2_6c_known_divergences: 451,
+        h2_6c_source_deferred_cases: 4,
         h2_5g_global_future_rows: 2_883,
         h2_5g_source_deferred_cases: 516,
         deferred_failure_boundary: "typed failure before first sink write",
@@ -659,7 +668,7 @@ function buildArtifact() {
         hosted_gate_scope: "fixed-unsplit-ts-tests-only",
       },
       summary: {
-        completed_runtime_slices: 24,
+        completed_runtime_slices: 25,
         next_slice_runtime_slice_delta: 0,
         runtime_admissions: 9_196,
         executed_candidates: 9_715,

@@ -28,14 +28,14 @@
   "lineage": {
     "foundation": {
       "path": "ratchets/h2-5h-a-foundation.v1.json",
-      "sha256": "306eb29b0f01341d0a0c72c997b0f6392d90c14e43f2b17d0c4bd64ef60290fe"
+      "sha256": "e0594407075d29a78de9d166f04b9b6f844bfd147a080d6a30169511e541e895"
     },
-    "foundation_fingerprint_sha256": "54a6179df07619becd20a6c659c6eada43ea7b1ad935bd5ca4bb285a79098fd9",
+    "foundation_fingerprint_sha256": "66ff523cb36f4422ee4833958afffcb6550670fe0f4e1188960a81da2210608c",
     "comment_scope_witnesses": {
       "path": "ratchets/h2-5h-a-comment-scope-witnesses.v1.json",
-      "sha256": "75d2f5a71326c14f709eddeb04d8998925bf89c1d8c64dff6b0f5d6767a4fe1c"
+      "sha256": "d8b5176ee241f237c47b8cf412f61dc89567b01b0ad0e74f5055b34b17b7e047"
     },
-    "witnesses_fingerprint_sha256": "dcf92f511d1ceccbcbdd9af55de476632c37c90a6ac6ca23fbdf278e8470d0f6",
+    "witnesses_fingerprint_sha256": "c14eb89329508711389debd543b8cda4c32b82cf96d0e3ea5fd5d7a4c4c9e337",
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
       "sha256": "93bb9f03a3d2a823603277b9de89c0b7246303c454148a1cd08895c62ba8bbae"
@@ -3817,5 +3817,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "owner_graph_fingerprint_sha256": "0706d5991cf8a39ea32a16907fc564ca16cb644d93ac492c92cab7abfc0d86b9"
+  "owner_graph_fingerprint_sha256": "f550a8ec9a807312cdfc64b7963674e83a24c77f5f441867657502b1ce2fd8be"
 }
