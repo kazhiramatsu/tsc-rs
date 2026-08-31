@@ -22,20 +22,20 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-witnesses.mjs",
-    "sha256": "f933bed7e7e10fa01678c9689741248103db7a3fd489c9ef11f4af918d1f1971"
+    "sha256": "9b1b191deba63c55d9d533b94293a06c6ce5e4ae990226ed15435120774e17f8"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-witnesses.schema.json",
-    "sha256": "c5488ec5c45d0e260fc05d2337d83264729efa99089f56ff0a68ab1bcbeffbb3"
+    "sha256": "466c226185f6a191a390771e201acd5c982590031cd40b99f4dcd16f45cf9ccd"
   },
   "inputs": {
     "packet": {
-      "path": "docs/design/greenfield/slices/h2-7a-m-1.md",
-      "sha256": "35d6ef85fca84337b6b8519eb1b90f161bdd9f1e91bf965425964d4899555864"
+      "path": "docs/design/greenfield/slices/h2-7a-m-2.md",
+      "sha256": "3bbf3a1d5ffb39922278c52d511bb3e4b52163f62e7e9ea9a2296717f0f7e97f"
     },
     "parent_packet": {
       "path": "docs/design/greenfield/slices/h2-7a.md",
-      "sha256": "dbaaddf49b86a64ed8274846203d1cbd64ffa65c819f9524908e6bac8dbb53ba"
+      "sha256": "aff7bd71db746b782f40818cc85ab472153ec03aebd08efc40fa8cb72a517313"
     },
     "test_suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -1083,6 +1083,637 @@
           {
             "path": "/.src/input.d.ts",
             "sha256": "bbd579004603e3914a347e65378f5d389d4154bd987e1ee4f52c9bb694f3a53f"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/augment-1",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declFileAmbientExternalModuleWithSingleExportedModule.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_0.ts",
+            "sha256": "8eb35dc3c7bb67c954cfffe7d67e4fe71e26caeba056edb7da683603837acc14"
+          },
+          {
+            "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_1.ts",
+            "sha256": "19d5588cdb4ea18690caca8ed680f0ebd1a189e8e202b9c3c56d8b63bdbf7855"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/augment-2",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitAnyComputedPropertyInClass.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/ambient.d.ts",
+            "sha256": "48d26a50e9573989007b350c5ec53e5eec20a84963be3ef6325240289ff985c5"
+          },
+          {
+            "path": "/.src/main.ts",
+            "sha256": "6a472455dfa7f0fbd15e35980e8d10a5c022823af81f4a37a59b860fcb607f29"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/augment-3",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitForModuleImportingModuleAugmentationRetainsImport.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/child1.ts",
+            "sha256": "6f5a4717682fa817403f05df71277d956779f91b2fd52a10cd141204af7944be"
+          },
+          {
+            "path": "/.src/parent.ts",
+            "sha256": "204b3bf8b24189f7a2ca5b351600ef1cf499a30f9e51603652de425e13a111bc"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/augment-4",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitRedundantTripleSlashModuleAugmentation.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "emitDeclarationOnly": true,
+          "module": 199,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/augmentation.ts",
+            "sha256": "3eb98a0d2ccc02638685aab816ce22051b1e23a45943e19512f08909379a9ef3"
+          },
+          {
+            "path": "/index.ts",
+            "sha256": "93ef76d63d3dbbda618bfc64c2f4360eddeec7538651449dc12b8afb230f5429"
+          },
+          {
+            "path": "/node_modules/foo/index.d.ts",
+            "sha256": "7f9f70ac61fed81840ece23db46a2a93b645d7412d305f5583fe9e9c7af0e679"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/entityname-1",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/amdModuleBundleNoDuplicateDeclarationEmitComments.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 2,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "outFile": "./out.js",
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/file1.ts",
+            "sha256": "1c44fa5207b3dcfa0acdfba883de53e9cb4a31890dc597c25b23973f2fa24e96"
+          },
+          {
+            "path": "/.src/file2.ts",
+            "sha256": "6ba4a0b08f3cd0d3f7600488e7628ede59bdbca249adb1e7467cc81d300f7df4"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/entityname-2",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/circularReferenceInImport.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/app.ts",
+            "sha256": "6c0978d1ae05995145f519195287e0661e4cb542eaf71f3ac3633d069e6ecea9"
+          },
+          {
+            "path": "/.src/db.d.ts",
+            "sha256": "6178e904892260884b7566c2b5b6d89bec30262d8c15f7e696556d5b46dcca6a"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/entityname-3-c0",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/commentsExternalModules.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "target=es5",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 2,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "removeComments": false,
+          "skipDefaultLibCheck": true,
+          "target": 1
+        },
+        "input_files": [
+          {
+            "path": "/.src/commentsExternalModules_0.ts",
+            "sha256": "167bb5a8b3f38db7f9172789ed3871ba6124a892f9f845ccd343a0c9d3ee1f7c"
+          },
+          {
+            "path": "/.src/commentsExternalModules_1.ts",
+            "sha256": "6089879287a28318835ac3ad729a7d408d696a8861916abfe434ad929d058bbe"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/entityname-3-c1",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/commentsExternalModules.ts",
+        "matrix": {
+          "configuration_index": 1,
+          "fixture_variant": "target=es2015",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 2,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "removeComments": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/commentsExternalModules_0.ts",
+            "sha256": "167bb5a8b3f38db7f9172789ed3871ba6124a892f9f845ccd343a0c9d3ee1f7c"
+          },
+          {
+            "path": "/.src/commentsExternalModules_1.ts",
+            "sha256": "6089879287a28318835ac3ad729a7d408d696a8861916abfe434ad929d058bbe"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/entityname-4-c0",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/commentsExternalModules2.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "target=es5",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 2,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "removeComments": false,
+          "skipDefaultLibCheck": true,
+          "target": 1
+        },
+        "input_files": [
+          {
+            "path": "/.src/commentsExternalModules2_0.ts",
+            "sha256": "167bb5a8b3f38db7f9172789ed3871ba6124a892f9f845ccd343a0c9d3ee1f7c"
+          },
+          {
+            "path": "/.src/commentsExternalModules_1.ts",
+            "sha256": "0094a0d8886e093f9d11f15d27bf61847d9c495c886834ae32b0d5623f9ef4e0"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/entityname-4-c1",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/commentsExternalModules2.ts",
+        "matrix": {
+          "configuration_index": 1,
+          "fixture_variant": "target=es2015",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "visibility/export graph"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 2,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "removeComments": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/commentsExternalModules2_0.ts",
+            "sha256": "167bb5a8b3f38db7f9172789ed3871ba6124a892f9f845ccd343a0c9d3ee1f7c"
+          },
+          {
+            "path": "/.src/commentsExternalModules_1.ts",
+            "sha256": "0094a0d8886e093f9d11f15d27bf61847d9c495c886834ae32b0d5623f9ef4e0"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/expando-1",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitExpandoPropertyPrivateName.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "JS declaration synthesis"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/a.ts",
+            "sha256": "51433f4197413ba11b1ab6b0141e922f9154fe18f4d8d3feb7490aa64b50dde9"
+          },
+          {
+            "path": "/.src/b.ts",
+            "sha256": "636af6e628620525b046edaf755f5f51a578c09130611a7d2f38308f90c238b4"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/expando-2",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitExpandoWithGenericConstraint.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "JS declaration synthesis"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/declarationEmitExpandoWithGenericConstraint.ts",
+            "sha256": "d59f422743ac669508e9e88d0d004e26f49e4db7dbfe996588c8099b5938c3d9"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/expando-3",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitFunctionDuplicateNamespace.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "JS declaration synthesis"
+        ],
+        "option_record": {
+          "declaration": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/declarationEmitFunctionDuplicateNamespace.ts",
+            "sha256": "efb9ce9dd58323c074a2bea97f2202d73b9fedc1ee779f2fd74cf3c709c1687a"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/expando-4",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitFunctionKeywordProp.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "JS declaration synthesis"
+        ],
+        "option_record": {
+          "declaration": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/declarationEmitFunctionKeywordProp.ts",
+            "sha256": "1228851aa141c06a80047717bd898498283548c90608fbe8232dde88e38e1f6c"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/latebound-1",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/computedPropertiesNarrowed.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "late-bound/computed names"
+        ],
+        "option_record": {
+          "declaration": true,
+          "isolatedDeclarations": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/computedPropertiesNarrowed.ts",
+            "sha256": "52cfa4d938d6c6bb203154bb585dbf5aad414db5d2d767e20c12c6ff9ce98304"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/latebound-2",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/computedPropertyNameAndTypeParameterConflict.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "late-bound/computed names"
+        ],
+        "option_record": {
+          "declaration": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/computedPropertyNameAndTypeParameterConflict.ts",
+            "sha256": "d975e32b918fbfe61d15ba281df48d2b89ee7a89c2ae13dc1262b163f319eae4"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/latebound-3",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitExpressionWithNonlocalPrivateUniqueSymbol.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "late-bound/computed names"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/a.ts",
+            "sha256": "7e5e3279424188a0ffe16d98aceb0ccec48133c5a060964e27db3b364ed34b6f"
+          },
+          {
+            "path": "/.src/b.ts",
+            "sha256": "cf52fcf11623d0a3a3d088c1d224ee820794a8572570e50a5414dec2fa7e8193"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S2/latebound-4",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitHigherOrderRetainedGenerics.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S2",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "late-bound/computed names"
+        ],
+        "option_record": {
+          "declaration": true,
+          "emitDeclarationOnly": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/declarationEmitHigherOrderRetainedGenerics.ts",
+            "sha256": "48e58e94ff76bbc9c71221cbc8089799932a1bfffa147bfbca7470b30b9e0077"
           }
         ]
       },
@@ -3572,7 +4203,15 @@
       },
       {
         "path": "/.src/a.ts",
+        "sha256": "51433f4197413ba11b1ab6b0141e922f9154fe18f4d8d3feb7490aa64b50dde9"
+      },
+      {
+        "path": "/.src/a.ts",
         "sha256": "7d3be11c8792ed9c456bea5d5f6bf272de8b74b5b0c19675d3ab097b4ef78a75"
+      },
+      {
+        "path": "/.src/a.ts",
+        "sha256": "7e5e3279424188a0ffe16d98aceb0ccec48133c5a060964e27db3b364ed34b6f"
       },
       {
         "path": "/.src/a.tsx",
@@ -3591,8 +4230,16 @@
         "sha256": "51e7321fe4191a101666c29f37ea9c90b128b625eabb04047979d5da4154585f"
       },
       {
+        "path": "/.src/ambient.d.ts",
+        "sha256": "48d26a50e9573989007b350c5ec53e5eec20a84963be3ef6325240289ff985c5"
+      },
+      {
         "path": "/.src/api.ts",
         "sha256": "d65cc101022d6aa848203ed27765167db48e1ebc11b53f4aa247acc707bf8a79"
+      },
+      {
+        "path": "/.src/app.ts",
+        "sha256": "6c0978d1ae05995145f519195287e0661e4cb542eaf71f3ac3633d069e6ecea9"
       },
       {
         "path": "/.src/app.ts",
@@ -3601,6 +4248,54 @@
       {
         "path": "/.src/b.ts",
         "sha256": "10d06f0cee17a058695634c91bcfb932f2cc5a2c8a05784abc82b1e74112670d"
+      },
+      {
+        "path": "/.src/b.ts",
+        "sha256": "636af6e628620525b046edaf755f5f51a578c09130611a7d2f38308f90c238b4"
+      },
+      {
+        "path": "/.src/b.ts",
+        "sha256": "cf52fcf11623d0a3a3d088c1d224ee820794a8572570e50a5414dec2fa7e8193"
+      },
+      {
+        "path": "/.src/child1.ts",
+        "sha256": "6f5a4717682fa817403f05df71277d956779f91b2fd52a10cd141204af7944be"
+      },
+      {
+        "path": "/.src/commentsExternalModules2_0.ts",
+        "sha256": "167bb5a8b3f38db7f9172789ed3871ba6124a892f9f845ccd343a0c9d3ee1f7c"
+      },
+      {
+        "path": "/.src/commentsExternalModules_0.ts",
+        "sha256": "167bb5a8b3f38db7f9172789ed3871ba6124a892f9f845ccd343a0c9d3ee1f7c"
+      },
+      {
+        "path": "/.src/commentsExternalModules_1.ts",
+        "sha256": "0094a0d8886e093f9d11f15d27bf61847d9c495c886834ae32b0d5623f9ef4e0"
+      },
+      {
+        "path": "/.src/commentsExternalModules_1.ts",
+        "sha256": "6089879287a28318835ac3ad729a7d408d696a8861916abfe434ad929d058bbe"
+      },
+      {
+        "path": "/.src/computedPropertiesNarrowed.ts",
+        "sha256": "52cfa4d938d6c6bb203154bb585dbf5aad414db5d2d767e20c12c6ff9ce98304"
+      },
+      {
+        "path": "/.src/computedPropertyNameAndTypeParameterConflict.ts",
+        "sha256": "d975e32b918fbfe61d15ba281df48d2b89ee7a89c2ae13dc1262b163f319eae4"
+      },
+      {
+        "path": "/.src/db.d.ts",
+        "sha256": "6178e904892260884b7566c2b5b6d89bec30262d8c15f7e696556d5b46dcca6a"
+      },
+      {
+        "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_0.ts",
+        "sha256": "8eb35dc3c7bb67c954cfffe7d67e4fe71e26caeba056edb7da683603837acc14"
+      },
+      {
+        "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_1.ts",
+        "sha256": "19d5588cdb4ea18690caca8ed680f0ebd1a189e8e202b9c3c56d8b63bdbf7855"
       },
       {
         "path": "/.src/declarationEmitClassPrivateConstructor.ts",
@@ -3623,6 +4318,22 @@
         "sha256": "7601525e94c2cb440965a04df5d38ac678798ec0fc8a58bc3e7ea9d627edf48a"
       },
       {
+        "path": "/.src/declarationEmitExpandoWithGenericConstraint.ts",
+        "sha256": "d59f422743ac669508e9e88d0d004e26f49e4db7dbfe996588c8099b5938c3d9"
+      },
+      {
+        "path": "/.src/declarationEmitFunctionDuplicateNamespace.ts",
+        "sha256": "efb9ce9dd58323c074a2bea97f2202d73b9fedc1ee779f2fd74cf3c709c1687a"
+      },
+      {
+        "path": "/.src/declarationEmitFunctionKeywordProp.ts",
+        "sha256": "1228851aa141c06a80047717bd898498283548c90608fbe8232dde88e38e1f6c"
+      },
+      {
+        "path": "/.src/declarationEmitHigherOrderRetainedGenerics.ts",
+        "sha256": "48e58e94ff76bbc9c71221cbc8089799932a1bfffa147bfbca7470b30b9e0077"
+      },
+      {
         "path": "/.src/declarationEmitInferredDefaultExportType.ts",
         "sha256": "2b0f779a245b5ab463d7c81e717c9873f219a0ef4b3d2ffa7fc41f798759e531"
       },
@@ -3633,6 +4344,14 @@
       {
         "path": "/.src/declarationEmitShadowing.ts",
         "sha256": "8b5f5dcaa56c2c1a3f05f89673f78c5a1b44ef9848211bc1f102b2ea0d92661b"
+      },
+      {
+        "path": "/.src/file1.ts",
+        "sha256": "1c44fa5207b3dcfa0acdfba883de53e9cb4a31890dc597c25b23973f2fa24e96"
+      },
+      {
+        "path": "/.src/file2.ts",
+        "sha256": "6ba4a0b08f3cd0d3f7600488e7628ede59bdbca249adb1e7467cc81d300f7df4"
       },
       {
         "path": "/.src/index.js",
@@ -3671,12 +4390,20 @@
         "sha256": "54c7b64dbcd03fc06b38a953e7649009cffb0ff29b750823d8e912923212211f"
       },
       {
+        "path": "/.src/main.ts",
+        "sha256": "6a472455dfa7f0fbd15e35980e8d10a5c022823af81f4a37a59b860fcb607f29"
+      },
+      {
         "path": "/.src/node_modules/root/index.d.ts",
         "sha256": "d9759003fda4e755b15a117c9d1b407021e60dd27c6bf6897b12c94446a6fffe"
       },
       {
         "path": "/.src/out-flag.ts",
         "sha256": "cca05d33827653e710a6342fa4c60097198ddc48edb52d90a64f0d5ae6ea52f6"
+      },
+      {
+        "path": "/.src/parent.ts",
+        "sha256": "204b3bf8b24189f7a2ca5b351600ef1cf499a30f9e51603652de425e13a111bc"
       },
       {
         "path": "/.src/properties.ts",
@@ -3755,12 +4482,24 @@
         "sha256": "748897fcba11e3d369ba8655d5f9b7d5a88258273221e7d1cf66aa7cf4cc35aa"
       },
       {
+        "path": "/augmentation.ts",
+        "sha256": "3eb98a0d2ccc02638685aab816ce22051b1e23a45943e19512f08909379a9ef3"
+      },
+      {
+        "path": "/index.ts",
+        "sha256": "93ef76d63d3dbbda618bfc64c2f4360eddeec7538651449dc12b8afb230f5429"
+      },
+      {
+        "path": "/node_modules/foo/index.d.ts",
+        "sha256": "7f9f70ac61fed81840ece23db46a2a93b645d7412d305f5583fe9e9c7af0e679"
+      },
+      {
         "path": "/src/a.js",
         "sha256": "478482e8d4499a7a80106708b5e51a778f53ab443b370bc4593379342619f391"
       }
     ],
-    "source_universe_sha256": "fcac30324b404a21e76c455327bb9afd99198d0b8822f0af4e3ae1beccedcf77",
-    "case_manifest_fingerprint": "a70f750c42991511769195444756651c4c46c09cb04a4ee1d4a7ff2560da1616"
+    "source_universe_sha256": "a0781dc6daccf72907ac462b96d48ed3d9622f3c498c0ca1ff23d73259f10157",
+    "case_manifest_fingerprint": "89bb0627cee58b5d12aeb6fd5e95a92d26e1bbb54fd592750b49a34b64a89efb"
   },
   "coverage_matrix": {
     "lanes": [
@@ -4186,6 +4925,131 @@
       "typescript-6.0.3/project/sourcerootUrlSubfolderNoOutdir.json#module%3Damd",
       "typescript-6.0.3/project/sourcerootUrlSubfolderNoOutdir.json#module%3Dcommonjs"
     ]
+  },
+  "m2_supplement": {
+    "selector_version": "m2-s2-v1",
+    "volume_table": [
+      {
+        "member": "getPropertiesOfContainerFunction",
+        "entry_result_pairs": 0
+      },
+      {
+        "member": "isDefinitelyReferenceToGlobalSymbolObject",
+        "entry_result_pairs": 1
+      },
+      {
+        "member": "isLateBound",
+        "entry_result_pairs": 1
+      },
+      {
+        "member": "getEnumMemberValue",
+        "entry_result_pairs": 3
+      },
+      {
+        "member": "isImportRequiredByAugmentation",
+        "entry_result_pairs": 9
+      },
+      {
+        "member": "isEntityNameVisible",
+        "entry_result_pairs": 28
+      },
+      {
+        "member": "requiresAddingImplicitUndefined",
+        "entry_result_pairs": 86
+      },
+      {
+        "member": "isImplementationOfOverload",
+        "entry_result_pairs": 149
+      },
+      {
+        "member": "isOptionalParameter",
+        "entry_result_pairs": 205
+      },
+      {
+        "member": "isSymbolAccessible",
+        "entry_result_pairs": 349
+      },
+      {
+        "member": "isExpandoFunctionDeclaration",
+        "entry_result_pairs": 408
+      },
+      {
+        "member": "isLiteralConstDeclaration",
+        "entry_result_pairs": 548
+      },
+      {
+        "member": "isDeclarationVisible",
+        "entry_result_pairs": 1534
+      }
+    ],
+    "members": [
+      {
+        "member": "expando",
+        "predicate": "fixture basename contains `expando` (ASCII case-insensitive) OR some multiline match `^\\s*function\\s+(\\w+)` has a later multiline match `^\\s*\\1\\.\\w+\\s*=` (backreference on the captured name)",
+        "fixture_ids": [
+          "typescript-6.0.3/compiler/declarationEmitExpandoPropertyPrivateName.ts",
+          "typescript-6.0.3/compiler/declarationEmitExpandoWithGenericConstraint.ts",
+          "typescript-6.0.3/compiler/declarationEmitFunctionDuplicateNamespace.ts",
+          "typescript-6.0.3/compiler/declarationEmitFunctionKeywordProp.ts"
+        ]
+      },
+      {
+        "member": "latebound",
+        "predicate": "bytes contain `[Symbol.` or `unique symbol`",
+        "fixture_ids": [
+          "typescript-6.0.3/compiler/computedPropertiesNarrowed.ts",
+          "typescript-6.0.3/compiler/computedPropertyNameAndTypeParameterConflict.ts",
+          "typescript-6.0.3/compiler/declarationEmitExpressionWithNonlocalPrivateUniqueSymbol.ts",
+          "typescript-6.0.3/compiler/declarationEmitHigherOrderRetainedGenerics.ts"
+        ]
+      },
+      {
+        "member": "augment",
+        "predicate": "basename contains `augment` (case-insensitive) OR bytes contain `declare module \"` AND a multiline match `^import `",
+        "fixture_ids": [
+          "typescript-6.0.3/compiler/declFileAmbientExternalModuleWithSingleExportedModule.ts",
+          "typescript-6.0.3/compiler/declarationEmitAnyComputedPropertyInClass.ts",
+          "typescript-6.0.3/compiler/declarationEmitForModuleImportingModuleAugmentationRetainsImport.ts",
+          "typescript-6.0.3/compiler/declarationEmitRedundantTripleSlashModuleAugmentation.ts"
+        ]
+      },
+      {
+        "member": "entityname",
+        "predicate": "bytes contain `namespace` AND match `:\\s*[A-Za-z_$][\\w$]*\\.[A-Za-z_$]`",
+        "fixture_ids": [
+          "typescript-6.0.3/compiler/amdModuleBundleNoDuplicateDeclarationEmitComments.ts",
+          "typescript-6.0.3/compiler/circularReferenceInImport.ts",
+          "typescript-6.0.3/compiler/commentsExternalModules.ts",
+          "typescript-6.0.3/compiler/commentsExternalModules2.ts"
+        ]
+      }
+    ],
+    "case_ids": [
+      "h2-7a/S2/expando-1",
+      "h2-7a/S2/expando-2",
+      "h2-7a/S2/expando-3",
+      "h2-7a/S2/expando-4",
+      "h2-7a/S2/latebound-1",
+      "h2-7a/S2/latebound-2",
+      "h2-7a/S2/latebound-3",
+      "h2-7a/S2/latebound-4",
+      "h2-7a/S2/augment-1",
+      "h2-7a/S2/augment-2",
+      "h2-7a/S2/augment-3",
+      "h2-7a/S2/augment-4",
+      "h2-7a/S2/entityname-1",
+      "h2-7a/S2/entityname-2",
+      "h2-7a/S2/entityname-3-c0",
+      "h2-7a/S2/entityname-3-c1",
+      "h2-7a/S2/entityname-4-c0",
+      "h2-7a/S2/entityname-4-c1"
+    ],
+    "trim_rows": [],
+    "counts": {
+      "fixtures": 16,
+      "cases": 18,
+      "observations": 36
+    }
   },
   "observations": [
     {
@@ -5880,6 +6744,1291 @@
         "observation_fingerprint_sha256": "32f80a9a99c8b2ba369c2334ac2812dbd5ae9300d000cf12e14f0a6be433111c"
       },
       "case_observation_fingerprint_sha256": "b1e20551f605e46bfce82895b19b9dea209b40961f2466802b1e4d08afa9e1d0"
+    },
+    {
+      "case_id": "h2-7a/S2/augment-1",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_0.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "253c1be71d594408d467d3a640a6e6922613d62702000b752cb52c141598a1f3",
+            "callback_utf8_bytes": 15,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "253c1be71d594408d467d3a640a6e6922613d62702000b752cb52c141598a1f3",
+            "materialized_utf8_bytes": 15,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/declFileAmbientExternalModuleWithSingleExportedModule_0.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_0.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "581227baa24fded318d9d246e70b906af14d765d5011fe532a45bb1ea338cee6",
+            "callback_utf8_bytes": 136,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "581227baa24fded318d9d246e70b906af14d765d5011fe532a45bb1ea338cee6",
+            "materialized_utf8_bytes": 136,
+            "declaration_callback_base64": "ZGVjbGFyZSBtb2R1bGUgIlN1Yk1vZHVsZSIgew0KICAgIG5hbWVzcGFjZSBtIHsNCiAgICAgICAgbmFtZXNwYWNlIG0zIHsNCiAgICAgICAgICAgIGludGVyZmFjZSBjIHsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfQ0KICAgIH0NCn0NCg==",
+            "declaration_materialized_base64": "ZGVjbGFyZSBtb2R1bGUgIlN1Yk1vZHVsZSIgew0KICAgIG5hbWVzcGFjZSBtIHsNCiAgICAgICAgbmFtZXNwYWNlIG0zIHsNCiAgICAgICAgICAgIGludGVyZmFjZSBjIHsNCiAgICAgICAgICAgIH0NCiAgICAgICAgfQ0KICAgIH0NCn0NCg==",
+            "source_files": [
+              "/.src/declFileAmbientExternalModuleWithSingleExportedModule_0.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_1.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "5ef4b4bdaee50fc88776f398c83ccacac8f340c27db00623c909114fa15e093d",
+            "callback_utf8_bytes": 100,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "5ef4b4bdaee50fc88776f398c83ccacac8f340c27db00623c909114fa15e093d",
+            "materialized_utf8_bytes": 100,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/declFileAmbientExternalModuleWithSingleExportedModule_1.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "88917fe6b0ccad7e735bfdebfcf4320989a6534bfc164378a021286635be0be6",
+            "callback_utf8_bytes": 186,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "88917fe6b0ccad7e735bfdebfcf4320989a6534bfc164378a021286635be0be6",
+            "materialized_utf8_bytes": 186,
+            "declaration_callback_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iZGVjbEZpbGVBbWJpZW50RXh0ZXJuYWxNb2R1bGVXaXRoU2luZ2xlRXhwb3J0ZWRNb2R1bGVfMC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4NCmltcG9ydCBTdWJNb2R1bGUgPSByZXF1aXJlKCdTdWJNb2R1bGUnKTsNCmV4cG9ydCBkZWNsYXJlIHZhciB4OiBTdWJNb2R1bGUubS5tMy5jOw0K",
+            "declaration_materialized_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iZGVjbEZpbGVBbWJpZW50RXh0ZXJuYWxNb2R1bGVXaXRoU2luZ2xlRXhwb3J0ZWRNb2R1bGVfMC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4NCmltcG9ydCBTdWJNb2R1bGUgPSByZXF1aXJlKCdTdWJNb2R1bGUnKTsNCmV4cG9ydCBkZWNsYXJlIHZhciB4OiBTdWJNb2R1bGUubS5tMy5jOw0K",
+            "source_files": [
+              "/.src/declFileAmbientExternalModuleWithSingleExportedModule_1.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "1e1369b3bbfc0aaed79bff9440dc133793d71c5fb655866c1efeb16c367f9deb"
+      },
+      "case_observation_fingerprint_sha256": "5d8a1341441b279a5f7b2afe8341bbdb9efe2ccb665480fe2618cf8ab00f6ffd"
+    },
+    {
+      "case_id": "h2-7a/S2/augment-2",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/main.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "f3363b3e29b2c449e4af3eeedcea4017fb8735edf514feb21394b051c3724d02",
+            "callback_utf8_bytes": 377,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f3363b3e29b2c449e4af3eeedcea4017fb8735edf514feb21394b051c3724d02",
+            "materialized_utf8_bytes": 377,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/main.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/main.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "ba1624e2ff70a4d002921cd240bb1b30be652aab4078e41872e3c5f051d24a83",
+            "callback_utf8_bytes": 92,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "ba1624e2ff70a4d002921cd240bb1b30be652aab4078e41872e3c5f051d24a83",
+            "materialized_utf8_bytes": 92,
+            "declaration_callback_base64": "aW1wb3J0IFRlc3QgZnJvbSAiYWJjZGVmZ2giOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgW1Rlc3Quc29tZUtleV06ICgpID0+IHZvaWQ7DQp9DQo=",
+            "declaration_materialized_base64": "aW1wb3J0IFRlc3QgZnJvbSAiYWJjZGVmZ2giOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgQyB7DQogICAgW1Rlc3Quc29tZUtleV06ICgpID0+IHZvaWQ7DQp9DQo=",
+            "source_files": [
+              "/.src/main.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "63bbf598fd17ffc9ecc68510b7f1d9f9014f005a0f0178a7a9faf285b36b8a5e"
+      },
+      "case_observation_fingerprint_sha256": "5400235b718681587e914b5b1ccb3f2aae47f067743d416382a66d7094ccbd54"
+    },
+    {
+      "case_id": "h2-7a/S2/augment-3",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/parent.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "0e06a4d443e0a76239e49c0ea174bb242c8a5fdc5de4542195d4353b0a477ed3",
+            "callback_utf8_bytes": 347,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "0e06a4d443e0a76239e49c0ea174bb242c8a5fdc5de4542195d4353b0a477ed3",
+            "materialized_utf8_bytes": 347,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/parent.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/parent.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "b1ef294ec5bd088f109bbf8d133f52e802e18e0ca3455ac650e9cab49b7b4009",
+            "callback_utf8_bytes": 82,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "b1ef294ec5bd088f109bbf8d133f52e802e18e0ca3455ac650e9cab49b7b4009",
+            "materialized_utf8_bytes": 82,
+            "declaration_callback_base64": "aW1wb3J0ICcuL2NoaWxkMSc7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBQYXJlbnRUaGluZyBpbXBsZW1lbnRzIFBhcmVudFRoaW5nIHsNCn0NCg==",
+            "declaration_materialized_base64": "aW1wb3J0ICcuL2NoaWxkMSc7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBQYXJlbnRUaGluZyBpbXBsZW1lbnRzIFBhcmVudFRoaW5nIHsNCn0NCg==",
+            "source_files": [
+              "/.src/parent.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/child1.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "8abe2bb3491a12dd9a073ed39a797864bfaa6ee4d9a34577a4f6a6371039bebc",
+            "callback_utf8_bytes": 176,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "8abe2bb3491a12dd9a073ed39a797864bfaa6ee4d9a34577a4f6a6371039bebc",
+            "materialized_utf8_bytes": 176,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/child1.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/child1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "a0ddb70dac8af7190532655216e1c42e23e4d4a999f390a738c1622d39bf51b8",
+            "callback_utf8_bytes": 220,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a0ddb70dac8af7190532655216e1c42e23e4d4a999f390a738c1622d39bf51b8",
+            "materialized_utf8_bytes": 220,
+            "declaration_callback_base64": "aW1wb3J0IHsgUGFyZW50VGhpbmcgfSBmcm9tICcuL3BhcmVudCc7DQpkZWNsYXJlIG1vZHVsZSAnLi9wYXJlbnQnIHsNCiAgICBpbnRlcmZhY2UgUGFyZW50VGhpbmcgew0KICAgICAgICBhZGQ6IChhOiBudW1iZXIsIGI6IG51bWJlcikgPT4gbnVtYmVyOw0KICAgIH0NCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIGNoaWxkMShwcm90b3R5cGU6IFBhcmVudFRoaW5nKTogdm9pZDsNCg==",
+            "declaration_materialized_base64": "aW1wb3J0IHsgUGFyZW50VGhpbmcgfSBmcm9tICcuL3BhcmVudCc7DQpkZWNsYXJlIG1vZHVsZSAnLi9wYXJlbnQnIHsNCiAgICBpbnRlcmZhY2UgUGFyZW50VGhpbmcgew0KICAgICAgICBhZGQ6IChhOiBudW1iZXIsIGI6IG51bWJlcikgPT4gbnVtYmVyOw0KICAgIH0NCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIGNoaWxkMShwcm90b3R5cGU6IFBhcmVudFRoaW5nKTogdm9pZDsNCg==",
+            "source_files": [
+              "/.src/child1.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "bbd82a8081536c4159930f2de64edf2d2b9cd00030ae9b6d369f07d303b6f70d"
+      },
+      "case_observation_fingerprint_sha256": "168c23d3262a748ca0f0ae54c7b3ee86213b589df3297fb2fdc162be0bc85f0e"
+    },
+    {
+      "case_id": "h2-7a/S2/augment-4",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/augmentation.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "9bada1ac1626029e4e523b029b8a3edb3662300e635753e54a31a14cb5080545",
+            "callback_utf8_bytes": 98,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "9bada1ac1626029e4e523b029b8a3edb3662300e635753e54a31a14cb5080545",
+            "materialized_utf8_bytes": 98,
+            "declaration_callback_base64": "ZXhwb3J0IGludGVyZmFjZSBGb29PcHRpb25zIHsNCn0NCmRlY2xhcmUgbW9kdWxlICJmb28iIHsNCiAgICBpbnRlcmZhY2UgQXVnbWVudGF0aW9uIHsNCiAgICB9DQp9DQo=",
+            "declaration_materialized_base64": "ZXhwb3J0IGludGVyZmFjZSBGb29PcHRpb25zIHsNCn0NCmRlY2xhcmUgbW9kdWxlICJmb28iIHsNCiAgICBpbnRlcmZhY2UgQXVnbWVudGF0aW9uIHsNCiAgICB9DQp9DQo=",
+            "source_files": [
+              "/augmentation.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/index.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "91ee8d11dfd716575fb3b4251601683d42b0a7c871d4e9e8697258c70f9a31bd",
+            "callback_utf8_bytes": 207,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "91ee8d11dfd716575fb3b4251601683d42b0a7c871d4e9e8697258c70f9a31bd",
+            "materialized_utf8_bytes": 207,
+            "declaration_callback_base64": "aW1wb3J0IHsgT3JpZ2luYWwsIEF1Z21lbnRhdGlvbiB9IGZyb20gImZvbyI7DQppbXBvcnQgdHlwZSB7IEZvb09wdGlvbnMgfSBmcm9tICIuL2F1Z21lbnRhdGlvbiI7DQpleHBvcnQgaW50ZXJmYWNlIF8gew0KICAgIG9yaWdpbmFsOiBPcmlnaW5hbDsNCiAgICBhdWdtZW50YXRpb246IEF1Z21lbnRhdGlvbjsNCiAgICBvcHRpb25zOiBGb29PcHRpb25zOw0KfQ0K",
+            "declaration_materialized_base64": "aW1wb3J0IHsgT3JpZ2luYWwsIEF1Z21lbnRhdGlvbiB9IGZyb20gImZvbyI7DQppbXBvcnQgdHlwZSB7IEZvb09wdGlvbnMgfSBmcm9tICIuL2F1Z21lbnRhdGlvbiI7DQpleHBvcnQgaW50ZXJmYWNlIF8gew0KICAgIG9yaWdpbmFsOiBPcmlnaW5hbDsNCiAgICBhdWdtZW50YXRpb246IEF1Z21lbnRhdGlvbjsNCiAgICBvcHRpb25zOiBGb29PcHRpb25zOw0KfQ0K",
+            "source_files": [
+              "/index.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "544c88615422c02a25b55d2a873b79c20d49aa996d4c57ff7f31ffe6dd4c1f18"
+      },
+      "case_observation_fingerprint_sha256": "c37ec357a835b2469ace6f941861b0d83110d6c6cb521f1cb0b1be88e5948db6"
+    },
+    {
+      "case_id": "h2-7a/S2/entityname-1",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "out.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "2c001cefc60278a01c34514e81c460e373747765b381b4552eee0da3bdc85503",
+            "callback_utf8_bytes": 626,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2c001cefc60278a01c34514e81c460e373747765b381b4552eee0da3bdc85503",
+            "materialized_utf8_bytes": 626,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/file1.ts",
+              "/.src/file2.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "out.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "cd6164b00748bc73d90dfecad1961f6f5fa0c8a8852f3a408fa07ec56b3eb0a3",
+            "callback_utf8_bytes": 262,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "cd6164b00748bc73d90dfecad1961f6f5fa0c8a8852f3a408fa07ec56b3eb0a3",
+            "materialized_utf8_bytes": 262,
+            "declaration_callback_base64": "Ly8vIDxhbWQtbW9kdWxlIG5hbWU9Im15bmFtZXNwYWNlOjpTb21lTW9kdWxlQSIgLz4NCmRlY2xhcmUgbW9kdWxlICJteW5hbWVzcGFjZTo6U29tZU1vZHVsZUEiIHsNCiAgICBleHBvcnQgY2xhc3MgRm9vIHsNCiAgICB9DQp9DQovLy8gPGFtZC1tb2R1bGUgbmFtZT0ibXluYW1lc3BhY2U6OlNvbWVNb2R1bGVCIiAvPg0KZGVjbGFyZSBtb2R1bGUgIm15bmFtZXNwYWNlOjpTb21lTW9kdWxlQiIgew0KICAgIGV4cG9ydCBjbGFzcyBCYXIgew0KICAgIH0NCn0NCg==",
+            "declaration_materialized_base64": "Ly8vIDxhbWQtbW9kdWxlIG5hbWU9Im15bmFtZXNwYWNlOjpTb21lTW9kdWxlQSIgLz4NCmRlY2xhcmUgbW9kdWxlICJteW5hbWVzcGFjZTo6U29tZU1vZHVsZUEiIHsNCiAgICBleHBvcnQgY2xhc3MgRm9vIHsNCiAgICB9DQp9DQovLy8gPGFtZC1tb2R1bGUgbmFtZT0ibXluYW1lc3BhY2U6OlNvbWVNb2R1bGVCIiAvPg0KZGVjbGFyZSBtb2R1bGUgIm15bmFtZXNwYWNlOjpTb21lTW9kdWxlQiIgew0KICAgIGV4cG9ydCBjbGFzcyBCYXIgew0KICAgIH0NCn0NCg==",
+            "source_files": [
+              "/.src/file1.ts",
+              "/.src/file2.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "9dd0f50dd148546fa97c84de8b45224a5c7aad539ebd72e512ac7cb01256fe22"
+      },
+      "case_observation_fingerprint_sha256": "3864528ed0f6d8bd3d88b498ad95acedee69949140dddafd8dc360f0c433fe84"
+    },
+    {
+      "case_id": "h2-7a/S2/entityname-2",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/app.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "97601d4eaf644e8ac9b74dbbd2d38b8322af266553099199a2c5db5f125ef684",
+            "callback_utf8_bytes": 146,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "97601d4eaf644e8ac9b74dbbd2d38b8322af266553099199a2c5db5f125ef684",
+            "materialized_utf8_bytes": 146,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/app.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/app.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "6d0cec97d5fe32a1d1d56fa06f9fc502497aa719042ea7498b538574b1854be6",
+            "callback_utf8_bytes": 40,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "6d0cec97d5fe32a1d1d56fa06f9fc502497aa719042ea7498b538574b1854be6",
+            "materialized_utf8_bytes": 40,
+            "declaration_callback_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZm9vKCk6IE9iamVjdDsNCg==",
+            "declaration_materialized_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZm9vKCk6IE9iamVjdDsNCg==",
+            "source_files": [
+              "/.src/app.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "9d2ffaaa2c2ff56ef1d85b1d95fe18166f26905a18537089bbd74d5a140cbb1a"
+      },
+      "case_observation_fingerprint_sha256": "a7926f33904bc769a6de07a53befc27b4c74404277800918a10b2df0a174be14"
+    },
+    {
+      "case_id": "h2-7a/S2/entityname-3-c0",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/commentsExternalModules_0.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "93b7b87666c500f16fb22897efe6c8647e8f0c5a70de0ba1722b9043406834a6",
+            "callback_utf8_bytes": 1744,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "93b7b87666c500f16fb22897efe6c8647e8f0c5a70de0ba1722b9043406834a6",
+            "materialized_utf8_bytes": 1744,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/commentsExternalModules_0.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/commentsExternalModules_0.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "e76bc04c8943e4ea8a765518e888661a754ef60b6d35a5c012a66452bb228242",
+            "callback_utf8_bytes": 629,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e76bc04c8943e4ea8a765518e888661a754ef60b6d35a5c012a66452bb228242",
+            "materialized_utf8_bytes": 629,
+            "declaration_callback_base64": "LyoqIE1vZHVsZSBjb21tZW50Ki8NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtMSB7DQogICAgLyoqIGIncyBjb21tZW50Ki8NCiAgICB2YXIgYjogbnVtYmVyOw0KICAgIC8qKiBtMiBjb21tZW50cyovDQogICAgbmFtZXNwYWNlIG0yIHsNCiAgICAgICAgLyoqIGNsYXNzIGNvbW1lbnQ7Ki8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkqLw0KICAgICAgICB2YXIgaTogYzsNCiAgICB9DQogICAgLyoqIGV4cG9ydGVkIGZ1bmN0aW9uKi8NCiAgICBmdW5jdGlvbiBmb29FeHBvcnQoKTogbnVtYmVyOw0KfQ0KLyoqIE1vZHVsZSBjb21tZW50ICovDQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgbTQgew0KICAgIC8qKiBiJ3MgY29tbWVudCAqLw0KICAgIHZhciBiOiBudW1iZXI7DQogICAgLyoqIG0yIGNvbW1lbnRzDQogICAgKi8NCiAgICBuYW1lc3BhY2UgbTIgew0KICAgICAgICAvKiogY2xhc3MgY29tbWVudDsgKi8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkgKi8NCiAgICAgICAgdmFyIGk6IGM7DQogICAgfQ0KICAgIC8qKiBleHBvcnRlZCBmdW5jdGlvbiAqLw0KICAgIGZ1bmN0aW9uIGZvb0V4cG9ydCgpOiBudW1iZXI7DQp9DQo=",
+            "declaration_materialized_base64": "LyoqIE1vZHVsZSBjb21tZW50Ki8NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtMSB7DQogICAgLyoqIGIncyBjb21tZW50Ki8NCiAgICB2YXIgYjogbnVtYmVyOw0KICAgIC8qKiBtMiBjb21tZW50cyovDQogICAgbmFtZXNwYWNlIG0yIHsNCiAgICAgICAgLyoqIGNsYXNzIGNvbW1lbnQ7Ki8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkqLw0KICAgICAgICB2YXIgaTogYzsNCiAgICB9DQogICAgLyoqIGV4cG9ydGVkIGZ1bmN0aW9uKi8NCiAgICBmdW5jdGlvbiBmb29FeHBvcnQoKTogbnVtYmVyOw0KfQ0KLyoqIE1vZHVsZSBjb21tZW50ICovDQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgbTQgew0KICAgIC8qKiBiJ3MgY29tbWVudCAqLw0KICAgIHZhciBiOiBudW1iZXI7DQogICAgLyoqIG0yIGNvbW1lbnRzDQogICAgKi8NCiAgICBuYW1lc3BhY2UgbTIgew0KICAgICAgICAvKiogY2xhc3MgY29tbWVudDsgKi8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkgKi8NCiAgICAgICAgdmFyIGk6IGM7DQogICAgfQ0KICAgIC8qKiBleHBvcnRlZCBmdW5jdGlvbiAqLw0KICAgIGZ1bmN0aW9uIGZvb0V4cG9ydCgpOiBudW1iZXI7DQp9DQo=",
+            "source_files": [
+              "/.src/commentsExternalModules_0.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/commentsExternalModules_1.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "3a652c899cdfcc1e0a8e313405cb18f5c6ba19a012fd5dd533cdeb170027e7ad",
+            "callback_utf8_bytes": 328,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "3a652c899cdfcc1e0a8e313405cb18f5c6ba19a012fd5dd533cdeb170027e7ad",
+            "materialized_utf8_bytes": 328,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/commentsExternalModules_1.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/commentsExternalModules_1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+            "callback_utf8_bytes": 12,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+            "materialized_utf8_bytes": 12,
+            "declaration_callback_base64": "ZXhwb3J0IHt9Ow0K",
+            "declaration_materialized_base64": "ZXhwb3J0IHt9Ow0K",
+            "source_files": [
+              "/.src/commentsExternalModules_1.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "a3c31621d7f6f4c174d601f587e3faef3e189664565d2670b23a23dfd0f70c4e"
+      },
+      "case_observation_fingerprint_sha256": "d6645e06ccbbc086f99c98669b502a71d245fa03f9f67427d34112e732f4f249"
+    },
+    {
+      "case_id": "h2-7a/S2/entityname-3-c1",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/commentsExternalModules_0.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "35f62481a634e93a4261677f6081f9c9d538749c71dc93bc52824ee636a005af",
+            "callback_utf8_bytes": 1526,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "35f62481a634e93a4261677f6081f9c9d538749c71dc93bc52824ee636a005af",
+            "materialized_utf8_bytes": 1526,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/commentsExternalModules_0.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/commentsExternalModules_0.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "e76bc04c8943e4ea8a765518e888661a754ef60b6d35a5c012a66452bb228242",
+            "callback_utf8_bytes": 629,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e76bc04c8943e4ea8a765518e888661a754ef60b6d35a5c012a66452bb228242",
+            "materialized_utf8_bytes": 629,
+            "declaration_callback_base64": "LyoqIE1vZHVsZSBjb21tZW50Ki8NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtMSB7DQogICAgLyoqIGIncyBjb21tZW50Ki8NCiAgICB2YXIgYjogbnVtYmVyOw0KICAgIC8qKiBtMiBjb21tZW50cyovDQogICAgbmFtZXNwYWNlIG0yIHsNCiAgICAgICAgLyoqIGNsYXNzIGNvbW1lbnQ7Ki8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkqLw0KICAgICAgICB2YXIgaTogYzsNCiAgICB9DQogICAgLyoqIGV4cG9ydGVkIGZ1bmN0aW9uKi8NCiAgICBmdW5jdGlvbiBmb29FeHBvcnQoKTogbnVtYmVyOw0KfQ0KLyoqIE1vZHVsZSBjb21tZW50ICovDQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgbTQgew0KICAgIC8qKiBiJ3MgY29tbWVudCAqLw0KICAgIHZhciBiOiBudW1iZXI7DQogICAgLyoqIG0yIGNvbW1lbnRzDQogICAgKi8NCiAgICBuYW1lc3BhY2UgbTIgew0KICAgICAgICAvKiogY2xhc3MgY29tbWVudDsgKi8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkgKi8NCiAgICAgICAgdmFyIGk6IGM7DQogICAgfQ0KICAgIC8qKiBleHBvcnRlZCBmdW5jdGlvbiAqLw0KICAgIGZ1bmN0aW9uIGZvb0V4cG9ydCgpOiBudW1iZXI7DQp9DQo=",
+            "declaration_materialized_base64": "LyoqIE1vZHVsZSBjb21tZW50Ki8NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtMSB7DQogICAgLyoqIGIncyBjb21tZW50Ki8NCiAgICB2YXIgYjogbnVtYmVyOw0KICAgIC8qKiBtMiBjb21tZW50cyovDQogICAgbmFtZXNwYWNlIG0yIHsNCiAgICAgICAgLyoqIGNsYXNzIGNvbW1lbnQ7Ki8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkqLw0KICAgICAgICB2YXIgaTogYzsNCiAgICB9DQogICAgLyoqIGV4cG9ydGVkIGZ1bmN0aW9uKi8NCiAgICBmdW5jdGlvbiBmb29FeHBvcnQoKTogbnVtYmVyOw0KfQ0KLyoqIE1vZHVsZSBjb21tZW50ICovDQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgbTQgew0KICAgIC8qKiBiJ3MgY29tbWVudCAqLw0KICAgIHZhciBiOiBudW1iZXI7DQogICAgLyoqIG0yIGNvbW1lbnRzDQogICAgKi8NCiAgICBuYW1lc3BhY2UgbTIgew0KICAgICAgICAvKiogY2xhc3MgY29tbWVudDsgKi8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkgKi8NCiAgICAgICAgdmFyIGk6IGM7DQogICAgfQ0KICAgIC8qKiBleHBvcnRlZCBmdW5jdGlvbiAqLw0KICAgIGZ1bmN0aW9uIGZvb0V4cG9ydCgpOiBudW1iZXI7DQp9DQo=",
+            "source_files": [
+              "/.src/commentsExternalModules_0.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/commentsExternalModules_1.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "3a652c899cdfcc1e0a8e313405cb18f5c6ba19a012fd5dd533cdeb170027e7ad",
+            "callback_utf8_bytes": 328,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "3a652c899cdfcc1e0a8e313405cb18f5c6ba19a012fd5dd533cdeb170027e7ad",
+            "materialized_utf8_bytes": 328,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/commentsExternalModules_1.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/commentsExternalModules_1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+            "callback_utf8_bytes": 12,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f761c91419d0a89422a0004ef1a92929dd4d2d5e5c16758654d8b0467d1998c6",
+            "materialized_utf8_bytes": 12,
+            "declaration_callback_base64": "ZXhwb3J0IHt9Ow0K",
+            "declaration_materialized_base64": "ZXhwb3J0IHt9Ow0K",
+            "source_files": [
+              "/.src/commentsExternalModules_1.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "1441952f999c36c8c5142320744e87a64a2538ef2d61dbab473505f340d70bfa"
+      },
+      "case_observation_fingerprint_sha256": "0bb75f94680608515cabdba55a21a25cfd5588dbc1f90b0c6377897324447f51"
+    },
+    {
+      "case_id": "h2-7a/S2/entityname-4-c0",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/commentsExternalModules2_0.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "93b7b87666c500f16fb22897efe6c8647e8f0c5a70de0ba1722b9043406834a6",
+            "callback_utf8_bytes": 1744,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "93b7b87666c500f16fb22897efe6c8647e8f0c5a70de0ba1722b9043406834a6",
+            "materialized_utf8_bytes": 1744,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/commentsExternalModules2_0.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/commentsExternalModules2_0.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "e76bc04c8943e4ea8a765518e888661a754ef60b6d35a5c012a66452bb228242",
+            "callback_utf8_bytes": 629,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e76bc04c8943e4ea8a765518e888661a754ef60b6d35a5c012a66452bb228242",
+            "materialized_utf8_bytes": 629,
+            "declaration_callback_base64": "LyoqIE1vZHVsZSBjb21tZW50Ki8NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtMSB7DQogICAgLyoqIGIncyBjb21tZW50Ki8NCiAgICB2YXIgYjogbnVtYmVyOw0KICAgIC8qKiBtMiBjb21tZW50cyovDQogICAgbmFtZXNwYWNlIG0yIHsNCiAgICAgICAgLyoqIGNsYXNzIGNvbW1lbnQ7Ki8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkqLw0KICAgICAgICB2YXIgaTogYzsNCiAgICB9DQogICAgLyoqIGV4cG9ydGVkIGZ1bmN0aW9uKi8NCiAgICBmdW5jdGlvbiBmb29FeHBvcnQoKTogbnVtYmVyOw0KfQ0KLyoqIE1vZHVsZSBjb21tZW50ICovDQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgbTQgew0KICAgIC8qKiBiJ3MgY29tbWVudCAqLw0KICAgIHZhciBiOiBudW1iZXI7DQogICAgLyoqIG0yIGNvbW1lbnRzDQogICAgKi8NCiAgICBuYW1lc3BhY2UgbTIgew0KICAgICAgICAvKiogY2xhc3MgY29tbWVudDsgKi8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkgKi8NCiAgICAgICAgdmFyIGk6IGM7DQogICAgfQ0KICAgIC8qKiBleHBvcnRlZCBmdW5jdGlvbiAqLw0KICAgIGZ1bmN0aW9uIGZvb0V4cG9ydCgpOiBudW1iZXI7DQp9DQo=",
+            "declaration_materialized_base64": "LyoqIE1vZHVsZSBjb21tZW50Ki8NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtMSB7DQogICAgLyoqIGIncyBjb21tZW50Ki8NCiAgICB2YXIgYjogbnVtYmVyOw0KICAgIC8qKiBtMiBjb21tZW50cyovDQogICAgbmFtZXNwYWNlIG0yIHsNCiAgICAgICAgLyoqIGNsYXNzIGNvbW1lbnQ7Ki8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkqLw0KICAgICAgICB2YXIgaTogYzsNCiAgICB9DQogICAgLyoqIGV4cG9ydGVkIGZ1bmN0aW9uKi8NCiAgICBmdW5jdGlvbiBmb29FeHBvcnQoKTogbnVtYmVyOw0KfQ0KLyoqIE1vZHVsZSBjb21tZW50ICovDQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgbTQgew0KICAgIC8qKiBiJ3MgY29tbWVudCAqLw0KICAgIHZhciBiOiBudW1iZXI7DQogICAgLyoqIG0yIGNvbW1lbnRzDQogICAgKi8NCiAgICBuYW1lc3BhY2UgbTIgew0KICAgICAgICAvKiogY2xhc3MgY29tbWVudDsgKi8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkgKi8NCiAgICAgICAgdmFyIGk6IGM7DQogICAgfQ0KICAgIC8qKiBleHBvcnRlZCBmdW5jdGlvbiAqLw0KICAgIGZ1bmN0aW9uIGZvb0V4cG9ydCgpOiBudW1iZXI7DQp9DQo=",
+            "source_files": [
+              "/.src/commentsExternalModules2_0.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/commentsExternalModules_1.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "ff0d5a4de1cdb00ad6a8dfba509e20759771044b9720fa120ade55b82eea1c17",
+            "callback_utf8_bytes": 385,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "ff0d5a4de1cdb00ad6a8dfba509e20759771044b9720fa120ade55b82eea1c17",
+            "materialized_utf8_bytes": 385,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/commentsExternalModules_1.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/commentsExternalModules_1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "76652628aecee5796bb20e280da97b0281b4dc33eaa12467dfaa64618293613f",
+            "callback_utf8_bytes": 181,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "76652628aecee5796bb20e280da97b0281b4dc33eaa12467dfaa64618293613f",
+            "materialized_utf8_bytes": 181,
+            "declaration_callback_base64": "LyoqVGhpcyBpcyBvbiBpbXBvcnQgZGVjbGFyYXRpb24qLw0KaW1wb3J0IGV4dE1vZCA9IHJlcXVpcmUoImNvbW1lbnRzRXh0ZXJuYWxNb2R1bGVzMl8wIik7DQpleHBvcnQgZGVjbGFyZSB2YXIgbmV3VmFyOiBleHRNb2QubTEubTIuYzsNCmV4cG9ydCBkZWNsYXJlIHZhciBuZXdWYXIyOiBleHRNb2QubTQubTIuYzsNCg==",
+            "declaration_materialized_base64": "LyoqVGhpcyBpcyBvbiBpbXBvcnQgZGVjbGFyYXRpb24qLw0KaW1wb3J0IGV4dE1vZCA9IHJlcXVpcmUoImNvbW1lbnRzRXh0ZXJuYWxNb2R1bGVzMl8wIik7DQpleHBvcnQgZGVjbGFyZSB2YXIgbmV3VmFyOiBleHRNb2QubTEubTIuYzsNCmV4cG9ydCBkZWNsYXJlIHZhciBuZXdWYXIyOiBleHRNb2QubTQubTIuYzsNCg==",
+            "source_files": [
+              "/.src/commentsExternalModules_1.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "7b386ba1a74b85118edc0bec8147c99137b139c369cb0e189c91f0b002f5cb16"
+      },
+      "case_observation_fingerprint_sha256": "fd430b9afcb12417a14de3201c20ee1fc4936e65ebf9d2bd6dad5837da2173a4"
+    },
+    {
+      "case_id": "h2-7a/S2/entityname-4-c1",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/commentsExternalModules2_0.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "35f62481a634e93a4261677f6081f9c9d538749c71dc93bc52824ee636a005af",
+            "callback_utf8_bytes": 1526,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "35f62481a634e93a4261677f6081f9c9d538749c71dc93bc52824ee636a005af",
+            "materialized_utf8_bytes": 1526,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/commentsExternalModules2_0.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/commentsExternalModules2_0.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "e76bc04c8943e4ea8a765518e888661a754ef60b6d35a5c012a66452bb228242",
+            "callback_utf8_bytes": 629,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e76bc04c8943e4ea8a765518e888661a754ef60b6d35a5c012a66452bb228242",
+            "materialized_utf8_bytes": 629,
+            "declaration_callback_base64": "LyoqIE1vZHVsZSBjb21tZW50Ki8NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtMSB7DQogICAgLyoqIGIncyBjb21tZW50Ki8NCiAgICB2YXIgYjogbnVtYmVyOw0KICAgIC8qKiBtMiBjb21tZW50cyovDQogICAgbmFtZXNwYWNlIG0yIHsNCiAgICAgICAgLyoqIGNsYXNzIGNvbW1lbnQ7Ki8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkqLw0KICAgICAgICB2YXIgaTogYzsNCiAgICB9DQogICAgLyoqIGV4cG9ydGVkIGZ1bmN0aW9uKi8NCiAgICBmdW5jdGlvbiBmb29FeHBvcnQoKTogbnVtYmVyOw0KfQ0KLyoqIE1vZHVsZSBjb21tZW50ICovDQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgbTQgew0KICAgIC8qKiBiJ3MgY29tbWVudCAqLw0KICAgIHZhciBiOiBudW1iZXI7DQogICAgLyoqIG0yIGNvbW1lbnRzDQogICAgKi8NCiAgICBuYW1lc3BhY2UgbTIgew0KICAgICAgICAvKiogY2xhc3MgY29tbWVudDsgKi8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkgKi8NCiAgICAgICAgdmFyIGk6IGM7DQogICAgfQ0KICAgIC8qKiBleHBvcnRlZCBmdW5jdGlvbiAqLw0KICAgIGZ1bmN0aW9uIGZvb0V4cG9ydCgpOiBudW1iZXI7DQp9DQo=",
+            "declaration_materialized_base64": "LyoqIE1vZHVsZSBjb21tZW50Ki8NCmV4cG9ydCBkZWNsYXJlIG5hbWVzcGFjZSBtMSB7DQogICAgLyoqIGIncyBjb21tZW50Ki8NCiAgICB2YXIgYjogbnVtYmVyOw0KICAgIC8qKiBtMiBjb21tZW50cyovDQogICAgbmFtZXNwYWNlIG0yIHsNCiAgICAgICAgLyoqIGNsYXNzIGNvbW1lbnQ7Ki8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkqLw0KICAgICAgICB2YXIgaTogYzsNCiAgICB9DQogICAgLyoqIGV4cG9ydGVkIGZ1bmN0aW9uKi8NCiAgICBmdW5jdGlvbiBmb29FeHBvcnQoKTogbnVtYmVyOw0KfQ0KLyoqIE1vZHVsZSBjb21tZW50ICovDQpleHBvcnQgZGVjbGFyZSBuYW1lc3BhY2UgbTQgew0KICAgIC8qKiBiJ3MgY29tbWVudCAqLw0KICAgIHZhciBiOiBudW1iZXI7DQogICAgLyoqIG0yIGNvbW1lbnRzDQogICAgKi8NCiAgICBuYW1lc3BhY2UgbTIgew0KICAgICAgICAvKiogY2xhc3MgY29tbWVudDsgKi8NCiAgICAgICAgY2xhc3MgYyB7DQogICAgICAgIH0NCiAgICAgICAgLyoqIGkgKi8NCiAgICAgICAgdmFyIGk6IGM7DQogICAgfQ0KICAgIC8qKiBleHBvcnRlZCBmdW5jdGlvbiAqLw0KICAgIGZ1bmN0aW9uIGZvb0V4cG9ydCgpOiBudW1iZXI7DQp9DQo=",
+            "source_files": [
+              "/.src/commentsExternalModules2_0.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/commentsExternalModules_1.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "ff0d5a4de1cdb00ad6a8dfba509e20759771044b9720fa120ade55b82eea1c17",
+            "callback_utf8_bytes": 385,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "ff0d5a4de1cdb00ad6a8dfba509e20759771044b9720fa120ade55b82eea1c17",
+            "materialized_utf8_bytes": 385,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/commentsExternalModules_1.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/commentsExternalModules_1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "76652628aecee5796bb20e280da97b0281b4dc33eaa12467dfaa64618293613f",
+            "callback_utf8_bytes": 181,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "76652628aecee5796bb20e280da97b0281b4dc33eaa12467dfaa64618293613f",
+            "materialized_utf8_bytes": 181,
+            "declaration_callback_base64": "LyoqVGhpcyBpcyBvbiBpbXBvcnQgZGVjbGFyYXRpb24qLw0KaW1wb3J0IGV4dE1vZCA9IHJlcXVpcmUoImNvbW1lbnRzRXh0ZXJuYWxNb2R1bGVzMl8wIik7DQpleHBvcnQgZGVjbGFyZSB2YXIgbmV3VmFyOiBleHRNb2QubTEubTIuYzsNCmV4cG9ydCBkZWNsYXJlIHZhciBuZXdWYXIyOiBleHRNb2QubTQubTIuYzsNCg==",
+            "declaration_materialized_base64": "LyoqVGhpcyBpcyBvbiBpbXBvcnQgZGVjbGFyYXRpb24qLw0KaW1wb3J0IGV4dE1vZCA9IHJlcXVpcmUoImNvbW1lbnRzRXh0ZXJuYWxNb2R1bGVzMl8wIik7DQpleHBvcnQgZGVjbGFyZSB2YXIgbmV3VmFyOiBleHRNb2QubTEubTIuYzsNCmV4cG9ydCBkZWNsYXJlIHZhciBuZXdWYXIyOiBleHRNb2QubTQubTIuYzsNCg==",
+            "source_files": [
+              "/.src/commentsExternalModules_1.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "02ff2690dbe366b5517d55a20b26378d5b11f7b04d25ee45ef35f8a687b9165e"
+      },
+      "case_observation_fingerprint_sha256": "012a1e0d99225e07d3e2510b2f87f3707d1e8d419e4858183b2a7b1cbcc8a432"
+    },
+    {
+      "case_id": "h2-7a/S2/expando-1",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 2352,
+            "category": "Error",
+            "message": "Conversion of type 'null' to type 'I' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first.",
+            "file": "/.src/a.ts",
+            "start": 47,
+            "length": 9
+          },
+          {
+            "code": 4032,
+            "category": "Error",
+            "message": "Property 'val' of exported interface has or is using name 'I' from private module '\"/.src/a\"'.",
+            "file": "/.src/b.ts",
+            "start": 47,
+            "length": 5
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/a.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "3882f08abd1862982a52a82cbdd17c6ff369346ced897c1260f3d05726c2cae3",
+            "callback_utf8_bytes": 126,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "3882f08abd1862982a52a82cbdd17c6ff369346ced897c1260f3d05726c2cae3",
+            "materialized_utf8_bytes": 126,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/a.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "c54be455951dc32f2ef47d98cf4214b9b8f829331448a6d277d165e573ec7a72",
+            "callback_utf8_bytes": 63,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "c54be455951dc32f2ef47d98cf4214b9b8f829331448a6d277d165e573ec7a72",
+            "materialized_utf8_bytes": 63,
+            "declaration_callback_base64": "aW50ZXJmYWNlIEkgew0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZigpOiBJOw0KZXhwb3J0IHt9Ow0K",
+            "declaration_materialized_base64": "aW50ZXJmYWNlIEkgew0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZigpOiBJOw0KZXhwb3J0IHt9Ow0K",
+            "source_files": [
+              "/.src/a.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/b.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "d6526b496511bd602df4b1894cfa0ca247af9fc6af6507bb62fef0171ea9d5db",
+            "callback_utf8_bytes": 165,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "d6526b496511bd602df4b1894cfa0ca247af9fc6af6507bb62fef0171ea9d5db",
+            "materialized_utf8_bytes": 165,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/b.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": true,
+          "emitted_files": null,
+          "diagnostics": [
+            {
+              "code": 4032,
+              "category": "Error",
+              "message": "Property 'val' of exported interface has or is using name 'I' from private module '\"/.src/a\"'.",
+              "file": "/.src/b.ts",
+              "start": 47,
+              "length": 5
+            }
+          ]
+        },
+        "observation_fingerprint_sha256": "5694ba89c07a951daa159d917dffe114727a062efee3f34c20215c9016cc4ab2"
+      },
+      "case_observation_fingerprint_sha256": "c587a56087fa74406145a23d56357faeb65d7578006b1f7686c55c64a96dd8af"
+    },
+    {
+      "case_id": "h2-7a/S2/expando-2",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationEmitExpandoWithGenericConstraint.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "7048d63a43c6d0add047cee98ad8e0b444799485e50672bc2880ef327682a2de",
+            "callback_utf8_bytes": 292,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "7048d63a43c6d0add047cee98ad8e0b444799485e50672bc2880ef327682a2de",
+            "materialized_utf8_bytes": 292,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/declarationEmitExpandoWithGenericConstraint.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/declarationEmitExpandoWithGenericConstraint.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "ef34ee24e5e6819aa0997c33fd72818302915a77bc5c55540a08962162cbb2c6",
+            "callback_utf8_bytes": 325,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "ef34ee24e5e6819aa0997c33fd72818302915a77bc5c55540a08962162cbb2c6",
+            "materialized_utf8_bytes": 325,
+            "declaration_callback_base64": "ZXhwb3J0IGludGVyZmFjZSBQb2ludCB7DQogICAgcmVhZG9ubHkgeDogbnVtYmVyOw0KICAgIHJlYWRvbmx5IHk6IG51bWJlcjsNCn0NCmV4cG9ydCBpbnRlcmZhY2UgUmVjdDxwIGV4dGVuZHMgUG9pbnQ+IHsNCiAgICByZWFkb25seSBhOiBwOw0KICAgIHJlYWRvbmx5IGI6IHA7DQp9DQpleHBvcnQgZGVjbGFyZSBjb25zdCBQb2ludDogew0KICAgICh4OiBudW1iZXIsIHk6IG51bWJlcik6IFBvaW50Ow0KICAgIHplcm8oKTogUG9pbnQ7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgUmVjdDogPHAgZXh0ZW5kcyBQb2ludD4oYTogcCwgYjogcCkgPT4gUmVjdDxwPjsNCg==",
+            "declaration_materialized_base64": "ZXhwb3J0IGludGVyZmFjZSBQb2ludCB7DQogICAgcmVhZG9ubHkgeDogbnVtYmVyOw0KICAgIHJlYWRvbmx5IHk6IG51bWJlcjsNCn0NCmV4cG9ydCBpbnRlcmZhY2UgUmVjdDxwIGV4dGVuZHMgUG9pbnQ+IHsNCiAgICByZWFkb25seSBhOiBwOw0KICAgIHJlYWRvbmx5IGI6IHA7DQp9DQpleHBvcnQgZGVjbGFyZSBjb25zdCBQb2ludDogew0KICAgICh4OiBudW1iZXIsIHk6IG51bWJlcik6IFBvaW50Ow0KICAgIHplcm8oKTogUG9pbnQ7DQp9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgUmVjdDogPHAgZXh0ZW5kcyBQb2ludD4oYTogcCwgYjogcCkgPT4gUmVjdDxwPjsNCg==",
+            "source_files": [
+              "/.src/declarationEmitExpandoWithGenericConstraint.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "ac1732659b858eb53e46bf230f7dc2cffc6e10718e3378c7005dca5ceef8b6e3"
+      },
+      "case_observation_fingerprint_sha256": "7a6701ed472866f270cc58bcc68c75b2c9b1f0cf04ef69e9269f57316b84b5f6"
+    },
+    {
+      "case_id": "h2-7a/S2/expando-3",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationEmitFunctionDuplicateNamespace.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "57d195d36c448dc286b6776d6094ccac710eb7edebb14c556e29307c2314fcb1",
+            "callback_utf8_bytes": 60,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "57d195d36c448dc286b6776d6094ccac710eb7edebb14c556e29307c2314fcb1",
+            "materialized_utf8_bytes": 60,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/declarationEmitFunctionDuplicateNamespace.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/declarationEmitFunctionDuplicateNamespace.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "4eb006aeb089904b82b9935860bb37c27adeedb27afaa632b7b3b780e8250912",
+            "callback_utf8_bytes": 106,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "4eb006aeb089904b82b9935860bb37c27adeedb27afaa632b7b3b780e8250912",
+            "materialized_utf8_bytes": 106,
+            "declaration_callback_base64": "ZGVjbGFyZSBmdW5jdGlvbiBmKGE6IDApOiAwOw0KZGVjbGFyZSBmdW5jdGlvbiBmKGE6IDEpOiAxOw0KZGVjbGFyZSBuYW1lc3BhY2UgZiB7DQogICAgdmFyIHg6IG51bWJlcjsNCn0NCg==",
+            "declaration_materialized_base64": "ZGVjbGFyZSBmdW5jdGlvbiBmKGE6IDApOiAwOw0KZGVjbGFyZSBmdW5jdGlvbiBmKGE6IDEpOiAxOw0KZGVjbGFyZSBuYW1lc3BhY2UgZiB7DQogICAgdmFyIHg6IG51bWJlcjsNCn0NCg==",
+            "source_files": [
+              "/.src/declarationEmitFunctionDuplicateNamespace.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "e9adc9e4a4f1f0877bc84fd8db942e0e5a155dfb1798a5f923df77c38211bba3"
+      },
+      "case_observation_fingerprint_sha256": "5a391ccb00ccccbd3b8f17186281e10c3989070847daa5478a4b6db7a9f6df94"
+    },
+    {
+      "case_id": "h2-7a/S2/expando-4",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationEmitFunctionKeywordProp.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "712c099a64b73642078c4fd998d2238f08d45c28e61125ca5aa121b9be75eed3",
+            "callback_utf8_bytes": 173,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "712c099a64b73642078c4fd998d2238f08d45c28e61125ca5aa121b9be75eed3",
+            "materialized_utf8_bytes": 173,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/declarationEmitFunctionKeywordProp.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/declarationEmitFunctionKeywordProp.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "4f4f5da5c3309c210a5b9108e0839381639815c3a5a26e4e0b6315a460b0a40d",
+            "callback_utf8_bytes": 362,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "4f4f5da5c3309c210a5b9108e0839381639815c3a5a26e4e0b6315a460b0a40d",
+            "materialized_utf8_bytes": 362,
+            "declaration_callback_base64": "ZGVjbGFyZSBmdW5jdGlvbiBmb28oKTogdm9pZDsNCmRlY2xhcmUgbmFtZXNwYWNlIGZvbyB7DQogICAgdmFyIF9hOiBib29sZWFuOw0KICAgIGV4cG9ydCB7IF9hIGFzIG51bGwgfTsNCn0NCmRlY2xhcmUgZnVuY3Rpb24gYmFyKCk6IHZvaWQ7DQpkZWNsYXJlIG5hbWVzcGFjZSBiYXIgew0KICAgIHZhciBhc3luYzogYm9vbGVhbjsNCiAgICB2YXIgbm9ybWFsOiBib29sZWFuOw0KfQ0KZGVjbGFyZSBmdW5jdGlvbiBiYXooKTogdm9pZDsNCmRlY2xhcmUgbmFtZXNwYWNlIGJheiB7DQogICAgdmFyIF9hOiBib29sZWFuOw0KICAgIGV4cG9ydCB2YXIgbm9ybWFsOiBib29sZWFuOw0KICAgIGV4cG9ydCB7IF9hIGFzIGNsYXNzIH07DQp9DQo=",
+            "declaration_materialized_base64": "ZGVjbGFyZSBmdW5jdGlvbiBmb28oKTogdm9pZDsNCmRlY2xhcmUgbmFtZXNwYWNlIGZvbyB7DQogICAgdmFyIF9hOiBib29sZWFuOw0KICAgIGV4cG9ydCB7IF9hIGFzIG51bGwgfTsNCn0NCmRlY2xhcmUgZnVuY3Rpb24gYmFyKCk6IHZvaWQ7DQpkZWNsYXJlIG5hbWVzcGFjZSBiYXIgew0KICAgIHZhciBhc3luYzogYm9vbGVhbjsNCiAgICB2YXIgbm9ybWFsOiBib29sZWFuOw0KfQ0KZGVjbGFyZSBmdW5jdGlvbiBiYXooKTogdm9pZDsNCmRlY2xhcmUgbmFtZXNwYWNlIGJheiB7DQogICAgdmFyIF9hOiBib29sZWFuOw0KICAgIGV4cG9ydCB2YXIgbm9ybWFsOiBib29sZWFuOw0KICAgIGV4cG9ydCB7IF9hIGFzIGNsYXNzIH07DQp9DQo=",
+            "source_files": [
+              "/.src/declarationEmitFunctionKeywordProp.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "fa92e57eacf7faa549fddfad27941cd314cb7e1288c969888e730e025de0d8f9"
+      },
+      "case_observation_fingerprint_sha256": "ff6f09d75775f36f191392c4de8cd00caa152cbc8354ea54f56f82574f234b33"
+    },
+    {
+      "case_id": "h2-7a/S2/latebound-1",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 122,
+            "length": 3
+          },
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 209,
+            "length": 3
+          },
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 343,
+            "length": 5
+          },
+          {
+            "code": 9010,
+            "category": "Error",
+            "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 376,
+            "length": 1
+          },
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 412,
+            "length": 3
+          },
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 481,
+            "length": 10
+          },
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 573,
+            "length": 4
+          },
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 656,
+            "length": 7
+          },
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 737,
+            "length": 5
+          },
+          {
+            "code": 9038,
+            "category": "Error",
+            "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+            "file": "/.src/computedPropertiesNarrowed.ts",
+            "start": 826,
+            "length": 8
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/computedPropertiesNarrowed.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "5d57e589dee7c90432177805902b4e636d2423e1c0df654f3178c469871420b7",
+            "callback_utf8_bytes": 782,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "5d57e589dee7c90432177805902b4e636d2423e1c0df654f3178c469871420b7",
+            "materialized_utf8_bytes": 782,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/computedPropertiesNarrowed.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": true,
+          "emitted_files": null,
+          "diagnostics": [
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 122,
+              "length": 3
+            },
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 209,
+              "length": 3
+            },
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 343,
+              "length": 5
+            },
+            {
+              "code": 9010,
+              "category": "Error",
+              "message": "Variable must have an explicit type annotation with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 376,
+              "length": 1
+            },
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 412,
+              "length": 3
+            },
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 481,
+              "length": 10
+            },
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 573,
+              "length": 4
+            },
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 656,
+              "length": 7
+            },
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 737,
+              "length": 5
+            },
+            {
+              "code": 9038,
+              "category": "Error",
+              "message": "Computed property names on class or object literals cannot be inferred with --isolatedDeclarations.",
+              "file": "/.src/computedPropertiesNarrowed.ts",
+              "start": 826,
+              "length": 8
+            }
+          ]
+        },
+        "observation_fingerprint_sha256": "cef7b482ce25f203fe2dc0a34d95ba12e792d2358cb084ae28cfcedfebd086f4"
+      },
+      "case_observation_fingerprint_sha256": "321eca2aaf5ba1eac86995ec4d9a18aab099c05edb8d86860382064869515f26"
+    },
+    {
+      "case_id": "h2-7a/S2/latebound-2",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/computedPropertyNameAndTypeParameterConflict.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "253c1be71d594408d467d3a640a6e6922613d62702000b752cb52c141598a1f3",
+            "callback_utf8_bytes": 15,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "253c1be71d594408d467d3a640a6e6922613d62702000b752cb52c141598a1f3",
+            "materialized_utf8_bytes": 15,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/computedPropertyNameAndTypeParameterConflict.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/computedPropertyNameAndTypeParameterConflict.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "47c90da6ad2851f40caa50925f2d9154ee09fe4015fc86f5a514acfc1a24ad58",
+            "callback_utf8_bytes": 78,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "47c90da6ad2851f40caa50925f2d9154ee09fe4015fc86f5a514acfc1a24ad58",
+            "materialized_utf8_bytes": 78,
+            "declaration_callback_base64": "ZGVjbGFyZSBjb25zdCBPOiB1bmlxdWUgc3ltYm9sOw0KZGVjbGFyZSBjbGFzcyBCYXI8Tz4gew0KICAgIFtPXTogbnVtYmVyOw0KfQ0K",
+            "declaration_materialized_base64": "ZGVjbGFyZSBjb25zdCBPOiB1bmlxdWUgc3ltYm9sOw0KZGVjbGFyZSBjbGFzcyBCYXI8Tz4gew0KICAgIFtPXTogbnVtYmVyOw0KfQ0K",
+            "source_files": [
+              "/.src/computedPropertyNameAndTypeParameterConflict.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "7908e95ee45756058a3de96f7a197c81bae86f8cad2c3db3cef8bb7ddb17c882"
+      },
+      "case_observation_fingerprint_sha256": "f909af413e3799804b3d9aa448a091909c0cf4e332f6caa1839ddfc0c4121a67"
+    },
+    {
+      "case_id": "h2-7a/S2/latebound-3",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 2527,
+            "category": "Error",
+            "message": "The inferred type of 'A1' references an inaccessible 'unique symbol' type. A type annotation is necessary.",
+            "file": "/.src/b.ts",
+            "start": 38,
+            "length": 2
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/a.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "43af41b37861fb24dcb41c36b2bd384b51843f1b2e756aab679061ae2b64a1b6",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "43af41b37861fb24dcb41c36b2bd384b51843f1b2e756aab679061ae2b64a1b6",
+            "materialized_utf8_bytes": 116,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/a.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "82ff38e65b5ed2ae9d5ebb35bac2117bc438fcc45325278452ec9369ae0979d5",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "82ff38e65b5ed2ae9d5ebb35bac2117bc438fcc45325278452ec9369ae0979d5",
+            "materialized_utf8_bytes": 90,
+            "declaration_callback_base64": "dHlwZSBBWCA9IHsNCiAgICByZWFkb25seSBBOiB1bmlxdWUgc3ltYm9sOw0KfTsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IEE6IEFYOw0KZXhwb3J0IHt9Ow0K",
+            "declaration_materialized_base64": "dHlwZSBBWCA9IHsNCiAgICByZWFkb25seSBBOiB1bmlxdWUgc3ltYm9sOw0KfTsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IEE6IEFYOw0KZXhwb3J0IHt9Ow0K",
+            "source_files": [
+              "/.src/a.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/b.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "64cfb8b21a9864763f22523a593a5b50e38cf00d8aedecaf6a512d7713fd8c90",
+            "callback_utf8_bytes": 151,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "64cfb8b21a9864763f22523a593a5b50e38cf00d8aedecaf6a512d7713fd8c90",
+            "materialized_utf8_bytes": 151,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/b.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": true,
+          "emitted_files": null,
+          "diagnostics": [
+            {
+              "code": 2527,
+              "category": "Error",
+              "message": "The inferred type of 'A1' references an inaccessible 'unique symbol' type. A type annotation is necessary.",
+              "file": "/.src/b.ts",
+              "start": 38,
+              "length": 2
+            }
+          ]
+        },
+        "observation_fingerprint_sha256": "52a81bc604b4d61857831fcd766957702debf0aba7e12fb98ffb1a22a1949ce3"
+      },
+      "case_observation_fingerprint_sha256": "4d1dc8db583b8480277df4b707dda296d365bb517b42b74bb45e87b7a146cbb6"
+    },
+    {
+      "case_id": "h2-7a/S2/latebound-4",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationEmitHigherOrderRetainedGenerics.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "ded9a11c17c1fc811623619059ff68914020375beadee5065d31a90189ec9e25",
+            "callback_utf8_bytes": 3280,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "ded9a11c17c1fc811623619059ff68914020375beadee5065d31a90189ec9e25",
+            "materialized_utf8_bytes": 3280,
+            "declaration_callback_base64": "ZXhwb3J0IGludGVyZmFjZSBUeXBlTGFtYmRhIHsNCiAgICByZWFkb25seSBJbjogdW5rbm93bjsNCiAgICByZWFkb25seSBPdXQyOiB1bmtub3duOw0KICAgIHJlYWRvbmx5IE91dDE6IHVua25vd247DQogICAgcmVhZG9ubHkgVGFyZ2V0OiB1bmtub3duOw0KfQ0KZXhwb3J0IGRlY2xhcmUgbmFtZXNwYWNlIFR5cGVzIHsNCiAgICB0eXBlIEludmFyaWFudDxBPiA9IChfOiBBKSA9PiBBOw0KICAgIHR5cGUgQ292YXJpYW50PEE+ID0gKF86IG5ldmVyKSA9PiBBOw0KICAgIHR5cGUgQ29udHJhdmFyaWFudDxBPiA9IChfOiBBKSA9PiB2b2lkOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY29uc3QgVVJJOiB1bmlxdWUgc3ltYm9sOw0KZXhwb3J0IGludGVyZmFjZSBUeXBlQ2xhc3M8RiBleHRlbmRzIFR5cGVMYW1iZGE+IHsNCiAgICByZWFkb25seSBbVVJJXT86IEY7DQp9DQpleHBvcnQgaW50ZXJmYWNlIEludmFyaWFudDxGIGV4dGVuZHMgVHlwZUxhbWJkYT4gZXh0ZW5kcyBUeXBlQ2xhc3M8Rj4gew0KICAgIHJlYWRvbmx5IGltYXA6IHsNCiAgICAgICAgPEEsIEI+KHRvOiAoYTogQSkgPT4gQiwgZnJvbTogKGI6IEIpID0+IEEpOiA8UiwgTywgRT4oc2VsZjogS2luZDxGLCBSLCBPLCBFLCBBPikgPT4gS2luZDxGLCBSLCBPLCBFLCBCPjsNCiAgICAgICAgPFIsIE8sIEUsIEEsIEI+KHNlbGY6IEtpbmQ8RiwgUiwgTywgRSwgQT4sIHRvOiAoYTogQSkgPT4gQiwgZnJvbTogKGI6IEIpID0+IEEpOiBLaW5kPEYsIFIsIE8sIEUsIEI+Ow0KICAgIH07DQp9DQpleHBvcnQgaW50ZXJmYWNlIENvdmFyaWFudDxGIGV4dGVuZHMgVHlwZUxhbWJkYT4gZXh0ZW5kcyBJbnZhcmlhbnQ8Rj4gew0KICAgIHJlYWRvbmx5IG1hcDogew0KICAgICAgICA8QSwgQj4oZjogKGE6IEEpID0+IEIpOiA8UiwgTywgRT4oc2VsZjogS2luZDxGLCBSLCBPLCBFLCBBPikgPT4gS2luZDxGLCBSLCBPLCBFLCBCPjsNCiAgICAgICAgPFIsIE8sIEUsIEEsIEI+KHNlbGY6IEtpbmQ8RiwgUiwgTywgRSwgQT4sIGY6IChhOiBBKSA9PiBCKTogS2luZDxGLCBSLCBPLCBFLCBCPjsNCiAgICB9Ow0KfQ0KZXhwb3J0IHR5cGUgS2luZDxGIGV4dGVuZHMgVHlwZUxhbWJkYSwgSW4sIE91dDIsIE91dDEsIFRhcmdldD4gPSBGIGV4dGVuZHMgew0KICAgIHJlYWRvbmx5IHR5cGU6IHVua25vd247DQp9ID8gKEYgJiB7DQogICAgcmVhZG9ubHkgSW46IEluOw0KICAgIHJlYWRvbmx5IE91dDI6IE91dDI7DQogICAgcmVhZG9ubHkgT3V0MTogT3V0MTsNCiAgICByZWFkb25seSBUYXJnZXQ6IFRhcmdldDsNCn0pWyJ0eXBlIl0gOiB7DQogICAgcmVhZG9ubHkgRjogRjsNCiAgICByZWFkb25seSBJbjogVHlwZXMuQ29udHJhdmFyaWFudDxJbj47DQogICAgcmVhZG9ubHkgT3V0MjogVHlwZXMuQ292YXJpYW50PE91dDI+Ow0KICAgIHJlYWRvbmx5IE91dDE6IFR5cGVzLkNvdmFyaWFudDxPdXQxPjsNCiAgICByZWFkb25seSBUYXJnZXQ6IFR5cGVzLkludmFyaWFudDxUYXJnZXQ+Ow0KfTsNCmV4cG9ydCBpbnRlcmZhY2UgU2VtaVByb2R1Y3Q8RiBleHRlbmRzIFR5cGVMYW1iZGE+IGV4dGVuZHMgSW52YXJpYW50PEY+IHsNCiAgICByZWFkb25seSBwcm9kdWN0OiA8UjEsIE8xLCBFMSwgQSwgUjIsIE8yLCBFMiwgQj4oc2VsZjogS2luZDxGLCBSMSwgTzEsIEUxLCBBPiwgdGhhdDogS2luZDxGLCBSMiwgTzIsIEUyLCBCPikgPT4gS2luZDxGLCBSMSAmIFIyLCBPMSB8IE8yLCBFMSB8IEUyLCBbQSwgQl0+Ow0KICAgIHJlYWRvbmx5IHByb2R1Y3RNYW55OiA8UiwgTywgRSwgQT4oc2VsZjogS2luZDxGLCBSLCBPLCBFLCBBPiwgY29sbGVjdGlvbjogSXRlcmFibGU8S2luZDxGLCBSLCBPLCBFLCBBPj4pID0+IEtpbmQ8RiwgUiwgTywgRSwgW0EsIC4uLkFycmF5PEE+XT47DQp9DQpleHBvcnQgaW50ZXJmYWNlIFNlbWlBcHBsaWNhdGl2ZTxGIGV4dGVuZHMgVHlwZUxhbWJkYT4gZXh0ZW5kcyBTZW1pUHJvZHVjdDxGPiwgQ292YXJpYW50PEY+IHsNCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IFNLOiA8QSwgQj4oXzogQSwgYjogQikgPT4gQjsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGR1YWw6IHsNCiAgICA8RGF0YUxhc3QgZXh0ZW5kcyAoLi4uYXJnczogQXJyYXk8YW55PikgPT4gYW55LCBEYXRhRmlyc3QgZXh0ZW5kcyAoLi4uYXJnczogQXJyYXk8YW55PikgPT4gYW55Pihhcml0eTogUGFyYW1ldGVyczxEYXRhRmlyc3Q+WyJsZW5ndGgiXSwgYm9keTogRGF0YUZpcnN0KTogRGF0YUxhc3QgJiBEYXRhRmlyc3Q7DQogICAgPERhdGFMYXN0IGV4dGVuZHMgKC4uLmFyZ3M6IEFycmF5PGFueT4pID0+IGFueSwgRGF0YUZpcnN0IGV4dGVuZHMgKC4uLmFyZ3M6IEFycmF5PGFueT4pID0+IGFueT4oaXNEYXRhRmlyc3Q6IChhcmdzOiBJQXJndW1lbnRzKSA9PiBib29sZWFuLCBib2R5OiBEYXRhRmlyc3QpOiBEYXRhTGFzdCAmIERhdGFGaXJzdDsNCn07DQpleHBvcnQgZGVjbGFyZSBjb25zdCB6aXBXaXRoOiA8RiBleHRlbmRzIFR5cGVMYW1iZGE+KEY6IFNlbWlBcHBsaWNhdGl2ZTxGPikgPT4gew0KICAgIDxSMiwgTzIsIEUyLCBCLCBBLCBDPih0aGF0OiBLaW5kPEYsIFIyLCBPMiwgRTIsIEI+LCBmOiAoYTogQSwgYjogQikgPT4gQyk6IDxSMSwgTzEsIEUxPihzZWxmOiBLaW5kPEYsIFIxLCBPMSwgRTEsIEE+KSA9PiBLaW5kPEYsIFIxICYgUjIsIE8yIHwgTzEsIEUyIHwgRTEsIEM+Ow0KICAgIDxSMSwgTzFfMSwgRTFfMSwgQV8xLCBSMiwgTzJfMSwgRTJfMSwgQl8xLCBDXzE+KHNlbGY6IEtpbmQ8RiwgUjEsIE8xXzEsIEUxXzEsIEFfMT4sIHRoYXQ6IEtpbmQ8RiwgUjIsIE8yXzEsIEUyXzEsIEJfMT4sIGY6IChhOiBBXzEsIGI6IEJfMSkgPT4gQ18xKTogS2luZDxGLCBSMSAmIFIyLCBPMV8xIHwgTzJfMSwgRTFfMSB8IEUyXzEsIENfMT47DQp9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgemlwUmlnaHQ6IDxGIGV4dGVuZHMgVHlwZUxhbWJkYT4oRjogU2VtaUFwcGxpY2F0aXZlPEY+KSA9PiB7DQogICAgPFIyLCBPMiwgRTIsIEI+KHRoYXQ6IEtpbmQ8RiwgUjIsIE8yLCBFMiwgQj4pOiA8UjEsIE8xLCBFMSwgXz4oc2VsZjogS2luZDxGLCBSMSwgTzEsIEUxLCBfPikgPT4gS2luZDxGLCBSMSAmIFIyLCBPMiB8IE8xLCBFMiB8IEUxLCBCPjsNCiAgICA8UjEsIE8xXzEsIEUxXzEsIF9fMSwgUjIsIE8yXzEsIEUyXzEsIEJfMT4oc2VsZjogS2luZDxGLCBSMSwgTzFfMSwgRTFfMSwgX18xPiwgdGhhdDogS2luZDxGLCBSMiwgTzJfMSwgRTJfMSwgQl8xPik6IEtpbmQ8RiwgUjEgJiBSMiwgTzFfMSB8IE8yXzEsIEUxXzEgfCBFMl8xLCBCXzE+Ow0KfTsNCg==",
+            "declaration_materialized_base64": "ZXhwb3J0IGludGVyZmFjZSBUeXBlTGFtYmRhIHsNCiAgICByZWFkb25seSBJbjogdW5rbm93bjsNCiAgICByZWFkb25seSBPdXQyOiB1bmtub3duOw0KICAgIHJlYWRvbmx5IE91dDE6IHVua25vd247DQogICAgcmVhZG9ubHkgVGFyZ2V0OiB1bmtub3duOw0KfQ0KZXhwb3J0IGRlY2xhcmUgbmFtZXNwYWNlIFR5cGVzIHsNCiAgICB0eXBlIEludmFyaWFudDxBPiA9IChfOiBBKSA9PiBBOw0KICAgIHR5cGUgQ292YXJpYW50PEE+ID0gKF86IG5ldmVyKSA9PiBBOw0KICAgIHR5cGUgQ29udHJhdmFyaWFudDxBPiA9IChfOiBBKSA9PiB2b2lkOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY29uc3QgVVJJOiB1bmlxdWUgc3ltYm9sOw0KZXhwb3J0IGludGVyZmFjZSBUeXBlQ2xhc3M8RiBleHRlbmRzIFR5cGVMYW1iZGE+IHsNCiAgICByZWFkb25seSBbVVJJXT86IEY7DQp9DQpleHBvcnQgaW50ZXJmYWNlIEludmFyaWFudDxGIGV4dGVuZHMgVHlwZUxhbWJkYT4gZXh0ZW5kcyBUeXBlQ2xhc3M8Rj4gew0KICAgIHJlYWRvbmx5IGltYXA6IHsNCiAgICAgICAgPEEsIEI+KHRvOiAoYTogQSkgPT4gQiwgZnJvbTogKGI6IEIpID0+IEEpOiA8UiwgTywgRT4oc2VsZjogS2luZDxGLCBSLCBPLCBFLCBBPikgPT4gS2luZDxGLCBSLCBPLCBFLCBCPjsNCiAgICAgICAgPFIsIE8sIEUsIEEsIEI+KHNlbGY6IEtpbmQ8RiwgUiwgTywgRSwgQT4sIHRvOiAoYTogQSkgPT4gQiwgZnJvbTogKGI6IEIpID0+IEEpOiBLaW5kPEYsIFIsIE8sIEUsIEI+Ow0KICAgIH07DQp9DQpleHBvcnQgaW50ZXJmYWNlIENvdmFyaWFudDxGIGV4dGVuZHMgVHlwZUxhbWJkYT4gZXh0ZW5kcyBJbnZhcmlhbnQ8Rj4gew0KICAgIHJlYWRvbmx5IG1hcDogew0KICAgICAgICA8QSwgQj4oZjogKGE6IEEpID0+IEIpOiA8UiwgTywgRT4oc2VsZjogS2luZDxGLCBSLCBPLCBFLCBBPikgPT4gS2luZDxGLCBSLCBPLCBFLCBCPjsNCiAgICAgICAgPFIsIE8sIEUsIEEsIEI+KHNlbGY6IEtpbmQ8RiwgUiwgTywgRSwgQT4sIGY6IChhOiBBKSA9PiBCKTogS2luZDxGLCBSLCBPLCBFLCBCPjsNCiAgICB9Ow0KfQ0KZXhwb3J0IHR5cGUgS2luZDxGIGV4dGVuZHMgVHlwZUxhbWJkYSwgSW4sIE91dDIsIE91dDEsIFRhcmdldD4gPSBGIGV4dGVuZHMgew0KICAgIHJlYWRvbmx5IHR5cGU6IHVua25vd247DQp9ID8gKEYgJiB7DQogICAgcmVhZG9ubHkgSW46IEluOw0KICAgIHJlYWRvbmx5IE91dDI6IE91dDI7DQogICAgcmVhZG9ubHkgT3V0MTogT3V0MTsNCiAgICByZWFkb25seSBUYXJnZXQ6IFRhcmdldDsNCn0pWyJ0eXBlIl0gOiB7DQogICAgcmVhZG9ubHkgRjogRjsNCiAgICByZWFkb25seSBJbjogVHlwZXMuQ29udHJhdmFyaWFudDxJbj47DQogICAgcmVhZG9ubHkgT3V0MjogVHlwZXMuQ292YXJpYW50PE91dDI+Ow0KICAgIHJlYWRvbmx5IE91dDE6IFR5cGVzLkNvdmFyaWFudDxPdXQxPjsNCiAgICByZWFkb25seSBUYXJnZXQ6IFR5cGVzLkludmFyaWFudDxUYXJnZXQ+Ow0KfTsNCmV4cG9ydCBpbnRlcmZhY2UgU2VtaVByb2R1Y3Q8RiBleHRlbmRzIFR5cGVMYW1iZGE+IGV4dGVuZHMgSW52YXJpYW50PEY+IHsNCiAgICByZWFkb25seSBwcm9kdWN0OiA8UjEsIE8xLCBFMSwgQSwgUjIsIE8yLCBFMiwgQj4oc2VsZjogS2luZDxGLCBSMSwgTzEsIEUxLCBBPiwgdGhhdDogS2luZDxGLCBSMiwgTzIsIEUyLCBCPikgPT4gS2luZDxGLCBSMSAmIFIyLCBPMSB8IE8yLCBFMSB8IEUyLCBbQSwgQl0+Ow0KICAgIHJlYWRvbmx5IHByb2R1Y3RNYW55OiA8UiwgTywgRSwgQT4oc2VsZjogS2luZDxGLCBSLCBPLCBFLCBBPiwgY29sbGVjdGlvbjogSXRlcmFibGU8S2luZDxGLCBSLCBPLCBFLCBBPj4pID0+IEtpbmQ8RiwgUiwgTywgRSwgW0EsIC4uLkFycmF5PEE+XT47DQp9DQpleHBvcnQgaW50ZXJmYWNlIFNlbWlBcHBsaWNhdGl2ZTxGIGV4dGVuZHMgVHlwZUxhbWJkYT4gZXh0ZW5kcyBTZW1pUHJvZHVjdDxGPiwgQ292YXJpYW50PEY+IHsNCn0NCmV4cG9ydCBkZWNsYXJlIGNvbnN0IFNLOiA8QSwgQj4oXzogQSwgYjogQikgPT4gQjsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGR1YWw6IHsNCiAgICA8RGF0YUxhc3QgZXh0ZW5kcyAoLi4uYXJnczogQXJyYXk8YW55PikgPT4gYW55LCBEYXRhRmlyc3QgZXh0ZW5kcyAoLi4uYXJnczogQXJyYXk8YW55PikgPT4gYW55Pihhcml0eTogUGFyYW1ldGVyczxEYXRhRmlyc3Q+WyJsZW5ndGgiXSwgYm9keTogRGF0YUZpcnN0KTogRGF0YUxhc3QgJiBEYXRhRmlyc3Q7DQogICAgPERhdGFMYXN0IGV4dGVuZHMgKC4uLmFyZ3M6IEFycmF5PGFueT4pID0+IGFueSwgRGF0YUZpcnN0IGV4dGVuZHMgKC4uLmFyZ3M6IEFycmF5PGFueT4pID0+IGFueT4oaXNEYXRhRmlyc3Q6IChhcmdzOiBJQXJndW1lbnRzKSA9PiBib29sZWFuLCBib2R5OiBEYXRhRmlyc3QpOiBEYXRhTGFzdCAmIERhdGFGaXJzdDsNCn07DQpleHBvcnQgZGVjbGFyZSBjb25zdCB6aXBXaXRoOiA8RiBleHRlbmRzIFR5cGVMYW1iZGE+KEY6IFNlbWlBcHBsaWNhdGl2ZTxGPikgPT4gew0KICAgIDxSMiwgTzIsIEUyLCBCLCBBLCBDPih0aGF0OiBLaW5kPEYsIFIyLCBPMiwgRTIsIEI+LCBmOiAoYTogQSwgYjogQikgPT4gQyk6IDxSMSwgTzEsIEUxPihzZWxmOiBLaW5kPEYsIFIxLCBPMSwgRTEsIEE+KSA9PiBLaW5kPEYsIFIxICYgUjIsIE8yIHwgTzEsIEUyIHwgRTEsIEM+Ow0KICAgIDxSMSwgTzFfMSwgRTFfMSwgQV8xLCBSMiwgTzJfMSwgRTJfMSwgQl8xLCBDXzE+KHNlbGY6IEtpbmQ8RiwgUjEsIE8xXzEsIEUxXzEsIEFfMT4sIHRoYXQ6IEtpbmQ8RiwgUjIsIE8yXzEsIEUyXzEsIEJfMT4sIGY6IChhOiBBXzEsIGI6IEJfMSkgPT4gQ18xKTogS2luZDxGLCBSMSAmIFIyLCBPMV8xIHwgTzJfMSwgRTFfMSB8IEUyXzEsIENfMT47DQp9Ow0KZXhwb3J0IGRlY2xhcmUgY29uc3QgemlwUmlnaHQ6IDxGIGV4dGVuZHMgVHlwZUxhbWJkYT4oRjogU2VtaUFwcGxpY2F0aXZlPEY+KSA9PiB7DQogICAgPFIyLCBPMiwgRTIsIEI+KHRoYXQ6IEtpbmQ8RiwgUjIsIE8yLCBFMiwgQj4pOiA8UjEsIE8xLCBFMSwgXz4oc2VsZjogS2luZDxGLCBSMSwgTzEsIEUxLCBfPikgPT4gS2luZDxGLCBSMSAmIFIyLCBPMiB8IE8xLCBFMiB8IEUxLCBCPjsNCiAgICA8UjEsIE8xXzEsIEUxXzEsIF9fMSwgUjIsIE8yXzEsIEUyXzEsIEJfMT4oc2VsZjogS2luZDxGLCBSMSwgTzFfMSwgRTFfMSwgX18xPiwgdGhhdDogS2luZDxGLCBSMiwgTzJfMSwgRTJfMSwgQl8xPik6IEtpbmQ8RiwgUjEgJiBSMiwgTzFfMSB8IE8yXzEsIEUxXzEgfCBFMl8xLCBCXzE+Ow0KfTsNCg==",
+            "source_files": [
+              "/.src/declarationEmitHigherOrderRetainedGenerics.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "b9364a8a3ca5db34fbfeee3a0070d081b1362ea602a80e764ee7fd0bc0dbe97c"
+      },
+      "case_observation_fingerprint_sha256": "ef9c5cce79d4047de9ad21d2d5675996bef2579430413965fbc47d19497413b2"
     },
     {
       "case_id": "typescript-6.0.3/compiler/out-flag.ts#target%3Des2015",
@@ -13695,21 +15844,21 @@
     "declared_strata": 1,
     "curated_cases": 27,
     "stratum_cases": 67,
-    "cases": 94,
+    "cases": 112,
     "positive_cases": 87,
     "adjacent_negative_cases": 2,
     "composition_cases": 3,
     "fault_cases": 2,
-    "declaration_writes": 166,
-    "javascript_writes": 171,
+    "declaration_writes": 190,
+    "javascript_writes": 195,
     "source_map_writes": 134,
     "other_writes": 0,
-    "reported_diagnostics": 106,
-    "emit_diagnostics": 1,
-    "typescript_oracle_runs": 188,
-    "deterministic_cases": 94,
+    "reported_diagnostics": 127,
+    "emit_diagnostics": 13,
+    "typescript_oracle_runs": 224,
+    "deterministic_cases": 112,
     "rust_runs": 0
   },
-  "observation_content_roll_sha256": "9342bab43ff9eac77965617d7b564b10132f1a3d54c5b20df52468edefd22186",
-  "witnesses_fingerprint_sha256": "88722786d2224ae0757659bdba12a16594a83076d70ffc9655c0228fd5ee9ac8"
+  "observation_content_roll_sha256": "091cea9c5dd7a2c60a551d9292cd19832f9b71c77a28508eeae7252ccf556312",
+  "witnesses_fingerprint_sha256": "5f669ada78346bf938eb3da23de871a4d6426dab401e5ad5274839ca65beca8d"
 }

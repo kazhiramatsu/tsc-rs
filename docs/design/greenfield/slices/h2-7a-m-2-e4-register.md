@@ -85,14 +85,22 @@ Total events 15,845 across 112 cases.
   clean; synthetic-without-original counts are P4-frozen per §7.5).
 - floor miss: NO.
 
-## Final fingerprints (post-final-assembly mints)
+## Final fingerprints (post-final-assembly mints, 2026-09-01; both
+bindings machine-verified: probe pins the witness file sha, and the
+shared case-manifest fingerprint is identical in both artifacts)
 
-- witness artifact fingerprint: (filled at final mint)
-- witness case-manifest fingerprint: 89bb0627… (stable across
-  assembly re-mints; full value recorded at final mint)
-- probe artifact fingerprint: (filled at final mint)
-- witness artifact file sha256 pinned by the probe: (filled at
-  final mint)
+- witness artifact fingerprint:
+  5f669ada78346bf938eb3da23de871a4d6426dab401e5ad5274839ca65beca8d
+- witness case-manifest fingerprint:
+  89bb0627cee58b5d12aeb6fd5e95a92d26e1bbb54fd592750b49a34b64a89efb
+- probe artifact fingerprint:
+  34a0e69d990022b0a4ecc08e3415261587b66b5968b572bc7f796897de39b9df
+- witness artifact file sha256 (pinned by the probe):
+  e81e14e6e8de86460d569a0d3b7a8df95be94f18e596e5f79bb8d571ac5a602f
+- historical m-1 values (superseded): witnesses 88722786…, manifest
+  a70f750c…, probe cbae9498… (and the intermediate first-E3-mint
+  values 8c602766…/267b4f65… replaced by the packet-final
+  assembly).
 
 ## Harness constants for P4 transcription
 
