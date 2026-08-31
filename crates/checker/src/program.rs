@@ -1255,6 +1255,8 @@ impl<'a> ProgramBinder<'a> {
     /// Fallible counterpart to [`Self::symbol`] for externally supplied
     /// checker identities. Unlike the ordinary accessor, this never routes an
     /// unknown id into an arena index and therefore never panics.
+    /// tsrs-native: fallible symbol lookup for the emit-resolver
+    /// symbol-token validation boundary (h2-7a-m-2 §4).
     pub(crate) fn try_symbol(&self, id: SymbolId) -> Option<&Symbol> {
         if id.0 & TRANSIENT_SYMBOL_BIT != 0 {
             return self

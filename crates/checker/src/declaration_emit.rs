@@ -37,7 +37,7 @@ pub(crate) trait DeclarationEmitAccessibilityPrimitives {
     ) -> CheckResult<Vec<SymbolId>>;
 }
 
-/// tsc-port: getEmitDeclarations computeValue @6.0.3
+/// tsc-port: getEmitDeclarations @6.0.3
 /// tsc-hash: b592b5f4c632a60784ba25e59679201356befc86d16c5a441be6439b53a5150c
 /// tsc-span: _tsc.js:18151-18155
 pub(crate) fn emit_declarations(options: &CompilerOptions) -> bool {
@@ -667,7 +667,7 @@ impl CheckerState<'_> {
         None
     }
 
-    /// tsc-port: hasVisibleDeclarations (+ addVisibleAlias) @6.0.3
+    /// tsc-port: hasVisibleDeclarations @6.0.3
     /// tsc-hash: 3a5941173ae711a2e4bd9bf466cb674b521a0cb7cbd8c97fffdd7ac817dc4a6b
     /// tsc-span: _tsc.js:50544-50594
     pub(crate) fn has_visible_declarations_with_aliases(
@@ -1651,6 +1651,8 @@ impl CheckerState<'_> {
     /// declaration replay request. The request is consumed by the live
     /// CheckerState after the ordinary check pass and before that state is
     /// released. Nothing is injected into NodeLinks.
+    /// tsrs-native: harness-only replay observer seam (h2-7a-m-2 §7;
+    /// production-inert — no request, no effect).
     #[doc(hidden)]
     pub fn with_declaration_emit_replay_observer_for_harness<T>(
         request: serde_json::Value,
@@ -1680,6 +1682,8 @@ impl CheckerState<'_> {
         Ok((output, report))
     }
 
+    /// tsrs-native: harness-only replay driver behind the observer
+    /// seam (h2-7a-m-2 §7).
     pub(crate) fn run_declaration_emit_replay_observer_for_harness(&mut self) {
         let request = DECLARATION_REPLAY_PENDING.with(|slot| {
             slot.borrow_mut()
