@@ -414,10 +414,20 @@ impl EmitResolver for CheckerSession<'_> {
         meaning: EmitSymbolMeaning,
         should_compute_aliases: bool,
     ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError> {
-        let _ = (meaning, should_compute_aliases);
         let method = EmitResolverMethod::IsSymbolAccessible;
-        self.with_resolver_node_and_symbol(method, enclosing_declaration, symbol, |_, _, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, enclosing_declaration)))
+        self.with_resolver_node_and_symbol(
+            method,
+            enclosing_declaration,
+            symbol,
+            |state, enclosing_declaration, symbol| {
+                state.emit_is_symbol_accessible(
+                    symbol,
+                    enclosing_declaration,
+                    meaning,
+                    should_compute_aliases,
+                )
+            },
+        )
     }
 
     fn is_entity_name_visible(
@@ -430,15 +440,22 @@ impl EmitResolver for CheckerSession<'_> {
             method,
             entity_name,
             enclosing_declaration,
-            |_, _, _| Ok(()),
+            |state, entity_name, enclosing_declaration| {
+                state.emit_is_entity_name_visible(
+                    entity_name,
+                    enclosing_declaration,
+                    /*should_compute_aliases_to_make_visible*/ true,
+                )
+            },
         )
-        .and_then(|_| Err(unavailable(method, entity_name)))
     }
 
     fn is_declaration_visible(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
-        let method = EmitResolverMethod::IsDeclarationVisible;
-        self.with_resolver_node(method, node, |_, _| Ok(()))
-            .and_then(|_| Err(unavailable(method, node)))
+        self.with_resolver_node(
+            EmitResolverMethod::IsDeclarationVisible,
+            node,
+            CheckerState::emit_is_declaration_visible,
+        )
     }
 
     fn is_optional_parameter(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {

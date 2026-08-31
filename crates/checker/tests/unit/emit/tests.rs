@@ -3,17 +3,18 @@ use super::*;
 use std::{path::Path, sync::Arc};
 
 use serde_json::Value;
-use tsc_binder::BinderWorker;
+use tsc_binder::{node_util, BinderWorker};
 use tsc_diagnostics::{DocumentVersion, TextSnapshot};
 use tsc_emitter::{
     create_printer, get_script_transformers, get_script_transformers_for_source, transform_nodes,
     EmitHost, EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitResolverSymbol,
-    EmitSource, EmitSymbolMeaning, NewLineKind, PrintRequest, PrinterOptions, SourceFileId,
-    TransformArena, TransformRoot,
+    EmitSource, EmitSymbolAccessibility, EmitSymbolMeaning, NewLineKind, PrintRequest,
+    PrinterOptions, SourceFileId, TransformArena, TransformRoot,
 };
-use tsc_syntax::{LanguageVariant, NodeId, ParseOptions, SyntaxKind};
-use tsc_types::{CompilerOptions, IdentityDomain, ModuleKind, ScriptTarget};
+use tsc_syntax::{LanguageVariant, NodeData, NodeId, ParseOptions, SyntaxKind};
+use tsc_types::{CompilerOptions, IdentityDomain, ModuleKind, ScriptTarget, SymbolFlags};
 
+use crate::state::test_support::with_program_state;
 use crate::{BoundDocument, ParsedDocument, ProgramSnapshot};
 
 const ACTIVE_TRANSFORM_ORACLE: &[u8] = include_bytes!(concat!(
@@ -223,8 +224,8 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
                 ..
             })
         ));
-        assert!(matches!(
-            resolver.is_symbol_accessible(
+        let accessibility = resolver
+            .is_symbol_accessible(
                 EmitResolverSymbol {
                     session_token: session.session_token,
                     symbol_index,
@@ -232,26 +233,18 @@ fn scoped_emit_resolver_reads_live_alias_and_constant_links_and_fails_closed_els
                 node(export_aliases[0]),
                 EmitSymbolMeaning::VALUE_EXPORT_VALUE,
                 true,
-            ),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsSymbolAccessible,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.is_entity_name_visible(node(export_aliases[0]), node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsEntityNameVisible,
-                ..
-            })
-        ));
-        assert!(matches!(
-            resolver.is_declaration_visible(node(export_aliases[0])),
-            Err(EmitResolverError::Unavailable {
-                method: EmitResolverMethod::IsDeclarationVisible,
-                ..
-            })
-        ));
+            )
+            .expect("visibility-cluster symbol query");
+        assert_ne!(
+            accessibility.accessibility,
+            EmitSymbolAccessibility::NotResolved
+        );
+        resolver
+            .is_entity_name_visible(node(export_aliases[0]), node(export_aliases[0]))
+            .expect("visibility-cluster entity query");
+        assert!(!resolver
+            .is_declaration_visible(node(export_aliases[0]))
+            .expect("visibility-cluster declaration query"));
         assert!(matches!(
             resolver.is_optional_parameter(node(export_aliases[0])),
             Err(EmitResolverError::Unavailable {
@@ -393,6 +386,460 @@ fn emit_resolver_validates_symbol_session_before_symbol_bounds() {
             })
         ));
     });
+}
+
+#[test]
+fn dm_visibility_walk_collects_and_monotonically_paints_linked_aliases() {
+    let source = concat!(
+        "namespace N { export class Value {} }\n",
+        "import Alias = N.Value;\n",
+        "export = Alias;\n",
+    );
+    with_program_state(&[("a.ts", source)], &CompilerOptions::default(), |state| {
+        let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
+        let import_equals = nodes
+            .iter()
+            .copied()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ImportEqualsDeclaration)
+            .expect("internal import-equals declaration");
+        let namespace = nodes
+            .iter()
+            .copied()
+            .find(|&node| {
+                matches!(
+                    state.data_of(node),
+                    NodeData::ModuleDeclaration(data)
+                        if data.name.is_some_and(|name| {
+                            state.identifier_text_of(name) == Some("N")
+                        })
+                )
+            })
+            .expect("linked namespace declaration");
+        let export_name = nodes
+            .iter()
+            .copied()
+            .find(|&node| {
+                state.kind_of(node) == SyntaxKind::Identifier
+                    && state.identifier_text_of(node) == Some("Alias")
+                    && state
+                        .parent_of(node)
+                        .is_some_and(|parent| state.kind_of(parent) == SyntaxKind::ExportAssignment)
+            })
+            .expect("export-assignment identifier");
+
+        assert_eq!(state.links.node(import_equals).is_visible, None);
+        assert!(!state
+            .emit_is_declaration_visible(import_equals)
+            .expect("initial visibility memo"));
+        assert_eq!(state.links.node(import_equals).is_visible, Some(false));
+
+        let collected = state
+            .collect_linked_aliases(export_name, /*set_visibility*/ false)
+            .expect("collect branch")
+            .expect("linked alias nodes");
+        assert_eq!(collected, vec![import_equals, namespace]);
+        assert_eq!(state.links.node(import_equals).is_visible, Some(false));
+        assert_eq!(state.links.node(namespace).is_visible, None);
+
+        assert_eq!(
+            state
+                .collect_linked_aliases(export_name, /*set_visibility*/ true)
+                .expect("paint branch"),
+            None
+        );
+        assert_eq!(state.links.node(import_equals).is_visible, Some(true));
+        assert_eq!(state.links.node(namespace).is_visible, Some(true));
+        assert!(state
+            .emit_is_declaration_visible(import_equals)
+            .expect("painted visibility query"));
+        assert!(state
+            .emit_is_declaration_visible(import_equals)
+            .expect("repeated painted visibility query"));
+    });
+}
+
+#[test]
+fn dm_check_phase_paints_both_export_alias_arms_only_for_declaration_outputs() {
+    let files = [
+        (
+            "assignment.ts",
+            concat!(
+                "namespace A { export class Value {} }\n",
+                "import AssignmentAlias = A.Value;\n",
+                "export = AssignmentAlias;\n",
+            ),
+        ),
+        (
+            "specifier.ts",
+            concat!(
+                "namespace S { export class Value {} }\n",
+                "import SpecifierAlias = S.Value;\n",
+                "export { SpecifierAlias };\n",
+            ),
+        ),
+    ];
+
+    let visibility_after_check = |options: &CompilerOptions| {
+        with_program_state(&files, options, |state| {
+            state.check_source_file(0);
+            state.check_source_file(1);
+            (0..2)
+                .map(|file| {
+                    let declaration = state
+                        .binder
+                        .source(file)
+                        .arena
+                        .node_ids()
+                        .find(|&node| state.kind_of(node) == SyntaxKind::ImportEqualsDeclaration)
+                        .expect("import-equals declaration");
+                    state.links.node(declaration).is_visible
+                })
+                .collect::<Vec<_>>()
+        })
+    };
+
+    assert_eq!(
+        visibility_after_check(&CompilerOptions::default()),
+        vec![None, None]
+    );
+    let declaration_options = CompilerOptions {
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    assert_eq!(
+        visibility_after_check(&declaration_options),
+        vec![Some(true), Some(true)]
+    );
+}
+
+#[test]
+fn dm_symbol_and_entity_visibility_preserve_result_codes_aliases_and_error_nodes() {
+    let files = [
+        ("dep.ts", "export class Public {}\nclass Hidden {}\n"),
+        (
+            "main.ts",
+            concat!(
+                "import { Public } from \"./dep\";\n",
+                "export const callable = function privateName() { return 1; };\n",
+                "export interface Use { remote: Public; missing: Missing; }\n",
+                "export interface Box<T> { value: T; }\n",
+                "export class ThisBox { current!: typeof this; }\n",
+            ),
+        ),
+        ("consumer.js", "export {};\n"),
+    ];
+    with_program_state(&files, &CompilerOptions::default(), |state| {
+        let named_declaration =
+            |state: &CheckerState<'_>, file: usize, kind: SyntaxKind, expected: &str| {
+                state
+                    .binder
+                    .source(file)
+                    .arena
+                    .node_ids()
+                    .find(|&node| {
+                        if state.kind_of(node) != kind {
+                            return false;
+                        }
+                        node_util::get_name_of_declaration(state.binder.source_of_node(node), node)
+                            .is_some_and(|name| state.identifier_text_of(name) == Some(expected))
+                    })
+                    .unwrap_or_else(|| panic!("missing {kind:?} {expected}"))
+            };
+        let public = named_declaration(state, 0, SyntaxKind::ClassDeclaration, "Public");
+        let hidden = named_declaration(state, 0, SyntaxKind::ClassDeclaration, "Hidden");
+        let private_function =
+            named_declaration(state, 1, SyntaxKind::FunctionExpression, "privateName");
+        let use_declaration = named_declaration(state, 1, SyntaxKind::InterfaceDeclaration, "Use");
+        let box_declaration = named_declaration(state, 1, SyntaxKind::InterfaceDeclaration, "Box");
+        let this_box = named_declaration(state, 1, SyntaxKind::ClassDeclaration, "ThisBox");
+        let import_specifier = state
+            .binder
+            .source(1)
+            .arena
+            .node_ids()
+            .find(|&node| state.kind_of(node) == SyntaxKind::ImportSpecifier)
+            .expect("Public import specifier");
+        let type_reference = |expected: &str| {
+            state
+                .binder
+                .source(1)
+                .arena
+                .node_ids()
+                .find(|&node| {
+                    state.kind_of(node) == SyntaxKind::Identifier
+                        && state.identifier_text_of(node) == Some(expected)
+                        && state.parent_of(node).is_some_and(|parent| {
+                            state.kind_of(parent) == SyntaxKind::TypeReference
+                        })
+                })
+                .unwrap_or_else(|| panic!("missing type reference {expected}"))
+        };
+        let public_reference = type_reference("Public");
+        let missing_reference = type_reference("Missing");
+        let type_parameter_reference = type_reference("T");
+        let this_reference = state
+            .binder
+            .source(1)
+            .arena
+            .node_ids()
+            .find(|&node| {
+                state
+                    .parent_of(node)
+                    .is_some_and(|parent| state.kind_of(parent) == SyntaxKind::TypeQuery)
+                    && state.text_of_node(node).ok().as_deref() == Some("this")
+            })
+            .expect("this type-query reference");
+        let symbols = [public, hidden, private_function].map(|declaration| {
+            state
+                .node_symbol(declaration)
+                .expect("named declaration symbol")
+        });
+
+        state.check_source_file(0);
+        state.check_source_file(1);
+        state.check_source_file(2);
+        let node = |id| EmitResolverNode::from_raw_source(1, id);
+        assert!(state
+            .emit_is_declaration_visible(use_declaration)
+            .expect("exported interface visibility"));
+        assert!(!state
+            .emit_is_declaration_visible(private_function)
+            .expect("private function-expression visibility"));
+
+        let absent_symbol = state
+            .is_symbol_accessible_worker(
+                None,
+                Some(use_declaration),
+                SymbolFlags::TYPE,
+                /*should_compute_aliases_to_make_visible*/ true,
+                /*allow_modules*/ true,
+            )
+            .expect("absent-symbol worker arm");
+        assert_eq!(
+            absent_symbol.accessibility,
+            EmitSymbolAccessibility::Accessible
+        );
+        let public_access = state
+            .emit_is_symbol_accessible(
+                symbols[0],
+                use_declaration,
+                EmitSymbolMeaning::TYPE,
+                /*should_compute_aliases_to_make_visible*/ false,
+            )
+            .expect("exported external symbol accessibility");
+        assert_eq!(
+            public_access.accessibility,
+            EmitSymbolAccessibility::Accessible
+        );
+
+        let hidden_access = state
+            .emit_is_symbol_accessible(symbols[1], use_declaration, EmitSymbolMeaning::TYPE, true)
+            .expect("private external symbol accessibility");
+        assert_eq!(
+            hidden_access.accessibility,
+            EmitSymbolAccessibility::CannotBeNamed
+        );
+        assert_eq!(hidden_access.error_symbol_name.as_deref(), Some("Hidden"));
+        assert!(hidden_access.error_module_name.is_some());
+        assert_eq!(hidden_access.error_node, None);
+
+        let consumer_root = state.binder.source(2).root;
+        let hidden_from_js = state
+            .emit_is_symbol_accessible(symbols[1], consumer_root, EmitSymbolMeaning::TYPE, true)
+            .expect("private external symbol accessibility from JavaScript");
+        assert_eq!(
+            hidden_from_js.accessibility,
+            EmitSymbolAccessibility::CannotBeNamed
+        );
+        assert_eq!(
+            hidden_from_js.error_node,
+            Some(EmitResolverNode::from_raw_source(2, consumer_root))
+        );
+
+        let private_access = state
+            .emit_is_symbol_accessible(
+                symbols[2],
+                private_function,
+                EmitSymbolMeaning::VALUE_EXPORT_VALUE,
+                true,
+            )
+            .expect("private same-module symbol accessibility");
+        assert_eq!(
+            private_access.accessibility,
+            EmitSymbolAccessibility::NotAccessible
+        );
+        assert_eq!(
+            private_access.error_symbol_name.as_deref(),
+            Some("privateName")
+        );
+
+        let public_entity = state
+            .emit_is_entity_name_visible(
+                public_reference,
+                use_declaration,
+                /*should_compute_aliases_to_make_visible*/ true,
+            )
+            .expect("imported entity visibility");
+        assert_eq!(
+            public_entity.accessibility,
+            EmitSymbolAccessibility::Accessible
+        );
+        assert_eq!(
+            public_entity.aliases_to_make_visible,
+            Some(vec![EmitResolverNode::from_raw_source(
+                1,
+                state
+                    .parent_of(import_specifier)
+                    .and_then(|parent| state.parent_of(parent))
+                    .and_then(|parent| state.parent_of(parent))
+                    .expect("owning import declaration"),
+            )])
+        );
+        assert!(state
+            .emit_is_declaration_visible(import_specifier)
+            .expect("alias-painted import specifier"));
+        assert!(state
+            .emit_is_declaration_visible(import_specifier)
+            .expect("repeated alias-painted import specifier"));
+
+        let missing = state
+            .emit_is_entity_name_visible(
+                missing_reference,
+                use_declaration,
+                /*should_compute_aliases_to_make_visible*/ true,
+            )
+            .expect("unresolved entity visibility");
+        assert_eq!(missing.accessibility, EmitSymbolAccessibility::NotResolved);
+        assert_eq!(missing.error_symbol_name.as_deref(), Some("Missing"));
+        assert_eq!(missing.error_node, Some(node(missing_reference)));
+
+        let type_parameter = state
+            .emit_is_entity_name_visible(
+                type_parameter_reference,
+                box_declaration,
+                /*should_compute_aliases_to_make_visible*/ true,
+            )
+            .expect("type-parameter entity visibility");
+        assert_eq!(
+            type_parameter.accessibility,
+            EmitSymbolAccessibility::Accessible
+        );
+
+        let this_entity = state
+            .emit_is_entity_name_visible(
+                this_reference,
+                this_box,
+                /*should_compute_aliases_to_make_visible*/ true,
+            )
+            .expect("this-container entity visibility");
+        assert_eq!(
+            this_entity.accessibility,
+            EmitSymbolAccessibility::Accessible
+        );
+    });
+}
+
+#[test]
+fn dm_meaning_classification_table_and_emit_declaration_gate_are_exact() {
+    let source = concat!(
+        "declare const value: unknown;\n",
+        "declare const key: unique symbol;\n",
+        "type Query = typeof value;\n",
+        "type Computed = { [key]: string };\n",
+        "class Base<T> {}\n",
+        "class Derived extends Base<string> {}\n",
+        "namespace Ns { export type T = string; }\n",
+        "type Qualified = Ns.T;\n",
+        "import Alias = Ns;\n",
+        "function predicate(x: unknown): x is string { return true; }\n",
+        "type Plain = Base<string>;\n",
+    );
+    with_program_state(
+        &[("meaning.ts", source)],
+        &CompilerOptions::default(),
+        |state| {
+            let nodes = state.binder.source(0).arena.node_ids().collect::<Vec<_>>();
+            let identifier_with_parent = |text: &str, parent_kind: SyntaxKind| {
+                nodes
+                    .iter()
+                    .copied()
+                    .find(|&node| {
+                        state.kind_of(node) == SyntaxKind::Identifier
+                            && state.identifier_text_of(node) == Some(text)
+                            && state
+                                .parent_of(node)
+                                .is_some_and(|parent| state.kind_of(parent) == parent_kind)
+                    })
+                    .unwrap_or_else(|| panic!("missing {text} under {parent_kind:?}"))
+            };
+            let type_query = identifier_with_parent("value", SyntaxKind::TypeQuery);
+            let computed = identifier_with_parent("key", SyntaxKind::ComputedPropertyName);
+            let heritage = identifier_with_parent("Base", SyntaxKind::ExpressionWithTypeArguments);
+            let qualified_left = identifier_with_parent("Ns", SyntaxKind::QualifiedName);
+            let import_equals = identifier_with_parent("Ns", SyntaxKind::ImportEqualsDeclaration);
+            let plain_type = nodes
+                .iter()
+                .copied()
+                .rev()
+                .find(|&node| {
+                    state.kind_of(node) == SyntaxKind::Identifier
+                        && state.identifier_text_of(node) == Some("Base")
+                        && state.parent_of(node).is_some_and(|parent| {
+                            state.kind_of(parent) == SyntaxKind::TypeReference
+                        })
+                })
+                .expect("plain type reference");
+            let predicate_parameter = nodes
+                .iter()
+                .copied()
+                .find(|&node| {
+                    state.parent_of(node).is_some_and(|parent| {
+                        matches!(
+                            state.data_of(parent),
+                            NodeData::TypePredicate(data)
+                                if data.parameter_name == Some(node)
+                        )
+                    })
+                })
+                .expect("type-predicate parameter name");
+            let qualified = state.parent_of(qualified_left).expect("qualified name");
+
+            let rows = [
+                (type_query, EmitSymbolMeaning::VALUE_EXPORT_VALUE),
+                (computed, EmitSymbolMeaning::VALUE_EXPORT_VALUE),
+                (heritage, EmitSymbolMeaning::VALUE_EXPORT_VALUE),
+                (predicate_parameter, EmitSymbolMeaning::VALUE_EXPORT_VALUE),
+                (qualified_left, EmitSymbolMeaning::NAMESPACE),
+                (qualified, EmitSymbolMeaning::NAMESPACE),
+                (import_equals, EmitSymbolMeaning::NAMESPACE),
+                (plain_type, EmitSymbolMeaning::TYPE),
+            ];
+            for (node, expected) in rows {
+                assert_eq!(
+                    state.get_meaning_of_entity_name_reference(node),
+                    expected,
+                    "meaning for {:?}",
+                    state.kind_of(node),
+                );
+            }
+        },
+    );
+
+    assert!(!crate::declaration_emit::emit_declarations(
+        &CompilerOptions::default()
+    ));
+    assert!(crate::declaration_emit::emit_declarations(
+        &CompilerOptions {
+            declaration: Some(true),
+            ..CompilerOptions::default()
+        }
+    ));
+    assert!(crate::declaration_emit::emit_declarations(
+        &CompilerOptions {
+            composite: Some(true),
+            ..CompilerOptions::default()
+        }
+    ));
 }
 
 #[test]
