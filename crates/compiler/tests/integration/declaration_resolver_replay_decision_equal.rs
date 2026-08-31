@@ -30,14 +30,18 @@ const CONFORMANCE_EXPANSION: &[u8] = include_bytes!(concat!(
     "/../../vendor/typescript-6.0.3/conformance-suite-expansion.v1.json"
 ));
 
-const EXPECTED_WITNESS_FINGERPRINT: &str =
-    "5f669ada78346bf938eb3da23de871a4d6426dab401e5ad5274839ca65beca8d";
+// Frozen OBSERVATION identity (register disposition 7): the case
+// manifest fingerprint and the observation/trace content rolls pin
+// the frozen evidence itself and are byte-stable across oracle-chain
+// assembly re-mints (whole-artifact fingerprints move whenever any
+// upstream ratchet re-pins its embedded hashes, so they are recorded
+// in the register, not asserted here).
 const EXPECTED_MANIFEST_FINGERPRINT: &str =
     "89bb0627cee58b5d12aeb6fd5e95a92d26e1bbb54fd592750b49a34b64a89efb";
-const EXPECTED_PROBE_FINGERPRINT: &str =
-    "34a0e69d990022b0a4ecc08e3415261587b66b5968b572bc7f796897de39b9df";
-const EXPECTED_WITNESS_FILE_SHA256: &str =
-    "e81e14e6e8de86460d569a0d3b7a8df95be94f18e596e5f79bb8d571ac5a602f";
+const EXPECTED_WITNESS_OBSERVATION_ROLL: &str =
+    "091cea9c5dd7a2c60a551d9292cd19832f9b71c77a28508eeae7252ccf556312";
+const EXPECTED_PROBE_TRACE_ROLL: &str =
+    "dcf1243f5b8f3187631349657ab07c05a5c52270fd564d415687a1ad76bcb6d9";
 
 // Artifact upper-envelope constants transcribed from the FINAL E4 register.
 const EXPECTED_EVENT_VOLUMES: &[(&str, u64)] = &[
@@ -121,7 +125,7 @@ const EXPECTED_MEMBER_COUNTS: &[(&str, [u64; 6])] = &[
 
 #[derive(Debug, Deserialize)]
 struct WitnessArtifact {
-    witnesses_fingerprint_sha256: String,
+    observation_content_roll_sha256: String,
     case_manifest: CaseManifest,
 }
 
@@ -154,7 +158,6 @@ struct ManifestInput {
 
 #[derive(Debug, Deserialize)]
 struct ProbeArtifact {
-    probe_traces_fingerprint_sha256: String,
     case_manifest_fingerprint: String,
     witnesses: PathHash,
     summary: ProbeSummary,
@@ -169,6 +172,7 @@ struct PathHash {
 #[derive(Debug, Deserialize)]
 struct ProbeSummary {
     cases: u64,
+    trace_content_roll: String,
     per_site_counts: BTreeMap<String, u64>,
 }
 
@@ -314,23 +318,22 @@ fn limits() -> ProgramLoadLimits {
 
 fn assert_frozen_artifact_identity(witnesses: &WitnessArtifact, probes: &ProbeArtifact) {
     assert_eq!(
-        witnesses.witnesses_fingerprint_sha256,
-        EXPECTED_WITNESS_FINGERPRINT
-    );
-    assert_eq!(
         witnesses.case_manifest.case_manifest_fingerprint,
         EXPECTED_MANIFEST_FINGERPRINT
     );
     assert_eq!(
-        probes.probe_traces_fingerprint_sha256,
-        EXPECTED_PROBE_FINGERPRINT
+        witnesses.observation_content_roll_sha256,
+        EXPECTED_WITNESS_OBSERVATION_ROLL
     );
     assert_eq!(
         probes.case_manifest_fingerprint,
         EXPECTED_MANIFEST_FINGERPRINT
     );
-    assert_eq!(probes.witnesses.sha256, EXPECTED_WITNESS_FILE_SHA256);
-    assert_eq!(sha256(WITNESSES), EXPECTED_WITNESS_FILE_SHA256);
+    assert_eq!(probes.summary.trace_content_roll, EXPECTED_PROBE_TRACE_ROLL);
+    // The probe->witness binding: the probe pins the exact witness
+    // artifact bytes it observed against; assert the pin matches the
+    // checked-in witness file so the pair cannot drift apart.
+    assert_eq!(probes.witnesses.sha256, sha256(WITNESSES));
     assert_eq!(witnesses.case_manifest.cases.len(), 112);
     assert_eq!(probes.summary.cases, 112);
     assert_eq!(probes.cases.len(), 112);

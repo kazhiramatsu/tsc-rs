@@ -133,3 +133,15 @@ envelope.
   trait type already permits it; the worker rule follows the traces
   and the vendored composition spans. (P4 harness discovery,
   2026-09-01.)
+
+- **Disposition 7 (P6, harness identity):** the replay harness pins
+  the frozen OBSERVATION identity — case-manifest fingerprint
+  (89bb0627…), witness observation_content_roll (091cea9c…), probe
+  trace_content_roll (dcf1243f…) and the probe→witness file-sha PAIR
+  consistency — instead of whole-artifact fingerprints, which move
+  whenever any upstream ratchet re-pin re-embeds hashes (walk-5
+  chain re-mint moved witnesses/probe files while both content
+  rolls and the manifest stayed byte-identical). Whole-file
+  fingerprints remain register-recorded succession values, not
+  harness assertions. Final artifact fingerprints at the walk head
+  are recorded by the walk cert / close record.
