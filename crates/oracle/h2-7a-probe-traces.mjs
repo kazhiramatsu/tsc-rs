@@ -2409,16 +2409,16 @@ function validateNonCallArgs(event, state, label) {
 }
 
 function programRootSubstrings(control) {
-  // Machine-specific roots only. Canonical virtual overlay roots
-  // (control.roots, e.g. "/.src") are legitimate recorded content:
-  // external-module symbols are NAMED by their virtual path, so
-  // errorModuleName/escapedName must be able to carry them
+  // Machine-specific roots only. Canonical VIRTUAL paths —
+  // control.roots ("/.src", …) AND control.current_directory (the
+  // virtual compiler cwd, also "/.src") — are legitimate recorded
+  // content: external-module symbols are NAMED by their virtual
+  // path, so errorModuleName/escapedName must be able to carry
+  // them. v1 never tripped on these entries only because its
+  // slash-stripping sanitized every recorded string
   // (h2-7a-m-2.md §6.4 hygiene intent; E3 repair 2026-08-31).
-  const values = new Set([
-    WORKSPACE,
-    fs.realpathSync(WORKSPACE),
-    control.current_directory,
-  ]);
+  const values = new Set([WORKSPACE, fs.realpathSync(WORKSPACE)]);
+  void control;
   return [...values]
     .filter((value) => typeof value === "string" && value.length > 1)
     .flatMap((value) => [value, value.replace(/\\/g, "/")])
