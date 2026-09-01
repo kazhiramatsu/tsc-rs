@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-profile.mjs",
-    "sha256": "64e9ea6225283a681914e68c74edc4cca6beff165e9b11a47c5c682dc5800d4e"
+    "sha256": "8113299c55819c5a990a1829310185d08112de2bab469bcb20564648e3499b99"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-profile.schema.json",
@@ -28,19 +28,19 @@
     "historical": {
       "profile": {
         "path": "ratchets/h2-2a-profile.v1.json",
-        "sha256": "499f69d54c02b66750d7c6b54faf875deed7679f688c5134344a3260c661ac6e"
+        "sha256": "cf954c03e474c8cc1fd6256842500dfedc6d9b78f1c0ef0b662f2a64b72cea65"
       },
       "qualification": {
         "path": "ratchets/h2-2a-qualification.v1.json",
-        "sha256": "a20512331d18772f570600aea3edc750809779e06bf1e360b7a994e0e125c354"
+        "sha256": "827318efe81b066c04ebb2b3c23b9f4128cde43552f42003c2cffbb3c1cf28b1"
       },
       "profile_generator": {
         "path": "crates/oracle/h2-2a-profile.mjs",
-        "sha256": "30fd3705c9ce7571f7cdbf69cb8bffa28e260ea6878f5629c33f45c320222edd"
+        "sha256": "cb6f62b9f4623d01d8c970f44204a88caadca374e4df487f1bcdd0217620a16e"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-2a-qualification.mjs",
-        "sha256": "994b740484bf4f2db46b2e543f8f123d951e4d3d79349ce6ee7d5f293ba0bc71"
+        "sha256": "f3a355ada9d7ae3a17301b9f566a1df57f50660bafd5190a6e3622cfb6857f93"
       },
       "profile_contract": {
         "path": ".github/ci/contracts/h2-2a-profile.schema.json",
@@ -55,12 +55,12 @@
   },
   "qualification": {
     "path": "ratchets/h2-2b-qualification.v1.json",
-    "sha256": "211fe60f832317f3b6986127e9f58136d044c55c9725a6b9deba5780f6c52c94"
+    "sha256": "aeffaed01a6d41f540baf61d2a099b5947d4c70b020a3e26c6f702aa7d62b2ee"
   },
   "runtime_inputs": [
     {
       "path": "crates/checker/src/emit.rs",
-      "sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
+      "sha256": "b781893eabf9a6636a1785e2cce1f19f2e6bcbbce0c39117a73ac0abf47f4a2e"
     },
     {
       "path": "crates/checker/src/evaluate.rs",
@@ -68,7 +68,7 @@
     },
     {
       "path": "crates/checker/src/modules.rs",
-      "sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+      "sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
     },
     {
       "path": "crates/compiler/src/lib.rs",
@@ -116,7 +116,7 @@
     },
     {
       "path": "crates/emitter/src/lib.rs",
-      "sha256": "02cbe87b7e4c42789a90e0fc2e33c0ca76f2a685ea0617a5deda641f83b7e537"
+      "sha256": "22eb7488019539e6bf4b3cec3f74b24e4641ad8333b49884c88adc79233ce24b"
     },
     {
       "path": "crates/emitter/src/metadata.rs",
@@ -128,7 +128,7 @@
     },
     {
       "path": "crates/emitter/src/resolver.rs",
-      "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+      "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
     },
     {
       "path": "crates/emitter/src/transform.rs",
@@ -283,7 +283,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "8799210c7beb8dc8020ab51d8510cd9baeda1ace9bcdb5c26e76f280ec169f4b"
+      "sha256": "02ed2825900cdfd5618df5f13029d8a8ea1b7101f9e51af9f00d5596c81751aa"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -291,7 +291,7 @@
     },
     "historical_h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "499f69d54c02b66750d7c6b54faf875deed7679f688c5134344a3260c661ac6e"
+      "sha256": "cf954c03e474c8cc1fd6256842500dfedc6d9b78f1c0ef0b662f2a64b72cea65"
     },
     "local_full_gate": "cargo xtask ci --baseline c402252a0d9df4ca0f5332c7f64084087fe55886",
     "hosted_gate": "cargo xtask acceptance",
@@ -307,5 +307,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "6110f190967ff3808150ea1c423ee0f4618c1089e1156c73b7f7c8753d10dbd4"
+  "profile_fingerprint_sha256": "de498c85f0be07434ae8785819f594449ea920f27c1b71d53eb07f497e4a8770"
 }

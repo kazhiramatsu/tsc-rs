@@ -8,7 +8,7 @@
   },
   "generator": {
     "path": "crates/oracle/h1-rust-omission-inventory.mjs",
-    "sha256": "66327ef871e455d799c92bb1ecb6b1b8eb118ab6f3c6e32e43582993603e6924"
+    "sha256": "77a0006afe8f87540e667e8cbe029d5914488370a800a5fbec05af3fa2ea91cb"
   },
   "contract": {
     "path": ".github/ci/contracts/h1-rust-omissions.schema.json",
@@ -39,11 +39,11 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 238,
-    "rust_source_files": 223,
+    "file_count": 239,
+    "rust_source_files": 224,
     "cargo_manifests": 15,
-    "bytes": 17434546,
-    "tree_sha256": "eaa5f97b0ac61c6a3597e9585c86b3e57865e1ff7431187438811b86e0fe069f"
+    "bytes": 17576047,
+    "tree_sha256": "c4bd84f6230dcb44dd541f748f2f94ae1a08058fa328319c2e5e2b6d71378ad1"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -510,11 +510,11 @@
       {
         "id": "emitter-resolver-protocol",
         "path": "crates/emitter/src/resolver.rs",
-        "line": 218,
+        "line": 318,
         "column": 1,
         "text": "pub trait EmitResolver {",
         "text_sha256": "ae109ea619b5241506500e367bb7aae9e5f56333941a673b9fbaf5c412e8f0fd",
-        "file_sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+        "file_sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
       },
       {
         "id": "emitter-script-transformer-selection",
@@ -564,20 +564,20 @@
       {
         "id": "checker-scoped-emit-session",
         "path": "crates/checker/src/emit.rs",
-        "line": 19,
+        "line": 24,
         "column": 1,
         "text": "pub struct CheckerSession<'program> {",
         "text_sha256": "c116253f653dd9a956605df77c212d4cdf2f1de1f490f223842fce7f005920ca",
-        "file_sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
+        "file_sha256": "b781893eabf9a6636a1785e2cce1f19f2e6bcbbce0c39117a73ac0abf47f4a2e"
       },
       {
         "id": "checker-emit-resolver-adapter",
         "path": "crates/checker/src/emit.rs",
-        "line": 102,
+        "line": 133,
         "column": 1,
         "text": "impl EmitResolver for CheckerSession<'_> {",
         "text_sha256": "a3574a190846d6bbe3db3311fedd3678739660afbe2f1b146111edcceccbb1cd",
-        "file_sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
+        "file_sha256": "b781893eabf9a6636a1785e2cce1f19f2e6bcbbce0c39117a73ac0abf47f4a2e"
       },
       {
         "id": "checker-value-alias-producer",
@@ -586,7 +586,7 @@
         "column": 5,
         "text": "pub(crate) fn emit_is_value_alias_declaration(",
         "text_sha256": "df1c2306bb3ade145585e2643e6444cdefa71cb6fa5e7607eaafbc121c57f4c9",
-        "file_sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
       },
       {
         "id": "checker-referenced-alias-producer",
@@ -595,7 +595,7 @@
         "column": 5,
         "text": "pub(crate) fn emit_is_referenced_alias_declaration(",
         "text_sha256": "13ff591fc4def3e7f9b8c6325ea63baf7939970e1cdeac1f9f3efa84aa3d6fb8",
-        "file_sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
       },
       {
         "id": "active-transform-oracle",
@@ -681,11 +681,11 @@
       {
         "id": "checker-live-emit-callback",
         "path": "crates/checker/src/lib.rs",
-        "line": 1315,
+        "line": 1316,
         "column": 1,
         "text": "pub fn check_program_with_authoritative_modules_at_for_emit(",
         "text_sha256": "9a6778daa37b4dbd06c9aea5c03e49a2d7cf3cc17acd8bf568158f3f81e7a154",
-        "file_sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f"
+        "file_sha256": "de596ef1bcbac584bdfdf4ce29ced8d94fa6b40e79264f7326936fcb4610c917"
       },
       {
         "id": "h1-no-emit-canary",
@@ -699,20 +699,20 @@
       {
         "id": "checker-session-local-state",
         "path": "crates/checker/src/lib.rs",
-        "line": 1829,
+        "line": 1830,
         "column": 9,
         "text": "let mut state = state::CheckerState::from_snapshot(&snapshot, options);",
         "text_sha256": "66431a38f7144074bc77255200f22293db4d3cec0c2a25e8f9803518da8f1b6a",
-        "file_sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f"
+        "file_sha256": "de596ef1bcbac584bdfdf4ce29ced8d94fa6b40e79264f7326936fcb4610c917"
       },
       {
         "id": "checker-state-collapse",
         "path": "crates/checker/src/lib.rs",
-        "line": 2012,
+        "line": 2013,
         "column": 9,
         "text": "partial_checks = state.partial_check_records.clone();\n        authoritative_failure = state.take_authoritative_module_failure();",
         "text_sha256": "8c4b08d85fa65cffc07ed4b19a65542608d4991af99d50672f5fe53d65d75885",
-        "file_sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f"
+        "file_sha256": "de596ef1bcbac584bdfdf4ce29ced8d94fa6b40e79264f7326936fcb4610c917"
       },
       {
         "id": "display-clone-not-emitter",
@@ -753,11 +753,11 @@
       {
         "id": "checker-authoritative-emit-facts",
         "path": "crates/checker/src/lib.rs",
-        "line": 134,
+        "line": 135,
         "column": 5,
         "text": "pub may_be_emitted: bool,\n    /// Raw `SourceFile.impliedNodeFormat`",
         "text_sha256": "3d4ae97d2c33a29370c93a0ac34ff42c614ac8cac2f3d8cf8a1291f4bfa10444",
-        "file_sha256": "530c6b1c28c0c0f9803b8b209ea5db9b13db776f9678946aad5355f98264ef9f"
+        "file_sha256": "de596ef1bcbac584bdfdf4ce29ced8d94fa6b40e79264f7326936fcb4610c917"
       },
       {
         "id": "compiler-options-current-shape",
@@ -910,7 +910,7 @@
         "column": 1,
         "text": "pub struct ProgramSnapshot {",
         "text_sha256": "fb951bcb22124d9299bd8c6db9cbecab03b8f7fa17ce5ed47c9a5a0c19f39422",
-        "file_sha256": "0367bd0712a0d1e53315b8399806ba93cc108729871253f5311305e8aa2b48da"
+        "file_sha256": "b04b89bebc3ec3929272eae20b30d9aa158301e3cc11c0b7dd904c188bf3d653"
       },
       {
         "id": "constructor-capture-this-elided",
@@ -942,20 +942,20 @@
       {
         "id": "import-equals-linked-references-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 9188,
+        "line": 9216,
         "column": 52,
         "text": "markLinkedReferences'\n    /// declaration-emit traversal remains outside this checker slice",
         "text_sha256": "79b39f17b3cc5cfa26c699e287d8bbb1fed82b3cab81b0d321f6d0234fe88d06",
-        "file_sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
       },
       {
         "id": "export-linked-aliases-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 9419,
+        "line": 9531,
         "column": 9,
-        "text": "collectLinkedAliases remains declaration-emit bookkeeping",
-        "text_sha256": "cb431b3f060205621a432fa23e1325d3e9708de7e5a7771977711ddfe20b9c07",
-        "file_sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+        "text": "collectLinkedAliases is live behind the declaration/composite gate;",
+        "text_sha256": "18e5229ef67189796ffcf85844ffdb0c398175399c4e427c6636c78c0bf09181",
+        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
       },
       {
         "id": "property-access-linked-references-elided",
@@ -973,7 +973,7 @@
         "column": 16,
         "text": "inaccessible-this tracking is declaration-emit band",
         "text_sha256": "16bfbe4a19081974e7847b1b3bb1e3749c92e0d792d02f9370b5becbf731c972",
-        "file_sha256": "95f8714c6bb58ee14c4292115a8d65dcf789b4af259537e36a8b7d380b22f366"
+        "file_sha256": "c1542bc068a3acf0a885bd8ee70230527f827d5f86c4fa03625c175ebb285832"
       },
       {
         "id": "binding-object-rest-helper-elided",
@@ -1095,11 +1095,11 @@
       {
         "id": "export-assignment-linked-aliases-elided",
         "path": "crates/checker/src/modules.rs",
-        "line": 9497,
-        "column": 9,
-        "text": "collectLinkedAliases (emit) and the JSDoc type-annotation arm remain",
-        "text_sha256": "f83ee48bb2d7a1d1eb3cfbc3f2c2e6941fb2703524638c4c0a5ff6d1114fd0b6",
-        "file_sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+        "line": 9731,
+        "column": 17,
+        "text": "self.collect_linked_aliases(expression, /*set_visibility*/ true)?;",
+        "text_sha256": "ffcb1108a931a67a9e05e41a387e994950457f2d303020cb36c316451b644ebf",
+        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
       },
       {
         "id": "standard-class-fields-option-check",
@@ -1113,11 +1113,11 @@
       {
         "id": "external-helper-producer-present",
         "path": "crates/checker/src/modules.rs",
-        "line": 5796,
+        "line": 5824,
         "column": 5,
         "text": "pub(crate) fn check_external_emit_helpers(",
         "text_sha256": "e127a45e63e86b553a6030b1b4e9a7c4f9a4388a49143d7aa0267cf5b6df8884",
-        "file_sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+        "file_sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
       },
       {
         "id": "jsx-alias-producer-present",
@@ -1134,11 +1134,11 @@
         "id": "linked-reference-producers",
         "kind": "regex-zero",
         "scope": "checker-production",
-        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:mark_linked_references|collect_linked_aliases)[ \\t]*\\(",
+        "expression": "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+mark_linked_references[ \\t]*\\(",
         "match_count": 0,
         "matches": []
       }
     ]
   },
-  "inventory_fingerprint_sha256": "f7b4f86c39181b5dda6770f5f2a29bb801c64e7f901c927d7ea0f870146a9fd4"
+  "inventory_fingerprint_sha256": "38c1f146a1e674434b4189965271a222565f50060aff0ed7f4dbbce0e48b8456"
 }
