@@ -19,6 +19,7 @@ pub(crate) use chains::{
     serialize_inferred_type_for_declaration, set_text_range2, symbol_to_node,
     type_parameter_to_name, ClonedNodeBuilderContextRestore,
 };
+pub(crate) use context::transform_node_class;
 pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
     check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
@@ -1626,6 +1627,123 @@ mod tests {
             context.max_expansion_depth = 1;
             assert!(!should_expand_type(checker, tuple, context, false));
             assert!(should_expand_type(checker, tuple, context, true));
+        });
+    }
+}
+
+/// h2-7a-m-3 P5: the harness-only decision-lane sink. When armed by the
+/// declaration replay observer, the NodeBuilder records the probe-comparable
+/// decision events — withContext exits, syntactic front-door frames, and
+/// tracker callbacks — for the union-domain replay. Production paths never
+/// arm it; an unarmed sink records nothing.
+pub(crate) mod replay_sink {
+    use std::cell::RefCell;
+
+    #[derive(Clone, Debug, PartialEq)]
+    pub(crate) enum DecisionEvent {
+        /// nodebuilder.withContext.result: (status, flags, internal_flags,
+        /// approximate_length, type_stack_len, truncating, out_truncated,
+        /// encountered_error, produced-node class).
+        WithContextResult {
+            status: &'static str,
+            flags: u32,
+            internal_flags: u32,
+            approximate_length: u32,
+            type_stack_len: usize,
+            truncating: bool,
+            out_truncated: bool,
+            encountered_error: bool,
+            produced: ProducedClass,
+        },
+        /// syntactic.serialize*.entry/.result frames.
+        SyntacticFrame {
+            site: &'static str,
+            fallback: bool,
+            produced: ProducedClass,
+        },
+        /// syntactic.*.checkerFallback markers.
+        SyntacticFallback {
+            site: &'static str,
+            report_fallback: bool,
+        },
+        /// tracker.* callback records (payload projected by the recording
+        /// tracker in the harness).
+        Tracker { site: &'static str, payload: String },
+    }
+
+    /// The §6.3 node-reference classes projected from a produced value.
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub(crate) enum ProducedClass {
+        Absent,
+        ParseOwn { source: u32, node: u32 },
+        OriginalProjected { source: u32, node: u32 },
+        SyntheticWithoutOriginal,
+        Container { length: usize },
+    }
+
+    thread_local! {
+        static SINK: RefCell<Option<Vec<DecisionEvent>>> = const { RefCell::new(None) };
+    }
+
+    pub(crate) fn arm() {
+        SINK.with(|sink| *sink.borrow_mut() = Some(Vec::new()));
+    }
+
+    pub(crate) fn disarm() -> Vec<DecisionEvent> {
+        SINK.with(|sink| sink.borrow_mut().take().unwrap_or_default())
+    }
+
+    pub(crate) fn record(event: impl FnOnce() -> DecisionEvent) {
+        SINK.with(|sink| {
+            if let Some(events) = sink.borrow_mut().as_mut() {
+                events.push(event());
+            }
+        });
+    }
+
+    pub(crate) fn armed() -> bool {
+        SINK.with(|sink| sink.borrow().is_some())
+    }
+
+    thread_local! {
+        static SYNTACTIC_FRAMES: RefCell<Vec<bool>> = const { RefCell::new(Vec::new()) };
+    }
+
+    /// Enter a probed syntactic front-door frame (upstream
+    /// __h27aProbeSyntacticCall pushes {fallback:false}).
+    pub(crate) fn enter_syntactic_frame() {
+        if armed() {
+            SYNTACTIC_FRAMES.with(|frames| frames.borrow_mut().push(false));
+        }
+    }
+
+    /// The __h27aMarkSyntacticFallback discipline: every OPEN frame flips to
+    /// fallback, and the marker event records the reportFallback flag.
+    pub(crate) fn mark_syntactic_fallback(site: &'static str, report_fallback: bool) {
+        if !armed() {
+            return;
+        }
+        SYNTACTIC_FRAMES.with(|frames| {
+            for frame in frames.borrow_mut().iter_mut() {
+                *frame = true;
+            }
+        });
+        record(|| DecisionEvent::SyntacticFallback {
+            site,
+            report_fallback,
+        });
+    }
+
+    /// Exit the probed frame, recording its fallback verdict + result class.
+    pub(crate) fn exit_syntactic_frame(site: &'static str, produced: ProducedClass) {
+        if !armed() {
+            return;
+        }
+        let fallback = SYNTACTIC_FRAMES.with(|frames| frames.borrow_mut().pop().unwrap_or(false));
+        record(|| DecisionEvent::SyntacticFrame {
+            site,
+            fallback,
+            produced,
         });
     }
 }

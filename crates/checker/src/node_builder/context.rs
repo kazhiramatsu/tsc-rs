@@ -73,7 +73,7 @@ pub(crate) struct NodeBuilderContext<'tracker> {
 /// tsc-hash: 125cf164389b2220563c80c84b08f1269efdad8469590526d730de6bc857bbd3
 /// tsc-span: _tsc.js:51205-51256
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn with_context<'program, 'tracker, T>(
+pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
     checker: &mut CheckerState<'program>,
     arena: &mut TransformArena,
     target: TransformSourceId,
@@ -157,8 +157,160 @@ pub(crate) fn with_context<'program, 'tracker, T>(
     if let Some(out) = out {
         *out = context.out;
     }
-    Ok((!context.encountered_error).then_some(resulting_node))
+    let produced = (!context.encountered_error).then_some(resulting_node);
+    if crate::node_builder::replay_sink::armed() {
+        let status = if context.encountered_error {
+            "error"
+        } else if produced_is_absent(&produced) {
+            "fallback-undefined"
+        } else {
+            "node"
+        };
+        let class = produced_class(arena, &produced);
+        let record = crate::node_builder::replay_sink::DecisionEvent::WithContextResult {
+            status,
+            flags: context.flags.0,
+            internal_flags: context.internal_flags.0,
+            approximate_length: context.approximate_length,
+            type_stack_len: context.type_stack.len(),
+            truncating: context.truncating,
+            out_truncated: context.out.truncated,
+            encountered_error: context.encountered_error,
+            produced: class,
+        };
+        crate::node_builder::replay_sink::record(move || record);
+    }
+    Ok(produced)
 }
+
+/// Projection of a withContext result into the harness sink's classes. The
+/// generic result is examined through [`ReplayProduced`]; non-node payloads
+/// project as containers/absent exactly like the probe's non-node sentinel.
+pub(crate) trait ReplayProduced {
+    fn is_absent(&self) -> bool;
+    fn class(&self, arena: &TransformArena) -> crate::node_builder::replay_sink::ProducedClass;
+}
+
+fn produced_is_absent<T: ReplayProduced>(produced: &Option<T>) -> bool {
+    produced.as_ref().is_none_or(ReplayProduced::is_absent)
+}
+
+fn produced_class<T: ReplayProduced>(
+    arena: &TransformArena,
+    produced: &Option<T>,
+) -> crate::node_builder::replay_sink::ProducedClass {
+    match produced {
+        None => crate::node_builder::replay_sink::ProducedClass::Absent,
+        Some(value) => value.class(arena),
+    }
+}
+
+pub(crate) fn transform_node_class(
+    arena: &TransformArena,
+    node: tsc_emitter::TransformNode,
+) -> crate::node_builder::replay_sink::ProducedClass {
+    use crate::node_builder::replay_sink::ProducedClass;
+    match arena.parse_tree_resolver_node(node) {
+        Ok(Some(parse)) => {
+            let projected = ProducedClass::ParseOwn {
+                source: parse.source().raw(),
+                node: parse.node().0,
+            };
+            match arena.is_parsed_node(node) {
+                Ok(true) => projected,
+                _ => {
+                    let ProducedClass::ParseOwn { source, node } = projected else {
+                        unreachable!()
+                    };
+                    ProducedClass::OriginalProjected { source, node }
+                }
+            }
+        }
+        _ => ProducedClass::SyntheticWithoutOriginal,
+    }
+}
+
+impl ReplayProduced for tsc_emitter::TransformNode {
+    fn is_absent(&self) -> bool {
+        false
+    }
+    fn class(&self, arena: &TransformArena) -> crate::node_builder::replay_sink::ProducedClass {
+        transform_node_class(arena, *self)
+    }
+}
+
+impl ReplayProduced for Option<tsc_emitter::TransformNode> {
+    fn is_absent(&self) -> bool {
+        self.is_none()
+    }
+    fn class(&self, arena: &TransformArena) -> crate::node_builder::replay_sink::ProducedClass {
+        match self {
+            None => crate::node_builder::replay_sink::ProducedClass::Absent,
+            Some(node) => transform_node_class(arena, *node),
+        }
+    }
+}
+
+impl ReplayProduced for Vec<tsc_emitter::TransformNode> {
+    fn is_absent(&self) -> bool {
+        false
+    }
+    fn class(&self, _arena: &TransformArena) -> crate::node_builder::replay_sink::ProducedClass {
+        crate::node_builder::replay_sink::ProducedClass::Container { length: self.len() }
+    }
+}
+
+impl ReplayProduced for Option<Vec<tsc_emitter::TransformNode>> {
+    fn is_absent(&self) -> bool {
+        self.is_none()
+    }
+    fn class(&self, _arena: &TransformArena) -> crate::node_builder::replay_sink::ProducedClass {
+        match self {
+            None => crate::node_builder::replay_sink::ProducedClass::Absent,
+            Some(nodes) => crate::node_builder::replay_sink::ProducedClass::Container {
+                length: nodes.len(),
+            },
+        }
+    }
+}
+
+impl ReplayProduced for () {
+    fn is_absent(&self) -> bool {
+        false
+    }
+    fn class(&self, _arena: &TransformArena) -> crate::node_builder::replay_sink::ProducedClass {
+        crate::node_builder::replay_sink::ProducedClass::SyntheticWithoutOriginal
+    }
+}
+
+/// Opaque payloads (focused-test plumbing and multi-value internal
+/// callbacks) project as synthetic: the sink is never armed on those paths
+/// and the class is inert bookkeeping.
+macro_rules! replay_produced_opaque {
+    ($($ty:ty),+ $(,)?) => {$(
+        impl ReplayProduced for $ty {
+            fn is_absent(&self) -> bool {
+                false
+            }
+            fn class(
+                &self,
+                _arena: &TransformArena,
+            ) -> crate::node_builder::replay_sink::ProducedClass {
+                crate::node_builder::replay_sink::ProducedClass::SyntheticWithoutOriginal
+            }
+        }
+    )+};
+}
+replay_produced_opaque!(
+    u8,
+    u32,
+    (
+        tsc_emitter::TransformNode,
+        tsc_emitter::TransformNode,
+        tsc_emitter::TransformNode
+    ),
+    (Option<tsc_emitter::TransformNode>, bool),
+);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct SymbolTypeRestore {
