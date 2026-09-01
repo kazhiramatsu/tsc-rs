@@ -2,6 +2,7 @@
 
 mod chains;
 mod context;
+mod serialize;
 mod signatures;
 pub(crate) mod specifier;
 mod tracker;
@@ -26,6 +27,13 @@ pub(crate) use context::{
     SymbolTypeRestore, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
     NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH,
 };
+pub(crate) use serialize::{
+    index_info_to_index_signature_declaration, serialize_return_type_for_signature,
+    serialize_return_type_for_signature_seam, serialize_type_for_declaration,
+    serialize_type_for_declaration_seam, serialize_type_for_expression,
+    syntactic_serialize_name_of_parameter_seam, syntactic_try_reuse_existing_type_node,
+    type_predicate_to_type_predicate_node, type_to_type_node,
+};
 pub(crate) use signatures::{
     create_recovery_boundary, enter_new_scope, index_info_to_index_signature_declaration_helper,
     signature_to_signature_declaration_helper, symbol_to_parameter_declaration,
@@ -33,74 +41,6 @@ pub(crate) use signatures::{
 };
 pub(crate) use tracker::NodeBuilderTracker;
 pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
-
-// h2-7a-m-3: lane-G implementation replaces this stub
-pub(crate) fn syntactic_try_reuse_existing_type_node(
-    _checker: &mut crate::state::CheckerState<'_>,
-    _arena: &mut tsc_emitter::TransformArena,
-    _target: tsc_emitter::TransformSourceId,
-    _context: &mut NodeBuilderContext<'_>,
-    _type_node: tsc_syntax::NodeId,
-) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
-    Ok(None)
-}
-
-// h2-7a-m-3: lane-E implementation replaces this stub
-pub(crate) fn serialize_return_type_for_signature_seam(
-    checker: &mut crate::state::CheckerState<'_>,
-    _arena: &mut tsc_emitter::TransformArena,
-    _target: tsc_emitter::TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    signature: crate::state::SignatureId,
-) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
-    let node = checker
-        .signature_of(signature)
-        .declaration
-        .or(context.enclosing_declaration)
-        .unwrap_or_else(|| checker.binder.source(0).root);
-    Err(tsc_emitter::EmitResolverError::CheckerAborted {
-        method: tsc_emitter::EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
-        node: tsc_emitter::EmitResolverNode::from_raw_source(
-            u32::try_from(checker.binder.file_index_of_node(node)).unwrap_or(0),
-            node,
-        ),
-        reason: "h2-7a-m-3 lane-E pending",
-    })
-}
-
-// h2-7a-m-3: lane-E implementation replaces this stub
-pub(crate) fn serialize_type_for_declaration_seam(
-    checker: &mut crate::state::CheckerState<'_>,
-    _arena: &mut tsc_emitter::TransformArena,
-    _target: tsc_emitter::TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    declaration: Option<tsc_syntax::NodeId>,
-    _type: tsc_types::TypeId,
-    _symbol: Option<tsc_binder::SymbolId>,
-) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
-    let node = declaration
-        .or(context.enclosing_declaration)
-        .unwrap_or_else(|| checker.binder.source(0).root);
-    Err(tsc_emitter::EmitResolverError::CheckerAborted {
-        method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
-        node: tsc_emitter::EmitResolverNode::from_raw_source(
-            u32::try_from(checker.binder.file_index_of_node(node)).unwrap_or(0),
-            node,
-        ),
-        reason: "h2-7a-m-3 lane-E pending",
-    })
-}
-
-// h2-7a-m-3: lane-G implementation replaces this stub
-pub(crate) fn syntactic_serialize_name_of_parameter_seam(
-    _checker: &mut crate::state::CheckerState<'_>,
-    _arena: &mut tsc_emitter::TransformArena,
-    _target: tsc_emitter::TransformSourceId,
-    _context: &mut NodeBuilderContext<'_>,
-    _parameter: tsc_syntax::NodeId,
-) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
-    Ok(None)
-}
 
 /// The declaration facts read directly from upstream's optional `symbol`
 /// argument by the syntactic variable-declaration arm. Keeping them beside
