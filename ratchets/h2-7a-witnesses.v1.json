@@ -22,20 +22,20 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-witnesses.mjs",
-    "sha256": "9b1b191deba63c55d9d533b94293a06c6ce5e4ae990226ed15435120774e17f8"
+    "sha256": "8e3c07c9d3c87a8a3be8085b81d029b81baa2b64d18960466de3cb15cd3673d9"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-witnesses.schema.json",
-    "sha256": "466c226185f6a191a390771e201acd5c982590031cd40b99f4dcd16f45cf9ccd"
+    "sha256": "e0bfe0e80da15a02ad82a2dc6bee5a337494c2c034cbf5685a0e332ea864adc4"
   },
   "inputs": {
     "packet": {
-      "path": "docs/design/greenfield/slices/h2-7a-m-2.md",
-      "sha256": "3bbf3a1d5ffb39922278c52d511bb3e4b52163f62e7e9ea9a2296717f0f7e97f"
+      "path": "docs/design/greenfield/slices/h2-7a-m-3.md",
+      "sha256": "592bb2001cb279e655cd2ea21dde87be8d037dad9a02452b339d5d485ec9f1c4"
     },
     "parent_packet": {
       "path": "docs/design/greenfield/slices/h2-7a.md",
-      "sha256": "aff7bd71db746b782f40818cc85ab472153ec03aebd08efc40fa8cb72a517313"
+      "sha256": "c9b4609baf4baaa288fdfbad73d819e1051761e6377ae701518db184c05f5bfd"
     },
     "test_suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -1714,6 +1714,282 @@
           {
             "path": "/.src/declarationEmitHigherOrderRetainedGenerics.ts",
             "sha256": "48e58e94ff76bbc9c71221cbc8089799932a1bfffa147bfbca7470b30b9e0077"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S3/literalconst-1",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/constDeclarations2.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S3",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "type serialization"
+        ],
+        "option_record": {
+          "declaration": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "strict": false,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/constDeclarations2.ts",
+            "sha256": "d7c81dc148f89d0aa05b98ecd0272bbe8706d8e5e228302db39bd4fe3649382b"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S3/literalconst-2",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitAmdModuleNameDirective.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S3",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "type serialization"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 3,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/bar.ts",
+            "sha256": "605c4e25845661ab93ed90745a7e3c94893bee92c8e48350e03c853b3050092b"
+          },
+          {
+            "path": "/.src/foo.ts",
+            "sha256": "0470e04092956e67b5ffe701aef715ee409a5848bf28798daa470a8084cbe21c"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S3/literalconst-3",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitConstantNoWidening.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S3",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "type serialization"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/declarationEmitConstantNoWidening.ts",
+            "sha256": "ece96039e7fd9f4ce8d70a81d399f66cee4837c5cdb6cf657b3455ffa19d21c6"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S3/literalconst-4",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitPartialNodeReuseTypeOf.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S3",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "type serialization"
+        ],
+        "option_record": {
+          "declaration": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "strict": true,
+          "target": 7
+        },
+        "input_files": [
+          {
+            "path": "/.src/a.ts",
+            "sha256": "3678c2a35cb9c648402e9baad466c504bae17f8b6aec7c055141f68366dfcb65"
+          },
+          {
+            "path": "/.src/b.ts",
+            "sha256": "f175074e04d0e6b526a0f3a30962d958c5b9bb658da83604a0c5f685666bf6b4"
+          },
+          {
+            "path": "/.src/c.ts",
+            "sha256": "979646e57a48bb865b78ac43ef9d75f5b3c0a4ff1d67756fc9e3ef68a59184e3"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S3/typeofexpr-1",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/amdDeclarationEmitNoExtraDeclare.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S3",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "type serialization"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 2,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "outFile": "dist.js",
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/Class.ts",
+            "sha256": "622874f1029fe10d0787a9ade773aee4d1e0548537ffda35a8e43ebad24b0d2c"
+          },
+          {
+            "path": "/.src/Configurable.ts",
+            "sha256": "a7ca9b8521489f1ad5405f4af1ad3c8c4537d44ddfad31880c541035408696c6"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S3/typeofexpr-2",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/anonClassDeclarationEmitIsAnon.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S3",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "type serialization"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/index.ts",
+            "sha256": "33c12a7cc9ae4f58720604063918d495a6b98ebe8f8f2858e16f50d436718a1d"
+          },
+          {
+            "path": "/.src/wrapClass.ts",
+            "sha256": "ffe86ea7722affa37addb10b2cf3d178c0d6372aff483996853b873773106601"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S3/typeofexpr-3",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitClassMixinLocalClassDeclaration.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S3",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "type serialization"
+        ],
+        "option_record": {
+          "declaration": true,
+          "module": 1,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/declarationEmitClassMixinLocalClassDeclaration.ts",
+            "sha256": "08501348e9aad570584a3de86457c528fcf2680546cf8d062c53569ac3472a49"
+          }
+        ]
+      },
+      {
+        "case_id": "h2-7a/S3/typeofexpr-4",
+        "suite": "compiler",
+        "fixture_id": "typescript-6.0.3/compiler/declarationEmitExpressionInExtends2.ts",
+        "matrix": {
+          "configuration_index": 0,
+          "fixture_variant": "default",
+          "observation_variant": "fixture"
+        },
+        "family_id": "S3",
+        "roles": [
+          "supplement"
+        ],
+        "lanes": [
+          "type serialization"
+        ],
+        "option_record": {
+          "declaration": true,
+          "newLine": 0,
+          "noErrorTruncation": true,
+          "noResolve": false,
+          "skipDefaultLibCheck": true,
+          "target": 2
+        },
+        "input_files": [
+          {
+            "path": "/.src/declarationEmitExpressionInExtends2.ts",
+            "sha256": "084e0d60133d30647154725e2771d186669495dd7a92cae84f3b08e31f5b8f7d"
           }
         ]
       },
@@ -4198,8 +4474,20 @@
         "sha256": "c92ce8f049c50461916a2e0b832e2d37edf45a3c8d44aadfda43e462616beb9f"
       },
       {
+        "path": "/.src/Class.ts",
+        "sha256": "622874f1029fe10d0787a9ade773aee4d1e0548537ffda35a8e43ebad24b0d2c"
+      },
+      {
+        "path": "/.src/Configurable.ts",
+        "sha256": "a7ca9b8521489f1ad5405f4af1ad3c8c4537d44ddfad31880c541035408696c6"
+      },
+      {
         "path": "/.src/EnumExample.ts",
         "sha256": "41291e58681634b8ab6ea65f6f3bbd4822a84902c557a942ca7969a0e67ae5df"
+      },
+      {
+        "path": "/.src/a.ts",
+        "sha256": "3678c2a35cb9c648402e9baad466c504bae17f8b6aec7c055141f68366dfcb65"
       },
       {
         "path": "/.src/a.ts",
@@ -4258,6 +4546,18 @@
         "sha256": "cf52fcf11623d0a3a3d088c1d224ee820794a8572570e50a5414dec2fa7e8193"
       },
       {
+        "path": "/.src/b.ts",
+        "sha256": "f175074e04d0e6b526a0f3a30962d958c5b9bb658da83604a0c5f685666bf6b4"
+      },
+      {
+        "path": "/.src/bar.ts",
+        "sha256": "605c4e25845661ab93ed90745a7e3c94893bee92c8e48350e03c853b3050092b"
+      },
+      {
+        "path": "/.src/c.ts",
+        "sha256": "979646e57a48bb865b78ac43ef9d75f5b3c0a4ff1d67756fc9e3ef68a59184e3"
+      },
+      {
         "path": "/.src/child1.ts",
         "sha256": "6f5a4717682fa817403f05df71277d956779f91b2fd52a10cd141204af7944be"
       },
@@ -4286,6 +4586,10 @@
         "sha256": "d975e32b918fbfe61d15ba281df48d2b89ee7a89c2ae13dc1262b163f319eae4"
       },
       {
+        "path": "/.src/constDeclarations2.ts",
+        "sha256": "d7c81dc148f89d0aa05b98ecd0272bbe8706d8e5e228302db39bd4fe3649382b"
+      },
+      {
         "path": "/.src/db.d.ts",
         "sha256": "6178e904892260884b7566c2b5b6d89bec30262d8c15f7e696556d5b46dcca6a"
       },
@@ -4296,6 +4600,10 @@
       {
         "path": "/.src/declFileAmbientExternalModuleWithSingleExportedModule_1.ts",
         "sha256": "19d5588cdb4ea18690caca8ed680f0ebd1a189e8e202b9c3c56d8b63bdbf7855"
+      },
+      {
+        "path": "/.src/declarationEmitClassMixinLocalClassDeclaration.ts",
+        "sha256": "08501348e9aad570584a3de86457c528fcf2680546cf8d062c53569ac3472a49"
       },
       {
         "path": "/.src/declarationEmitClassPrivateConstructor.ts",
@@ -4310,6 +4618,10 @@
         "sha256": "cc9ae1ba2c70a2e2c47fcb58e9e0739893cb73bbc63d34ea4bcfc3caf8455ae3"
       },
       {
+        "path": "/.src/declarationEmitConstantNoWidening.ts",
+        "sha256": "ece96039e7fd9f4ce8d70a81d399f66cee4837c5cdb6cf657b3455ffa19d21c6"
+      },
+      {
         "path": "/.src/declarationEmitDestructuringOptionalBindingParametersInOverloads.ts",
         "sha256": "fd25825a59d87e4e4df41683d51dbcdb4ab631d5c0a7c606fcf0a72494860326"
       },
@@ -4320,6 +4632,10 @@
       {
         "path": "/.src/declarationEmitExpandoWithGenericConstraint.ts",
         "sha256": "d59f422743ac669508e9e88d0d004e26f49e4db7dbfe996588c8099b5938c3d9"
+      },
+      {
+        "path": "/.src/declarationEmitExpressionInExtends2.ts",
+        "sha256": "084e0d60133d30647154725e2771d186669495dd7a92cae84f3b08e31f5b8f7d"
       },
       {
         "path": "/.src/declarationEmitFunctionDuplicateNamespace.ts",
@@ -4354,6 +4670,10 @@
         "sha256": "6ba4a0b08f3cd0d3f7600488e7628ede59bdbca249adb1e7467cc81d300f7df4"
       },
       {
+        "path": "/.src/foo.ts",
+        "sha256": "0470e04092956e67b5ffe701aef715ee409a5848bf28798daa470a8084cbe21c"
+      },
+      {
         "path": "/.src/index.js",
         "sha256": "386a6c4c986d73575e9d502b253b83acbe9b94abb606b5fe4bb2b51be92e2248"
       },
@@ -4364,6 +4684,10 @@
       {
         "path": "/.src/index.ts",
         "sha256": "20ba2bb39e3f50d8b9d1ffb01469303028d5cd774ad7dd9df26bd4f7c83c1336"
+      },
+      {
+        "path": "/.src/index.ts",
+        "sha256": "33c12a7cc9ae4f58720604063918d495a6b98ebe8f8f2858e16f50d436718a1d"
       },
       {
         "path": "/.src/index.ts",
@@ -4482,6 +4806,10 @@
         "sha256": "748897fcba11e3d369ba8655d5f9b7d5a88258273221e7d1cf66aa7cf4cc35aa"
       },
       {
+        "path": "/.src/wrapClass.ts",
+        "sha256": "ffe86ea7722affa37addb10b2cf3d178c0d6372aff483996853b873773106601"
+      },
+      {
         "path": "/augmentation.ts",
         "sha256": "3eb98a0d2ccc02638685aab816ce22051b1e23a45943e19512f08909379a9ef3"
       },
@@ -4498,8 +4826,8 @@
         "sha256": "478482e8d4499a7a80106708b5e51a778f53ab443b370bc4593379342619f391"
       }
     ],
-    "source_universe_sha256": "a0781dc6daccf72907ac462b96d48ed3d9622f3c498c0ca1ff23d73259f10157",
-    "case_manifest_fingerprint": "89bb0627cee58b5d12aeb6fd5e95a92d26e1bbb54fd592750b49a34b64a89efb"
+    "source_universe_sha256": "01da4f7d8ae1be0cc109f6bc355749d736c6085f423dc1211744f77cb54ec0a7",
+    "case_manifest_fingerprint": "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1"
   },
   "coverage_matrix": {
     "lanes": [
@@ -5049,6 +5377,73 @@
       "fixtures": 16,
       "cases": 18,
       "observations": 36
+    }
+  },
+  "m3_supplement": {
+    "selector_version": "m3-s3-v1",
+    "volume_table": [
+      {
+        "member": "createTypeOfExpression",
+        "entry_result_pairs": 0
+      },
+      {
+        "member": "createLiteralConstValue",
+        "entry_result_pairs": 0
+      },
+      {
+        "member": "getDeclarationStatementsForSourceFile",
+        "entry_result_pairs": 3
+      },
+      {
+        "member": "createReturnTypeOfSignatureDeclaration",
+        "entry_result_pairs": 148
+      },
+      {
+        "member": "createLateBoundIndexSignatures",
+        "entry_result_pairs": 152
+      },
+      {
+        "member": "createTypeOfDeclaration",
+        "entry_result_pairs": 314
+      }
+    ],
+    "members": [
+      {
+        "member": "typeofexpr",
+        "predicate": "basename contains `mixin` (ASCII case-insensitive) OR some match `extends\\s+[A-Za-z_$][\\w$.]*\\s*\\(` (heritage call expression, the :115626 non-entity-name extends path)",
+        "fixture_ids": [
+          "typescript-6.0.3/compiler/amdDeclarationEmitNoExtraDeclare.ts",
+          "typescript-6.0.3/compiler/anonClassDeclarationEmitIsAnon.ts",
+          "typescript-6.0.3/compiler/declarationEmitClassMixinLocalClassDeclaration.ts",
+          "typescript-6.0.3/compiler/declarationEmitExpressionInExtends2.ts"
+        ]
+      },
+      {
+        "member": "literalconst",
+        "predicate": "some multiline match `^\\s*export\\s+const\\s+[A-Za-z_$][\\w$]*\\s*=\\s*(-?\\d|[\"'\\x60]|true\\b|false\\b)` (const with primitive-literal initializer, the :114667-114679 shouldPrintWithInitializer path)",
+        "fixture_ids": [
+          "typescript-6.0.3/compiler/constDeclarations2.ts",
+          "typescript-6.0.3/compiler/declarationEmitAmdModuleNameDirective.ts",
+          "typescript-6.0.3/compiler/declarationEmitConstantNoWidening.ts",
+          "typescript-6.0.3/compiler/declarationEmitPartialNodeReuseTypeOf.ts"
+        ]
+      }
+    ],
+    "case_ids": [
+      "h2-7a/S3/typeofexpr-1",
+      "h2-7a/S3/typeofexpr-2",
+      "h2-7a/S3/typeofexpr-3",
+      "h2-7a/S3/typeofexpr-4",
+      "h2-7a/S3/literalconst-1",
+      "h2-7a/S3/literalconst-2",
+      "h2-7a/S3/literalconst-3",
+      "h2-7a/S3/literalconst-4"
+    ],
+    "trim_rows": [],
+    "counts": {
+      "fixtures": 8,
+      "cases": 8,
+      "observations": 16
     }
   },
   "observations": [
@@ -8029,6 +8424,539 @@
         "observation_fingerprint_sha256": "b9364a8a3ca5db34fbfeee3a0070d081b1362ea602a80e764ee7fd0bc0dbe97c"
       },
       "case_observation_fingerprint_sha256": "ef9c5cce79d4047de9ad21d2d5675996bef2579430413965fbc47d19497413b2"
+    },
+    {
+      "case_id": "h2-7a/S3/literalconst-1",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/constDeclarations2.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "13934b2e7d7d5ce55f17f5c43a885f9dfa216de9e1913203eff9682de60ec58c",
+            "callback_utf8_bytes": 147,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "13934b2e7d7d5ce55f17f5c43a885f9dfa216de9e1913203eff9682de60ec58c",
+            "materialized_utf8_bytes": 147,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/constDeclarations2.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/constDeclarations2.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "d0e7ff519502ec19f2cae5963ea635171828daad990c2648feac1ce902cacd70",
+            "callback_utf8_bytes": 112,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "d0e7ff519502ec19f2cae5963ea635171828daad990c2648feac1ce902cacd70",
+            "materialized_utf8_bytes": 112,
+            "declaration_callback_base64": "ZGVjbGFyZSBuYW1lc3BhY2UgTSB7DQogICAgY29uc3QgYzEgPSBmYWxzZTsNCiAgICBjb25zdCBjMjogbnVtYmVyOw0KICAgIGNvbnN0IGMzID0gMCwgYzQ6IHN0cmluZywgYzU6IGFueTsNCn0NCg==",
+            "declaration_materialized_base64": "ZGVjbGFyZSBuYW1lc3BhY2UgTSB7DQogICAgY29uc3QgYzEgPSBmYWxzZTsNCiAgICBjb25zdCBjMjogbnVtYmVyOw0KICAgIGNvbnN0IGMzID0gMCwgYzQ6IHN0cmluZywgYzU6IGFueTsNCn0NCg==",
+            "source_files": [
+              "/.src/constDeclarations2.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "a547780009970f1a31f7cc9cc38864247d7da3edbf53f74d440a72517a82b199"
+      },
+      "case_observation_fingerprint_sha256": "2e138086bc9b6d537622aa33bd36000e57ba835d42105ec653d76f2dd3ef31f0"
+    },
+    {
+      "case_id": "h2-7a/S3/literalconst-2",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'module=UMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/foo.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "4f181a8bab33dc8f7145459744c15ca4f35efd700a07cd1a752cab0f1e3dff5c",
+            "callback_utf8_bytes": 550,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "4f181a8bab33dc8f7145459744c15ca4f35efd700a07cd1a752cab0f1e3dff5c",
+            "materialized_utf8_bytes": 550,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/foo.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/foo.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "2c9f9930750f20a497b350afb804e0aa1ec0059bc1ccf54c7f98ee5f1d44968b",
+            "callback_utf8_bytes": 70,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "2c9f9930750f20a497b350afb804e0aa1ec0059bc1ccf54c7f98ee5f1d44968b",
+            "materialized_utf8_bytes": 70,
+            "declaration_callback_base64": "Ly8vIDxhbWQtbW9kdWxlIG5hbWU9Im5hbWVfb2ZfZm9vIiAvPg0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZm9vID0gMTsNCg==",
+            "declaration_materialized_base64": "Ly8vIDxhbWQtbW9kdWxlIG5hbWU9Im5hbWVfb2ZfZm9vIiAvPg0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZm9vID0gMTsNCg==",
+            "source_files": [
+              "/.src/foo.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/bar.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "06ac9f1c20c8023cd3df7d802a23010cfd4d2b8e897ebfcc51440d4bfddd9830",
+            "callback_utf8_bytes": 605,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "06ac9f1c20c8023cd3df7d802a23010cfd4d2b8e897ebfcc51440d4bfddd9830",
+            "materialized_utf8_bytes": 605,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/bar.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/bar.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "d8675419b6dac07a14a601f8a010f0f287a21c44b132703330987ca85119161c",
+            "callback_utf8_bytes": 68,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "d8675419b6dac07a14a601f8a010f0f287a21c44b132703330987ca85119161c",
+            "materialized_utf8_bytes": 68,
+            "declaration_callback_base64": "Ly8vIDxhbWQtZGVwZW5kZW5jeSBuYW1lPSJuYW1lX29mX2ZvbyIgcGF0aD0iLi9mb28iIC8+DQpleHBvcnQge307DQo=",
+            "declaration_materialized_base64": "Ly8vIDxhbWQtZGVwZW5kZW5jeSBuYW1lPSJuYW1lX29mX2ZvbyIgcGF0aD0iLi9mb28iIC8+DQpleHBvcnQge307DQo=",
+            "source_files": [
+              "/.src/bar.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "0c39ded675e029402dddc58822584bfbf25ec09cf2cb8d950bdf5f1842766231"
+      },
+      "case_observation_fingerprint_sha256": "96724ff91234858a21558d08b2bd1e1c77216b4edfc0c3efeb106551c378a636"
+    },
+    {
+      "case_id": "h2-7a/S3/literalconst-3",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationEmitConstantNoWidening.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "18d510aeb87a796c0d071bd47437896ab3c689863e3fb06bd8a82d4980d20c51",
+            "callback_utf8_bytes": 310,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "18d510aeb87a796c0d071bd47437896ab3c689863e3fb06bd8a82d4980d20c51",
+            "materialized_utf8_bytes": 310,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/declarationEmitConstantNoWidening.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/declarationEmitConstantNoWidening.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "f4532f6c2bb620c3895d73d2ca91181c197eb1fdb89bbcec8cb6b6864e0584e4",
+            "callback_utf8_bytes": 94,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f4532f6c2bb620c3895d73d2ca91181c197eb1fdb89bbcec8cb6b6864e0584e4",
+            "materialized_utf8_bytes": 94,
+            "declaration_callback_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgRk9PID0gIkZPTyI7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIgew0KICAgIHJlYWRvbmx5IHR5cGUgPSAiRk9PIjsNCn0NCg==",
+            "declaration_materialized_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgRk9PID0gIkZPTyI7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIgew0KICAgIHJlYWRvbmx5IHR5cGUgPSAiRk9PIjsNCn0NCg==",
+            "source_files": [
+              "/.src/declarationEmitConstantNoWidening.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "a1390a81b617519efb79f6e42e5b0700f15b37f887514149a5d7fe29e8ad9094"
+      },
+      "case_observation_fingerprint_sha256": "4623a97b7f06adf4e19020988c2f292d4b7d64055dfb15927d9286dcb3cf3d5a"
+    },
+    {
+      "case_id": "h2-7a/S3/literalconst-4",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/a.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "f0ba37ddf384a4e4d6814f211fb70682124b4d91d80589c31faf433eaf69ca42",
+            "callback_utf8_bytes": 153,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "f0ba37ddf384a4e4d6814f211fb70682124b4d91d80589c31faf433eaf69ca42",
+            "materialized_utf8_bytes": 153,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/a.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "4491eb375eda7145a6e61817cfeecc0f65012a685ab061e1c20a52ca704ec944",
+            "callback_utf8_bytes": 338,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "4491eb375eda7145a6e61817cfeecc0f65012a685ab061e1c20a52ca704ec944",
+            "materialized_utf8_bytes": 338,
+            "declaration_callback_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbkltcG9ydGVkID0gIm5JbXBvcnRlZCI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBuTm90SW1wb3J0ZWQgPSAibk5vdEltcG9ydGVkIjsNCmRlY2xhcmUgY29uc3QgblByaXZhdGUgPSAicHJpdmF0ZSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBvOiAocDE6IHR5cGVvZiBuSW1wb3J0ZWQsIHAyOiB0eXBlb2Ygbk5vdEltcG9ydGVkLCBwMzogdHlwZW9mIG5Qcml2YXRlKSA9PiB7DQogICAgZm9vOiB0eXBlb2YgbkltcG9ydGVkOw0KICAgIGJhcjogdHlwZW9mIG5Qcml2YXRlOw0KICAgIGJhejogdHlwZW9mIG5Ob3RJbXBvcnRlZDsNCn07DQpleHBvcnQge307DQo=",
+            "declaration_materialized_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgbkltcG9ydGVkID0gIm5JbXBvcnRlZCI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBuTm90SW1wb3J0ZWQgPSAibk5vdEltcG9ydGVkIjsNCmRlY2xhcmUgY29uc3QgblByaXZhdGUgPSAicHJpdmF0ZSI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCBvOiAocDE6IHR5cGVvZiBuSW1wb3J0ZWQsIHAyOiB0eXBlb2Ygbk5vdEltcG9ydGVkLCBwMzogdHlwZW9mIG5Qcml2YXRlKSA9PiB7DQogICAgZm9vOiB0eXBlb2YgbkltcG9ydGVkOw0KICAgIGJhcjogdHlwZW9mIG5Qcml2YXRlOw0KICAgIGJhejogdHlwZW9mIG5Ob3RJbXBvcnRlZDsNCn07DQpleHBvcnQge307DQo=",
+            "source_files": [
+              "/.src/a.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/b.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "74a3a47622d9b195637a4615a05a858caedff929e9704d64960dd3a5dcac2d05",
+            "callback_utf8_bytes": 83,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "74a3a47622d9b195637a4615a05a858caedff929e9704d64960dd3a5dcac2d05",
+            "materialized_utf8_bytes": 83,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/b.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "9b3d19c3ed5223224c10c1ddfcd579576b65ca5b9c9b222881f3760bbb8cd29f",
+            "callback_utf8_bytes": 239,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "9b3d19c3ed5223224c10c1ddfcd579576b65ca5b9c9b222881f3760bbb8cd29f",
+            "materialized_utf8_bytes": 239,
+            "declaration_callback_base64": "aW1wb3J0IHsgbkltcG9ydGVkIH0gZnJvbSAiLi9hIjsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGc6IChwMTogdHlwZW9mIG5JbXBvcnRlZCwgcDI6IHR5cGVvZiBpbXBvcnQoIi4vYSIpLm5Ob3RJbXBvcnRlZCwgcDM6ICJwcml2YXRlIikgPT4gew0KICAgIGZvbzogdHlwZW9mIG5JbXBvcnRlZDsNCiAgICBiYXI6ICJwcml2YXRlIjsNCiAgICBiYXo6IHR5cGVvZiBpbXBvcnQoIi4vYSIpLm5Ob3RJbXBvcnRlZDsNCn07DQo=",
+            "declaration_materialized_base64": "aW1wb3J0IHsgbkltcG9ydGVkIH0gZnJvbSAiLi9hIjsNCmV4cG9ydCBkZWNsYXJlIGNvbnN0IGc6IChwMTogdHlwZW9mIG5JbXBvcnRlZCwgcDI6IHR5cGVvZiBpbXBvcnQoIi4vYSIpLm5Ob3RJbXBvcnRlZCwgcDM6ICJwcml2YXRlIikgPT4gew0KICAgIGZvbzogdHlwZW9mIG5JbXBvcnRlZDsNCiAgICBiYXI6ICJwcml2YXRlIjsNCiAgICBiYXo6IHR5cGVvZiBpbXBvcnQoIi4vYSIpLm5Ob3RJbXBvcnRlZDsNCn07DQo=",
+            "source_files": [
+              "/.src/b.ts"
+            ]
+          },
+          {
+            "index": 4,
+            "path": "/.src/c.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "d18089cd50613f43e249872dc9366fc06e9be3446fefbea1b14340df2a4061aa",
+            "callback_utf8_bytes": 50,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "d18089cd50613f43e249872dc9366fc06e9be3446fefbea1b14340df2a4061aa",
+            "materialized_utf8_bytes": 50,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/c.ts"
+            ]
+          },
+          {
+            "index": 5,
+            "path": "/.src/c.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "598c109ab0dfe22b2a6706dd9c0a7e8a40b9dfe154911bf7db3e45fe9bdfb4ab",
+            "callback_utf8_bytes": 212,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "598c109ab0dfe22b2a6706dd9c0a7e8a40b9dfe154911bf7db3e45fe9bdfb4ab",
+            "materialized_utf8_bytes": 212,
+            "declaration_callback_base64": "aW1wb3J0ICogYXMgYSBmcm9tICIuL2EiOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZzogKHAxOiB0eXBlb2YgYS5uSW1wb3J0ZWQsIHAyOiB0eXBlb2YgYS5uTm90SW1wb3J0ZWQsIHAzOiAicHJpdmF0ZSIpID0+IHsNCiAgICBmb286IHR5cGVvZiBhLm5JbXBvcnRlZDsNCiAgICBiYXI6ICJwcml2YXRlIjsNCiAgICBiYXo6IHR5cGVvZiBhLm5Ob3RJbXBvcnRlZDsNCn07DQo=",
+            "declaration_materialized_base64": "aW1wb3J0ICogYXMgYSBmcm9tICIuL2EiOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgZzogKHAxOiB0eXBlb2YgYS5uSW1wb3J0ZWQsIHAyOiB0eXBlb2YgYS5uTm90SW1wb3J0ZWQsIHAzOiAicHJpdmF0ZSIpID0+IHsNCiAgICBmb286IHR5cGVvZiBhLm5JbXBvcnRlZDsNCiAgICBiYXI6ICJwcml2YXRlIjsNCiAgICBiYXo6IHR5cGVvZiBhLm5Ob3RJbXBvcnRlZDsNCn07DQo=",
+            "source_files": [
+              "/.src/c.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "128e3480fb3819dbacd65f84fa44b03a2fa180174ba4a3bae6981ed36c64611d"
+      },
+      "case_observation_fingerprint_sha256": "f0f66c79a1641345bf22c176c2a2ce03a78c629214845ffa9c09fd222c729086"
+    },
+    {
+      "case_id": "h2-7a/S3/typeofexpr-1",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "file": null,
+            "start": null,
+            "length": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "dist.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "13757d9e73368636b134af7c69bef2df0ec6cca880981136ae4ad64d321e1f79",
+            "callback_utf8_bytes": 837,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "13757d9e73368636b134af7c69bef2df0ec6cca880981136ae4ad64d321e1f79",
+            "materialized_utf8_bytes": 837,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/Configurable.ts",
+              "/.src/Class.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "dist.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "117eee0f036669ec473730c1f8b60c2c2e4171ab687f6a46aeef1a32969d05db",
+            "callback_utf8_bytes": 369,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "117eee0f036669ec473730c1f8b60c2c2e4171ab687f6a46aeef1a32969d05db",
+            "materialized_utf8_bytes": 369,
+            "declaration_callback_base64": "ZGVjbGFyZSBtb2R1bGUgIkNvbmZpZ3VyYWJsZSIgew0KICAgIGV4cG9ydCB0eXBlIENvbnN0cnVjdG9yPFQ+ID0gew0KICAgICAgICBuZXcgKC4uLmFyZ3M6IGFueVtdKTogVDsNCiAgICB9Ow0KICAgIGV4cG9ydCBmdW5jdGlvbiBDb25maWd1cmFibGU8VCBleHRlbmRzIENvbnN0cnVjdG9yPHt9Pj4oYmFzZTogVCk6IFQ7DQp9DQpkZWNsYXJlIG1vZHVsZSAiQ2xhc3MiIHsNCiAgICBleHBvcnQgY2xhc3MgSGlkZGVuQ2xhc3Mgew0KICAgIH0NCiAgICBjb25zdCBBY3R1YWxDbGFzc19iYXNlOiB0eXBlb2YgSGlkZGVuQ2xhc3M7DQogICAgZXhwb3J0IGNsYXNzIEFjdHVhbENsYXNzIGV4dGVuZHMgQWN0dWFsQ2xhc3NfYmFzZSB7DQogICAgfQ0KfQ0K",
+            "declaration_materialized_base64": "ZGVjbGFyZSBtb2R1bGUgIkNvbmZpZ3VyYWJsZSIgew0KICAgIGV4cG9ydCB0eXBlIENvbnN0cnVjdG9yPFQ+ID0gew0KICAgICAgICBuZXcgKC4uLmFyZ3M6IGFueVtdKTogVDsNCiAgICB9Ow0KICAgIGV4cG9ydCBmdW5jdGlvbiBDb25maWd1cmFibGU8VCBleHRlbmRzIENvbnN0cnVjdG9yPHt9Pj4oYmFzZTogVCk6IFQ7DQp9DQpkZWNsYXJlIG1vZHVsZSAiQ2xhc3MiIHsNCiAgICBleHBvcnQgY2xhc3MgSGlkZGVuQ2xhc3Mgew0KICAgIH0NCiAgICBjb25zdCBBY3R1YWxDbGFzc19iYXNlOiB0eXBlb2YgSGlkZGVuQ2xhc3M7DQogICAgZXhwb3J0IGNsYXNzIEFjdHVhbENsYXNzIGV4dGVuZHMgQWN0dWFsQ2xhc3NfYmFzZSB7DQogICAgfQ0KfQ0K",
+            "source_files": [
+              "/.src/Configurable.ts",
+              "/.src/Class.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "a8bf0f07441bfb6487d05743d2bc83aae1eb8ad30c7b329da14b570be02b63e3"
+      },
+      "case_observation_fingerprint_sha256": "d8ce7c8c34374727b1782252348a53ad57632abc4ff2b0d6691eb58c786acc4d"
+    },
+    {
+      "case_id": "h2-7a/S3/typeofexpr-2",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/wrapClass.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "03747494f78fdf691444cbe1764106a74a7f6869a85b9eec43a12577fdca080e",
+            "callback_utf8_bytes": 456,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "03747494f78fdf691444cbe1764106a74a7f6869a85b9eec43a12577fdca080e",
+            "materialized_utf8_bytes": 456,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/wrapClass.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/wrapClass.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "10a76a5b9288ef4100c66f934f45dcd40e5d2788f28126d5210a689dea1c8bb0",
+            "callback_utf8_bytes": 317,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "10a76a5b9288ef4100c66f934f45dcd40e5d2788f28126d5210a689dea1c8bb0",
+            "materialized_utf8_bytes": 317,
+            "declaration_callback_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gd3JhcENsYXNzKHBhcmFtOiBhbnkpOiB7DQogICAgbmV3ICgpOiB7DQogICAgICAgIGZvbygpOiBhbnk7DQogICAgfTsNCn07DQpleHBvcnQgdHlwZSBDb25zdHJ1Y3RvcjxUID0ge30+ID0gbmV3ICguLi5hcmdzOiBhbnlbXSkgPT4gVDsNCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIFRpbWVzdGFtcGVkPFRCYXNlIGV4dGVuZHMgQ29uc3RydWN0b3I+KEJhc2U6IFRCYXNlKTogew0KICAgIG5ldyAoLi4uYXJnczogYW55W10pOiB7DQogICAgICAgIHRpbWVzdGFtcDogbnVtYmVyOw0KICAgIH07DQp9ICYgVEJhc2U7DQo=",
+            "declaration_materialized_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gd3JhcENsYXNzKHBhcmFtOiBhbnkpOiB7DQogICAgbmV3ICgpOiB7DQogICAgICAgIGZvbygpOiBhbnk7DQogICAgfTsNCn07DQpleHBvcnQgdHlwZSBDb25zdHJ1Y3RvcjxUID0ge30+ID0gbmV3ICguLi5hcmdzOiBhbnlbXSkgPT4gVDsNCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIFRpbWVzdGFtcGVkPFRCYXNlIGV4dGVuZHMgQ29uc3RydWN0b3I+KEJhc2U6IFRCYXNlKTogew0KICAgIG5ldyAoLi4uYXJnczogYW55W10pOiB7DQogICAgICAgIHRpbWVzdGFtcDogbnVtYmVyOw0KICAgIH07DQp9ICYgVEJhc2U7DQo=",
+            "source_files": [
+              "/.src/wrapClass.ts"
+            ]
+          },
+          {
+            "index": 2,
+            "path": "/.src/index.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "e60dcb646942773991aa4b028bd7b22447733ff1f137963a10fa847f446c390a",
+            "callback_utf8_bytes": 523,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "e60dcb646942773991aa4b028bd7b22447733ff1f137963a10fa847f446c390a",
+            "materialized_utf8_bytes": 523,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/index.ts"
+            ]
+          },
+          {
+            "index": 3,
+            "path": "/.src/index.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "a17d6069b60518aac53835253b6d092ee05c8c0bd3eb24da5fd93e1d74560975",
+            "callback_utf8_bytes": 366,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "a17d6069b60518aac53835253b6d092ee05c8c0bd3eb24da5fd93e1d74560975",
+            "materialized_utf8_bytes": 366,
+            "declaration_callback_base64": "ZGVjbGFyZSBjb25zdCBfZGVmYXVsdDogew0KICAgIG5ldyAoKTogew0KICAgICAgICBmb28oKTogYW55Ow0KICAgIH07DQp9Ow0KZXhwb3J0IGRlZmF1bHQgX2RlZmF1bHQ7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBVc2VyIHsNCiAgICBuYW1lOiBzdHJpbmc7DQp9DQpkZWNsYXJlIGNvbnN0IFRpbWVzdGFtcGVkVXNlcl9iYXNlOiB7DQogICAgbmV3ICguLi5hcmdzOiBhbnlbXSk6IHsNCiAgICAgICAgdGltZXN0YW1wOiBudW1iZXI7DQogICAgfTsNCn0gJiB0eXBlb2YgVXNlcjsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRpbWVzdGFtcGVkVXNlciBleHRlbmRzIFRpbWVzdGFtcGVkVXNlcl9iYXNlIHsNCiAgICBjb25zdHJ1Y3RvcigpOw0KfQ0K",
+            "declaration_materialized_base64": "ZGVjbGFyZSBjb25zdCBfZGVmYXVsdDogew0KICAgIG5ldyAoKTogew0KICAgICAgICBmb28oKTogYW55Ow0KICAgIH07DQp9Ow0KZXhwb3J0IGRlZmF1bHQgX2RlZmF1bHQ7DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBVc2VyIHsNCiAgICBuYW1lOiBzdHJpbmc7DQp9DQpkZWNsYXJlIGNvbnN0IFRpbWVzdGFtcGVkVXNlcl9iYXNlOiB7DQogICAgbmV3ICguLi5hcmdzOiBhbnlbXSk6IHsNCiAgICAgICAgdGltZXN0YW1wOiBudW1iZXI7DQogICAgfTsNCn0gJiB0eXBlb2YgVXNlcjsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRpbWVzdGFtcGVkVXNlciBleHRlbmRzIFRpbWVzdGFtcGVkVXNlcl9iYXNlIHsNCiAgICBjb25zdHJ1Y3RvcigpOw0KfQ0K",
+            "source_files": [
+              "/.src/index.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "1ac437ef3637738e9c227d8207d399a5177843a51780e333bf1b10bda1f42a76"
+      },
+      "case_observation_fingerprint_sha256": "a8b0e6f0e5e55f239bea71dd609bf75ba8a79973332f188a877802fb9f0217ac"
+    },
+    {
+      "case_id": "h2-7a/S3/typeofexpr-3",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationEmitClassMixinLocalClassDeclaration.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "164553a3ccd02d6cf76df26dd50af3d4c709d38277092e458347c542839c2282",
+            "callback_utf8_bytes": 481,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "164553a3ccd02d6cf76df26dd50af3d4c709d38277092e458347c542839c2282",
+            "materialized_utf8_bytes": 481,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/declarationEmitClassMixinLocalClassDeclaration.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/declarationEmitClassMixinLocalClassDeclaration.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "596349a74b02d1087aa14902c17d1ebad88093d839ff87eef10fdfd7b2b1d362",
+            "callback_utf8_bytes": 574,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "596349a74b02d1087aa14902c17d1ebad88093d839ff87eef10fdfd7b2b1d362",
+            "materialized_utf8_bytes": 574,
+            "declaration_callback_base64": "ZXhwb3J0IHR5cGUgQW55RnVuY3Rpb248UmVzdWx0ID0gYW55PiA9ICguLi5pbnB1dDogYW55W10pID0+IFJlc3VsdDsNCmV4cG9ydCB0eXBlIEFueUNvbnN0cnVjdG9yPEluc3RhbmNlIGV4dGVuZHMgb2JqZWN0ID0gb2JqZWN0LCBTdGF0aWMgZXh0ZW5kcyBvYmplY3QgPSBvYmplY3Q+ID0gKG5ldyAoLi4uaW5wdXQ6IGFueVtdKSA9PiBJbnN0YW5jZSkgJiBTdGF0aWM7DQp0eXBlIE1peGluSGVscGVyRnVuYyA9IDxBIGV4dGVuZHMgQW55Q29uc3RydWN0b3IsIFQ+KHJlcXVpcmVkOiBbQV0sIGFyZzogVCkgPT4gVCBleHRlbmRzIEFueUZ1bmN0aW9uPGluZmVyIE0+ID8gTSA6IG5ldmVyOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgTWl4aW46IE1peGluSGVscGVyRnVuYzsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEJhc2Ugew0KfQ0KZGVjbGFyZSBjb25zdCBYbWxFbGVtZW50Ml9iYXNlOiB7DQogICAgbmV3ICgpOiB7DQogICAgICAgIG51bTogbnVtYmVyOw0KICAgIH07DQp9Ow0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgWG1sRWxlbWVudDIgZXh0ZW5kcyBYbWxFbGVtZW50Ml9iYXNlIHsNCn0NCmV4cG9ydCB7fTsNCg==",
+            "declaration_materialized_base64": "ZXhwb3J0IHR5cGUgQW55RnVuY3Rpb248UmVzdWx0ID0gYW55PiA9ICguLi5pbnB1dDogYW55W10pID0+IFJlc3VsdDsNCmV4cG9ydCB0eXBlIEFueUNvbnN0cnVjdG9yPEluc3RhbmNlIGV4dGVuZHMgb2JqZWN0ID0gb2JqZWN0LCBTdGF0aWMgZXh0ZW5kcyBvYmplY3QgPSBvYmplY3Q+ID0gKG5ldyAoLi4uaW5wdXQ6IGFueVtdKSA9PiBJbnN0YW5jZSkgJiBTdGF0aWM7DQp0eXBlIE1peGluSGVscGVyRnVuYyA9IDxBIGV4dGVuZHMgQW55Q29uc3RydWN0b3IsIFQ+KHJlcXVpcmVkOiBbQV0sIGFyZzogVCkgPT4gVCBleHRlbmRzIEFueUZ1bmN0aW9uPGluZmVyIE0+ID8gTSA6IG5ldmVyOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgTWl4aW46IE1peGluSGVscGVyRnVuYzsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEJhc2Ugew0KfQ0KZGVjbGFyZSBjb25zdCBYbWxFbGVtZW50Ml9iYXNlOiB7DQogICAgbmV3ICgpOiB7DQogICAgICAgIG51bTogbnVtYmVyOw0KICAgIH07DQp9Ow0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgWG1sRWxlbWVudDIgZXh0ZW5kcyBYbWxFbGVtZW50Ml9iYXNlIHsNCn0NCmV4cG9ydCB7fTsNCg==",
+            "source_files": [
+              "/.src/declarationEmitClassMixinLocalClassDeclaration.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "8908090fea23c583c7e9743bd9e0e600a8af1b5a9ab2ccda8424b8f267cb3e90"
+      },
+      "case_observation_fingerprint_sha256": "e8eb12f78f905295b5847b114d090c8e0d12d1e278e4c709f3794c27a0857758"
+    },
+    {
+      "case_id": "h2-7a/S3/typeofexpr-4",
+      "repetitions": 2,
+      "observation": {
+        "reported_diagnostics": [
+          {
+            "code": 2564,
+            "category": "Error",
+            "message": "Property 'x' has no initializer and is not definitely assigned in the constructor.",
+            "file": "/.src/declarationEmitExpressionInExtends2.ts",
+            "start": 20,
+            "length": 1
+          },
+          {
+            "code": 2564,
+            "category": "Error",
+            "message": "Property 'y' has no initializer and is not definitely assigned in the constructor.",
+            "file": "/.src/declarationEmitExpressionInExtends2.ts",
+            "start": 30,
+            "length": 1
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationEmitExpressionInExtends2.js",
+            "kind": "javascript",
+            "callback_utf8_sha256": "52836a8284416d4d54eadf051259cf566e0bc91df60cca1226bc5c080d137561",
+            "callback_utf8_bytes": 111,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "52836a8284416d4d54eadf051259cf566e0bc91df60cca1226bc5c080d137561",
+            "materialized_utf8_bytes": 111,
+            "declaration_callback_base64": null,
+            "declaration_materialized_base64": null,
+            "source_files": [
+              "/.src/declarationEmitExpressionInExtends2.ts"
+            ]
+          },
+          {
+            "index": 1,
+            "path": "/.src/declarationEmitExpressionInExtends2.d.ts",
+            "kind": "declaration",
+            "callback_utf8_sha256": "34032a79fb26293232c060299b2502b799c48e6ddc9ee893c28821dff7177544",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_sha256": "34032a79fb26293232c060299b2502b799c48e6ddc9ee893c28821dff7177544",
+            "materialized_utf8_bytes": 201,
+            "declaration_callback_base64": "ZGVjbGFyZSBjbGFzcyBDPFQsIFU+IHsNCiAgICB4OiBUOw0KICAgIHk6IFU7DQp9DQpkZWNsYXJlIGZ1bmN0aW9uIGdldENsYXNzPFQ+KGM6IFQpOiB0eXBlb2YgQzsNCmRlY2xhcmUgY29uc3QgTXlDbGFzc19iYXNlOiB0eXBlb2YgQzsNCmRlY2xhcmUgY2xhc3MgTXlDbGFzcyBleHRlbmRzIE15Q2xhc3NfYmFzZTxzdHJpbmcsIG51bWJlcj4gew0KfQ0K",
+            "declaration_materialized_base64": "ZGVjbGFyZSBjbGFzcyBDPFQsIFU+IHsNCiAgICB4OiBUOw0KICAgIHk6IFU7DQp9DQpkZWNsYXJlIGZ1bmN0aW9uIGdldENsYXNzPFQ+KGM6IFQpOiB0eXBlb2YgQzsNCmRlY2xhcmUgY29uc3QgTXlDbGFzc19iYXNlOiB0eXBlb2YgQzsNCmRlY2xhcmUgY2xhc3MgTXlDbGFzcyBleHRlbmRzIE15Q2xhc3NfYmFzZTxzdHJpbmcsIG51bWJlcj4gew0KfQ0K",
+            "source_files": [
+              "/.src/declarationEmitExpressionInExtends2.ts"
+            ]
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "emitted_files": null,
+          "diagnostics": []
+        },
+        "observation_fingerprint_sha256": "7c76581911a8139932f3b7324aef64e051473bf661b9a02230af376e2547e88d"
+      },
+      "case_observation_fingerprint_sha256": "3550e41013cf829f30c133544bcb2164bb64ec31d00b477ad14a772b3bc61922"
     },
     {
       "case_id": "typescript-6.0.3/compiler/out-flag.ts#target%3Des2015",
@@ -15844,21 +16772,21 @@
     "declared_strata": 1,
     "curated_cases": 27,
     "stratum_cases": 67,
-    "cases": 112,
+    "cases": 120,
     "positive_cases": 87,
     "adjacent_negative_cases": 2,
     "composition_cases": 3,
     "fault_cases": 2,
-    "declaration_writes": 190,
-    "javascript_writes": 195,
+    "declaration_writes": 202,
+    "javascript_writes": 207,
     "source_map_writes": 134,
     "other_writes": 0,
-    "reported_diagnostics": 127,
+    "reported_diagnostics": 132,
     "emit_diagnostics": 13,
-    "typescript_oracle_runs": 224,
-    "deterministic_cases": 112,
+    "typescript_oracle_runs": 240,
+    "deterministic_cases": 120,
     "rust_runs": 0
   },
-  "observation_content_roll_sha256": "091cea9c5dd7a2c60a551d9292cd19832f9b71c77a28508eeae7252ccf556312",
-  "witnesses_fingerprint_sha256": "84e478a1d31d743f908699284e9cd03a44996c220ab098c46c5916eef15335ab"
+  "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
+  "witnesses_fingerprint_sha256": "6439353e417fd7a5e9b7a274680464bbd66c910ab8658ea5feab0fefdf1cf8d5"
 }

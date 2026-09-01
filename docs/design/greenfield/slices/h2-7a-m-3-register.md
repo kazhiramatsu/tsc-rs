@@ -20,39 +20,63 @@ final assembly mints on this branch.
   (the frozen 18-row S2 stratum reproduced byte-identically on
   fresh observation before assembly).
 
-## Freeze guards (§7.7; values recorded at E2 authoring)
+## Freeze guards (§7.7 — values frozen at E2, exercised at E3)
 
-- H2_7A_M2_S2_PROJECTION_SHA256 (witness): PENDING(E2).
-- H2_7A_M2_SCHEMA2_PROJECTION_SHA256 (probe, permanent 112-case):
-  PENDING(E2).
+- H2_7A_M2_S2_PROJECTION_SHA256 (witness) =
+  d9cb88a8100cf481c1221dfe986bfc6036857cb875cc7dd667eb246cea90a4d3
+  — PASSED on fresh observation and artifact paths.
+- H2_7A_M2_SCHEMA2_PROJECTION_SHA256 (probe, permanent 112-case) =
+  6b43e5a1fa6596e36db867b18442f71c080c11b688217c95cabb73368c76c9b9
+  (id-order pin 581d0b4ba3e584b8…) — PASSED inside the mint's
+  validateArtifact: the frozen schema-2 traces survived
+  re-observation byte-identically.
 - v1 migration projection: S3 prefix excluded; frozen 94-id
   denominator unchanged.
 
-## S3 per-member volumes and floors (§7.9)
+## S3 per-member volumes and floors (§7.9 — ALL MET, E3 FINAL)
 
-- createTypeOfExpression S3 root pairs: PENDING(E3) — must be ≥1.
-- createLiteralConstValue S3 root pairs: PENDING(E3) — must be ≥1.
-- Non-entity-name heritage serialization observed: PENDING(E3).
-- Literal-const initializer synthesis observed: PENDING(E3).
+- createTypeOfExpression S3 root pairs: 4 (one per typeofexpr case).
+- createLiteralConstValue S3 root pairs: 8 (2/1/2/3 across
+  literalconst-1..4).
+- Non-entity-name heritage serialization observed: YES (every
+  typeofexpr case).
+- Literal-const initializer synthesis observed: YES (every
+  literalconst case).
+- Per-case S3 root map (entry counts): typeofexpr-1 {lateBound 2,
+  typeOfExpression 1}; typeofexpr-2 {returnType 2, typeOfDecl 2,
+  lateBound 2, typeOfExpression 1}; typeofexpr-3 {lateBound 2,
+  typeOfExpression 1}; typeofexpr-4 {lateBound 2, returnType 1,
+  typeOfExpression 1}; literalconst-1 {literalConst 2, typeOfDecl 1};
+  literalconst-2 {literalConst 1}; literalconst-3 {literalConst 2,
+  lateBound 1}; literalconst-4 {literalConst 3, typeOfDecl 3}.
 
-## Expected-zero confirmations across 120 cases (§6.4)
+## Expected-zero confirmations across 120 cases (§6.4 — E3 FINAL)
 
-- nodebuilder.withContext.decision, nodebuilder.
-  moduleSpecifierOverride.*, tracker.reportTruncationError,
-  tracker.reportPrivateInBaseOfClassExpression,
-  tracker.reportInaccessibleThisError,
-  tracker.reportCyclicStructureError,
-  tracker.reportNonlocalAugmentation,
-  tracker.reportNonSerializableProperty: PENDING(E3).
+- ALL EIGHT zero lanes confirmed zero across the 120-case corpus:
+  nodebuilder.withContext.decision 0,
+  nodebuilder.moduleSpecifierOverride.* 0,
+  tracker.reportTruncationError 0,
+  tracker.reportPrivateInBaseOfClassExpression 0,
+  tracker.reportInaccessibleThisError 0,
+  tracker.reportCyclicStructureError 0,
+  tracker.reportNonlocalAugmentation 0,
+  tracker.reportNonSerializableProperty 0.
+- probe.fallbackSweep: 0 (corpus-wide, unchanged).
+- Singleton sites unchanged at 120 cases:
+  reportInaccessibleUniqueSymbolError 1,
+  reportLikelyUnsafeImportRequiredError 1.
 
-## Serialization-member volumes (120-case corpus)
+## Serialization-member volumes (120-case corpus — E3 FINAL)
 
-- createTypeOfDeclaration / createReturnTypeOfSignatureDeclaration /
-  createLateBoundIndexSignatures /
-  getDeclarationStatementsForSourceFile / createTypeOfExpression /
-  createLiteralConstValue entry-result pairs: PENDING(E3)
-  (m-1+S2 baseline 314/148/152/3/0/0).
-- Exclusion-class counts per member: PENDING(E3).
+- createTypeOfDeclaration 320; createReturnTypeOfSignatureDeclaration
+  151; createLateBoundIndexSignatures 161;
+  getDeclarationStatementsForSourceFile 3; createTypeOfExpression 4;
+  createLiteralConstValue 8 (m-1+S2 baseline was 314/148/152/3/0/0).
+- Total trace events 16,925 (was 15,845); withContext.result 539;
+  trackSymbol 538; reportInferenceFallback 373.
+- Exclusion-class per-member counts: P5-frozen from the FINAL
+  artifacts (packet §6.7); artifact-level volumes above are the
+  upper envelope.
 
 ## Successor fingerprints (E3-time values; walk-head finals land in
 ## the walk cert / close record per the m-2 disposition-7 rule)
@@ -61,19 +85,25 @@ final assembly mints on this branch.
   6439353e417fd7a5… (full value in the artifact).
 - witness observation-content roll (E3): 4d2e6f6dc52cf5e4….
 - witness case-manifest fingerprint (E3): 81d5b13a639f5cc8….
-- probe artifact fingerprint: PENDING(E3 probe mint).
-- probe trace-content roll: PENDING(E3 probe mint).
-- witness raw file sha pinned by the probe: PENDING(E3 probe mint).
+- probe artifact fingerprint (E3): 73627055e0e12ee7….
+- probe trace-content roll (E3): ca24d47c54b14df3….
+- witness raw file sha pinned by the probe (E3): fb521718d04894f2….
 - Trusted-base predecessors (recorded, h2-7a-m-3.md §1): manifest
   89bb0627…, witness roll 091cea9c…, probe roll dcf1243f…, raw shas
   ec2823c890d7…/d459898a9d46…, embedded fingerprints
   84e478a1…/abbb443a….
 
-## E4 surprise-trigger assessment (§8.E4)
+## E4 surprise-trigger assessment (§8.E4 — operator, 2026-09-01)
 
-- selector drift / zero-volume S3 target / guard failure / nonzero
-  expected-zero lane / unpredicted exclusion class / floor miss:
-  PENDING(E4).
+- selector drift: NO (mint reproduced the frozen lists exactly).
+- zero-volume S3 target: NO (4 and 8).
+- guard failure: NO (all three §7.7 guards passed live).
+- nonzero expected-zero lane: NO (all eight lanes zero at 120).
+- unpredicted exclusion class: NONE at artifact level (per-member
+  replay exclusions freeze at P5 per packet §6.7).
+- floor miss: NO.
+- VERDICT: no trigger fired — Phase P proceeds on this operator
+  verification record (packet §8.E4).
 
 ## Harness constants for P5 transcription
 
