@@ -1016,7 +1016,9 @@ impl<'a> CheckerState<'a> {
     pub(crate) fn take_authoritative_module_failure(
         &mut self,
     ) -> Option<crate::AuthoritativeModuleFailure> {
-        self.authoritative_module_failure.take()
+        let failure = self.authoritative_module_failure.take();
+        self.run_declaration_emit_replay_observer_for_harness();
+        failure
     }
 
     /// Program construction (M4 5.0): binders in program order, each

@@ -9613,7 +9613,7 @@ impl<'a> CheckerState<'a> {
     /// (StrongArityForUntypedJS|VoidIsNonOptional), which reduces to
     /// the min-argument integer without the void-trimming loop
     /// (structural.rs's variant).
-    fn is_optional_parameter_slice(&mut self, node: NodeId) -> CheckResult<bool> {
+    pub(crate) fn is_optional_parameter_slice(&mut self, node: NodeId) -> CheckResult<bool> {
         let NodeData::Parameter(data) = self.data_of(node) else {
             return Ok(false);
         };
@@ -9671,7 +9671,10 @@ impl<'a> CheckerState<'a> {
     /// isRequiredInitializedParameter + isOptionalUninitializedParameterProperty
     /// folded in. The parameter-property arms consult the syntactic modifier mask
     /// (accessibility/readonly/override) on the declaration.
-    fn requires_adding_implicit_undefined_slice(&mut self, parameter: NodeId) -> CheckResult<bool> {
+    pub(crate) fn requires_adding_implicit_undefined_slice(
+        &mut self,
+        parameter: NodeId,
+    ) -> CheckResult<bool> {
         let NodeData::Parameter(data) = self.data_of(parameter) else {
             return Ok(false);
         };
@@ -11550,7 +11553,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isDeclarationVisible @6.0.3.
     /// tsc-hash: b569e8243cf2db9de0dbec7462f29fa1e70f4b94405adb5a134b6571d4c8fbeb
     /// tsc-span: _tsc.js:55589-55674
-    fn reused_declaration_is_visible_slice(&self, declaration: NodeId) -> bool {
+    pub(crate) fn reused_declaration_is_visible_slice(&self, declaration: NodeId) -> bool {
         match self.kind_of(declaration) {
             SyntaxKind::JSDocCallbackTag
             | SyntaxKind::JSDocTypedefTag
@@ -13403,6 +13406,26 @@ fn string_literal_name_text(
         }
     }
     Ok(format!("{quote}{escaped}{quote}"))
+}
+
+impl crate::declaration_emit::DeclarationEmitAccessibilityPrimitives for CheckerState<'_> {
+    fn declaration_emit_accessible_symbol_chain(
+        &mut self,
+        symbol: SymbolId,
+        meaning: SymbolFlags,
+        enclosing: Option<NodeId>,
+    ) -> CheckResult<Option<Vec<SymbolId>>> {
+        self.accessible_symbol_chain_at_slice(symbol, meaning, enclosing)
+    }
+
+    fn declaration_emit_containers_of_symbol(
+        &mut self,
+        symbol: SymbolId,
+        enclosing: Option<NodeId>,
+        meaning: SymbolFlags,
+    ) -> CheckResult<Vec<SymbolId>> {
+        self.containers_of_symbol_slice(symbol, enclosing, meaning)
+    }
 }
 
 #[cfg(test)]

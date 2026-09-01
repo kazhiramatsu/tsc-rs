@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "6d37dcbadde26a406343c73a73e3f5b5584877be499824c839313b78ac4ffc63"
+      "sha256": "8c82e0486cf659a7a56e2363e16032eac3a579f5c3ee5fbcb63b6741b1309a1b"
     },
-    "owner_graph_fingerprint_sha256": "f550a8ec9a807312cdfc64b7963674e83a24c77f5f441867657502b1ce2fd8be",
+    "owner_graph_fingerprint_sha256": "f4decf128b8a7776a817d27eee65baeaef343039854f19e8c84a04edd1c2fe6f",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
@@ -482,7 +482,7 @@
           "symbol": "fn is_arguments_local_binding",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+            "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
           }
         },
         {
@@ -490,7 +490,7 @@
           "symbol": "fn get_referenced_value_declaration",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+            "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
           }
         },
         {
@@ -498,7 +498,7 @@
           "symbol": "fn has_node_check_flag",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+            "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
           }
         },
         {
@@ -506,7 +506,7 @@
           "symbol": "fn get_referenced_declaration_with_colliding_name",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+            "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
           }
         },
         {
@@ -514,7 +514,7 @@
           "symbol": "fn is_declaration_with_colliding_name",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+            "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
           }
         },
         {
@@ -522,7 +522,7 @@
           "symbol": "fn is_binding_captured_by_node",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+            "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
           }
         },
         {
@@ -530,7 +530,7 @@
           "symbol": "fn emit_get_referenced_declaration_with_colliding_name",
           "file": {
             "path": "crates/checker/src/modules.rs",
-            "sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+            "sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
           }
         },
         {
@@ -538,7 +538,7 @@
           "symbol": "fn is_binding_captured_by_node",
           "file": {
             "path": "crates/checker/src/emit.rs",
-            "sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
+            "sha256": "b781893eabf9a6636a1785e2cce1f19f2e6bcbbce0c39117a73ac0abf47f4a2e"
           }
         },
         {
@@ -546,13 +546,13 @@
           "symbol": "fn resolver_queries_replay_the_foundation_direct_controls",
           "file": {
             "path": "crates/checker/tests/unit/emit/tests.rs",
-            "sha256": "6496d65de01fffb9e6f85eb5c5665afe267832f72120cad3939bab6b6181ff47"
+            "sha256": "b6fe39e760ed74acbdaffc2e1dcf2486ece4f894effc0877c1919b5da8d9f102"
           }
         }
       ],
       "absences": [],
       "note": "B-1 landed the collision/capture trio as typed fail-closed trait defaults with production implementations at the checker bridge (CheckerSession in emit.rs delegating to the modules.rs ports; checkNestedBlockScopedBinding's capturedBlockScopeBindings list materialized for isBindingCapturedByNode); all 43 resolver queries recorded by the foundation's three checker+resolver direct controls replay equal through the production bridge",
-      "capability_fingerprint_sha256": "12d8c3c2e34090f222a95cb8da96c5ec7592f37873e5403e47f638bf63e3bdf2"
+      "capability_fingerprint_sha256": "993d9a99e23e61c0db3081b09f45008e42101f7c41b8d301f1c92dbe66d91bad"
     },
     {
       "index": 9,
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "a1aa03fa76c70d1c42f7095deca59476ceaa918c773b0642dec625d8f3575daf"
+  "gap_matrix_fingerprint_sha256": "fc62f5c656052ade05400f3fe3c0a12341696ed0f927bfa5b70d7d7dbe662b8a"
 }

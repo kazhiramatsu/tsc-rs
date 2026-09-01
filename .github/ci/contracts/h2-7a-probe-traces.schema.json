@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tsc-rs.invalid/contracts/h2-7a-probe-traces.schema.json",
-  "title": "H2.7a m-1 instrumented probe traces",
+  "title": "H2.7a m-2 schema-2 instrumented probe traces",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -21,7 +21,7 @@
   ],
   "properties": {
     "schema": {
-      "const": 1
+      "const": 2
     },
     "phase": {
       "const": "H2.7a-probe-traces"
@@ -69,6 +69,11 @@
       "type": "string",
       "pattern": "^[0-9a-f]{64}$"
     },
+    "safeInteger": {
+      "type": "integer",
+      "minimum": -9007199254740991,
+      "maximum": 9007199254740991
+    },
     "pathHash": {
       "type": "object",
       "additionalProperties": false,
@@ -86,44 +91,417 @@
         }
       }
     },
-    "traceArgument": {
+    "traceLeaf": {
       "oneOf": [
         {
           "type": "string"
         },
         {
-          "type": "integer"
+          "$ref": "#/$defs/safeInteger"
         },
         {
           "type": "boolean"
+        },
+        {
+          "type": "null"
         }
       ]
+    },
+    "traceValue1": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/traceLeaf"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/traceLeaf"
+          }
+        }
+      ]
+    },
+    "traceValue2": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/traceLeaf"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/traceValue1"
+          }
+        }
+      ]
+    },
+    "traceValue3": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/traceLeaf"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/traceValue2"
+          }
+        }
+      ]
+    },
+    "traceValue4": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/traceLeaf"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/traceValue3"
+          }
+        }
+      ]
+    },
+    "traceValue5": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/traceLeaf"
+        },
+        {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/traceValue4"
+          }
+        }
+      ]
+    },
+    "nodeRef": {
+      "type": "array",
+      "minItems": 8,
+      "maxItems": 8,
+      "items": {
+        "$ref": "#/$defs/safeInteger"
+      }
+    },
+    "symbolRef": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/traceValue3"
+      }
+    },
+    "visibilityRow": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "$ref": "#/$defs/traceValue2"
+      }
+    },
+    "propertyRow": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "$ref": "#/$defs/traceValue4"
+      }
+    },
+    "fileTableRow": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "$ref": "#/$defs/safeInteger"
+          }
+        ]
+      }
     },
     "traceEvent": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "site_id",
+        "event_seq",
+        "call_id",
+        "depth",
         "args"
       ],
       "properties": {
         "site_id": {
-          "type": "string",
-          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          "enum": [
+            "nodebuilder.moduleSpecifierOverride.contextArm",
+            "nodebuilder.moduleSpecifierOverride.sourceArm",
+            "nodebuilder.moduleSpecifierOverride.unsafe",
+            "nodebuilder.moduleSpecifierOverride.resultArm",
+            "nodebuilder.withContext.decision",
+            "nodebuilder.withContext.result",
+            "resolver.isDefinitelyReferenceToGlobalSymbolObject.entry",
+            "resolver.isDefinitelyReferenceToGlobalSymbolObject.result",
+            "resolver.isSymbolAccessible.entry",
+            "resolver.isSymbolAccessible.result",
+            "resolver.isEntityNameVisible.entry",
+            "resolver.isEntityNameVisible.result",
+            "resolver.isDeclarationVisible.entry",
+            "resolver.isDeclarationVisible.result",
+            "resolver.collectLinkedAliases.entry",
+            "resolver.collectLinkedAliases.result",
+            "resolver.isOptionalParameter.entry",
+            "resolver.isOptionalParameter.result",
+            "resolver.isImplementationOfOverload.entry",
+            "resolver.isImplementationOfOverload.result",
+            "resolver.requiresAddingImplicitUndefined.entry",
+            "resolver.requiresAddingImplicitUndefined.result",
+            "resolver.isExpandoFunctionDeclaration.entry",
+            "resolver.isExpandoFunctionDeclaration.result",
+            "resolver.getPropertiesOfContainerFunction.entry",
+            "resolver.getPropertiesOfContainerFunction.result",
+            "resolver.getEnumMemberValue.entry",
+            "resolver.getEnumMemberValue.result",
+            "resolver.createTypeOfDeclaration.entry",
+            "resolver.createTypeOfDeclaration.result",
+            "resolver.createReturnTypeOfSignatureDeclaration.entry",
+            "resolver.createReturnTypeOfSignatureDeclaration.result",
+            "resolver.createTypeOfExpression.entry",
+            "resolver.createTypeOfExpression.result",
+            "resolver.hasGlobalName.entry",
+            "resolver.hasGlobalName.result",
+            "resolver.isLiteralConstDeclaration.entry",
+            "resolver.isLiteralConstDeclaration.result",
+            "resolver.createLiteralConstValue.entry",
+            "resolver.createLiteralConstValue.result",
+            "resolver.isLateBound.entry",
+            "resolver.isLateBound.result",
+            "resolver.getDeclarationStatementsForSourceFile.entry",
+            "resolver.getDeclarationStatementsForSourceFile.result",
+            "resolver.createLateBoundIndexSignatures.entry",
+            "resolver.createLateBoundIndexSignatures.result",
+            "resolver.isImportRequiredByAugmentation.entry",
+            "resolver.isImportRequiredByAugmentation.result",
+            "tracker.reportInferenceFallback",
+            "tracker.trackSymbol",
+            "tracker.reportPrivateInBaseOfClassExpression",
+            "tracker.reportInaccessibleUniqueSymbolError",
+            "tracker.reportCyclicStructureError",
+            "tracker.reportInaccessibleThisError",
+            "tracker.reportLikelyUnsafeImportRequiredError",
+            "tracker.reportTruncationError",
+            "tracker.reportNonlocalAugmentation",
+            "tracker.reportNonSerializableProperty",
+            "declarations.visitDeclarationSubtree.changed",
+            "declarations.transformTopLevelDeclaration.changed",
+            "declarations.declBlocked",
+            "syntactic.serializeTypeOfDeclaration.entry",
+            "syntactic.serializeTypeOfDeclaration.result",
+            "syntactic.serializeTypeOfDeclaration.checkerFallback",
+            "syntactic.serializeReturnTypeForSignature.entry",
+            "syntactic.serializeReturnTypeForSignature.result",
+            "syntactic.serializeReturnTypeForSignature.checkerFallback",
+            "isVisible.memo",
+            "isVisible.addVisibleAlias",
+            "isVisible.collectLinkedAliases",
+            "probe.checkSeed",
+            "probe.transformSeed",
+            "probe.fallbackSweep",
+            "probe.bootstrap"
+          ]
+        },
+        "event_seq": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "call_id": {
+          "type": "integer",
+          "minimum": -1,
+          "maximum": 9007199254740991
+        },
+        "depth": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
         },
         "args": {
           "type": "array",
+          "minItems": 1,
+          "maxItems": 10,
           "items": {
-            "$ref": "#/$defs/traceArgument"
+            "$ref": "#/$defs/traceValue5"
           }
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "site_id": {
+                "enum": [
+                  "resolver.isDefinitelyReferenceToGlobalSymbolObject.entry",
+                  "resolver.isDeclarationVisible.entry",
+                  "resolver.isOptionalParameter.entry",
+                  "resolver.isImplementationOfOverload.entry",
+                  "resolver.requiresAddingImplicitUndefined.entry",
+                  "resolver.isExpandoFunctionDeclaration.entry",
+                  "resolver.getPropertiesOfContainerFunction.entry",
+                  "resolver.getEnumMemberValue.entry",
+                  "resolver.createTypeOfDeclaration.entry",
+                  "resolver.createReturnTypeOfSignatureDeclaration.entry",
+                  "resolver.createTypeOfExpression.entry",
+                  "resolver.hasGlobalName.entry",
+                  "resolver.isLiteralConstDeclaration.entry",
+                  "resolver.createLiteralConstValue.entry",
+                  "resolver.isLateBound.entry",
+                  "resolver.getDeclarationStatementsForSourceFile.entry",
+                  "resolver.createLateBoundIndexSignatures.entry",
+                  "resolver.isImportRequiredByAugmentation.entry"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "args": {
+                "minItems": 7,
+                "maxItems": 7
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "site_id": {
+                "enum": [
+                  "resolver.isDefinitelyReferenceToGlobalSymbolObject.result",
+                  "resolver.isDeclarationVisible.result",
+                  "resolver.isOptionalParameter.result",
+                  "resolver.isImplementationOfOverload.result",
+                  "resolver.requiresAddingImplicitUndefined.result",
+                  "resolver.isExpandoFunctionDeclaration.result",
+                  "resolver.createTypeOfDeclaration.result",
+                  "resolver.createReturnTypeOfSignatureDeclaration.result",
+                  "resolver.createTypeOfExpression.result",
+                  "resolver.hasGlobalName.result",
+                  "resolver.isLiteralConstDeclaration.result",
+                  "resolver.createLiteralConstValue.result",
+                  "resolver.isLateBound.result",
+                  "resolver.getDeclarationStatementsForSourceFile.result",
+                  "resolver.createLateBoundIndexSignatures.result",
+                  "resolver.isImportRequiredByAugmentation.result"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "args": {
+                "minItems": 7,
+                "maxItems": 7
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "site_id": {
+                "enum": [
+                  "resolver.isSymbolAccessible.entry",
+                  "resolver.isSymbolAccessible.result",
+                  "resolver.isEntityNameVisible.entry",
+                  "resolver.isEntityNameVisible.result"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "args": {
+                "minItems": 6,
+                "maxItems": 6
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "site_id": {
+                "enum": [
+                  "resolver.getPropertiesOfContainerFunction.result",
+                  "resolver.collectLinkedAliases.result",
+                  "syntactic.serializeTypeOfDeclaration.entry",
+                  "syntactic.serializeReturnTypeForSignature.entry",
+                  "probe.checkSeed",
+                  "probe.transformSeed",
+                  "probe.bootstrap"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "args": {
+                "minItems": 2,
+                "maxItems": 2
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "site_id": {
+                "enum": [
+                  "resolver.collectLinkedAliases.entry",
+                  "isVisible.memo",
+                  "isVisible.addVisibleAlias",
+                  "isVisible.collectLinkedAliases",
+                  "probe.fallbackSweep"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "args": {
+                "minItems": 3,
+                "maxItems": 3
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "site_id": {
+                "enum": [
+                  "resolver.getEnumMemberValue.result",
+                  "syntactic.serializeTypeOfDeclaration.result",
+                  "syntactic.serializeReturnTypeForSignature.result"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "args": {
+                "minItems": 4,
+                "maxItems": 4
+              }
+            }
+          }
+        }
+      ]
     },
     "case": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "case_id",
+        "fileTable",
         "trace_events",
         "public_output_roll",
         "inert"
@@ -132,6 +510,12 @@
         "case_id": {
           "type": "string",
           "minLength": 1
+        },
+        "fileTable": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/fileTableRow"
+          }
         },
         "trace_events": {
           "type": "array",
@@ -159,17 +543,20 @@
       "properties": {
         "cases": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "events": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "maximum": 9007199254740991
         },
         "per_site_counts": {
           "type": "object",
           "additionalProperties": {
             "type": "integer",
-            "minimum": 1
+            "minimum": 1,
+            "maximum": 9007199254740991
           }
         },
         "trace_content_roll": {

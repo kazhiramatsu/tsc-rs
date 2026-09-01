@@ -2,22 +2,28 @@
 //! session remains alive.
 
 use std::cell::RefCell;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use tsc_emitter::{
-    EmitConstantValue, EmitEnumMemberValue, EmitExportContainerMode, EmitResolver,
-    EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitTypeReferenceSerializationKind,
+    EmitConstantValue, EmitEnumMemberValue, EmitExportContainerMode, EmitFunctionProperty,
+    EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode, EmitResolverSymbol,
+    EmitSymbolAccessibilityResult, EmitSymbolMeaning, EmitTypeReferenceSerializationKind,
     JavaScriptNumber, JavaScriptString,
 };
 
 use crate::state::{CheckResult, CheckerState};
 use crate::{evaluate::EvalValue, AuthoritativeSourceToken, ProgramSnapshot};
+use tsc_binder::SymbolId;
 use tsc_types::CompilerOptions;
+
+static NEXT_EMIT_RESOLVER_SESSION_TOKEN: AtomicU64 = AtomicU64::new(1);
 
 /// One fresh checker whose semantic links and transient arenas remain alive
 /// while transform and print borrow its narrow [`EmitResolver`] projection.
 /// The session never owns or mutates the immutable [`ProgramSnapshot`].
 pub struct CheckerSession<'program> {
     state: RefCell<CheckerState<'program>>,
+    session_token: u64,
 }
 
 impl<'program> CheckerSession<'program> {
@@ -37,6 +43,7 @@ impl<'program> CheckerSession<'program> {
     pub fn from_checked_state(state: CheckerState<'program>) -> Self {
         Self {
             state: RefCell::new(state),
+            session_token: NEXT_EMIT_RESOLVER_SESSION_TOKEN.fetch_add(1, Ordering::Relaxed),
         }
     }
 
@@ -90,6 +97,29 @@ impl<'program> CheckerSession<'program> {
             }
         })
     }
+
+    fn with_resolver_node_and_symbol<T>(
+        &self,
+        method: EmitResolverMethod,
+        node: EmitResolverNode,
+        symbol: EmitResolverSymbol,
+        operation: impl FnOnce(
+            &mut CheckerState<'program>,
+            tsc_syntax::NodeId,
+            SymbolId,
+        ) -> CheckResult<T>,
+    ) -> Result<T, EmitResolverError> {
+        let mut state = self.state.borrow_mut();
+        validate_resolver_node(&state, method, node)?;
+        let symbol = validate_resolver_symbol(&state, self.session_token, method, symbol)?;
+        operation(&mut state, node.node(), symbol).map_err(|abort| {
+            EmitResolverError::CheckerAborted {
+                method,
+                node,
+                reason: abort.description(),
+            }
+        })
+    }
 }
 
 /// tsc-port: createResolver @6.0.3
@@ -97,8 +127,9 @@ impl<'program> CheckerSession<'program> {
 /// tsc-span: _tsc.js:88545-88718
 ///
 /// Resolver producers are exposed only as their consuming transform slices
-/// become live. H2.2a adds constant and enum-member values while later
-/// consumer-owned methods retain the trait's typed unavailable default.
+/// become live. H2.2a adds constant and enum-member values; P2/P3 add the
+/// declaration-visibility and predicate workers while later consumer-owned
+/// methods retain the trait's typed unavailable default.
 impl EmitResolver for CheckerSession<'_> {
     fn get_constant_value(
         &self,
@@ -367,6 +398,165 @@ impl EmitResolver for CheckerSession<'_> {
             CheckerState::emit_is_value_alias_declaration,
         )
     }
+
+    fn is_definitely_reference_to_global_symbol_object(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        let method = EmitResolverMethod::IsDefinitelyReferenceToGlobalSymbolObject;
+        self.with_resolver_node(
+            method,
+            node,
+            CheckerState::emit_is_definitely_reference_to_global_symbol_object,
+        )
+    }
+
+    fn is_symbol_accessible(
+        &self,
+        symbol: EmitResolverSymbol,
+        enclosing_declaration: EmitResolverNode,
+        meaning: EmitSymbolMeaning,
+        should_compute_aliases: bool,
+    ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError> {
+        let method = EmitResolverMethod::IsSymbolAccessible;
+        self.with_resolver_node_and_symbol(
+            method,
+            enclosing_declaration,
+            symbol,
+            |state, enclosing_declaration, symbol| {
+                state.emit_is_symbol_accessible(
+                    symbol,
+                    enclosing_declaration,
+                    meaning,
+                    should_compute_aliases,
+                )
+            },
+        )
+    }
+
+    fn is_entity_name_visible(
+        &self,
+        entity_name: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+    ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError> {
+        let method = EmitResolverMethod::IsEntityNameVisible;
+        self.with_resolver_node_and_location(
+            method,
+            entity_name,
+            enclosing_declaration,
+            |state, entity_name, enclosing_declaration| {
+                state.emit_is_entity_name_visible(
+                    entity_name,
+                    enclosing_declaration,
+                    /*should_compute_aliases_to_make_visible*/ true,
+                )
+            },
+        )
+    }
+
+    fn is_declaration_visible(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsDeclarationVisible,
+            node,
+            CheckerState::emit_is_declaration_visible,
+        )
+    }
+
+    fn is_optional_parameter(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsOptionalParameter,
+            node,
+            CheckerState::emit_is_optional_parameter,
+        )
+    }
+
+    fn is_implementation_of_overload(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsImplementationOfOverload,
+            node,
+            CheckerState::emit_is_implementation_of_overload,
+        )
+    }
+
+    fn requires_adding_implicit_undefined(
+        &self,
+        parameter: EmitResolverNode,
+        enclosing_declaration: Option<EmitResolverNode>,
+    ) -> Result<bool, EmitResolverError> {
+        let method = EmitResolverMethod::RequiresAddingImplicitUndefined;
+        if let Some(enclosing_declaration) = enclosing_declaration {
+            self.with_resolver_node_and_location(
+                method,
+                parameter,
+                enclosing_declaration,
+                |state, parameter, enclosing_declaration| {
+                    state.emit_requires_adding_implicit_undefined(
+                        parameter,
+                        Some(enclosing_declaration),
+                    )
+                },
+            )
+        } else {
+            self.with_resolver_node(method, parameter, |state, parameter| {
+                state.emit_requires_adding_implicit_undefined(parameter, None)
+            })
+        }
+    }
+
+    fn is_expando_function_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsExpandoFunctionDeclaration,
+            node,
+            CheckerState::emit_is_expando_function_declaration,
+        )
+    }
+
+    fn get_properties_of_container_function(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitFunctionProperty>, EmitResolverError> {
+        let method = EmitResolverMethod::GetPropertiesOfContainerFunction;
+        let session_token = self.session_token;
+        self.with_resolver_node(method, node, move |state, node| {
+            state.emit_get_properties_of_container_function(node, session_token)
+        })
+    }
+
+    fn is_literal_const_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsLiteralConstDeclaration,
+            node,
+            CheckerState::emit_is_literal_const_declaration,
+        )
+    }
+
+    fn is_late_bound(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsLateBound,
+            node,
+            CheckerState::emit_is_late_bound,
+        )
+    }
+
+    fn is_import_required_by_augmentation(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsImportRequiredByAugmentation,
+            node,
+            CheckerState::emit_is_import_required_by_augmentation,
+        )
+    }
 }
 
 impl CheckerState<'_> {
@@ -484,6 +674,22 @@ fn validate_resolver_node(
         });
     }
     Ok(())
+}
+
+fn validate_resolver_symbol(
+    state: &CheckerState<'_>,
+    session_token: u64,
+    method: EmitResolverMethod,
+    symbol: EmitResolverSymbol,
+) -> Result<SymbolId, EmitResolverError> {
+    if symbol.session_token != session_token {
+        return Err(EmitResolverError::ForeignSymbol { method, symbol });
+    }
+    let symbol_id = SymbolId(symbol.symbol_index);
+    if state.binder.try_symbol(symbol_id).is_none() {
+        return Err(EmitResolverError::UnknownSymbol { method, symbol });
+    }
+    Ok(symbol_id)
 }
 
 #[cfg(test)]

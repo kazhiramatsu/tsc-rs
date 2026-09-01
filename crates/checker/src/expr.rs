@@ -3732,9 +3732,12 @@ impl<'a> CheckerState<'a> {
         }
     }
 
-    /// tsc isDeclarationReadonly (14128-14130): combined readonly
-    /// modifier, excluding parameter properties.
-    fn is_declaration_readonly(&self, declaration: NodeId) -> bool {
+    /// tsc-port: isDeclarationReadonly @6.0.3
+    /// tsc-hash: a80915701ff1d563f3d3bd3f9cacc6a671db67dcb1f0fb3954b3d5473469b900
+    /// tsc-span: _tsc.js:14128-14130
+    ///
+    /// Combined readonly modifier, excluding parameter properties.
+    pub(crate) fn is_declaration_readonly(&self, declaration: NodeId) -> bool {
         let source = self.binder.source_of_node(declaration);
         node_util::has_syntactic_modifier(source, declaration, ModifierFlags::READONLY)
             && !(self.kind_of(declaration) == SyntaxKind::Parameter

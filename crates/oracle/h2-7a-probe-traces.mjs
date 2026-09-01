@@ -1,4 +1,4 @@
-// H2.7a m-1: pinned, inert, instrumented declaration-probe observations.
+// H2.7a m-2: pinned, inert, schema-2 declaration-probe observations.
 //
 // The checked-in edit table below is the sole patch authority. It applies only
 // to the byte-pinned TypeScript 6.0.3 `_tsc.js`, writes only below target/, and
@@ -47,6 +47,7 @@ const SELFTEST_ARTIFACT_RELATIVE_PATH =
 const EXPECTED_BASE_SHA256 =
   "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3";
 const INTERNAL_OBSERVE_MODE = "--internal-observe-probe";
+const INTERNAL_V1_PROJECTION_MODE = "--internal-v1-projection";
 const PHASE = "H2.7a-probe-traces";
 
 const require = createRequire(import.meta.url);
@@ -112,7 +113,43 @@ function exactTransformProbe({ siteId, startLine, startExpect, endLine, endExpec
   ];
 }
 
-const PROBE_RUNTIME_LINE = String.raw`const __h27aSyntacticFrames = []; const __h27aTrace = (site, ...args) => { const hook = globalThis.__H2_7A_TRACE__; if (hook) hook(site, ...args); }; const __h27aNode = (value) => value && typeof value.kind === "number" ? value : void 0; const __h27aString = (value) => typeof value === "string" && !value.includes("/") && !value.includes("\\") ? value : ""; const __h27aName = (value) => typeof value === "number" ? String(value) : typeof value === "string" ? __h27aString(value) : value && (typeof value.escapedName === "string" || typeof value.escapedName === "number") ? __h27aString(String(value.escapedName)) : ""; const __h27aScalar = (value) => [typeof value, typeof value === "string" ? __h27aString(value) : "", typeof value === "number" && Number.isFinite(value) ? value : 0, typeof value === "boolean" ? value : false]; const __h27aNodeArgs = (value) => { const node = __h27aNode(value); return node ? [node.kind, Number.isInteger(node.pos) ? node.pos : -1, Number.isInteger(node.end) ? node.end : -1] : [-1, -1, -1]; }; function __h27aProbeCall(site, args, body) { const first = args[0]; const second = args[1]; __h27aTrace(site + ".entry", args.length, __h27aName(first), ...__h27aNodeArgs(first), ...__h27aNodeArgs(second), ...__h27aScalar(first), ...__h27aScalar(second)); const result = body(); const resultNode = __h27aNode(result); const value = result && typeof result === "object" ? result.value : void 0; __h27aTrace(site + ".result", typeof result, result == null, typeof result === "boolean" ? result : false, typeof result === "number" && Number.isFinite(result) ? result : 0, typeof result === "string" ? __h27aString(result) : "", result && typeof result.accessibility === "number" ? result.accessibility : -1, ...__h27aNodeArgs(resultNode), Array.isArray(result) ? result.length : -1, ...__h27aScalar(value), result && typeof result.isSyntacticallyString === "boolean" ? result.isSyntacticallyString : false); return result; } function __h27aProbeSyntacticCall(site, args, body) { const node = args[0]; __h27aTrace(site + ".entry", ...__h27aNodeArgs(node)); const frame = { fallback: false }; __h27aSyntacticFrames.push(frame); let result; try { result = body(); } finally { __h27aSyntacticFrames.pop(); } __h27aTrace(site + ".result", !frame.fallback, frame.fallback, ...__h27aNodeArgs(result)); return result; } function __h27aMarkSyntacticFallback(source, node, reportFallback) { for (const frame of __h27aSyntacticFrames) frame.fallback = true; __h27aTrace(source + ".checkerFallback", !!reportFallback, ...__h27aNodeArgs(node)); } function __h27aProbeTransform(site, input, body) { const output = body(); if (output !== input) { const outputs = Array.isArray(output) ? output : [output]; if (outputs.length === 0) __h27aTrace(site + ".changed", ...__h27aNodeArgs(input), -1, -1, -1, false, 0); for (const candidate of outputs) { const node = __h27aNode(candidate); __h27aTrace(site + ".changed", ...__h27aNodeArgs(input), ...__h27aNodeArgs(node), !!(node && node.original), node && Number.isFinite(node.transformFlags) ? node.transformFlags : 0); } } return output; } /* site-id: probe.runtime */`;
+const PROBE_RUNTIME_LINE = [
+  "const __h27aSyntacticFrames = [];",
+  "const __h27aCallStack = [];",
+  "let __h27aEventSeq = 0;",
+  "let __h27aNextCallId = 0;",
+  "const __h27aConfig = globalThis.__H2_7A_PROBE_CONFIG__ || { source_paths: [], source_aliases: [] };",
+  "const __h27aNormalizePath = (value) => String(value).replace(/\\\\/g, \"/\");",
+  "const __h27aSourceIndex = new Map((__h27aConfig.source_paths || []).map((value, index) => [__h27aNormalizePath(value), index]));",
+  "for (const entry of __h27aConfig.source_aliases || []) __h27aSourceIndex.set(__h27aNormalizePath(entry[0]), entry[1]);",
+  "const __h27aFileTable = [];",
+  "const __h27aFileTags = new Map();",
+  "globalThis.__H2_7A_PROBE_FILE_TABLE__ = __h27aFileTable;",
+  "const __h27aNode = (value) => value && typeof value.kind === \"number\" ? value : void 0;",
+  "const __h27aString = (value) => typeof value === \"string\" ? value : \"\";",
+  "const __h27aName = (value) => typeof value === \"number\" ? String(value) : typeof value === \"string\" ? value : value && (typeof value.escapedName === \"string\" || typeof value.escapedName === \"number\") ? String(value.escapedName) : \"\";",
+  "function __h27aInteger(value) { if (!Number.isSafeInteger(value)) throw new Error(`h2-7a probe unsafe integer ${value}`); return value; }",
+  "const __h27aScalar = (value) => [typeof value, typeof value === \"string\" ? value : \"\", typeof value === \"number\" ? __h27aInteger(value) : 0, typeof value === \"boolean\" ? value : false];",
+  "function __h27aInternSourceFile(node) { const sourceFile = getSourceFileOfNode(node); if (!sourceFile || typeof sourceFile.fileName !== \"string\") throw new Error(\"h2-7a probe node has no source file\"); const fileName = __h27aNormalizePath(sourceFile.fileName); const sourceKey = __h27aSourceIndex.get(fileName); let row; if (sourceKey !== void 0) row = [\"src\", sourceKey]; else { const baseName = fileName.slice(fileName.lastIndexOf(\"/\") + 1); if (!/^lib(?:\\..*)?\\.d\\.ts$/.test(baseName)) throw new Error(`h2-7a probe unclassified source file ${fileName}`); row = [\"lib\", baseName]; } const identity = `${row[0]}\\0${row[1]}`; let tag = __h27aFileTags.get(identity); if (tag === void 0) { tag = __h27aFileTable.length; __h27aFileTags.set(identity, tag); __h27aFileTable.push(row); } return tag; }",
+  "const __h27aSentinelNodeRef = () => [-1, -1, -1, -1, -1, -1, -1, -1];",
+  "function __h27aNodeRef(value) { const node = __h27aNode(value); if (!node) return __h27aSentinelNodeRef(); const original = getParseTreeNode(node); if (original === node) { if (node.pos >= 0 && node.end >= 0) return [__h27aInternSourceFile(node), __h27aInteger(node.kind), __h27aInteger(node.pos), __h27aInteger(node.end), -1, -1, -1, -1]; return __h27aSentinelNodeRef(); } if (original && original.pos >= 0 && original.end >= 0) return [-1, -1, -1, -1, __h27aInternSourceFile(original), __h27aInteger(original.kind), __h27aInteger(original.pos), __h27aInteger(original.end)]; return __h27aSentinelNodeRef(); }",
+  "function __h27aSymbolRef(value) { const declarations = Array.isArray(value && value.declarations) ? value.declarations : []; return [__h27aName(value), declarations.length, declarations.slice(0, 8).map(__h27aNodeRef)]; }",
+  "function __h27aEmit(site, callId, depth, args) { const hook = globalThis.__H2_7A_TRACE__; if (hook) hook(site, __h27aEventSeq++, callId, depth, [site, ...args]); }",
+  "const __h27aTrace = (site, ...args) => __h27aEmit(site, -1, __h27aCallStack.length, args);",
+  "function __h27aBeginCall(site, args) { const callId = __h27aNextCallId++; __h27aCallStack.push({ callId, site }); __h27aEmit(`${site}.entry`, callId, __h27aCallStack.length, args); return callId; }",
+  "function __h27aEndCall(site, callId, args) { const frame = __h27aCallStack[__h27aCallStack.length - 1]; if (!frame || frame.callId !== callId || frame.site !== site) throw new Error(`h2-7a probe call stack mismatch at ${site}`); __h27aEmit(`${site}.result`, callId, __h27aCallStack.length, args); __h27aCallStack.pop(); }",
+  "function __h27aEntryArgs(site, args) { const first = args[0]; const second = args[1]; if (site === \"resolver.isSymbolAccessible\") return [args.length, __h27aSymbolRef(first), __h27aNodeRef(second), args[2], !!args[3]]; if (site === \"resolver.isEntityNameVisible\") return [args[3] ? 3 : 2, __h27aNodeRef(first), __h27aNodeRef(second), !!args[2], !!args[3]]; if (site === \"resolver.collectLinkedAliases\") return [__h27aNodeRef(first), !!second]; return [args.length, __h27aName(first), __h27aNodeRef(first), __h27aNodeRef(second), __h27aScalar(first), __h27aScalar(second)]; }",
+  "function __h27aAccessibilityResult(result) { const errorNode = __h27aNodeRef(result && result.errorNode); const aliases = result && Object.prototype.hasOwnProperty.call(result, \"aliasesToMakeVisible\") ? Array.isArray(result.aliasesToMakeVisible) ? result.aliasesToMakeVisible.map(__h27aNodeRef) : [] : null; return [result ? __h27aInteger(result.accessibility) : -1, result && typeof result.errorSymbolName === \"string\" ? result.errorSymbolName : \"\", result && typeof result.errorModuleName === \"string\" ? result.errorModuleName : null, errorNode, aliases]; }",
+  "function __h27aResultArgs(site, result) { if (site === \"resolver.isSymbolAccessible\" || site === \"resolver.isEntityNameVisible\") return __h27aAccessibilityResult(result); if (site === \"resolver.getPropertiesOfContainerFunction\") return [(Array.isArray(result) ? result : []).map((property) => [__h27aName(property), __h27aSymbolRef(property && property.parent), property && property.valueDeclaration ? __h27aNodeRef(property.valueDeclaration) : null])]; if (site === \"resolver.getEnumMemberValue\") { const value = result && result.value; if (!(value === void 0 || value === null || typeof value === \"string\" || typeof value === \"boolean\" || typeof value === \"number\" && Number.isSafeInteger(value))) throw new Error(\"h2-7a probe enum value is not JSON-safe\"); return [typeof value, value === void 0 ? null : value, !!(result && result.isSyntacticallyString)]; } if (site === \"resolver.collectLinkedAliases\") return [\"void\"]; const value = result && typeof result === \"object\" ? result.value : void 0; return [__h27aScalar(result), result == null, __h27aNodeRef(result), Array.isArray(result) ? result.length : -1, __h27aScalar(value), !!(result && result.isSyntacticallyString)]; }",
+  "function __h27aProbeCall(site, args, body) { const callId = __h27aBeginCall(site, __h27aEntryArgs(site, args)); let result; try { result = body(); } catch (error) { __h27aCallStack.pop(); throw error; } __h27aEndCall(site, callId, __h27aResultArgs(site, result)); return result; }",
+  "function __h27aProbeSyntacticCall(site, args, body) { const frame = { fallback: false }; const callId = __h27aBeginCall(site, [__h27aNodeRef(args[0])]); __h27aSyntacticFrames.push(frame); let result; try { result = body(); } catch (error) { __h27aSyntacticFrames.pop(); __h27aCallStack.pop(); throw error; } __h27aSyntacticFrames.pop(); __h27aEndCall(site, callId, [!frame.fallback, frame.fallback, __h27aNodeRef(result)]); return result; }",
+  "function __h27aMarkSyntacticFallback(source, node, reportFallback) { for (const frame of __h27aSyntacticFrames) frame.fallback = true; __h27aTrace(`${source}.checkerFallback`, !!reportFallback, __h27aNodeRef(node)); }",
+  "function __h27aProbeTransform(site, input, body) { const output = body(); if (output !== input) { const outputs = Array.isArray(output) ? output : [output]; if (outputs.length === 0) __h27aTrace(`${site}.changed`, __h27aNodeRef(input), __h27aSentinelNodeRef(), false, 0); for (const candidate of outputs) { const node = __h27aNode(candidate); __h27aTrace(`${site}.changed`, __h27aNodeRef(input), __h27aNodeRef(node), !!(node && node.original), node && typeof node.transformFlags === \"number\" ? __h27aInteger(node.transformFlags) : 0); } } return output; }",
+  "const __h27aVisibleNodes = new Map();",
+  "function __h27aVisibleWrite(site, node, value) { __h27aVisibleNodes.set(node, !!value); __h27aTrace(site, __h27aNodeRef(node), !!value); }",
+  "function __h27aSeed(site) { const rows = []; for (const [node, value] of __h27aVisibleNodes) rows.push([__h27aNodeRef(node), value]); const coordinate = (ref) => ref[0] >= 0 ? [ref[0], ref[2], ref[3], ref[1]] : [ref[4], ref[6], ref[7], ref[5]]; rows.sort((left, right) => { const a = coordinate(left[0]); const b = coordinate(right[0]); return a[0] - b[0] || a[1] - b[1] || a[2] - b[2] || a[3] - b[3]; }); __h27aTrace(site, rows); }",
+  "/* site-id: probe.runtime */",
+].join(" ");
 
 // Generator-owned exact edit table. Every insertion is one physical line and
 // carries its trace site-id. The canonical JSON of this expanded array is the
@@ -128,17 +165,17 @@ const EDIT_TABLE = Object.freeze([
   {
     anchor_line: 50892,
     expect: "        if (context.bundled || context.enclosingFile !== getSourceFileOfNode(lit)) {",
-    insert_before: '        __h27aTrace("nodebuilder.moduleSpecifierOverride.contextArm", context.bundled || context.enclosingFile !== getSourceFileOfNode(lit) ? "rewrite" : "skip", !!context.bundled, context.enclosingFile !== getSourceFileOfNode(lit), ...__h27aNodeArgs(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.contextArm */',
+    insert_before: '        __h27aTrace("nodebuilder.moduleSpecifierOverride.contextArm", context.bundled || context.enclosingFile !== getSourceFileOfNode(lit) ? "rewrite" : "skip", !!context.bundled, context.enclosingFile !== getSourceFileOfNode(lit), __h27aNodeRef(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.contextArm */',
   },
   {
     anchor_line: 50910,
     expect: "          if (parentSymbol && isExternalModuleSymbol(parentSymbol)) {",
-    insert_after: '            __h27aTrace("nodebuilder.moduleSpecifierOverride.sourceArm", "parent-symbol", ...__h27aNodeArgs(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.sourceArm */',
+    insert_after: '            __h27aTrace("nodebuilder.moduleSpecifierOverride.sourceArm", "parent-symbol", __h27aNodeRef(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.sourceArm */',
   },
   {
     anchor_line: 50914,
     expect: "            if (targetFile) {",
-    insert_before: '            __h27aTrace("nodebuilder.moduleSpecifierOverride.sourceArm", targetFile ? "target-file" : "no-target", ...__h27aNodeArgs(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.sourceArm */',
+    insert_before: '            __h27aTrace("nodebuilder.moduleSpecifierOverride.sourceArm", targetFile ? "target-file" : "no-target", __h27aNodeRef(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.sourceArm */',
   },
   {
     anchor_line: 50918,
@@ -148,12 +185,12 @@ const EDIT_TABLE = Object.freeze([
   {
     anchor_line: 50924,
     expect: "          if (name !== originalName) {",
-    insert_after: '            __h27aTrace("nodebuilder.moduleSpecifierOverride.resultArm", "override", ...__h27aNodeArgs(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.resultArm */',
+    insert_after: '            __h27aTrace("nodebuilder.moduleSpecifierOverride.resultArm", "override", __h27aNodeRef(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.resultArm */',
   },
   {
     anchor_line: 50927,
     expect: "        }",
-    insert_before: '          __h27aTrace("nodebuilder.moduleSpecifierOverride.resultArm", "unchanged", ...__h27aNodeArgs(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.resultArm */',
+    insert_before: '          __h27aTrace("nodebuilder.moduleSpecifierOverride.resultArm", "unchanged", __h27aNodeRef(parent)); /* site-id: nodebuilder.moduleSpecifierOverride.resultArm */',
   },
 
   // site-id: nodebuilder.withContext.*
@@ -170,7 +207,7 @@ const EDIT_TABLE = Object.freeze([
   {
     anchor_line: 51255,
     expect: "      return context.encounteredError ? void 0 : resultingNode;",
-    insert_before: '      __h27aTrace("nodebuilder.withContext.result", context.encounteredError ? "error" : resultingNode === void 0 ? "fallback-undefined" : "node", context.flags, context.internalFlags, context.approximateLength, context.typeStack.length, !!context.truncating, !!context.out.truncated, !!context.encounteredError, ...__h27aNodeArgs(resultingNode)); /* site-id: nodebuilder.withContext.result */',
+    insert_before: '      __h27aTrace("nodebuilder.withContext.result", context.encounteredError ? "error" : resultingNode === void 0 ? "fallback-undefined" : "node", context.flags, context.internalFlags, context.approximateLength, context.typeStack.length, !!context.truncating, !!context.out.truncated, !!context.encounteredError, __h27aNodeRef(resultingNode)); /* site-id: nodebuilder.withContext.result */',
   },
 
   // Resolver-query site ids: exactly the 19 declaration-consumed workers.
@@ -190,14 +227,21 @@ const EDIT_TABLE = Object.freeze([
     endExpect: "  }",
     indent: "    ",
   }),
-  ...exactCallProbe({
-    siteId: "resolver.isEntityNameVisible",
-    startLine: 50606,
-    startExpect: "  function isEntityNameVisible(entityName, enclosingDeclaration, shouldComputeAliasToMakeVisible = true) {",
-    endLine: 50648,
-    endExpect: "  }",
-    indent: "    ",
-  }),
+  {
+    anchor_line: 50589,
+    expect: "        getNodeLinks(declaration).isVisible = true;",
+    insert_after: '        __h27aVisibleWrite("isVisible.addVisibleAlias", declaration, true); /* site-id: isVisible.addVisibleAlias */',
+  },
+  {
+    anchor_line: 50606,
+    expect: "  function isEntityNameVisible(entityName, enclosingDeclaration, shouldComputeAliasToMakeVisible = true) {",
+    insert_after: '    return __h27aProbeCall("resolver.isEntityNameVisible", [entityName, enclosingDeclaration, shouldComputeAliasToMakeVisible, arguments.length >= 3], () => { /* site-id: resolver.isEntityNameVisible.entry + resolver.isEntityNameVisible.result */',
+  },
+  {
+    anchor_line: 50648,
+    expect: "  }",
+    insert_before: '    }); /* site-id: resolver.isEntityNameVisible.result */',
+  },
   ...exactCallProbe({
     siteId: "resolver.isDeclarationVisible",
     startLine: 55589,
@@ -206,6 +250,24 @@ const EDIT_TABLE = Object.freeze([
     endExpect: "  }",
     indent: "    ",
   }),
+  {
+    anchor_line: 55593,
+    expect: "        links.isVisible = !!determineIfDeclarationIsVisible();",
+    insert_after: '        __h27aVisibleWrite("isVisible.memo", node, links.isVisible); /* site-id: isVisible.memo */',
+  },
+  ...exactCallProbe({
+    siteId: "resolver.collectLinkedAliases",
+    startLine: 55675,
+    startExpect: "  function collectLinkedAliases(node, setVisibility) {",
+    endLine: 55727,
+    endExpect: "  }",
+    indent: "    ",
+  }),
+  {
+    anchor_line: 55702,
+    expect: "          getNodeLinks(declaration).isVisible = true;",
+    insert_after: '          __h27aVisibleWrite("isVisible.collectLinkedAliases", declaration, true); /* site-id: isVisible.collectLinkedAliases */',
+  },
   ...exactCallProbe({
     siteId: "resolver.isOptionalParameter",
     startLine: 59509,
@@ -344,17 +406,17 @@ const EDIT_TABLE = Object.freeze([
   {
     anchor_line: 114327,
     expect: "  function reportInferenceFallback(node) {",
-    insert_after: '    __h27aTrace("tracker.reportInferenceFallback", ...__h27aNodeArgs(node)); /* site-id: tracker.reportInferenceFallback */',
+    insert_after: '    __h27aTrace("tracker.reportInferenceFallback", __h27aNodeRef(node)); /* site-id: tracker.reportInferenceFallback */',
   },
   {
     anchor_line: 114360,
     expect: "  function trackSymbol(symbol, enclosingDeclaration2, meaning) {",
-    insert_after: '    __h27aTrace("tracker.trackSymbol", __h27aName(symbol), ...__h27aNodeArgs(enclosingDeclaration2), meaning); /* site-id: tracker.trackSymbol */',
+    insert_after: '    __h27aTrace("tracker.trackSymbol", __h27aName(symbol), __h27aNodeRef(enclosingDeclaration2), meaning); /* site-id: tracker.trackSymbol */',
   },
   {
     anchor_line: 114371,
     expect: "  function reportPrivateInBaseOfClassExpression(propertyName) {",
-    insert_after: '    __h27aTrace("tracker.reportPrivateInBaseOfClassExpression", __h27aName(propertyName), ...__h27aNodeArgs(propertyName)); /* site-id: tracker.reportPrivateInBaseOfClassExpression */',
+    insert_after: '    __h27aTrace("tracker.reportPrivateInBaseOfClassExpression", __h27aName(propertyName), __h27aNodeRef(propertyName)); /* site-id: tracker.reportPrivateInBaseOfClassExpression */',
   },
   {
     anchor_line: 114384,
@@ -384,12 +446,12 @@ const EDIT_TABLE = Object.freeze([
   {
     anchor_line: 114413,
     expect: "  function reportNonlocalAugmentation(containingFile, parentSymbol, symbol) {",
-    insert_after: '    __h27aTrace("tracker.reportNonlocalAugmentation", ...__h27aNodeArgs(containingFile), __h27aName(parentSymbol), __h27aName(symbol), Array.isArray(symbol && symbol.declarations) ? symbol.declarations.length : 0); /* site-id: tracker.reportNonlocalAugmentation */',
+    insert_after: '    __h27aTrace("tracker.reportNonlocalAugmentation", __h27aNodeRef(containingFile), __h27aName(parentSymbol), __h27aName(symbol), Array.isArray(symbol && symbol.declarations) ? symbol.declarations.length : 0); /* site-id: tracker.reportNonlocalAugmentation */',
   },
   {
     anchor_line: 114426,
     expect: "  function reportNonSerializableProperty(propertyName) {",
-    insert_after: '    __h27aTrace("tracker.reportNonSerializableProperty", __h27aName(propertyName), ...__h27aNodeArgs(propertyName)); /* site-id: tracker.reportNonSerializableProperty */',
+    insert_after: '    __h27aTrace("tracker.reportNonSerializableProperty", __h27aName(propertyName), __h27aNodeRef(propertyName)); /* site-id: tracker.reportNonSerializableProperty */',
   },
 
   // Changed declaration nodes: input/output identity, provenance, flags.
@@ -407,6 +469,24 @@ const EDIT_TABLE = Object.freeze([
     endLine: 115704,
     endExpect: "  }",
   }),
+
+  // Emit-orchestration state markers. These observe the complete writer
+  // closure without changing the vendored program or its source inputs.
+  {
+    anchor_line: 116648,
+    expect: "    const inputListOrBundle = compilerOptions.outFile ? [factory.createBundle(filesForEmit)] : filesForEmit;",
+    insert_after: '    __h27aSeed("probe.checkSeed"); /* site-id: probe.checkSeed */',
+  },
+  {
+    anchor_line: 116650,
+    expect: "      if (emitOnly && !getEmitDeclarations(compilerOptions) || compilerOptions.noCheck || emitResolverSkipsTypeChecking(emitOnly, forceDtsEmit) || !canIncludeBindAndCheckDiagnostics(sourceFile, compilerOptions)) {",
+    insert_after: '        __h27aTrace("probe.fallbackSweep", __h27aNodeRef(sourceFile), emitOnly && !getEmitDeclarations(compilerOptions) ? "emitOnly-without-declarations" : compilerOptions.noCheck ? "noCheck" : emitResolverSkipsTypeChecking(emitOnly, forceDtsEmit) ? "resolver-skips-type-checking" : "diagnostics-excluded"); /* site-id: probe.fallbackSweep */',
+  },
+  {
+    anchor_line: 116654,
+    expect: "    const declarationTransform = transformNodes(",
+    insert_before: '    __h27aSeed("probe.transformSeed"); /* site-id: probe.transformSeed */',
+  },
 
   // declBlocked inputs are captured from the original single evaluation of
   // host.isEmitBlocked; the method is restored immediately after the expression.
@@ -576,9 +656,18 @@ function validateContractDocument() {
   );
   requireCondition(
     schema?.properties?.phase?.const === PHASE &&
-      schema?.properties?.schema?.const === 1 &&
+      schema?.properties?.schema?.const === 2 &&
       schema?.additionalProperties === false,
-    `${CONTRACT_RELATIVE_PATH} does not describe ${PHASE} schema 1`,
+    `${CONTRACT_RELATIVE_PATH} does not describe ${PHASE} schema 2`,
+  );
+  const expectedSites = [
+    ...[...CALL_SITES].flatMap((site) => [`${site}.entry`, `${site}.result`]),
+    ...NON_CALL_SITES,
+  ].sort();
+  requireCondition(
+    stableStringify(schema?.$defs?.traceEvent?.properties?.site_id?.enum?.sort()) ===
+      stableStringify(expectedSites),
+    `${CONTRACT_RELATIVE_PATH} site enum differs from the generator`,
   );
   return schema;
 }
@@ -1778,36 +1867,681 @@ function observeControl(tsApi, control) {
     : observeProgram(tsApi, control);
 }
 
-function validateTraceEvents(events, caseId) {
-  requireCondition(Array.isArray(events), `${caseId} trace_events is not an array`);
-  for (const [index, event] of events.entries()) {
-    requireCondition(
-      event !== null &&
-        typeof event === "object" &&
-        Object.keys(event).length === 2 &&
-        typeof event.site_id === "string" &&
-        event.site_id.length > 0 &&
-        Array.isArray(event.args),
-      `${caseId} trace event ${index} is malformed`,
-    );
-    for (const argument of event.args) {
+const LEGACY_RESOLVER_CALL_SITES = Object.freeze([
+  "resolver.isDefinitelyReferenceToGlobalSymbolObject",
+  "resolver.isSymbolAccessible",
+  "resolver.isEntityNameVisible",
+  "resolver.isDeclarationVisible",
+  "resolver.isOptionalParameter",
+  "resolver.isImplementationOfOverload",
+  "resolver.requiresAddingImplicitUndefined",
+  "resolver.isExpandoFunctionDeclaration",
+  "resolver.getPropertiesOfContainerFunction",
+  "resolver.getEnumMemberValue",
+  "resolver.createTypeOfDeclaration",
+  "resolver.createReturnTypeOfSignatureDeclaration",
+  "resolver.createTypeOfExpression",
+  "resolver.hasGlobalName",
+  "resolver.isLiteralConstDeclaration",
+  "resolver.createLiteralConstValue",
+  "resolver.isLateBound",
+  "resolver.getDeclarationStatementsForSourceFile",
+  "resolver.createLateBoundIndexSignatures",
+  "resolver.isImportRequiredByAugmentation",
+]);
+
+const SYNTACTIC_CALL_SITES = Object.freeze([
+  "syntactic.serializeTypeOfDeclaration",
+  "syntactic.serializeReturnTypeForSignature",
+]);
+
+const CALL_SITES = new Set([
+  ...LEGACY_RESOLVER_CALL_SITES,
+  "resolver.collectLinkedAliases",
+  ...SYNTACTIC_CALL_SITES,
+]);
+
+const NON_CALL_SITES = new Set([
+  "nodebuilder.moduleSpecifierOverride.contextArm",
+  "nodebuilder.moduleSpecifierOverride.sourceArm",
+  "nodebuilder.moduleSpecifierOverride.unsafe",
+  "nodebuilder.moduleSpecifierOverride.resultArm",
+  "nodebuilder.withContext.decision",
+  "nodebuilder.withContext.result",
+  "tracker.reportInferenceFallback",
+  "tracker.trackSymbol",
+  "tracker.reportPrivateInBaseOfClassExpression",
+  "tracker.reportInaccessibleUniqueSymbolError",
+  "tracker.reportCyclicStructureError",
+  "tracker.reportInaccessibleThisError",
+  "tracker.reportLikelyUnsafeImportRequiredError",
+  "tracker.reportTruncationError",
+  "tracker.reportNonlocalAugmentation",
+  "tracker.reportNonSerializableProperty",
+  "declarations.visitDeclarationSubtree.changed",
+  "declarations.transformTopLevelDeclaration.changed",
+  "declarations.declBlocked",
+  "syntactic.serializeTypeOfDeclaration.checkerFallback",
+  "syntactic.serializeReturnTypeForSignature.checkerFallback",
+  "isVisible.memo",
+  "isVisible.addVisibleAlias",
+  "isVisible.collectLinkedAliases",
+  "probe.checkSeed",
+  "probe.transformSeed",
+  "probe.fallbackSweep",
+  "probe.bootstrap",
+]);
+
+const NODE_REF_SENTINEL = Object.freeze([-1, -1, -1, -1]);
+
+function exactObjectKeys(value, expected) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    stableStringify(Object.keys(value).sort()) ===
+      stableStringify([...expected].sort())
+  );
+}
+
+function validateSafeJsonValue(value, label, forbiddenStrings) {
+  if (typeof value === "number") {
+    requireCondition(Number.isSafeInteger(value), `${label} is not a safe integer`);
+    return;
+  }
+  if (typeof value === "string") {
+    for (const forbidden of forbiddenStrings) {
       requireCondition(
-        typeof argument === "string" ||
-          typeof argument === "boolean" ||
-          (typeof argument === "number" && Number.isInteger(argument)),
-        `${caseId} trace event ${index} has a non-stable argument`,
+        !value.includes(forbidden),
+        `${label} contains program-root path ${JSON.stringify(forbidden)}`,
       );
-      if (typeof argument === "string") {
+    }
+    return;
+  }
+  if (typeof value === "boolean" || value === null) return;
+  requireCondition(Array.isArray(value), `${label} is not a stable JSON value`);
+  value.forEach((entry, index) =>
+    validateSafeJsonValue(entry, `${label}[${index}]`, forbiddenStrings),
+  );
+}
+
+function validateFileTable(fileTable, caseId, sourceCount) {
+  requireCondition(Array.isArray(fileTable), `${caseId} fileTable is not an array`);
+  const identities = new Set();
+  for (const [index, row] of fileTable.entries()) {
+    requireCondition(
+      Array.isArray(row) && row.length === 2,
+      `${caseId} fileTable row ${index} is malformed`,
+    );
+    const [className, key] = row;
+    requireCondition(
+      className === "src" || className === "lib",
+      `${caseId} fileTable row ${index} has invalid class`,
+    );
+    if (className === "src") {
+      requireCondition(
+        Number.isSafeInteger(key) && key >= 0 && key < sourceCount,
+        `${caseId} fileTable row ${index} has invalid source index`,
+      );
+    } else {
+      requireCondition(
+        typeof key === "string" &&
+          key.length > 0 &&
+          path.posix.basename(key) === key &&
+          !key.includes("\\"),
+        `${caseId} fileTable row ${index} has invalid library basename`,
+      );
+    }
+    const identity = `${className}\u0000${key}`;
+    requireCondition(
+      !identities.has(identity),
+      `${caseId} fileTable row ${index} is duplicated`,
+    );
+    identities.add(identity);
+  }
+}
+
+function nodeRefCoordinate(ref) {
+  return ref[0] >= 0 ? ref.slice(0, 4) : ref.slice(4, 8);
+}
+
+function validateNodeRef(ref, state, label) {
+  requireCondition(
+    Array.isArray(ref) &&
+      ref.length === 8 &&
+      ref.every(Number.isSafeInteger),
+    `${label} is not a node ref`,
+  );
+  const own = ref.slice(0, 4);
+  const original = ref.slice(4, 8);
+  const ownSentinel = stableStringify(own) === stableStringify(NODE_REF_SENTINEL);
+  const originalSentinel =
+    stableStringify(original) === stableStringify(NODE_REF_SENTINEL);
+  requireCondition(
+    ownSentinel || originalSentinel,
+    `${label} mixes parse-tree and original coordinates`,
+  );
+  requireCondition(
+    ownSentinel ||
+      (own[0] >= 0 &&
+        own[0] < state.fileTable.length &&
+        own[1] >= 0 &&
+        own[2] >= 0 &&
+        own[3] >= own[2]),
+    `${label} has invalid parse-tree coordinates ${stableStringify(ref)}`,
+  );
+  requireCondition(
+    originalSentinel ||
+      (original[0] >= 0 &&
+        original[0] < state.fileTable.length &&
+        original[1] >= 0 &&
+        original[2] >= 0 &&
+        original[3] >= original[2]),
+    `${label} has invalid original coordinates ${stableStringify(ref)}`,
+  );
+  for (const fileTag of [ownSentinel ? -1 : own[0], originalSentinel ? -1 : original[0]]) {
+    if (fileTag < 0 || state.seenFileTags.has(fileTag)) continue;
+    requireCondition(
+      fileTag === state.seenFileTags.size,
+      `${label} first uses fileTag ${fileTag} out of interning order`,
+    );
+    state.seenFileTags.add(fileTag);
+  }
+  state.nodeRefs.push({ ref, label });
+}
+
+function validateScalarRef(value, label) {
+  requireCondition(
+    Array.isArray(value) &&
+      value.length === 4 &&
+      typeof value[0] === "string" &&
+      typeof value[1] === "string" &&
+      Number.isSafeInteger(value[2]) &&
+      typeof value[3] === "boolean",
+    `${label} is not a scalar ref`,
+  );
+}
+
+function validateSymbolRef(value, state, label) {
+  requireCondition(
+    Array.isArray(value) &&
+      value.length === 3 &&
+      typeof value[0] === "string" &&
+      Number.isSafeInteger(value[1]) &&
+      value[1] >= 0 &&
+      Array.isArray(value[2]) &&
+      value[2].length === Math.min(value[1], 8),
+    `${label} is not a symbol ref`,
+  );
+  value[2].forEach((ref, index) =>
+    validateNodeRef(ref, state, `${label}.declarations[${index}]`),
+  );
+}
+
+function validateGenericCallArgs(event, state, label) {
+  const baseSite = event.site_id.slice(0, event.site_id.lastIndexOf("."));
+  if (event.site_id.endsWith(".entry")) {
+    if (baseSite === "resolver.isSymbolAccessible") {
+      requireCondition(event.args.length === 6, `${label} has wrong symbol entry arity`);
+      requireCondition(
+        Number.isSafeInteger(event.args[1]) && event.args[1] >= 0,
+        `${label} has invalid source arity`,
+      );
+      validateSymbolRef(event.args[2], state, `${label}.symbol`);
+      validateNodeRef(event.args[3], state, `${label}.enclosing`);
+      requireCondition(
+        Number.isSafeInteger(event.args[4]) &&
+          event.args[4] >= 0 &&
+          event.args[4] <= 0xffff_ffff &&
+          typeof event.args[5] === "boolean",
+        `${label} has invalid accessibility trailing arguments`,
+      );
+      return;
+    }
+    if (baseSite === "resolver.isEntityNameVisible") {
+      requireCondition(event.args.length === 6, `${label} has wrong entity entry arity`);
+      requireCondition(
+        Number.isSafeInteger(event.args[1]) && event.args[1] >= 0,
+        `${label} has invalid source arity`,
+      );
+      validateNodeRef(event.args[2], state, `${label}.entityName`);
+      validateNodeRef(event.args[3], state, `${label}.enclosing`);
+      requireCondition(
+        typeof event.args[4] === "boolean" &&
+          typeof event.args[5] === "boolean" &&
+          event.args[5] === (event.args[1] >= 3),
+        `${label} does not preserve the entity visibility default`,
+      );
+      return;
+    }
+    if (baseSite === "resolver.collectLinkedAliases") {
+      requireCondition(event.args.length === 3, `${label} has wrong collect entry arity`);
+      validateNodeRef(event.args[1], state, `${label}.node`);
+      requireCondition(typeof event.args[2] === "boolean", `${label} lacks setVisibility`);
+      return;
+    }
+    if (SYNTACTIC_CALL_SITES.includes(baseSite)) {
+      requireCondition(event.args.length === 2, `${label} has wrong syntactic entry arity`);
+      validateNodeRef(event.args[1], state, `${label}.node`);
+      return;
+    }
+    requireCondition(event.args.length === 7, `${label} has wrong generic entry arity`);
+    requireCondition(
+      Number.isSafeInteger(event.args[1]) &&
+        event.args[1] >= 0 &&
+        typeof event.args[2] === "string",
+      `${label} has invalid generic entry fields`,
+    );
+    validateNodeRef(event.args[3], state, `${label}.firstNode`);
+    validateNodeRef(event.args[4], state, `${label}.secondNode`);
+    validateScalarRef(event.args[5], `${label}.firstScalar`);
+    validateScalarRef(event.args[6], `${label}.secondScalar`);
+    return;
+  }
+
+  if (
+    baseSite === "resolver.isSymbolAccessible" ||
+    baseSite === "resolver.isEntityNameVisible"
+  ) {
+    requireCondition(event.args.length === 6, `${label} has wrong accessibility result arity`);
+    requireCondition(
+      Number.isSafeInteger(event.args[1]) &&
+        event.args[1] >= 0 &&
+        event.args[1] <= 3 &&
+        typeof event.args[2] === "string" &&
+        (event.args[3] === null || typeof event.args[3] === "string"),
+      `${label} has invalid accessibility result fields`,
+    );
+    validateNodeRef(event.args[4], state, `${label}.errorNode`);
+    requireCondition(
+      event.args[5] === null || Array.isArray(event.args[5]),
+      `${label} loses aliasesToMakeVisible presence`,
+    );
+    if (Array.isArray(event.args[5])) {
+      event.args[5].forEach((ref, index) =>
+        validateNodeRef(ref, state, `${label}.aliases[${index}]`),
+      );
+    }
+    return;
+  }
+  if (baseSite === "resolver.getPropertiesOfContainerFunction") {
+    requireCondition(
+      event.args.length === 2 && Array.isArray(event.args[1]),
+      `${label} has invalid property rows`,
+    );
+    event.args[1].forEach((row, index) => {
+      requireCondition(
+        Array.isArray(row) && row.length === 3 && typeof row[0] === "string",
+        `${label}.properties[${index}] is malformed`,
+      );
+      validateSymbolRef(row[1], state, `${label}.properties[${index}].parent`);
+      requireCondition(
+        row[2] === null || Array.isArray(row[2]),
+        `${label}.properties[${index}] has invalid value declaration`,
+      );
+      if (row[2] !== null) {
+        validateNodeRef(row[2], state, `${label}.properties[${index}].valueDeclaration`);
+      }
+    });
+    return;
+  }
+  if (baseSite === "resolver.getEnumMemberValue") {
+    requireCondition(
+      event.args.length === 4 &&
+        typeof event.args[1] === "string" &&
+        (event.args[2] === null ||
+          typeof event.args[2] === "string" ||
+          typeof event.args[2] === "boolean" ||
+          Number.isSafeInteger(event.args[2])) &&
+        typeof event.args[3] === "boolean",
+      `${label} has invalid enum result`,
+    );
+    return;
+  }
+  if (baseSite === "resolver.collectLinkedAliases") {
+    requireCondition(
+      stableStringify(event.args) ===
+        stableStringify([event.site_id, "void"]),
+      `${label} has invalid void marker`,
+    );
+    return;
+  }
+  if (SYNTACTIC_CALL_SITES.includes(baseSite)) {
+    requireCondition(
+      event.args.length === 4 &&
+        typeof event.args[1] === "boolean" &&
+        typeof event.args[2] === "boolean" &&
+        event.args[1] !== event.args[2],
+      `${label} has invalid syntactic result`,
+    );
+    validateNodeRef(event.args[3], state, `${label}.resultNode`);
+    return;
+  }
+  requireCondition(event.args.length === 7, `${label} has wrong generic result arity`);
+  validateScalarRef(event.args[1], `${label}.resultScalar`);
+  requireCondition(typeof event.args[2] === "boolean", `${label} lacks null marker`);
+  validateNodeRef(event.args[3], state, `${label}.resultNode`);
+  requireCondition(Number.isSafeInteger(event.args[4]), `${label} has invalid array length`);
+  validateScalarRef(event.args[5], `${label}.valueScalar`);
+  requireCondition(typeof event.args[6] === "boolean", `${label} lacks string syntax marker`);
+}
+
+function validateNonCallArgs(event, state, label) {
+  if (event.site_id.startsWith("isVisible.")) {
+    requireCondition(
+      event.args.length === 3 && typeof event.args[2] === "boolean",
+      `${label} has invalid writer payload`,
+    );
+    validateNodeRef(event.args[1], state, `${label}.declaration`);
+    return;
+  }
+  if (event.site_id === "probe.checkSeed" || event.site_id === "probe.transformSeed") {
+    requireCondition(
+      event.args.length === 2 && Array.isArray(event.args[1]),
+      `${label} has invalid seed dump`,
+    );
+    let previous;
+    for (const [index, row] of event.args[1].entries()) {
+      requireCondition(
+        Array.isArray(row) && row.length === 2 && typeof row[1] === "boolean",
+        `${label}.rows[${index}] is malformed`,
+      );
+      validateNodeRef(row[0], state, `${label}.rows[${index}].node`);
+      const coordinate = nodeRefCoordinate(row[0]);
+      if (previous !== undefined) {
+        const ordering =
+          previous[0] - coordinate[0] ||
+          previous[2] - coordinate[2] ||
+          previous[3] - coordinate[3] ||
+          previous[1] - coordinate[1];
         requireCondition(
-          !path.isAbsolute(argument) &&
-            !argument.includes("/") &&
-            !argument.includes("\\") &&
-            !argument.includes(WORKSPACE) &&
-            !argument.includes("target/h2-7a-probe"),
-          `${caseId} trace event ${index} leaks a path`,
+          ordering <= 0,
+          `${label}.rows are not ordered by (fileTag,pos,end,kind)`,
         );
       }
+      previous = coordinate;
     }
+    return;
+  }
+  if (event.site_id === "probe.fallbackSweep") {
+    requireCondition(
+      event.args.length === 3 &&
+        [
+          "emitOnly-without-declarations",
+          "noCheck",
+          "resolver-skips-type-checking",
+          "diagnostics-excluded",
+        ].includes(event.args[2]),
+      `${label} has invalid fallback disjunct`,
+    );
+    validateNodeRef(event.args[1], state, `${label}.sourceFile`);
+    return;
+  }
+  switch (event.site_id) {
+    case "nodebuilder.moduleSpecifierOverride.contextArm":
+      requireCondition(
+        event.args.length === 5 &&
+          typeof event.args[1] === "string" &&
+          typeof event.args[2] === "boolean" &&
+          typeof event.args[3] === "boolean",
+        `${label} has invalid context-arm payload`,
+      );
+      validateNodeRef(event.args[4], state, `${label}.parent`);
+      return;
+    case "nodebuilder.moduleSpecifierOverride.sourceArm":
+    case "nodebuilder.moduleSpecifierOverride.resultArm":
+      requireCondition(
+        event.args.length === 3 && typeof event.args[1] === "string",
+        `${label} has invalid module-specifier arm payload`,
+      );
+      validateNodeRef(event.args[2], state, `${label}.parent`);
+      return;
+    case "nodebuilder.moduleSpecifierOverride.unsafe":
+      requireCondition(
+        event.args.length === 3 &&
+          typeof event.args[1] === "boolean" &&
+          typeof event.args[2] === "boolean",
+        `${label} has invalid unsafe marker`,
+      );
+      return;
+    case "nodebuilder.withContext.decision":
+      requireCondition(
+        (event.args.length === 7 || event.args.length === 8) &&
+          ["report-truncation", "copy-out"].includes(event.args[1]) &&
+          event.args.slice(2, 6).every(Number.isSafeInteger) &&
+          event.args.slice(6).every((value) => typeof value === "boolean"),
+        `${label} has invalid withContext decision`,
+      );
+      return;
+    case "nodebuilder.withContext.result":
+      requireCondition(
+        event.args.length === 10 &&
+          ["error", "fallback-undefined", "node"].includes(event.args[1]) &&
+          event.args.slice(2, 6).every(Number.isSafeInteger) &&
+          event.args.slice(6, 9).every((value) => typeof value === "boolean"),
+        `${label} has invalid withContext result`,
+      );
+      validateNodeRef(event.args[9], state, `${label}.resultNode`);
+      return;
+    case "tracker.reportInferenceFallback":
+      requireCondition(event.args.length === 2, `${label} has invalid inference fallback`);
+      validateNodeRef(event.args[1], state, `${label}.node`);
+      return;
+    case "tracker.trackSymbol":
+      requireCondition(
+        event.args.length === 4 &&
+          typeof event.args[1] === "string" &&
+          Number.isSafeInteger(event.args[3]),
+        `${label} has invalid tracked symbol`,
+      );
+      validateNodeRef(event.args[2], state, `${label}.enclosing`);
+      return;
+    case "tracker.reportPrivateInBaseOfClassExpression":
+    case "tracker.reportNonSerializableProperty":
+      requireCondition(
+        event.args.length === 3 && typeof event.args[1] === "string",
+        `${label} has invalid tracker property payload`,
+      );
+      validateNodeRef(event.args[2], state, `${label}.propertyName`);
+      return;
+    case "tracker.reportInaccessibleUniqueSymbolError":
+    case "tracker.reportCyclicStructureError":
+    case "tracker.reportInaccessibleThisError":
+    case "tracker.reportTruncationError":
+      requireCondition(event.args.length === 1, `${label} has unexpected marker fields`);
+      return;
+    case "tracker.reportLikelyUnsafeImportRequiredError":
+      requireCondition(
+        event.args.length === 4 &&
+          typeof event.args[1] === "boolean" &&
+          Number.isSafeInteger(event.args[2]) &&
+          typeof event.args[3] === "string",
+        `${label} has invalid unsafe-import payload`,
+      );
+      return;
+    case "tracker.reportNonlocalAugmentation":
+      requireCondition(
+        event.args.length === 5 &&
+          typeof event.args[2] === "string" &&
+          typeof event.args[3] === "string" &&
+          Number.isSafeInteger(event.args[4]),
+        `${label} has invalid nonlocal-augmentation payload`,
+      );
+      validateNodeRef(event.args[1], state, `${label}.containingFile`);
+      return;
+    case "declarations.visitDeclarationSubtree.changed":
+    case "declarations.transformTopLevelDeclaration.changed":
+      requireCondition(
+        event.args.length === 5 &&
+          typeof event.args[3] === "boolean" &&
+          Number.isSafeInteger(event.args[4]),
+        `${label} has invalid transform payload`,
+      );
+      validateNodeRef(event.args[1], state, `${label}.input`);
+      validateNodeRef(event.args[2], state, `${label}.output`);
+      return;
+    case "declarations.declBlocked":
+      requireCondition(
+        event.args.length === 6 &&
+          Number.isSafeInteger(event.args[1]) &&
+          event.args.slice(2).every((value) => typeof value === "boolean"),
+        `${label} has invalid declaration-block payload`,
+      );
+      return;
+    case "syntactic.serializeTypeOfDeclaration.checkerFallback":
+    case "syntactic.serializeReturnTypeForSignature.checkerFallback":
+      requireCondition(
+        event.args.length === 3 && typeof event.args[1] === "boolean",
+        `${label} has invalid checker-fallback payload`,
+      );
+      validateNodeRef(event.args[2], state, `${label}.node`);
+      return;
+    case "probe.bootstrap":
+      requireCondition(
+        stableStringify(event.args) ===
+          stableStringify(["probe.bootstrap", "6.0.3"]),
+        `${label} has invalid bootstrap marker`,
+      );
+      return;
+    default:
+      requireCondition(false, `${label} lacks a payload validator`);
+  }
+}
+
+function programRootSubstrings(control) {
+  // Machine-specific roots only. Canonical VIRTUAL paths —
+  // control.roots ("/.src", …) AND control.current_directory (the
+  // virtual compiler cwd, also "/.src") — are legitimate recorded
+  // content: external-module symbols are NAMED by their virtual
+  // path, so errorModuleName/escapedName must be able to carry
+  // them. v1 never tripped on these entries only because its
+  // slash-stripping sanitized every recorded string
+  // (h2-7a-m-2.md §6.4 hygiene intent; E3 repair 2026-08-31).
+  const values = new Set([WORKSPACE, fs.realpathSync(WORKSPACE)]);
+  void control;
+  return [...values]
+    .filter((value) => typeof value === "string" && value.length > 1)
+    .flatMap((value) => [value, value.replace(/\\/g, "/")])
+    .filter((value, index, all) => value.length > 1 && all.indexOf(value) === index);
+}
+
+function validateTraceEvents(events, fileTable, caseId, control) {
+  requireCondition(Array.isArray(events), `${caseId} trace_events is not an array`);
+  validateFileTable(fileTable, caseId, control.files.length);
+  const forbiddenStrings = programRootSubstrings(control);
+  const state = { fileTable, seenFileTags: new Set(), nodeRefs: [] };
+  const callStack = [];
+  let nextCallId = 0;
+  for (const [index, event] of events.entries()) {
+    const label = `${caseId} trace event ${index} (${String(event?.site_id ?? "unknown")})`;
+    requireCondition(
+      exactObjectKeys(event, ["site_id", "event_seq", "call_id", "depth", "args"]) &&
+        typeof event.site_id === "string" &&
+        /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(event.site_id) &&
+        event.event_seq === index &&
+        Number.isSafeInteger(event.call_id) &&
+        Number.isSafeInteger(event.depth) &&
+        event.depth >= 0 &&
+        Array.isArray(event.args) &&
+        event.args[0] === event.site_id,
+      `${label} is malformed`,
+    );
+    validateSafeJsonValue(event.args, `${label}.args`, forbiddenStrings);
+    const candidateSuffix = event.site_id.endsWith(".entry")
+      ? ".entry"
+      : event.site_id.endsWith(".result")
+        ? ".result"
+        : null;
+    const candidateBaseSite =
+      candidateSuffix === null
+        ? null
+        : event.site_id.slice(0, -candidateSuffix.length);
+    const suffix = CALL_SITES.has(candidateBaseSite) ? candidateSuffix : null;
+    const baseSite = suffix === null ? null : candidateBaseSite;
+    if (suffix === ".entry") {
+      requireCondition(
+        CALL_SITES.has(baseSite) &&
+          event.call_id === nextCallId &&
+          event.depth === callStack.length + 1,
+        `${label} violates call entry ordering`,
+      );
+      callStack.push({ call_id: event.call_id, site: baseSite });
+      nextCallId += 1;
+      validateGenericCallArgs(event, state, label);
+    } else if (suffix === ".result") {
+      const frame = callStack.at(-1);
+      requireCondition(
+        CALL_SITES.has(baseSite) &&
+          frame?.call_id === event.call_id &&
+          frame?.site === baseSite &&
+          event.depth === callStack.length,
+        `${label} violates call-result LIFO`,
+      );
+      validateGenericCallArgs(event, state, label);
+      callStack.pop();
+    } else {
+      requireCondition(
+        NON_CALL_SITES.has(event.site_id) &&
+          event.call_id === -1 &&
+          event.depth === callStack.length,
+        `${label} has an unknown or misnested non-call site`,
+      );
+      validateNonCallArgs(event, state, label);
+    }
+  }
+  requireCondition(callStack.length === 0, `${caseId} ends with unpaired probe calls`);
+  requireCondition(
+    state.seenFileTags.size === fileTable.length,
+    `${caseId} fileTable contains an unreferenced row`,
+  );
+  return state.nodeRefs;
+}
+
+function parseTreeIdentityCounts(control, sourceIndex) {
+  const source = control.files[sourceIndex];
+  requireCondition(source !== undefined, `${control.case_id} lacks source ${sourceIndex}`);
+  const sourceFile = publicTs.createSourceFile(
+    source.path,
+    source.text,
+    control.compiler_options.target ?? publicTs.ScriptTarget.Latest,
+    true,
+    publicTs.getScriptKindFromFileName(source.path),
+  );
+  const counts = new Map();
+  const seen = new Set();
+  function visit(node) {
+    if (seen.has(node)) return;
+    seen.add(node);
+    const identity = `${node.kind}:${node.pos}:${node.end}`;
+    counts.set(identity, (counts.get(identity) ?? 0) + 1);
+    for (const child of node.getChildren(sourceFile)) visit(child);
+    for (const jsDoc of node.jsDoc ?? []) visit(jsDoc);
+  }
+  visit(sourceFile);
+  return counts;
+}
+
+function validateNodeRefUniqueness(control, fileTable, nodeRefs, caseId) {
+  const countsBySource = new Map();
+  function validateCoordinate(coordinate, label) {
+    const [fileTag, kind, pos, end] = coordinate;
+    if (fileTag < 0 || fileTable[fileTag][0] === "lib") return;
+    const sourceIndex = fileTable[fileTag][1];
+    let counts = countsBySource.get(sourceIndex);
+    if (counts === undefined) {
+      counts = parseTreeIdentityCounts(control, sourceIndex);
+      countsBySource.set(sourceIndex, counts);
+    }
+    const identity = `${kind}:${pos}:${end}`;
+    const matches = counts.get(identity) ?? 0;
+    requireCondition(
+      matches === 1,
+      `${caseId} ${label} node ref ${stableStringify(coordinate)} resolves ${matches} times`,
+    );
+  }
+  for (const { ref, label } of nodeRefs) {
+    validateCoordinate(ref.slice(0, 4), label);
+    validateCoordinate(ref.slice(4, 8), `${label}.original`);
   }
 }
 
@@ -1817,16 +2551,38 @@ function runInternalObservation(contextPath, caseId) {
   requireCondition(selected !== undefined, `unknown internal probe case ${caseId}`);
   const traceEvents = [];
   globalThis.__H2_7A_INTERNAL__ = true;
-  globalThis.__H2_7A_TRACE__ = (siteId, ...args) => {
-    traceEvents.push({ site_id: siteId, args });
+  const sourceIndex = new Map(
+    selected.control.files.map((entry, index) => [entry.path, index]),
+  );
+  globalThis.__H2_7A_PROBE_CONFIG__ = {
+    source_paths: selected.control.files.map((entry) => entry.path),
+    source_aliases: selected.control.symlinks.map((entry) => {
+      const index = sourceIndex.get(entry.target_path);
+      requireCondition(
+        index !== undefined,
+        `${caseId} symlink target is absent from manifest inputs`,
+      );
+      return [entry.link_path, index];
+    }),
+  };
+  globalThis.__H2_7A_TRACE__ = (siteId, eventSeq, callId, depth, args) => {
+    traceEvents.push({
+      site_id: siteId,
+      event_seq: eventSeq,
+      call_id: callId,
+      depth,
+      args,
+    });
   };
   require(path.join(WORKSPACE, INSTRUMENTED_RELATIVE_PATH));
   const tsApi = globalThis.__H2_7A_TS__;
   requireCondition(tsApi?.version === "6.0.3", "instrumented TypeScript export unavailable");
   const publicOutputs = observeControl(tsApi, selected.control);
-  validateTraceEvents(traceEvents, caseId);
+  const fileTable = structuredClone(globalThis.__H2_7A_PROBE_FILE_TABLE__ ?? []);
+  validateTraceEvents(traceEvents, fileTable, caseId, selected.control);
   process.stdout.write(
     JSON.stringify({
+      fileTable,
       trace_events: traceEvents,
       public_outputs: publicOutputs,
     }),
@@ -1851,7 +2607,8 @@ function writeObservationContext(witnessContext) {
   return absolute;
 }
 
-function observeCaseInFreshProcess(contextPath, caseId) {
+function observeCaseInFreshProcess(contextPath, expected) {
+  const caseId = expected.case_id;
   const stdout = execFileSync(
     process.execPath,
     [GENERATOR_PATH, INTERNAL_OBSERVE_MODE, contextPath, caseId],
@@ -1862,7 +2619,12 @@ function observeCaseInFreshProcess(contextPath, caseId) {
     },
   );
   const observation = JSON.parse(stdout);
-  validateTraceEvents(observation.trace_events, caseId);
+  validateTraceEvents(
+    observation.trace_events,
+    observation.fileTable,
+    caseId,
+    expected.control,
+  );
   requireCondition(
     observation.public_outputs !== null &&
       typeof observation.public_outputs === "object",
@@ -1874,11 +2636,17 @@ function observeCaseInFreshProcess(contextPath, caseId) {
 function observeProbeCases(witnessContext) {
   const contextPath = writeObservationContext(witnessContext);
   return witnessContext.cases.map((expected) => {
-    const first = observeCaseInFreshProcess(contextPath, expected.case_id);
-    const second = observeCaseInFreshProcess(contextPath, expected.case_id);
+    const first = observeCaseInFreshProcess(contextPath, expected);
+    const second = observeCaseInFreshProcess(contextPath, expected);
     requireCondition(
-      stableStringify(first.trace_events) ===
-        stableStringify(second.trace_events),
+      stableStringify({
+        fileTable: first.fileTable,
+        trace_events: first.trace_events,
+      }) ===
+        stableStringify({
+          fileTable: second.fileTable,
+          trace_events: second.trace_events,
+        }),
       `${expected.case_id} trace-event sequence is nondeterministic`,
     );
     requireCondition(
@@ -1898,8 +2666,21 @@ function observeProbeCases(witnessContext) {
       roll === expected.public_output_roll,
       `${expected.case_id} public output roll differs from lane B`,
     );
+    const nodeRefs = validateTraceEvents(
+      first.trace_events,
+      first.fileTable,
+      expected.case_id,
+      expected.control,
+    );
+    validateNodeRefUniqueness(
+      expected.control,
+      first.fileTable,
+      nodeRefs,
+      expected.case_id,
+    );
     return {
       case_id: expected.case_id,
+      fileTable: first.fileTable,
       trace_events: first.trace_events,
       public_output_roll: roll,
       inert: true,
@@ -1911,8 +2692,9 @@ function traceContentRoll(cases) {
   return sha256(
     Buffer.from(
       stableStringify(
-        cases.map(({ case_id, trace_events }) => ({
+        cases.map(({ case_id, fileTable, trace_events }) => ({
           case_id,
+          fileTable,
           trace_events,
         })),
       ),
@@ -1943,7 +2725,7 @@ function summaryForCases(cases) {
 function buildArtifact(witnessContext, instrumentation, cases) {
   return withFingerprint(
     {
-      schema: 1,
+      schema: 2,
       phase: PHASE,
       generator: pathHash(GENERATOR_RELATIVE_PATH),
       contract: pathHash(CONTRACT_RELATIVE_PATH),
@@ -1966,7 +2748,7 @@ function validateArtifact(artifact, witnessContext, instrumentation) {
   requireCondition(
     artifact !== null &&
       typeof artifact === "object" &&
-      artifact.schema === 1 &&
+      artifact.schema === 2 &&
       artifact.phase === PHASE &&
       hasValidFingerprint(artifact, "probe_traces_fingerprint_sha256"),
     "probe artifact schema/fingerprint is invalid",
@@ -1989,7 +2771,7 @@ function validateArtifact(artifact, witnessContext, instrumentation) {
   requireCondition(
     stableStringify(Object.keys(artifact).sort()) ===
       stableStringify(expectedKeys),
-    "probe artifact has fields outside schema 1",
+    "probe artifact has fields outside schema 2",
   );
   requireCondition(
     stableStringify(artifact.generator) ===
@@ -2026,20 +2808,37 @@ function validateArtifact(artifact, witnessContext, instrumentation) {
         typeof entry === "object" &&
         stableStringify(Object.keys(entry).sort()) ===
           stableStringify(
-            ["case_id", "trace_events", "public_output_roll", "inert"].sort(),
+            ["case_id", "fileTable", "trace_events", "public_output_roll", "inert"].sort(),
           ) &&
         entry.case_id === expected.case_id &&
         entry.inert === true &&
         entry.public_output_roll === expected.public_output_roll,
       `probe artifact case ${index} differs from lane-B manifest/public output`,
     );
-    validateTraceEvents(entry.trace_events, entry.case_id);
+    const nodeRefs = validateTraceEvents(
+      entry.trace_events,
+      entry.fileTable,
+      entry.case_id,
+      expected.control,
+    );
+    validateNodeRefUniqueness(
+      expected.control,
+      entry.fileTable,
+      nodeRefs,
+      entry.case_id,
+    );
   });
   requireCondition(
     stableStringify(artifact.summary) ===
       stableStringify(summaryForCases(artifact.cases)),
     "probe artifact summary is stale",
   );
+  if (witnessContext.relative_path === WITNESSES_RELATIVE_PATH) {
+    requireCondition(
+      (artifact.summary.per_site_counts["probe.fallbackSweep"] ?? 0) === 0,
+      "witness corpus entered the declaration fallback sweep",
+    );
+  }
   return artifact;
 }
 
@@ -2324,6 +3123,400 @@ function runCheck() {
   );
 }
 
+const V1_MIGRATION_CASES = 94;
+const V1_MIGRATION_CASE_IDS_SHA256 =
+  "9d78a2f47e9cbb053afd815ada93de0f52c05d45559ac0c1646b403f6bc74735";
+const SCHEMA2_ONLY_SITES = new Set([
+  "resolver.collectLinkedAliases.entry",
+  "resolver.collectLinkedAliases.result",
+  "isVisible.memo",
+  "isVisible.addVisibleAlias",
+  "isVisible.collectLinkedAliases",
+  "probe.checkSeed",
+  "probe.transformSeed",
+  "probe.fallbackSweep",
+]);
+
+function v1String(value) {
+  return typeof value === "string" &&
+    !value.includes("/") &&
+    !value.includes("\\")
+    ? value
+    : "";
+}
+
+function v1NodeTuple(ref) {
+  // v1 recorded the RAW node's own coordinates; synthesized nodes
+  // never borrowed their original's coordinates in v1. The v1
+  // projection therefore uses the own side ONLY — the o* original
+  // side is schema-2 enrichment and must not leak into the
+  // migration equality (E3 repair 4, 2026-08-31).
+  if (ref[0] >= 0) return ref.slice(1, 4);
+  return [-1, -1, -1];
+}
+
+function v1ScalarTuple(ref) {
+  return [ref[0], v1String(ref[1]), ref[2], ref[3]];
+}
+
+function v1GenericCallProjection(event, baseSite) {
+  const args = event.args;
+  if (event.site_id.endsWith(".entry")) {
+    if (baseSite === "resolver.isSymbolAccessible") {
+      const symbol = args[2];
+      return [
+        args[1],
+        v1String(symbol[0]),
+        -1,
+        -1,
+        -1,
+        ...v1NodeTuple(args[3]),
+        "object",
+        "",
+        0,
+        false,
+        "object",
+        "",
+        0,
+        false,
+      ];
+    }
+    if (baseSite === "resolver.isEntityNameVisible") {
+      return [
+        args[1],
+        "",
+        ...v1NodeTuple(args[2]),
+        ...v1NodeTuple(args[3]),
+        "object",
+        "",
+        0,
+        false,
+        "object",
+        "",
+        0,
+        false,
+      ];
+    }
+    if (SYNTACTIC_CALL_SITES.includes(baseSite)) {
+      return v1NodeTuple(args[1]);
+    }
+    return [
+      args[1],
+      v1String(args[2]),
+      ...v1NodeTuple(args[3]),
+      ...v1NodeTuple(args[4]),
+      ...v1ScalarTuple(args[5]),
+      ...v1ScalarTuple(args[6]),
+    ];
+  }
+
+  if (
+    baseSite === "resolver.isSymbolAccessible" ||
+    baseSite === "resolver.isEntityNameVisible"
+  ) {
+    return [
+      "object",
+      false,
+      false,
+      0,
+      "",
+      args[1],
+      -1,
+      -1,
+      -1,
+      -1,
+      "undefined",
+      "",
+      0,
+      false,
+      false,
+    ];
+  }
+  if (baseSite === "resolver.getPropertiesOfContainerFunction") {
+    return [
+      "object",
+      false,
+      false,
+      0,
+      "",
+      -1,
+      -1,
+      -1,
+      -1,
+      args[1].length,
+      "undefined",
+      "",
+      0,
+      false,
+      false,
+    ];
+  }
+  if (baseSite === "resolver.getEnumMemberValue") {
+    const type = args[1];
+    const value = args[2];
+    return [
+      "object",
+      false,
+      false,
+      0,
+      "",
+      -1,
+      -1,
+      -1,
+      -1,
+      -1,
+      type,
+      type === "string" ? v1String(value) : "",
+      type === "number" ? value : 0,
+      type === "boolean" ? value : false,
+      args[3],
+    ];
+  }
+  if (SYNTACTIC_CALL_SITES.includes(baseSite)) {
+    return [args[1], args[2], ...v1NodeTuple(args[3])];
+  }
+  const result = args[1];
+  return [
+    result[0],
+    args[2],
+    result[3],
+    result[2],
+    v1String(result[1]),
+    -1,
+    ...v1NodeTuple(args[3]),
+    args[4],
+    ...v1ScalarTuple(args[5]),
+    args[6],
+  ];
+}
+
+function v1NonCallProjection(event) {
+  const args = event.args;
+  switch (event.site_id) {
+    case "nodebuilder.moduleSpecifierOverride.contextArm":
+      return [args[1], args[2], args[3], ...v1NodeTuple(args[4])];
+    case "nodebuilder.moduleSpecifierOverride.sourceArm":
+    case "nodebuilder.moduleSpecifierOverride.resultArm":
+      return [args[1], ...v1NodeTuple(args[2])];
+    case "nodebuilder.withContext.result":
+      return [...args.slice(1, -1), ...v1NodeTuple(args.at(-1))];
+    case "tracker.reportInferenceFallback":
+      return v1NodeTuple(args[1]);
+    case "tracker.trackSymbol":
+      return [v1String(args[1]), ...v1NodeTuple(args[2]), args[3]];
+    case "tracker.reportPrivateInBaseOfClassExpression":
+    case "tracker.reportNonSerializableProperty":
+      return [v1String(args[1]), ...v1NodeTuple(args[2])];
+    case "tracker.reportLikelyUnsafeImportRequiredError":
+      return [args[1], args[2], v1String(args[3])];
+    case "tracker.reportNonlocalAugmentation":
+      return [
+        ...v1NodeTuple(args[1]),
+        v1String(args[2]),
+        v1String(args[3]),
+        args[4],
+      ];
+    case "declarations.visitDeclarationSubtree.changed":
+    case "declarations.transformTopLevelDeclaration.changed":
+      return [
+        ...v1NodeTuple(args[1]),
+        ...v1NodeTuple(args[2]),
+        args[3],
+        args[4],
+      ];
+    case "syntactic.serializeTypeOfDeclaration.checkerFallback":
+    case "syntactic.serializeReturnTypeForSignature.checkerFallback":
+      return [args[1], ...v1NodeTuple(args[2])];
+    default:
+      return args.slice(1).map((value) =>
+        typeof value === "string" ? v1String(value) : value,
+      );
+  }
+}
+
+function v1EventProjection(event) {
+  const candidateSuffix = event.site_id.endsWith(".entry")
+    ? ".entry"
+    : event.site_id.endsWith(".result")
+      ? ".result"
+      : null;
+  const baseSite =
+    candidateSuffix === null
+      ? null
+      : event.site_id.slice(0, -candidateSuffix.length);
+  return {
+    site_id: event.site_id,
+    args: CALL_SITES.has(baseSite)
+      ? v1GenericCallProjection(event, baseSite)
+      : v1NonCallProjection(event),
+  };
+}
+
+function normalizeV1NodeTuple(args, start) {
+  // Schema 1 retained a synthetic node's kind beside sentinel positions.
+  // Schema 2 freezes synthetic-without-original as the all-sentinel class, so
+  // both sides of the one-time projection use that canonical representation.
+  if (args[start + 1] === -1 && args[start + 2] === -1) {
+    args[start] = -1;
+  }
+}
+
+function currentV1EventProjection(event) {
+  const args = structuredClone(event.args);
+  const candidateSuffix = event.site_id.endsWith(".entry")
+    ? ".entry"
+    : event.site_id.endsWith(".result")
+      ? ".result"
+      : null;
+  const baseSite =
+    candidateSuffix === null
+      ? null
+      : event.site_id.slice(0, -candidateSuffix.length);
+  if (CALL_SITES.has(baseSite)) {
+    if (SYNTACTIC_CALL_SITES.includes(baseSite)) {
+      normalizeV1NodeTuple(args, candidateSuffix === ".entry" ? 0 : 2);
+    } else if (candidateSuffix === ".entry") {
+      normalizeV1NodeTuple(args, 2);
+      normalizeV1NodeTuple(args, 5);
+    } else {
+      normalizeV1NodeTuple(args, 6);
+    }
+  } else {
+    switch (event.site_id) {
+      case "nodebuilder.moduleSpecifierOverride.contextArm":
+        normalizeV1NodeTuple(args, 3);
+        break;
+      case "nodebuilder.moduleSpecifierOverride.sourceArm":
+      case "nodebuilder.moduleSpecifierOverride.resultArm":
+        normalizeV1NodeTuple(args, 1);
+        break;
+      case "nodebuilder.withContext.result":
+        normalizeV1NodeTuple(args, 8);
+        break;
+      case "tracker.reportInferenceFallback":
+        normalizeV1NodeTuple(args, 0);
+        break;
+      case "tracker.trackSymbol":
+      case "tracker.reportPrivateInBaseOfClassExpression":
+      case "tracker.reportNonSerializableProperty":
+        normalizeV1NodeTuple(args, 1);
+        break;
+      case "tracker.reportNonlocalAugmentation":
+        normalizeV1NodeTuple(args, 0);
+        break;
+      case "declarations.visitDeclarationSubtree.changed":
+      case "declarations.transformTopLevelDeclaration.changed":
+        normalizeV1NodeTuple(args, 0);
+        // Decision-projection exclusion (h2-7a-m-2.md SS6.6, E3): the
+        // OUTPUT tuple is a documented schema-2 capture upgrade (v1
+        // recorded the synthesized node's raw own coordinates; schema
+        // 2 records the original's) — normalized to sentinel on BOTH
+        // sides; changed-flag/input/hasOriginal/transformFlags stay
+        // compared.
+        args[3] = -1;
+        args[4] = -1;
+        args[5] = -1;
+        break;
+      case "syntactic.serializeTypeOfDeclaration.checkerFallback":
+      case "syntactic.serializeReturnTypeForSignature.checkerFallback":
+        normalizeV1NodeTuple(args, 1);
+        break;
+      case "syntactic.serializeTypeOfDeclaration.result":
+      case "syntactic.serializeReturnTypeForSignature.result":
+        // Decision-projection exclusion (h2-7a-m-2.md SS6.6, E3): the
+        // result-node tuple is the second documented capture upgrade
+        // (v1 captured the return value; schema 2 captures the
+        // produced node) — sentinel on BOTH sides; success/fallback
+        // flags stay compared.
+        args[2] = -1;
+        args[3] = -1;
+        args[4] = -1;
+        break;
+    }
+  }
+  return { site_id: event.site_id, args };
+}
+
+function v1FieldProjection(artifact, caseCount = V1_MIGRATION_CASES) {
+  requireCondition(
+    (artifact?.schema === 1 || artifact?.schema === 2) &&
+      Array.isArray(artifact.cases) &&
+      artifact.cases.length >= caseCount,
+    `probe artifact cannot supply the ${caseCount}-case v1 migration denominator`,
+  );
+  const migrationCases =
+    caseCount === V1_MIGRATION_CASES
+      ? artifact.cases.filter(
+          (entry) => !String(entry.case_id).startsWith("h2-7a/S2/"),
+        )
+      : artifact.cases.slice(0, caseCount);
+  if (caseCount === V1_MIGRATION_CASES) {
+    requireCondition(
+      migrationCases.length === V1_MIGRATION_CASES,
+      "probe artifact cannot supply the 94-case v1 migration denominator",
+    );
+    const caseIds = migrationCases.map((entry) => entry.case_id);
+    requireCondition(
+      sha256(Buffer.from(stableStringify(caseIds), "utf8")) ===
+        V1_MIGRATION_CASE_IDS_SHA256,
+      "probe artifact changed or reordered the frozen 94-case v1 denominator",
+    );
+  }
+  return migrationCases.map((entry) => ({
+    case_id: entry.case_id,
+    trace_events: entry.trace_events
+      .filter((event) => !SCHEMA2_ONLY_SITES.has(event.site_id))
+      .map((event) => {
+        const projected =
+          artifact.schema === 1
+            ? currentV1EventProjection(event)
+            : v1EventProjection(event);
+        // Decision-projection exclusions (h2-7a-m-2.md §6.6, E3):
+        // the two documented schema-2 capture upgrades are
+        // normalized to sentinel on BOTH schema paths — v1 captured
+        // the synthesized node's raw own coordinates (transform
+        // .changed output tuple) and the return value (syntactic
+        // .result node tuple); schema 2 records the produced node /
+        // original provenance instead. Flags, inputs, hasOriginal,
+        // and transformFlags remain fully compared.
+        if (
+          projected.site_id === "declarations.visitDeclarationSubtree.changed" ||
+          projected.site_id === "declarations.transformTopLevelDeclaration.changed"
+        ) {
+          projected.args[3] = -1;
+          projected.args[4] = -1;
+          projected.args[5] = -1;
+        }
+        if (
+          projected.site_id === "syntactic.serializeTypeOfDeclaration.result" ||
+          projected.site_id === "syntactic.serializeReturnTypeForSignature.result"
+        ) {
+          projected.args[2] = -1;
+          projected.args[3] = -1;
+          projected.args[4] = -1;
+        }
+        return projected;
+      }),
+  }));
+}
+
+function emitV1Projection(expectedSchema) {
+  const artifact = readJson(TARGET_RELATIVE_PATH);
+  requireCondition(
+    artifact?.schema === expectedSchema,
+    `${TARGET_RELATIVE_PATH} is schema ${artifact?.schema ?? "unknown"}; expected ${expectedSchema}`,
+  );
+  const cases = v1FieldProjection(artifact);
+  process.stdout.write(
+    render({
+      schema: 1,
+      kind: "h2-7a-probe-traces-v1-field-projection",
+      cases,
+      projection_sha256: sha256(Buffer.from(stableStringify(cases), "utf8")),
+    }),
+  );
+}
+
 const mode = process.argv[2];
 if (mode === INTERNAL_OBSERVE_MODE) {
   requireCondition(
@@ -2331,6 +3524,19 @@ if (mode === INTERNAL_OBSERVE_MODE) {
     "internal observation requires context path and case id",
   );
   runInternalObservation(process.argv[3], process.argv[4]);
+} else if (mode === INTERNAL_V1_PROJECTION_MODE) {
+  requireCondition(
+    process.argv.length === 5 && Number.isSafeInteger(Number(process.argv[4])),
+    "internal v1 projection requires an artifact path and case count",
+  );
+  const artifact = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
+  const cases = v1FieldProjection(artifact, Number(process.argv[4]));
+  process.stdout.write(
+    JSON.stringify({
+      cases,
+      projection_sha256: sha256(Buffer.from(stableStringify(cases), "utf8")),
+    }),
+  );
 } else if (mode === "--selftest") {
   requireCondition(process.argv.length === 3, "--selftest takes no arguments");
   runSelftest();
@@ -2340,6 +3546,15 @@ if (mode === INTERNAL_OBSERVE_MODE) {
 } else if (mode === "--check") {
   requireCondition(process.argv.length === 3, "--check takes no arguments");
   runCheck();
+} else if (mode === "--v1-projection") {
+  requireCondition(process.argv.length === 3, "--v1-projection takes no arguments");
+  emitV1Projection(2);
+} else if (mode === "--v1-projection-of-current") {
+  requireCondition(
+    process.argv.length === 3,
+    "--v1-projection-of-current takes no arguments",
+  );
+  emitV1Projection(1);
 } else {
-  fail("usage: node crates/oracle/h2-7a-probe-traces.mjs --write|--check|--selftest");
+  fail("usage: node crates/oracle/h2-7a-probe-traces.mjs --write|--check|--selftest|--v1-projection|--v1-projection-of-current");
 }

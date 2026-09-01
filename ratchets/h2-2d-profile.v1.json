@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2d-profile.mjs",
-    "sha256": "6ba6ab57cf803797b68e25d6538e93eb7ee637f01fde261dca96edc8d2d25bf1"
+    "sha256": "8cff84bf1f8ce903b6cf815594db665a38972c20ae8ef5bf031d24429965548a"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2d-profile.schema.json",
@@ -28,19 +28,19 @@
     "historical": {
       "profile": {
         "path": "ratchets/h2-2c-profile.v1.json",
-        "sha256": "469f734ffeabc3d2eeb77c44057035ca4b36cff455e67b79efb950094a3bea0e"
+        "sha256": "7e249340fa55094b0254f2a32e4ca84bcbe773702e3afceb96763318912a91cc"
       },
       "qualification": {
         "path": "ratchets/h2-2c-qualification.v1.json",
-        "sha256": "11a8d2c6db548ec1ff2c7525080d76d77eb824050daad316f9fea90dc7aaf163"
+        "sha256": "af4a51e12c274dd6e459fed8fce20212b807045af1784cb18b9cbdf296274fd6"
       },
       "profile_generator": {
         "path": "crates/oracle/h2-2c-profile.mjs",
-        "sha256": "e021ae40ba355a7d6d9da1259d958cc23e9015919b87f8a8e379da6582809727"
+        "sha256": "fa953ca7a3b6360edda1598c46447187e1c9bcc44afc6f0b37c25750a6635c45"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-2c-qualification.mjs",
-        "sha256": "4da2d8170beabda6a76107ddd7f3b7f8c67954fc4800edc879981d6126abec21"
+        "sha256": "59565b60f6e0d4fd5d0d0df6385c7a33a37157e820b07d1551d39e8815d9d43b"
       },
       "profile_contract": {
         "path": ".github/ci/contracts/h2-2c-profile.schema.json",
@@ -55,12 +55,12 @@
   },
   "qualification": {
     "path": "ratchets/h2-2d-qualification.v1.json",
-    "sha256": "b3a893ea88c6e0852b5afcab708a190457949c3d466ebfe38052c13dd357c0f5"
+    "sha256": "f028c13bf7f45d8d0c6f2acfc0e7a755d32bb3761eb9585c6d22ded97c531cc8"
   },
   "runtime_inputs": [
     {
       "path": "crates/checker/src/emit.rs",
-      "sha256": "55fbf2bf8a7e3583c1841cb423bbfc9308edfa9e7601a42918c2b8b3a7836990"
+      "sha256": "b781893eabf9a6636a1785e2cce1f19f2e6bcbbce0c39117a73ac0abf47f4a2e"
     },
     {
       "path": "crates/checker/src/evaluate.rs",
@@ -68,7 +68,7 @@
     },
     {
       "path": "crates/checker/src/modules.rs",
-      "sha256": "9541945e76d5d60842a67ec66e0ccfc32f1f5b7dea5721562df55b14b49aa6fb"
+      "sha256": "a13aa8df68ab7644420d23b994d9a2173fbe6dd68e91b80c312211587fdf866c"
     },
     {
       "path": "crates/compiler/src/lib.rs",
@@ -116,7 +116,7 @@
     },
     {
       "path": "crates/emitter/src/lib.rs",
-      "sha256": "02cbe87b7e4c42789a90e0fc2e33c0ca76f2a685ea0617a5deda641f83b7e537"
+      "sha256": "22eb7488019539e6bf4b3cec3f74b24e4641ad8333b49884c88adc79233ce24b"
     },
     {
       "path": "crates/emitter/src/metadata.rs",
@@ -128,7 +128,7 @@
     },
     {
       "path": "crates/emitter/src/resolver.rs",
-      "sha256": "d19d5c994b9393c94b880ea242bb72bcb583574929b2647b29bc2fe0243ad623"
+      "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
     },
     {
       "path": "crates/emitter/src/transform.rs",
@@ -311,7 +311,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "8799210c7beb8dc8020ab51d8510cd9baeda1ace9bcdb5c26e76f280ec169f4b"
+      "sha256": "02ed2825900cdfd5618df5f13029d8a8ea1b7101f9e51af9f00d5596c81751aa"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -319,7 +319,7 @@
     },
     "historical_h2_2c_profile": {
       "path": "ratchets/h2-2c-profile.v1.json",
-      "sha256": "469f734ffeabc3d2eeb77c44057035ca4b36cff455e67b79efb950094a3bea0e"
+      "sha256": "7e249340fa55094b0254f2a32e4ca84bcbe773702e3afceb96763318912a91cc"
     },
     "local_full_gate": "cargo xtask ci --baseline 8c61918365f186645d18724f50f125782754094c",
     "hosted_gate": "cargo xtask acceptance",
@@ -335,5 +335,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "73297c256eb3976b1a8fe779ac3721fd57f2277d2f4ef88be244e8f400c7b701"
+  "profile_fingerprint_sha256": "7a00c5eb3af63888a49cf6b2e9bf0bbd2d04fa65bf765ff465336d04ab9f6e71"
 }

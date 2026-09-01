@@ -305,10 +305,13 @@
         }
       }
     },
+    "m2_supplement": {
+      "$ref": "#/$defs/m2_supplement"
+    },
     "observations": {
       "type": "array",
-      "minItems": 94,
-      "maxItems": 94,
+      "minItems": 112,
+      "maxItems": 112,
       "items": {
         "$ref": "#/$defs/case_observation"
       }
@@ -436,7 +439,8 @@
         "positive",
         "adjacent-negative-control",
         "composition",
-        "fault"
+        "fault",
+        "supplement"
       ]
     },
     "lane": {
@@ -539,7 +543,7 @@
         },
         "family_id": {
           "type": "string",
-          "pattern": "^(F(?:[1-9]|1[0-4])|S)$"
+          "pattern": "^(F(?:[1-9]|1[0-4])|S|S2)$"
         },
         "roles": {
           "type": "array",
@@ -582,8 +586,8 @@
       "properties": {
         "cases": {
           "type": "array",
-          "minItems": 94,
-          "maxItems": 94,
+          "minItems": 112,
+          "maxItems": 112,
           "items": {
             "$ref": "#/$defs/manifest_case"
           }
@@ -616,7 +620,7 @@
       "properties": {
         "family_id": {
           "type": "string",
-          "pattern": "^(F(?:[1-9]|1[0-4])|S)$"
+          "pattern": "^(F(?:[1-9]|1[0-4])|S|S2)$"
         },
         "description": {
           "type": "string",
@@ -658,7 +662,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^(F(?:[1-9]|1[0-4])|S)$"
+            "pattern": "^(F(?:[1-9]|1[0-4])|S|S2)$"
           }
         }
       }
@@ -890,6 +894,144 @@
         }
       }
     },
+    "s2_volume_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member",
+        "entry_result_pairs"
+      ],
+      "properties": {
+        "member": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entry_result_pairs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "s2_member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member",
+        "predicate",
+        "fixture_ids"
+      ],
+      "properties": {
+        "member": {
+          "type": "string",
+          "minLength": 1
+        },
+        "predicate": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_ids": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "s2_trim_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fixture_id",
+        "trimmed_configuration_indexes"
+      ],
+      "properties": {
+        "fixture_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trimmed_configuration_indexes": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "m2_supplement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector_version",
+        "volume_table",
+        "members",
+        "case_ids",
+        "trim_rows",
+        "counts"
+      ],
+      "properties": {
+        "selector_version": {
+          "const": "m2-s2-v1"
+        },
+        "volume_table": {
+          "type": "array",
+          "minItems": 13,
+          "maxItems": 13,
+          "items": {
+            "$ref": "#/$defs/s2_volume_row"
+          }
+        },
+        "members": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": {
+            "$ref": "#/$defs/s2_member"
+          }
+        },
+        "case_ids": {
+          "type": "array",
+          "minItems": 18,
+          "maxItems": 18,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "trim_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/s2_trim_row"
+          }
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fixtures",
+            "cases",
+            "observations"
+          ],
+          "properties": {
+            "fixtures": {
+              "const": 16
+            },
+            "cases": {
+              "const": 18
+            },
+            "observations": {
+              "const": 36
+            }
+          }
+        }
+      }
+    },
     "summary": {
       "type": "object",
       "additionalProperties": false,
@@ -927,7 +1069,7 @@
           "const": 67
         },
         "cases": {
-          "const": 94
+          "const": 112
         },
         "positive_cases": {
           "type": "integer",
@@ -970,10 +1112,10 @@
           "minimum": 0
         },
         "typescript_oracle_runs": {
-          "const": 188
+          "const": 224
         },
         "deterministic_cases": {
-          "const": 94
+          "const": 112
         },
         "rust_runs": {
           "const": 0

@@ -1,7 +1,8 @@
-// W-H2.7A — public-observable declaration witness machine for h2-7a-m-1.
+// W-H2.7A — public-observable declaration witness machine for h2-7a-m-2.
 //
 // Selection is frozen before observation.  F1-F14 are fixture-name/input
-// strata; S is the signed W5 exact-but-for-declarations stratum.  Every case
+// strata; S is the signed W5 exact-but-for-declarations stratum and S2 is the
+// frozen m-2 coverage supplement.  Every case
 // is observed through the pinned TypeScript runtime in two fresh Node
 // processes.  Declaration writes embed their full materialized bytes; script
 // and map writes carry hashes only because their bytes remain in W-H2.6C.
@@ -23,7 +24,7 @@ const GENERATOR_RELATIVE_PATH = "crates/oracle/h2-7a-witnesses.mjs";
 const TARGET_RELATIVE_PATH = "ratchets/h2-7a-witnesses.v1.json";
 const CONTRACT_RELATIVE_PATH =
   ".github/ci/contracts/h2-7a-witnesses.schema.json";
-const PACKET_RELATIVE_PATH = "docs/design/greenfield/slices/h2-7a-m-1.md";
+const PACKET_RELATIVE_PATH = "docs/design/greenfield/slices/h2-7a-m-2.md";
 const PARENT_PACKET_RELATIVE_PATH = "docs/design/greenfield/slices/h2-7a.md";
 const TYPESCRIPT_BUNDLE = "vendor/typescript-6.0.3/lib/typescript.js";
 const TYPESCRIPT_IMPLEMENTATION = "vendor/typescript-6.0.3/lib/_tsc.js";
@@ -60,6 +61,11 @@ const DEFAULT_CENSUS_RELATIVE_PATH =
   `${DEFAULT_CENSUS_DIRECTORY}/census.jsonl`;
 const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 
+// This projection is the permanent bridge to the signed m-1 witness set.  It
+// is deliberately independent of the successor artifact's new S2 fields.
+const H2_7A_M1_PROJECTION_SHA256 =
+  "44b0cca40a9ae8869ee219e6bbb6e449ce87346556084dfd622f167bd3f55b72";
+
 const LANES = Object.freeze([
   "visibility/export graph",
   "type serialization",
@@ -82,6 +88,98 @@ const ROLES = Object.freeze([
   "adjacent-negative-control",
   "composition",
   "fault",
+  "supplement",
+]);
+
+const S2_SELECTOR_VERSION = "m2-s2-v1";
+const S2_FROZEN_FIXTURE_IDS = Object.freeze([
+  "typescript-6.0.3/compiler/declarationEmitExpandoPropertyPrivateName.ts",
+  "typescript-6.0.3/compiler/declarationEmitExpandoWithGenericConstraint.ts",
+  "typescript-6.0.3/compiler/declarationEmitFunctionDuplicateNamespace.ts",
+  "typescript-6.0.3/compiler/declarationEmitFunctionKeywordProp.ts",
+  "typescript-6.0.3/compiler/computedPropertiesNarrowed.ts",
+  "typescript-6.0.3/compiler/computedPropertyNameAndTypeParameterConflict.ts",
+  "typescript-6.0.3/compiler/declarationEmitExpressionWithNonlocalPrivateUniqueSymbol.ts",
+  "typescript-6.0.3/compiler/declarationEmitHigherOrderRetainedGenerics.ts",
+  "typescript-6.0.3/compiler/declFileAmbientExternalModuleWithSingleExportedModule.ts",
+  "typescript-6.0.3/compiler/declarationEmitAnyComputedPropertyInClass.ts",
+  "typescript-6.0.3/compiler/declarationEmitForModuleImportingModuleAugmentationRetainsImport.ts",
+  "typescript-6.0.3/compiler/declarationEmitRedundantTripleSlashModuleAugmentation.ts",
+  "typescript-6.0.3/compiler/amdModuleBundleNoDuplicateDeclarationEmitComments.ts",
+  "typescript-6.0.3/compiler/circularReferenceInImport.ts",
+  "typescript-6.0.3/compiler/commentsExternalModules.ts",
+  "typescript-6.0.3/compiler/commentsExternalModules2.ts",
+]);
+const S2_FROZEN_CASE_IDS = Object.freeze([
+  "h2-7a/S2/expando-1",
+  "h2-7a/S2/expando-2",
+  "h2-7a/S2/expando-3",
+  "h2-7a/S2/expando-4",
+  "h2-7a/S2/latebound-1",
+  "h2-7a/S2/latebound-2",
+  "h2-7a/S2/latebound-3",
+  "h2-7a/S2/latebound-4",
+  "h2-7a/S2/augment-1",
+  "h2-7a/S2/augment-2",
+  "h2-7a/S2/augment-3",
+  "h2-7a/S2/augment-4",
+  "h2-7a/S2/entityname-1",
+  "h2-7a/S2/entityname-2",
+  "h2-7a/S2/entityname-3-c0",
+  "h2-7a/S2/entityname-3-c1",
+  "h2-7a/S2/entityname-4-c0",
+  "h2-7a/S2/entityname-4-c1",
+]);
+const S2_FROZEN_TRIM_ROWS = Object.freeze([]);
+const S2_PREDICATES = Object.freeze({
+  expando:
+    "fixture basename contains `expando` (ASCII case-insensitive) OR some multiline match `^\\s*function\\s+(\\w+)` has a later multiline match `^\\s*\\1\\.\\w+\\s*=` (backreference on the captured name)",
+  latebound: "bytes contain `[Symbol.` or `unique symbol`",
+  augment:
+    "basename contains `augment` (case-insensitive) OR bytes contain `declare module \"` AND a multiline match `^import `",
+  entityname:
+    "bytes contain `namespace` AND match `:\\s*[A-Za-z_$][\\w$]*\\.[A-Za-z_$]`",
+});
+const S2_FROZEN_MEMBERS = Object.freeze([
+  {
+    member: "expando",
+    predicate: S2_PREDICATES.expando,
+    lanes: ["JS declaration synthesis"],
+    fixture_ids: Object.freeze(S2_FROZEN_FIXTURE_IDS.slice(0, 4)),
+  },
+  {
+    member: "latebound",
+    predicate: S2_PREDICATES.latebound,
+    lanes: ["late-bound/computed names"],
+    fixture_ids: Object.freeze(S2_FROZEN_FIXTURE_IDS.slice(4, 8)),
+  },
+  {
+    member: "augment",
+    predicate: S2_PREDICATES.augment,
+    lanes: ["visibility/export graph"],
+    fixture_ids: Object.freeze(S2_FROZEN_FIXTURE_IDS.slice(8, 12)),
+  },
+  {
+    member: "entityname",
+    predicate: S2_PREDICATES.entityname,
+    lanes: ["visibility/export graph"],
+    fixture_ids: Object.freeze(S2_FROZEN_FIXTURE_IDS.slice(12, 16)),
+  },
+]);
+const S2_VOLUME_TABLE = Object.freeze([
+  Object.freeze({ member: "getPropertiesOfContainerFunction", entry_result_pairs: 0 }),
+  Object.freeze({ member: "isDefinitelyReferenceToGlobalSymbolObject", entry_result_pairs: 1 }),
+  Object.freeze({ member: "isLateBound", entry_result_pairs: 1 }),
+  Object.freeze({ member: "getEnumMemberValue", entry_result_pairs: 3 }),
+  Object.freeze({ member: "isImportRequiredByAugmentation", entry_result_pairs: 9 }),
+  Object.freeze({ member: "isEntityNameVisible", entry_result_pairs: 28 }),
+  Object.freeze({ member: "requiresAddingImplicitUndefined", entry_result_pairs: 86 }),
+  Object.freeze({ member: "isImplementationOfOverload", entry_result_pairs: 149 }),
+  Object.freeze({ member: "isOptionalParameter", entry_result_pairs: 205 }),
+  Object.freeze({ member: "isSymbolAccessible", entry_result_pairs: 349 }),
+  Object.freeze({ member: "isExpandoFunctionDeclaration", entry_result_pairs: 408 }),
+  Object.freeze({ member: "isLiteralConstDeclaration", entry_result_pairs: 548 }),
+  Object.freeze({ member: "isDeclarationVisible", entry_result_pairs: 1534 }),
 ]);
 
 const QUOTA_MINIMUMS = Object.freeze({
@@ -791,6 +889,117 @@ function walkSuiteFiles(suite) {
   return files;
 }
 
+function asciiLower(value) {
+  return value.replace(/[A-Z]/g, (character) =>
+    String.fromCharCode(character.charCodeAt(0) + 0x20),
+  );
+}
+
+function s2CandidateUniverse() {
+  const candidates = [];
+  for (const suite of ["compiler", "conformance"]) {
+    const root = path.join(WORKSPACE, "ts-tests/tests/cases", suite);
+    for (const absolute of walkSuiteFiles(suite)) {
+      const relativePath = path
+        .relative(root, absolute)
+        .split(path.sep)
+        .join("/");
+      if (!/\.tsx?$/.test(relativePath)) continue;
+      const raw = fs.readFileSync(absolute);
+      if (!/@declaration\s*:\s*true/i.test(raw.toString("utf8"))) continue;
+      candidates.push({
+        suite,
+        suite_rank: suite === "compiler" ? 0 : 1,
+        relative_path: relativePath,
+        fixture_id: `typescript-6.0.3/${suite}/${relativePath}`,
+        raw,
+      });
+    }
+  }
+  return candidates.sort(
+    (left, right) =>
+      left.suite_rank - right.suite_rank ||
+      compareBytes(left.relative_path, right.relative_path),
+  );
+}
+
+const S2_EXPANDO_FUNCTION_ASSIGNMENT =
+  /^\s*function\s+(\w+)[^\r\n]*(?:\r?\n[\s\S]*?)^\s*\1\.\w+\s*=/m;
+const S2_ENTITY_NAME = /:\s*[A-Za-z_$][\w$]*\.[A-Za-z_$]/;
+
+function s2MemberMatches(member, candidate) {
+  const text = candidate.raw.toString("utf8");
+  const basename = asciiLower(path.posix.basename(candidate.relative_path));
+  if (member === "expando") {
+    return (
+      basename.includes("expando") ||
+      S2_EXPANDO_FUNCTION_ASSIGNMENT.test(text)
+    );
+  }
+  if (member === "latebound") {
+    return (
+      candidate.raw.includes(Buffer.from("[Symbol.")) ||
+      candidate.raw.includes(Buffer.from("unique symbol"))
+    );
+  }
+  if (member === "augment") {
+    return (
+      basename.includes("augment") ||
+      (candidate.raw.includes(Buffer.from('declare module "')) &&
+        /^import /m.test(text))
+    );
+  }
+  if (member === "entityname") {
+    return candidate.raw.includes(Buffer.from("namespace")) && S2_ENTITY_NAME.test(text);
+  }
+  fail(`unknown S2 member ${member}`);
+}
+
+function s2FixtureIdsFromCaseSpecs(caseSpecs) {
+  return new Set(
+    caseSpecs.map((entry) => entry.manifest?.fixture_id ?? entry.fixture_id),
+  );
+}
+
+function buildS2Selection(m1CaseSpecs) {
+  const excludedFixtureIds = s2FixtureIdsFromCaseSpecs(m1CaseSpecs);
+  requireCondition(
+    excludedFixtureIds.size === 57,
+    `S2 m-1 fixture exclusion pool changed: ${excludedFixtureIds.size}/57`,
+  );
+  const selectedFixtureIds = new Set();
+  const candidates = s2CandidateUniverse();
+  const members = S2_FROZEN_MEMBERS.map((frozenMember) => {
+    const selected = [];
+    for (const candidate of candidates) {
+      if (
+        excludedFixtureIds.has(candidate.fixture_id) ||
+        selectedFixtureIds.has(candidate.fixture_id)
+      ) {
+        continue;
+      }
+      if (!s2MemberMatches(frozenMember.member, candidate)) continue;
+      selected.push(candidate);
+      selectedFixtureIds.add(candidate.fixture_id);
+      if (selected.length === 4) break;
+    }
+    requireCondition(
+      selected.length === 4,
+      `S2 ${frozenMember.member} selection changed: ${selected.length}/4`,
+    );
+    return { frozen: frozenMember, selected };
+  });
+  const selectedFixtureIdsInOrder = members.flatMap((entry) =>
+    entry.selected.map((candidate) => candidate.fixture_id),
+  );
+  requireCondition(
+    stableStringify(selectedFixtureIdsInOrder) ===
+      stableStringify(S2_FROZEN_FIXTURE_IDS),
+    "S2 fixture selection changed",
+  );
+  return { candidates, members };
+}
+
 function declarationClassificationRecord(relativePath, expectedCases, expectedFixtures) {
   const classification = readJson(relativePath);
   const selected = classification.cases.filter((entry) =>
@@ -935,25 +1144,33 @@ function applyFixtureMutation(options, mutation) {
   fail(`unknown fixture mutation ${mutation}`);
 }
 
-function loadCuratedCase(family, selected, expansions) {
-  const expansion =
-    family.suite === "compiler" ? expansions.compiler : expansions.conformance;
+function expansionFixture(suite, fixturePath, expansions) {
+  const expansion = suite === "compiler" ? expansions.compiler : expansions.conformance;
   const sourceIndices = expansion.sources
     .map((source, index) => ({ source, index }))
-    .filter(({ source }) => source.path === selected.fixture);
+    .filter(({ source }) => source.path === fixturePath);
   requireCondition(
     sourceIndices.length === 1,
-    `${family.suite}/${selected.fixture} source identity is ambiguous`,
+    `${suite}/${fixturePath} source identity is ambiguous`,
   );
   const { source, index: sourceIndex } = sourceIndices[0];
-  if (family.suite === "compiler") {
-    requireCondition(source.suite === "compiler", `${selected.fixture} suite changed`);
+  if (suite === "compiler") {
+    requireCondition(source.suite === "compiler", `${fixturePath} suite changed`);
   }
   const fixture =
-    family.suite === "compiler"
+    suite === "compiler"
       ? expansion.compiler_fixtures[sourceIndex]
       : expansion.fixtures.find((candidate) => candidate.source === sourceIndex);
-  requireCondition(fixture !== undefined, `${selected.fixture} expansion fixture is absent`);
+  requireCondition(fixture !== undefined, `${fixturePath} expansion fixture is absent`);
+  return { source, fixture };
+}
+
+function loadCuratedCase(family, selected, expansions, configurationIndex = 0) {
+  const { source, fixture } = expansionFixture(
+    family.suite,
+    selected.fixture,
+    expansions,
+  );
   const absolute = safeSourcePath(family.suite, selected.fixture);
   const raw = fs.readFileSync(absolute);
   requireCondition(
@@ -978,8 +1195,11 @@ function loadCuratedCase(family, selected, expansions) {
   requireCondition(fixture.links.length === 0, `${selected.fixture} has unsupported global links`);
   // Matrix-bearing fixtures use the upstream expansion's first/default arm;
   // no observed output participates in this choice.
-  const configuration = fixture.configurations[0];
-  requireCondition(configuration !== undefined, `${selected.fixture} has no default arm`);
+  const configuration = fixture.configurations[configurationIndex];
+  requireCondition(
+    configuration !== undefined,
+    `${selected.fixture} configuration ${configurationIndex} is absent`,
+  );
   const settings = mergedSettings(fixture.settings, configuration.settings);
   const options = effectiveCompilerOptions(settings);
   applyFixtureMutation(options, selected.mutation);
@@ -1032,7 +1252,7 @@ function loadCuratedCase(family, selected, expansions) {
       suite: family.suite,
       fixture_id: `typescript-6.0.3/${family.suite}/${selected.fixture}`,
       matrix: {
-        configuration_index: 0,
+        configuration_index: configurationIndex,
         fixture_variant: configuration.variant,
         observation_variant: selected.mutation,
       },
@@ -1448,6 +1668,116 @@ function buildCuratedCases(expansions) {
   return cases;
 }
 
+function declarationEffectiveConfigurationIndexes(suite, fixturePath, expansions) {
+  const { fixture } = expansionFixture(suite, fixturePath, expansions);
+  requireCondition(
+    Array.isArray(fixture.configurations) && fixture.configurations.length > 0,
+    `S2 ${fixturePath} has no configurations`,
+  );
+  const indexes = fixture.configurations
+    .map((configuration, index) => ({ configuration, index }))
+    .filter(({ configuration }) => {
+      const settings = mergedSettings(fixture.settings, configuration.settings);
+      return effectiveCompilerOptions(settings).declaration === true;
+    })
+    .map(({ index }) => index);
+  return { configuration_count: fixture.configurations.length, indexes };
+}
+
+function buildS2Supplement(m1CaseSpecs, expansions) {
+  const selection = buildS2Selection(m1CaseSpecs);
+  const cases = [];
+  const trimRows = [];
+  for (const { frozen, selected } of selection.members) {
+    for (const [fixtureOffset, candidate] of selected.entries()) {
+      const configurationSelection = declarationEffectiveConfigurationIndexes(
+        candidate.suite,
+        candidate.relative_path,
+        expansions,
+      );
+      const configurationIndexes = configurationSelection.indexes;
+      requireCondition(
+        configurationIndexes.length > 0,
+        `S2 ${candidate.fixture_id} has no declaration-effective configuration`,
+      );
+      const retainedConfigurationIndexes = configurationIndexes.slice(0, 2);
+      const trimmedConfigurationIndexes = configurationIndexes.slice(2);
+      if (trimmedConfigurationIndexes.length > 0) {
+        trimRows.push({
+          fixture_id: candidate.fixture_id,
+          trimmed_configuration_indexes: trimmedConfigurationIndexes,
+        });
+      }
+      const family = {
+        family_id: "S2",
+        suite: candidate.suite,
+        lanes: frozen.lanes,
+      };
+      for (const configurationIndex of retainedConfigurationIndexes) {
+        const suffix =
+          configurationSelection.configuration_count > 1
+            ? `-c${configurationIndex}`
+            : "";
+        cases.push(
+          loadCuratedCase(
+            family,
+            {
+              slug: `${frozen.member}-${fixtureOffset + 1}${suffix}`,
+              fixture: candidate.relative_path,
+              roles: ["supplement"],
+              mutation: "fixture",
+            },
+            expansions,
+            configurationIndex,
+          ),
+        );
+      }
+    }
+  }
+  const caseIds = cases.map((entry) => entry.case_id);
+  const selectedFixtureIdsByMember = selection.members.map((entry) =>
+    entry.selected.map((candidate) => candidate.fixture_id),
+  );
+  requireCondition(
+    stableStringify(selectedFixtureIdsByMember) ===
+      stableStringify(S2_FROZEN_MEMBERS.map((member) => member.fixture_ids)),
+    "S2 member fixture selection changed",
+  );
+  requireCondition(
+    stableStringify(caseIds) === stableStringify(S2_FROZEN_CASE_IDS),
+    "S2 case expansion changed",
+  );
+  requireCondition(
+    stableStringify(trimRows) === stableStringify(S2_FROZEN_TRIM_ROWS),
+    "S2 configuration trim changed",
+  );
+  requireCondition(
+    cases.length === 18 && new Set(cases.map((entry) => entry.manifest.fixture_id)).size === 16,
+    "S2 case volume changed",
+  );
+  return {
+    cases,
+    selection,
+    trimRows,
+    supplement: {
+      selector_version: S2_SELECTOR_VERSION,
+      volume_table: S2_VOLUME_TABLE.map((entry) => ({ ...entry })),
+      members: S2_FROZEN_MEMBERS.map(({ member, predicate, fixture_ids }) => ({
+        member,
+        predicate,
+        fixture_ids: [...fixture_ids],
+      })),
+      case_ids: caseIds,
+      trim_rows: trimRows,
+      counts: {
+        fixtures: 16,
+        cases: 18,
+        observations: 36,
+      },
+    },
+  };
+}
+
 function buildCaseManifest(caseSpecs) {
   const cases = caseSpecs
     .map((entry) => entry.manifest)
@@ -1478,6 +1808,10 @@ function buildCaseManifest(caseSpecs) {
 }
 
 function buildCoverageMatrix(caseSpecs) {
+  requireCondition(
+    caseSpecs.every((entry) => entry.family_id !== "S2"),
+    "m-1 coverage projection includes S2 cases",
+  );
   const familyRows = FAMILY_SPECS.map((family) => ({
     family_id: family.family_id,
     description: family.description,
@@ -1527,6 +1861,10 @@ function buildCoverageMatrix(caseSpecs) {
 }
 
 function buildQuotas(caseSpecs) {
+  requireCondition(
+    caseSpecs.every((entry) => entry.family_id !== "S2"),
+    "m-1 quota projection includes S2 cases",
+  );
   const count = (role) => caseSpecs.filter((entry) => entry.roles.includes(role)).length;
   const quotas = {
     positive_cases: count("positive"),
@@ -1544,6 +1882,38 @@ function buildQuotas(caseSpecs) {
   return quotas;
 }
 
+function canonicalM1Projection(caseManifestCases, observations, stratum) {
+  const cases = caseManifestCases
+    .filter((entry) => entry.family_id !== "S2")
+    .sort((left, right) => compareBytes(left.case_id, right.case_id));
+  const caseIds = new Set(cases.map((entry) => entry.case_id));
+  return {
+    cases,
+    observations: observations
+      .filter((entry) => caseIds.has(entry.case_id))
+      .sort((left, right) => compareBytes(left.case_id, right.case_id)),
+    stratum,
+  };
+}
+
+function verifyM1Projection(caseManifestCases, observations, stratum, source) {
+  const projection = canonicalM1Projection(
+    caseManifestCases,
+    observations,
+    stratum,
+  );
+  requireCondition(
+    projection.cases.length === 94 && projection.observations.length === 94,
+    `m-1 projection guard input changed (${source})`,
+  );
+  const actual = sha256(Buffer.from(stableStringify(projection), "utf8"));
+  requireCondition(
+    actual === H2_7A_M1_PROJECTION_SHA256,
+    `m-1 projection guard failed (${source}): ${actual}`,
+  );
+  return projection;
+}
+
 function prepareStaticContext() {
   validateRuntime();
   validateFrozenFixtureChoices();
@@ -1554,21 +1924,36 @@ function prepareStaticContext() {
   };
   const curatedCases = buildCuratedCases(expansions);
   const stratum = loadStratumCases();
-  const caseSpecs = [...curatedCases, ...stratum.cases].sort((left, right) =>
+  const m1CaseSpecs = [...curatedCases, ...stratum.cases].sort((left, right) =>
     compareBytes(left.case_id, right.case_id),
   );
   requireCondition(
-    caseSpecs.length === 94 && new Set(caseSpecs.map((entry) => entry.case_id)).size === 94,
+    m1CaseSpecs.length === 94 &&
+      new Set(m1CaseSpecs.map((entry) => entry.case_id)).size === 94,
     "W-H2.7A case denominator changed",
   );
+  const m1CaseManifest = buildCaseManifest(m1CaseSpecs);
+  const coverageMatrix = buildCoverageMatrix(m1CaseSpecs);
+  const quotas = buildQuotas(m1CaseSpecs);
+  const s2 = buildS2Supplement(m1CaseSpecs, expansions);
+  const caseSpecs = [...m1CaseSpecs, ...s2.cases].sort((left, right) =>
+    compareBytes(left.case_id, right.case_id),
+  );
+  requireCondition(
+    caseSpecs.length === 112 &&
+      new Set(caseSpecs.map((entry) => entry.case_id)).size === 112,
+    "W-H2.7A successor case denominator changed",
+  );
   const caseManifest = buildCaseManifest(caseSpecs);
-  const coverageMatrix = buildCoverageMatrix(caseSpecs);
-  const quotas = buildQuotas(caseSpecs);
   return {
     caseSpecs,
+    m1CaseSpecs,
+    s2CaseSpecs: s2.cases,
+    m1CaseManifest,
     caseManifest,
     coverageMatrix,
     quotas,
+    m2Supplement: s2.supplement,
     population,
     stratum: stratum.section,
     censusPath: stratum.censusPath,
@@ -1912,6 +2297,20 @@ function observeAllCases(caseSpecs) {
   return observations.sort((left, right) => compareBytes(left.case_id, right.case_id));
 }
 
+function observeStaticContext(staticContext) {
+  const m1Observations = observeAllCases(staticContext.m1CaseSpecs);
+  verifyM1Projection(
+    staticContext.m1CaseManifest.cases,
+    m1Observations,
+    staticContext.stratum,
+    "fresh m-1 observation",
+  );
+  const s2Observations = observeAllCases(staticContext.s2CaseSpecs);
+  return [...m1Observations, ...s2Observations].sort((left, right) =>
+    compareBytes(left.case_id, right.case_id),
+  );
+}
+
 function validateStoredObservations(caseSpecs, stored) {
   requireCondition(Array.isArray(stored), "stored observations are absent");
   const expectedIds = caseSpecs.map((entry) => entry.case_id).sort(compareBytes);
@@ -1989,6 +2388,16 @@ function validateContractAssertions() {
       contract.properties?.status?.const === "qualified-typescript-oracle" &&
       contract.properties?.phase?.const === "H2.7a-witnesses" &&
       contract.properties?.stratum?.properties?.count?.const === 67 &&
+      contract.properties?.observations?.minItems === 112 &&
+      contract.properties?.observations?.maxItems === 112 &&
+      contract.properties?.m2_supplement?.$ref ===
+        "#/$defs/m2_supplement" &&
+      contract.$defs?.case_manifest?.properties?.cases?.minItems === 112 &&
+      contract.$defs?.case_manifest?.properties?.cases?.maxItems === 112 &&
+      contract.$defs?.summary?.properties?.cases?.const === 112 &&
+      contract.$defs?.summary?.properties?.typescript_oracle_runs?.const === 224 &&
+      contract.$defs?.summary?.properties?.deterministic_cases?.const === 112 &&
+      contract.$defs?.role?.enum?.includes("supplement") &&
       stableStringify(contract.properties?.coverage_matrix?.properties?.lanes?.const) ===
         stableStringify(LANES),
     "witness contract consts changed",
@@ -2019,6 +2428,12 @@ function validateArtifact(artifact, staticContext) {
         stableStringify(pathHash(CONTRACT_RELATIVE_PATH)),
     "artifact generator/contract pin changed",
   );
+  verifyM1Projection(
+    artifact.case_manifest.cases,
+    artifact.observations,
+    artifact.stratum,
+    "artifact",
+  );
   const manifestPayload = {
     cases: artifact.case_manifest.cases,
     source_universe: artifact.case_manifest.source_universe,
@@ -2039,6 +2454,12 @@ function validateArtifact(artifact, staticContext) {
       stableStringify(artifact.case_manifest) ===
         stableStringify(staticContext.caseManifest),
     "case manifest fingerprint changed",
+  );
+  requireCondition(
+    stableStringify(
+      artifact.case_manifest.cases.filter((entry) => entry.family_id !== "S2"),
+    ) === stableStringify(staticContext.m1CaseManifest.cases),
+    "m-1 case projection changed",
   );
   requireCondition(
     stableStringify(artifact.coverage_matrix.lanes) === stableStringify(LANES) &&
@@ -2066,10 +2487,23 @@ function validateArtifact(artifact, staticContext) {
         stableStringify(manifestStratumIds),
     "stratum checkpoint failed",
   );
+  const supplementCaseIds = artifact.case_manifest.cases
+    .filter((entry) => entry.family_id === "S2")
+    .map((entry) => entry.case_id)
+    .sort(compareBytes);
   requireCondition(
-    artifact.observations.length === 94 &&
-      artifact.summary.cases === 94 &&
-      artifact.summary.typescript_oracle_runs === 188 &&
+    supplementCaseIds.length === 18 &&
+      stableStringify(supplementCaseIds) ===
+        stableStringify([...staticContext.m2Supplement.case_ids].sort(compareBytes)) &&
+      stableStringify(artifact.m2_supplement) ===
+        stableStringify(staticContext.m2Supplement),
+    "S2 supplement checkpoint failed",
+  );
+  requireCondition(
+    artifact.observations.length === 112 &&
+      artifact.summary.cases === 112 &&
+      artifact.summary.typescript_oracle_runs === 224 &&
+      artifact.summary.deterministic_cases === 112 &&
       artifact.summary.rust_runs === 0,
     "artifact summary denominator changed",
   );
@@ -2116,6 +2550,7 @@ function buildArtifact(staticContext, observations) {
       coverage_matrix: staticContext.coverageMatrix,
       quotas: staticContext.quotas,
       stratum: staticContext.stratum,
+      m2_supplement: staticContext.m2Supplement,
       observations,
       summary: buildSummary(staticContext, observations),
       observation_content_roll_sha256: observationRoll,
@@ -2136,6 +2571,17 @@ function loadTrackedArtifact() {
   } catch {
     throw new CheckReceiptMiss("stored-artifact");
   }
+}
+
+function verifyTrackedM1Projection() {
+  const artifact = loadTrackedArtifact();
+  verifyM1Projection(
+    artifact.case_manifest?.cases ?? [],
+    artifact.observations ?? [],
+    artifact.stratum,
+    "checked-in artifact",
+  );
+  return artifact;
 }
 
 function loadReceipt() {
@@ -2227,9 +2673,31 @@ function runInternalObserve() {
   process.stdout.write(JSON.stringify(observation));
 }
 
+function runS2Dry() {
+  const artifact = verifyTrackedM1Projection();
+  const expansions = {
+    compiler: readJson(TEST_SUITE_EXPANSION),
+    conformance: readJson(CONFORMANCE_EXPANSION),
+  };
+  const s2 = buildS2Supplement(
+    artifact.case_manifest.cases.filter((entry) => entry.family_id !== "S2"),
+    expansions,
+  );
+  process.stdout.write(
+    render({
+      fixtures: s2.selection.members.flatMap((entry) =>
+        entry.selected.map((candidate) => candidate.fixture_id),
+      ),
+      case_ids: s2.supplement.case_ids,
+      trim_rows: s2.supplement.trim_rows,
+    }),
+  );
+}
+
 function runWrite() {
+  verifyTrackedM1Projection();
   const staticContext = prepareStaticContext();
-  const observations = observeAllCases(staticContext.caseSpecs);
+  const observations = observeStaticContext(staticContext);
   const artifact = buildArtifact(staticContext, observations);
   writeFileAtomic(path.join(WORKSPACE, TARGET_RELATIVE_PATH), render(artifact));
   process.stdout.write(
@@ -2238,6 +2706,14 @@ function runWrite() {
 }
 
 function runCheck() {
+  const tracked = verifyTrackedM1Projection();
+  requireCondition(
+    stableStringify(tracked.generator) ===
+        stableStringify(pathHash(GENERATOR_RELATIVE_PATH)) &&
+      stableStringify(tracked.contract) ===
+        stableStringify(pathHash(CONTRACT_RELATIVE_PATH)),
+    `stale ${TARGET_RELATIVE_PATH}; run h2-7a-witnesses.mjs --write and review`,
+  );
   const staticContext = prepareStaticContext();
   let artifact;
   try {
@@ -2253,7 +2729,7 @@ function runCheck() {
       `W-H2.7A check receipt: miss (${error.message}); running full fresh-process double observation\n`,
     );
   }
-  const observations = observeAllCases(staticContext.caseSpecs);
+  const observations = observeStaticContext(staticContext);
   artifact = buildArtifact(staticContext, observations);
   compareWholeArtifact(artifact);
   mintCheckReceipt(artifact);
@@ -2264,10 +2740,13 @@ function runCheck() {
 
 try {
   if (MODE === INTERNAL_OBSERVE_MODE) runInternalObserve();
+  else if (MODE === "--s2-dry") runS2Dry();
   else if (MODE === "--write") runWrite();
   else if (MODE === "--check") runCheck();
   else {
-    fail("usage: h2-7a-witnesses.mjs [--write|--check|--internal-observe <case_id>]");
+    fail(
+      "usage: h2-7a-witnesses.mjs [--write|--check|--s2-dry|--internal-observe <case_id>]",
+    );
   }
 } catch (error) {
   process.stderr.write(`${error.message}\n`);

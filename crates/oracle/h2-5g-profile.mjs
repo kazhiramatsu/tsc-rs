@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "f279bccce14179bacfcd3e8a73d4b144441fb38bb7e4ead1f6102e261516487f";
+  "1fda921cefd398c34cd00c72445a6630f74fc662cf92af164a3583fffd178738";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "d18d5412b5d51a3467d814bff689d6c33744daf66ad090952ab447b3ac245a2a"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "8240afd2f198db89a836bf39ca30394ad72bda0ae5d45eb871df1dfee82e3177"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "fab39146817e63e050144fd5fd09187669ad2cf3d1cec01b9e1926d2b95196e9"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "217ce4d00d450951e4cee2037d6f745c7327abf7b0af4854062e45dae2180931"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "3912601d78fbd3b147872598436c7512f33b1e6b99b09e48df4162cdf2b3e1d0"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "4dc30cbc6a20fb4e0f0d45c662e29f2337f8ee2bf6a9228caa656df2c8140f1d"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "7912cd63faa8a99c6bd07f06902d60cf6efef85943d98d0fee6c507b67756e6b"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "22927743e74f576a1f540d2f8718bfabb0bea0759352c95731f86cc9bcf5fb45"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
@@ -103,6 +103,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/checker/src/class.rs",
   "crates/checker/src/constraints.rs",
   "crates/checker/src/contextual.rs",
+  "crates/checker/src/declaration_emit.rs",
   "crates/checker/src/elaboration.rs",
   "crates/checker/src/expr.rs",
   "crates/checker/src/facts.rs",
@@ -153,6 +154,8 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/compiler/tests/integration/h2_5h_ca2a_promote_contract.rs",
   "crates/compiler/tests/integration/h2_5h_ca2b_seam_contract.rs",
   "crates/compiler/tests/integration/filesystem_loader_contract.rs",
+  "crates/compiler/tests/integration/declaration_resolver_replay_decision_equal.rs",
+  "crates/compiler/tests/integration/h2_7a_partition_projection.rs",
   "crates/compiler/tests/unit/lib/tests.rs",
   "crates/emitter/src/comment_cursor.rs",
   "crates/emitter/src/position.rs",
@@ -526,7 +529,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 203,
+    runtimeInputSet.size === 206,
     "H2.5g runtime input identity changed",
   );
 

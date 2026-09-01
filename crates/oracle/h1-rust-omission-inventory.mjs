@@ -483,7 +483,7 @@ const anchorSpecs = [
   [
     "export-linked-aliases-elided",
     "crates/checker/src/modules.rs",
-    "collectLinkedAliases remains declaration-emit bookkeeping",
+    "collectLinkedAliases is live behind the declaration/composite gate;",
   ],
   [
     "property-access-linked-references-elided",
@@ -563,7 +563,7 @@ const anchorSpecs = [
   [
     "export-assignment-linked-aliases-elided",
     "crates/checker/src/modules.rs",
-    "collectLinkedAliases (emit) and the JSDoc type-annotation arm remain",
+    "self.collect_linked_aliases(expression, /*set_visibility*/ true)?;",
   ],
   [
     "standard-class-fields-option-check",
@@ -629,10 +629,15 @@ function regexMatches(scope, expression) {
 const absenceSpecs = [
   {
     id: "linked-reference-producers",
+    // h2-7a-m-2 landed the checker-native collect_linked_aliases
+    // foundation (check-phase paint live behind the declaration/
+    // composite gate; declaration-emit consumption dormant), closing
+    // that half of this omission. mark_linked_references remains the
+    // recorded absence until its owning slice ports it.
     kind: "regex-zero",
     scope: "checker-production",
     expression:
-      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+(?:mark_linked_references|collect_linked_aliases)[ \\t]*\\(",
+      "^[ \\t]*(?:pub(?:\\([^)]*\\))?[ \\t]+)?fn[ \\t]+mark_linked_references[ \\t]*\\(",
   },
 ];
 

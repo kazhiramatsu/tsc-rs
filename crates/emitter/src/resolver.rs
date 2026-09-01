@@ -6,6 +6,58 @@ use tsc_syntax::NodeId;
 
 use crate::{EmitConstantValue, EmitEnumMemberValue};
 
+/// The checker result of an emit-resolver accessibility query.
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EmitSymbolAccessibility {
+    Accessible = 0,
+    NotAccessible = 1,
+    CannotBeNamed = 2,
+    NotResolved = 3,
+}
+
+/// The result shape returned by the declaration-emit accessibility queries.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmitSymbolAccessibilityResult {
+    pub accessibility: EmitSymbolAccessibility,
+    /// `Some` is reserved for a non-empty ordered alias list.
+    pub aliases_to_make_visible: Option<Vec<EmitResolverNode>>,
+    /// Shadow-scoped until the m-3.5 error-name byte gate.
+    pub error_symbol_name: Option<String>,
+    /// Shadow-scoped until the m-3.5 error-name byte gate.
+    pub error_module_name: Option<String>,
+    pub error_node: Option<EmitResolverNode>,
+}
+
+/// The symbol-meaning mask passed to an emit-resolver accessibility query.
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EmitSymbolMeaning(pub u32);
+
+impl EmitSymbolMeaning {
+    pub const VALUE_EXPORT_VALUE: Self = Self(111_551 | 1_048_576);
+    pub const NAMESPACE: Self = Self(1_920);
+    pub const TYPE: Self = Self(788_968);
+    pub const ALIAS_RESOLVE: Self = Self(111_551 | 788_968 | 1_920 | 2_097_152);
+    pub const IMPORT_EQUALS_RESOLVE: Self = Self(111_551 | 788_968 | 1_920);
+}
+
+/// A session-scoped handle to a checker symbol.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EmitResolverSymbol {
+    pub session_token: u64,
+    pub symbol_index: u32,
+}
+
+/// A property returned by `getPropertiesOfContainerFunction`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmitFunctionProperty {
+    pub name: String,
+    pub symbol: EmitResolverSymbol,
+    pub parent: EmitResolverSymbol,
+    pub value_declaration: Option<EmitResolverNode>,
+}
+
 /// Stable source/node identity passed from the emitter back into the live
 /// checker. Synthetic nodes are never valid resolver inputs; transforms first
 /// follow their original-node chain and then project the owning Program file.
@@ -77,6 +129,18 @@ pub enum EmitResolverMethod {
     IsReferencedAliasDeclaration,
     IsTopLevelValueImportEqualsWithEntityName,
     IsValueAliasDeclaration,
+    IsDefinitelyReferenceToGlobalSymbolObject,
+    IsSymbolAccessible,
+    IsEntityNameVisible,
+    IsDeclarationVisible,
+    IsOptionalParameter,
+    IsImplementationOfOverload,
+    RequiresAddingImplicitUndefined,
+    IsExpandoFunctionDeclaration,
+    GetPropertiesOfContainerFunction,
+    IsLiteralConstDeclaration,
+    IsLateBound,
+    IsImportRequiredByAugmentation,
 }
 
 /// Selects the checker view used by `getReferencedExportContainer`.
@@ -128,6 +192,20 @@ impl EmitResolverMethod {
                 "isTopLevelValueImportEqualsWithEntityName"
             }
             Self::IsValueAliasDeclaration => "isValueAliasDeclaration",
+            Self::IsDefinitelyReferenceToGlobalSymbolObject => {
+                "isDefinitelyReferenceToGlobalSymbolObject"
+            }
+            Self::IsSymbolAccessible => "isSymbolAccessible",
+            Self::IsEntityNameVisible => "isEntityNameVisible",
+            Self::IsDeclarationVisible => "isDeclarationVisible",
+            Self::IsOptionalParameter => "isOptionalParameter",
+            Self::IsImplementationOfOverload => "isImplementationOfOverload",
+            Self::RequiresAddingImplicitUndefined => "requiresAddingImplicitUndefined",
+            Self::IsExpandoFunctionDeclaration => "isExpandoFunctionDeclaration",
+            Self::GetPropertiesOfContainerFunction => "getPropertiesOfContainerFunction",
+            Self::IsLiteralConstDeclaration => "isLiteralConstDeclaration",
+            Self::IsLateBound => "isLateBound",
+            Self::IsImportRequiredByAugmentation => "isImportRequiredByAugmentation",
         }
     }
 }
@@ -137,6 +215,14 @@ pub enum EmitResolverError {
     Unavailable {
         method: EmitResolverMethod,
         node: EmitResolverNode,
+    },
+    UnknownSymbol {
+        method: EmitResolverMethod,
+        symbol: EmitResolverSymbol,
+    },
+    ForeignSymbol {
+        method: EmitResolverMethod,
+        symbol: EmitResolverSymbol,
     },
     UnknownSource {
         method: EmitResolverMethod,
@@ -167,6 +253,20 @@ impl fmt::Display for EmitResolverError {
                 method.name(),
                 node.source().raw(),
                 node.node().0
+            ),
+            Self::UnknownSymbol { method, symbol } => write!(
+                formatter,
+                "emit resolver method {} received unknown symbol {} in session {}",
+                method.name(),
+                symbol.symbol_index,
+                symbol.session_token
+            ),
+            Self::ForeignSymbol { method, symbol } => write!(
+                formatter,
+                "emit resolver method {} received symbol {} from foreign session {}",
+                method.name(),
+                symbol.symbol_index,
+                symbol.session_token
             ),
             Self::UnknownSource { method, node } => write!(
                 formatter,
@@ -462,6 +562,152 @@ pub trait EmitResolver {
     ) -> Result<bool, EmitResolverError> {
         Err(unavailable(
             EmitResolverMethod::IsValueAliasDeclaration,
+            node,
+        ))
+    }
+
+    /// tsc-port: isDefinitelyReferenceToGlobalSymbolObject @6.0.3
+    /// tsc-hash: 0a9f99b8eb62eb0a85b6019c76e13f9934dd0be091a0ebebf82f54a888ea237e
+    /// tsc-span: _tsc.js:47469-47483
+    fn is_definitely_reference_to_global_symbol_object(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsDefinitelyReferenceToGlobalSymbolObject,
+            node,
+        ))
+    }
+
+    /// tsc-port: isSymbolAccessible @6.0.3
+    /// tsc-hash: 9235fa70af1dbdc19b0a98214131caf0ac9eb80fa208e9af814c4740abb1fd6f
+    /// tsc-span: _tsc.js:50499-50508
+    fn is_symbol_accessible(
+        &self,
+        symbol: EmitResolverSymbol,
+        enclosing_declaration: EmitResolverNode,
+        meaning: EmitSymbolMeaning,
+        should_compute_aliases: bool,
+    ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError> {
+        let _ = (symbol, meaning, should_compute_aliases);
+        Err(unavailable(
+            EmitResolverMethod::IsSymbolAccessible,
+            enclosing_declaration,
+        ))
+    }
+
+    /// tsc-port: isEntityNameVisible @6.0.3
+    /// tsc-hash: 060c123c45cc5190b222fb3e1170d371492ca672405b04b4283dca7f7b5d8369
+    /// tsc-span: _tsc.js:50606-50648
+    fn is_entity_name_visible(
+        &self,
+        entity_name: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+    ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError> {
+        let _ = enclosing_declaration;
+        Err(unavailable(
+            EmitResolverMethod::IsEntityNameVisible,
+            entity_name,
+        ))
+    }
+
+    /// tsc-port: isDeclarationVisible @6.0.3
+    /// tsc-hash: b569e8243cf2db9de0dbec7462f29fa1e70f4b94405adb5a134b6571d4c8fbeb
+    /// tsc-span: _tsc.js:55589-55674
+    fn is_declaration_visible(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Err(unavailable(EmitResolverMethod::IsDeclarationVisible, node))
+    }
+
+    /// tsc-port: isOptionalParameter @6.0.3
+    /// tsc-hash: 230cc8ce09e27fc4b9b6e370079e26817941e278127f592eca3c51ecb55ac67b
+    /// tsc-span: _tsc.js:59509-59527
+    fn is_optional_parameter(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Err(unavailable(EmitResolverMethod::IsOptionalParameter, node))
+    }
+
+    /// tsc-port: isImplementationOfOverload @6.0.3
+    /// tsc-hash: 8e84478797279cd09461d21f45d61335f27c12c7711fac1678ef91e806cfd378
+    /// tsc-span: _tsc.js:88055-88068
+    fn is_implementation_of_overload(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsImplementationOfOverload,
+            node,
+        ))
+    }
+
+    /// tsc-port: requiresAddingImplicitUndefined @6.0.3
+    /// tsc-hash: 520f7a6ffc45898f262773b00042189eaf39127a40ed129daa103f6ce663e2d7
+    /// tsc-span: _tsc.js:88075-88077
+    fn requires_adding_implicit_undefined(
+        &self,
+        parameter: EmitResolverNode,
+        enclosing_declaration: Option<EmitResolverNode>,
+    ) -> Result<bool, EmitResolverError> {
+        let _ = enclosing_declaration;
+        Err(unavailable(
+            EmitResolverMethod::RequiresAddingImplicitUndefined,
+            parameter,
+        ))
+    }
+
+    /// tsc-port: isExpandoFunctionDeclaration @6.0.3
+    /// tsc-hash: ed2afab33ef4b7bc2c878b2943e881dedafba9030fa884dbf9155c3578fe9554
+    /// tsc-span: _tsc.js:88090-88112
+    fn is_expando_function_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsExpandoFunctionDeclaration,
+            node,
+        ))
+    }
+
+    /// tsc-port: getPropertiesOfContainerFunction @6.0.3
+    /// tsc-hash: a194d2629e8413c8dd13b4a67567fdb2dba8a6a09f563e8b705d9488c0e588a3
+    /// tsc-span: _tsc.js:88113-88120
+    fn get_properties_of_container_function(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitFunctionProperty>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetPropertiesOfContainerFunction,
+            node,
+        ))
+    }
+
+    /// tsc-port: isLiteralConstDeclaration @6.0.3
+    /// tsc-hash: 1c1cef46271c6fce5e62c4307e8471561e2f10782682ef7dfff2a10013b1f1d6
+    /// tsc-span: _tsc.js:88485-88490
+    fn is_literal_const_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsLiteralConstDeclaration,
+            node,
+        ))
+    }
+
+    /// tsc-port: isLateBound @6.0.3
+    /// tsc-hash: d11842db30b0440c571390f2deed480c5a03d4e45ef954902841c3178c938112
+    /// tsc-span: _tsc.js:88600-88604
+    fn is_late_bound(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        Err(unavailable(EmitResolverMethod::IsLateBound, node))
+    }
+
+    /// tsc-port: isImportRequiredByAugmentation @6.0.3
+    /// tsc-hash: 7498ec7545df67711e0cdeb1967852804859c42964ae9f0f61444d3ca2c3124c
+    /// tsc-span: _tsc.js:88696-88717
+    fn is_import_required_by_augmentation(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsImportRequiredByAugmentation,
             node,
         ))
     }

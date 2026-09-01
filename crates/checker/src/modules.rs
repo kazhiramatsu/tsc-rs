@@ -2878,7 +2878,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getTargetOfExportSpecifier @6.0.3
     /// tsc-hash: 7d710915d1c15e2eff24a3f23fffdcac5bd92f5b92d1ce16c411a297346265d6
     /// tsc-span: _tsc.js:49003-49031
-    fn get_target_of_export_specifier(
+    pub(crate) fn get_target_of_export_specifier(
         &mut self,
         node: NodeId,
         meaning: SymbolFlags,
@@ -3602,6 +3602,34 @@ impl<'a> CheckerState<'a> {
             error_node,
             is_for_augmentation,
         )
+    }
+
+    /// tsc-port: getExternalModuleFileFromDeclaration @6.0.3
+    /// tsc-hash: b1d92eecc4c854409d14d155534bda3b0cc44c709b9f3f2eeb970f1a233861a0
+    /// tsc-span: _tsc.js:88719-88731
+    pub(crate) fn get_external_module_file_from_declaration(
+        &mut self,
+        declaration: NodeId,
+    ) -> CheckResult<Option<NodeId>> {
+        let specifier = if self.kind_of(declaration) == SyntaxKind::ModuleDeclaration {
+            match self.data_of(declaration) {
+                NodeData::ModuleDeclaration(data) => data
+                    .name
+                    .filter(|&name| self.kind_of(name) == SyntaxKind::StringLiteral),
+                _ => None,
+            }
+        } else {
+            self.get_external_module_name_of(declaration)
+        };
+        let Some(specifier) = specifier else {
+            return Ok(None);
+        };
+        let Some(module_symbol) =
+            self.resolve_external_module_name_worker(specifier, specifier, None, false, false)?
+        else {
+            return Ok(None);
+        };
+        Ok(self.get_declaration_of_kind(module_symbol, SyntaxKind::SourceFile))
     }
 
     /// tsc-port: needAllowArbitraryExtensions @6.0.3
@@ -9416,9 +9444,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 9140193d8815ff3c9aef7ceed229317e0c48d27a8badb69d6b3051e5508ae137
     /// tsc-span: _tsc.js:86354-86390
     ///
-    /// collectLinkedAliases remains declaration-emit bookkeeping. The
-    /// alias-reference mark is live from M7 8.3a; a default re-export
-    /// can require `__importDefault` under CommonJS interop.
+    /// The declaration/composite gate paints linked aliases at the upstream
+    /// position, before the local-export diagnostics. The alias-reference
+    /// mark is live from M7 8.3a; a default re-export can require
+    /// `__importDefault` under CommonJS interop.
     fn check_export_specifier(&mut self, node: NodeId) -> CheckResult<()> {
         self.check_alias_symbol(node)?;
         let (property_name, name) = match self.data_of(node) {
@@ -9434,6 +9463,11 @@ impl<'a> CheckerState<'a> {
             });
         self.check_module_export_name(property_name, has_module_specifier)?;
         self.check_module_export_name(name, true)?;
+        if crate::declaration_emit::emit_declarations(self.options) {
+            if let Some(name) = property_name.or(name) {
+                self.collect_linked_aliases(name, /*set_visibility*/ true)?;
+            }
+        }
         if !has_module_specifier {
             let Some(exported_name) = property_name.or(name) else {
                 return Ok(());
@@ -9494,10 +9528,10 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 2481cb70fb33663829bfdf493fafea233783acafbd6069e1e83a2f85c5cf1a19
     /// tsc-span: _tsc.js:86391-86501
     ///
-    /// collectLinkedAliases (emit) and the JSDoc type-annotation arm remain
-    /// outside the modeled option/syntax surface. erasableSyntaxOnly rejects
-    /// non-ambient export-equals before the declaration-container checks. The
-    /// verbatimModuleSyntax and isolatedModules
+    /// collectLinkedAliases is live behind the declaration/composite gate;
+    /// the JSDoc type-annotation arm remains outside the modeled syntax
+    /// surface. erasableSyntaxOnly rejects non-ambient export-equals before
+    /// the declaration-container checks. The verbatimModuleSyntax and isolatedModules
     /// type-only faces are live, including the CommonJS
     /// export-default diagnostic. The export= tail must use
     /// getImpliedNodeFormatForEmit: package.json `type` affects
@@ -9692,6 +9726,9 @@ impl<'a> CheckerState<'a> {
                 }
             } else {
                 self.check_expression_cached(expression, CheckMode::NORMAL)?;
+            }
+            if crate::declaration_emit::emit_declarations(self.options) {
+                self.collect_linked_aliases(expression, /*set_visibility*/ true)?;
             }
         } else {
             self.check_expression_cached(expression, CheckMode::NORMAL)?;
