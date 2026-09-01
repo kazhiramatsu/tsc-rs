@@ -2744,6 +2744,42 @@ function buildArtifact(witnessContext, instrumentation, cases) {
   );
 }
 
+// h2-7a-m-3.md 7.7(iii): the 112 schema-2 cases minted at m-2 are a
+// signed freeze; every later write/check (including the S3-era
+// 120-case artifacts) must reproduce their case_id/fileTable/
+// trace_events rows byte-identically and in unchanged relative order.
+const SCHEMA2_FROZEN_CASES = 112;
+const SCHEMA2_FROZEN_CASE_IDS_SHA256 =
+  "581d0b4ba3e584b8cfeae6f009f00c45ce5007ecb01be8152169e3ea3dac8153";
+const H2_7A_M2_SCHEMA2_PROJECTION_SHA256 =
+  "6b43e5a1fa6596e36db867b18442f71c080c11b688217c95cabb73368c76c9b9";
+
+function verifySchema2Projection(artifact, source) {
+  const rows = artifact.cases.filter(
+    (entry) => !String(entry.case_id).startsWith("h2-7a/S3/"),
+  );
+  requireCondition(
+    rows.length === SCHEMA2_FROZEN_CASES,
+    `schema-2 projection guard input changed (${source}): ${rows.length}/${SCHEMA2_FROZEN_CASES}`,
+  );
+  requireCondition(
+    sha256(
+      Buffer.from(stableStringify(rows.map((entry) => entry.case_id)), "utf8"),
+    ) === SCHEMA2_FROZEN_CASE_IDS_SHA256,
+    `schema-2 projection guard: frozen case-id order changed (${source})`,
+  );
+  const projection = rows.map((entry) => [
+    entry.case_id,
+    entry.fileTable,
+    entry.trace_events,
+  ]);
+  requireCondition(
+    sha256(Buffer.from(stableStringify(projection), "utf8")) ===
+      H2_7A_M2_SCHEMA2_PROJECTION_SHA256,
+    `schema-2 projection guard failed (${source})`,
+  );
+}
+
 function validateArtifact(artifact, witnessContext, instrumentation) {
   requireCondition(
     artifact !== null &&
@@ -2753,6 +2789,7 @@ function validateArtifact(artifact, witnessContext, instrumentation) {
       hasValidFingerprint(artifact, "probe_traces_fingerprint_sha256"),
     "probe artifact schema/fingerprint is invalid",
   );
+  verifySchema2Projection(artifact, "validateArtifact");
   const expectedKeys = [
     "schema",
     "phase",
@@ -3447,7 +3484,9 @@ function v1FieldProjection(artifact, caseCount = V1_MIGRATION_CASES) {
   const migrationCases =
     caseCount === V1_MIGRATION_CASES
       ? artifact.cases.filter(
-          (entry) => !String(entry.case_id).startsWith("h2-7a/S2/"),
+          (entry) =>
+            !String(entry.case_id).startsWith("h2-7a/S2/") &&
+            !String(entry.case_id).startsWith("h2-7a/S3/"),
         )
       : artifact.cases.slice(0, caseCount);
   if (caseCount === V1_MIGRATION_CASES) {

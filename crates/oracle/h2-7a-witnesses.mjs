@@ -24,7 +24,7 @@ const GENERATOR_RELATIVE_PATH = "crates/oracle/h2-7a-witnesses.mjs";
 const TARGET_RELATIVE_PATH = "ratchets/h2-7a-witnesses.v1.json";
 const CONTRACT_RELATIVE_PATH =
   ".github/ci/contracts/h2-7a-witnesses.schema.json";
-const PACKET_RELATIVE_PATH = "docs/design/greenfield/slices/h2-7a-m-2.md";
+const PACKET_RELATIVE_PATH = "docs/design/greenfield/slices/h2-7a-m-3.md";
 const PARENT_PACKET_RELATIVE_PATH = "docs/design/greenfield/slices/h2-7a.md";
 const TYPESCRIPT_BUNDLE = "vendor/typescript-6.0.3/lib/typescript.js";
 const TYPESCRIPT_IMPLEMENTATION = "vendor/typescript-6.0.3/lib/_tsc.js";
@@ -65,6 +65,12 @@ const UTF8_BOM = Buffer.from([0xef, 0xbb, 0xbf]);
 // is deliberately independent of the successor artifact's new S2 fields.
 const H2_7A_M1_PROJECTION_SHA256 =
   "44b0cca40a9ae8869ee219e6bbb6e449ce87346556084dfd622f167bd3f55b72";
+
+// Permanent bridge to the m-2-signed S2 stratum (h2-7a-m-3.md 7.7ii):
+// the 18 S2 case rows + their observations + the m2_supplement object,
+// frozen from the trusted-base artifact at the m-3 E2 authoring point.
+const H2_7A_M2_S2_PROJECTION_SHA256 =
+  "d9cb88a8100cf481c1221dfe986bfc6036857cb875cc7dd667eb246cea90a4d3";
 
 const LANES = Object.freeze([
   "visibility/export graph",
@@ -180,6 +186,61 @@ const S2_VOLUME_TABLE = Object.freeze([
   Object.freeze({ member: "isExpandoFunctionDeclaration", entry_result_pairs: 408 }),
   Object.freeze({ member: "isLiteralConstDeclaration", entry_result_pairs: 548 }),
   Object.freeze({ member: "isDeclarationVisible", entry_result_pairs: 1534 }),
+]);
+
+// S3 (h2-7a-m-3.md 7): the m-3 design-gate-ratified supplement for the
+// two zero-volume serialization members.  Authorized by the h2-7a.md
+// m-3 amendment element; output-informed input = the frozen schema-2
+// per-site volume table below; restricted evidentiary use.
+const S3_SELECTOR_VERSION = "m3-s3-v1";
+const S3_FROZEN_FIXTURE_IDS = Object.freeze([
+  "typescript-6.0.3/compiler/amdDeclarationEmitNoExtraDeclare.ts",
+  "typescript-6.0.3/compiler/anonClassDeclarationEmitIsAnon.ts",
+  "typescript-6.0.3/compiler/declarationEmitClassMixinLocalClassDeclaration.ts",
+  "typescript-6.0.3/compiler/declarationEmitExpressionInExtends2.ts",
+  "typescript-6.0.3/compiler/constDeclarations2.ts",
+  "typescript-6.0.3/compiler/declarationEmitAmdModuleNameDirective.ts",
+  "typescript-6.0.3/compiler/declarationEmitConstantNoWidening.ts",
+  "typescript-6.0.3/compiler/declarationEmitPartialNodeReuseTypeOf.ts",
+]);
+const S3_FROZEN_CASE_IDS = Object.freeze([
+  "h2-7a/S3/typeofexpr-1",
+  "h2-7a/S3/typeofexpr-2",
+  "h2-7a/S3/typeofexpr-3",
+  "h2-7a/S3/typeofexpr-4",
+  "h2-7a/S3/literalconst-1",
+  "h2-7a/S3/literalconst-2",
+  "h2-7a/S3/literalconst-3",
+  "h2-7a/S3/literalconst-4",
+]);
+const S3_FROZEN_TRIM_ROWS = Object.freeze([]);
+const S3_PREDICATES = Object.freeze({
+  typeofexpr:
+    "basename contains `mixin` (ASCII case-insensitive) OR some match `extends\\s+[A-Za-z_$][\\w$.]*\\s*\\(` (heritage call expression, the :115626 non-entity-name extends path)",
+  literalconst:
+    "some multiline match `^\\s*export\\s+const\\s+[A-Za-z_$][\\w$]*\\s*=\\s*(-?\\d|[\"'\\x60]|true\\b|false\\b)` (const with primitive-literal initializer, the :114667-114679 shouldPrintWithInitializer path)",
+});
+const S3_FROZEN_MEMBERS = Object.freeze([
+  {
+    member: "typeofexpr",
+    predicate: S3_PREDICATES.typeofexpr,
+    lanes: ["type serialization"],
+    fixture_ids: Object.freeze(S3_FROZEN_FIXTURE_IDS.slice(0, 4)),
+  },
+  {
+    member: "literalconst",
+    predicate: S3_PREDICATES.literalconst,
+    lanes: ["type serialization"],
+    fixture_ids: Object.freeze(S3_FROZEN_FIXTURE_IDS.slice(4, 8)),
+  },
+]);
+const S3_VOLUME_TABLE = Object.freeze([
+  Object.freeze({ member: "createTypeOfExpression", entry_result_pairs: 0 }),
+  Object.freeze({ member: "createLiteralConstValue", entry_result_pairs: 0 }),
+  Object.freeze({ member: "getDeclarationStatementsForSourceFile", entry_result_pairs: 3 }),
+  Object.freeze({ member: "createReturnTypeOfSignatureDeclaration", entry_result_pairs: 148 }),
+  Object.freeze({ member: "createLateBoundIndexSignatures", entry_result_pairs: 152 }),
+  Object.freeze({ member: "createTypeOfDeclaration", entry_result_pairs: 314 }),
 ]);
 
 const QUOTA_MINIMUMS = Object.freeze({
@@ -955,6 +1016,22 @@ function s2MemberMatches(member, candidate) {
   fail(`unknown S2 member ${member}`);
 }
 
+const S3_HERITAGE_CALL = /extends\s+[A-Za-z_$][\w$.]*\s*\(/;
+const S3_LITERAL_CONST =
+  /^\s*export\s+const\s+[A-Za-z_$][\w$]*\s*=\s*(-?\d|["'`]|true\b|false\b)/m;
+
+function s3MemberMatches(member, candidate) {
+  const text = candidate.raw.toString("utf8");
+  const basename = asciiLower(path.posix.basename(candidate.relative_path));
+  if (member === "typeofexpr") {
+    return basename.includes("mixin") || S3_HERITAGE_CALL.test(text);
+  }
+  if (member === "literalconst") {
+    return S3_LITERAL_CONST.test(text);
+  }
+  fail(`unknown S3 member ${member}`);
+}
+
 function s2FixtureIdsFromCaseSpecs(caseSpecs) {
   return new Set(
     caseSpecs.map((entry) => entry.manifest?.fixture_id ?? entry.fixture_id),
@@ -996,6 +1073,50 @@ function buildS2Selection(m1CaseSpecs) {
     stableStringify(selectedFixtureIdsInOrder) ===
       stableStringify(S2_FROZEN_FIXTURE_IDS),
     "S2 fixture selection changed",
+  );
+  return { candidates, members };
+}
+
+function buildS3Selection(m1CaseSpecs) {
+  const m1FixtureIds = s2FixtureIdsFromCaseSpecs(m1CaseSpecs);
+  requireCondition(
+    m1FixtureIds.size === 57,
+    `S3 m-1 fixture exclusion pool changed: ${m1FixtureIds.size}/57`,
+  );
+  const excludedFixtureIds = new Set([...m1FixtureIds, ...S2_FROZEN_FIXTURE_IDS]);
+  requireCondition(
+    excludedFixtureIds.size === 73,
+    `S3 exclusion pool changed: ${excludedFixtureIds.size}/73`,
+  );
+  const selectedFixtureIds = new Set();
+  const candidates = s2CandidateUniverse();
+  const members = S3_FROZEN_MEMBERS.map((frozenMember) => {
+    const selected = [];
+    for (const candidate of candidates) {
+      if (
+        excludedFixtureIds.has(candidate.fixture_id) ||
+        selectedFixtureIds.has(candidate.fixture_id)
+      ) {
+        continue;
+      }
+      if (!s3MemberMatches(frozenMember.member, candidate)) continue;
+      selected.push(candidate);
+      selectedFixtureIds.add(candidate.fixture_id);
+      if (selected.length === 4) break;
+    }
+    requireCondition(
+      selected.length === 4,
+      `S3 ${frozenMember.member} selection changed: ${selected.length}/4`,
+    );
+    return { frozen: frozenMember, selected };
+  });
+  const selectedFixtureIdsInOrder = members.flatMap((entry) =>
+    entry.selected.map((candidate) => candidate.fixture_id),
+  );
+  requireCondition(
+    stableStringify(selectedFixtureIdsInOrder) ===
+      stableStringify(S3_FROZEN_FIXTURE_IDS),
+    "S3 fixture selection changed",
   );
   return { candidates, members };
 }
@@ -1778,6 +1899,100 @@ function buildS2Supplement(m1CaseSpecs, expansions) {
   };
 }
 
+function buildS3Supplement(m1CaseSpecs, expansions) {
+  const selection = buildS3Selection(m1CaseSpecs);
+  const cases = [];
+  const trimRows = [];
+  for (const { frozen, selected } of selection.members) {
+    for (const [fixtureOffset, candidate] of selected.entries()) {
+      const configurationSelection = declarationEffectiveConfigurationIndexes(
+        candidate.suite,
+        candidate.relative_path,
+        expansions,
+      );
+      const configurationIndexes = configurationSelection.indexes;
+      requireCondition(
+        configurationIndexes.length > 0,
+        `S3 ${candidate.fixture_id} has no declaration-effective configuration`,
+      );
+      const retainedConfigurationIndexes = configurationIndexes.slice(0, 2);
+      const trimmedConfigurationIndexes = configurationIndexes.slice(2);
+      if (trimmedConfigurationIndexes.length > 0) {
+        trimRows.push({
+          fixture_id: candidate.fixture_id,
+          trimmed_configuration_indexes: trimmedConfigurationIndexes,
+        });
+      }
+      const family = {
+        family_id: "S3",
+        suite: candidate.suite,
+        lanes: frozen.lanes,
+      };
+      for (const configurationIndex of retainedConfigurationIndexes) {
+        const suffix =
+          configurationSelection.configuration_count > 1
+            ? `-c${configurationIndex}`
+            : "";
+        cases.push(
+          loadCuratedCase(
+            family,
+            {
+              slug: `${frozen.member}-${fixtureOffset + 1}${suffix}`,
+              fixture: candidate.relative_path,
+              roles: ["supplement"],
+              mutation: "fixture",
+            },
+            expansions,
+            configurationIndex,
+          ),
+        );
+      }
+    }
+  }
+  const caseIds = cases.map((entry) => entry.case_id);
+  const selectedFixtureIdsByMember = selection.members.map((entry) =>
+    entry.selected.map((candidate) => candidate.fixture_id),
+  );
+  requireCondition(
+    stableStringify(selectedFixtureIdsByMember) ===
+      stableStringify(S3_FROZEN_MEMBERS.map((member) => member.fixture_ids)),
+    "S3 member fixture selection changed",
+  );
+  requireCondition(
+    stableStringify(caseIds) === stableStringify(S3_FROZEN_CASE_IDS),
+    "S3 case expansion changed",
+  );
+  requireCondition(
+    stableStringify(trimRows) === stableStringify(S3_FROZEN_TRIM_ROWS),
+    "S3 configuration trim changed",
+  );
+  requireCondition(
+    cases.length === 8 && new Set(cases.map((entry) => entry.manifest.fixture_id)).size === 8,
+    "S3 case volume changed",
+  );
+  return {
+    cases,
+    selection,
+    trimRows,
+    supplement: {
+      selector_version: S3_SELECTOR_VERSION,
+      volume_table: S3_VOLUME_TABLE.map((entry) => ({ ...entry })),
+      members: S3_FROZEN_MEMBERS.map(({ member, predicate, fixture_ids }) => ({
+        member,
+        predicate,
+        fixture_ids: [...fixture_ids],
+      })),
+      case_ids: caseIds,
+      trim_rows: trimRows,
+      counts: {
+        fixtures: 8,
+        cases: 8,
+        observations: 16,
+      },
+    },
+  };
+}
+
 function buildCaseManifest(caseSpecs) {
   const cases = caseSpecs
     .map((entry) => entry.manifest)
@@ -1809,8 +2024,8 @@ function buildCaseManifest(caseSpecs) {
 
 function buildCoverageMatrix(caseSpecs) {
   requireCondition(
-    caseSpecs.every((entry) => entry.family_id !== "S2"),
-    "m-1 coverage projection includes S2 cases",
+    caseSpecs.every((entry) => entry.family_id !== "S2" && entry.family_id !== "S3"),
+    "m-1 coverage projection includes supplement cases",
   );
   const familyRows = FAMILY_SPECS.map((family) => ({
     family_id: family.family_id,
@@ -1862,8 +2077,8 @@ function buildCoverageMatrix(caseSpecs) {
 
 function buildQuotas(caseSpecs) {
   requireCondition(
-    caseSpecs.every((entry) => entry.family_id !== "S2"),
-    "m-1 quota projection includes S2 cases",
+    caseSpecs.every((entry) => entry.family_id !== "S2" && entry.family_id !== "S3"),
+    "m-1 quota projection includes supplement cases",
   );
   const count = (role) => caseSpecs.filter((entry) => entry.roles.includes(role)).length;
   const quotas = {
@@ -1884,7 +2099,7 @@ function buildQuotas(caseSpecs) {
 
 function canonicalM1Projection(caseManifestCases, observations, stratum) {
   const cases = caseManifestCases
-    .filter((entry) => entry.family_id !== "S2")
+    .filter((entry) => entry.family_id !== "S2" && entry.family_id !== "S3")
     .sort((left, right) => compareBytes(left.case_id, right.case_id));
   const caseIds = new Set(cases.map((entry) => entry.case_id));
   return {
@@ -1914,6 +2129,33 @@ function verifyM1Projection(caseManifestCases, observations, stratum, source) {
   return projection;
 }
 
+// h2-7a-m-3.md 7.7(ii): the S2 stratum is a signed m-2 freeze; its case
+// rows, observations, and the m2_supplement object must survive every
+// later write/check byte-identically.
+function verifyS2Projection(caseManifestCases, observations, supplement, source) {
+  const cases = caseManifestCases
+    .filter((entry) => entry.family_id === "S2")
+    .sort((left, right) => compareBytes(left.case_id, right.case_id));
+  const caseIds = new Set(cases.map((entry) => entry.case_id));
+  const projection = {
+    cases,
+    observations: observations
+      .filter((entry) => caseIds.has(entry.case_id))
+      .sort((left, right) => compareBytes(left.case_id, right.case_id)),
+    supplement,
+  };
+  requireCondition(
+    projection.cases.length === 18 && projection.observations.length === 18,
+    `S2 projection guard input changed (${source})`,
+  );
+  const actual = sha256(Buffer.from(stableStringify(projection), "utf8"));
+  requireCondition(
+    actual === H2_7A_M2_S2_PROJECTION_SHA256,
+    `S2 projection guard failed (${source}): ${actual}`,
+  );
+  return projection;
+}
+
 function prepareStaticContext() {
   validateRuntime();
   validateFrozenFixtureChoices();
@@ -1936,12 +2178,13 @@ function prepareStaticContext() {
   const coverageMatrix = buildCoverageMatrix(m1CaseSpecs);
   const quotas = buildQuotas(m1CaseSpecs);
   const s2 = buildS2Supplement(m1CaseSpecs, expansions);
-  const caseSpecs = [...m1CaseSpecs, ...s2.cases].sort((left, right) =>
-    compareBytes(left.case_id, right.case_id),
+  const s3 = buildS3Supplement(m1CaseSpecs, expansions);
+  const caseSpecs = [...m1CaseSpecs, ...s2.cases, ...s3.cases].sort(
+    (left, right) => compareBytes(left.case_id, right.case_id),
   );
   requireCondition(
-    caseSpecs.length === 112 &&
-      new Set(caseSpecs.map((entry) => entry.case_id)).size === 112,
+    caseSpecs.length === 120 &&
+      new Set(caseSpecs.map((entry) => entry.case_id)).size === 120,
     "W-H2.7A successor case denominator changed",
   );
   const caseManifest = buildCaseManifest(caseSpecs);
@@ -1954,6 +2197,8 @@ function prepareStaticContext() {
     coverageMatrix,
     quotas,
     m2Supplement: s2.supplement,
+    m3Supplement: s3.supplement,
+    s3CaseSpecs: s3.cases,
     population,
     stratum: stratum.section,
     censusPath: stratum.censusPath,
@@ -2306,7 +2551,14 @@ function observeStaticContext(staticContext) {
     "fresh m-1 observation",
   );
   const s2Observations = observeAllCases(staticContext.s2CaseSpecs);
-  return [...m1Observations, ...s2Observations].sort((left, right) =>
+  verifyS2Projection(
+    staticContext.caseManifest.cases,
+    s2Observations,
+    staticContext.m2Supplement,
+    "fresh S2 observation",
+  );
+  const s3Observations = observeAllCases(staticContext.s3CaseSpecs);
+  return [...m1Observations, ...s2Observations, ...s3Observations].sort((left, right) =>
     compareBytes(left.case_id, right.case_id),
   );
 }
@@ -2388,15 +2640,17 @@ function validateContractAssertions() {
       contract.properties?.status?.const === "qualified-typescript-oracle" &&
       contract.properties?.phase?.const === "H2.7a-witnesses" &&
       contract.properties?.stratum?.properties?.count?.const === 67 &&
-      contract.properties?.observations?.minItems === 112 &&
-      contract.properties?.observations?.maxItems === 112 &&
+      contract.properties?.observations?.minItems === 120 &&
+      contract.properties?.observations?.maxItems === 120 &&
       contract.properties?.m2_supplement?.$ref ===
         "#/$defs/m2_supplement" &&
-      contract.$defs?.case_manifest?.properties?.cases?.minItems === 112 &&
-      contract.$defs?.case_manifest?.properties?.cases?.maxItems === 112 &&
-      contract.$defs?.summary?.properties?.cases?.const === 112 &&
-      contract.$defs?.summary?.properties?.typescript_oracle_runs?.const === 224 &&
-      contract.$defs?.summary?.properties?.deterministic_cases?.const === 112 &&
+      contract.properties?.m3_supplement?.$ref ===
+        "#/$defs/m3_supplement" &&
+      contract.$defs?.case_manifest?.properties?.cases?.minItems === 120 &&
+      contract.$defs?.case_manifest?.properties?.cases?.maxItems === 120 &&
+      contract.$defs?.summary?.properties?.cases?.const === 120 &&
+      contract.$defs?.summary?.properties?.typescript_oracle_runs?.const === 240 &&
+      contract.$defs?.summary?.properties?.deterministic_cases?.const === 120 &&
       contract.$defs?.role?.enum?.includes("supplement") &&
       stableStringify(contract.properties?.coverage_matrix?.properties?.lanes?.const) ===
         stableStringify(LANES),
@@ -2434,6 +2688,12 @@ function validateArtifact(artifact, staticContext) {
     artifact.stratum,
     "artifact",
   );
+  verifyS2Projection(
+    artifact.case_manifest.cases,
+    artifact.observations,
+    artifact.m2_supplement,
+    "artifact",
+  );
   const manifestPayload = {
     cases: artifact.case_manifest.cases,
     source_universe: artifact.case_manifest.source_universe,
@@ -2457,7 +2717,9 @@ function validateArtifact(artifact, staticContext) {
   );
   requireCondition(
     stableStringify(
-      artifact.case_manifest.cases.filter((entry) => entry.family_id !== "S2"),
+      artifact.case_manifest.cases.filter(
+        (entry) => entry.family_id !== "S2" && entry.family_id !== "S3",
+      ),
     ) === stableStringify(staticContext.m1CaseManifest.cases),
     "m-1 case projection changed",
   );
@@ -2499,11 +2761,23 @@ function validateArtifact(artifact, staticContext) {
         stableStringify(staticContext.m2Supplement),
     "S2 supplement checkpoint failed",
   );
+  const s3CaseIds = artifact.case_manifest.cases
+    .filter((entry) => entry.family_id === "S3")
+    .map((entry) => entry.case_id)
+    .sort(compareBytes);
   requireCondition(
-    artifact.observations.length === 112 &&
-      artifact.summary.cases === 112 &&
-      artifact.summary.typescript_oracle_runs === 224 &&
-      artifact.summary.deterministic_cases === 112 &&
+    s3CaseIds.length === 8 &&
+      stableStringify(s3CaseIds) ===
+        stableStringify([...staticContext.m3Supplement.case_ids].sort(compareBytes)) &&
+      stableStringify(artifact.m3_supplement) ===
+        stableStringify(staticContext.m3Supplement),
+    "S3 supplement checkpoint failed",
+  );
+  requireCondition(
+    artifact.observations.length === 120 &&
+      artifact.summary.cases === 120 &&
+      artifact.summary.typescript_oracle_runs === 240 &&
+      artifact.summary.deterministic_cases === 120 &&
       artifact.summary.rust_runs === 0,
     "artifact summary denominator changed",
   );
@@ -2551,6 +2825,7 @@ function buildArtifact(staticContext, observations) {
       quotas: staticContext.quotas,
       stratum: staticContext.stratum,
       m2_supplement: staticContext.m2Supplement,
+      m3_supplement: staticContext.m3Supplement,
       observations,
       summary: buildSummary(staticContext, observations),
       observation_content_roll_sha256: observationRoll,
@@ -2579,6 +2854,12 @@ function verifyTrackedM1Projection() {
     artifact.case_manifest?.cases ?? [],
     artifact.observations ?? [],
     artifact.stratum,
+    "checked-in artifact",
+  );
+  verifyS2Projection(
+    artifact.case_manifest?.cases ?? [],
+    artifact.observations ?? [],
+    artifact.m2_supplement,
     "checked-in artifact",
   );
   return artifact;
@@ -2680,7 +2961,9 @@ function runS2Dry() {
     conformance: readJson(CONFORMANCE_EXPANSION),
   };
   const s2 = buildS2Supplement(
-    artifact.case_manifest.cases.filter((entry) => entry.family_id !== "S2"),
+    artifact.case_manifest.cases.filter(
+      (entry) => entry.family_id !== "S2" && entry.family_id !== "S3",
+    ),
     expansions,
   );
   process.stdout.write(
