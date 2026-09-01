@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{
-    for_each_observable_field, Node, NodeArray, NodeArrayId, NodeData, NodeId, ObservableField,
-    SourceFile, SyntaxKind,
+    for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
+    NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind,
 };
 use tsc_types::NodeFlags;
 
@@ -176,6 +176,46 @@ impl TransformArena {
             array_transform_flags: BTreeMap::new(),
             metadata: BTreeMap::new(),
         }
+    }
+
+    /// Borrow a synthetic-node constructor over this arena. The checker's
+    /// dormant NodeBuilder foundation (h2-7a-m-3) builds serialized
+    /// declaration `TypeNode`s through this seam; production transforms keep
+    /// obtaining their factory from the `TransformationContext`.
+    /// tsrs-native: consumer seam for arena-owned node construction.
+    pub fn factory(&mut self) -> NodeFactory<'_> {
+        NodeFactory::new(self)
+    }
+
+    /// Project a checker-side parse-tree identity into this arena's mounted
+    /// copy of that parse tree — the validated inverse of
+    /// [`parse_tree_resolver_node`](Self::parse_tree_resolver_node). Returns
+    /// `None` when no mounted source carries the resolver node's Program
+    /// file; a node id outside the mounted parse lease is an error, never a
+    /// silent synthetic alias.
+    /// tsrs-native: resolver-to-transform projection for reuse clones
+    /// (h2-7a-m-3 §4).
+    pub fn parse_tree_transform_node(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        for (index, source) in self.sources.iter().enumerate() {
+            if source.program_source() != Some(node.source()) {
+                continue;
+            }
+            let transform_source = TransformSourceId(
+                u32::try_from(index).expect("transform source count exceeds u32"),
+            );
+            let candidate = TransformNode {
+                source: transform_source,
+                node: node.node(),
+            };
+            if !source.contains_parsed_node(node.node()) {
+                return Err(TransformError::ResolverNodeNotInParseTree(candidate));
+            }
+            return Ok(Some(candidate));
+        }
+        Ok(None)
     }
 
     pub fn add_source(
@@ -534,12 +574,11 @@ impl TransformArena {
         self.node(node)?;
         if let Some(original) = original {
             self.node(original)?;
-            if node.source != original.source {
-                return Err(TransformError::CrossSourceNode {
-                    expected: node.source,
-                    actual: original.source,
-                });
-            }
+            // h2-7a-m-3 §4 seam: single-pool original provenance.
+            // TypeScript's one node pool permits a reused clone to retain an
+            // original from another mounted source. Both handles have already
+            // been validated against this arena; an absent (cross-arena)
+            // handle still fails above.
         }
         if self.metadata.get(&node).and_then(EmitMetadata::original) == original {
             return Ok(());
@@ -1253,7 +1292,11 @@ impl<'arena> NodeFactory<'arena> {
         kind: SyntaxKind,
         transform_flags: TransformFlags,
     ) -> Result<TransformNode, TransformError> {
-        if kind > SyntaxKind::LastToken {
+        // ThisType (198) is the one kind-only TYPE node: the parser stores it
+        // as token data (parser.rs finish_kind_only_node), so the NodeBuilder
+        // constructs it here. A named allowlist, not a blanket lift of the
+        // token ceiling (h2-7a-m-3 §4 seam 3).
+        if kind > SyntaxKind::LastToken && kind != SyntaxKind::ThisType {
             return Err(TransformError::FactoryTokenKindExpected(kind));
         }
         let syntax = &mut self.arena.source_mut(source)?.source;
@@ -1288,12 +1331,13 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNodeArray, TransformError> {
         let mut raw = Vec::with_capacity(nodes.len());
         let mut flags = TransformFlags::NONE;
-        for node in nodes {
+        for mut node in nodes {
             if node.source != source {
-                return Err(TransformError::CrossSourceNode {
-                    expected: source,
-                    actual: node.source,
-                });
+                // h2-7a-m-3 §4 seam: single-pool original provenance.
+                // A reused annotation can come from another mounted source;
+                // remap its complete subtree before storing source-local raw
+                // child ids in this node array.
+                node = self.clone_node_to_source(node, source)?;
             }
             self.arena.node(node)?;
             flags |= self.arena.propagate_child_flags(node)?;
@@ -1392,6 +1436,27 @@ impl<'arena> NodeFactory<'arena> {
         self.arena.set_transform_flags(clone, transform_flags);
         self.arena.set_original_node(clone, Some(original))?;
         Ok(clone)
+    }
+
+    /// Clone a reused syntax subtree into another mounted source while
+    /// preserving its original-chain projection.
+    ///
+    /// h2-7a-m-3 §4 seam: single-pool original provenance. TypeScript's node
+    /// pool has no per-source child-handle restriction; the Rust arena must
+    /// therefore remap the complete reused subtree before it is attached to a
+    /// target-source node array. Both source handles are still validated in
+    /// this arena.
+    pub fn clone_node_to_source(
+        &mut self,
+        original: TransformNode,
+        target: TransformSourceId,
+    ) -> Result<TransformNode, TransformError> {
+        self.arena.node(original)?;
+        self.arena.source(target)?;
+        if original.source == target {
+            return self.clone_node(original);
+        }
+        CrossSourceReuseClone::new(self.arena, original.source, target).clone_node(original.node)
     }
 
     pub fn update_node(
@@ -2347,6 +2412,140 @@ impl<'arena> NodeFactory<'arena> {
     }
 }
 
+struct CrossSourceReuseClone<'a> {
+    arena: &'a mut TransformArena,
+    source: TransformSourceId,
+    target: TransformSourceId,
+    nodes: BTreeMap<NodeId, NodeId>,
+    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+}
+
+impl<'a> CrossSourceReuseClone<'a> {
+    fn new(
+        arena: &'a mut TransformArena,
+        source: TransformSourceId,
+        target: TransformSourceId,
+    ) -> Self {
+        Self {
+            arena,
+            source,
+            target,
+            nodes: BTreeMap::new(),
+            arrays: BTreeMap::new(),
+        }
+    }
+
+    fn clone_node(&mut self, node: NodeId) -> Result<TransformNode, TransformError> {
+        if let Some(&node) = self.nodes.get(&node) {
+            return Ok(TransformNode::new(self.target, node));
+        }
+
+        let original = TransformNode::new(self.source, node);
+        if self.arena.node(original).is_err() {
+            let target = TransformNode::new(self.target, node);
+            self.arena.node(target)?;
+            return Ok(target);
+        }
+        let record = self.arena.node(original)?.clone();
+        let transform_flags = self.arena.transform_flags(original);
+        let mut data = record.data.clone();
+        try_visit_each_child(&mut data, self)?;
+        let js_doc = record
+            .js_doc
+            .map(|array| self.clone_array(array))
+            .transpose()?;
+        let flags = NodeFlags::from_bits(record.flags) | NodeFlags::SYNTHESIZED;
+        let target_arena = &mut self.arena.source_mut(self.target)?.source.arena;
+        let cloned = match data {
+            NodeData::Token => {
+                target_arena.alloc_token(record.kind, u32::MAX as usize, u32::MAX as usize, flags)
+            }
+            data => target_arena.alloc_node(data, u32::MAX as usize, u32::MAX as usize, flags),
+        };
+        {
+            let copied = self
+                .arena
+                .source_mut(self.target)?
+                .source
+                .arena
+                .node_mut(cloned);
+            copied.numeric_literal_flags = record.numeric_literal_flags;
+            copied.multi_line = record.multi_line;
+            copied.js_doc = js_doc;
+            copied.parent = None;
+        }
+        self.nodes.insert(node, cloned);
+        let cloned = TransformNode::new(self.target, cloned);
+        self.arena.set_transform_flags(cloned, transform_flags);
+        self.arena.set_original_node(cloned, Some(original))?;
+        Ok(cloned)
+    }
+
+    fn clone_array(&mut self, array: NodeArrayId) -> Result<NodeArrayId, TransformError> {
+        if let Some(&array) = self.arrays.get(&array) {
+            return Ok(array);
+        }
+        let original = TransformNodeArray::new(self.source, array);
+        if self.arena.node_array(original).is_err() {
+            let target = TransformNodeArray::new(self.target, array);
+            self.arena.node_array(target)?;
+            return Ok(array);
+        }
+        let record = self.arena.node_array(original)?.clone();
+        let transform_flags = self.arena.array_transform_flags(original);
+        let mut nodes = Vec::with_capacity(record.nodes.len());
+        for node in record.nodes {
+            nodes.push(self.clone_node(node)?.node());
+        }
+        let cloned = self
+            .arena
+            .source_mut(self.target)?
+            .source
+            .arena
+            .alloc_synthetic_array(nodes);
+        {
+            let copied = self
+                .arena
+                .source_mut(self.target)?
+                .source
+                .arena
+                .node_array_mut(cloned);
+            copied.has_trailing_comma = record.has_trailing_comma;
+            copied.is_missing_list = record.is_missing_list;
+        }
+        self.arrays.insert(array, cloned);
+        self.arena.set_array_transform_flags(
+            TransformNodeArray::new(self.target, cloned),
+            transform_flags,
+        );
+        Ok(cloned)
+    }
+}
+
+impl NodeDataChildVisitor for CrossSourceReuseClone<'_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.arena
+            .node(TransformNode::new(self.source, id))
+            .or_else(|_| self.arena.node(TransformNode::new(self.target, id)))
+            .expect("reuse-clone child belongs to its mounted source")
+            .kind
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        self.clone_node(id).map(|node| Some(node.node()))
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        self.clone_array(id).map(Some)
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
 fn mixing_binary_operators_requires_parentheses(left: SyntaxKind, right: SyntaxKind) -> bool {
     (left == SyntaxKind::QuestionQuestionToken
         && matches!(
@@ -2447,3 +2646,7 @@ const fn binary_operator_precedence(operator: SyntaxKind) -> i8 {
 #[cfg(test)]
 #[path = "../tests/unit/factory_classifier/tests.rs"]
 mod factory_classifier_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/factory_seams/tests.rs"]
+mod original_provenance_tests;

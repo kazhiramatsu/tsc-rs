@@ -483,7 +483,7 @@ impl SourceMapRecording {
             RegisteredSource::Json
         } else {
             let index = self.generator.add_source(file_name);
-            // tsc-port: setSourceMapSource inlineSources arm @6.0.3
+            // tsc-port: setSourceMapSource @6.0.3 (inlineSources arm)
             // tsc-hash: 9d5ddceb0e432a1400a46679dcb977ee72a5c90837177cc4cd2cf705e82065ac
             // tsc-span: _tsc.js:121352-121370
             //

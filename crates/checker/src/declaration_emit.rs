@@ -270,7 +270,8 @@ impl CheckerState<'_> {
     /// tsc-port: getNonlocalEffectiveTypeAnnotationNode @6.0.3
     /// tsc-hash: b538286bbef1aab02c6fac684de28e6c03ab0dd7768a651831492609e8cd2561
     /// tsc-span: _tsc.js:88532-88542
-    fn emit_nonlocal_effective_type_annotation_node(
+    /// (h2-7a-m-3 widening: NodeBuilder declaration-annotation lookup.)
+    pub(crate) fn emit_nonlocal_effective_type_annotation_node(
         &mut self,
         parameter: NodeId,
     ) -> CheckResult<Option<NodeId>> {
@@ -1603,6 +1604,10 @@ struct DeclarationReplayRoot {
     result_sequence: u64,
     visibility_writes: Vec<(serde_json::Value, bool)>,
     nested_edges: BTreeMap<String, u64>,
+    /// h2-7a-m-3 §6.2: the ordered decision-lane events inside this root's
+    /// span (withContext exits, tracker callbacks, syntactic frames,
+    /// specifier-override arms) for the serialization replay comparison.
+    nested_decision_events: Vec<serde_json::Value>,
 }
 
 #[derive(Default)]
@@ -1636,6 +1641,13 @@ enum DeclarationReplayInvocation {
         node: NodeId,
         set_visibility: bool,
     },
+    /// h2-7a-m-3: one of the six traced serialization members.
+    Serialization {
+        member: String,
+        node: NodeId,
+        enclosing: Option<NodeId>,
+        no_syntactic_printer: bool,
+    },
 }
 
 enum DeclarationReplayDecision {
@@ -1644,6 +1656,12 @@ enum DeclarationReplayDecision {
     Properties(Vec<EmitFunctionProperty>),
     Enum(crate::evaluate::EvaluatorResult),
     Void,
+    /// h2-7a-m-3: a serialization member's outcome — the §6.3 produced
+    /// class plus the ordered sink events recorded during the call.
+    Serialized {
+        produced: crate::node_builder::replay_sink::ProducedClass,
+        events: Vec<crate::node_builder::replay_sink::DecisionEvent>,
+    },
 }
 
 impl CheckerState<'_> {
@@ -1824,6 +1842,12 @@ enum DeclarationReplayRootOutcome {
 fn declaration_replay_domain_members() -> &'static [&'static str] {
     &[
         "resolver.collectLinkedAliases",
+        "resolver.createLateBoundIndexSignatures",
+        "resolver.createLiteralConstValue",
+        "resolver.createReturnTypeOfSignatureDeclaration",
+        "resolver.createTypeOfDeclaration",
+        "resolver.createTypeOfExpression",
+        "resolver.getDeclarationStatementsForSourceFile",
         "resolver.getEnumMemberValue",
         "resolver.getPropertiesOfContainerFunction",
         "resolver.isDeclarationVisible",
@@ -1914,6 +1938,174 @@ fn replay_array_field<'a>(
         .ok_or_else(|| format!("missing array field {field:?}"))
 }
 
+/// h2-7a-m-3 §6.2: the harness tracker. Records every callback into the
+/// decision sink with the probe payload projection and answers trackSymbol
+/// with the transformer's issued-diagnostic protocol (accessible → false;
+/// otherwise a diagnostic would be issued → true), so SymbolTrackerImpl
+/// bookkeeping runs the production arms.
+struct DeclarationReplayRecordingTracker;
+
+impl DeclarationReplayRecordingTracker {
+    fn raw_ref(
+        access: &mut dyn tsc_emitter::EmitTrackerAccess,
+        node: Option<tsc_emitter::EmitTrackerNode>,
+    ) -> serde_json::Value {
+        match node {
+            None => serde_json::Value::Null,
+            Some(node) => {
+                let description = access.describe_node(node);
+                match (description.parse, description.original) {
+                    (Some(parse), _) => {
+                        serde_json::json!([parse.source().raw(), parse.node().0])
+                    }
+                    (None, Some(original)) => {
+                        serde_json::json!([original.source().raw(), original.node().0])
+                    }
+                    (None, None) => serde_json::json!("opaque"),
+                }
+            }
+        }
+    }
+}
+
+impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
+    fn can_track_symbol(&self) -> bool {
+        true
+    }
+
+    fn track_symbol(
+        &mut self,
+        access: &mut dyn tsc_emitter::EmitTrackerAccess,
+        symbol: tsc_emitter::EmitTrackerSymbol,
+        enclosing_declaration: Option<tsc_emitter::EmitTrackerNode>,
+        meaning: EmitSymbolMeaning,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
+        let description = access.describe_symbol(symbol);
+        let node_payload = Self::raw_ref(access, enclosing_declaration);
+        let payload = serde_json::json!({
+            "name": description.escaped_name,
+            "node": node_payload,
+            "meaning": meaning.0,
+        });
+        crate::node_builder::replay_sink::record(move || {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.trackSymbol",
+                payload,
+            }
+        });
+        // tsc-port: trackSymbol @6.0.3 (:114360-114369) — the transformer
+        // resolves accessibility and reports handleSymbolAccessibilityError's
+        // issued-diagnostic verdict.
+        let verdict = access.is_symbol_accessible(symbol, enclosing_declaration, meaning, true)?;
+        Ok(verdict.accessibility != EmitSymbolAccessibility::Accessible)
+    }
+
+    fn report_inference_fallback(
+        &mut self,
+        access: &mut dyn tsc_emitter::EmitTrackerAccess,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<(), tsc_emitter::EmitResolverError> {
+        let payload = Self::raw_ref(access, Some(node));
+        crate::node_builder::replay_sink::record(move || {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportInferenceFallback",
+                payload,
+            }
+        });
+        Ok(())
+    }
+
+    fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {
+        let payload = serde_json::json!(property_name);
+        crate::node_builder::replay_sink::record(move || {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportPrivateInBaseOfClassExpression",
+                payload,
+            }
+        });
+    }
+
+    fn report_inaccessible_unique_symbol_error(&mut self) {
+        crate::node_builder::replay_sink::record(|| {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportInaccessibleUniqueSymbolError",
+                payload: serde_json::Value::Null,
+            }
+        });
+    }
+
+    fn report_cyclic_structure_error(&mut self) {
+        crate::node_builder::replay_sink::record(|| {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportCyclicStructureError",
+                payload: serde_json::Value::Null,
+            }
+        });
+    }
+
+    fn report_inaccessible_this_error(&mut self) {
+        crate::node_builder::replay_sink::record(|| {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportInaccessibleThisError",
+                payload: serde_json::Value::Null,
+            }
+        });
+    }
+
+    fn report_likely_unsafe_import_required_error(
+        &mut self,
+        specifier: &str,
+        symbol_name: Option<&str>,
+    ) {
+        // The frozen probe projection is LOSSY (§6.2): is-string,
+        // slash-component count, symbol name.
+        let payload = serde_json::json!([
+            true,
+            specifier.split('/').count(),
+            symbol_name.unwrap_or(""),
+        ]);
+        crate::node_builder::replay_sink::record(move || {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportLikelyUnsafeImportRequiredError",
+                payload,
+            }
+        });
+    }
+
+    fn report_truncation_error(&mut self) {
+        crate::node_builder::replay_sink::record(|| {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportTruncationError",
+                payload: serde_json::Value::Null,
+            }
+        });
+    }
+
+    fn report_nonlocal_augmentation(
+        &mut self,
+        _containing_file: tsc_emitter::EmitTrackerNode,
+        _parent_symbol: tsc_emitter::EmitTrackerSymbol,
+        _augmenting_symbol: tsc_emitter::EmitTrackerSymbol,
+    ) {
+        crate::node_builder::replay_sink::record(|| {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportNonlocalAugmentation",
+                payload: serde_json::Value::Null,
+            }
+        });
+    }
+
+    fn report_non_serializable_property(&mut self, property_name: &str) {
+        let payload = serde_json::json!(property_name);
+        crate::node_builder::replay_sink::record(move || {
+            crate::node_builder::replay_sink::DecisionEvent::Tracker {
+                site: "tracker.reportNonSerializableProperty",
+                payload,
+            }
+        });
+    }
+}
+
 fn declaration_replay_roots(
     events: &[serde_json::Value],
     case_id: &str,
@@ -1921,8 +2113,16 @@ fn declaration_replay_roots(
     let mut stack: Vec<DeclarationReplayFrame> = Vec::new();
     let mut writes: BTreeMap<i64, Vec<(serde_json::Value, bool)>> = BTreeMap::new();
     let mut nested_by_root: BTreeMap<i64, BTreeMap<String, u64>> = BTreeMap::new();
+    let mut decision_by_root: BTreeMap<i64, Vec<serde_json::Value>> = BTreeMap::new();
     let mut all_nested = BTreeMap::new();
     let mut roots = Vec::new();
+    let is_decision_lane = |site: &str| {
+        site == "nodebuilder.withContext.result"
+            || site == "nodebuilder.withContext.decision"
+            || site.starts_with("nodebuilder.moduleSpecifierOverride")
+            || site.starts_with("tracker.")
+            || site.starts_with("syntactic.")
+    };
 
     for event in events {
         let site = replay_string_field(event, "site_id")?;
@@ -1950,6 +2150,14 @@ fn declaration_replay_roots(
                     }
                 }
             }
+            if is_decision_lane(site) {
+                if let Some(root_id) = maximal_domain_call {
+                    decision_by_root
+                        .entry(root_id)
+                        .or_default()
+                        .push(event.clone());
+                }
+            }
             stack.push(DeclarationReplayFrame {
                 call_id,
                 member,
@@ -1968,6 +2176,14 @@ fn declaration_replay_roots(
                     "{case_id}: call stack mismatch at {site} call {call_id}"
                 ));
             }
+            if is_decision_lane(site) {
+                if let Some(root_id) = frame.maximal_domain_call {
+                    decision_by_root
+                        .entry(root_id)
+                        .or_default()
+                        .push(event.clone());
+                }
+            }
             if frame.root {
                 roots.push(DeclarationReplayRoot {
                     member: frame.member,
@@ -1976,9 +2192,18 @@ fn declaration_replay_roots(
                     result_sequence: replay_u64_field(event, "event_seq")?,
                     visibility_writes: writes.remove(&call_id).unwrap_or_default(),
                     nested_edges: nested_by_root.remove(&call_id).unwrap_or_default(),
+                    nested_decision_events: decision_by_root.remove(&call_id).unwrap_or_default(),
                 });
             }
             continue;
+        }
+        if call_id < 0 && is_decision_lane(site) {
+            if let Some(root_id) = stack.last().and_then(|frame| frame.maximal_domain_call) {
+                decision_by_root
+                    .entry(root_id)
+                    .or_default()
+                    .push(event.clone());
+            }
         }
         if site.starts_with("isVisible.") {
             let Some(root_id) = stack.last().and_then(|frame| frame.maximal_domain_call) else {
@@ -2412,6 +2637,60 @@ impl CheckerState<'_> {
         let result_args = replay_array_field(&root.result, "args")?;
         let mut input_mismatches = Vec::new();
         let invocation = match root.member.as_str() {
+            "resolver.createTypeOfDeclaration"
+            | "resolver.createReturnTypeOfSignatureDeclaration"
+            | "resolver.createTypeOfExpression"
+            | "resolver.createLiteralConstValue"
+            | "resolver.getDeclarationStatementsForSourceFile"
+            | "resolver.createLateBoundIndexSignatures" => {
+                // Generic entry tail: [site, argc, name(first), nodeRef(first),
+                // nodeRef(second), scalar(first), scalar(second)].
+                let node = self.declaration_replay_resolve_node(
+                    entry_args
+                        .get(3)
+                        .ok_or_else(|| "serialization entry lacks a node".to_owned())?,
+                    file_map,
+                )?;
+                let takes_enclosing = matches!(
+                    root.member.as_str(),
+                    "resolver.createTypeOfDeclaration"
+                        | "resolver.createReturnTypeOfSignatureDeclaration"
+                        | "resolver.createTypeOfExpression"
+                        | "resolver.createLateBoundIndexSignatures"
+                );
+                let enclosing = if takes_enclosing {
+                    Some(self.declaration_replay_resolve_node(
+                        entry_args.get(4).ok_or_else(|| {
+                            "serialization entry lacks an enclosing node".to_owned()
+                        })?,
+                        file_map,
+                    )?)
+                } else {
+                    None
+                };
+                // The :115425 fakespace variant is recovered from the traced
+                // withContext internal words and asserted consistent.
+                let mut no_syntactic_printer = false;
+                for event in &root.nested_decision_events {
+                    if replay_string_field(event, "site_id")? != "nodebuilder.withContext.result" {
+                        continue;
+                    }
+                    let args = replay_array_field(event, "args")?;
+                    let internal = args
+                        .get(3)
+                        .and_then(serde_json::Value::as_u64)
+                        .ok_or_else(|| "withContext result lacks internal flags".to_owned())?;
+                    if internal & 2 != 0 {
+                        no_syntactic_printer = true;
+                    }
+                }
+                DeclarationReplayInvocation::Serialization {
+                    member: root.member.clone(),
+                    node,
+                    enclosing,
+                    no_syntactic_printer,
+                }
+            }
             "resolver.isSymbolAccessible" => {
                 let symbol_ref = entry_args
                     .get(2)
@@ -2520,8 +2799,19 @@ impl CheckerState<'_> {
             },
         };
 
-        let (expected, expected_shadow_symbol, expected_shadow_module) =
-            self.declaration_replay_expected_decision(&root.member, result_args, file_map)?;
+        let (expected, expected_shadow_symbol, expected_shadow_module) = if matches!(
+            invocation,
+            DeclarationReplayInvocation::Serialization { .. }
+        ) {
+            (
+                self.declaration_replay_expected_serialized(root, file_map)
+                    .map_err(DeclarationReplayResolutionError::Invalid)?,
+                None,
+                None,
+            )
+        } else {
+            self.declaration_replay_expected_decision(&root.member, result_args, file_map)?
+        };
         let expected_paint = root
             .visibility_writes
             .iter()
@@ -2729,6 +3019,19 @@ impl CheckerState<'_> {
             } => self
                 .collect_linked_aliases(node, set_visibility)
                 .map(|_| DeclarationReplayDecision::Void),
+            DeclarationReplayInvocation::Serialization {
+                member,
+                node,
+                enclosing,
+                no_syntactic_printer,
+            } => {
+                return self.declaration_replay_invoke_serialization(
+                    &member,
+                    node,
+                    enclosing,
+                    no_syntactic_printer,
+                )
+            }
             DeclarationReplayInvocation::Unary { member, node } => match member.as_str() {
                 "resolver.isDefinitelyReferenceToGlobalSymbolObject" => self
                     .emit_is_definitely_reference_to_global_symbol_object(node)
@@ -2766,6 +3069,281 @@ impl CheckerState<'_> {
         result.map_err(|abort| format!("checker aborted: {}", abort.description()))
     }
 
+    /// h2-7a-m-3 §6: invoke one traced serialization root against the live
+    /// foundation. The arena mounts every Program source so parse-node
+    /// provenance projects; the sink records the decision lanes; the five
+    /// transformer-driven members run under the pinned declaration-emit
+    /// words (with the :115425 internal variant when the trace recovered
+    /// it); createLiteralConstValue takes no flag words.
+    /// h2-7a-m-3 §6.2-6.4: decode the traced serialization root — its
+    /// result tail and every nested decision-lane event — into the same
+    /// JSON shape the actual-side projector emits.
+    fn declaration_replay_expected_serialized(
+        &self,
+        root: &DeclarationReplayRoot,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<serde_json::Value, String> {
+        let result_args = replay_array_field(&root.result, "args")?;
+        let is_null = result_args
+            .get(2)
+            .and_then(serde_json::Value::as_bool)
+            .ok_or_else(|| "serialization result lacks the null marker".to_owned())?;
+        let array_len = result_args
+            .get(4)
+            .and_then(serde_json::Value::as_i64)
+            .ok_or_else(|| "serialization result lacks the array length".to_owned())?;
+        let produced = if is_null {
+            serde_json::json!({"class": "absent"})
+        } else if array_len >= 0 {
+            serde_json::json!({"class": "container", "length": array_len})
+        } else {
+            let reference = result_args
+                .get(3)
+                .ok_or_else(|| "serialization result lacks the node reference".to_owned())?;
+            declaration_replay_trace_ref_json(reference, file_map, false)?
+        };
+        let mut events = Vec::new();
+        for event in &root.nested_decision_events {
+            let site = replay_string_field(event, "site_id")?;
+            let args = replay_array_field(event, "args")?;
+            if site == "nodebuilder.withContext.result" {
+                events.push(serde_json::json!({
+                    "site": site,
+                    "status": args.get(1).cloned().unwrap_or(serde_json::Value::Null),
+                    "flags": args.get(2).cloned().unwrap_or(serde_json::Value::Null),
+                    "internal_flags": args.get(3).cloned().unwrap_or(serde_json::Value::Null),
+                    "approximate_length": args.get(4).cloned().unwrap_or(serde_json::Value::Null),
+                    "type_stack_len": args.get(5).cloned().unwrap_or(serde_json::Value::Null),
+                    "truncating": args.get(6).cloned().unwrap_or(serde_json::Value::Null),
+                    "out_truncated": args.get(7).cloned().unwrap_or(serde_json::Value::Null),
+                    "encountered_error": args.get(8).cloned().unwrap_or(serde_json::Value::Null),
+                    "produced": if args.get(1).and_then(serde_json::Value::as_str)
+                        == Some("fallback-undefined")
+                    {
+                        serde_json::json!({"class": "absent"})
+                    } else {
+                        declaration_replay_trace_ref_json(
+                            args.get(9)
+                                .ok_or_else(|| "withContext result lacks a node".to_owned())?,
+                            file_map,
+                            true,
+                        )?
+                    },
+                }));
+                continue;
+            }
+            if site == "syntactic.serializeTypeOfDeclaration.entry"
+                || site == "syntactic.serializeReturnTypeForSignature.entry"
+            {
+                continue;
+            }
+            if let Some(base) = site.strip_suffix(".result") {
+                if base.starts_with("syntactic.") {
+                    events.push(serde_json::json!({
+                        "site": base,
+                        "frame": true,
+                        "fallback": args.get(2).cloned().unwrap_or(serde_json::Value::Null),
+                        "produced": declaration_replay_trace_ref_json(
+                            args.get(3)
+                                .ok_or_else(|| "syntactic frame lacks a node".to_owned())?,
+                            file_map,
+                            true,
+                        )?,
+                    }));
+                    continue;
+                }
+            }
+            if site.ends_with(".checkerFallback") {
+                events.push(serde_json::json!({
+                    "site": site,
+                    "report_fallback": args.get(1).cloned().unwrap_or(serde_json::Value::Null),
+                }));
+                continue;
+            }
+            if site == "tracker.trackSymbol" {
+                // Traced shape (:414): [site, name(symbol), nodeRef(enclosing),
+                // meaning] — the transformer probe records the NAME string.
+                events.push(serde_json::json!({
+                    "site": site,
+                    "payload": {
+                        "name": args.get(1).cloned().unwrap_or(serde_json::Value::Null),
+                        "node": declaration_replay_trace_ref_coordinate_json(
+                            args.get(2)
+                                .ok_or_else(|| "trackSymbol lacks a node".to_owned())?,
+                            file_map,
+                        )?,
+                        "meaning": args.get(3).cloned().unwrap_or(serde_json::Value::Null),
+                    },
+                }));
+                continue;
+            }
+            if site == "tracker.reportInferenceFallback" {
+                events.push(serde_json::json!({
+                    "site": site,
+                    "payload": declaration_replay_trace_ref_coordinate_json(
+                        args.get(1)
+                            .ok_or_else(|| "reportInferenceFallback lacks a node".to_owned())?,
+                        file_map,
+                    )?,
+                }));
+                continue;
+            }
+            if let Some(rest) = site.strip_prefix("tracker.") {
+                let _ = rest;
+                let payload = match args.len() {
+                    1 => serde_json::Value::Null,
+                    2 => args[1].clone(),
+                    _ => serde_json::Value::Array(args[1..].to_vec()),
+                };
+                events.push(serde_json::json!({"site": site, "payload": payload}));
+                continue;
+            }
+            // Expected-zero lanes (§6.4): a traced event on a zero lane is
+            // carried verbatim so the actual side reds against it.
+            events.push(serde_json::json!({"site": site, "raw": args[1..].to_vec()}));
+        }
+        Ok(serde_json::json!({
+            "kind": "serialized",
+            "produced": produced,
+            "events": events,
+        }))
+    }
+
+    fn declaration_replay_invoke_serialization(
+        &mut self,
+        member: &str,
+        node: NodeId,
+        enclosing: Option<NodeId>,
+        no_syntactic_printer: bool,
+    ) -> Result<DeclarationReplayDecision, String> {
+        let mut arena = tsc_emitter::TransformArena::new();
+        let mut target = None;
+        let node_file = self.binder.file_index_of_node(node);
+        for index in 0..self.binder.file_count() {
+            let source_id = arena.add_source(
+                self.binder.source(index),
+                Some(tsc_program::SourceFileId::from_raw(
+                    u32::try_from(index).map_err(|_| "source index overflow".to_owned())?,
+                )),
+            );
+            if index == node_file {
+                target = Some(source_id);
+            }
+        }
+        let target = target.ok_or_else(|| "root node file is not mounted".to_owned())?;
+        let flags = tsc_emitter::EmitNodeBuilderFlags::DECLARATION_EMIT;
+        let internal = if no_syntactic_printer {
+            tsc_emitter::EmitInternalNodeBuilderFlags::DECLARATION_EMIT
+                .union(tsc_emitter::EmitInternalNodeBuilderFlags::NO_SYNTACTIC_PRINTER)
+        } else {
+            tsc_emitter::EmitInternalNodeBuilderFlags::DECLARATION_EMIT
+        };
+        let mut tracker = DeclarationReplayRecordingTracker;
+        crate::node_builder::replay_sink::arm();
+        let outcome: Result<
+            crate::node_builder::replay_sink::ProducedClass,
+            tsc_emitter::EmitResolverError,
+        > = {
+            use crate::node_builder::replay_sink::ProducedClass;
+            let enclosing_or_root = enclosing.unwrap_or_else(|| self.binder.source(node_file).root);
+            match member {
+                "resolver.createTypeOfDeclaration" => self
+                    .emit_create_type_of_declaration(
+                        &mut arena,
+                        target,
+                        node,
+                        enclosing_or_root,
+                        flags,
+                        internal,
+                        &mut tracker,
+                    )
+                    .map(|produced| match produced {
+                        None => ProducedClass::Absent,
+                        Some(node) => crate::node_builder::transform_node_class(&arena, node),
+                    }),
+                "resolver.createReturnTypeOfSignatureDeclaration" => self
+                    .emit_create_return_type_of_signature_declaration(
+                        &mut arena,
+                        target,
+                        node,
+                        enclosing_or_root,
+                        flags,
+                        internal,
+                        &mut tracker,
+                    )
+                    .map(|produced| match produced {
+                        None => ProducedClass::Absent,
+                        Some(node) => crate::node_builder::transform_node_class(&arena, node),
+                    }),
+                "resolver.createTypeOfExpression" => self
+                    .emit_create_type_of_expression(
+                        &mut arena,
+                        target,
+                        node,
+                        enclosing_or_root,
+                        flags,
+                        internal,
+                        &mut tracker,
+                    )
+                    .map(|produced| match produced {
+                        None => ProducedClass::Absent,
+                        Some(node) => crate::node_builder::transform_node_class(&arena, node),
+                    }),
+                "resolver.createLiteralConstValue" => self
+                    .emit_create_literal_const_value(&mut arena, target, node, &mut tracker)
+                    .map(|node| crate::node_builder::transform_node_class(&arena, node)),
+                "resolver.getDeclarationStatementsForSourceFile" => self
+                    .emit_get_declaration_statements_for_source_file(
+                        &mut arena,
+                        target,
+                        node,
+                        flags,
+                        internal,
+                        &mut tracker,
+                    )
+                    .map(|produced| match produced {
+                        None => ProducedClass::Absent,
+                        Some(nodes) => ProducedClass::Container {
+                            length: nodes.len(),
+                        },
+                    }),
+                "resolver.createLateBoundIndexSignatures" => self
+                    .emit_create_late_bound_index_signatures(
+                        &mut arena,
+                        target,
+                        node,
+                        enclosing_or_root,
+                        flags,
+                        internal,
+                        &mut tracker,
+                    )
+                    .map(|produced| match produced {
+                        None => ProducedClass::Absent,
+                        Some(nodes) => ProducedClass::Container {
+                            length: nodes.len(),
+                        },
+                    }),
+                other => Err(tsc_emitter::EmitResolverError::CheckerAborted {
+                    method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
+                    node: EmitResolverNode::from_raw_source(
+                        u32::try_from(node_file).unwrap_or(0),
+                        node,
+                    ),
+                    reason: if other.is_empty() {
+                        "empty member"
+                    } else {
+                        "unsupported serialization member"
+                    },
+                }),
+            }
+        };
+        let events = crate::node_builder::replay_sink::disarm();
+        match outcome {
+            Ok(produced) => Ok(DeclarationReplayDecision::Serialized { produced, events }),
+            Err(error) => Err(format!("serialization member failed: {error}")),
+        }
+    }
+
     fn declaration_replay_project_decision(
         &self,
         decision: &DeclarationReplayDecision,
@@ -2776,6 +3354,19 @@ impl CheckerState<'_> {
                 Ok(serde_json::json!({"kind": "boolean", "value": value}))
             }
             DeclarationReplayDecision::Void => Ok(serde_json::json!({"kind": "void"})),
+            DeclarationReplayDecision::Serialized { produced, events } => {
+                let events = events
+                    .iter()
+                    .map(|event| self.declaration_replay_actual_event_json(event, file_map))
+                    .collect::<Result<Vec<_>, _>>()?;
+                Ok(serde_json::json!({
+                    "kind": "serialized",
+                    "produced": self.declaration_replay_actual_produced_json(
+                        produced, file_map, false,
+                    )?,
+                    "events": events,
+                }))
+            }
             DeclarationReplayDecision::Enum(result) => {
                 let (value_type, value) = match &result.value {
                     Some(crate::evaluate::EvalValue::Str(value)) => {
@@ -3011,3 +3602,638 @@ fn declaration_replay_shadow_divergences(
     }
     divergences
 }
+
+// ---------------------------------------------------------------------------
+// h2-7a-m-3 P4: the seven NodeBuilder-backed resolver member workers.
+// ---------------------------------------------------------------------------
+
+/// tsc-port: hasInferredType @6.0.3
+/// tsc-hash: cced5328b76bdeff714b0e84710f4bf95169d5fe52f969c0e517480515dd3c22
+/// tsc-span: _tsc.js:19921-19942
+fn has_inferred_type(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Parameter
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::BindingElement
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::JSDocParameterTag
+            | SyntaxKind::JSDocPropertyTag
+    )
+}
+
+fn node_builder_abort_error(
+    checker: &CheckerState<'_>,
+    method: tsc_emitter::EmitResolverMethod,
+    node: NodeId,
+    abort: crate::state::CheckAbort,
+) -> tsc_emitter::EmitResolverError {
+    let source = u32::try_from(checker.binder.file_index_of_node(node)).unwrap_or(0);
+    tsc_emitter::EmitResolverError::CheckerAborted {
+        method,
+        node: EmitResolverNode::from_raw_source(source, node),
+        reason: abort.description(),
+    }
+}
+
+fn node_builder_factory_error(
+    method: tsc_emitter::EmitResolverMethod,
+    error: tsc_emitter::TransformError,
+) -> tsc_emitter::EmitResolverError {
+    tsc_emitter::EmitResolverError::Factory {
+        method,
+        error: Box::new(error),
+    }
+}
+
+fn any_keyword_fallback(
+    arena: &mut tsc_emitter::TransformArena,
+    target: tsc_emitter::TransformSourceId,
+    method: tsc_emitter::EmitResolverMethod,
+) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+    arena
+        .factory()
+        .create_token(
+            target,
+            SyntaxKind::AnyKeyword,
+            tsc_emitter::TransformFlags::NONE,
+        )
+        .map_err(|error| node_builder_factory_error(method, error))
+}
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: createTypeOfDeclaration @6.0.3
+    /// tsc-hash: e7208311f25e05e9154f95d68bf3d6c1e0a2fa42f4e8197d11a2dc83a462c624
+    /// tsc-span: _tsc.js:88359-88366
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_type_of_declaration(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        declaration: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration;
+        // getParseTreeNode(declarationIn, hasInferredType): the resolver
+        // boundary already guarantees parse-tree identity; the kind filter
+        // remains.
+        if !has_inferred_type(self.kind_of(declaration)) {
+            return any_keyword_fallback(arena, target, method).map(Some);
+        }
+        let symbol = self
+            .get_symbol_of_declaration(declaration)
+            .map_err(|abort| node_builder_abort_error(self, method, declaration, abort))?;
+        crate::node_builder::serialize_type_for_declaration(
+            self,
+            arena,
+            target,
+            declaration,
+            symbol,
+            Some(enclosing_declaration),
+            Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
+            Some(internal_flags),
+            Some(tracker),
+        )
+    }
+
+    /// tsc-port: createReturnTypeOfSignatureDeclaration @6.0.3
+    /// tsc-hash: afee5b310b2c60519f7fdfe73b676da237a0a34b6f3ae97a60a3674b892406b6
+    /// tsc-span: _tsc.js:88382-88388
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_return_type_of_signature_declaration(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        signature_declaration: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration;
+        if !node_util::is_function_like_kind(self.kind_of(signature_declaration)) {
+            return any_keyword_fallback(arena, target, method).map(Some);
+        }
+        crate::node_builder::serialize_return_type_for_signature(
+            self,
+            arena,
+            target,
+            signature_declaration,
+            Some(enclosing_declaration),
+            Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
+            Some(internal_flags),
+            Some(tracker),
+        )
+    }
+
+    /// tsc-port: createTypeOfExpression @6.0.3
+    /// tsc-hash: dd314f61d3160f871fe3d2568358c718dbca65cc107f1668ef3d0f6f79611fb4
+    /// tsc-span: _tsc.js:88389-88395
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_type_of_expression(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        expression: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateTypeOfExpression;
+        let source = self.binder.source_of_node(expression);
+        if !node_util::is_expression_node(source, expression) {
+            return any_keyword_fallback(arena, target, method).map(Some);
+        }
+        crate::node_builder::serialize_type_for_expression(
+            self,
+            arena,
+            target,
+            expression,
+            Some(enclosing_declaration),
+            Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
+            Some(internal_flags),
+            Some(tracker),
+        )
+    }
+}
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: literalTypeToNode @6.0.3
+    /// tsc-hash: f572c2d3b26803a05c3a3512e3fd391bea5b5a98505ebaff350e23f974280e0c
+    /// tsc-span: _tsc.js:88491-88505
+    #[allow(clippy::too_many_arguments)]
+    fn emit_literal_type_to_node(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        literal_type: tsc_types::TypeId,
+        enclosing_declaration: NodeId,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+        use tsc_types::{LiteralValue, TypeData, TypeFlags};
+        let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
+        let flags = self.tables.flags_of(literal_type);
+        if flags.contains(TypeFlags::ENUM_LIKE) {
+            let symbol = self.tables.type_of(literal_type).symbol.ok_or(
+                tsc_emitter::EmitResolverError::CheckerAborted {
+                    method,
+                    node: EmitResolverNode::from_raw_source(
+                        u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
+                            .unwrap_or(0),
+                        enclosing_declaration,
+                    ),
+                    reason: "enum-like literal type has no symbol",
+                },
+            )?;
+            let node = crate::node_builder::with_context(
+                self,
+                arena,
+                target,
+                Some(enclosing_declaration),
+                None,
+                None,
+                Some(tracker),
+                None,
+                None,
+                |checker, arena, target, context| {
+                    crate::node_builder::chains_symbol_to_expression(
+                        checker,
+                        arena,
+                        target,
+                        context,
+                        symbol,
+                        tsc_emitter::EmitSymbolMeaning(111_551),
+                    )
+                    .map(Some)
+                },
+                None,
+            )?
+            .flatten();
+            if let Some(node) = node {
+                return Ok(node);
+            }
+            // encounteredError inside the enum arm falls through to the
+            // literal-value arms exactly as upstream's falsy `enumResult`.
+        }
+        if flags.contains(TypeFlags::BOOLEAN_LITERAL) {
+            let is_true = matches!(
+                &self.tables.type_of(literal_type).data,
+                TypeData::Intrinsic { name: "true", .. }
+            );
+            let kind = if is_true {
+                SyntaxKind::TrueKeyword
+            } else {
+                SyntaxKind::FalseKeyword
+            };
+            return arena
+                .factory()
+                .create_token(target, kind, tsc_emitter::TransformFlags::NONE)
+                .map_err(|error| node_builder_factory_error(method, error));
+        }
+        let value = match &self.tables.type_of(literal_type).data {
+            TypeData::Literal { value } => value.clone(),
+            _ => {
+                return Err(tsc_emitter::EmitResolverError::CheckerAborted {
+                    method,
+                    node: EmitResolverNode::from_raw_source(
+                        u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
+                            .unwrap_or(0),
+                        enclosing_declaration,
+                    ),
+                    reason: "literal-const type is not a literal",
+                })
+            }
+        };
+        let mut factory = arena.factory();
+        let map_factory = |error| node_builder_factory_error(method, error);
+        match value {
+            LiteralValue::BigInt(pseudo) => factory
+                .create_node(
+                    target,
+                    NodeData::BigIntLiteral(tsc_syntax::nodes::BigIntLiteralData {
+                        text: format!("{}n", pseudo.to_base10_string()),
+                    }),
+                    tsc_emitter::TransformFlags::NONE,
+                )
+                .map_err(map_factory),
+            LiteralValue::String(text) => {
+                let text = text.to_utf8().ok_or({
+                    // The lane-BD convention: unpaired UTF-16 payloads are a
+                    // typed m-3.5 factory-face residue, never lossy storage.
+                    tsc_emitter::EmitResolverError::CheckerAborted {
+                        method,
+                        node: EmitResolverNode::from_raw_source(
+                            u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
+                                .unwrap_or(0),
+                            enclosing_declaration,
+                        ),
+                        reason:
+                            "unpaired UTF-16 string literal requires the m-3.5 UTF-16 factory face",
+                    }
+                })?;
+                factory
+                    .create_node(
+                        target,
+                        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                            text,
+                            has_extended_unicode_escape: None,
+                        }),
+                        tsc_emitter::TransformFlags::NONE,
+                    )
+                    .map_err(map_factory)
+            }
+            LiteralValue::Number(number) if number < 0.0 => {
+                let operand = factory
+                    .create_node(
+                        target,
+                        NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                            text: tsc_types::js_number_to_string(-number),
+                        }),
+                        tsc_emitter::TransformFlags::NONE,
+                    )
+                    .map_err(map_factory)?;
+                factory
+                    .create_node(
+                        target,
+                        NodeData::PrefixUnaryExpression(
+                            tsc_syntax::nodes::PrefixUnaryExpressionData {
+                                operator: SyntaxKind::MinusToken,
+                                operand: Some(operand.node()),
+                            },
+                        ),
+                        tsc_emitter::TransformFlags::NONE,
+                    )
+                    .map_err(map_factory)
+            }
+            LiteralValue::Number(number) => factory
+                .create_node(
+                    target,
+                    NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                        text: tsc_types::js_number_to_string(number),
+                    }),
+                    tsc_emitter::TransformFlags::NONE,
+                )
+                .map_err(map_factory),
+        }
+    }
+
+    /// tsc-port: createLiteralConstValue @6.0.3
+    /// tsc-hash: aed30591a56b896560cdc11531e90bd746b037ffa64fa9d884cd9e384048ee53
+    /// tsc-span: _tsc.js:88506-88509
+    pub(crate) fn emit_create_literal_const_value(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        node: NodeId,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
+        let symbol = self
+            .get_symbol_of_declaration(node)
+            .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
+        let literal_type = self
+            .get_type_of_symbol(symbol)
+            .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
+        self.emit_literal_type_to_node(arena, target, literal_type, node, tracker)
+    }
+}
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: createLateBoundIndexSignatures @6.0.3 (resolver member)
+    /// tsc-hash: 57a5aa62b412607a3d4c1fc9811e8e9ec66f85ef4aa82dab2cc6afe36885e6c9
+    /// tsc-span: _tsc.js:88624-88691
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_late_bound_index_signatures(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        container: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, tsc_emitter::EmitResolverError> {
+        crate::node_builder::late_bound_index_signatures(
+            self,
+            arena,
+            target,
+            container,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
+    /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3
+    /// tsc-hash: 517de08538d0b91488cd2e54201e7dc44b404b08fe126ba36a1b63ce84ec70dc
+    /// tsc-span: _tsc.js:88612-88621
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_get_declaration_statements_for_source_file(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        node: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::GetDeclarationStatementsForSourceFile;
+        if self.kind_of(node) != SyntaxKind::SourceFile {
+            return Err(tsc_emitter::EmitResolverError::CheckerAborted {
+                method,
+                node: EmitResolverNode::from_raw_source(
+                    u32::try_from(self.binder.file_index_of_node(node)).unwrap_or(0),
+                    node,
+                ),
+                reason: "non-sourcefile node passed into getDeclarationsForSourceFile",
+            });
+        }
+        let symbol = self.get_symbol_of_declaration_opt(node);
+        let table = match symbol {
+            None => match self.binder.locals_of(node) {
+                None => return Ok(Some(Vec::new())),
+                Some(locals) => locals.clone(),
+            },
+            Some(symbol) => {
+                let resolved = self
+                    .resolve_external_module_symbol(Some(symbol), false)
+                    .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
+                let _ = resolved;
+                let exports = self
+                    .get_exports_of_module(symbol)
+                    .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
+                if exports.is_empty() {
+                    return Ok(Some(Vec::new()));
+                }
+                exports
+            }
+        };
+        crate::node_builder::with_context(
+            self,
+            arena,
+            target,
+            Some(node),
+            Some(flags),
+            Some(internal_flags),
+            Some(tracker),
+            None,
+            None,
+            |checker, arena, target, context| {
+                crate::node_builder::symbol_table_to_declaration_statements(
+                    checker, arena, target, &table, context,
+                )
+            },
+            None,
+        )
+    }
+}
+
+impl CheckerState<'_> {
+    /// Project a sink produced-class into the trace coordinate space. At
+    /// frame level (`opaque_frames`) synthesized results and containers are
+    /// indistinguishable in the trace and both project as "opaque"
+    /// (h2-7a-m-3 §6.3 frame-aware rule); at root level the classes stay
+    /// distinct and the container carries its length.
+    fn declaration_replay_actual_produced_json(
+        &self,
+        produced: &crate::node_builder::replay_sink::ProducedClass,
+        file_map: &DeclarationReplayFileMap,
+        opaque_frames: bool,
+    ) -> Result<serde_json::Value, String> {
+        use crate::node_builder::replay_sink::ProducedClass;
+        Ok(match produced {
+            ProducedClass::Absent => serde_json::json!({"class": "absent"}),
+            ProducedClass::ParseOwn { node, .. }
+            | ProducedClass::OriginalProjected { node, .. } => {
+                let coordinate = self
+                    .declaration_replay_project_node(NodeId(*node), file_map)
+                    .map_err(|error| format!("produced-node projection failed: {error}"))?;
+                let class = if matches!(produced, ProducedClass::ParseOwn { .. }) {
+                    "parse"
+                } else {
+                    "original"
+                };
+                serde_json::json!({"class": class, "coordinate": coordinate.json()})
+            }
+            ProducedClass::SyntheticWithoutOriginal => {
+                if opaque_frames {
+                    serde_json::json!({"class": "opaque"})
+                } else {
+                    serde_json::json!({"class": "synthetic"})
+                }
+            }
+            ProducedClass::Container { length } => {
+                if opaque_frames {
+                    serde_json::json!({"class": "opaque"})
+                } else {
+                    serde_json::json!({"class": "container", "length": length})
+                }
+            }
+        })
+    }
+
+    fn declaration_replay_actual_raw_ref_json(
+        &self,
+        value: &serde_json::Value,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<serde_json::Value, String> {
+        if value.is_null() {
+            return Ok(serde_json::Value::Null);
+        }
+        if value.as_str() == Some("opaque") {
+            return Ok(serde_json::json!("opaque"));
+        }
+        let pair = value
+            .as_array()
+            .filter(|pair| pair.len() == 2)
+            .ok_or_else(|| "raw tracker reference is not a pair".to_owned())?;
+        let node = pair[1]
+            .as_u64()
+            .ok_or_else(|| "raw tracker reference node is not an integer".to_owned())?;
+        let coordinate = self
+            .declaration_replay_project_node(
+                NodeId(u32::try_from(node).map_err(|_| "node id overflow".to_owned())?),
+                file_map,
+            )
+            .map_err(|error| format!("tracker reference projection failed: {error}"))?;
+        Ok(coordinate.json())
+    }
+
+    fn declaration_replay_actual_event_json(
+        &self,
+        event: &crate::node_builder::replay_sink::DecisionEvent,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<serde_json::Value, String> {
+        use crate::node_builder::replay_sink::DecisionEvent;
+        Ok(match event {
+            DecisionEvent::WithContextResult {
+                status,
+                flags,
+                internal_flags,
+                approximate_length,
+                type_stack_len,
+                truncating,
+                out_truncated,
+                encountered_error,
+                produced,
+            } => serde_json::json!({
+                "site": "nodebuilder.withContext.result",
+                "status": status,
+                "flags": flags,
+                "internal_flags": internal_flags,
+                "approximate_length": approximate_length,
+                "type_stack_len": type_stack_len,
+                "truncating": truncating,
+                "out_truncated": out_truncated,
+                "encountered_error": encountered_error,
+                "produced": self.declaration_replay_actual_produced_json(
+                    produced, file_map, true,
+                )?,
+            }),
+            DecisionEvent::SyntacticFrame {
+                site,
+                fallback,
+                produced,
+            } => serde_json::json!({
+                "site": site,
+                "frame": true,
+                "fallback": fallback,
+                "produced": self.declaration_replay_actual_produced_json(
+                    produced, file_map, true,
+                )?,
+            }),
+            DecisionEvent::SyntacticFallback {
+                site,
+                report_fallback,
+            } => serde_json::json!({
+                "site": format!("{site}.checkerFallback"),
+                "report_fallback": report_fallback,
+            }),
+            DecisionEvent::Tracker { site, payload } => {
+                let payload = match *site {
+                    "tracker.trackSymbol" => serde_json::json!({
+                        "name": payload["name"],
+                        "node": self
+                            .declaration_replay_actual_raw_ref_json(&payload["node"], file_map)?,
+                        "meaning": payload["meaning"],
+                    }),
+                    "tracker.reportInferenceFallback" => {
+                        self.declaration_replay_actual_raw_ref_json(payload, file_map)?
+                    }
+                    _ => payload.clone(),
+                };
+                serde_json::json!({"site": site, "payload": payload})
+            }
+        })
+    }
+}
+
+/// Classify a traced eight-tuple node reference into the shared produced
+/// JSON (parse/original coordinates; sentinel -> synthetic at root level or
+/// opaque at frame level per the §6.3 frame-aware rule).
+fn declaration_replay_trace_ref_json(
+    reference: &serde_json::Value,
+    file_map: &DeclarationReplayFileMap,
+    opaque_frames: bool,
+) -> Result<serde_json::Value, String> {
+    let values = reference
+        .as_array()
+        .filter(|values| values.len() == 8)
+        .ok_or_else(|| "trace node reference is not an eight-tuple".to_owned())?;
+    let numbers = values
+        .iter()
+        .map(|value| {
+            value
+                .as_i64()
+                .ok_or_else(|| "trace node reference holds a non-integer".to_owned())
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let (class, quad) = if numbers[0] >= 0 {
+        ("parse", &numbers[0..4])
+    } else if numbers[4] >= 0 {
+        ("original", &numbers[4..8])
+    } else {
+        return Ok(if opaque_frames {
+            serde_json::json!({"class": "opaque"})
+        } else {
+            serde_json::json!({"class": "synthetic"})
+        });
+    };
+    let _ = file_map;
+    Ok(serde_json::json!({
+        "class": class,
+        "coordinate": [quad[0], quad[1], quad[2], quad[3]],
+    }))
+}
+
+/// Tracker payload references: null stays null; sentinel tuples project as
+/// "opaque"; coordinate tuples keep their quadruple.
+fn declaration_replay_trace_ref_coordinate_json(
+    reference: &serde_json::Value,
+    file_map: &DeclarationReplayFileMap,
+) -> Result<serde_json::Value, String> {
+    if reference.is_null() {
+        return Ok(serde_json::Value::Null);
+    }
+    let projected = declaration_replay_trace_ref_json(reference, file_map, true)?;
+    if projected["class"] == "opaque" {
+        return Ok(serde_json::json!("opaque"));
+    }
+    Ok(projected["coordinate"].clone())
+}
+
+#[cfg(test)]
+#[path = "../tests/unit/declaration_emit_members/tests.rs"]
+mod node_builder_member_tests;

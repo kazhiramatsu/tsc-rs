@@ -310,8 +310,8 @@
     },
     "observations": {
       "type": "array",
-      "minItems": 112,
-      "maxItems": 112,
+      "minItems": 120,
+      "maxItems": 120,
       "items": {
         "$ref": "#/$defs/case_observation"
       }
@@ -324,6 +324,9 @@
     },
     "witnesses_fingerprint_sha256": {
       "$ref": "#/$defs/sha256"
+    },
+    "m3_supplement": {
+      "$ref": "#/$defs/m3_supplement"
     }
   },
   "$defs": {
@@ -543,7 +546,7 @@
         },
         "family_id": {
           "type": "string",
-          "pattern": "^(F(?:[1-9]|1[0-4])|S|S2)$"
+          "pattern": "^(F(?:[1-9]|1[0-4])|S|S2|S3)$"
         },
         "roles": {
           "type": "array",
@@ -586,8 +589,8 @@
       "properties": {
         "cases": {
           "type": "array",
-          "minItems": 112,
-          "maxItems": 112,
+          "minItems": 120,
+          "maxItems": 120,
           "items": {
             "$ref": "#/$defs/manifest_case"
           }
@@ -620,7 +623,7 @@
       "properties": {
         "family_id": {
           "type": "string",
-          "pattern": "^(F(?:[1-9]|1[0-4])|S|S2)$"
+          "pattern": "^(F(?:[1-9]|1[0-4])|S|S2|S3)$"
         },
         "description": {
           "type": "string",
@@ -662,7 +665,7 @@
           "uniqueItems": true,
           "items": {
             "type": "string",
-            "pattern": "^(F(?:[1-9]|1[0-4])|S|S2)$"
+            "pattern": "^(F(?:[1-9]|1[0-4])|S|S2|S3)$"
           }
         }
       }
@@ -1069,7 +1072,7 @@
           "const": 67
         },
         "cases": {
-          "const": 112
+          "const": 120
         },
         "positive_cases": {
           "type": "integer",
@@ -1112,13 +1115,82 @@
           "minimum": 0
         },
         "typescript_oracle_runs": {
-          "const": 224
+          "const": 240
         },
         "deterministic_cases": {
-          "const": 112
+          "const": 120
         },
         "rust_runs": {
           "const": 0
+        }
+      }
+    },
+    "m3_supplement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selector_version",
+        "volume_table",
+        "members",
+        "case_ids",
+        "trim_rows",
+        "counts"
+      ],
+      "properties": {
+        "selector_version": {
+          "const": "m3-s3-v1"
+        },
+        "volume_table": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 6,
+          "items": {
+            "$ref": "#/$defs/s2_volume_row"
+          }
+        },
+        "members": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/s2_member"
+          }
+        },
+        "case_ids": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "trim_rows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/s2_trim_row"
+          }
+        },
+        "counts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fixtures",
+            "cases",
+            "observations"
+          ],
+          "properties": {
+            "fixtures": {
+              "const": 8
+            },
+            "cases": {
+              "const": 8
+            },
+            "observations": {
+              "const": 16
+            }
+          }
         }
       }
     }

@@ -74,7 +74,9 @@ impl CommentCursor {
 /// only at the printer's root.
 ///
 /// tsc-port: containerPos/containerEnd/declarationListContainerEnd @6.0.3
-/// tsc-span: _tsc.js:116957-116959 (state); _tsc.js:121007-121052
+/// tsc-hash: feea9862f9b696d2b67ff1dedc0db3fff5e0d73e33fc9c155c78f28649f72dc0
+/// tsc-span: _tsc.js:116957-116959
+/// (state); _tsc.js:121007-121052
 /// (claim/restore); _tsc.js:121219-121238 (guarded readers)
 #[must_use]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -5098,7 +5098,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasLateBindableName @6.0.3
     /// tsc-hash: 6fd26a51c8589a535d67a1745683708d6698a4be054f8b4fff5d3f272c0ebeac
     /// tsc-span: _tsc.js:57635-57638
-    fn has_late_bindable_name(&mut self, member: NodeId) -> CheckResult<bool> {
+    pub(crate) fn has_late_bindable_name(&mut self, member: NodeId) -> CheckResult<bool> {
+        // h2-7a-m-3 widening (body site)
         if !self.has_late_bindable_ast_name(member) {
             return Ok(false);
         }
@@ -7190,7 +7191,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIndexSymbol @6.0.3
     /// tsc-hash: 2dffc568392757cc14418934e18e93bb1927d8ad61ab7932fb91c1e8a0cfb768
     /// tsc-span: _tsc.js:59983-59985
-    fn get_index_infos_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<Vec<IndexInfo>> {
+    /// (h2-7a-m-3 widening)
+    pub(crate) fn get_index_infos_of_symbol(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult<Vec<IndexInfo>> {
         // getIndexSymbol reads getMembersOfSymbol (the late-bound
         // table) — a computed-name index member surfaces here and the
         // declaration reader below keeps its honest escape.
@@ -7215,7 +7220,8 @@ impl<'a> CheckerState<'a> {
     /// declarations, element-access names) are elided project-wide.
     /// `sibling_symbols` is tsc's default parameter: the parent's
     /// member list when absent, evaluated eagerly like the JS default.
-    fn get_index_infos_of_index_symbol(
+    /// (h2-7a-m-3 widening)
+    pub(crate) fn get_index_infos_of_index_symbol(
         &mut self,
         index_symbol: SymbolId,
         sibling_symbols: Option<Vec<SymbolId>>,
@@ -10706,7 +10712,9 @@ fn get_excluded_symbol_flags(flags: SymbolFlags) -> SymbolFlags {
     SymbolFlags::from_bits(result)
 }
 
-fn is_reserved_member_name(name: &str) -> bool {
+/// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
+pub(crate) fn is_reserved_member_name(name: &str) -> bool {
+    // h2-7a-m-3 widening (body site)
     let bytes = name.as_bytes();
     bytes.first() == Some(&b'_')
         && bytes.get(1) == Some(&b'_')

@@ -1265,7 +1265,7 @@ impl<'a> CheckerState<'a> {
         state.unique_literal_mapper = state.alloc_mapper(crate::instantiate::TypeMapper::Function(
             crate::instantiate::FunctionMapper::UniqueLiteral,
         ));
-        // tsc-port: reportUnreliableMapper + reportUnmeasurableMapper @6.0.3
+        // tsc-port: reportUnreliableMapper @6.0.3 (+ reportUnmeasurableMapper)
         // tsc-hash: 23800396495e1d0c1eba42745b023673852d55da0f6a4b92c2f9704b086d044e
         // tsc-span: _tsc.js:47113-47131
         state.report_unreliable_mapper =
@@ -1280,7 +1280,7 @@ impl<'a> CheckerState<'a> {
         // The empty anonymous types from the checker init block
         // (47132/47160/47170/47179): resolved-empty from birth.
         state.empty_object_type = state.create_resolved_empty_anonymous_type(None);
-        // tsc-port: emptyJsxObjectType + emptyFreshJsxObjectType @6.0.3
+        // tsc-port: emptyJsxObjectType @6.0.3 (+ emptyFreshJsxObjectType)
         // tsc-hash: 3adb5d2dbb1653e5c2d1e59e931b18b6d357619cc9836867b39209a05dd6a70b
         // tsc-span: _tsc.js:47140-47157
         state.empty_jsx_object_type = state.create_resolved_empty_anonymous_type(None);
@@ -1308,7 +1308,7 @@ impl<'a> CheckerState<'a> {
         );
         state.empty_type_literal_type =
             state.create_resolved_empty_anonymous_type(Some(empty_type_literal_symbol));
-        // tsc-port: unknownEmptyObjectType + unknownUnionType @6.0.3
+        // tsc-port: unknownEmptyObjectType @6.0.3 (+ unknownUnionType)
         // tsc-hash: bec4f96b4a16d460fc25fd2ad7063b611a988b7d8ba22c1d10664f9dad0c5042
         // tsc-span: _tsc.js:47161-47169
         state.unknown_empty_object_type = state.create_resolved_empty_anonymous_type(None);
@@ -1340,12 +1340,12 @@ impl<'a> CheckerState<'a> {
         let any_function_flags = state.tables.object_flags_of(state.any_function_type)
             | ObjectFlags::NON_INFERRABLE_TYPE;
         state.tables.type_mut(state.any_function_type).object_flags = any_function_flags;
-        // tsc-port: noConstraintType + circularConstraintType @6.0.3
+        // tsc-port: noConstraintType @6.0.3 (+ circularConstraintType)
         // tsc-hash: 06e5cd556cafd99a8a477e291385d1cb488f4d28676756e76a7ef6135c9d198b
         // tsc-span: _tsc.js:47188-47203
         state.no_constraint_type = state.create_resolved_empty_anonymous_type(None);
         state.circular_constraint_type = state.create_resolved_empty_anonymous_type(None);
-        // tsc-port: markerSuperType + markerSubType + markerOtherType @6.0.3
+        // tsc-port: markerSuperType @6.0.3 (+ markerSubType + markerOtherType)
         // tsc-hash: b01ebfcde068d7826bd3c12f41c9869047b7a25af2c00e6dd66cca614c1d8f38
         // tsc-span: _tsc.js:47212-47215
         state.marker_super_type = state.tables.create_synthesized_type_parameter(None);
@@ -1353,14 +1353,14 @@ impl<'a> CheckerState<'a> {
             .tables
             .create_synthesized_type_parameter(Some(state.marker_super_type));
         state.marker_other_type = state.tables.create_synthesized_type_parameter(None);
-        // tsc-port: markerSuperTypeForCheck + markerSubTypeForCheck @6.0.3
+        // tsc-port: markerSuperTypeForCheck @6.0.3 (+ markerSubTypeForCheck)
         // tsc-hash: 119485aecd36a63821c1191c69eb9b05cf44460f4dca261f773403ea54131d2b
         // tsc-span: _tsc.js:47216-47218
         state.marker_super_type_for_check = state.tables.create_synthesized_type_parameter(None);
         state.marker_sub_type_for_check = state
             .tables
             .create_synthesized_type_parameter(Some(state.marker_super_type_for_check));
-        // tsc-port: anySignature + unknownSignature + resolvingSignature + silentNeverSignature @6.0.3
+        // tsc-port: anySignature @6.0.3 (+ unknownSignature + resolvingSignature + silentNeverSignature)
         // tsc-hash: 72420792b8e72d9feaad43a2af6671f0782fbcaec8d644171340e8bb2eff04f2
         // tsc-span: _tsc.js:47220-47275
         let any = state.tables.intrinsics.any;

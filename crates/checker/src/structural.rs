@@ -1326,7 +1326,7 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
             if !target_flags.intersects(TypeFlags::CONDITIONAL)
                 && self.st.has_non_circular_base_constraint(source)?
             {
-                // tsc-port: distributive-constraint retry @6.0.3
+                // tsc-port: distributive-constraint @6.0.3 (retry)
                 // tsc-hash: 6de6d80ca57c45142ea7cfaa2536e6c9aefd4ef04338b569e6a9cf9fba7353bc
                 // tsc-span: _tsc.js:66388-66400
                 if let Some(distributive_constraint) = self

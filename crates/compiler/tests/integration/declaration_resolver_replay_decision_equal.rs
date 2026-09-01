@@ -37,54 +37,144 @@ const CONFORMANCE_EXPANSION: &[u8] = include_bytes!(concat!(
 // upstream ratchet re-pins its embedded hashes, so they are recorded
 // in the register, not asserted here).
 const EXPECTED_MANIFEST_FINGERPRINT: &str =
-    "89bb0627cee58b5d12aeb6fd5e95a92d26e1bbb54fd592750b49a34b64a89efb";
+    "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1";
 const EXPECTED_WITNESS_OBSERVATION_ROLL: &str =
-    "091cea9c5dd7a2c60a551d9292cd19832f9b71c77a28508eeae7252ccf556312";
+    "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad";
 const EXPECTED_PROBE_TRACE_ROLL: &str =
-    "dcf1243f5b8f3187631349657ab07c05a5c52270fd564d415687a1ad76bcb6d9";
+    "ca24d47c54b14df301817f76e88acd2b4ea2c6bf1cb1e94bb4b163113a60e188";
 
 // Artifact upper-envelope constants transcribed from the FINAL E4 register.
 const EXPECTED_EVENT_VOLUMES: &[(&str, u64)] = &[
-    ("isDeclarationVisible", 2_036),
-    ("isLiteralConstDeclaration", 612),
-    ("isExpandoFunctionDeclaration", 456),
-    ("isSymbolAccessible", 407),
-    ("isOptionalParameter", 344),
-    ("isImplementationOfOverload", 192),
-    ("isEntityNameVisible", 195),
-    ("requiresAddingImplicitUndefined", 133),
-    ("isImportRequiredByAugmentation", 15),
+    ("isDeclarationVisible", 2165),
+    ("isLiteralConstDeclaration", 644),
+    ("isExpandoFunctionDeclaration", 464),
+    ("isSymbolAccessible", 449),
+    ("isOptionalParameter", 423),
+    ("isImplementationOfOverload", 202),
+    ("isEntityNameVisible", 215),
+    ("requiresAddingImplicitUndefined", 162),
+    ("isImportRequiredByAugmentation", 19),
     ("isDefinitelyReferenceToGlobalSymbolObject", 10),
     ("getPropertiesOfContainerFunction", 5),
     ("isLateBound", 4),
     ("getEnumMemberValue", 3),
     ("collectLinkedAliases", 12),
+    ("createTypeOfDeclaration", 320),
+    ("createReturnTypeOfSignatureDeclaration", 151),
+    ("createTypeOfExpression", 4),
+    ("createLiteralConstValue", 8),
+    ("getDeclarationStatementsForSourceFile", 3),
+    ("createLateBoundIndexSignatures", 161),
 ];
 
-// Schema-2 remeasurement of the four packet §7.4 diagnostic edge families.
+// Schema-2 remeasurement of the final nested resolver topology.
 const EXPECTED_NESTED_EDGES: &[(&str, u64)] = &[
     (
+        "resolver.createLateBoundIndexSignatures -> resolver.isEntityNameVisible",
+        2,
+    ),
+    (
+        "resolver.createLateBoundIndexSignatures -> resolver.isSymbolAccessible",
+        2,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.isDeclarationVisible",
+        129,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.isEntityNameVisible",
+        3,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.isOptionalParameter",
+        3,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.isSymbolAccessible",
+        133,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.requiresAddingImplicitUndefined",
+        4,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isDeclarationVisible",
+        142,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isDefinitelyReferenceToGlobalSymbolObject",
+        10,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isEntityNameVisible",
+        1,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isExpandoFunctionDeclaration",
+        308,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isOptionalParameter",
+        40,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isSymbolAccessible",
+        287,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.requiresAddingImplicitUndefined",
+        56,
+    ),
+    (
+        "resolver.createTypeOfExpression -> resolver.isOptionalParameter",
+        1,
+    ),
+    (
+        "resolver.createTypeOfExpression -> resolver.isSymbolAccessible",
+        8,
+    ),
+    (
+        "resolver.createTypeOfExpression -> resolver.requiresAddingImplicitUndefined",
+        2,
+    ),
+    (
+        "resolver.getDeclarationStatementsForSourceFile -> resolver.isDeclarationVisible",
+        17,
+    ),
+    (
+        "resolver.getDeclarationStatementsForSourceFile -> resolver.isOptionalParameter",
+        21,
+    ),
+    (
+        "resolver.getDeclarationStatementsForSourceFile -> resolver.isSymbolAccessible",
+        19,
+    ),
+    (
+        "resolver.getDeclarationStatementsForSourceFile -> resolver.requiresAddingImplicitUndefined",
+        43,
+    ),
+    (
         "resolver.isDeclarationVisible -> resolver.isDeclarationVisible",
-        165,
+        193,
     ),
     (
         "resolver.isEntityNameVisible -> resolver.isDeclarationVisible",
-        100,
+        106,
     ),
     (
         "resolver.isSymbolAccessible -> resolver.isDeclarationVisible",
-        405,
+        443,
     ),
     (
         "resolver.requiresAddingImplicitUndefined -> resolver.isOptionalParameter",
-        244,
+        302,
     ),
 ];
 
 const EXPECTED_EXCLUDED_CAUSALITY_COUNTS: &[(&str, u64)] = &[
-    ("root-result", 5),
+    ("root-result", 0),
     ("per-root-paint-set", 0),
-    ("seed-entry", 4),
+    ("seed-entry", 0),
 ];
 
 // Filled from the FINAL artifacts by this P4 harness and frozen here under the
@@ -93,33 +183,48 @@ const EXPECTED_EXCLUDED_CAUSALITY_COUNTS: &[(&str, u64)] = &[
 // zero-declaration-symbol, shadow-string divergences.
 const EXPECTED_MEMBER_COUNTS: &[(&str, [u64; 6])] = &[
     ("resolver.collectLinkedAliases", [12, 0, 0, 0, 0, 0]),
+    (
+        "resolver.createLateBoundIndexSignatures",
+        [161, 0, 0, 0, 0, 0],
+    ),
+    ("resolver.createLiteralConstValue", [8, 0, 0, 0, 0, 0]),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration",
+        [151, 0, 0, 0, 0, 0],
+    ),
+    ("resolver.createTypeOfDeclaration", [313, 0, 7, 0, 0, 0]),
+    ("resolver.createTypeOfExpression", [4, 0, 0, 0, 0, 0]),
+    (
+        "resolver.getDeclarationStatementsForSourceFile",
+        [3, 0, 0, 0, 0, 0],
+    ),
     ("resolver.getEnumMemberValue", [3, 0, 0, 0, 0, 0]),
     (
         "resolver.getPropertiesOfContainerFunction",
         [5, 0, 0, 0, 0, 0],
     ),
-    ("resolver.isDeclarationVisible", [1_366, 0, 0, 0, 0, 0]),
+    ("resolver.isDeclarationVisible", [1_135, 0, 0, 0, 0, 0]),
     (
         "resolver.isDefinitelyReferenceToGlobalSymbolObject",
-        [10, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
     ),
-    ("resolver.isEntityNameVisible", [195, 0, 0, 0, 0, 0]),
+    ("resolver.isEntityNameVisible", [209, 0, 0, 0, 0, 0]),
     (
         "resolver.isExpandoFunctionDeclaration",
-        [456, 0, 0, 0, 0, 0],
+        [156, 0, 0, 0, 0, 0],
     ),
-    ("resolver.isImplementationOfOverload", [192, 0, 0, 0, 0, 0]),
+    ("resolver.isImplementationOfOverload", [202, 0, 0, 0, 0, 0]),
     (
         "resolver.isImportRequiredByAugmentation",
-        [15, 0, 0, 0, 0, 0],
+        [19, 0, 0, 0, 0, 0],
     ),
     ("resolver.isLateBound", [4, 0, 0, 0, 0, 0]),
-    ("resolver.isLiteralConstDeclaration", [612, 0, 0, 0, 0, 0]),
-    ("resolver.isOptionalParameter", [100, 0, 0, 0, 0, 0]),
-    ("resolver.isSymbolAccessible", [295, 0, 112, 0, 0, 0]),
+    ("resolver.isLiteralConstDeclaration", [644, 0, 0, 0, 0, 0]),
+    ("resolver.isOptionalParameter", [56, 0, 0, 0, 0, 0]),
+    ("resolver.isSymbolAccessible", [0, 0, 0, 0, 0, 0]),
     (
         "resolver.requiresAddingImplicitUndefined",
-        [47, 0, 86, 0, 0, 0],
+        [57, 0, 0, 0, 0, 0],
     ),
 ];
 
@@ -227,14 +332,8 @@ fn declaration_resolver_replay_decision_equal() {
     );
     assert_eq!(first, second, "fresh-session replay passes diverged");
 
-    eprintln!("P4_MEMBER_COUNTS={}", first["member_counts"]);
-    eprintln!(
-        "P4_NESTED_TOPOLOGY_DIVERGENCES={}",
-        first["nested_topology_divergences"]
-    );
-    eprintln!("HREFINE_EXCLUDED_CAUSALITY={}", first["excluded_causality"]);
-    assert_eq!(first["cases"], json!(112));
-    assert_eq!(first["seed_checks"], json!(388));
+    assert_eq!(first["cases"], json!(120));
+    assert_eq!(first["seed_checks"], json!(412));
     assert_eq!(
         first["traced_nested_edges"],
         json_object_from_pairs(EXPECTED_NESTED_EDGES)
@@ -242,62 +341,6 @@ fn declaration_resolver_replay_decision_equal() {
     let gating = first["gating_mismatches"]
         .as_array()
         .expect("gating mismatch array");
-    if !gating.is_empty() {
-        let mut summary = BTreeMap::<&str, u64>::new();
-        let mut by_member = BTreeMap::<String, [u64; 2]>::new();
-        let mut sample_by_member = BTreeMap::<String, &str>::new();
-        let mut affected_cases = BTreeSet::new();
-        for mismatch in gating {
-            let mismatch = mismatch.as_str().expect("gating mismatch is a string");
-            if let Some(case_id) = mismatch.split_whitespace().next() {
-                affected_cases.insert(case_id);
-            }
-            let class = if mismatch.contains("visibility seed differs") {
-                "seed"
-            } else if mismatch.contains("paint set differs") {
-                "paint"
-            } else if mismatch.contains("result differs") {
-                "result"
-            } else if mismatch.contains("symbol input differs") {
-                "symbol-input"
-            } else {
-                "resolution-or-shape"
-            };
-            *summary.entry(class).or_default() += 1;
-            if matches!(class, "result" | "paint") {
-                let member = mismatch
-                    .split_once(": ")
-                    .map(|(prefix, _)| prefix)
-                    .and_then(|prefix| prefix.split_whitespace().next_back())
-                    .expect("root mismatch carries a member");
-                by_member.entry(member.to_owned()).or_default()[usize::from(class == "paint")] += 1;
-                sample_by_member
-                    .entry(member.to_owned())
-                    .or_insert(mismatch);
-            }
-        }
-        eprintln!("P4_GATING_SUMMARY={summary:?}");
-        eprintln!("P4_GATING_BY_MEMBER={by_member:?}");
-        eprintln!("P4_GATING_SAMPLES={sample_by_member:?}");
-        eprintln!("P4_AFFECTED_CASES={}", affected_cases.len());
-        eprintln!(
-            "P4_OTHER_GATING={}",
-            Value::Array(
-                gating
-                    .iter()
-                    .filter(|mismatch| {
-                        let mismatch = mismatch.as_str().expect("gating mismatch is a string");
-                        !mismatch.contains("visibility seed differs")
-                            && !mismatch.contains("paint set differs")
-                            && !mismatch.contains("result differs")
-                            && !mismatch.contains("symbol input differs")
-                    })
-                    .take(20)
-                    .cloned()
-                    .collect()
-            )
-        );
-    }
     assert_member_counts(&first["member_counts"]);
     assert_excluded_causality(&first["excluded_causality"]);
     assert!(
@@ -334,9 +377,9 @@ fn assert_frozen_artifact_identity(witnesses: &WitnessArtifact, probes: &ProbeAr
     // artifact bytes it observed against; assert the pin matches the
     // checked-in witness file so the pair cannot drift apart.
     assert_eq!(probes.witnesses.sha256, sha256(WITNESSES));
-    assert_eq!(witnesses.case_manifest.cases.len(), 112);
-    assert_eq!(probes.summary.cases, 112);
-    assert_eq!(probes.cases.len(), 112);
+    assert_eq!(witnesses.case_manifest.cases.len(), 120);
+    assert_eq!(probes.summary.cases, 120);
+    assert_eq!(probes.cases.len(), 120);
 }
 
 fn assert_site_dispositions_and_volumes(probes: &ProbeArtifact) {
@@ -365,8 +408,8 @@ fn assert_site_dispositions_and_volumes(probes: &ProbeArtifact) {
             .unwrap_or(0),
         0
     );
-    assert_eq!(probes.summary.per_site_counts["probe.checkSeed"], 194);
-    assert_eq!(probes.summary.per_site_counts["probe.transformSeed"], 194);
+    assert_eq!(probes.summary.per_site_counts["probe.checkSeed"], 206);
+    assert_eq!(probes.summary.per_site_counts["probe.transformSeed"], 206);
     for &(member, count) in EXPECTED_EVENT_VOLUMES {
         let prefix = if member == "collectLinkedAliases" {
             "resolver.collectLinkedAliases".to_owned()
