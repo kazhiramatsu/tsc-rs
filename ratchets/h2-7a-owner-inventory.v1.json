@@ -21,7 +21,7 @@
     "option_owner": {
       "source": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "7cac37329a014eb22804f8f71c37d1fd65126034178fedfe134e788e30ff5461"
+        "sha256": "951be55b2a7f1a1e1f5f3ecacdf8a0dc6097c8e8b1c25d69eb887f11aac2d0d6"
       },
       "span": {
         "start_line": 448,
@@ -32,7 +32,7 @@
     "rust_evidence": {
       "printer": {
         "path": "crates/emitter/src/printer.rs",
-        "sha256": "985f597373f11140ea423f0c518865d6d9801b9a96c35a668cf7124ec283f97d"
+        "sha256": "51ded241116ec7cc971ff69993bff49d40a6715f3a7c4d077cc5eeedeec7e97b"
       },
       "writer": {
         "path": "crates/emitter/src/writer.rs",
@@ -40,11 +40,11 @@
       },
       "factory": {
         "path": "crates/emitter/src/factory.rs",
-        "sha256": "ec6a221dbb011226263835fe9fd5689a36730d1abfcd60806a511c041214dd81"
+        "sha256": "cbd8e49134d450947c99bfc829bbf7115f3c07e7b8353b7a3d872c69f2d8b67e"
       },
       "resolver": {
         "path": "crates/emitter/src/resolver.rs",
-        "sha256": "170f5ba6be5679f5a30939658fcc5f789a479f807a93c4977b3277aa3cb1ad04"
+        "sha256": "0c41ff9e59f7f2a3781a2843ee52e96944bf27c5b139a9543dfc9a1fe5f7a71a"
       }
     }
   },
@@ -22895,5 +22895,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "ab284d5a0a69d3f8115f4f8cf8aefd3ebf5e55f73fc22ae3503ab01c3b5ed3bc"
+  "inventory_fingerprint_sha256": "61f2735ddc5d53d4cd97e83301da13c5f15c7d85b58e037c0475630f98764e5d"
 }
