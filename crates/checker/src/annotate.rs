@@ -5098,7 +5098,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasLateBindableName @6.0.3
     /// tsc-hash: 6fd26a51c8589a535d67a1745683708d6698a4be054f8b4fff5d3f272c0ebeac
     /// tsc-span: _tsc.js:57635-57638
-    fn has_late_bindable_name(&mut self, member: NodeId) -> CheckResult<bool> {
+    pub(crate) fn has_late_bindable_name(&mut self, member: NodeId) -> CheckResult<bool> {
+        // h2-7a-m-3 widening
         if !self.has_late_bindable_ast_name(member) {
             return Ok(false);
         }
@@ -10706,7 +10707,8 @@ fn get_excluded_symbol_flags(flags: SymbolFlags) -> SymbolFlags {
     SymbolFlags::from_bits(result)
 }
 
-fn is_reserved_member_name(name: &str) -> bool {
+pub(crate) fn is_reserved_member_name(name: &str) -> bool {
+    // h2-7a-m-3 widening
     let bytes = name.as_bytes();
     bytes.first() == Some(&b'_')
         && bytes.get(1) == Some(&b'_')

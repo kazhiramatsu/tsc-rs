@@ -12926,7 +12926,8 @@ impl<'a> CheckerState<'a> {
     /// Identifier — a pattern-named label throws in shipped tsc, so the
     /// local expect deliberately preserves that invariant. The call-site
     /// unescapeLeadingUnderscores (51961) is folded in.
-    fn tuple_element_label(&self, declaration: NodeId) -> CheckResult<String> {
+    pub(crate) fn tuple_element_label(&self, declaration: NodeId) -> CheckResult<String> {
+        // h2-7a-m-3 widening
         let name = match self.data_of(declaration) {
             NodeData::NamedTupleMember(data) => data.name,
             NodeData::Parameter(data) => data.name,
