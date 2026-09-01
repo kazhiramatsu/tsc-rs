@@ -5728,7 +5728,7 @@ impl<'a> CheckerState<'a> {
     /// binding context. Class/function expressions borrow an assigned
     /// declaration name; truly unnamed expressions use tsc's sentinel
     /// instead of leaking `__class`/`__function`.
-    // h2-7a-m-3 widening: decision-only NodeBuilder reuse anchor.
+    /// (h2-7a-m-3 widening: decision-only NodeBuilder reuse anchor.)
     pub(crate) fn entity_symbol_name_as_written_slice(
         &self,
         symbol: SymbolId,
@@ -7506,7 +7506,7 @@ impl<'a> CheckerState<'a> {
     /// module/namespace parents this face walks cannot carry those
     /// flags. getQualifiedLeftMeaning (50291) fixes Value → Value, so
     /// the top-level Value meaning rides the whole recursion.
-    // h2-7a-m-3 widening: decision-only NodeBuilder reuse anchor.
+    /// (h2-7a-m-3 widening: decision-only NodeBuilder reuse anchor.)
     pub(crate) fn symbol_chain_slice(
         &mut self,
         symbol: SymbolId,
@@ -8337,7 +8337,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: hasNonGlobalAugmentationExternalModuleSymbol @6.0.3
     /// tsc-hash: 0dd109154ac5ad4bb4b4feae06275eb4af183ce33d0687c637b3d0726452aeae
     /// tsc-span: _tsc.js:50541-50543
-    // h2-7a-m-3 widening: shared external-module-root predicate.
+    /// (h2-7a-m-3 widening: shared external-module-root predicate.)
     pub(crate) fn symbol_has_external_module_declaration(&self, symbol: SymbolId) -> bool {
         self.binder
             .symbol(symbol)
@@ -12815,7 +12815,7 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: isStringNamed @6.0.3 (slice face)
     /// tsc-hash: c000f08977999a9f153126ccfb4e5b4c8721c5e160a361bd941308799c3c657d
     /// tsc-span: _tsc.js:53388-53402
-    // h2-7a-m-3 widening: shared property-name classification.
+    /// (h2-7a-m-3 widening: shared property-name classification.)
     pub(crate) fn declaration_is_string_named(
         &self,
         declaration: NodeId,
@@ -12848,7 +12848,7 @@ impl<'a> CheckerState<'a> {
     /// name.singleQuote half is dead; the source-text probe reads the
     /// literal's closing quote (trivia-immune, unterminated literals
     /// cannot late-bind a member).
-    // h2-7a-m-3 widening: shared source-quote classification.
+    /// (h2-7a-m-3 widening: shared source-quote classification.)
     pub(crate) fn declaration_is_single_quoted_string_named(&self, declaration: NodeId) -> bool {
         let source = self.binder.source_of_node(declaration);
         let Some(name) = tsc_binder::node_util::get_name_of_declaration(source, declaration) else {
@@ -12932,7 +12932,7 @@ impl<'a> CheckerState<'a> {
     /// local expect deliberately preserves that invariant. The call-site
     /// unescapeLeadingUnderscores (51961) is folded in.
     pub(crate) fn tuple_element_label(&self, declaration: NodeId) -> CheckResult<String> {
-        // h2-7a-m-3 widening
+        // h2-7a-m-3 widening (body site)
         let name = match self.data_of(declaration) {
             NodeData::NamedTupleMember(data) => data.name,
             NodeData::Parameter(data) => data.name,
@@ -13073,7 +13073,8 @@ fn mapped_modifier_text_slice(token: Option<SyntaxKind>, plain: &str) -> String 
 /// UTF-16 CODE UNIT (or the unit after `#`) at the active language
 /// version. In particular, an astral identifier starts with a high
 /// surrogate here and therefore requires element access.
-// h2-7a-m-3 widening: shared property-access spelling decision.
+/// (h2-7a-m-3 widening: shared property-access spelling decision.)
+/// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
 pub(crate) fn can_use_property_access_slice(
     name: &str,
     language_version: tsc_types::ScriptTarget,

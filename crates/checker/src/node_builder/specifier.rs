@@ -73,6 +73,7 @@ pub(crate) struct SpecifierCompilerOptions {
 }
 
 impl SpecifierCompilerOptions {
+    /// tsrs-native: Rust constructor for the ported machinery.
     pub(crate) fn new(compiler_options: &CompilerOptions) -> Self {
         Self {
             compiler_options: compiler_options.clone(),
@@ -570,7 +571,7 @@ pub(crate) fn get_module_specifier_preferences(
     }
 }
 
-/// tsc-port: getPreferredEnding (nested in getModuleSpecifierPreferences) @6.0.3
+/// tsc-port: getPreferredEnding @6.0.3 (nested in getModuleSpecifierPreferences)
 /// tsc-hash: 8056bce639d758ed3cc7929f9591e2b015ceb2a96bdfb4f856b93e3cbf3762c7
 /// tsc-span: _tsc.js:45424-45435
 pub(crate) fn get_preferred_ending(
@@ -601,7 +602,7 @@ pub(crate) fn get_preferred_ending(
 }
 
 impl ModuleSpecifierPreferences {
-    /// tsc-port: getAllowedEndingsInPreferredOrder (closure) @6.0.3
+    /// tsc-port: getAllowedEndingsInPreferredOrder @6.0.3 (closure)
     /// tsc-hash: f674e0d02c2e0420e74ac4a7ea6b888cd156c7f43cea60b124134018bf34951e
     /// tsc-span: _tsc.js:45396-45422
     pub(crate) fn get_allowed_endings_in_preferred_order(
@@ -1643,7 +1644,7 @@ pub(crate) fn try_get_module_name_from_ambient_module(
     Ok(None)
 }
 
-/// tsc-port: getTopNamespace (nested in tryGetModuleNameFromAmbientModule) @6.0.3
+/// tsc-port: getTopNamespace @6.0.3 (nested in tryGetModuleNameFromAmbientModule)
 /// tsc-hash: bff6b5d2375509a2e8872123bd66d5977817d898e962a0632d088cc468cb4e9c
 /// tsc-span: _tsc.js:45805-45810
 pub(crate) fn get_top_namespace(state: &CheckerState<'_>, mut declaration: NodeId) -> NodeId {
@@ -1732,7 +1733,7 @@ pub(crate) fn try_get_module_name_from_paths(
     None
 }
 
-/// tsc-port: validateEnding (nested in tryGetModuleNameFromPaths) @6.0.3
+/// tsc-port: validateEnding @6.0.3 (nested in tryGetModuleNameFromPaths)
 /// tsc-hash: 65f452bfe82f22cab223b2d242cf22c1120604dec911b98c4e35c352305b19a1
 /// tsc-span: _tsc.js:45846-45848
 pub(crate) fn validate_ending(
@@ -2261,7 +2262,7 @@ pub(crate) fn try_get_module_name_as_node_module(
     }
 }
 
-/// tsc-port: tryDirectoryWithPackageJson (nested in tryGetModuleNameAsNodeModule) @6.0.3
+/// tsc-port: tryDirectoryWithPackageJson @6.0.3 (nested in tryGetModuleNameAsNodeModule)
 /// tsc-hash: c8d4efd504f506135eb3cb422366a3441f4ed875c3e863de0821bf4902d0d22c
 /// tsc-span: _tsc.js:46113-46178
 #[allow(clippy::too_many_arguments)]
@@ -2710,7 +2711,7 @@ enum RegexRepetition {
     OneOrMore,
 }
 
-/// tsc-port: stringToRegex memoized closure @6.0.3
+/// tsc-port: stringToRegex @6.0.3 (memoized closure)
 /// tsc-hash: fd26ebd0f4f096eacee27f3b2e49eb34d0767855685dd67ddb47d96a856460e1
 /// tsc-span: _tsc.js:45369-45390
 fn string_to_regex(pattern: &str) -> Option<CompiledExcludeRegex> {

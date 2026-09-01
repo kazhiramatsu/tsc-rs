@@ -1511,7 +1511,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
                 },
             )?;
         if should_transform_private_static_elements {
-            // tsc-port: transformClassLike private-static class-fields handoff @6.0.3
+            // tsc-port: transformClassLike @6.0.3 (private-static class-fields handoff)
             // tsc-hash: e9f9d45ff72748b5c675933e394408bf146fdffe93091079edd1a1e57cd684e3
             // tsc-span: _tsc.js:99588-99615
             for member in &transformed_members {
@@ -3018,7 +3018,7 @@ impl<'context> StandardDecoratorVisitor<'context> {
             .arena_mut()?
             .metadata_mut(field)
             .add_flags(EmitFlags::NO_COMMENTS);
-        // tsc-port: decorated auto-accessor expansion @6.0.3
+        // tsc-port: decorated @6.0.3 (auto-accessor expansion)
         // tsc-hash: a36d5d1d9f385cf80a5379c53a98ff9936ace13b998d268a79af1aaa7b791850
         // tsc-span: _tsc.js:100115-100150
         if plan.is_static && self.target < ScriptTarget::ES2022 {

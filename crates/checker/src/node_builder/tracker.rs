@@ -48,7 +48,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
 
     /// A `None` result selects the checker-backed basic host recorded by
     /// `uses_basic_module_resolver_host`.
-    /// tsc-port: withContext (moduleResolverHost selection) @6.0.3
+    /// tsc-port: withContext @6.0.3 (moduleResolverHost selection)
     /// tsc-hash: 48f43182478e60c913e8248cd1b555bc04b83c31cfbbcf7e790f6bb005ac13b6
     /// tsc-span: _tsc.js:51205-51206
     pub(crate) fn caller_module_resolver_host(&self) -> Option<&dyn EmitModuleSpecifierHost> {

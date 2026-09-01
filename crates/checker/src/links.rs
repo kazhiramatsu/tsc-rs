@@ -2629,7 +2629,8 @@ impl LinksTables {
         self.symbol.entry(id).or_default().name_type = name_type;
     }
 
-    /// tsc-port: links.specifierCache set @6.0.3 (getSpecifierForModuleSymbol)
+    /// tsc-port: getSpecifierForModuleSymbol @6.0.3 (links.specifierCache write)
+    /// tsc-hash: fb54cac83c15aa20c8dce40fd36a3e787e8fb678220640bc94fafddc12586efa
     /// tsc-span: _tsc.js:53103-53105
     /// Emit-only cache write (h2-7a-m-3 §3a): non-speculative contexts only —
     /// the dormant specifier synthesis runs outside check-phase speculation.

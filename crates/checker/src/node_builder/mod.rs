@@ -94,6 +94,7 @@ pub(crate) struct SyntacticScopeCleanup {
 }
 
 impl SyntacticScopeCleanup {
+    /// tsrs-native: harness decision-sink frame capture.
     pub(crate) fn capture(context: &NodeBuilderContext<'_>) -> Self {
         Self {
             enclosing_declaration: context.enclosing_declaration,
@@ -110,6 +111,7 @@ impl SyntacticScopeCleanup {
         }
     }
 
+    /// tsrs-native: scoped save/restore completion (upstream closure capture).
     pub(crate) fn restore(self, context: &mut NodeBuilderContext<'_>) {
         context.enclosing_declaration = self.enclosing_declaration;
         context.mapper = self.mapper;
@@ -140,6 +142,7 @@ pub(crate) struct SyntacticRecoveryBoundary {
 }
 
 impl SyntacticRecoveryBoundary {
+    /// tsrs-native: Rust constructor for the ported machinery.
     pub(crate) fn new(context: &mut NodeBuilderContext<'_>) -> Self {
         let previous_had_error = context.recovery_boundary_had_error;
         let previous_depth = context.recovery_boundary_depth;
@@ -151,14 +154,17 @@ impl SyntacticRecoveryBoundary {
         }
     }
 
+    /// tsrs-native: recovery-boundary error probe (upstream closure capture).
     pub(crate) fn had_error(&self, context: &NodeBuilderContext<'_>) -> bool {
         context.recovery_boundary_had_error
     }
 
+    /// tsrs-native: recovery-boundary error latch (upstream closure capture).
     pub(crate) fn mark_error(&mut self, context: &mut NodeBuilderContext<'_>) {
         context.recovery_boundary_had_error = true;
     }
 
+    /// tsrs-native: recovery-scope entry (upstream closure capture).
     pub(crate) fn start_recovery_scope(
         &self,
         context: &NodeBuilderContext<'_>,
@@ -168,6 +174,7 @@ impl SyntacticRecoveryBoundary {
         }
     }
 
+    /// tsrs-native: recovery-scope rollback token (upstream closure capture).
     pub(crate) fn recover(
         &mut self,
         context: &mut NodeBuilderContext<'_>,
@@ -176,6 +183,7 @@ impl SyntacticRecoveryBoundary {
         context.recovery_boundary_had_error = scope.had_error;
     }
 
+    /// tsrs-native: recovery-boundary completion (upstream closure return).
     pub(crate) fn finalize(self, context: &mut NodeBuilderContext<'_>) -> bool {
         let succeeded = !context.recovery_boundary_had_error;
         context.recovery_boundary_had_error = self.previous_had_error;
@@ -519,7 +527,7 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
 }
 
 /// tsc-port: createLateBoundIndexSignatures @6.0.3 (member body)
-/// tsc-hash: 6a54cbb417327cf9ea18bd39a041f61e6598afe7c7bfa16ce46f0a54abf6bc27
+/// tsc-hash: 57a5aa62b412607a3d4c1fc9811e8e9ec66f85ef4aa82dab2cc6afe36885e6c9
 /// tsc-span: _tsc.js:88624-88691
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn late_bound_index_signatures(
@@ -1696,14 +1704,17 @@ pub(crate) mod replay_sink {
         static SINK: RefCell<Option<Vec<DecisionEvent>>> = const { RefCell::new(None) };
     }
 
+    /// tsrs-native: harness decision-sink arming (h2-7a-m-3 §6).
     pub(crate) fn arm() {
         SINK.with(|sink| *sink.borrow_mut() = Some(Vec::new()));
     }
 
+    /// tsrs-native: harness decision-sink drain.
     pub(crate) fn disarm() -> Vec<DecisionEvent> {
         SINK.with(|sink| sink.borrow_mut().take().unwrap_or_default())
     }
 
+    /// tsrs-native: harness decision-sink append.
     pub(crate) fn record(event: impl FnOnce() -> DecisionEvent) {
         SINK.with(|sink| {
             if let Some(events) = sink.borrow_mut().as_mut() {
@@ -1712,6 +1723,7 @@ pub(crate) mod replay_sink {
         });
     }
 
+    /// tsrs-native: harness decision-sink state probe.
     pub(crate) fn armed() -> bool {
         SINK.with(|sink| sink.borrow().is_some())
     }
@@ -1722,6 +1734,7 @@ pub(crate) mod replay_sink {
 
     /// Enter a probed syntactic front-door frame (upstream
     /// __h27aProbeSyntacticCall pushes {fallback:false}).
+    /// tsrs-native: harness syntactic-frame entry (h2-7a-m-3 §6.2).
     pub(crate) fn enter_syntactic_frame() {
         if armed() {
             SYNTACTIC_FRAMES.with(|frames| frames.borrow_mut().push(false));
@@ -1730,6 +1743,7 @@ pub(crate) mod replay_sink {
 
     /// The __h27aMarkSyntacticFallback discipline: every OPEN frame flips to
     /// fallback, and the marker event records the reportFallback flag.
+    /// tsrs-native: harness checkerFallback marker (probe protocol).
     pub(crate) fn mark_syntactic_fallback(site: &'static str, report_fallback: bool) {
         if !armed() {
             return;
@@ -1746,6 +1760,7 @@ pub(crate) mod replay_sink {
     }
 
     /// Exit the probed frame, recording its fallback verdict + result class.
+    /// tsrs-native: harness syntactic-frame exit record.
     pub(crate) fn exit_syntactic_frame(site: &'static str, produced: ProducedClass) {
         if !armed() {
             return;

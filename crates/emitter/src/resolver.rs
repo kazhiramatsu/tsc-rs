@@ -64,7 +64,8 @@ pub struct EmitFunctionProperty {
 /// members. Upstream numerics verbatim; the vendored inline constants are the
 /// authority for every named bit.
 /// tsc-port: NodeBuilderFlags @6.0.3
-/// tsc-span: _tsc.js:114263
+/// tsc-hash: 0223b722e847648b076bd0aeac3874a1695e09c55c917b40f51043b49c7c02b0
+/// tsc-span: _tsc.js:114263-114263
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct EmitNodeBuilderFlags(pub u32);
@@ -93,7 +94,8 @@ impl EmitNodeBuilderFlags {
 
 /// InternalNodeBuilderFlags word.
 /// tsc-port: InternalNodeBuilderFlags @6.0.3
-/// tsc-span: _tsc.js:114264
+/// tsc-hash: 2754707d6e07f23719ba3f001d9cc2bf9e740ee34ecfcedde771334818dd0b38
+/// tsc-span: _tsc.js:114264-114264
 #[repr(transparent)]
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct EmitInternalNodeBuilderFlags(pub u32);
@@ -116,7 +118,8 @@ impl EmitInternalNodeBuilderFlags {
 }
 
 /// The `symbolToDeclarations` expansion out-parameter.
-/// tsc-span: _tsc.js:51246-51253 (context.out construction and copy)
+/// tsc-span: _tsc.js:51246-51253
+/// (context.out construction and copy)
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct EmitSymbolExpansionOut {
     pub can_increase_expansion_depth: bool,
@@ -155,7 +158,8 @@ pub struct EmitTrackerSymbolDescription {
 /// The four resolver queries the upstream declaration transformer's tracker
 /// re-enters, exposed re-entrantly by the checker for the duration of a
 /// tracker callback so no second checker borrow is ever taken.
-/// tsc-span: _tsc.js:114362-114369 (trackSymbol), :114317-114331
+/// tsc-span: _tsc.js:114362-114369
+/// (trackSymbol), :114317-114331
 /// (reportExpandoFunctionErrors), :114193-114201 (parameter error arm)
 pub trait EmitTrackerAccess {
     fn is_symbol_accessible(
@@ -195,7 +199,8 @@ pub trait EmitTrackerAccess {
 /// optional host surfaces with typed absent defaults (the h2-7a-m-3 §3a
 /// host-fact discipline: an absent capability answers its typed absent
 /// form, and no arm may fabricate a specifier from a missing capability).
-/// tsc-span: _tsc.js:90948-90968 (basic host), :45368-46289 (consumption)
+/// tsc-span: _tsc.js:90948-90968
+/// (basic host), :45368-46289 (consumption)
 pub trait EmitModuleSpecifierHost {
     fn get_current_directory(&self) -> String;
     fn use_case_sensitive_file_names(&self) -> bool;
@@ -278,6 +283,7 @@ pub enum EmitResolutionMode {
 /// infallible. Default implementations model an absent upstream member
 /// (SymbolTrackerImpl forwards only to members that exist).
 /// tsc-port: symbolTracker @6.0.3 (transformer object) + SymbolTrackerImpl
+/// tsc-hash: b4bd865ce0b957f5fa54a3d254cd9265290499820e924c6d10156fac0a09228a
 /// tsc-span: _tsc.js:114280-114304, :90969-91068
 pub trait EmitSymbolTracker {
     /// Upstream member presence: SymbolTrackerImpl computes
@@ -1052,6 +1058,7 @@ pub trait EmitResolver {
     /// fallback are implementation-side and upstream-exact; the wrapper
     /// composes `flags | MULTILINE_OBJECT_LITERALS`.
     /// tsc-port: createTypeOfDeclaration @6.0.3
+    /// tsc-hash: e7208311f25e05e9154f95d68bf3d6c1e0a2fa42f4e8197d11a2dc83a462c624
     /// tsc-span: _tsc.js:88359-88366
     #[allow(clippy::too_many_arguments)]
     fn create_type_of_declaration(
@@ -1079,6 +1086,7 @@ pub trait EmitResolver {
     }
 
     /// tsc-port: createReturnTypeOfSignatureDeclaration @6.0.3
+    /// tsc-hash: afee5b310b2c60519f7fdfe73b676da237a0a34b6f3ae97a60a3674b892406b6
     /// tsc-span: _tsc.js:88382-88388
     #[allow(clippy::too_many_arguments)]
     fn create_return_type_of_signature_declaration(
@@ -1106,6 +1114,7 @@ pub trait EmitResolver {
     }
 
     /// tsc-port: createTypeOfExpression @6.0.3
+    /// tsc-hash: dd314f61d3160f871fe3d2568358c718dbca65cc107f1668ef3d0f6f79611fb4
     /// tsc-span: _tsc.js:88389-88395
     #[allow(clippy::too_many_arguments)]
     fn create_type_of_expression(
@@ -1135,7 +1144,9 @@ pub trait EmitResolver {
     /// Serialize a literal-const initializer value. Takes NO flag words —
     /// the upstream signature is `(node, tracker)`.
     /// tsc-port: createLiteralConstValue @6.0.3
-    /// tsc-span: _tsc.js:88506-88509 (helper literalTypeToNode :88491-88505)
+    /// tsc-hash: aed30591a56b896560cdc11531e90bd746b037ffa64fa9d884cd9e384048ee53
+    /// tsc-span: _tsc.js:88506-88509
+    /// (helper literalTypeToNode :88491-88505)
     fn create_literal_const_value(
         &self,
         arena: &mut TransformArena,
@@ -1151,6 +1162,7 @@ pub trait EmitResolver {
     }
 
     /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3
+    /// tsc-hash: 517de08538d0b91488cd2e54201e7dc44b404b08fe126ba36a1b63ce84ec70dc
     /// tsc-span: _tsc.js:88612-88621
     #[allow(clippy::too_many_arguments)]
     fn get_declaration_statements_for_source_file(
@@ -1170,6 +1182,7 @@ pub trait EmitResolver {
     }
 
     /// tsc-port: createLateBoundIndexSignatures @6.0.3
+    /// tsc-hash: 57a5aa62b412607a3d4c1fc9811e8e9ec66f85ef4aa82dab2cc6afe36885e6c9
     /// tsc-span: _tsc.js:88624-88691
     #[allow(clippy::too_many_arguments)]
     fn create_late_bound_index_signatures(
@@ -1200,7 +1213,9 @@ pub trait EmitResolver {
     /// member; zero transformer call sites — consumers arrive with the
     /// API1/H2.8 eras).
     /// tsc-port: symbolToDeclarations @6.0.3
-    /// tsc-span: _tsc.js:88692-88694 (member :51136-51164)
+    /// tsc-hash: 19c143701a83249c07ce89bb797f58b8ab835466cdc2b47918310f6487ac3caf
+    /// tsc-span: _tsc.js:88692-88694
+    /// (member :51136-51164)
     #[allow(clippy::too_many_arguments)]
     fn symbol_to_declarations(
         &self,

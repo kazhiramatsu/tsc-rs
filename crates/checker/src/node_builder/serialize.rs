@@ -487,6 +487,7 @@ fn serialize_return_type_for_signature_in_context(
     result
 }
 
+/// tsrs-native: checker-side routing seam behind the syntactic resolver member.
 pub(crate) fn serialize_type_for_declaration_seam(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -507,6 +508,7 @@ pub(crate) fn serialize_type_for_declaration_seam(
     )
 }
 
+/// tsrs-native: checker-side routing seam behind the syntactic resolver member.
 pub(crate) fn serialize_return_type_for_signature_seam(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -517,6 +519,7 @@ pub(crate) fn serialize_return_type_for_signature_seam(
     serialize_return_type_for_signature_in_context(checker, arena, target, context, signature)
 }
 
+/// tsrs-native: checker-side routing seam behind the syntactic tryReuse member.
 pub(crate) fn syntactic_try_reuse_existing_type_node(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -533,6 +536,7 @@ pub(crate) fn syntactic_try_reuse_existing_type_node(
     builder.try_reuse_existing_type_node(&mut resolver, arena, target, context, type_node)
 }
 
+/// tsrs-native: checker-side routing seam behind the syntactic resolver member.
 pub(crate) fn syntactic_serialize_name_of_parameter_seam(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
@@ -543,9 +547,9 @@ pub(crate) fn syntactic_serialize_name_of_parameter_seam(
     serialize_parameter_name_from_parse(checker, arena, target, context, parameter).map(Some)
 }
 
-/// tsc-port: typeToTypeNode (createNodeBuilder API) @6.0.3
+/// tsc-port: typeToTypeNode @6.0.3 (createNodeBuilder API)
 /// tsc-hash: b69637a60229522776d46a72086e27f8689094ecbb8a3686f6eb28e61f5a51fa
-/// tsc-span: _tsc.js:50959
+/// tsc-span: _tsc.js:50959-50959
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn type_to_type_node(
     checker: &mut CheckerState<'_>,
@@ -578,7 +582,7 @@ pub(crate) fn type_to_type_node(
     .map(Option::flatten)
 }
 
-/// tsc-port: typePredicateToTypePredicateNode (createNodeBuilder API) @6.0.3
+/// tsc-port: typePredicateToTypePredicateNode @6.0.3 (createNodeBuilder API)
 /// tsc-hash: d9642e57675b431e6f70a1efc27777227e772d3877deb5d0635c21e68034f6fc
 /// tsc-span: _tsc.js:50960-50970
 #[allow(clippy::too_many_arguments)]
@@ -609,7 +613,7 @@ pub(crate) fn type_predicate_to_type_predicate_node(
     )
 }
 
-/// tsc-port: serializeTypeForDeclaration (createNodeBuilder API) @6.0.3
+/// tsc-port: serializeTypeForDeclaration @6.0.3 (createNodeBuilder API)
 /// tsc-hash: 0b9c6849911106ffd21f1f820c2e628f53811a4ccc92c47764571ba0bdad25fb
 /// tsc-span: _tsc.js:50971-50981
 #[allow(clippy::too_many_arguments)]
@@ -656,7 +660,7 @@ pub(crate) fn serialize_type_for_declaration(
     .map(Option::flatten)
 }
 
-/// tsc-port: serializeReturnTypeForSignature (createNodeBuilder API) @6.0.3
+/// tsc-port: serializeReturnTypeForSignature @6.0.3 (createNodeBuilder API)
 /// tsc-hash: 354ab894aedc697bd7aac7bcc8c242ad52dc95f63f8adc67493b609e0b2d3909
 /// tsc-span: _tsc.js:50982-50992
 #[allow(clippy::too_many_arguments)]
@@ -711,7 +715,7 @@ pub(crate) fn serialize_return_type_for_signature(
     .map(Option::flatten)
 }
 
-/// tsc-port: serializeTypeForExpression (createNodeBuilder API) @6.0.3
+/// tsc-port: serializeTypeForExpression @6.0.3 (createNodeBuilder API)
 /// tsc-hash: a16196e77a3c9ff3cfad115c05536b0fec9c8bebc5fd8969124d9d31221ae6dd
 /// tsc-span: _tsc.js:50993-51003
 #[allow(clippy::too_many_arguments)]
@@ -753,7 +757,7 @@ pub(crate) fn serialize_type_for_expression(
     .map(Option::flatten)
 }
 
-/// tsc-port: indexInfoToIndexSignatureDeclaration (createNodeBuilder API) @6.0.3
+/// tsc-port: indexInfoToIndexSignatureDeclaration @6.0.3 (createNodeBuilder API)
 /// tsc-hash: f680044bff5ea7267a26b9dddc4d284a4a95efcbecbf2d1448d2bc2dbd8a8805
 /// tsc-span: _tsc.js:51004-51019
 #[allow(clippy::too_many_arguments)]
@@ -1227,7 +1231,7 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
     }
 }
 
-/// tsc-port: syntacticBuilderResolver production object @6.0.3
+/// tsc-port: syntacticBuilderResolver @6.0.3 (production object)
 /// tsc-hash: 4435e40ac4ba06bf9e97dd48b84835ddcec09e878d5b6163f041aa5ea0398894
 /// tsc-span: _tsc.js:50778-50956
 impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
@@ -1311,7 +1315,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
     }
 
     /// tsc-port: getAllAccessorDeclarationsForDeclaration @6.0.3
-    /// tsc-hash: 22c3c3fbba9f8d171de8ad28d2e576f91993378168a1be1ebc9c4dc06c85926d
+    /// tsc-hash: 794fe073022a3aebb21778d82647171a1213ce230d4575e61de2a3f44b2741c7
     /// tsc-span: _tsc.js:88367-88381
     fn get_all_accessor_declarations(
         &mut self,

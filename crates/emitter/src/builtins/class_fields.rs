@@ -88,7 +88,7 @@ impl Transformer for ClassFieldsTransformer<'_> {
                     .internal_flags()
                     .contains(InternalEmitFlags::TRANSFORM_PRIVATE_STATIC_ELEMENTS)
             });
-        // tsc-port: transformSourceFile private-static handoff @6.0.3
+        // tsc-port: transformSourceFile @6.0.3 (private-static handoff)
         // tsc-hash: 6b4e789c9f79058aedb753f6e48b04c3b3966d3c02761c111fc08dabdc16c473
         // tsc-span: _tsc.js:95875-95920
         if self.target < ScriptTarget::ES2022

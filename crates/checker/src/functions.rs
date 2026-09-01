@@ -2433,7 +2433,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getFirstIdentifier (the leftmost name of an entity chain).
-    // h2-7a-m-3 widening
+    /// (h2-7a-m-3 widening)
+    /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
     pub(crate) fn get_first_identifier(&self, name: NodeId) -> NodeId {
         let mut current = name;
         loop {

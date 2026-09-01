@@ -70,6 +70,7 @@ pub(crate) struct SyntacticTypeNodeBuilder {
 }
 
 impl SyntacticTypeNodeBuilder {
+    /// tsrs-native: Rust constructor for the ported machinery.
     pub(crate) fn new(options: &CompilerOptions) -> Self {
         Self {
             strict_null_checks: options.strict_option_value(options.strict_null_checks),
@@ -77,6 +78,7 @@ impl SyntacticTypeNodeBuilder {
         }
     }
 
+    /// tsrs-native: syntactic front-door wrapper (session dispatch).
     pub(crate) fn try_reuse_existing_type_node(
         &self,
         resolver: &mut dyn SyntacticBuilderResolver,
@@ -102,6 +104,7 @@ impl SyntacticTypeNodeBuilder {
         session.try_reuse_existing_type_node(existing)
     }
 
+    /// tsrs-native: syntactic front-door wrapper (probe-observable boundary, h2-7a-m-3 §6.2).
     pub(crate) fn serialize_type_of_declaration(
         &self,
         resolver: &mut dyn SyntacticBuilderResolver,
@@ -132,6 +135,7 @@ impl SyntacticTypeNodeBuilder {
         result
     }
 
+    /// tsrs-native: syntactic front-door wrapper (probe-observable boundary, h2-7a-m-3 §6.2).
     pub(crate) fn serialize_return_type_for_signature(
         &self,
         resolver: &mut dyn SyntacticBuilderResolver,
@@ -162,6 +166,7 @@ impl SyntacticTypeNodeBuilder {
         result
     }
 
+    /// tsrs-native: syntactic front-door wrapper (session dispatch).
     pub(crate) fn serialize_type_of_expression(
         &self,
         resolver: &mut dyn SyntacticBuilderResolver,
@@ -182,6 +187,7 @@ impl SyntacticTypeNodeBuilder {
         .map(Some)
     }
 
+    /// tsrs-native: syntactic front-door wrapper (session dispatch).
     pub(crate) fn serialize_type_of_accessor(
         &self,
         resolver: &mut dyn SyntacticBuilderResolver,

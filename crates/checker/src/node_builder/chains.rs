@@ -553,7 +553,7 @@ fn get_topmost_indexed_access_type(
 /// tsc-port: getSpecifierForModuleSymbol @6.0.3 (lane-H call)
 /// tsc-hash: cc081ccc9162d99c71cfb5013a0786210de8d66472567a9ee1d6eab90f686463
 /// tsc-span: _tsc.js:53060-53109
-// h2-7a-m-3 widening: statements alias/module-specifier synthesis.
+/// (h2-7a-m-3 widening: statements alias/module-specifier synthesis.)
 pub(crate) fn specifier_for_module_symbol(
     checker: &mut CheckerState<'_>,
     context: &NodeBuilderContext<'_>,
@@ -1857,6 +1857,7 @@ pub(crate) fn clone_node_builder_context(
     restore
 }
 
+/// tsrs-native: cloned-context restore (Rust borrow shape of upstream context mutation).
 pub(crate) fn restore_cloned_node_builder_context(
     context: &mut NodeBuilderContext<'_>,
     restore: ClonedNodeBuilderContextRestore,
@@ -2163,7 +2164,7 @@ pub(crate) fn symbol_to_node(
 /// replacement to lane H and returns `None` when upstream keeps the literal.
 ///
 /// tsc-port: syntacticBuilderResolver.getModuleSpecifierOverride @6.0.3
-/// tsc-hash: 69352e3af0be71381d674869691338c149fbd4444dad2b98991517330a033456f
+/// tsc-hash: c89bdb40ce2b87864f72841c93665476d6772410d3d0b2b3671d0563412ae1f7
 /// tsc-span: _tsc.js:50890-50928
 pub(crate) fn get_module_specifier_override(
     checker: &mut CheckerState<'_>,

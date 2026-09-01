@@ -855,7 +855,7 @@ pub(crate) fn create_recovery_boundary(context: &mut NodeBuilderContext<'_>) -> 
 
 impl RecoveryBoundary {
     /// tsc-port: createRecoveryBoundary.markError @6.0.3
-    /// tsc-hash: bd5484c21186e2409344255ada00e33da68eecf6b9742cfc9fa73bc0df3a6922
+    /// tsc-hash: bd5486b0e7dd23b8356c43414a4237b81ee3119e0f360e0833c20c892e8ad54a
     /// tsc-span: _tsc.js:52655-52660
     pub(crate) fn mark_error(&mut self, context: &mut NodeBuilderContext<'_>) {
         self.had_error = true;
@@ -864,7 +864,7 @@ impl RecoveryBoundary {
     }
 
     /// tsc-port: createRecoveryBoundary.startRecoveryScope @6.0.3
-    /// tsc-hash: daaa168a2da526400476ca60410810472df439a73340f0ba03b7ff43406d1fe1
+    /// tsc-hash: daaa0fd955cf6c6d10cd66a2f1a10bba53545727369cd3eab77eb2caff3199ec
     /// tsc-span: _tsc.js:52661-52673
     pub(crate) fn start_recovery_scope(
         &self,
@@ -876,6 +876,7 @@ impl RecoveryBoundary {
         }
     }
 
+    /// tsrs-native: recovery-scope rollback (upstream closure capture).
     pub(crate) fn restore_recovery_scope(
         &mut self,
         context: &mut NodeBuilderContext<'_>,
@@ -890,7 +891,7 @@ impl RecoveryBoundary {
     }
 
     /// tsc-port: createRecoveryBoundary.finalizeBoundary @6.0.3
-    /// tsc-hash: c40ba0412ece96787a8cc53ec7b533edbf8f3d2859a802423641872472399884
+    /// tsc-hash: c40a193e20b01c3372656c37cd6a6474b2f771e61678c769093361bd505be91b
     /// tsc-span: _tsc.js:52674-52690
     pub(crate) fn finalize(mut self, context: &mut NodeBuilderContext<'_>) -> bool {
         let buffered = context.tracked_symbols.take().unwrap_or_default();
@@ -907,6 +908,7 @@ impl RecoveryBoundary {
         success
     }
 
+    /// tsrs-native: recovery-boundary error probe (upstream closure capture).
     pub(crate) const fn had_error(&self) -> bool {
         self.had_error
     }
@@ -980,6 +982,7 @@ pub(crate) fn enter_new_scope(
     restore
 }
 
+/// tsrs-native: scope-exit completion (upstream onExitNewScope closure).
 pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: ScopeRestore) {
     context.enclosing_declaration = restore.enclosing_declaration;
     context.mapper = restore.mapper;
@@ -1414,7 +1417,7 @@ fn clone_binding_name(
 /// tsc-port: parameterToParameterDeclarationName.elideInitializerAndSetEmitFlags @6.0.3
 /// tsc-hash: f8bdbba84cdea52719e327d0bb00c48532bd6d5d35b61b62620ccddfc12a6099
 /// tsc-span: _tsc.js:52880-52907
-// h2-7a-m-3 widening: production syntacticBuilderResolver callback.
+/// (h2-7a-m-3 widening: production syntacticBuilderResolver callback.)
 pub(super) fn elide_initializer_and_set_emit_flags(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,

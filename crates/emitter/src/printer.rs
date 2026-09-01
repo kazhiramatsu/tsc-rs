@@ -557,6 +557,7 @@ struct EmitContext {
     /// node's OWN phases run at the parent level and stay live).
     ///
     /// tsc-port: emitCommentsBeforeNode/emitCommentsAfterNode @6.0.3
+    /// tsc-hash: a72378e3e260303e40b51104274bfea84f97e4db81f2e7f3c27e519fe01fd707
     /// tsc-span: _tsc.js:120987-121006
     nested_comments_suppressed: bool,
 }

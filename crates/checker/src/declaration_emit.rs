@@ -270,7 +270,7 @@ impl CheckerState<'_> {
     /// tsc-port: getNonlocalEffectiveTypeAnnotationNode @6.0.3
     /// tsc-hash: b538286bbef1aab02c6fac684de28e6c03ab0dd7768a651831492609e8cd2561
     /// tsc-span: _tsc.js:88532-88542
-    // h2-7a-m-3 widening: NodeBuilder declaration-annotation lookup.
+    /// (h2-7a-m-3 widening: NodeBuilder declaration-annotation lookup.)
     pub(crate) fn emit_nonlocal_effective_type_annotation_node(
         &mut self,
         parameter: NodeId,
@@ -3608,7 +3608,7 @@ fn declaration_replay_shadow_divergences(
 // ---------------------------------------------------------------------------
 
 /// tsc-port: hasInferredType @6.0.3
-/// tsc-hash: 55c3a279ae3c1a8fca1d107e0a56ea1ac0bb6ca4d5c2d21b18162b3bd9678822
+/// tsc-hash: cced5328b76bdeff714b0e84710f4bf95169d5fe52f969c0e517480515dd3c22
 /// tsc-span: _tsc.js:19921-19942
 fn has_inferred_type(kind: SyntaxKind) -> bool {
     matches!(
@@ -3670,7 +3670,7 @@ fn any_keyword_fallback(
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: createTypeOfDeclaration @6.0.3
-    /// tsc-hash: 3fca7286d06f724e39cb7fd2b3c04e734b71ea9c6a3fd314f18a1d972b03f52e
+    /// tsc-hash: e7208311f25e05e9154f95d68bf3d6c1e0a2fa42f4e8197d11a2dc83a462c624
     /// tsc-span: _tsc.js:88359-88366
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn emit_create_type_of_declaration(
@@ -3707,7 +3707,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: createReturnTypeOfSignatureDeclaration @6.0.3
-    /// tsc-hash: 4f6b58a6e21be6f00dbef1e6081af585337793bba85a51e6db983e93dbeae1ed
+    /// tsc-hash: afee5b310b2c60519f7fdfe73b676da237a0a34b6f3ae97a60a3674b892406b6
     /// tsc-span: _tsc.js:88382-88388
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn emit_create_return_type_of_signature_declaration(
@@ -3737,7 +3737,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: createTypeOfExpression @6.0.3
-    /// tsc-hash: 2ff9a5a1b3ff9a9f829bfdc563bd6d719b4d78fc74cb135cf1a814b23a1b4854
+    /// tsc-hash: dd314f61d3160f871fe3d2568358c718dbca65cc107f1668ef3d0f6f79611fb4
     /// tsc-span: _tsc.js:88389-88395
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn emit_create_type_of_expression(
@@ -3770,7 +3770,7 @@ impl<'a> CheckerState<'a> {
 
 impl<'a> CheckerState<'a> {
     /// tsc-port: literalTypeToNode @6.0.3
-    /// tsc-hash: 91adba0e796ad8c800914e747cbaf387c45bcae0dad9d70e5ef9db143d768e07
+    /// tsc-hash: f572c2d3b26803a05c3a3512e3fd391bea5b5a98505ebaff350e23f974280e0c
     /// tsc-span: _tsc.js:88491-88505
     #[allow(clippy::too_many_arguments)]
     fn emit_literal_type_to_node(
@@ -3929,7 +3929,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: createLiteralConstValue @6.0.3
-    /// tsc-hash: 6a621e50a1b3a63e0e5a5c9427022b26555a56add6a80652552018cdae0ba3d9
+    /// tsc-hash: aed30591a56b896560cdc11531e90bd746b037ffa64fa9d884cd9e384048ee53
     /// tsc-span: _tsc.js:88506-88509
     pub(crate) fn emit_create_literal_const_value(
         &mut self,
@@ -3950,8 +3950,8 @@ impl<'a> CheckerState<'a> {
 }
 
 impl<'a> CheckerState<'a> {
-    /// tsc-port: createLateBoundIndexSignatures (resolver member) @6.0.3
-    /// tsc-hash: 6a54cbb417327cf9ea18bd39a041f61e6598afe7c7bfa16ce46f0a54abf6bc27
+    /// tsc-port: createLateBoundIndexSignatures @6.0.3 (resolver member)
+    /// tsc-hash: 57a5aa62b412607a3d4c1fc9811e8e9ec66f85ef4aa82dab2cc6afe36885e6c9
     /// tsc-span: _tsc.js:88624-88691
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn emit_create_late_bound_index_signatures(
@@ -3977,7 +3977,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3
-    /// tsc-hash: 5cf313930f2a0dbd67a221570098821b8bcc25ebeb95ac93b3985d2ff2b5aeba
+    /// tsc-hash: 517de08538d0b91488cd2e54201e7dc44b404b08fe126ba36a1b63ce84ec70dc
     /// tsc-span: _tsc.js:88612-88621
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn emit_get_declaration_statements_for_source_file(
@@ -4037,20 +4037,6 @@ impl<'a> CheckerState<'a> {
             },
             None,
         )
-    }
-
-    /// tsc-port: symbolToDeclarations (resolver member) @6.0.3 (member seam)
-    /// tsc-span: _tsc.js:88692-88694
-    /// h2-7a-m-3 lane-F pending: the NodeBuilder member :51136-51164 lands
-    /// with the statements cluster; until then the member fails closed.
-    pub(crate) fn emit_symbol_to_declarations_pending(
-        &self,
-        symbol: EmitResolverSymbol,
-    ) -> tsc_emitter::EmitResolverError {
-        tsc_emitter::EmitResolverError::UnavailableForSymbol {
-            method: tsc_emitter::EmitResolverMethod::SymbolToDeclarations,
-            symbol,
-        }
     }
 }
 
