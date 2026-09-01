@@ -20,7 +20,7 @@
     },
     {
       "path": "m8-emitter-dispositions.json",
-      "sha256": "4abd837e0c433d3b80a75e4d482c26bf5902cbcfcf29e9d40e88d541b922a5a3"
+      "sha256": "2872ec51c183fe19d066d17d515bd538238e81dfecb064ef466d97b84d3b735d"
     },
     {
       "path": "ratchets/oracle-inputs.v1.json.zst",
