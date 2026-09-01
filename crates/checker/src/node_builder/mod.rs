@@ -1668,7 +1668,10 @@ pub(crate) mod replay_sink {
         },
         /// tracker.* callback records (payload projected by the recording
         /// tracker in the harness).
-        Tracker { site: &'static str, payload: String },
+        Tracker {
+            site: &'static str,
+            payload: serde_json::Value,
+        },
     }
 
     /// The §6.3 node-reference classes projected from a produced value.
