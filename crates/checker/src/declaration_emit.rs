@@ -270,7 +270,8 @@ impl CheckerState<'_> {
     /// tsc-port: getNonlocalEffectiveTypeAnnotationNode @6.0.3
     /// tsc-hash: b538286bbef1aab02c6fac684de28e6c03ab0dd7768a651831492609e8cd2561
     /// tsc-span: _tsc.js:88532-88542
-    fn emit_nonlocal_effective_type_annotation_node(
+    // h2-7a-m-3 widening: NodeBuilder declaration-annotation lookup.
+    pub(crate) fn emit_nonlocal_effective_type_annotation_node(
         &mut self,
         parameter: NodeId,
     ) -> CheckResult<Option<NodeId>> {

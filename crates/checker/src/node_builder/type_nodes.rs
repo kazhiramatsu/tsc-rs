@@ -4210,7 +4210,9 @@ mod tests {
     }
 
     #[test]
-    fn lane_c_type_reference_and_typeof_faces_fail_with_the_typed_pending_error() {
+    fn type_reference_and_typeof_faces_serialize_through_the_chains_cluster() {
+        // Pre-lane-C this asserted the typed pending error; the chains
+        // cluster now serializes both faces to real nodes.
         let source = "interface Box<T> {}\n\
                       function f(value: string): number { return 1; }\n\
                       type Reference = Box<string>;\n\
@@ -4221,19 +4223,14 @@ mod tests {
             |checker, arena, target, context| {
                 let rhs = alias_rhs_nodes(checker);
                 assert_eq!(rhs.len(), 2);
-                for rhs in rhs {
+                let expected = [SyntaxKind::TypeReference, SyntaxKind::TypeQuery];
+                for (rhs, expected_kind) in rhs.into_iter().zip(expected) {
                     let r#type = checker
                         .get_type_from_type_node(rhs)
                         .map_err(|abort| checker_abort_error(checker, context, abort))?;
-                    let error = type_to_type_node_helper(checker, arena, target, r#type, context)
-                        .expect_err("lane-C symbol serialization is pending");
-                    assert!(matches!(
-                        error,
-                        EmitResolverError::CheckerAborted {
-                            reason: "h2-7a-m-3 lane-C pending",
-                            ..
-                        }
-                    ));
+                    let node = type_to_type_node_helper(checker, arena, target, r#type, context)?
+                        .expect("chains cluster serializes the face");
+                    assert_eq!(arena.node(node).map_err(factory_error)?.kind, expected_kind,);
                 }
                 Ok(())
             },

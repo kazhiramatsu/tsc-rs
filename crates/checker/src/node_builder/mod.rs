@@ -1,5 +1,6 @@
 #![allow(dead_code, unused_imports)]
 
+mod chains;
 mod context;
 mod signatures;
 pub(crate) mod specifier;
@@ -7,6 +8,16 @@ mod tracker;
 mod type_nodes;
 
 pub(crate) use crate::syntactic_type_node_builder::SyntacticTypeNodeBuilder;
+pub(crate) use chains::{
+    chains_get_property_name_node_for_symbol, chains_lookup_symbol_chain,
+    chains_symbol_to_entity_name_node, chains_symbol_to_expression, chains_symbol_to_type_node,
+    clone_node_builder_context,
+    existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
+    get_declaration_with_type_annotation, get_enclosing_declaration_ignoring_fake_scope,
+    get_module_specifier_override, get_type_from_type_node2, restore_cloned_node_builder_context,
+    serialize_inferred_type_for_declaration, set_text_range2, symbol_to_node,
+    type_parameter_to_name, ClonedNodeBuilderContextRestore,
+};
 pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
     check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
@@ -36,26 +47,48 @@ pub(crate) fn syntactic_try_reuse_existing_type_node(
 
 // h2-7a-m-3: lane-E implementation replaces this stub
 pub(crate) fn serialize_return_type_for_signature_seam(
-    _checker: &mut crate::state::CheckerState<'_>,
+    checker: &mut crate::state::CheckerState<'_>,
     _arena: &mut tsc_emitter::TransformArena,
     _target: tsc_emitter::TransformSourceId,
-    _context: &mut NodeBuilderContext<'_>,
-    _signature: crate::state::SignatureId,
+    context: &mut NodeBuilderContext<'_>,
+    signature: crate::state::SignatureId,
 ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
-    Ok(None)
+    let node = checker
+        .signature_of(signature)
+        .declaration
+        .or(context.enclosing_declaration)
+        .unwrap_or_else(|| checker.binder.source(0).root);
+    Err(tsc_emitter::EmitResolverError::CheckerAborted {
+        method: tsc_emitter::EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
+        node: tsc_emitter::EmitResolverNode::from_raw_source(
+            u32::try_from(checker.binder.file_index_of_node(node)).unwrap_or(0),
+            node,
+        ),
+        reason: "h2-7a-m-3 lane-E pending",
+    })
 }
 
 // h2-7a-m-3: lane-E implementation replaces this stub
 pub(crate) fn serialize_type_for_declaration_seam(
-    _checker: &mut crate::state::CheckerState<'_>,
+    checker: &mut crate::state::CheckerState<'_>,
     _arena: &mut tsc_emitter::TransformArena,
     _target: tsc_emitter::TransformSourceId,
-    _context: &mut NodeBuilderContext<'_>,
-    _declaration: Option<tsc_syntax::NodeId>,
+    context: &mut NodeBuilderContext<'_>,
+    declaration: Option<tsc_syntax::NodeId>,
     _type: tsc_types::TypeId,
     _symbol: Option<tsc_binder::SymbolId>,
 ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
-    Ok(None)
+    let node = declaration
+        .or(context.enclosing_declaration)
+        .unwrap_or_else(|| checker.binder.source(0).root);
+    Err(tsc_emitter::EmitResolverError::CheckerAborted {
+        method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
+        node: tsc_emitter::EmitResolverNode::from_raw_source(
+            u32::try_from(checker.binder.file_index_of_node(node)).unwrap_or(0),
+            node,
+        ),
+        reason: "h2-7a-m-3 lane-E pending",
+    })
 }
 
 // h2-7a-m-3: lane-G implementation replaces this stub
@@ -67,113 +100,6 @@ pub(crate) fn syntactic_serialize_name_of_parameter_seam(
     _parameter: tsc_syntax::NodeId,
 ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
     Ok(None)
-}
-
-// h2-7a-m-3: lane-C implementation replaces this stub
-pub(crate) fn chains_lookup_symbol_chain(
-    checker: &mut crate::state::CheckerState<'_>,
-    context: &mut NodeBuilderContext<'_>,
-    _symbol: tsc_binder::SymbolId,
-    _meaning: tsc_emitter::EmitSymbolMeaning,
-) -> Result<Vec<tsc_binder::SymbolId>, tsc_emitter::EmitResolverError> {
-    let enclosing = context
-        .enclosing_declaration
-        .unwrap_or_else(|| checker.binder.source(0).root);
-    Err(tsc_emitter::EmitResolverError::CheckerAborted {
-        method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
-        node: tsc_emitter::EmitResolverNode::from_raw_source(
-            u32::try_from(checker.binder.file_index_of_node(enclosing)).unwrap_or(0),
-            enclosing,
-        ),
-        reason: "h2-7a-m-3 lane-C pending",
-    })
-}
-
-// h2-7a-m-3: lane-C implementation replaces this stub
-pub(crate) fn chains_symbol_to_type_node(
-    checker: &mut crate::state::CheckerState<'_>,
-    _arena: &mut tsc_emitter::TransformArena,
-    _target: tsc_emitter::TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    _symbol: tsc_binder::SymbolId,
-    _meaning: tsc_emitter::EmitSymbolMeaning,
-    _type_arguments: Option<Vec<tsc_emitter::TransformNode>>,
-) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
-    let enclosing = context
-        .enclosing_declaration
-        .unwrap_or_else(|| checker.binder.source(0).root);
-    Err(tsc_emitter::EmitResolverError::CheckerAborted {
-        method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
-        node: tsc_emitter::EmitResolverNode::from_raw_source(
-            u32::try_from(checker.binder.file_index_of_node(enclosing)).unwrap_or(0),
-            enclosing,
-        ),
-        reason: "h2-7a-m-3 lane-C pending",
-    })
-}
-
-// h2-7a-m-3: lane-C implementation replaces this stub
-pub(crate) fn chains_symbol_to_entity_name_node(
-    checker: &mut crate::state::CheckerState<'_>,
-    _arena: &mut tsc_emitter::TransformArena,
-    _target: tsc_emitter::TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    _symbol: tsc_binder::SymbolId,
-) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
-    let enclosing = context
-        .enclosing_declaration
-        .unwrap_or_else(|| checker.binder.source(0).root);
-    Err(tsc_emitter::EmitResolverError::CheckerAborted {
-        method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
-        node: tsc_emitter::EmitResolverNode::from_raw_source(
-            u32::try_from(checker.binder.file_index_of_node(enclosing)).unwrap_or(0),
-            enclosing,
-        ),
-        reason: "h2-7a-m-3 lane-C pending",
-    })
-}
-
-// h2-7a-m-3: lane-C implementation replaces this stub
-pub(crate) fn chains_symbol_to_expression(
-    checker: &mut crate::state::CheckerState<'_>,
-    _arena: &mut tsc_emitter::TransformArena,
-    _target: tsc_emitter::TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    _symbol: tsc_binder::SymbolId,
-    _meaning: tsc_emitter::EmitSymbolMeaning,
-) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
-    let enclosing = context
-        .enclosing_declaration
-        .unwrap_or_else(|| checker.binder.source(0).root);
-    Err(tsc_emitter::EmitResolverError::CheckerAborted {
-        method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
-        node: tsc_emitter::EmitResolverNode::from_raw_source(
-            u32::try_from(checker.binder.file_index_of_node(enclosing)).unwrap_or(0),
-            enclosing,
-        ),
-        reason: "h2-7a-m-3 lane-C pending",
-    })
-}
-
-// h2-7a-m-3: lane-C implementation replaces this stub
-pub(crate) fn chains_get_property_name_node_for_symbol(
-    checker: &mut crate::state::CheckerState<'_>,
-    _arena: &mut tsc_emitter::TransformArena,
-    _target: tsc_emitter::TransformSourceId,
-    context: &mut NodeBuilderContext<'_>,
-    _symbol: tsc_binder::SymbolId,
-) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
-    let enclosing = context
-        .enclosing_declaration
-        .unwrap_or_else(|| checker.binder.source(0).root);
-    Err(tsc_emitter::EmitResolverError::CheckerAborted {
-        method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
-        node: tsc_emitter::EmitResolverNode::from_raw_source(
-            u32::try_from(checker.binder.file_index_of_node(enclosing)).unwrap_or(0),
-            enclosing,
-        ),
-        reason: "h2-7a-m-3 lane-C pending",
-    })
 }
 
 /// The declaration facts read directly from upstream's optional `symbol`
