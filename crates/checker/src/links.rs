@@ -198,6 +198,11 @@ pub struct SymbolLinks {
     /// tsc TransientSymbol links.checkFlags (synthetic union/
     /// intersection properties, createUnionOrIntersectionProperty).
     pub check_flags: tsc_types::CheckFlags,
+    /// tsc links.specifierCache (getSpecifierForModuleSymbol 53088-53107):
+    /// mode-aware cache key -> computed module specifier, populated by the
+    /// dormant h2-7a-m-3 specifier synthesis and never read by the display
+    /// path.
+    pub specifier_cache: Option<std::collections::BTreeMap<String, String>>,
     /// tsc links.containingType for synthetic properties.
     pub containing_type: Option<TypeId>,
     /// tsc links.deferralParent / deferralConstituents /
@@ -2622,6 +2627,30 @@ impl LinksTables {
     ) {
         let _ = speculation_depth;
         self.symbol.entry(id).or_default().name_type = name_type;
+    }
+
+    /// tsc-port: links.specifierCache set @6.0.3 (getSpecifierForModuleSymbol)
+    /// tsc-span: _tsc.js:53103-53105
+    /// Emit-only cache write (h2-7a-m-3 §3a): non-speculative contexts only —
+    /// the dormant specifier synthesis runs outside check-phase speculation.
+    pub fn set_symbol_specifier_cache_entry(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        cache_key: String,
+        specifier: String,
+    ) {
+        debug_assert_eq!(
+            speculation_depth, 0,
+            "specifier cache writes are emit-side and non-speculative"
+        );
+        let _ = speculation_depth;
+        self.symbol
+            .entry(id)
+            .or_default()
+            .specifier_cache
+            .get_or_insert_with(Default::default)
+            .insert(cache_key, specifier);
     }
 
     /// tsrs-native: grouped LinksTables setter for tsc

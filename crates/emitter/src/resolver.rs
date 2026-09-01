@@ -234,9 +234,31 @@ pub trait EmitModuleSpecifierHost {
     fn is_source_of_project_reference_redirect(&self, _file_name: &str) -> bool {
         false
     }
-    fn file_include_reasons_available(&self) -> bool {
+    /// The Import-kind file-include reasons for an imported module path —
+    /// the existing-specifier-reuse arm of `computeModuleSpecifiers`
+    /// (_tsc.js:45496-45508): each row names an importing Program file and
+    /// the module-specifier index inside it; the checker reads the literal
+    /// specifier text at that index from its own parse tree. Hosts without
+    /// include-reason tracking answer empty.
+    fn import_include_reasons(&self, _imported_path: &str) -> Vec<EmitImportIncludeReason> {
+        Vec::new()
+    }
+    /// Whether the host carries a module-resolution cache (the
+    /// `getAllModulePathsWorker` package-json dependency arm,
+    /// _tsc.js:45717-45735, additionally requires the package-json
+    /// capability before it can act on this).
+    fn module_resolution_cache_available(&self) -> bool {
         false
     }
+}
+
+/// One Import-kind file-include reason row (upstream `FileIncludeReason`
+/// with `kind === Import`): the importing Program file and the index of the
+/// module-specifier literal inside it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EmitImportIncludeReason {
+    pub importing_file: SourceFileId,
+    pub index: u32,
 }
 
 /// Module resolution mode selector (upstream `ResolutionMode`:
