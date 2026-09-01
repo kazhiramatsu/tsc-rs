@@ -1,12 +1,12 @@
 use tsc_binder::SymbolId;
 use tsc_emitter::{
-    EmitModuleSpecifierHost, EmitResolverError, EmitSymbolMeaning, EmitSymbolTracker,
-    EmitTrackerAccess, EmitTrackerNode, EmitTrackerSymbol,
+    EmitModuleSpecifierHost, EmitResolverError, EmitSymbolAccessibility, EmitSymbolMeaning,
+    EmitSymbolTracker, EmitTrackerAccess, EmitTrackerNode, EmitTrackerSymbol,
 };
 use tsc_syntax::NodeId;
 use tsc_types::SymbolFlags;
 
-use super::context::TrackedSymbol;
+use super::context::{RecoveryTrackedSymbol, TrackedSymbol};
 
 /// Safe Rust ownership makes the upstream constructor's unwrap loop
 /// structural: this wrapper intentionally does not implement
@@ -24,6 +24,11 @@ pub(crate) struct NodeBuilderTracker<'tracker> {
     /// checker-backed host is borrowed on demand by the specifier worker, so
     /// it never aliases the mutable inner tracker.
     pub(crate) uses_basic_module_resolver_host: bool,
+    /// `symbolTableToDeclarationStatements` replaces the caller's tracker
+    /// with a wrapper that consumes accessible symbols as private declaration
+    /// dependencies and forwards only inaccessible symbols. The serializer
+    /// drains this queue while its private-context stack is live.
+    statement_symbols: Option<Vec<(SymbolId, EmitSymbolMeaning)>>,
 }
 
 impl<'tracker> NodeBuilderTracker<'tracker> {
@@ -43,7 +48,42 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
             disable_track_symbol: false,
             can_track_symbol,
             uses_basic_module_resolver_host,
+            statement_symbols: None,
         }
+    }
+
+    /// tsrs-native: statement-tracker window entry (upstream fake-scope tracking).
+    pub(crate) fn begin_statement_tracking(
+        &mut self,
+    ) -> (bool, Option<Vec<(SymbolId, EmitSymbolMeaning)>>) {
+        let old_can_track_symbol = self.can_track_symbol;
+        self.can_track_symbol = true;
+        (
+            old_can_track_symbol,
+            self.statement_symbols.replace(Vec::new()),
+        )
+    }
+
+    /// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
+    pub(crate) fn take_statement_symbols(&mut self) -> Vec<(SymbolId, EmitSymbolMeaning)> {
+        self.statement_symbols
+            .as_mut()
+            .map(std::mem::take)
+            .unwrap_or_default()
+    }
+
+    /// tsrs-native: statement-tracker window probe.
+    pub(crate) fn is_statement_tracking(&self) -> bool {
+        self.statement_symbols.is_some()
+    }
+
+    /// tsrs-native: statement-tracker window exit.
+    pub(crate) fn end_statement_tracking(
+        &mut self,
+        restore: (bool, Option<Vec<(SymbolId, EmitSymbolMeaning)>>),
+    ) {
+        self.can_track_symbol = restore.0;
+        self.statement_symbols = restore.1;
     }
 
     /// A `None` result selects the checker-backed basic host recorded by
@@ -65,13 +105,55 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         &mut self,
         reported_diagnostic: &mut bool,
         tracked_symbols: &mut Option<Vec<TrackedSymbol>>,
+        recovery_tracked_symbols: &mut Option<Vec<RecoveryTrackedSymbol>>,
         access: &mut dyn EmitTrackerAccess,
         symbol: SymbolId,
         symbol_flags: SymbolFlags,
         enclosing_declaration: Option<NodeId>,
+        enclosing_declaration_is_synthetic: bool,
         meaning: EmitSymbolMeaning,
+        symbol_is_remapped: bool,
     ) -> Result<bool, EmitResolverError> {
-        if !self.can_track_symbol || self.disable_track_symbol {
+        if self.disable_track_symbol {
+            return Ok(false);
+        }
+        if let Some(buffered) = recovery_tracked_symbols.as_mut() {
+            buffered.push((
+                symbol,
+                symbol_flags,
+                enclosing_declaration,
+                enclosing_declaration_is_synthetic,
+                meaning,
+                symbol_is_remapped,
+            ));
+            return Ok(false);
+        }
+        if let Some(statement_symbols) = self.statement_symbols.as_mut() {
+            if symbol_is_remapped {
+                return Ok(false);
+            }
+            let accessibility = access.is_symbol_accessible(
+                tracker_symbol(symbol),
+                enclosing_declaration
+                    .map(|node| tracker_enclosing_node(node, enclosing_declaration_is_synthetic)),
+                meaning,
+                false,
+            )?;
+            if accessibility.accessibility == EmitSymbolAccessibility::Accessible {
+                if !symbol_flags.intersects(SymbolFlags::PROPERTY) {
+                    statement_symbols.push((symbol, meaning));
+                }
+                if !symbol_flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+                    tracked_symbols.get_or_insert_with(Vec::new).push((
+                        symbol,
+                        enclosing_declaration,
+                        meaning,
+                    ));
+                }
+                return Ok(false);
+            }
+        }
+        if !self.can_track_symbol {
             return Ok(false);
         }
         let Some(inner) = self.inner.as_deref_mut() else {
@@ -80,7 +162,8 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         let introduced_error = inner.track_symbol(
             access,
             tracker_symbol(symbol),
-            enclosing_declaration.map(tracker_node),
+            enclosing_declaration
+                .map(|node| tracker_enclosing_node(node, enclosing_declaration_is_synthetic)),
             meaning,
         )?;
         if introduced_error {
@@ -255,4 +338,22 @@ fn tracker_symbol(symbol: SymbolId) -> EmitTrackerSymbol {
 
 fn tracker_node(node: NodeId) -> EmitTrackerNode {
     EmitTrackerNode(u64::from(node.0))
+}
+
+const SYNTHETIC_SCOPE_BIT: u64 = 1 << 63;
+
+fn tracker_enclosing_node(node: NodeId, synthetic: bool) -> EmitTrackerNode {
+    EmitTrackerNode(u64::from(node.0) | if synthetic { SYNTHETIC_SCOPE_BIT } else { 0 })
+}
+
+/// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
+pub(crate) fn tracker_node_id(node: EmitTrackerNode) -> Option<NodeId> {
+    u32::try_from(node.0 & !SYNTHETIC_SCOPE_BIT)
+        .ok()
+        .map(NodeId)
+}
+
+/// tsrs-native: Rust-structural helper for the h2-7a-m-3 foundation.
+pub(crate) const fn tracker_node_is_synthetic(node: EmitTrackerNode) -> bool {
+    node.0 & SYNTHETIC_SCOPE_BIT != 0
 }

@@ -22,6 +22,14 @@ pub(crate) const DEFAULT_MAXIMUM_TRUNCATION_LENGTH: u32 = 160;
 pub(crate) const NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH: u32 = 1_000_000;
 
 pub(crate) type TrackedSymbol = (SymbolId, Option<NodeId>, EmitSymbolMeaning);
+pub(crate) type RecoveryTrackedSymbol = (
+    SymbolId,
+    tsc_types::SymbolFlags,
+    Option<NodeId>,
+    bool,
+    EmitSymbolMeaning,
+    bool,
+);
 
 /// The explicit emit-channel NodeBuilder state. This is deliberately separate
 /// from `CheckerState::slice_*`, whose fields belong to the display channel.
@@ -30,6 +38,11 @@ pub(crate) type TrackedSymbol = (SymbolId, Option<NodeId>, EmitSymbolMeaning);
 /// `type.id | -1` stack: `None` is the `-1` declaration-serialization marker.
 pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) enclosing_declaration: Option<NodeId>,
+    /// Upstream can replace `enclosingDeclaration` with a synthesized Block
+    /// carrying the temporary parameter/type-parameter locals for a reused
+    /// signature. Rust keeps those locals in context maps, so this bit retains
+    /// the synthesized identity observed by tracker callbacks.
+    pub(crate) enclosing_declaration_is_synthetic: bool,
     pub(crate) enclosing_file: Option<NodeId>,
     pub(crate) flags: EmitNodeBuilderFlags,
     pub(crate) internal_flags: EmitInternalNodeBuilderFlags,
@@ -56,6 +69,10 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) type_parameter_names: Option<HashMap<TypeId, TransformNode>>,
     pub(crate) type_parameter_names_by_text: Option<HashSet<String>>,
     pub(crate) type_parameter_names_by_text_next_name_count: Option<HashMap<String, u32>>,
+    /// Locals installed on upstream's synthesized `pushFakeScope` Block.
+    /// Rust keeps the owning parse declaration separately, so preserve the
+    /// lookup overlay explicitly.
+    pub(crate) synthetic_scope_locals: Option<HashMap<String, SymbolId>>,
     pub(crate) enclosing_symbol_types: HashMap<SymbolId, TypeId>,
     pub(crate) mapper: Option<MapperId>,
     pub(crate) depth: i32,
@@ -67,6 +84,7 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) no_inference_fallback: Option<bool>,
     pub(crate) recovery_boundary_had_error: bool,
     pub(crate) recovery_boundary_depth: u32,
+    pub(crate) recovery_tracked_symbols: Option<Vec<RecoveryTrackedSymbol>>,
 }
 
 /// tsc-port: withContext @6.0.3
@@ -112,6 +130,7 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
             .is_some_and(|node| checker.binder.is_external_or_common_js_module_of_node(node));
     let mut context = NodeBuilderContext {
         enclosing_declaration,
+        enclosing_declaration_is_synthetic: false,
         enclosing_file,
         flags,
         internal_flags: internal_flags.unwrap_or(EmitInternalNodeBuilderFlags::NONE),
@@ -138,6 +157,7 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
         type_parameter_names: None,
         type_parameter_names_by_text: None,
         type_parameter_names_by_text_next_name_count: None,
+        synthetic_scope_locals: None,
         enclosing_symbol_types: HashMap::new(),
         mapper: None,
         depth: 0,
@@ -146,6 +166,7 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
         no_inference_fallback: None,
         recovery_boundary_had_error: false,
         recovery_boundary_depth: 0,
+        recovery_tracked_symbols: None,
     };
 
     let resulting_node = callback(checker, arena, target, &mut context)?;
@@ -157,16 +178,20 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
     if let Some(out) = out {
         *out = context.out;
     }
+    // The probe observes `resultingNode` immediately before upstream filters
+    // an encountered error to `undefined`; keep the decision payload on that
+    // raw value while preserving the filtered resolver return below.
+    let resulting_is_absent = resulting_node.is_absent();
+    let resulting_class = resulting_node.class(arena);
     let produced = (!context.encountered_error).then_some(resulting_node);
     if crate::node_builder::replay_sink::armed() {
         let status = if context.encountered_error {
             "error"
-        } else if produced_is_absent(&produced) {
+        } else if resulting_is_absent {
             "fallback-undefined"
         } else {
             "node"
         };
-        let class = produced_class(arena, &produced);
         let record = crate::node_builder::replay_sink::DecisionEvent::WithContextResult {
             status,
             flags: context.flags.0,
@@ -176,7 +201,7 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
             truncating: context.truncating,
             out_truncated: context.out.truncated,
             encountered_error: context.encountered_error,
-            produced: class,
+            produced: resulting_class,
         };
         crate::node_builder::replay_sink::record(move || record);
     }
@@ -189,20 +214,6 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
 pub(crate) trait ReplayProduced {
     fn is_absent(&self) -> bool;
     fn class(&self, arena: &TransformArena) -> crate::node_builder::replay_sink::ProducedClass;
-}
-
-fn produced_is_absent<T: ReplayProduced>(produced: &Option<T>) -> bool {
-    produced.as_ref().is_none_or(ReplayProduced::is_absent)
-}
-
-fn produced_class<T: ReplayProduced>(
-    arena: &TransformArena,
-    produced: &Option<T>,
-) -> crate::node_builder::replay_sink::ProducedClass {
-    match produced {
-        None => crate::node_builder::replay_sink::ProducedClass::Absent,
-        Some(value) => value.class(arena),
-    }
 }
 
 /// tsrs-native: harness §6.3 produced-class projection.

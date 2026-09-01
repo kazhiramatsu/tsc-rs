@@ -67,30 +67,114 @@ const EXPECTED_EVENT_VOLUMES: &[(&str, u64)] = &[
     ("createLateBoundIndexSignatures", 161),
 ];
 
-// Schema-2 remeasurement of the four packet §7.4 diagnostic edge families.
+// Schema-2 remeasurement of the final nested resolver topology.
 const EXPECTED_NESTED_EDGES: &[(&str, u64)] = &[
     (
+        "resolver.createLateBoundIndexSignatures -> resolver.isEntityNameVisible",
+        2,
+    ),
+    (
+        "resolver.createLateBoundIndexSignatures -> resolver.isSymbolAccessible",
+        2,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.isDeclarationVisible",
+        129,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.isEntityNameVisible",
+        3,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.isOptionalParameter",
+        3,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.isSymbolAccessible",
+        133,
+    ),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration -> resolver.requiresAddingImplicitUndefined",
+        4,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isDeclarationVisible",
+        142,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isDefinitelyReferenceToGlobalSymbolObject",
+        10,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isEntityNameVisible",
+        1,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isExpandoFunctionDeclaration",
+        308,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isOptionalParameter",
+        40,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.isSymbolAccessible",
+        287,
+    ),
+    (
+        "resolver.createTypeOfDeclaration -> resolver.requiresAddingImplicitUndefined",
+        56,
+    ),
+    (
+        "resolver.createTypeOfExpression -> resolver.isOptionalParameter",
+        1,
+    ),
+    (
+        "resolver.createTypeOfExpression -> resolver.isSymbolAccessible",
+        8,
+    ),
+    (
+        "resolver.createTypeOfExpression -> resolver.requiresAddingImplicitUndefined",
+        2,
+    ),
+    (
+        "resolver.getDeclarationStatementsForSourceFile -> resolver.isDeclarationVisible",
+        17,
+    ),
+    (
+        "resolver.getDeclarationStatementsForSourceFile -> resolver.isOptionalParameter",
+        21,
+    ),
+    (
+        "resolver.getDeclarationStatementsForSourceFile -> resolver.isSymbolAccessible",
+        19,
+    ),
+    (
+        "resolver.getDeclarationStatementsForSourceFile -> resolver.requiresAddingImplicitUndefined",
+        43,
+    ),
+    (
         "resolver.isDeclarationVisible -> resolver.isDeclarationVisible",
-        165,
+        193,
     ),
     (
         "resolver.isEntityNameVisible -> resolver.isDeclarationVisible",
-        100,
+        106,
     ),
     (
         "resolver.isSymbolAccessible -> resolver.isDeclarationVisible",
-        405,
+        443,
     ),
     (
         "resolver.requiresAddingImplicitUndefined -> resolver.isOptionalParameter",
-        244,
+        302,
     ),
 ];
 
 const EXPECTED_EXCLUDED_CAUSALITY_COUNTS: &[(&str, u64)] = &[
-    ("root-result", 5),
+    ("root-result", 0),
     ("per-root-paint-set", 0),
-    ("seed-entry", 4),
+    ("seed-entry", 0),
 ];
 
 // Filled from the FINAL artifacts by this P4 harness and frozen here under the
@@ -99,48 +183,48 @@ const EXPECTED_EXCLUDED_CAUSALITY_COUNTS: &[(&str, u64)] = &[
 // zero-declaration-symbol, shadow-string divergences.
 const EXPECTED_MEMBER_COUNTS: &[(&str, [u64; 6])] = &[
     ("resolver.collectLinkedAliases", [12, 0, 0, 0, 0, 0]),
+    (
+        "resolver.createLateBoundIndexSignatures",
+        [161, 0, 0, 0, 0, 0],
+    ),
+    ("resolver.createLiteralConstValue", [8, 0, 0, 0, 0, 0]),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration",
+        [151, 0, 0, 0, 0, 0],
+    ),
+    ("resolver.createTypeOfDeclaration", [313, 0, 7, 0, 0, 0]),
+    ("resolver.createTypeOfExpression", [4, 0, 0, 0, 0, 0]),
+    (
+        "resolver.getDeclarationStatementsForSourceFile",
+        [3, 0, 0, 0, 0, 0],
+    ),
     ("resolver.getEnumMemberValue", [3, 0, 0, 0, 0, 0]),
     (
         "resolver.getPropertiesOfContainerFunction",
         [5, 0, 0, 0, 0, 0],
     ),
-    ("resolver.isDeclarationVisible", [1_366, 0, 0, 0, 0, 0]),
+    ("resolver.isDeclarationVisible", [1_135, 0, 0, 0, 0, 0]),
     (
         "resolver.isDefinitelyReferenceToGlobalSymbolObject",
-        [10, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0],
     ),
-    ("resolver.isEntityNameVisible", [195, 0, 0, 0, 0, 0]),
+    ("resolver.isEntityNameVisible", [209, 0, 0, 0, 0, 0]),
     (
         "resolver.isExpandoFunctionDeclaration",
-        [456, 0, 0, 0, 0, 0],
+        [156, 0, 0, 0, 0, 0],
     ),
-    ("resolver.isImplementationOfOverload", [192, 0, 0, 0, 0, 0]),
+    ("resolver.isImplementationOfOverload", [202, 0, 0, 0, 0, 0]),
     (
         "resolver.isImportRequiredByAugmentation",
-        [15, 0, 0, 0, 0, 0],
+        [19, 0, 0, 0, 0, 0],
     ),
     ("resolver.isLateBound", [4, 0, 0, 0, 0, 0]),
-    ("resolver.isLiteralConstDeclaration", [612, 0, 0, 0, 0, 0]),
-    ("resolver.isOptionalParameter", [100, 0, 0, 0, 0, 0]),
-    ("resolver.isSymbolAccessible", [295, 0, 112, 0, 0, 0]),
+    ("resolver.isLiteralConstDeclaration", [644, 0, 0, 0, 0, 0]),
+    ("resolver.isOptionalParameter", [56, 0, 0, 0, 0, 0]),
+    ("resolver.isSymbolAccessible", [0, 0, 0, 0, 0, 0]),
     (
         "resolver.requiresAddingImplicitUndefined",
-        [47, 0, 86, 0, 0, 0],
-    ),
-    ("resolver.createTypeOfDeclaration", [0, 0, 0, 0, 0, 0]),
-    (
-        "resolver.createReturnTypeOfSignatureDeclaration",
-        [0, 0, 0, 0, 0, 0],
-    ),
-    ("resolver.createTypeOfExpression", [0, 0, 0, 0, 0, 0]),
-    ("resolver.createLiteralConstValue", [0, 0, 0, 0, 0, 0]),
-    (
-        "resolver.getDeclarationStatementsForSourceFile",
-        [0, 0, 0, 0, 0, 0],
-    ),
-    (
-        "resolver.createLateBoundIndexSignatures",
-        [0, 0, 0, 0, 0, 0],
+        [57, 0, 0, 0, 0, 0],
     ),
 ];
 
@@ -248,23 +332,6 @@ fn declaration_resolver_replay_decision_equal() {
     );
     assert_eq!(first, second, "fresh-session replay passes diverged");
 
-    eprintln!("P4_MEMBER_COUNTS={}", first["member_counts"]);
-    eprintln!(
-        "P4_NESTED_TOPOLOGY_DIVERGENCES={}",
-        first["nested_topology_divergences"]
-    );
-    eprintln!("HREFINE_EXCLUDED_CAUSALITY={}", first["excluded_causality"]);
-    eprintln!(
-        "P5_GATING_SAMPLE={}",
-        serde_json::to_string(
-            &first["gating_mismatches"]
-                .as_array()
-                .map(|rows| rows.iter().take(6).cloned().collect::<Vec<_>>())
-                .unwrap_or_default()
-        )
-        .unwrap_or_default()
-    );
-    eprintln!("P5_NESTED_EDGES={}", first["traced_nested_edges"]);
     assert_eq!(first["cases"], json!(120));
     assert_eq!(first["seed_checks"], json!(412));
     assert_eq!(
@@ -274,62 +341,6 @@ fn declaration_resolver_replay_decision_equal() {
     let gating = first["gating_mismatches"]
         .as_array()
         .expect("gating mismatch array");
-    if !gating.is_empty() {
-        let mut summary = BTreeMap::<&str, u64>::new();
-        let mut by_member = BTreeMap::<String, [u64; 2]>::new();
-        let mut sample_by_member = BTreeMap::<String, &str>::new();
-        let mut affected_cases = BTreeSet::new();
-        for mismatch in gating {
-            let mismatch = mismatch.as_str().expect("gating mismatch is a string");
-            if let Some(case_id) = mismatch.split_whitespace().next() {
-                affected_cases.insert(case_id);
-            }
-            let class = if mismatch.contains("visibility seed differs") {
-                "seed"
-            } else if mismatch.contains("paint set differs") {
-                "paint"
-            } else if mismatch.contains("result differs") {
-                "result"
-            } else if mismatch.contains("symbol input differs") {
-                "symbol-input"
-            } else {
-                "resolution-or-shape"
-            };
-            *summary.entry(class).or_default() += 1;
-            if matches!(class, "result" | "paint") {
-                let member = mismatch
-                    .split_once(": ")
-                    .map(|(prefix, _)| prefix)
-                    .and_then(|prefix| prefix.split_whitespace().next_back())
-                    .expect("root mismatch carries a member");
-                by_member.entry(member.to_owned()).or_default()[usize::from(class == "paint")] += 1;
-                sample_by_member
-                    .entry(member.to_owned())
-                    .or_insert(mismatch);
-            }
-        }
-        eprintln!("P4_GATING_SUMMARY={summary:?}");
-        eprintln!("P4_GATING_BY_MEMBER={by_member:?}");
-        eprintln!("P4_GATING_SAMPLES={sample_by_member:?}");
-        eprintln!("P4_AFFECTED_CASES={}", affected_cases.len());
-        eprintln!(
-            "P4_OTHER_GATING={}",
-            Value::Array(
-                gating
-                    .iter()
-                    .filter(|mismatch| {
-                        let mismatch = mismatch.as_str().expect("gating mismatch is a string");
-                        !mismatch.contains("visibility seed differs")
-                            && !mismatch.contains("paint set differs")
-                            && !mismatch.contains("result differs")
-                            && !mismatch.contains("symbol input differs")
-                    })
-                    .take(20)
-                    .cloned()
-                    .collect()
-            )
-        );
-    }
     assert_member_counts(&first["member_counts"]);
     assert_excluded_causality(&first["excluded_causality"]);
     assert!(

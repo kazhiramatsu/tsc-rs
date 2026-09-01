@@ -24,13 +24,13 @@ use crate::state::{CheckerState, IndexInfo, SignatureId};
 use super::type_nodes::{
     add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
     create_node_array, create_token, factory_error, range_synthesized_node_to_parse,
-    set_no_ascii_escaping, set_single_line, type_parameter_name, BuildResult,
+    set_no_ascii_escaping, set_single_line, BuildResult,
 };
 use super::{
     can_possibly_expand_type, restore_flags, save_restore_flags,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration_seam,
     syntactic_serialize_name_of_parameter_seam, syntactic_try_reuse_existing_type_node,
-    type_to_type_node_helper, NodeBuilderContext, TrackedSymbol,
+    type_parameter_to_name, type_to_type_node_helper, NodeBuilderContext, TrackedSymbol,
 };
 
 const WRITE_TYPE_ARGUMENTS_OF_SIGNATURE: u32 = 32;
@@ -381,6 +381,38 @@ pub(crate) fn signature_to_signature_declaration_helper(
         Some(&signature.parameters),
         signature.mapper,
     );
+    prime_type_parameter_names_for_scope(
+        checker,
+        arena,
+        target,
+        context,
+        signature.type_parameters.as_deref().unwrap_or_default(),
+    )?;
+    if context.enclosing_declaration_is_synthetic {
+        let locals = context
+            .synthetic_scope_locals
+            .get_or_insert_with(HashMap::new);
+        for (index, &parameter) in expanded_parameters.iter().enumerate() {
+            let original = signature.parameters.get(index).copied();
+            if original.is_some_and(|original| original != parameter) {
+                locals.insert(
+                    checker.binder.symbol(parameter).escaped_name.clone(),
+                    checker.unknown_symbol,
+                );
+                if let Some(original) = original {
+                    locals.insert(
+                        checker.binder.symbol(original).escaped_name.clone(),
+                        checker.unknown_symbol,
+                    );
+                }
+            } else {
+                locals.insert(
+                    checker.binder.symbol(parameter).escaped_name.clone(),
+                    parameter,
+                );
+            }
+        }
+    }
     let result = (|| -> BuildResult<TransformNode> {
         add_approximate_length(context, 3);
 
@@ -916,6 +948,7 @@ impl RecoveryBoundary {
 
 pub(crate) struct ScopeRestore {
     enclosing_declaration: Option<NodeId>,
+    enclosing_declaration_is_synthetic: bool,
     mapper: Option<MapperId>,
     must_create_type_parameter_symbol_list: bool,
     type_parameter_symbol_list: Option<HashSet<SymbolId>>,
@@ -923,6 +956,7 @@ pub(crate) struct ScopeRestore {
     type_parameter_names: Option<HashMap<TypeId, TransformNode>>,
     type_parameter_names_by_text: Option<HashSet<String>>,
     type_parameter_names_by_text_next_name_count: Option<HashMap<String, u32>>,
+    synthetic_scope_locals: Option<HashMap<String, SymbolId>>,
 }
 
 /// tsc-port: enterNewScope @6.0.3
@@ -930,7 +964,7 @@ pub(crate) struct ScopeRestore {
 /// tsc-span: _tsc.js:52692-52801
 pub(crate) fn enter_new_scope(
     context: &mut NodeBuilderContext<'_>,
-    _declaration: Option<NodeId>,
+    declaration: Option<NodeId>,
     expanded_parameters: Option<&[SymbolId]>,
     type_parameters: Option<&[TypeId]>,
     original_parameters: Option<&[SymbolId]>,
@@ -938,21 +972,32 @@ pub(crate) fn enter_new_scope(
 ) -> ScopeRestore {
     let restore = ScopeRestore {
         enclosing_declaration: context.enclosing_declaration,
+        enclosing_declaration_is_synthetic: context.enclosing_declaration_is_synthetic,
         mapper: context.mapper,
         must_create_type_parameter_symbol_list: context.must_create_type_parameter_symbol_list,
-        type_parameter_symbol_list: context.type_parameter_symbol_list.take(),
+        type_parameter_symbol_list: context.type_parameter_symbol_list.clone(),
         must_create_type_parameters_names_lookups: context
             .must_create_type_parameters_names_lookups,
-        type_parameter_names: context.type_parameter_names.take(),
-        type_parameter_names_by_text: context.type_parameter_names_by_text.take(),
+        type_parameter_names: context.type_parameter_names.clone(),
+        type_parameter_names_by_text: context.type_parameter_names_by_text.clone(),
         type_parameter_names_by_text_next_name_count: context
             .type_parameter_names_by_text_next_name_count
-            .take(),
+            .clone(),
+        synthetic_scope_locals: context.synthetic_scope_locals.clone(),
     };
     context.must_create_type_parameter_symbol_list = true;
     context.must_create_type_parameters_names_lookups = true;
     if let Some(mapper) = mapper {
         context.mapper = Some(mapper);
+    }
+
+    // pushFakeScope creates a synthesized Block when a signature contributes
+    // parameter locals, or when generated names require temporary type-
+    // parameter locals. The immutable Rust binder represents the locals in
+    // the maps below; retain the Block's observable identity separately.
+    let creates_fake_scope = expanded_parameters.is_some_and(|parameters| !parameters.is_empty());
+    if context.enclosing_declaration.is_some() && declaration.is_some() && creates_fake_scope {
+        context.enclosing_declaration_is_synthetic = true;
     }
 
     if let (Some(expanded), Some(original)) = (expanded_parameters, original_parameters) {
@@ -983,8 +1028,44 @@ pub(crate) fn enter_new_scope(
 }
 
 /// tsrs-native: scope-exit completion (upstream onExitNewScope closure).
+/// Complete `enterNewScope`'s eager type-parameter naming. Upstream names
+/// each scoped parameter while installing the fake-scope locals, which also
+/// primes `typeParameterNames` before the declaration body is visited.
+pub(crate) fn prime_type_parameter_names_for_scope(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    context: &mut NodeBuilderContext<'_>,
+    type_parameters: &[TypeId],
+) -> BuildResult<()> {
+    if !context
+        .flags
+        .contains(EmitNodeBuilderFlags::GENERATE_NAMES_FOR_SHADOWED_TYPE_PARAMS)
+        || context.enclosing_declaration.is_none()
+        || type_parameters.is_empty()
+    {
+        return Ok(());
+    }
+    for &type_parameter in type_parameters {
+        let name = type_parameter_to_name(checker, arena, target, type_parameter, context)?;
+        if let (Some(symbol), NodeData::Identifier(data)) = (
+            checker.tables.type_of(type_parameter).symbol,
+            &arena.node(name).map_err(factory_error)?.data,
+        ) {
+            context
+                .synthetic_scope_locals
+                .get_or_insert_with(HashMap::new)
+                .insert(data.escaped_text.clone(), symbol);
+        }
+    }
+    context.enclosing_declaration_is_synthetic = true;
+    Ok(())
+}
+
+/// tsrs-native: scope-exit completion (upstream onExitNewScope closure).
 pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: ScopeRestore) {
     context.enclosing_declaration = restore.enclosing_declaration;
+    context.enclosing_declaration_is_synthetic = restore.enclosing_declaration_is_synthetic;
     context.mapper = restore.mapper;
     context.must_create_type_parameter_symbol_list = restore.must_create_type_parameter_symbol_list;
     context.type_parameter_symbol_list = restore.type_parameter_symbol_list;
@@ -994,6 +1075,7 @@ pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: Scop
     context.type_parameter_names_by_text = restore.type_parameter_names_by_text;
     context.type_parameter_names_by_text_next_name_count =
         restore.type_parameter_names_by_text_next_name_count;
+    context.synthetic_scope_locals = restore.synthetic_scope_locals;
 }
 
 /// tsc-port: enterNewScope.bindPattern @6.0.3
@@ -1103,7 +1185,7 @@ pub(super) fn type_parameter_to_declaration_with_constraint(
     context.flags.0 &= !512;
     let modifiers =
         create_modifiers_from_flags(arena, target, checker.get_type_parameter_modifiers(r#type))?;
-    let name = type_parameter_name(checker, arena, target, r#type, context)?;
+    let name = type_parameter_to_name(checker, arena, target, r#type, context)?;
     let default_node = (|| {
         let default = checker
             .get_default_from_type_parameter(r#type)
@@ -1519,15 +1601,42 @@ pub(super) fn track_computed_name(
         return Ok(());
     }
     let first_identifier = checker.first_identifier(access_expression);
-    let symbol = checker
-        .get_resolved_symbol(first_identifier)
-        .map_err(|abort| checker_abort_error(checker, context, abort))?;
-    if let Some(symbol) = symbol {
-        context.tracked_symbols.get_or_insert_with(Vec::new).push((
-            symbol,
+    let text = checker
+        .identifier_text_of(first_identifier)
+        .unwrap_or_default()
+        .to_owned();
+    let resolve_flags = SymbolFlags::VALUE | SymbolFlags::EXPORT_VALUE;
+    let mut symbol = checker
+        .resolve_name(
             context.enclosing_declaration,
-            EmitSymbolMeaning::VALUE_EXPORT_VALUE,
-        ));
+            &text,
+            resolve_flags,
+            None,
+            true,
+            false,
+        )
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    if symbol.is_none() {
+        symbol = checker
+            .resolve_name(
+                Some(first_identifier),
+                &text,
+                resolve_flags,
+                None,
+                true,
+                false,
+            )
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    }
+    if let Some(symbol) = symbol {
+        super::chains::track_symbol_in_context(
+            checker,
+            None,
+            None,
+            context,
+            symbol,
+            EmitSymbolMeaning(SymbolFlags::VALUE.bits() as u32),
+        )?;
     }
     Ok(())
 }
@@ -1905,10 +2014,16 @@ mod tests {
                     Some(HashMap::from([("T".to_owned(), 2)]));
                 let restore = enter_new_scope(context, None, None, None, None, Some(MapperId(8)));
                 assert_eq!(context.mapper, Some(MapperId(8)));
+                // Copy-on-write (:52692+): entering a scope arms the
+                // mustCreate flags but leaves the tables live; the next
+                // write under an armed flag clones.
                 assert!(context.must_create_type_parameter_symbol_list);
-                assert!(context.type_parameter_symbol_list.is_none());
+                assert_eq!(
+                    context.type_parameter_symbol_list.as_ref(),
+                    Some(&HashSet::from([SymbolId(11)]))
+                );
                 assert!(context.must_create_type_parameters_names_lookups);
-                assert!(context.type_parameter_names.is_none());
+                assert!(context.type_parameter_names.is_some());
                 exit_new_scope(context, restore);
                 assert_eq!(context.mapper, Some(MapperId(7)));
                 assert!(!context.must_create_type_parameter_symbol_list);

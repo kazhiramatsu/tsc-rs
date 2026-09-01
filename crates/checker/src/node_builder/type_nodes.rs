@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
-    CommentRange, EmitFlags, EmitResolverError, EmitResolverMethod, EmitResolverNode,
-    EmitSymbolAccessibility, EmitSymbolMeaning, SourceFileId, SourceRange, SyntheticComment,
-    SyntheticCommentKind, TransformArena, TransformError, TransformFlags, TransformNode,
-    TransformSourceId,
+    CommentRange, EmitFlags, EmitNodeBuilderFlags, EmitResolverError, EmitResolverMethod,
+    EmitResolverNode, EmitSymbolAccessibility, EmitSymbolMeaning, SourceFileId, SourceRange,
+    SyntheticComment, SyntheticCommentKind, TransformArena, TransformError, TransformFlags,
+    TransformNode, TransformSourceId,
 };
 use tsc_syntax::nodes::{
     ArrayTypeData, BigIntLiteralData, ConditionalTypeData, IdentifierData, IndexedAccessTypeData,
@@ -18,8 +18,8 @@ use tsc_syntax::nodes::{
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckFlags, ElementFlags, IntersectionFlags, LiteralValue, ObjectFlags, SignatureFlags,
-    SymbolFlags, TypeData, TypeFlags, TypeId,
+    CheckFlags, ElementFlags, IntersectionFlags, LiteralValue, ModifierFlags, ObjectFlags,
+    SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
 };
 
 use crate::annotate::is_reserved_member_name;
@@ -27,13 +27,14 @@ use crate::links::LinkSlot;
 use crate::state::{CheckAbort, CheckerState, ResolvedMembers};
 
 use super::signatures::{
-    index_info_to_index_signature_declaration_helper, signature_to_signature_declaration_helper,
-    type_parameter_to_declaration_with_constraint, SignatureDeclarationOptions,
+    index_info_to_index_signature_declaration_helper, prime_type_parameter_names_for_scope,
+    signature_to_signature_declaration_helper, type_parameter_to_declaration_with_constraint,
+    SignatureDeclarationOptions,
 };
 use super::{
     chains_get_property_name_node_for_symbol, chains_symbol_to_entity_name_node,
     chains_symbol_to_type_node, check_truncation_length, restore_flags, save_restore_flags,
-    should_expand_type, NodeBuilderContext,
+    should_expand_type, symbol_to_node, type_parameter_to_name, with_context, NodeBuilderContext,
 };
 
 const METHOD: EmitResolverMethod = EmitResolverMethod::CreateTypeOfDeclaration;
@@ -54,6 +55,7 @@ const WRITE_CLASS_EXPRESSION_AS_TYPE_LITERAL: u32 = 2_048;
 const USE_TYPE_OF_FUNCTION: u32 = 4_096;
 const NO_TYPE_REDUCTION: u32 = 536_870_912;
 const USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE: u32 = 268_435_456;
+const IGNORE_ERRORS: EmitNodeBuilderFlags = EmitNodeBuilderFlags(70_221_824);
 
 pub(super) type BuildResult<T> = Result<T, EmitResolverError>;
 
@@ -362,35 +364,185 @@ fn create_union_or_intersection_node(
 
 fn is_value_symbol_accessible(
     checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
     symbol: SymbolId,
-    context: &NodeBuilderContext<'_>,
-) -> Result<bool, CheckAbort> {
-    let Some(enclosing) = context.enclosing_declaration else {
-        return Ok(true);
-    };
-    Ok(checker
-        .emit_is_symbol_accessible(
-            symbol,
-            enclosing,
-            EmitSymbolMeaning::VALUE_EXPORT_VALUE,
-            false,
-        )?
-        .accessibility
-        == EmitSymbolAccessibility::Accessible)
+    context: &mut NodeBuilderContext<'_>,
+) -> BuildResult<bool> {
+    is_symbol_accessible_with_error_names(
+        checker,
+        arena,
+        target,
+        symbol,
+        // checker.ts:isValueSymbolAccessible uses the plain Value face.  The
+        // wider Value|ExportValue mask is for name resolution, not this
+        // accessibility decision (and is observable by the replay tracker).
+        EmitSymbolMeaning(SymbolFlags::VALUE.bits() as u32),
+        context,
+    )
 }
 
 fn is_type_symbol_accessible(
     checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
     symbol: SymbolId,
-    context: &NodeBuilderContext<'_>,
-) -> Result<bool, CheckAbort> {
+    context: &mut NodeBuilderContext<'_>,
+) -> BuildResult<bool> {
+    is_symbol_accessible_with_error_names(
+        checker,
+        arena,
+        target,
+        symbol,
+        EmitSymbolMeaning::TYPE,
+        context,
+    )
+}
+
+fn is_symbol_accessible_with_error_names(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    symbol: SymbolId,
+    meaning: EmitSymbolMeaning,
+    context: &mut NodeBuilderContext<'_>,
+) -> BuildResult<bool> {
     let Some(enclosing) = context.enclosing_declaration else {
         return Ok(true);
     };
-    Ok(checker
-        .emit_is_symbol_accessible(symbol, enclosing, EmitSymbolMeaning::TYPE, false)?
-        .accessibility
-        == EmitSymbolAccessibility::Accessible)
+    let symbol_flags = checker.symbol_flags(symbol);
+    if context.enclosing_declaration_is_synthetic
+        && context.tracker.is_statement_tracking()
+        && symbol_flags.intersects(SymbolFlags::ASSIGNMENT)
+        && symbol_flags.intersects(SymbolFlags::FUNCTION)
+        && super::is_statement_symbol_remapped(checker, context, symbol)
+    {
+        return Ok(true);
+    }
+    let result = checker
+        .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    restore_direct_symbol_visibility(checker, symbol, enclosing, meaning, context)?;
+    let nested_enclosing = (!context.enclosing_declaration_is_synthetic).then_some(enclosing);
+    if result.error_symbol_name.is_some() {
+        with_context(
+            checker,
+            arena,
+            target,
+            nested_enclosing,
+            Some(IGNORE_ERRORS),
+            None,
+            None,
+            None,
+            None,
+            |checker, arena, target, nested| {
+                symbol_to_node(checker, arena, target, nested, symbol, meaning)
+            },
+            None,
+        )?;
+    }
+    if let Some(error_module_name) = result.error_module_name.as_deref() {
+        let mut module_symbol = None;
+        let mut parent = checker.binder.symbol(symbol).parent;
+        while let Some(candidate) = parent {
+            if checker.symbol_display_name(candidate) == error_module_name {
+                module_symbol = Some(candidate);
+                break;
+            }
+            parent = checker.binder.symbol(candidate).parent;
+        }
+        if module_symbol.is_none() {
+            for declaration in checker.binder.symbol(symbol).declarations.clone() {
+                if let Some(candidate) = checker
+                    .get_external_module_container(declaration)
+                    .map_err(|abort| checker_abort_error(checker, context, abort))?
+                {
+                    if checker.symbol_display_name(candidate) == error_module_name {
+                        module_symbol = Some(candidate);
+                        break;
+                    }
+                }
+            }
+        }
+        if let Some(module_symbol) = module_symbol {
+            let module_meaning = if result.accessibility == EmitSymbolAccessibility::NotAccessible {
+                EmitSymbolMeaning::NAMESPACE
+            } else {
+                EmitSymbolMeaning(0)
+            };
+            // isAnySymbolAccessible's qualified-chain diagnostic renders its
+            // module with the enclosing declaration, but the CannotBeNamed
+            // arm calls `symbolToString(symbolExternalModule)` without one.
+            // That distinction selects a full source-file name rather than a
+            // relative module specifier in the latter case.
+            let module_enclosing = if result.accessibility == EmitSymbolAccessibility::NotAccessible
+            {
+                nested_enclosing
+            } else {
+                None
+            };
+            with_context(
+                checker,
+                arena,
+                target,
+                module_enclosing,
+                Some(IGNORE_ERRORS),
+                None,
+                None,
+                None,
+                None,
+                |checker, arena, target, nested| {
+                    symbol_to_node(
+                        checker,
+                        arena,
+                        target,
+                        nested,
+                        module_symbol,
+                        module_meaning,
+                    )
+                },
+                None,
+            )?;
+        }
+    }
+    Ok(result.accessibility == EmitSymbolAccessibility::Accessible)
+}
+
+/// `getAccessibleSymbolChain` returns the symbol itself when its written name
+/// resolves directly at the enclosing declaration. The declaration-emitter
+/// slice can conservatively return an enclosing module chain instead; retain
+/// the upstream `hasVisibleDeclarations(chain[0])` visibility side effect for
+/// the direct-name case used by NodeBuilder.
+pub(super) fn restore_direct_symbol_visibility(
+    checker: &mut CheckerState<'_>,
+    symbol: SymbolId,
+    enclosing: NodeId,
+    meaning: EmitSymbolMeaning,
+    context: &NodeBuilderContext<'_>,
+) -> BuildResult<()> {
+    // A fake signature scope is not an upstream declaration node. Names
+    // resolved in that synthetic scope are already accepted by the tracker;
+    // walking their real declarations here would spuriously paint enclosing
+    // parameters/functions visible (notably anonymous class `__class`).
+    if context.enclosing_declaration_is_synthetic {
+        return Ok(());
+    }
+    let name = checker.binder.symbol(symbol).escaped_name.clone();
+    let meaning_flags = SymbolFlags::from_bits(meaning.0 as i32);
+    let resolved = checker
+        .resolve_name(Some(enclosing), &name, meaning_flags, None, false, false)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    let Some(resolved) = resolved else {
+        return Ok(());
+    };
+    let resolved = checker.get_export_symbol_of_value_symbol_if_exported(resolved);
+    if checker.get_merged_symbol(resolved) != checker.get_merged_symbol(symbol) {
+        return Ok(());
+    }
+    let _ = checker
+        .has_visible_declarations_with_aliases(symbol, false)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    Ok(())
 }
 
 /// tsc-port: typeToTypeNodeHelper @6.0.3
@@ -453,8 +605,8 @@ fn type_to_type_node_worker(
             .get_reduced_type(r#type)
             .map_err(|abort| checker_abort_error(checker, context, abort))?;
     }
-    let ty = checker.tables.type_of(r#type).clone();
-    let flags = ty.flags;
+    let mut ty = checker.tables.type_of(r#type).clone();
+    let mut flags = ty.flags;
 
     if flags.intersects(TypeFlags::ANY) {
         if let Some(alias) = ty.alias_symbol {
@@ -688,8 +840,7 @@ fn type_to_type_node_worker(
     if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
         let symbol = ty.symbol.expect("unique symbol type carries a symbol");
         if !has_flag(context, ALLOW_UNIQUE_ES_SYMBOL_TYPE) {
-            let accessible = is_value_symbol_accessible(checker, symbol, context)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            let accessible = is_value_symbol_accessible(checker, arena, target, symbol, context)?;
             if accessible {
                 add_approximate_length(context, 6);
                 return chains_symbol_to_type_node(
@@ -698,7 +849,7 @@ fn type_to_type_node_worker(
                     target,
                     context,
                     symbol,
-                    EmitSymbolMeaning::VALUE_EXPORT_VALUE,
+                    EmitSymbolMeaning(SymbolFlags::VALUE.bits() as u32),
                     None,
                 )
                 .map(Some);
@@ -760,8 +911,7 @@ fn type_to_type_node_worker(
     if !in_type_alias {
         if let Some(alias) = ty.alias_symbol {
             let accessible = has_flag(context, USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE)
-                || is_type_symbol_accessible(checker, alias, context)
-                    .map_err(|abort| checker_abort_error(checker, context, abort))?;
+                || is_type_symbol_accessible(checker, arena, target, alias, context)?;
             if accessible {
                 if !should_expand_type(checker, r#type, context, true) {
                     let arguments = match ty.alias_type_arguments.as_deref() {
@@ -887,7 +1037,7 @@ fn type_to_type_node_worker(
             .contains(tsc_emitter::EmitNodeBuilderFlags::GENERATE_NAMES_FOR_SHADOWED_TYPE_PARAMS)
             && flags.intersects(TypeFlags::TYPE_PARAMETER)
         {
-            let name = type_parameter_name(checker, arena, target, r#type, context)?;
+            let name = type_parameter_to_name(checker, arena, target, r#type, context)?;
             let text = identifier_text(arena, name).unwrap_or("?");
             add_approximate_length(context, js_len(text));
             return create_type_reference_node(arena, target, name, None).map(Some);
@@ -929,24 +1079,30 @@ fn type_to_type_node_worker(
         return create_named_type_reference(arena, target, &name, None).map(Some);
     }
 
-    let list_type = if flags.intersects(TypeFlags::UNION) {
-        match &ty.data {
+    // Upstream replaces `type` with a union's denormalized origin before
+    // dispatching the remaining worker arms (:51542-51545). Origins are not
+    // necessarily unions: `keyof O` can retain an Index origin, which must
+    // continue into the Index arm below rather than fall through as unknown.
+    if flags.intersects(TypeFlags::UNION) {
+        let origin = match &ty.data {
             TypeData::Union {
                 origin: Some(origin),
                 ..
-            } => checker.tables.type_of(*origin).clone(),
-            _ => ty.clone(),
+            } => Some(*origin),
+            _ => None,
+        };
+        if let Some(origin) = origin {
+            r#type = origin;
+            ty = checker.tables.type_of(origin).clone();
+            flags = ty.flags;
         }
-    } else {
-        ty.clone()
-    };
-    let list_flags = list_type.flags;
-    if list_flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
-        let mut types = match list_type.data {
+    }
+    if flags.intersects(TypeFlags::UNION_OR_INTERSECTION) {
+        let mut types = match ty.data {
             TypeData::Union { types, .. } | TypeData::Intersection { types } => types.to_vec(),
             _ => unreachable!("union/intersection flags imply list payload"),
         };
-        if list_flags.intersects(TypeFlags::UNION) {
+        if flags.intersects(TypeFlags::UNION) {
             types = format_union_types(checker, &types, expanding_enum)
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
         }
@@ -959,7 +1115,7 @@ fn type_to_type_node_worker(
                 arena,
                 target,
                 type_nodes,
-                list_flags.intersects(TypeFlags::UNION),
+                flags.intersects(TypeFlags::UNION),
             )
             .map(Some);
         }
@@ -1163,69 +1319,6 @@ fn identifier_text(arena: &TransformArena, node: TransformNode) -> Option<&str> 
     Some(&data.text)
 }
 
-pub(super) fn type_parameter_name(
-    checker: &CheckerState<'_>,
-    arena: &mut TransformArena,
-    target: TransformSourceId,
-    r#type: TypeId,
-    context: &mut NodeBuilderContext<'_>,
-) -> BuildResult<TransformNode> {
-    if has_flag(context, 4) {
-        if let Some(name) = context
-            .type_parameter_names
-            .as_ref()
-            .and_then(|names| names.get(&r#type))
-            .copied()
-        {
-            return Ok(name);
-        }
-    }
-    let raw_name = checker
-        .tables
-        .type_of(r#type)
-        .symbol
-        .map(|symbol| checker.symbol_display_name(symbol))
-        .unwrap_or_else(|| "T".to_owned());
-    let name = if has_flag(context, 4) {
-        let mut suffix = context
-            .type_parameter_names_by_text_next_name_count
-            .as_ref()
-            .and_then(|counts| counts.get(&raw_name))
-            .copied()
-            .unwrap_or(0);
-        let mut candidate = raw_name.clone();
-        while context
-            .type_parameter_names_by_text
-            .as_ref()
-            .is_some_and(|names| names.contains(&candidate))
-        {
-            suffix += 1;
-            candidate = format!("{raw_name}_{suffix}");
-        }
-        context.must_create_type_parameters_names_lookups = false;
-        context
-            .type_parameter_names_by_text_next_name_count
-            .get_or_insert_with(HashMap::new)
-            .insert(raw_name.clone(), suffix);
-        context
-            .type_parameter_names_by_text
-            .get_or_insert_with(Default::default)
-            .insert(candidate.clone());
-        candidate
-    } else {
-        raw_name
-    };
-    let identifier = create_identifier(arena, target, &name)?;
-    let identifier = set_no_ascii_escaping(arena, identifier);
-    if has_flag(context, 4) {
-        context
-            .type_parameter_names
-            .get_or_insert_with(HashMap::new)
-            .insert(r#type, identifier);
-    }
-    Ok(identifier)
-}
-
 fn create_synthetic_type_parameter(checker: &mut CheckerState<'_>, name: &str) -> TypeId {
     let symbol = checker
         .binder
@@ -1293,7 +1386,7 @@ fn conditional_type_to_type_node(
             .intersects(TypeFlags::TYPE_PARAMETER)
     {
         let new_parameter = create_synthetic_type_parameter(checker, "T");
-        let name = type_parameter_name(checker, arena, target, new_parameter, context)?;
+        let name = type_parameter_to_name(checker, arena, target, new_parameter, context)?;
         let name = identifier_text(arena, name).unwrap_or("T").to_owned();
         let new_variable = create_named_type_reference(arena, target, &name, None)?;
         add_approximate_length(context, 37);
@@ -1569,7 +1662,7 @@ fn create_mapped_type_node_from_type(
         if homomorphic_wrapper && generate_names {
             let parameter_for_modifiers = create_synthetic_type_parameter(checker, "T");
             let name =
-                type_parameter_name(checker, arena, target, parameter_for_modifiers, context)?;
+                type_parameter_to_name(checker, arena, target, parameter_for_modifiers, context)?;
             let name = identifier_text(arena, name).unwrap_or("T").to_owned();
             generated_name = Some(name.clone());
             let mapped = checker.mapped_type_data(r#type);
@@ -1614,7 +1707,8 @@ fn create_mapped_type_node_from_type(
         )?)
     } else if needs_modifier_preserving_wrapper {
         let parameter_for_modifiers = create_synthetic_type_parameter(checker, "T");
-        let name = type_parameter_name(checker, arena, target, parameter_for_modifiers, context)?;
+        let name =
+            type_parameter_to_name(checker, arena, target, parameter_for_modifiers, context)?;
         let name = identifier_text(arena, name).unwrap_or("T").to_owned();
         generated_name = Some(name.clone());
         Some(create_named_type_reference(arena, target, &name, None)?)
@@ -1645,6 +1739,7 @@ fn create_mapped_type_node_from_type(
         None,
         None,
     );
+    prime_type_parameter_names_for_scope(checker, arena, target, context, &[scope_parameter])?;
     let scoped_nodes = (|| -> BuildResult<_> {
         let name_type = if declaration_data.name_type.is_some() {
             match checker
@@ -1835,7 +1930,11 @@ fn create_anonymous_type_node(
         let symbol_meaning = if is_class_instance {
             EmitSymbolMeaning::TYPE
         } else {
-            EmitSymbolMeaning::VALUE_EXPORT_VALUE
+            // createAnonymousTypeNode passes `SymbolFlags.Value` for the
+            // anonymous/static face.  `ExportValue` is deliberately not part
+            // of this meaning: symbolToTypeNode's tracker observes the exact
+            // mask, and the typeof/anonymous-class path depends on that face.
+            EmitSymbolMeaning(SymbolFlags::VALUE.bits() as u32)
         };
         if value_declaration.is_some_and(|declaration| checker.is_js_constructor(declaration)) {
             return chains_symbol_to_type_node(
@@ -1849,8 +1948,7 @@ fn create_anonymous_type_node(
             );
         }
         let should_write_function =
-            should_write_type_of_function_symbol(checker, r#type, symbol, context)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            should_write_type_of_function_symbol(checker, arena, target, r#type, symbol, context)?;
         let has_base_type_variable = if symbol_flags.intersects(SymbolFlags::CLASS) {
             let class_type = checker
                 .get_declared_type_of_class_or_interface(symbol)
@@ -1885,16 +1983,14 @@ fn create_anonymous_type_node(
                 if checker.kind_of(declaration) != SyntaxKind::ClassDeclaration {
                     true
                 } else {
-                    checker
-                        .emit_is_symbol_accessible(
-                            symbol,
-                            context.enclosing_declaration.unwrap_or(declaration),
-                            symbol_meaning,
-                            false,
-                        )
-                        .map_err(|abort| checker_abort_error(checker, context, abort))?
-                        .accessibility
-                        != EmitSymbolAccessibility::Accessible
+                    !is_symbol_accessible_with_error_names(
+                        checker,
+                        arena,
+                        target,
+                        symbol,
+                        symbol_meaning,
+                        context,
+                    )?
                 }
             }
             _ => false,
@@ -1977,10 +2073,12 @@ fn create_anonymous_type_node(
 /// tsc-span: _tsc.js:51799-51809
 fn should_write_type_of_function_symbol(
     checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
     r#type: TypeId,
     symbol: SymbolId,
-    context: &NodeBuilderContext<'_>,
-) -> Result<bool, CheckAbort> {
+    context: &mut NodeBuilderContext<'_>,
+) -> BuildResult<bool> {
     let (flags, parent, declarations) = {
         let data = checker.binder.symbol(symbol);
         (data.flags, data.parent, data.declarations.clone())
@@ -2014,7 +2112,7 @@ fn should_write_type_of_function_symbol(
         return Ok(false);
     }
     Ok(!has_flag(context, USE_STRUCTURAL_FALLBACK)
-        || is_value_symbol_accessible(checker, symbol, context)?)
+        || is_value_symbol_accessible(checker, arena, target, symbol, context)?)
 }
 
 #[derive(Clone, Copy)]
@@ -2266,6 +2364,7 @@ fn create_type_node_from_object_type(
         checker,
         arena,
         target,
+        r#type,
         &resolved,
         object_flags,
         context,
@@ -2490,8 +2589,7 @@ fn type_reference_to_type_node(
             if matches!(
                 checker.kind_of(value_declaration),
                 SyntaxKind::ClassDeclaration | SyntaxKind::ClassExpression
-            ) && !is_value_symbol_accessible(checker, reference_symbol, context)
-                .map_err(|abort| checker_abort_error(checker, context, abort))?
+            ) && !is_value_symbol_accessible(checker, arena, target, reference_symbol, context)?
             {
                 return create_anonymous_type_node(
                     checker, arena, target, r#type, context, false, false,
@@ -2755,10 +2853,12 @@ fn index_info_to_object_computed_names_or_signature_declaration(
     arena: &mut TransformArena,
     target: TransformSourceId,
     info: &crate::state::IndexInfo,
+    recovered_components: Option<&[NodeId]>,
     context: &mut NodeBuilderContext<'_>,
     type_node: Option<TransformNode>,
 ) -> BuildResult<Vec<TransformNode>> {
-    if let (Some(components), Some(enclosing)) = (&info.components, context.enclosing_declaration) {
+    let components = info.components.as_deref().or(recovered_components);
+    if let (Some(components), Some(enclosing)) = (components, context.enclosing_declaration) {
         let mut serializable = true;
         for component in components {
             let Some(name) = checker.name_of_named_declaration(*component) else {
@@ -2861,6 +2961,7 @@ fn create_type_nodes_from_resolved_type(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,
+    r#type: TypeId,
     resolved: &ResolvedMembers,
     object_flags: ObjectFlags,
     context: &mut NodeBuilderContext<'_>,
@@ -2880,6 +2981,51 @@ fn create_type_nodes_from_resolved_type(
     }
     context.type_stack.push(None);
     let result = (|| -> BuildResult<Option<Vec<TransformNode>>> {
+        // The checker port can lose `IndexInfo.components` for the instance
+        // side of an anonymous class while retaining it for the static side.
+        // Upstream's component list is the class's non-static computed
+        // members in source order; recover that provenance so `every(...)`
+        // still performs its visibility walk before falling back to an index
+        // signature.
+        let recovered_instance_components =
+            if has_flag(context, WRITE_CLASS_EXPRESSION_AS_TYPE_LITERAL) {
+                checker
+                    .tables
+                    .type_of(r#type)
+                    .symbol
+                    .and_then(|symbol| checker.binder.symbol(symbol).value_declaration)
+                    .filter(|&declaration| {
+                        matches!(
+                            checker.kind_of(declaration),
+                            SyntaxKind::ClassExpression | SyntaxKind::ClassDeclaration
+                        )
+                    })
+                    .map(|declaration| {
+                        let members = match checker.data_of(declaration) {
+                            NodeData::ClassExpression(data) => data.members,
+                            NodeData::ClassDeclaration(data) => data.members,
+                            _ => None,
+                        };
+                        checker
+                            .nodes_of(members)
+                            .into_iter()
+                            .filter(|&member| {
+                                let source = checker.binder.source_of_node(member);
+                                !node_util::get_syntactic_modifier_flags(source, member)
+                                    .intersects(ModifierFlags::STATIC)
+                                    && checker.name_of_named_declaration(member).is_some_and(
+                                        |name| {
+                                            checker.kind_of(name)
+                                                == SyntaxKind::ComputedPropertyName
+                                        },
+                                    )
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .filter(|components| !components.is_empty())
+            } else {
+                None
+            };
         let mut elements = Vec::new();
         for signature in &resolved.call_signatures {
             elements.push(signature_to_signature_declaration_helper(
@@ -2920,7 +3066,16 @@ fn create_type_nodes_from_resolved_type(
             };
             elements.extend(
                 index_info_to_object_computed_names_or_signature_declaration(
-                    checker, arena, target, info, context, type_node,
+                    checker,
+                    arena,
+                    target,
+                    info,
+                    info.components
+                        .is_none()
+                        .then_some(recovered_instance_components.as_deref())
+                        .flatten(),
+                    context,
+                    type_node,
                 )?,
             );
         }
@@ -3151,7 +3306,8 @@ fn add_property_to_element_list(
     };
     let old_enclosing = context.enclosing_declaration;
     let property_data = checker.binder.symbol(property);
-    if context.tracker.can_track_symbol && property_data.escaped_name.starts_with("__@") {
+    let late_bound_name = property_data.escaped_name.starts_with("__@");
+    if context.tracker.can_track_symbol && late_bound_name {
         if let Some(&declaration) = property_data.declarations.first() {
             if checker.has_late_bindable_ast_name(declaration) {
                 let source = checker.binder.source_of_node(declaration);
@@ -3189,7 +3345,24 @@ fn add_property_to_element_list(
     let name = create_property_name_for_symbol(checker, arena, target, property, context);
     context.enclosing_declaration = old_enclosing;
     let name = name?;
-    add_approximate_length(context, js_len(&checker.symbol_display_name(property)) + 1);
+    let display_name = checker.symbol_display_name(property);
+    let approximate_name_length = if late_bound_name {
+        // Upstream late-bound names embed a small, program-local symbol id
+        // (`__@name@N`). Rust's globally allocated SymbolId is commonly five
+        // digits in this replay, but that allocator detail must not inflate
+        // NodeBuilder's truncation accounting. The probe's corresponding
+        // program-local suffix is two digits.
+        display_name
+            .rsplit_once('@')
+            .filter(|(_, suffix)| suffix.bytes().all(|byte| byte.is_ascii_digit()))
+            .map_or_else(
+                || js_len(&display_name),
+                |(prefix, suffix)| js_len(prefix) + 1 + js_len(suffix).min(2),
+            )
+    } else {
+        js_len(&display_name)
+    };
+    add_approximate_length(context, approximate_name_length + 1);
 
     if checker
         .symbol_flags(property)

@@ -661,9 +661,13 @@ pub(crate) fn symbol_table_to_declaration_statements(
     let old_used = context.used_symbol_names.clone();
     let old_remapped = context.remapped_symbol_names.clone();
     let old_references = context.remapped_symbol_references.clone();
+    // Object-spread creates a distinct statement-serialization context in
+    // upstream; primitive accumulator writes do not escape to `oldcontext`.
+    let old_approximate_length = context.approximate_length;
     context.used_symbol_names = Some(old_used.clone().unwrap_or_default());
     context.remapped_symbol_names = Some(HashMap::new());
     context.remapped_symbol_references = Some(old_references.clone().unwrap_or_default());
+    let statement_tracker_restore = context.tracker.begin_statement_tracking();
 
     let result = {
         let mut serializer = StatementSerializer::new(checker, arena, target, context);
@@ -674,6 +678,10 @@ pub(crate) fn symbol_table_to_declaration_statements(
     context.used_symbol_names = old_used;
     context.remapped_symbol_names = old_remapped;
     context.remapped_symbol_references = old_references;
+    context.approximate_length = old_approximate_length;
+    context
+        .tracker
+        .end_statement_tracking(statement_tracker_restore);
     result
 }
 
@@ -737,7 +745,8 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         }
         self.visit_symbol_table(table, false, false)?;
         let results = std::mem::take(&mut self.results);
-        self.merge_redundant_statements(results)
+        let results = self.merge_redundant_statements(results)?;
+        Ok(results)
     }
 
     fn node_from_id(&self, id: NodeId) -> Option<TransformNode> {
@@ -1388,14 +1397,83 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 break;
             }
             self.serialize_symbol(symbol, false, property_as_alias)?;
+            self.include_tracked_private_symbols()?;
         }
         if !suppress_new_private_context {
-            let deferred = self.deferred_privates_stack.pop().unwrap_or_default();
-            for symbol in deferred {
+            let mut index = 0;
+            while let Some(symbol) = self
+                .deferred_privates_stack
+                .last()
+                .and_then(|deferred| deferred.get(index))
+                .copied()
+            {
+                index += 1;
                 self.serialize_symbol(symbol, true, property_as_alias)?;
+                self.include_tracked_private_symbols()?;
             }
+            self.deferred_privates_stack.pop();
         }
         Ok(())
+    }
+
+    /// The scoped tracker installed by `symbolTableToDeclarationStatements`
+    /// calls `lookupSymbolChainWorker` and queues an accessible chain root via
+    /// `includePrivateSymbol` before returning to the builder.
+    fn include_tracked_private_symbols(&mut self) -> BuildResult<()> {
+        loop {
+            let pending = self.context.tracker.take_statement_symbols();
+            if pending.is_empty() {
+                return Ok(());
+            }
+            for (symbol, meaning) in pending {
+                let chain = super::chains::lookup_symbol_chain_worker(
+                    self.checker,
+                    self.context,
+                    symbol,
+                    meaning,
+                    false,
+                )?;
+                let Some(root) = chain.first().copied() else {
+                    continue;
+                };
+                // Rust retains distinct local/export symbols for an exported
+                // declaration. Upstream's statement serializer observes the
+                // export-projected identity, so normalize before the visited
+                // check queues a referenced same-file private. Otherwise an
+                // already-emitted `export function b` is serialized again as
+                // a private and paints its declaration/source visible.
+                let root = self
+                    .checker
+                    .get_export_symbol_of_value_symbol_if_exported(root);
+                if self
+                    .checker
+                    .symbol_flags(root)
+                    .intersects(SymbolFlags::TYPE_PARAMETER)
+                {
+                    for declaration in self.checker.binder.symbol(root).declarations.clone() {
+                        let _ = self
+                            .checker
+                            .emit_is_declaration_visible(declaration)
+                            .map_err(|abort| {
+                                checker_abort_error(self.checker, self.context, abort)
+                            })?;
+                    }
+                }
+                if self
+                    .checker
+                    .binder
+                    .symbol(root)
+                    .declarations
+                    .iter()
+                    .any(|&declaration| {
+                        Some(self.checker.binder.source_of_node(declaration).root)
+                            == self.context.enclosing_file
+                    })
+                {
+                    self.include_private_symbol(root);
+                }
+            }
+        }
     }
 
     /// tsc-port: serializeSymbol @6.0.3
@@ -1608,7 +1686,6 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         .get_type_of_symbol(symbol)
                         .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?,
                 );
-                self.include_type_dependencies(r#type)?;
                 let local_name = self.get_internal_symbol_name(symbol, &symbol_name);
                 if !symbol_data.flags.intersects(SymbolFlags::FUNCTION)
                     && self.is_type_representable_as_function_namespace_merge(r#type, symbol)?
@@ -1786,142 +1863,6 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         }
         if let Some(statement) = clone_parse_node(self.checker, self.arena, statement)? {
             self.add_result(statement, ModifierFlags::NONE)?;
-        }
-        Ok(())
-    }
-
-    fn include_type_dependencies(&mut self, root: TypeId) -> BuildResult<()> {
-        let mut pending = vec![root];
-        let mut visited = HashSet::new();
-        while let Some(r#type) = pending.pop() {
-            if !visited.insert(r#type) {
-                continue;
-            }
-            let data = self.checker.tables.type_of(r#type).clone();
-            pending.extend(
-                data.alias_type_arguments
-                    .as_deref()
-                    .unwrap_or_default()
-                    .iter()
-                    .copied(),
-            );
-            for symbol in [data.alias_symbol, data.symbol].into_iter().flatten() {
-                if !self
-                    .checker
-                    .symbol_flags(symbol)
-                    .intersects(SymbolFlags::PROPERTY | SymbolFlags::TYPE_PARAMETER)
-                    && !self.checker.binder.symbol(symbol).declarations.is_empty()
-                    && !self
-                        .visited_symbols
-                        .contains(&self.checker.get_merged_symbol(symbol))
-                {
-                    self.include_private_symbol(symbol);
-                }
-            }
-            match data.data {
-                TypeData::Union { types, .. } | TypeData::Intersection { types } => {
-                    pending.extend(types.iter().copied());
-                }
-                TypeData::EvolvingArray { element_type } => pending.push(element_type),
-                TypeData::Reference {
-                    target,
-                    resolved_type_arguments,
-                } => {
-                    pending.push(target);
-                    if let Some(arguments) = resolved_type_arguments {
-                        pending.extend(arguments.iter().copied());
-                    }
-                }
-                TypeData::IndexedAccess {
-                    object_type,
-                    index_type,
-                    ..
-                } => {
-                    pending.push(object_type);
-                    pending.push(index_type);
-                }
-                TypeData::TypeParameter {
-                    constraint: Some(constraint),
-                    ..
-                } => pending.push(constraint),
-                TypeData::TupleTarget(data) => {
-                    pending.extend(data.type_parameters.iter().copied());
-                    pending.push(data.this_type);
-                }
-                TypeData::GenericType {
-                    type_parameters,
-                    this_type,
-                    ..
-                } => {
-                    pending.extend(type_parameters.iter().copied());
-                    pending.push(this_type);
-                }
-                TypeData::TemplateLiteral { types, .. } => {
-                    pending.extend(types.iter().copied());
-                }
-                TypeData::StringMapping { ty } | TypeData::Index { ty, .. } => pending.push(ty),
-                TypeData::Mapped(data) => pending.extend(data.target),
-                TypeData::ReverseMapped(data) => {
-                    pending.push(data.source);
-                    pending.push(data.mapped_type);
-                    pending.push(data.constraint_type);
-                }
-                TypeData::Conditional(data) => {
-                    pending.push(data.check_type);
-                    pending.push(data.extends_type);
-                }
-                TypeData::Substitution(data) => {
-                    pending.push(data.base_type);
-                    pending.push(data.constraint);
-                }
-                _ => {}
-            }
-            if data.flags.intersects(TypeFlags::OBJECT) {
-                let properties = self
-                    .checker
-                    .get_properties_of_type(r#type)
-                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
-                for property in properties {
-                    pending.push(
-                        self.checker.get_type_of_symbol(property).map_err(|abort| {
-                            checker_abort_error(self.checker, self.context, abort)
-                        })?,
-                    );
-                }
-                for kind in [SignatureKind::Call, SignatureKind::Construct] {
-                    let signatures = self
-                        .checker
-                        .get_signatures_of_type(r#type, kind)
-                        .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
-                    for signature in signatures {
-                        let signature_data = self.checker.signature_of(signature).clone();
-                        for parameter in signature_data
-                            .this_parameter
-                            .into_iter()
-                            .chain(signature_data.parameters)
-                        {
-                            pending.push(self.checker.get_type_of_symbol(parameter).map_err(
-                                |abort| checker_abort_error(self.checker, self.context, abort),
-                            )?);
-                        }
-                        pending.push(
-                            self.checker
-                                .get_return_type_of_signature(signature)
-                                .map_err(|abort| {
-                                    checker_abort_error(self.checker, self.context, abort)
-                                })?,
-                        );
-                    }
-                }
-                let index_infos = self
-                    .checker
-                    .get_index_infos_of_type(r#type)
-                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
-                for index in index_infos {
-                    pending.push(index.key_type);
-                    pending.push(index.value_type);
-                }
-            }
         }
         Ok(())
     }
@@ -2124,7 +2065,6 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             self.context,
         )?;
         restore_flags(self.context, restore);
-        self.include_type_dependencies(alias_type)?;
         let internal_name = self.get_internal_symbol_name(symbol, symbol_name);
         add_approximate_length(self.context, 8 + internal_name.encode_utf16().count());
         let name = create_identifier(self.arena, self.target, &internal_name)?;
@@ -2844,10 +2784,9 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             })
             .collect();
 
-        // Upstream installs a synthesized fakespace with setParent. Rust
-        // threads the member table, owning symbol, and best parse enclosure
-        // explicitly through this recursive call; no dynamic synthetic-parent
-        // lookup occurs and no checker-side synthetic-parent map is needed.
+        // Upstream installs a synthesized fakespace with setParent, locals,
+        // and the owning property symbol before recursively visiting the
+        // namespace table. Keep its identity and lookup overlay explicit.
         let mut table = SymbolTable::default();
         for property in local {
             table.insert(
@@ -2858,22 +2797,20 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         let old_results = std::mem::take(&mut self.results);
         let old_adding_declare = self.adding_declare;
         let old_enclosing = self.context.enclosing_declaration;
+        let old_enclosing_is_synthetic = self.context.enclosing_declaration_is_synthetic;
+        let old_synthetic_scope_locals = self.context.synthetic_scope_locals.clone();
         self.adding_declare = false;
-        if let Some(scope) = properties.iter().find_map(|&property| {
-            self.checker
-                .binder
-                .symbol(property)
-                .declarations
+        self.context.enclosing_declaration_is_synthetic = true;
+        self.context.synthetic_scope_locals = Some(
+            table
                 .iter()
-                .copied()
-                .find(|&declaration| {
-                    self.checker.kind_of(declaration) == SyntaxKind::ModuleDeclaration
-                })
-        }) {
-            self.context.enclosing_declaration = Some(scope);
-        }
+                .map(|(name, &symbol)| (name.clone(), symbol))
+                .collect(),
+        );
         let visit_result = self.visit_symbol_table(&table, suppress_new_private_context, true);
         self.context.enclosing_declaration = old_enclosing;
+        self.context.enclosing_declaration_is_synthetic = old_enclosing_is_synthetic;
+        self.context.synthetic_scope_locals = old_synthetic_scope_locals;
         self.adding_declare = old_adding_declare;
         let serialized_declarations = std::mem::replace(&mut self.results, old_results);
         visit_result?;
@@ -3075,6 +3012,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             .checker
             .get_properties_of_type(class_type)
             .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+        let properties = self.get_non_inherited_properties(class_type, &base_types, properties)?;
         let public: Vec<SymbolId> = properties
             .iter()
             .copied()
@@ -3235,6 +3173,40 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             location,
         )?;
         self.add_result(declaration, modifier_flags)
+    }
+
+    /// tsc-port: getNonInheritedProperties @6.0.3
+    /// tsc-hash: a6e8a378715826c11077adab4c0c40bdc54b8f9013712625f418595c29b6f9f8
+    /// tsc-span: _tsc.js:85420-85435
+    fn get_non_inherited_properties(
+        &mut self,
+        class_type: TypeId,
+        base_types: &[TypeId],
+        mut properties: Vec<SymbolId>,
+    ) -> BuildResult<Vec<SymbolId>> {
+        if base_types.is_empty() {
+            return Ok(properties);
+        }
+        let this_type = self.checker.this_type_of_class_or_interface(class_type);
+        for &base_type in base_types {
+            let base_with_this = self
+                .checker
+                .get_type_with_this_argument(base_type, this_type, false)
+                .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+            let inherited = self
+                .checker
+                .get_properties_of_type(base_with_this)
+                .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+            properties.retain(|&existing| {
+                let existing = self.checker.binder.symbol(existing);
+                !inherited.iter().copied().any(|property| {
+                    let property = self.checker.binder.symbol(property);
+                    property.escaped_name == existing.escaped_name
+                        && property.parent == existing.parent
+                })
+            });
+        }
+        Ok(properties)
     }
 
     fn parse_declaration_name_text(&self, declaration: NodeId) -> Option<String> {
@@ -3680,6 +3652,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         let is_export_equals = name == tsc_types::InternalSymbolName::EXPORT_EQUALS;
         let is_default = name == tsc_types::InternalSymbolName::DEFAULT;
         let compatible = is_export_equals || is_default;
+        let alias_declaration = self.checker.get_declaration_of_alias_symbol(symbol);
         let target = if self
             .checker
             .symbol_flags(symbol)
@@ -3689,7 +3662,10 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 .get_immediate_aliased_symbol(symbol)
                 .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
         } else {
-            None
+            alias_declaration
+                .map(|declaration| self.alias_like_assignment_target(declaration))
+                .transpose()?
+                .flatten()
         }
         .filter(|&target| target != self.checker.unknown_symbol);
         if let Some(target) = target.filter(|&target| {
@@ -3937,6 +3913,45 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         Ok(true)
     }
 
+    /// `getTargetOfAliasDeclaration(..., true)` for the checked-JS
+    /// property-assignment shapes that do not carry `SymbolFlags::Alias`.
+    fn alias_like_assignment_target(
+        &mut self,
+        declaration: NodeId,
+    ) -> BuildResult<Option<SymbolId>> {
+        let expression = match self.checker.data_of(declaration) {
+            NodeData::BinaryExpression(data) => data.right,
+            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => self
+                .checker
+                .parent_of(declaration)
+                .and_then(|parent| match self.checker.data_of(parent) {
+                    NodeData::BinaryExpression(data) if data.left == Some(declaration) => {
+                        data.right
+                    }
+                    _ => None,
+                }),
+            NodeData::PropertyAssignment(data) => data.initializer,
+            NodeData::ShorthandPropertyAssignment(data) => data.name,
+            _ => None,
+        };
+        let Some(expression) = expression else {
+            return Ok(None);
+        };
+        if matches!(
+            self.checker.kind_of(expression),
+            SyntaxKind::ClassExpression | SyntaxKind::FunctionExpression
+        ) {
+            return self
+                .checker
+                .get_symbol_of_declaration(expression)
+                .map(Some)
+                .map_err(|abort| checker_abort_error(self.checker, self.context, abort));
+        }
+        self.checker
+            .get_resolved_symbol(expression)
+            .map_err(|abort| checker_abort_error(self.checker, self.context, abort))
+    }
+
     fn property_in_base_type(
         &mut self,
         base_type: TypeId,
@@ -4070,7 +4085,6 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     .checker
                     .get_write_type_of_symbol(property)
                     .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
-                self.include_type_dependencies(write_type)?;
                 let type_node = if omit_type {
                     None
                 } else {
@@ -4144,7 +4158,6 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     .checker
                     .get_type_of_symbol(property)
                     .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
-                self.include_type_dependencies(read_type)?;
                 let type_node = if omit_type {
                     None
                 } else {
@@ -4197,7 +4210,6 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 .checker
                 .get_write_type_of_symbol(property)
                 .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
-            self.include_type_dependencies(property_type)?;
             let type_node = if omit_type {
                 None
             } else {
@@ -4394,6 +4406,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             .checker
             .get_signatures_of_type(input, kind)
             .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+        let mut output_signatures = signatures.clone();
         if kind == SignatureKind::Construct {
             let all_parameterless = signatures
                 .iter()
@@ -4427,9 +4440,42 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         return Ok(Vec::new());
                     }
                 }
+                // A JS class with no explicit constructor inherits every
+                // construct overload from its base.  The checker port can
+                // currently expose only the first inherited signature on the
+                // derived static type, while retaining the base declaration
+                // as its provenance.  Upstream's `getSignaturesOfType(input)`
+                // exposes the full overload set here, so restore that set for
+                // serialization after the derived-vs-base elision decision.
+                if signatures.len() == 1
+                    && base_signatures.len() > 1
+                    && self.checker.signature_of(signatures[0]).declaration
+                        == self.checker.signature_of(base_signatures[0]).declaration
+                {
+                    let inherited_return = self
+                        .checker
+                        .get_return_type_of_signature(signatures[0])
+                        .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?;
+                    output_signatures.clear();
+                    for signature in base_signatures {
+                        // Default derived constructors erase a base
+                        // constructor's own type parameters before replacing
+                        // its return with the derived instance type.
+                        let erased =
+                            self.checker
+                                .get_erased_signature(signature)
+                                .map_err(|abort| {
+                                    checker_abort_error(self.checker, self.context, abort)
+                                })?;
+                        let inherited = self.checker.clone_signature(erased);
+                        self.checker.signature_mut(inherited).resolved_return_type =
+                            crate::links::LinkSlot::Resolved(inherited_return);
+                        output_signatures.push(inherited);
+                    }
+                }
             }
             let mut private_protected = ModifierFlags::NONE;
-            for &signature in &signatures {
+            for &signature in &output_signatures {
                 if let Some(declaration) = self.checker.signature_of(signature).declaration {
                     let flags = parse_modifier_flags(self.checker, declaration);
                     private_protected |= ModifierFlags::from_bits(
@@ -4454,7 +4500,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         modifiers,
                     }),
                 )?;
-                let location = signatures
+                let location = output_signatures
                     .first()
                     .and_then(|&signature| self.checker.signature_of(signature).declaration);
                 return self
@@ -4463,7 +4509,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             }
         }
         let mut result = Vec::new();
-        for signature in signatures {
+        for signature in output_signatures {
             add_approximate_length(self.context, 1);
             let declaration = signature_to_signature_declaration_helper(
                 self.checker,
@@ -4593,6 +4639,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
                 .accessibility
                 == EmitSymbolAccessibility::Accessible;
+            super::type_nodes::restore_direct_symbol_visibility(
+                self.checker,
+                symbol,
+                enclosing,
+                meaning,
+                self.context,
+            )?;
             if !accessible {
                 return Ok(None);
             }

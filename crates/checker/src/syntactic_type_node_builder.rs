@@ -534,7 +534,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let Some(boundary) = self.recovery_boundaries.pop() else {
             return Err(self.required_child_error(SyntaxKind::Unknown, "recoveryBoundary"));
         };
-        let finalized = boundary.finalize(self.context);
+        let finalized = boundary.finalize(self.context, self.resolver)?;
         let transformed = transformed?;
         if !finalized {
             return Ok(None);
@@ -574,7 +574,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         };
         let recover = boundary.start_recovery_scope(self.context);
         let cleanup = if self.is_new_scope_node(node)? {
-            Some(self.resolver.enter_new_scope(self.context, node)?)
+            Some(
+                self.resolver
+                    .enter_new_scope(self.arena, self.target, self.context, node)?,
+            )
         } else {
             None
         };
@@ -1229,7 +1232,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
 
         if let NodeData::ConditionalType(mut conditional) = data.clone() {
             conditional.check_type = self.visit_optional_child(source, conditional.check_type)?;
-            let cleanup = self.resolver.enter_new_scope(self.context, node)?;
+            let cleanup =
+                self.resolver
+                    .enter_new_scope(self.arena, self.target, self.context, node)?;
             let scoped = (|| {
                 conditional.extends_type =
                     self.visit_optional_child(source, conditional.extends_type)?;
@@ -2028,7 +2033,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         node: TransformNode,
         operation: impl FnOnce(&mut Self) -> Result<T, EmitResolverError>,
     ) -> Result<T, EmitResolverError> {
-        let cleanup = self.resolver.enter_new_scope(self.context, node)?;
+        let cleanup = self
+            .resolver
+            .enter_new_scope(self.arena, self.target, self.context, node)?;
         let result = operation(self);
         cleanup.restore(self.context);
         result
@@ -2093,6 +2100,17 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                         .create_undefined_type_node(source)
                         .map(|r#type| SyntacticResult::syntactic(Some(r#type)));
                 }
+            }
+            NodeData::Token if self.kind(node)? == SyntaxKind::NullKeyword => {
+                let r#type = if self.builder.strict_null_checks {
+                    let null =
+                        self.create_token(source, SyntaxKind::NullKeyword, TransformFlags::NONE)?;
+                    let null = self.create_literal_type(source, null)?;
+                    self.add_undefined_if_needed(null, requires_adding_undefined, Some(node))?
+                } else {
+                    self.create_keyword_type(source, SyntaxKind::AnyKeyword)?
+                };
+                return Ok(SyntacticResult::syntactic(Some(r#type)));
             }
             NodeData::ArrowFunction(_) | NodeData::FunctionExpression(_) => {
                 return self.with_new_scope(node, |session| {
@@ -4449,6 +4467,8 @@ mod tests {
 
         fn enter_new_scope(
             &mut self,
+            _arena: &mut TransformArena,
+            _target: TransformSourceId,
             context: &mut NodeBuilderContext<'_>,
             node: TransformNode,
         ) -> Result<SyntacticScopeCleanup, EmitResolverError> {

@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 
 use tsc_program::SourceFileId;
 use tsc_syntax::{
-    for_each_observable_field, Node, NodeArray, NodeArrayId, NodeData, NodeId, ObservableField,
-    SourceFile, SyntaxKind,
+    for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
+    NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind,
 };
 use tsc_types::NodeFlags;
 
@@ -574,12 +574,11 @@ impl TransformArena {
         self.node(node)?;
         if let Some(original) = original {
             self.node(original)?;
-            if node.source != original.source {
-                return Err(TransformError::CrossSourceNode {
-                    expected: node.source,
-                    actual: original.source,
-                });
-            }
+            // h2-7a-m-3 §4 seam: single-pool original provenance.
+            // TypeScript's one node pool permits a reused clone to retain an
+            // original from another mounted source. Both handles have already
+            // been validated against this arena; an absent (cross-arena)
+            // handle still fails above.
         }
         if self.metadata.get(&node).and_then(EmitMetadata::original) == original {
             return Ok(());
@@ -1332,12 +1331,13 @@ impl<'arena> NodeFactory<'arena> {
     ) -> Result<TransformNodeArray, TransformError> {
         let mut raw = Vec::with_capacity(nodes.len());
         let mut flags = TransformFlags::NONE;
-        for node in nodes {
+        for mut node in nodes {
             if node.source != source {
-                return Err(TransformError::CrossSourceNode {
-                    expected: source,
-                    actual: node.source,
-                });
+                // h2-7a-m-3 §4 seam: single-pool original provenance.
+                // A reused annotation can come from another mounted source;
+                // remap its complete subtree before storing source-local raw
+                // child ids in this node array.
+                node = self.clone_node_to_source(node, source)?;
             }
             self.arena.node(node)?;
             flags |= self.arena.propagate_child_flags(node)?;
@@ -1436,6 +1436,27 @@ impl<'arena> NodeFactory<'arena> {
         self.arena.set_transform_flags(clone, transform_flags);
         self.arena.set_original_node(clone, Some(original))?;
         Ok(clone)
+    }
+
+    /// Clone a reused syntax subtree into another mounted source while
+    /// preserving its original-chain projection.
+    ///
+    /// h2-7a-m-3 §4 seam: single-pool original provenance. TypeScript's node
+    /// pool has no per-source child-handle restriction; the Rust arena must
+    /// therefore remap the complete reused subtree before it is attached to a
+    /// target-source node array. Both source handles are still validated in
+    /// this arena.
+    pub fn clone_node_to_source(
+        &mut self,
+        original: TransformNode,
+        target: TransformSourceId,
+    ) -> Result<TransformNode, TransformError> {
+        self.arena.node(original)?;
+        self.arena.source(target)?;
+        if original.source == target {
+            return self.clone_node(original);
+        }
+        CrossSourceReuseClone::new(self.arena, original.source, target).clone_node(original.node)
     }
 
     pub fn update_node(
@@ -2391,6 +2412,140 @@ impl<'arena> NodeFactory<'arena> {
     }
 }
 
+struct CrossSourceReuseClone<'a> {
+    arena: &'a mut TransformArena,
+    source: TransformSourceId,
+    target: TransformSourceId,
+    nodes: BTreeMap<NodeId, NodeId>,
+    arrays: BTreeMap<NodeArrayId, NodeArrayId>,
+}
+
+impl<'a> CrossSourceReuseClone<'a> {
+    fn new(
+        arena: &'a mut TransformArena,
+        source: TransformSourceId,
+        target: TransformSourceId,
+    ) -> Self {
+        Self {
+            arena,
+            source,
+            target,
+            nodes: BTreeMap::new(),
+            arrays: BTreeMap::new(),
+        }
+    }
+
+    fn clone_node(&mut self, node: NodeId) -> Result<TransformNode, TransformError> {
+        if let Some(&node) = self.nodes.get(&node) {
+            return Ok(TransformNode::new(self.target, node));
+        }
+
+        let original = TransformNode::new(self.source, node);
+        if self.arena.node(original).is_err() {
+            let target = TransformNode::new(self.target, node);
+            self.arena.node(target)?;
+            return Ok(target);
+        }
+        let record = self.arena.node(original)?.clone();
+        let transform_flags = self.arena.transform_flags(original);
+        let mut data = record.data.clone();
+        try_visit_each_child(&mut data, self)?;
+        let js_doc = record
+            .js_doc
+            .map(|array| self.clone_array(array))
+            .transpose()?;
+        let flags = NodeFlags::from_bits(record.flags) | NodeFlags::SYNTHESIZED;
+        let target_arena = &mut self.arena.source_mut(self.target)?.source.arena;
+        let cloned = match data {
+            NodeData::Token => {
+                target_arena.alloc_token(record.kind, u32::MAX as usize, u32::MAX as usize, flags)
+            }
+            data => target_arena.alloc_node(data, u32::MAX as usize, u32::MAX as usize, flags),
+        };
+        {
+            let copied = self
+                .arena
+                .source_mut(self.target)?
+                .source
+                .arena
+                .node_mut(cloned);
+            copied.numeric_literal_flags = record.numeric_literal_flags;
+            copied.multi_line = record.multi_line;
+            copied.js_doc = js_doc;
+            copied.parent = None;
+        }
+        self.nodes.insert(node, cloned);
+        let cloned = TransformNode::new(self.target, cloned);
+        self.arena.set_transform_flags(cloned, transform_flags);
+        self.arena.set_original_node(cloned, Some(original))?;
+        Ok(cloned)
+    }
+
+    fn clone_array(&mut self, array: NodeArrayId) -> Result<NodeArrayId, TransformError> {
+        if let Some(&array) = self.arrays.get(&array) {
+            return Ok(array);
+        }
+        let original = TransformNodeArray::new(self.source, array);
+        if self.arena.node_array(original).is_err() {
+            let target = TransformNodeArray::new(self.target, array);
+            self.arena.node_array(target)?;
+            return Ok(array);
+        }
+        let record = self.arena.node_array(original)?.clone();
+        let transform_flags = self.arena.array_transform_flags(original);
+        let mut nodes = Vec::with_capacity(record.nodes.len());
+        for node in record.nodes {
+            nodes.push(self.clone_node(node)?.node());
+        }
+        let cloned = self
+            .arena
+            .source_mut(self.target)?
+            .source
+            .arena
+            .alloc_synthetic_array(nodes);
+        {
+            let copied = self
+                .arena
+                .source_mut(self.target)?
+                .source
+                .arena
+                .node_array_mut(cloned);
+            copied.has_trailing_comma = record.has_trailing_comma;
+            copied.is_missing_list = record.is_missing_list;
+        }
+        self.arrays.insert(array, cloned);
+        self.arena.set_array_transform_flags(
+            TransformNodeArray::new(self.target, cloned),
+            transform_flags,
+        );
+        Ok(cloned)
+    }
+}
+
+impl NodeDataChildVisitor for CrossSourceReuseClone<'_> {
+    type Error = TransformError;
+
+    fn node_kind(&self, id: NodeId) -> SyntaxKind {
+        self.arena
+            .node(TransformNode::new(self.source, id))
+            .or_else(|_| self.arena.node(TransformNode::new(self.target, id)))
+            .expect("reuse-clone child belongs to its mounted source")
+            .kind
+    }
+
+    fn visit_node(&mut self, id: NodeId) -> Result<Option<NodeId>, Self::Error> {
+        self.clone_node(id).map(|node| Some(node.node()))
+    }
+
+    fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {
+        self.clone_array(id).map(Some)
+    }
+
+    fn required_child_removed(&mut self, parent: SyntaxKind, field: &'static str) -> Self::Error {
+        TransformError::RequiredChildRemoved { parent, field }
+    }
+}
+
 fn mixing_binary_operators_requires_parentheses(left: SyntaxKind, right: SyntaxKind) -> bool {
     (left == SyntaxKind::QuestionQuestionToken
         && matches!(
@@ -2491,3 +2646,66 @@ const fn binary_operator_precedence(operator: SyntaxKind) -> i8 {
 #[cfg(test)]
 #[path = "../tests/unit/factory_classifier/tests.rs"]
 mod factory_classifier_tests;
+
+#[cfg(test)]
+mod original_provenance_tests {
+    use super::*;
+
+    fn parsed(name: &str, text: &str) -> SourceFile {
+        tsc_syntax::parse_source_file(name.to_owned(), text.to_owned(), Default::default(), None)
+    }
+
+    #[test]
+    fn reuse_clone_accepts_cross_source_original_within_one_arena_only() {
+        let first = parsed("first.ts", "export const first = 1;\n");
+        let second = parsed("second.ts", "export const second = 2;\n");
+        let mut arena = TransformArena::new();
+        let first_source = arena.add_source(&first, Some(SourceFileId::from_raw(11)));
+        let second_source = arena.add_source(&second, Some(SourceFileId::from_raw(22)));
+        let first_root = arena.root(first_source).expect("first root");
+        let second_root = arena.root(second_source).expect("second root");
+
+        let reused = arena.factory().clone_node(first_root).expect("reuse clone");
+        arena
+            .set_original_node(reused, Some(second_root))
+            .expect("same-arena cross-source original");
+        assert_eq!(
+            arena
+                .parse_tree_resolver_node(reused)
+                .expect("original projection"),
+            Some(EmitResolverNode::new(
+                SourceFileId::from_raw(22),
+                second_root.node(),
+            )),
+        );
+
+        let rehomed = arena
+            .factory()
+            .clone_node_to_source(second_root, first_source)
+            .expect("same-arena cross-source reuse clone");
+        assert_eq!(rehomed.source(), first_source);
+        assert_eq!(
+            arena
+                .parse_tree_resolver_node(rehomed)
+                .expect("rehome projection"),
+            Some(EmitResolverNode::new(
+                SourceFileId::from_raw(22),
+                second_root.node(),
+            )),
+        );
+
+        let mut foreign_arena = TransformArena::new();
+        foreign_arena.add_source(&first, None);
+        foreign_arena.add_source(&second, None);
+        let foreign_source = foreign_arena.add_source(&first, None);
+        let foreign = foreign_arena.root(foreign_source).expect("foreign root");
+        assert_eq!(
+            arena.set_original_node(reused, Some(foreign)),
+            Err(TransformError::UnknownSource(foreign_source)),
+        );
+        assert_eq!(
+            arena.factory().clone_node_to_source(foreign, first_source),
+            Err(TransformError::UnknownSource(foreign_source)),
+        );
+    }
+}

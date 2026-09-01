@@ -27,7 +27,7 @@ pub(crate) use context::{
     check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
     restore_no_inference_fallback, restore_symbol_type_to_context, save_no_inference_fallback,
     save_restore_flags, should_expand_type, with_context, FlagsRestore, NodeBuilderContext,
-    SymbolTypeRestore, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
+    RecoveryTrackedSymbol, SymbolTypeRestore, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
     NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH,
 };
 pub(crate) use serialize::{
@@ -39,9 +39,9 @@ pub(crate) use serialize::{
 };
 pub(crate) use signatures::{
     create_recovery_boundary, enter_new_scope, index_info_to_index_signature_declaration_helper,
-    signature_to_signature_declaration_helper, symbol_to_parameter_declaration,
-    type_parameter_to_declaration, type_predicate_to_type_predicate_node_helper,
-    SignatureDeclarationOptions,
+    prime_type_parameter_names_for_scope, signature_to_signature_declaration_helper,
+    symbol_to_parameter_declaration, type_parameter_to_declaration,
+    type_predicate_to_type_predicate_node_helper, SignatureDeclarationOptions,
 };
 pub(crate) use statements::{symbol_table_to_declaration_statements, symbol_to_declarations};
 pub(crate) use tracker::NodeBuilderTracker;
@@ -78,11 +78,30 @@ pub(crate) struct SyntacticTrackedEntityName {
     pub(crate) introduces_error: bool,
 }
 
+/// TypeScript's local/export projections share one symbol-id space for the
+/// statement serializer. Rust retains both binder symbols, so test remapping
+/// through their export projection before invoking the scoped tracker.
+/// tsrs-native: statement-serializer remap probe (Rust borrow shape).
+pub(crate) fn is_statement_symbol_remapped(
+    checker: &crate::state::CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    symbol: tsc_binder::SymbolId,
+) -> bool {
+    let normalized = checker.get_export_symbol_of_value_symbol_if_exported(symbol);
+    context.remapped_symbol_names.as_ref().is_some_and(|names| {
+        names.keys().copied().any(|candidate| {
+            candidate == symbol
+                || checker.get_export_symbol_of_value_symbol_if_exported(candidate) == normalized
+        })
+    })
+}
+
 /// Owned cleanup returned by the checker-side `enterNewScope` callback.
 /// It captures exactly the context slots restored by
 /// `cloneNodeBuilderContext`, plus enclosing-declaration and mapper.
 pub(crate) struct SyntacticScopeCleanup {
     enclosing_declaration: Option<tsc_syntax::NodeId>,
+    enclosing_declaration_is_synthetic: bool,
     mapper: Option<tsc_types::MapperId>,
     must_create_type_parameter_symbol_list: bool,
     type_parameter_symbol_list: Option<std::collections::HashSet<tsc_binder::SymbolId>>,
@@ -91,6 +110,7 @@ pub(crate) struct SyntacticScopeCleanup {
         Option<std::collections::HashMap<tsc_types::TypeId, tsc_emitter::TransformNode>>,
     type_parameter_names_by_text: Option<std::collections::HashSet<String>>,
     type_parameter_names_by_text_next_name_count: Option<std::collections::HashMap<String, u32>>,
+    synthetic_scope_locals: Option<std::collections::HashMap<String, tsc_binder::SymbolId>>,
 }
 
 impl SyntacticScopeCleanup {
@@ -98,6 +118,7 @@ impl SyntacticScopeCleanup {
     pub(crate) fn capture(context: &NodeBuilderContext<'_>) -> Self {
         Self {
             enclosing_declaration: context.enclosing_declaration,
+            enclosing_declaration_is_synthetic: context.enclosing_declaration_is_synthetic,
             mapper: context.mapper,
             must_create_type_parameter_symbol_list: context.must_create_type_parameter_symbol_list,
             type_parameter_symbol_list: context.type_parameter_symbol_list.clone(),
@@ -108,12 +129,14 @@ impl SyntacticScopeCleanup {
             type_parameter_names_by_text_next_name_count: context
                 .type_parameter_names_by_text_next_name_count
                 .clone(),
+            synthetic_scope_locals: context.synthetic_scope_locals.clone(),
         }
     }
 
     /// tsrs-native: scoped save/restore completion (upstream closure capture).
     pub(crate) fn restore(self, context: &mut NodeBuilderContext<'_>) {
         context.enclosing_declaration = self.enclosing_declaration;
+        context.enclosing_declaration_is_synthetic = self.enclosing_declaration_is_synthetic;
         context.mapper = self.mapper;
         context.must_create_type_parameter_symbol_list =
             self.must_create_type_parameter_symbol_list;
@@ -124,6 +147,7 @@ impl SyntacticScopeCleanup {
         context.type_parameter_names_by_text = self.type_parameter_names_by_text;
         context.type_parameter_names_by_text_next_name_count =
             self.type_parameter_names_by_text_next_name_count;
+        context.synthetic_scope_locals = self.synthetic_scope_locals;
     }
 }
 
@@ -131,6 +155,7 @@ impl SyntacticScopeCleanup {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct SyntacticRecoveryScope {
     had_error: bool,
+    tracked_symbols_top: usize,
 }
 
 /// Object-safe Rust spelling of the four closures returned by upstream's
@@ -139,6 +164,8 @@ pub(crate) struct SyntacticRecoveryScope {
 pub(crate) struct SyntacticRecoveryBoundary {
     previous_had_error: bool,
     previous_depth: u32,
+    previous_recovery_tracked_symbols: Option<Vec<RecoveryTrackedSymbol>>,
+    previous_tracked_symbols: Option<Vec<TrackedSymbol>>,
 }
 
 impl SyntacticRecoveryBoundary {
@@ -146,11 +173,16 @@ impl SyntacticRecoveryBoundary {
     pub(crate) fn new(context: &mut NodeBuilderContext<'_>) -> Self {
         let previous_had_error = context.recovery_boundary_had_error;
         let previous_depth = context.recovery_boundary_depth;
+        let previous_recovery_tracked_symbols = context.recovery_tracked_symbols.take();
+        let previous_tracked_symbols = context.tracked_symbols.take();
         context.recovery_boundary_had_error = false;
         context.recovery_boundary_depth = previous_depth.saturating_add(1);
+        context.recovery_tracked_symbols = Some(Vec::new());
         Self {
             previous_had_error,
             previous_depth,
+            previous_recovery_tracked_symbols,
+            previous_tracked_symbols,
         }
     }
 
@@ -171,6 +203,10 @@ impl SyntacticRecoveryBoundary {
     ) -> SyntacticRecoveryScope {
         SyntacticRecoveryScope {
             had_error: context.recovery_boundary_had_error,
+            tracked_symbols_top: context
+                .recovery_tracked_symbols
+                .as_ref()
+                .map_or(0, Vec::len),
         }
     }
 
@@ -181,14 +217,42 @@ impl SyntacticRecoveryBoundary {
         scope: SyntacticRecoveryScope,
     ) {
         context.recovery_boundary_had_error = scope.had_error;
+        if let Some(tracked) = context.recovery_tracked_symbols.as_mut() {
+            tracked.truncate(scope.tracked_symbols_top);
+        }
     }
 
     /// tsrs-native: recovery-boundary completion (upstream closure return).
-    pub(crate) fn finalize(self, context: &mut NodeBuilderContext<'_>) -> bool {
+    pub(crate) fn finalize(
+        self,
+        context: &mut NodeBuilderContext<'_>,
+        access: &mut dyn tsc_emitter::EmitTrackerAccess,
+    ) -> Result<bool, tsc_emitter::EmitResolverError> {
         let succeeded = !context.recovery_boundary_had_error;
+        let buffered = context.recovery_tracked_symbols.take().unwrap_or_default();
+        context.recovery_tracked_symbols = self.previous_recovery_tracked_symbols;
+        context.tracked_symbols = self.previous_tracked_symbols;
         context.recovery_boundary_had_error = self.previous_had_error;
         context.recovery_boundary_depth = self.previous_depth;
-        succeeded
+        if succeeded {
+            for (symbol, symbol_flags, enclosing, synthetic, meaning, symbol_is_remapped) in
+                buffered
+            {
+                context.tracker.track_symbol(
+                    &mut context.reported_diagnostic,
+                    &mut context.tracked_symbols,
+                    &mut context.recovery_tracked_symbols,
+                    access,
+                    symbol,
+                    symbol_flags,
+                    enclosing,
+                    synthetic,
+                    meaning,
+                    symbol_is_remapped,
+                )?;
+            }
+        }
+        Ok(succeeded)
     }
 }
 
@@ -331,6 +395,8 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
 
     fn enter_new_scope(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
         context: &mut NodeBuilderContext<'_>,
         node: tsc_emitter::TransformNode,
     ) -> Result<SyntacticScopeCleanup, tsc_emitter::EmitResolverError>;
@@ -1343,11 +1409,14 @@ mod tests {
                 .track_symbol(
                     &mut context.reported_diagnostic,
                     &mut context.tracked_symbols,
+                    &mut context.recovery_tracked_symbols,
                     &mut access,
                     property,
                     SymbolFlags::PROPERTY,
                     enclosing,
+                    false,
                     EmitSymbolMeaning::TYPE,
+                    false,
                 )
                 .expect("false tracker result"));
             assert_eq!(
@@ -1362,11 +1431,14 @@ mod tests {
                 .track_symbol(
                     &mut context.reported_diagnostic,
                     &mut context.tracked_symbols,
+                    &mut context.recovery_tracked_symbols,
                     &mut access,
                     SymbolId(12),
                     SymbolFlags::PROPERTY,
                     enclosing,
+                    false,
                     EmitSymbolMeaning::VALUE_EXPORT_VALUE,
+                    false,
                 )
                 .expect("disabled tracker result"));
             assert_eq!(log.borrow().track_calls.len(), 1);
@@ -1378,11 +1450,14 @@ mod tests {
                 .track_symbol(
                     &mut context.reported_diagnostic,
                     &mut context.tracked_symbols,
+                    &mut context.recovery_tracked_symbols,
                     &mut access,
                     SymbolId(13),
                     SymbolFlags::TYPE_PARAMETER,
                     enclosing,
+                    false,
                     EmitSymbolMeaning::TYPE,
+                    false,
                 )
                 .expect("type-parameter tracker result"));
             assert!(context.tracked_symbols.is_none());
@@ -1393,11 +1468,14 @@ mod tests {
                 .track_symbol(
                     &mut context.reported_diagnostic,
                     &mut context.tracked_symbols,
+                    &mut context.recovery_tracked_symbols,
                     &mut access,
                     SymbolId(14),
                     SymbolFlags::PROPERTY,
                     enclosing,
+                    false,
                     EmitSymbolMeaning::TYPE,
+                    false,
                 )
                 .expect("diagnostic tracker result"));
             assert!(context.reported_diagnostic);
@@ -1510,11 +1588,14 @@ mod tests {
             let track_error = context.tracker.track_symbol(
                 &mut context.reported_diagnostic,
                 &mut context.tracked_symbols,
+                &mut context.recovery_tracked_symbols,
                 &mut access,
                 SymbolId(1),
                 SymbolFlags::PROPERTY,
                 Some(NodeId(2)),
+                false,
                 EmitSymbolMeaning::TYPE,
+                false,
             );
             assert!(matches!(
                 track_error,

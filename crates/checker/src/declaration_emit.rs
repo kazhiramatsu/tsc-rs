@@ -4214,12 +4214,7 @@ fn declaration_replay_trace_ref_json(
     let _ = file_map;
     Ok(serde_json::json!({
         "class": class,
-        "coordinate": {
-            "file_tag": quad[0],
-            "kind": quad[1],
-            "pos": quad[2],
-            "end": quad[3],
-        },
+        "coordinate": [quad[0], quad[1], quad[2], quad[3]],
     }))
 }
 
