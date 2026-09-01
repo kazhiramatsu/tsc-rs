@@ -695,25 +695,33 @@ impl EmitResolver for CheckerSession<'_> {
 
     fn symbol_to_declarations(
         &self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _target: tsc_emitter::TransformSourceId,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
         symbol: EmitResolverSymbol,
-        _meaning: EmitSymbolMeaning,
-        _flags: tsc_emitter::EmitNodeBuilderFlags,
-        _maximum_length: Option<u32>,
-        _verbosity_level: Option<i32>,
-        _out: Option<&mut tsc_emitter::EmitSymbolExpansionOut>,
+        meaning: EmitSymbolMeaning,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        maximum_length: Option<u32>,
+        verbosity_level: Option<i32>,
+        out: Option<&mut tsc_emitter::EmitSymbolExpansionOut>,
     ) -> Result<Vec<tsc_emitter::TransformNode>, EmitResolverError> {
-        let state = self.state.borrow();
-        let _ = validate_resolver_symbol(
+        let mut state = self.state.borrow_mut();
+        let resolved = validate_resolver_symbol(
             &state,
             self.session_token,
             EmitResolverMethod::SymbolToDeclarations,
             symbol,
         )?;
-        // h2-7a-m-3 lane-F pending: the NodeBuilder member lands with the
-        // statements cluster.
-        Err(state.emit_symbol_to_declarations_pending(symbol))
+        crate::node_builder::symbol_to_declarations(
+            &mut state,
+            arena,
+            target,
+            resolved,
+            meaning,
+            flags,
+            maximum_length,
+            verbosity_level,
+            out,
+        )
     }
 }
 

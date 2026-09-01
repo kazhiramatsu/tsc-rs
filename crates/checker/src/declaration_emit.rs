@@ -1981,24 +1981,9 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         meaning: EmitSymbolMeaning,
     ) -> Result<bool, tsc_emitter::EmitResolverError> {
         let description = access.describe_symbol(symbol);
-        let declarations: Vec<serde_json::Value> = description
-            .declarations
-            .iter()
-            .map(
-                |declaration| match (declaration.parse, declaration.original) {
-                    (Some(parse), _) => serde_json::json!([parse.source().raw(), parse.node().0]),
-                    (None, Some(original)) => {
-                        serde_json::json!([original.source().raw(), original.node().0])
-                    }
-                    (None, None) => serde_json::json!("opaque"),
-                },
-            )
-            .collect();
         let node_payload = Self::raw_ref(access, enclosing_declaration);
         let payload = serde_json::json!({
             "name": description.escaped_name,
-            "count": description.declaration_count,
-            "decls": declarations,
             "node": node_payload,
             "meaning": meaning.0,
         });
@@ -2658,9 +2643,11 @@ impl CheckerState<'_> {
             | "resolver.createLiteralConstValue"
             | "resolver.getDeclarationStatementsForSourceFile"
             | "resolver.createLateBoundIndexSignatures" => {
+                // Generic entry tail: [site, argc, name(first), nodeRef(first),
+                // nodeRef(second), scalar(first), scalar(second)].
                 let node = self.declaration_replay_resolve_node(
                     entry_args
-                        .get(2)
+                        .get(3)
                         .ok_or_else(|| "serialization entry lacks a node".to_owned())?,
                     file_map,
                 )?;
@@ -2673,7 +2660,7 @@ impl CheckerState<'_> {
                 );
                 let enclosing = if takes_enclosing {
                     Some(self.declaration_replay_resolve_node(
-                        entry_args.get(3).ok_or_else(|| {
+                        entry_args.get(4).ok_or_else(|| {
                             "serialization entry lacks an enclosing node".to_owned()
                         })?,
                         file_map,
@@ -3174,24 +3161,12 @@ impl CheckerState<'_> {
                 continue;
             }
             if site == "tracker.trackSymbol" {
-                let symbol = args
-                    .get(1)
-                    .and_then(serde_json::Value::as_array)
-                    .filter(|entry| entry.len() == 3)
-                    .ok_or_else(|| "trackSymbol lacks a symbol reference".to_owned())?;
-                let decls = symbol[2]
-                    .as_array()
-                    .cloned()
-                    .unwrap_or_default()
-                    .iter()
-                    .map(|entry| declaration_replay_trace_ref_coordinate_json(entry, file_map))
-                    .collect::<Result<Vec<_>, _>>()?;
+                // Traced shape (:414): [site, name(symbol), nodeRef(enclosing),
+                // meaning] — the transformer probe records the NAME string.
                 events.push(serde_json::json!({
                     "site": site,
                     "payload": {
-                        "name": symbol[0],
-                        "count": symbol[1],
-                        "decls": decls,
+                        "name": args.get(1).cloned().unwrap_or(serde_json::Value::Null),
                         "node": declaration_replay_trace_ref_coordinate_json(
                             args.get(2)
                                 .ok_or_else(|| "trackSymbol lacks a node".to_owned())?,
@@ -4001,28 +3976,67 @@ impl<'a> CheckerState<'a> {
         )
     }
 
-    /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3 (member seam)
+    /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3
+    /// tsc-hash: 5cf313930f2a0dbd67a221570098821b8bcc25ebeb95ac93b3985d2ff2b5aeba
     /// tsc-span: _tsc.js:88612-88621
-    /// h2-7a-m-3 lane-F pending: symbolTableToDeclarationStatements lands
-    /// with the statements cluster; until then the member fails closed.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn emit_get_declaration_statements_for_source_file(
         &mut self,
-        _arena: &mut tsc_emitter::TransformArena,
-        _target: tsc_emitter::TransformSourceId,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
         node: NodeId,
-        _flags: tsc_emitter::EmitNodeBuilderFlags,
-        _internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
-        _tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, tsc_emitter::EmitResolverError> {
-        Err(tsc_emitter::EmitResolverError::CheckerAborted {
-            method: tsc_emitter::EmitResolverMethod::GetDeclarationStatementsForSourceFile,
-            node: EmitResolverNode::from_raw_source(
-                u32::try_from(self.binder.file_index_of_node(node)).unwrap_or(0),
-                node,
-            ),
-            reason: "h2-7a-m-3 lane-F pending",
-        })
+        let method = tsc_emitter::EmitResolverMethod::GetDeclarationStatementsForSourceFile;
+        if self.kind_of(node) != SyntaxKind::SourceFile {
+            return Err(tsc_emitter::EmitResolverError::CheckerAborted {
+                method,
+                node: EmitResolverNode::from_raw_source(
+                    u32::try_from(self.binder.file_index_of_node(node)).unwrap_or(0),
+                    node,
+                ),
+                reason: "non-sourcefile node passed into getDeclarationsForSourceFile",
+            });
+        }
+        let symbol = self.get_symbol_of_declaration_opt(node);
+        let table = match symbol {
+            None => match self.binder.locals_of(node) {
+                None => return Ok(Some(Vec::new())),
+                Some(locals) => locals.clone(),
+            },
+            Some(symbol) => {
+                let resolved = self
+                    .resolve_external_module_symbol(Some(symbol), false)
+                    .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
+                let _ = resolved;
+                let exports = self
+                    .get_exports_of_module(symbol)
+                    .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
+                if exports.is_empty() {
+                    return Ok(Some(Vec::new()));
+                }
+                exports
+            }
+        };
+        crate::node_builder::with_context(
+            self,
+            arena,
+            target,
+            Some(node),
+            Some(flags),
+            Some(internal_flags),
+            Some(tracker),
+            None,
+            None,
+            |checker, arena, target, context| {
+                crate::node_builder::symbol_table_to_declaration_statements(
+                    checker, arena, target, &table, context,
+                )
+            },
+            None,
+        )
     }
 
     /// tsc-port: symbolToDeclarations (resolver member) @6.0.3 (member seam)
@@ -4163,25 +4177,12 @@ impl CheckerState<'_> {
             }),
             DecisionEvent::Tracker { site, payload } => {
                 let payload = match *site {
-                    "tracker.trackSymbol" => {
-                        let decls = payload["decls"]
-                            .as_array()
-                            .cloned()
-                            .unwrap_or_default()
-                            .iter()
-                            .map(|entry| {
-                                self.declaration_replay_actual_raw_ref_json(entry, file_map)
-                            })
-                            .collect::<Result<Vec<_>, _>>()?;
-                        serde_json::json!({
-                            "name": payload["name"],
-                            "count": payload["count"],
-                            "decls": decls,
-                            "node": self
-                                .declaration_replay_actual_raw_ref_json(&payload["node"], file_map)?,
-                            "meaning": payload["meaning"],
-                        })
-                    }
+                    "tracker.trackSymbol" => serde_json::json!({
+                        "name": payload["name"],
+                        "node": self
+                            .declaration_replay_actual_raw_ref_json(&payload["node"], file_map)?,
+                        "meaning": payload["meaning"],
+                    }),
                     "tracker.reportInferenceFallback" => {
                         self.declaration_replay_actual_raw_ref_json(payload, file_map)?
                     }
@@ -4455,11 +4456,13 @@ mod node_builder_member_tests {
     }
 
     #[test]
-    fn dm_lane_f_pending_members_fail_closed() {
+    fn dm_declaration_statements_for_source_file() {
+        // Pre-lane-F this asserted the typed pending error; the statements
+        // cluster now serializes the module's export table.
         with_member_state("export const x = 1;", |checker, arena, target| {
             let root = checker.binder.source(0).root;
             let mut tracker = NoopTracker;
-            let error = checker
+            let statements = checker
                 .emit_get_declaration_statements_for_source_file(
                     arena,
                     target,
@@ -4468,14 +4471,13 @@ mod node_builder_member_tests {
                     EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
                     &mut tracker,
                 )
-                .expect_err("lane-F pending");
-            assert!(matches!(
-                error,
-                tsc_emitter::EmitResolverError::CheckerAborted {
-                    reason: "h2-7a-m-3 lane-F pending",
-                    ..
-                }
-            ));
+                .expect("statements serialize")
+                .expect("module exports produce statements");
+            assert!(!statements.is_empty());
+            assert_eq!(
+                node_kind(arena, target, statements[0]),
+                SyntaxKind::VariableStatement
+            );
         });
     }
 }

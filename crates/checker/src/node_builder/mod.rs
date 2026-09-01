@@ -5,10 +5,12 @@ mod context;
 mod serialize;
 mod signatures;
 pub(crate) mod specifier;
+mod statements;
 mod tracker;
 mod type_nodes;
 
 pub(crate) use crate::syntactic_type_node_builder::SyntacticTypeNodeBuilder;
+pub(crate) use chains::specifier_for_module_symbol;
 pub(crate) use chains::{
     chains_get_property_name_node_for_symbol, chains_lookup_symbol_chain,
     chains_symbol_to_entity_name_node, chains_symbol_to_expression, chains_symbol_to_type_node,
@@ -39,8 +41,14 @@ pub(crate) use signatures::{
     create_recovery_boundary, enter_new_scope, index_info_to_index_signature_declaration_helper,
     signature_to_signature_declaration_helper, symbol_to_parameter_declaration,
     type_parameter_to_declaration, type_predicate_to_type_predicate_node_helper,
+    SignatureDeclarationOptions,
 };
+pub(crate) use statements::{symbol_table_to_declaration_statements, symbol_to_declarations};
 pub(crate) use tracker::NodeBuilderTracker;
+use type_nodes::{
+    add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
+    create_node_array, create_token, factory_error, project_parse_node, BuildResult,
+};
 pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
 
 /// The declaration facts read directly from upstream's optional `symbol`

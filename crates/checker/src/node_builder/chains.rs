@@ -553,7 +553,8 @@ fn get_topmost_indexed_access_type(
 /// tsc-port: getSpecifierForModuleSymbol @6.0.3 (lane-H call)
 /// tsc-hash: cc081ccc9162d99c71cfb5013a0786210de8d66472567a9ee1d6eab90f686463
 /// tsc-span: _tsc.js:53060-53109
-fn specifier_for_module_symbol(
+// h2-7a-m-3 widening: statements alias/module-specifier synthesis.
+pub(crate) fn specifier_for_module_symbol(
     checker: &mut CheckerState<'_>,
     context: &NodeBuilderContext<'_>,
     symbol: SymbolId,

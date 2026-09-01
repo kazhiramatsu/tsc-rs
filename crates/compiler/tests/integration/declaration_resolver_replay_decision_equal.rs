@@ -37,28 +37,34 @@ const CONFORMANCE_EXPANSION: &[u8] = include_bytes!(concat!(
 // upstream ratchet re-pins its embedded hashes, so they are recorded
 // in the register, not asserted here).
 const EXPECTED_MANIFEST_FINGERPRINT: &str =
-    "89bb0627cee58b5d12aeb6fd5e95a92d26e1bbb54fd592750b49a34b64a89efb";
+    "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1";
 const EXPECTED_WITNESS_OBSERVATION_ROLL: &str =
-    "091cea9c5dd7a2c60a551d9292cd19832f9b71c77a28508eeae7252ccf556312";
+    "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad";
 const EXPECTED_PROBE_TRACE_ROLL: &str =
-    "dcf1243f5b8f3187631349657ab07c05a5c52270fd564d415687a1ad76bcb6d9";
+    "ca24d47c54b14df301817f76e88acd2b4ea2c6bf1cb1e94bb4b163113a60e188";
 
 // Artifact upper-envelope constants transcribed from the FINAL E4 register.
 const EXPECTED_EVENT_VOLUMES: &[(&str, u64)] = &[
-    ("isDeclarationVisible", 2_036),
-    ("isLiteralConstDeclaration", 612),
-    ("isExpandoFunctionDeclaration", 456),
-    ("isSymbolAccessible", 407),
-    ("isOptionalParameter", 344),
-    ("isImplementationOfOverload", 192),
-    ("isEntityNameVisible", 195),
-    ("requiresAddingImplicitUndefined", 133),
-    ("isImportRequiredByAugmentation", 15),
+    ("isDeclarationVisible", 2165),
+    ("isLiteralConstDeclaration", 644),
+    ("isExpandoFunctionDeclaration", 464),
+    ("isSymbolAccessible", 449),
+    ("isOptionalParameter", 423),
+    ("isImplementationOfOverload", 202),
+    ("isEntityNameVisible", 215),
+    ("requiresAddingImplicitUndefined", 162),
+    ("isImportRequiredByAugmentation", 19),
     ("isDefinitelyReferenceToGlobalSymbolObject", 10),
     ("getPropertiesOfContainerFunction", 5),
     ("isLateBound", 4),
     ("getEnumMemberValue", 3),
     ("collectLinkedAliases", 12),
+    ("createTypeOfDeclaration", 320),
+    ("createReturnTypeOfSignatureDeclaration", 151),
+    ("createTypeOfExpression", 4),
+    ("createLiteralConstValue", 8),
+    ("getDeclarationStatementsForSourceFile", 3),
+    ("createLateBoundIndexSignatures", 161),
 ];
 
 // Schema-2 remeasurement of the four packet §7.4 diagnostic edge families.
@@ -120,6 +126,21 @@ const EXPECTED_MEMBER_COUNTS: &[(&str, [u64; 6])] = &[
     (
         "resolver.requiresAddingImplicitUndefined",
         [47, 0, 86, 0, 0, 0],
+    ),
+    ("resolver.createTypeOfDeclaration", [0, 0, 0, 0, 0, 0]),
+    (
+        "resolver.createReturnTypeOfSignatureDeclaration",
+        [0, 0, 0, 0, 0, 0],
+    ),
+    ("resolver.createTypeOfExpression", [0, 0, 0, 0, 0, 0]),
+    ("resolver.createLiteralConstValue", [0, 0, 0, 0, 0, 0]),
+    (
+        "resolver.getDeclarationStatementsForSourceFile",
+        [0, 0, 0, 0, 0, 0],
+    ),
+    (
+        "resolver.createLateBoundIndexSignatures",
+        [0, 0, 0, 0, 0, 0],
     ),
 ];
 
@@ -233,8 +254,19 @@ fn declaration_resolver_replay_decision_equal() {
         first["nested_topology_divergences"]
     );
     eprintln!("HREFINE_EXCLUDED_CAUSALITY={}", first["excluded_causality"]);
-    assert_eq!(first["cases"], json!(112));
-    assert_eq!(first["seed_checks"], json!(388));
+    eprintln!(
+        "P5_GATING_SAMPLE={}",
+        serde_json::to_string(
+            &first["gating_mismatches"]
+                .as_array()
+                .map(|rows| rows.iter().take(6).cloned().collect::<Vec<_>>())
+                .unwrap_or_default()
+        )
+        .unwrap_or_default()
+    );
+    eprintln!("P5_NESTED_EDGES={}", first["traced_nested_edges"]);
+    assert_eq!(first["cases"], json!(120));
+    assert_eq!(first["seed_checks"], json!(412));
     assert_eq!(
         first["traced_nested_edges"],
         json_object_from_pairs(EXPECTED_NESTED_EDGES)
@@ -334,9 +366,9 @@ fn assert_frozen_artifact_identity(witnesses: &WitnessArtifact, probes: &ProbeAr
     // artifact bytes it observed against; assert the pin matches the
     // checked-in witness file so the pair cannot drift apart.
     assert_eq!(probes.witnesses.sha256, sha256(WITNESSES));
-    assert_eq!(witnesses.case_manifest.cases.len(), 112);
-    assert_eq!(probes.summary.cases, 112);
-    assert_eq!(probes.cases.len(), 112);
+    assert_eq!(witnesses.case_manifest.cases.len(), 120);
+    assert_eq!(probes.summary.cases, 120);
+    assert_eq!(probes.cases.len(), 120);
 }
 
 fn assert_site_dispositions_and_volumes(probes: &ProbeArtifact) {
@@ -365,8 +397,8 @@ fn assert_site_dispositions_and_volumes(probes: &ProbeArtifact) {
             .unwrap_or(0),
         0
     );
-    assert_eq!(probes.summary.per_site_counts["probe.checkSeed"], 194);
-    assert_eq!(probes.summary.per_site_counts["probe.transformSeed"], 194);
+    assert_eq!(probes.summary.per_site_counts["probe.checkSeed"], 206);
+    assert_eq!(probes.summary.per_site_counts["probe.transformSeed"], 206);
     for &(member, count) in EXPECTED_EVENT_VOLUMES {
         let prefix = if member == "collectLinkedAliases" {
             "resolver.collectLinkedAliases".to_owned()
