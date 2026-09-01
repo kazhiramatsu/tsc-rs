@@ -1,6 +1,7 @@
 #![allow(dead_code, unused_imports)]
 
 mod context;
+pub(crate) mod specifier;
 mod tracker;
 
 pub(crate) use crate::syntactic_type_node_builder::SyntacticTypeNodeBuilder;
