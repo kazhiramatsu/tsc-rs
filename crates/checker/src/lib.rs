@@ -35,6 +35,7 @@ pub mod mapped;
 pub mod merge;
 pub mod modules;
 pub mod narrow;
+mod node_builder;
 pub mod operators;
 mod plain_js_errors;
 pub mod program;
