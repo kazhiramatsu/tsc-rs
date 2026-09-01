@@ -145,3 +145,11 @@ envelope.
   fingerprints remain register-recorded succession values, not
   harness assertions. Final artifact fingerprints at the walk head
   are recorded by the walk cert / close record.
+
+- **P5 correction (P6k):** `m8-emitter-dispositions.json` is the
+  FROZEN M8-era adjudication snapshot (immutable against the trusted
+  base by the audit's transition matrix; unchanged through every
+  H1/H2 port since its freeze). The packet §9.P5 "regenerated in the
+  same slice" step is superseded: the exact-port LEDGER rows are the
+  living bookkeeping for the m-2 ports; the dispositions file is
+  restored byte-identical to the trusted base.
