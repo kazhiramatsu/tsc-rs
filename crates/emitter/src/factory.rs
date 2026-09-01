@@ -178,6 +178,46 @@ impl TransformArena {
         }
     }
 
+    /// Borrow a synthetic-node constructor over this arena. The checker's
+    /// dormant NodeBuilder foundation (h2-7a-m-3) builds serialized
+    /// declaration `TypeNode`s through this seam; production transforms keep
+    /// obtaining their factory from the `TransformationContext`.
+    /// tsrs-native: consumer seam for arena-owned node construction.
+    pub fn factory(&mut self) -> NodeFactory<'_> {
+        NodeFactory::new(self)
+    }
+
+    /// Project a checker-side parse-tree identity into this arena's mounted
+    /// copy of that parse tree — the validated inverse of
+    /// [`parse_tree_resolver_node`](Self::parse_tree_resolver_node). Returns
+    /// `None` when no mounted source carries the resolver node's Program
+    /// file; a node id outside the mounted parse lease is an error, never a
+    /// silent synthetic alias.
+    /// tsrs-native: resolver-to-transform projection for reuse clones
+    /// (h2-7a-m-3 §4).
+    pub fn parse_tree_transform_node(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<TransformNode>, TransformError> {
+        for (index, source) in self.sources.iter().enumerate() {
+            if source.program_source() != Some(node.source()) {
+                continue;
+            }
+            let transform_source = TransformSourceId(
+                u32::try_from(index).expect("transform source count exceeds u32"),
+            );
+            let candidate = TransformNode {
+                source: transform_source,
+                node: node.node(),
+            };
+            if !source.contains_parsed_node(node.node()) {
+                return Err(TransformError::ResolverNodeNotInParseTree(candidate));
+            }
+            return Ok(Some(candidate));
+        }
+        Ok(None)
+    }
+
     pub fn add_source(
         &mut self,
         source: &SourceFile,
@@ -1253,7 +1293,11 @@ impl<'arena> NodeFactory<'arena> {
         kind: SyntaxKind,
         transform_flags: TransformFlags,
     ) -> Result<TransformNode, TransformError> {
-        if kind > SyntaxKind::LastToken {
+        // ThisType (198) is the one kind-only TYPE node: the parser stores it
+        // as token data (parser.rs finish_kind_only_node), so the NodeBuilder
+        // constructs it here. A named allowlist, not a blanket lift of the
+        // token ceiling (h2-7a-m-3 §4 seam 3).
+        if kind > SyntaxKind::LastToken && kind != SyntaxKind::ThisType {
             return Err(TransformError::FactoryTokenKindExpected(kind));
         }
         let syntax = &mut self.arena.source_mut(source)?.source;

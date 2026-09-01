@@ -4,6 +4,8 @@ use std::fmt;
 use tsc_program::SourceFileId;
 use tsc_syntax::NodeId;
 
+use crate::factory::{TransformArena, TransformNode, TransformSourceId};
+use crate::transform::TransformError;
 use crate::{EmitConstantValue, EmitEnumMemberValue};
 
 /// The checker result of an emit-resolver accessibility query.
@@ -56,6 +58,274 @@ pub struct EmitFunctionProperty {
     pub symbol: EmitResolverSymbol,
     pub parent: EmitResolverSymbol,
     pub value_declaration: Option<EmitResolverNode>,
+}
+
+/// NodeBuilderFlags word consumed by the declaration-serialization resolver
+/// members. Upstream numerics verbatim; the vendored inline constants are the
+/// authority for every named bit.
+/// tsc-port: NodeBuilderFlags @6.0.3
+/// tsc-span: _tsc.js:114263
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct EmitNodeBuilderFlags(pub u32);
+
+impl EmitNodeBuilderFlags {
+    pub const NONE: Self = Self(0);
+    pub const NO_TRUNCATION: Self = Self(1);
+    pub const GENERATE_NAMES_FOR_SHADOWED_TYPE_PARAMS: Self = Self(4);
+    pub const USE_STRUCTURAL_FALLBACK: Self = Self(8);
+    pub const SUPPRESS_ANY_RETURN_TYPE: Self = Self(256);
+    pub const MULTILINE_OBJECT_LITERALS: Self = Self(1024);
+    pub const WRITE_CLASS_EXPRESSION_AS_TYPE_LITERAL: Self = Self(2048);
+    pub const USE_TYPE_OF_FUNCTION: Self = Self(4096);
+    pub const ALLOW_EMPTY_TUPLE: Self = Self(524_288);
+    /// The `declarationEmitNodeBuilderFlags` composition at _tsc.js:114263.
+    pub const DECLARATION_EMIT: Self = Self(1024 | 2048 | 4096 | 8 | 524_288 | 4 | 1);
+
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+}
+
+/// InternalNodeBuilderFlags word.
+/// tsc-port: InternalNodeBuilderFlags @6.0.3
+/// tsc-span: _tsc.js:114264
+#[repr(transparent)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct EmitInternalNodeBuilderFlags(pub u32);
+
+impl EmitInternalNodeBuilderFlags {
+    pub const NONE: Self = Self(0);
+    pub const WRITE_COMPUTED_PROPS: Self = Self(1);
+    pub const NO_SYNTACTIC_PRINTER: Self = Self(2);
+    pub const ALLOW_UNRESOLVED_NAMES: Self = Self(8);
+    /// The `declarationEmitInternalNodeBuilderFlags` value at _tsc.js:114264.
+    pub const DECLARATION_EMIT: Self = Self(8);
+
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+}
+
+/// The `symbolToDeclarations` expansion out-parameter.
+/// tsc-span: _tsc.js:51246-51253 (context.out construction and copy)
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct EmitSymbolExpansionOut {
+    pub can_increase_expansion_depth: bool,
+    pub truncated: bool,
+}
+
+/// Opaque checker-minted symbol token handed to tracker callbacks and
+/// accepted back verbatim by [`EmitTrackerAccess`]. The token is valid only
+/// for the duration of the callback that received it.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EmitTrackerSymbol(pub u64);
+
+/// Opaque checker-minted node token (parse-tree or synthesized identity)
+/// with the same callback-scoped validity as [`EmitTrackerSymbol`].
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EmitTrackerNode(pub u64);
+
+/// Recording projection of a tracker node token: parse-tree coordinates,
+/// original-node coordinates for a synthesized node, or neither.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct EmitTrackerNodeDescription {
+    pub parse: Option<EmitResolverNode>,
+    pub original: Option<EmitResolverNode>,
+}
+
+/// Recording projection of a tracker symbol token (the probe symbolRef
+/// shape: verbatim escaped name, declaration count, first eight
+/// declarations).
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct EmitTrackerSymbolDescription {
+    pub escaped_name: String,
+    pub declaration_count: u32,
+    pub declarations: Vec<EmitTrackerNodeDescription>,
+}
+
+/// The four resolver queries the upstream declaration transformer's tracker
+/// re-enters, exposed re-entrantly by the checker for the duration of a
+/// tracker callback so no second checker borrow is ever taken.
+/// tsc-span: _tsc.js:114362-114369 (trackSymbol), :114317-114331
+/// (reportExpandoFunctionErrors), :114193-114201 (parameter error arm)
+pub trait EmitTrackerAccess {
+    fn is_symbol_accessible(
+        &mut self,
+        symbol: EmitTrackerSymbol,
+        enclosing_declaration: Option<EmitTrackerNode>,
+        meaning: EmitSymbolMeaning,
+        should_compute_aliases: bool,
+    ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError>;
+
+    fn is_expando_function_declaration(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<bool, EmitResolverError>;
+
+    fn get_properties_of_container_function(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<Vec<EmitFunctionProperty>, EmitResolverError>;
+
+    fn requires_adding_implicit_undefined(
+        &mut self,
+        parameter: EmitTrackerNode,
+        enclosing_declaration: Option<EmitTrackerNode>,
+    ) -> Result<bool, EmitResolverError>;
+
+    /// Recording projections for harness trackers; production trackers may
+    /// ignore these.
+    fn describe_symbol(&mut self, symbol: EmitTrackerSymbol) -> EmitTrackerSymbolDescription;
+
+    fn describe_node(&mut self, node: EmitTrackerNode) -> EmitTrackerNodeDescription;
+}
+
+/// Narrow module-specifier host protocol consumed by the NodeBuilder's
+/// specifier synthesis. The seven concrete members mirror the
+/// always-consulted upstream host reads; the capability members model the
+/// optional host surfaces with typed absent defaults (the h2-7a-m-3 §3a
+/// host-fact discipline: an absent capability answers its typed absent
+/// form, and no arm may fabricate a specifier from a missing capability).
+/// tsc-span: _tsc.js:90948-90968 (basic host), :45368-46289 (consumption)
+pub trait EmitModuleSpecifierHost {
+    fn get_current_directory(&self) -> String;
+    fn use_case_sensitive_file_names(&self) -> bool;
+    fn file_exists(&self, file_name: &str) -> bool;
+    fn read_file(&self, file_name: &str) -> Option<String>;
+    fn get_common_source_directory(&self) -> String;
+    /// Default resolution mode for a file (upstream `getDefaultResolutionModeForFile`).
+    fn get_default_resolution_mode_for_file(&self, file: EmitResolverNode) -> EmitResolutionMode;
+    /// Resolution mode at a module-specifier index (upstream
+    /// `getModeForResolutionAtIndex`).
+    fn get_mode_for_resolution_at_index(
+        &self,
+        file: EmitResolverNode,
+        index: u32,
+    ) -> EmitResolutionMode;
+
+    // Capability-optional surfaces (typed absent defaults).
+    fn symlinked_directories(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+    fn symlinked_files(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+    fn get_nearest_ancestor_directory_with_package_json(&self, _file_name: &str) -> Option<String> {
+        None
+    }
+    fn get_global_typings_cache_location(&self) -> Option<String> {
+        None
+    }
+    fn redirect_targets(&self, _file_path: &str) -> Vec<String> {
+        Vec::new()
+    }
+    fn get_redirect_from_source_file(&self, _file_name: &str) -> Option<String> {
+        None
+    }
+    fn is_source_of_project_reference_redirect(&self, _file_name: &str) -> bool {
+        false
+    }
+    fn file_include_reasons_available(&self) -> bool {
+        false
+    }
+}
+
+/// Module resolution mode selector (upstream `ResolutionMode`:
+/// undefined | CommonJS = 1 | ESNext = 99).
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum EmitResolutionMode {
+    #[default]
+    None,
+    CommonJs,
+    EsNext,
+}
+
+/// Caller-supplied symbol tracker: the declaration transformer's tracker
+/// object protocol behind the checker's SymbolTrackerImpl forwarding.
+/// Callbacks that receive an [`EmitTrackerAccess`] handle are fallible and
+/// propagate checker aborts fail-closed; pure report callbacks are
+/// infallible. Default implementations model an absent upstream member
+/// (SymbolTrackerImpl forwards only to members that exist).
+/// tsc-port: symbolTracker @6.0.3 (transformer object) + SymbolTrackerImpl
+/// tsc-span: _tsc.js:114280-114304, :90969-91068
+pub trait EmitSymbolTracker {
+    /// Upstream member presence: SymbolTrackerImpl computes
+    /// `canTrackSymbol` from the inner tracker's `trackSymbol` existence.
+    fn can_track_symbol(&self) -> bool {
+        false
+    }
+
+    fn track_symbol(
+        &mut self,
+        access: &mut dyn EmitTrackerAccess,
+        symbol: EmitTrackerSymbol,
+        enclosing_declaration: Option<EmitTrackerNode>,
+        meaning: EmitSymbolMeaning,
+    ) -> Result<bool, EmitResolverError> {
+        let _ = (access, symbol, enclosing_declaration, meaning);
+        Ok(false)
+    }
+
+    fn report_inference_fallback(
+        &mut self,
+        access: &mut dyn EmitTrackerAccess,
+        node: EmitTrackerNode,
+    ) -> Result<(), EmitResolverError> {
+        let _ = (access, node);
+        Ok(())
+    }
+
+    fn report_private_in_base_of_class_expression(&mut self, property_name: &str) {
+        let _ = property_name;
+    }
+
+    fn report_inaccessible_unique_symbol_error(&mut self) {}
+
+    fn report_cyclic_structure_error(&mut self) {}
+
+    fn report_inaccessible_this_error(&mut self) {}
+
+    fn report_likely_unsafe_import_required_error(
+        &mut self,
+        specifier: &str,
+        symbol_name: Option<&str>,
+    ) {
+        let _ = (specifier, symbol_name);
+    }
+
+    fn report_truncation_error(&mut self) {}
+
+    fn report_nonlocal_augmentation(
+        &mut self,
+        containing_file: EmitTrackerNode,
+        parent_symbol: EmitTrackerSymbol,
+        augmenting_symbol: EmitTrackerSymbol,
+    ) {
+        let _ = (containing_file, parent_symbol, augmenting_symbol);
+    }
+
+    fn report_non_serializable_property(&mut self, property_name: &str) {
+        let _ = property_name;
+    }
+
+    fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNode>) {
+        let _ = node;
+    }
+
+    fn pop_error_fallback_node(&mut self) {}
+
+    fn module_specifier_host(&self) -> Option<&dyn EmitModuleSpecifierHost> {
+        None
+    }
 }
 
 /// Stable source/node identity passed from the emitter back into the live
@@ -141,6 +411,13 @@ pub enum EmitResolverMethod {
     IsLiteralConstDeclaration,
     IsLateBound,
     IsImportRequiredByAugmentation,
+    CreateTypeOfDeclaration,
+    CreateReturnTypeOfSignatureDeclaration,
+    CreateTypeOfExpression,
+    CreateLiteralConstValue,
+    GetDeclarationStatementsForSourceFile,
+    CreateLateBoundIndexSignatures,
+    SymbolToDeclarations,
 }
 
 /// Selects the checker view used by `getReferencedExportContainer`.
@@ -206,6 +483,15 @@ impl EmitResolverMethod {
             Self::IsLiteralConstDeclaration => "isLiteralConstDeclaration",
             Self::IsLateBound => "isLateBound",
             Self::IsImportRequiredByAugmentation => "isImportRequiredByAugmentation",
+            Self::CreateTypeOfDeclaration => "createTypeOfDeclaration",
+            Self::CreateReturnTypeOfSignatureDeclaration => {
+                "createReturnTypeOfSignatureDeclaration"
+            }
+            Self::CreateTypeOfExpression => "createTypeOfExpression",
+            Self::CreateLiteralConstValue => "createLiteralConstValue",
+            Self::GetDeclarationStatementsForSourceFile => "getDeclarationStatementsForSourceFile",
+            Self::CreateLateBoundIndexSignatures => "createLateBoundIndexSignatures",
+            Self::SymbolToDeclarations => "symbolToDeclarations",
         }
     }
 }
@@ -241,6 +527,19 @@ pub enum EmitResolverError {
         method: EmitResolverMethod,
         node: EmitResolverNode,
         reason: &'static str,
+    },
+    /// Fail-closed default for symbol-scoped members that carry no node
+    /// argument (`symbolToDeclarations`).
+    UnavailableForSymbol {
+        method: EmitResolverMethod,
+        symbol: EmitResolverSymbol,
+    },
+    /// A factory or arena operation inside a serialization member failed.
+    /// Boxed: `TransformError::Resolver` already wraps this type, so the
+    /// unboxed form would be an infinite-size cycle.
+    Factory {
+        method: EmitResolverMethod,
+        error: Box<TransformError>,
     },
 }
 
@@ -305,6 +604,19 @@ impl fmt::Display for EmitResolverError {
                 node.source().raw(),
                 node.node().0,
                 reason
+            ),
+            Self::UnavailableForSymbol { method, symbol } => write!(
+                formatter,
+                "emit resolver method {} is unavailable for symbol {} in session {}",
+                method.name(),
+                symbol.symbol_index,
+                symbol.session_token
+            ),
+            Self::Factory { method, error } => write!(
+                formatter,
+                "emit resolver method {} factory operation failed: {}",
+                method.name(),
+                error
             ),
         }
     }
@@ -711,11 +1023,199 @@ pub trait EmitResolver {
             node,
         ))
     }
+
+    /// Serialize the type of a declaration with an inferred type into a
+    /// synthesized `TypeNode` allocated in the caller's transform arena.
+    /// The parse-tree filter (`hasInferredType`) and the AnyKeyword-token
+    /// fallback are implementation-side and upstream-exact; the wrapper
+    /// composes `flags | MULTILINE_OBJECT_LITERALS`.
+    /// tsc-port: createTypeOfDeclaration @6.0.3
+    /// tsc-span: _tsc.js:88359-88366
+    #[allow(clippy::too_many_arguments)]
+    fn create_type_of_declaration(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        declaration: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::CreateTypeOfDeclaration,
+            declaration,
+        ))
+    }
+
+    /// tsc-port: createReturnTypeOfSignatureDeclaration @6.0.3
+    /// tsc-span: _tsc.js:88382-88388
+    #[allow(clippy::too_many_arguments)]
+    fn create_return_type_of_signature_declaration(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        signature_declaration: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
+            signature_declaration,
+        ))
+    }
+
+    /// tsc-port: createTypeOfExpression @6.0.3
+    /// tsc-span: _tsc.js:88389-88395
+    #[allow(clippy::too_many_arguments)]
+    fn create_type_of_expression(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        expression: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::CreateTypeOfExpression,
+            expression,
+        ))
+    }
+
+    /// Serialize a literal-const initializer value. Takes NO flag words —
+    /// the upstream signature is `(node, tracker)`.
+    /// tsc-port: createLiteralConstValue @6.0.3
+    /// tsc-span: _tsc.js:88506-88509 (helper literalTypeToNode :88491-88505)
+    fn create_literal_const_value(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        node: EmitResolverNode,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<TransformNode, EmitResolverError> {
+        let _ = (arena, target, tracker);
+        Err(unavailable(
+            EmitResolverMethod::CreateLiteralConstValue,
+            node,
+        ))
+    }
+
+    /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3
+    /// tsc-span: _tsc.js:88612-88621
+    #[allow(clippy::too_many_arguments)]
+    fn get_declaration_statements_for_source_file(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        node: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<Vec<TransformNode>>, EmitResolverError> {
+        let _ = (arena, target, flags, internal_flags, tracker);
+        Err(unavailable(
+            EmitResolverMethod::GetDeclarationStatementsForSourceFile,
+            node,
+        ))
+    }
+
+    /// tsc-port: createLateBoundIndexSignatures @6.0.3
+    /// tsc-span: _tsc.js:88624-88691
+    #[allow(clippy::too_many_arguments)]
+    fn create_late_bound_index_signatures(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        container: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<Vec<TransformNode>>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::CreateLateBoundIndexSignatures,
+            container,
+        ))
+    }
+
+    /// Serialize a symbol's declarations (the NodeBuilder API surface
+    /// member; zero transformer call sites — consumers arrive with the
+    /// API1/H2.8 eras).
+    /// tsc-port: symbolToDeclarations @6.0.3
+    /// tsc-span: _tsc.js:88692-88694 (member :51136-51164)
+    #[allow(clippy::too_many_arguments)]
+    fn symbol_to_declarations(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        symbol: EmitResolverSymbol,
+        meaning: EmitSymbolMeaning,
+        flags: EmitNodeBuilderFlags,
+        maximum_length: Option<u32>,
+        verbosity_level: Option<i32>,
+        out: Option<&mut EmitSymbolExpansionOut>,
+    ) -> Result<Vec<TransformNode>, EmitResolverError> {
+        // Upstream passes NO tracker: withContext installs the basic
+        // SymbolTrackerImpl over an absent inner tracker (:51136-51149).
+        let _ = (
+            arena,
+            target,
+            meaning,
+            flags,
+            maximum_length,
+            verbosity_level,
+            out,
+        );
+        Err(EmitResolverError::UnavailableForSymbol {
+            method: EmitResolverMethod::SymbolToDeclarations,
+            symbol,
+        })
+    }
 }
 
 fn unavailable(method: EmitResolverMethod, node: EmitResolverNode) -> EmitResolverError {
     EmitResolverError::Unavailable { method, node }
 }
+
+#[cfg(test)]
+#[path = "../tests/unit/node_builder_seams/tests.rs"]
+mod node_builder_seam_tests;
 
 /// Explicit resolver for transform-only tests whose admitted syntax reaches
 /// no semantic query. Any accidental expansion fails with the method/node.
