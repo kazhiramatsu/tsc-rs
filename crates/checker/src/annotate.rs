@@ -7191,7 +7191,11 @@ impl<'a> CheckerState<'a> {
     /// tsc-port: getIndexSymbol @6.0.3
     /// tsc-hash: 2dffc568392757cc14418934e18e93bb1927d8ad61ab7932fb91c1e8a0cfb768
     /// tsc-span: _tsc.js:59983-59985
-    fn get_index_infos_of_symbol(&mut self, symbol: SymbolId) -> CheckResult<Vec<IndexInfo>> {
+    // h2-7a-m-3 widening
+    pub(crate) fn get_index_infos_of_symbol(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult<Vec<IndexInfo>> {
         // getIndexSymbol reads getMembersOfSymbol (the late-bound
         // table) — a computed-name index member surfaces here and the
         // declaration reader below keeps its honest escape.
@@ -7216,7 +7220,8 @@ impl<'a> CheckerState<'a> {
     /// declarations, element-access names) are elided project-wide.
     /// `sibling_symbols` is tsc's default parameter: the parent's
     /// member list when absent, evaluated eagerly like the JS default.
-    fn get_index_infos_of_index_symbol(
+    // h2-7a-m-3 widening
+    pub(crate) fn get_index_infos_of_index_symbol(
         &mut self,
         index_symbol: SymbolId,
         sibling_symbols: Option<Vec<SymbolId>>,

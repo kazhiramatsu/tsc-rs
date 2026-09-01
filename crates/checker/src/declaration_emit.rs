@@ -3012,3 +3012,643 @@ fn declaration_replay_shadow_divergences(
     }
     divergences
 }
+
+// ---------------------------------------------------------------------------
+// h2-7a-m-3 P4: the seven NodeBuilder-backed resolver member workers.
+// ---------------------------------------------------------------------------
+
+/// tsc-port: hasInferredType @6.0.3
+/// tsc-hash: 55c3a279ae3c1a8fca1d107e0a56ea1ac0bb6ca4d5c2d21b18162b3bd9678822
+/// tsc-span: _tsc.js:19921-19942
+fn has_inferred_type(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::Parameter
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::PropertyDeclaration
+            | SyntaxKind::BindingElement
+            | SyntaxKind::PropertyAccessExpression
+            | SyntaxKind::ElementAccessExpression
+            | SyntaxKind::BinaryExpression
+            | SyntaxKind::VariableDeclaration
+            | SyntaxKind::ExportAssignment
+            | SyntaxKind::PropertyAssignment
+            | SyntaxKind::ShorthandPropertyAssignment
+            | SyntaxKind::JSDocParameterTag
+            | SyntaxKind::JSDocPropertyTag
+    )
+}
+
+fn node_builder_abort_error(
+    checker: &CheckerState<'_>,
+    method: tsc_emitter::EmitResolverMethod,
+    node: NodeId,
+    abort: crate::state::CheckAbort,
+) -> tsc_emitter::EmitResolverError {
+    let source = u32::try_from(checker.binder.file_index_of_node(node)).unwrap_or(0);
+    tsc_emitter::EmitResolverError::CheckerAborted {
+        method,
+        node: EmitResolverNode::from_raw_source(source, node),
+        reason: abort.description(),
+    }
+}
+
+fn node_builder_factory_error(
+    method: tsc_emitter::EmitResolverMethod,
+    error: tsc_emitter::TransformError,
+) -> tsc_emitter::EmitResolverError {
+    tsc_emitter::EmitResolverError::Factory {
+        method,
+        error: Box::new(error),
+    }
+}
+
+fn any_keyword_fallback(
+    arena: &mut tsc_emitter::TransformArena,
+    target: tsc_emitter::TransformSourceId,
+    method: tsc_emitter::EmitResolverMethod,
+) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+    arena
+        .factory()
+        .create_token(
+            target,
+            SyntaxKind::AnyKeyword,
+            tsc_emitter::TransformFlags::NONE,
+        )
+        .map_err(|error| node_builder_factory_error(method, error))
+}
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: createTypeOfDeclaration @6.0.3
+    /// tsc-hash: 3fca7286d06f724e39cb7fd2b3c04e734b71ea9c6a3fd314f18a1d972b03f52e
+    /// tsc-span: _tsc.js:88359-88366
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_type_of_declaration(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        declaration: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration;
+        // getParseTreeNode(declarationIn, hasInferredType): the resolver
+        // boundary already guarantees parse-tree identity; the kind filter
+        // remains.
+        if !has_inferred_type(self.kind_of(declaration)) {
+            return any_keyword_fallback(arena, target, method).map(Some);
+        }
+        let symbol = self
+            .get_symbol_of_declaration(declaration)
+            .map_err(|abort| node_builder_abort_error(self, method, declaration, abort))?;
+        crate::node_builder::serialize_type_for_declaration(
+            self,
+            arena,
+            target,
+            declaration,
+            symbol,
+            Some(enclosing_declaration),
+            Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
+            Some(internal_flags),
+            Some(tracker),
+        )
+    }
+
+    /// tsc-port: createReturnTypeOfSignatureDeclaration @6.0.3
+    /// tsc-hash: 4f6b58a6e21be6f00dbef1e6081af585337793bba85a51e6db983e93dbeae1ed
+    /// tsc-span: _tsc.js:88382-88388
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_return_type_of_signature_declaration(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        signature_declaration: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration;
+        if !node_util::is_function_like_kind(self.kind_of(signature_declaration)) {
+            return any_keyword_fallback(arena, target, method).map(Some);
+        }
+        crate::node_builder::serialize_return_type_for_signature(
+            self,
+            arena,
+            target,
+            signature_declaration,
+            Some(enclosing_declaration),
+            Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
+            Some(internal_flags),
+            Some(tracker),
+        )
+    }
+
+    /// tsc-port: createTypeOfExpression @6.0.3
+    /// tsc-hash: 2ff9a5a1b3ff9a9f829bfdc563bd6d719b4d78fc74cb135cf1a814b23a1b4854
+    /// tsc-span: _tsc.js:88389-88395
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_type_of_expression(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        expression: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateTypeOfExpression;
+        let source = self.binder.source_of_node(expression);
+        if !node_util::is_expression_node(source, expression) {
+            return any_keyword_fallback(arena, target, method).map(Some);
+        }
+        crate::node_builder::serialize_type_for_expression(
+            self,
+            arena,
+            target,
+            expression,
+            Some(enclosing_declaration),
+            Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
+            Some(internal_flags),
+            Some(tracker),
+        )
+    }
+}
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: literalTypeToNode @6.0.3
+    /// tsc-hash: 91adba0e796ad8c800914e747cbaf387c45bcae0dad9d70e5ef9db143d768e07
+    /// tsc-span: _tsc.js:88491-88505
+    #[allow(clippy::too_many_arguments)]
+    fn emit_literal_type_to_node(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        literal_type: tsc_types::TypeId,
+        enclosing_declaration: NodeId,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+        use tsc_types::{LiteralValue, TypeData, TypeFlags};
+        let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
+        let flags = self.tables.flags_of(literal_type);
+        if flags.contains(TypeFlags::ENUM_LIKE) {
+            let symbol = self.tables.type_of(literal_type).symbol.ok_or(
+                tsc_emitter::EmitResolverError::CheckerAborted {
+                    method,
+                    node: EmitResolverNode::from_raw_source(
+                        u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
+                            .unwrap_or(0),
+                        enclosing_declaration,
+                    ),
+                    reason: "enum-like literal type has no symbol",
+                },
+            )?;
+            let node = crate::node_builder::with_context(
+                self,
+                arena,
+                target,
+                Some(enclosing_declaration),
+                None,
+                None,
+                Some(tracker),
+                None,
+                None,
+                |checker, arena, target, context| {
+                    crate::node_builder::chains_symbol_to_expression(
+                        checker,
+                        arena,
+                        target,
+                        context,
+                        symbol,
+                        tsc_emitter::EmitSymbolMeaning(111_551),
+                    )
+                    .map(Some)
+                },
+                None,
+            )?
+            .flatten();
+            if let Some(node) = node {
+                return Ok(node);
+            }
+            // encounteredError inside the enum arm falls through to the
+            // literal-value arms exactly as upstream's falsy `enumResult`.
+        }
+        if flags.contains(TypeFlags::BOOLEAN_LITERAL) {
+            let is_true = matches!(
+                &self.tables.type_of(literal_type).data,
+                TypeData::Intrinsic { name: "true", .. }
+            );
+            let kind = if is_true {
+                SyntaxKind::TrueKeyword
+            } else {
+                SyntaxKind::FalseKeyword
+            };
+            return arena
+                .factory()
+                .create_token(target, kind, tsc_emitter::TransformFlags::NONE)
+                .map_err(|error| node_builder_factory_error(method, error));
+        }
+        let value = match &self.tables.type_of(literal_type).data {
+            TypeData::Literal { value } => value.clone(),
+            _ => {
+                return Err(tsc_emitter::EmitResolverError::CheckerAborted {
+                    method,
+                    node: EmitResolverNode::from_raw_source(
+                        u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
+                            .unwrap_or(0),
+                        enclosing_declaration,
+                    ),
+                    reason: "literal-const type is not a literal",
+                })
+            }
+        };
+        let mut factory = arena.factory();
+        let map_factory = |error| node_builder_factory_error(method, error);
+        match value {
+            LiteralValue::BigInt(pseudo) => factory
+                .create_node(
+                    target,
+                    NodeData::BigIntLiteral(tsc_syntax::nodes::BigIntLiteralData {
+                        text: format!("{}n", pseudo.to_base10_string()),
+                    }),
+                    tsc_emitter::TransformFlags::NONE,
+                )
+                .map_err(map_factory),
+            LiteralValue::String(text) => {
+                let text = text.to_utf8().ok_or({
+                    // The lane-BD convention: unpaired UTF-16 payloads are a
+                    // typed m-3.5 factory-face residue, never lossy storage.
+                    tsc_emitter::EmitResolverError::CheckerAborted {
+                        method,
+                        node: EmitResolverNode::from_raw_source(
+                            u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
+                                .unwrap_or(0),
+                            enclosing_declaration,
+                        ),
+                        reason:
+                            "unpaired UTF-16 string literal requires the m-3.5 UTF-16 factory face",
+                    }
+                })?;
+                factory
+                    .create_node(
+                        target,
+                        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
+                            text,
+                            has_extended_unicode_escape: None,
+                        }),
+                        tsc_emitter::TransformFlags::NONE,
+                    )
+                    .map_err(map_factory)
+            }
+            LiteralValue::Number(number) if number < 0.0 => {
+                let operand = factory
+                    .create_node(
+                        target,
+                        NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                            text: tsc_types::js_number_to_string(-number),
+                        }),
+                        tsc_emitter::TransformFlags::NONE,
+                    )
+                    .map_err(map_factory)?;
+                factory
+                    .create_node(
+                        target,
+                        NodeData::PrefixUnaryExpression(
+                            tsc_syntax::nodes::PrefixUnaryExpressionData {
+                                operator: SyntaxKind::MinusToken,
+                                operand: Some(operand.node()),
+                            },
+                        ),
+                        tsc_emitter::TransformFlags::NONE,
+                    )
+                    .map_err(map_factory)
+            }
+            LiteralValue::Number(number) => factory
+                .create_node(
+                    target,
+                    NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
+                        text: tsc_types::js_number_to_string(number),
+                    }),
+                    tsc_emitter::TransformFlags::NONE,
+                )
+                .map_err(map_factory),
+        }
+    }
+
+    /// tsc-port: createLiteralConstValue @6.0.3
+    /// tsc-hash: 6a621e50a1b3a63e0e5a5c9427022b26555a56add6a80652552018cdae0ba3d9
+    /// tsc-span: _tsc.js:88506-88509
+    pub(crate) fn emit_create_literal_const_value(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        node: NodeId,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<tsc_emitter::TransformNode, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
+        let symbol = self
+            .get_symbol_of_declaration(node)
+            .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
+        let literal_type = self
+            .get_type_of_symbol(symbol)
+            .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
+        self.emit_literal_type_to_node(arena, target, literal_type, node, tracker)
+    }
+}
+
+impl<'a> CheckerState<'a> {
+    /// tsc-port: createLateBoundIndexSignatures (resolver member) @6.0.3
+    /// tsc-hash: 6a54cbb417327cf9ea18bd39a041f61e6598afe7c7bfa16ce46f0a54abf6bc27
+    /// tsc-span: _tsc.js:88624-88691
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_late_bound_index_signatures(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        container: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, tsc_emitter::EmitResolverError> {
+        crate::node_builder::late_bound_index_signatures(
+            self,
+            arena,
+            target,
+            container,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
+    /// tsc-port: getDeclarationStatementsForSourceFile @6.0.3 (member seam)
+    /// tsc-span: _tsc.js:88612-88621
+    /// h2-7a-m-3 lane-F pending: symbolTableToDeclarationStatements lands
+    /// with the statements cluster; until then the member fails closed.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_get_declaration_statements_for_source_file(
+        &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
+        _target: tsc_emitter::TransformSourceId,
+        node: NodeId,
+        _flags: tsc_emitter::EmitNodeBuilderFlags,
+        _internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        _tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, tsc_emitter::EmitResolverError> {
+        Err(tsc_emitter::EmitResolverError::CheckerAborted {
+            method: tsc_emitter::EmitResolverMethod::GetDeclarationStatementsForSourceFile,
+            node: EmitResolverNode::from_raw_source(
+                u32::try_from(self.binder.file_index_of_node(node)).unwrap_or(0),
+                node,
+            ),
+            reason: "h2-7a-m-3 lane-F pending",
+        })
+    }
+
+    /// tsc-port: symbolToDeclarations (resolver member) @6.0.3 (member seam)
+    /// tsc-span: _tsc.js:88692-88694
+    /// h2-7a-m-3 lane-F pending: the NodeBuilder member :51136-51164 lands
+    /// with the statements cluster; until then the member fails closed.
+    pub(crate) fn emit_symbol_to_declarations_pending(
+        &self,
+        symbol: EmitResolverSymbol,
+    ) -> tsc_emitter::EmitResolverError {
+        tsc_emitter::EmitResolverError::UnavailableForSymbol {
+            method: tsc_emitter::EmitResolverMethod::SymbolToDeclarations,
+            symbol,
+        }
+    }
+}
+
+#[cfg(test)]
+mod node_builder_member_tests {
+    use super::*;
+    use crate::state::test_support::with_program_state;
+    use tsc_emitter::{
+        EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitSymbolTracker, SourceFileId,
+        TransformArena,
+    };
+    use tsc_types::CompilerOptions;
+
+    struct NoopTracker;
+    impl EmitSymbolTracker for NoopTracker {}
+
+    fn with_member_state(
+        source: &str,
+        run: impl FnOnce(&mut CheckerState<'_>, &mut TransformArena, tsc_emitter::TransformSourceId),
+    ) {
+        with_program_state(
+            &[("/main.ts", source)],
+            &CompilerOptions::default(),
+            |checker| {
+                let mut arena = TransformArena::new();
+                let target =
+                    arena.add_source(checker.binder.source(0), Some(SourceFileId::from_raw(0)));
+                run(checker, &mut arena, target);
+            },
+        );
+    }
+
+    fn node_kind(
+        arena: &TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        node: tsc_emitter::TransformNode,
+    ) -> SyntaxKind {
+        let _ = target;
+        arena
+            .source(node.source())
+            .expect("transform source")
+            .syntax()
+            .arena
+            .node(node.node())
+            .kind
+    }
+
+    fn statement_at(checker: &CheckerState<'_>, index: usize) -> NodeId {
+        let source = checker.binder.source(0);
+        let NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+            panic!("source file expected")
+        };
+        let statements = source
+            .arena
+            .node_array(data.statements.expect("statements"));
+        statements.nodes[index]
+    }
+
+    fn first_variable_declaration(checker: &CheckerState<'_>, statement: usize) -> NodeId {
+        let statement = statement_at(checker, statement);
+        let source = checker.binder.source(0);
+        let NodeData::VariableStatement(data) = &source.arena.node(statement).data else {
+            panic!("variable statement expected")
+        };
+        let NodeData::VariableDeclarationList(list) = &source
+            .arena
+            .node(data.declaration_list.expect("declaration list"))
+            .data
+        else {
+            panic!("declaration list expected")
+        };
+        source
+            .arena
+            .node_array(list.declarations.expect("declarations"))
+            .nodes[0]
+    }
+
+    #[test]
+    fn dm_serialize_type_of_declaration() {
+        with_member_state(
+            "export const named: string = \"a\";",
+            |checker, arena, target| {
+                let declaration = first_variable_declaration(checker, 0);
+                let root = checker.binder.source(0).root;
+                let mut tracker = NoopTracker;
+                let node = checker
+                    .emit_create_type_of_declaration(
+                        arena,
+                        target,
+                        declaration,
+                        root,
+                        EmitNodeBuilderFlags::DECLARATION_EMIT,
+                        EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                        &mut tracker,
+                    )
+                    .expect("serialization succeeds")
+                    .expect("annotated declaration serializes");
+                assert_eq!(node_kind(arena, target, node), SyntaxKind::StringKeyword);
+            },
+        );
+        // Non-inferred-type kinds take the AnyKeyword token fallback.
+        with_member_state("export function f(): void {}", |checker, arena, target| {
+            let function = statement_at(checker, 0);
+            let root = checker.binder.source(0).root;
+            let mut tracker = NoopTracker;
+            let node = checker
+                .emit_create_type_of_declaration(
+                    arena,
+                    target,
+                    function,
+                    root,
+                    EmitNodeBuilderFlags::DECLARATION_EMIT,
+                    EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                    &mut tracker,
+                )
+                .expect("fallback succeeds")
+                .expect("fallback token");
+            assert_eq!(node_kind(arena, target, node), SyntaxKind::AnyKeyword);
+        });
+    }
+
+    #[test]
+    fn dm_serialize_return_type() {
+        with_member_state(
+            "export function f(): number { return 1; }",
+            |checker, arena, target| {
+                let function = statement_at(checker, 0);
+                let root = checker.binder.source(0).root;
+                let mut tracker = NoopTracker;
+                let node = checker
+                    .emit_create_return_type_of_signature_declaration(
+                        arena,
+                        target,
+                        function,
+                        root,
+                        EmitNodeBuilderFlags::DECLARATION_EMIT,
+                        EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                        &mut tracker,
+                    )
+                    .expect("serialization succeeds")
+                    .expect("annotated return serializes");
+                assert_eq!(node_kind(arena, target, node), SyntaxKind::NumberKeyword);
+            },
+        );
+    }
+
+    #[test]
+    fn dm_literal_const_value() {
+        let source = "export const s = \"hi\";\n\
+                      export const n = 3;\n\
+                      export const m = -4;\n\
+                      export const b = true;\n\
+                      export const g = 5n;";
+        with_member_state(source, |checker, arena, target| {
+            let mut tracker = NoopTracker;
+            let expectations = [
+                (0usize, SyntaxKind::StringLiteral),
+                (1, SyntaxKind::NumericLiteral),
+                (2, SyntaxKind::PrefixUnaryExpression),
+                (3, SyntaxKind::TrueKeyword),
+                (4, SyntaxKind::BigIntLiteral),
+            ];
+            for (statement, expected) in expectations {
+                let declaration = first_variable_declaration(checker, statement);
+                let node = checker
+                    .emit_create_literal_const_value(arena, target, declaration, &mut tracker)
+                    .expect("literal serializes");
+                assert_eq!(
+                    node_kind(arena, target, node),
+                    expected,
+                    "statement {statement}"
+                );
+            }
+        });
+    }
+
+    #[test]
+    fn dm_late_bound_index_signatures() {
+        // A source-declared index signature is skipped (info.declaration
+        // set) after the present-empty result materializes.
+        with_member_state(
+            "export class Boxes { [key: string]: number; }",
+            |checker, arena, target| {
+                let class = statement_at(checker, 0);
+                let root = checker.binder.source(0).root;
+                let mut tracker = NoopTracker;
+                let result = checker
+                    .emit_create_late_bound_index_signatures(
+                        arena,
+                        target,
+                        class,
+                        root,
+                        EmitNodeBuilderFlags::DECLARATION_EMIT,
+                        EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                        &mut tracker,
+                    )
+                    .expect("member succeeds");
+                // Upstream returns a PRESENT-EMPTY array here: the instance
+                // info list is non-empty (result ||= [] fires) and its one
+                // declared info is then skipped (:88632-88633).
+                assert_eq!(result, Some(Vec::new()));
+            },
+        );
+    }
+
+    #[test]
+    fn dm_lane_f_pending_members_fail_closed() {
+        with_member_state("export const x = 1;", |checker, arena, target| {
+            let root = checker.binder.source(0).root;
+            let mut tracker = NoopTracker;
+            let error = checker
+                .emit_get_declaration_statements_for_source_file(
+                    arena,
+                    target,
+                    root,
+                    EmitNodeBuilderFlags::DECLARATION_EMIT,
+                    EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                    &mut tracker,
+                )
+                .expect_err("lane-F pending");
+            assert!(matches!(
+                error,
+                tsc_emitter::EmitResolverError::CheckerAborted {
+                    reason: "h2-7a-m-3 lane-F pending",
+                    ..
+                }
+            ));
+        });
+    }
+}

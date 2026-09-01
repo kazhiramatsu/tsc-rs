@@ -2433,7 +2433,8 @@ impl<'a> CheckerState<'a> {
     }
 
     /// getFirstIdentifier (the leftmost name of an entity chain).
-    fn get_first_identifier(&self, name: NodeId) -> NodeId {
+    // h2-7a-m-3 widening
+    pub(crate) fn get_first_identifier(&self, name: NodeId) -> NodeId {
         let mut current = name;
         loop {
             match self.data_of(current) {

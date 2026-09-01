@@ -557,6 +557,164 @@ impl EmitResolver for CheckerSession<'_> {
             CheckerState::emit_is_import_required_by_augmentation,
         )
     }
+
+    fn create_type_of_declaration(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        declaration: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
+        let method = EmitResolverMethod::CreateTypeOfDeclaration;
+        let mut state = self.state.borrow_mut();
+        validate_resolver_node(&state, method, declaration)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        state.emit_create_type_of_declaration(
+            arena,
+            target,
+            declaration.node(),
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
+    fn create_return_type_of_signature_declaration(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        signature_declaration: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
+        let method = EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration;
+        let mut state = self.state.borrow_mut();
+        validate_resolver_node(&state, method, signature_declaration)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        state.emit_create_return_type_of_signature_declaration(
+            arena,
+            target,
+            signature_declaration.node(),
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
+    fn create_type_of_expression(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        expression: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
+        let method = EmitResolverMethod::CreateTypeOfExpression;
+        let mut state = self.state.borrow_mut();
+        validate_resolver_node(&state, method, expression)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        state.emit_create_type_of_expression(
+            arena,
+            target,
+            expression.node(),
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
+    fn create_literal_const_value(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        node: EmitResolverNode,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<tsc_emitter::TransformNode, EmitResolverError> {
+        let method = EmitResolverMethod::CreateLiteralConstValue;
+        let mut state = self.state.borrow_mut();
+        validate_resolver_node(&state, method, node)?;
+        state.emit_create_literal_const_value(arena, target, node.node(), tracker)
+    }
+
+    fn get_declaration_statements_for_source_file(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        node: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, EmitResolverError> {
+        let method = EmitResolverMethod::GetDeclarationStatementsForSourceFile;
+        let mut state = self.state.borrow_mut();
+        validate_resolver_node(&state, method, node)?;
+        state.emit_get_declaration_statements_for_source_file(
+            arena,
+            target,
+            node.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
+    fn create_late_bound_index_signatures(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        container: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<Vec<tsc_emitter::TransformNode>>, EmitResolverError> {
+        let method = EmitResolverMethod::CreateLateBoundIndexSignatures;
+        let mut state = self.state.borrow_mut();
+        validate_resolver_node(&state, method, container)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        state.emit_create_late_bound_index_signatures(
+            arena,
+            target,
+            container.node(),
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
+    fn symbol_to_declarations(
+        &self,
+        _arena: &mut tsc_emitter::TransformArena,
+        _target: tsc_emitter::TransformSourceId,
+        symbol: EmitResolverSymbol,
+        _meaning: EmitSymbolMeaning,
+        _flags: tsc_emitter::EmitNodeBuilderFlags,
+        _maximum_length: Option<u32>,
+        _verbosity_level: Option<i32>,
+        _out: Option<&mut tsc_emitter::EmitSymbolExpansionOut>,
+    ) -> Result<Vec<tsc_emitter::TransformNode>, EmitResolverError> {
+        let state = self.state.borrow();
+        let _ = validate_resolver_symbol(
+            &state,
+            self.session_token,
+            EmitResolverMethod::SymbolToDeclarations,
+            symbol,
+        )?;
+        // h2-7a-m-3 lane-F pending: the NodeBuilder member lands with the
+        // statements cluster.
+        Err(state.emit_symbol_to_declarations_pending(symbol))
+    }
 }
 
 impl CheckerState<'_> {
