@@ -47,6 +47,7 @@ pub mod spell;
 pub mod state;
 pub mod statements;
 pub mod structural;
+mod syntactic_type_node_builder;
 pub mod unions;
 mod unused;
 pub mod variance;
