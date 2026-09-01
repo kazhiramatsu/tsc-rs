@@ -6,15 +6,19 @@ it records the E3/E4 evidence-derived constants. Values marked FINAL
 are read from the E3 mints; fingerprint rows are filled after the
 final assembly mints on this branch.
 
-## S3 selection (mint must reproduce; §7.4-7.5 predictions)
+## S3 selection (E3 mint 2026-09-01 — every prediction REPRODUCED)
 
 - selector_version: m3-s3-v1; fixtures 8; cases 8; observations 16;
-  trim rows: PREDICTED NONE.
-- Case IDs: PREDICTED exactly typeofexpr-1..4 + literalconst-1..4
-  (no `-c<index>` — no comma-matrix directives among the eight).
-- Witness totals: PREDICTED cases 120, oracle runs 240.
+  trim rows: NONE (FINAL — as predicted).
+- Case IDs: FINAL exactly typeofexpr-1..4 + literalconst-1..4, no
+  `-c<index>` (as predicted).
+- Witness totals: FINAL cases 120, oracle runs 240,
+  deterministic_cases 120.
 - Raw predicate populations 31/50; post-exclusion eligible yields
   31/49.
+- Fresh-observation S2 projection guard: PASSED during the mint
+  (the frozen 18-row S2 stratum reproduced byte-identically on
+  fresh observation before assembly).
 
 ## Freeze guards (§7.7; values recorded at E2 authoring)
 
@@ -50,14 +54,16 @@ final assembly mints on this branch.
   (m-1+S2 baseline 314/148/152/3/0/0).
 - Exclusion-class counts per member: PENDING(E3).
 
-## Successor fingerprints (post-final-assembly mints)
+## Successor fingerprints (E3-time values; walk-head finals land in
+## the walk cert / close record per the m-2 disposition-7 rule)
 
-- witness artifact fingerprint: PENDING(E3).
-- witness observation-content roll: PENDING(E3).
-- witness case-manifest fingerprint: PENDING(E3).
-- probe artifact fingerprint: PENDING(E3).
-- probe trace-content roll: PENDING(E3).
-- witness raw file sha pinned by the probe: PENDING(E3).
+- witness artifact fingerprint (E3):
+  6439353e417fd7a5… (full value in the artifact).
+- witness observation-content roll (E3): 4d2e6f6dc52cf5e4….
+- witness case-manifest fingerprint (E3): 81d5b13a639f5cc8….
+- probe artifact fingerprint: PENDING(E3 probe mint).
+- probe trace-content roll: PENDING(E3 probe mint).
+- witness raw file sha pinned by the probe: PENDING(E3 probe mint).
 - Trusted-base predecessors (recorded, h2-7a-m-3.md §1): manifest
   89bb0627…, witness roll 091cea9c…, probe roll dcf1243f…, raw shas
   ec2823c890d7…/d459898a9d46…, embedded fingerprints
