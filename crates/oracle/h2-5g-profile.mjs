@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "1fda921cefd398c34cd00c72445a6630f74fc662cf92af164a3583fffd178738";
+  "d299220724eb9c7dba686296d8891f10c3fac5ce0683c8f9449c8104e0441085";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "fab39146817e63e050144fd5fd09187669ad2cf3d1cec01b9e1926d2b95196e9"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "217ce4d00d450951e4cee2037d6f745c7327abf7b0af4854062e45dae2180931"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "4c4e3c8d7ce236b6502b9400a5d45112831b0ccc4aa3c28601ca6cbd09c3c211"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "660880661c0ca6c521652d7e5f753090fdd0bfd6d3098c73bdc1cb146b9657c1"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "7912cd63faa8a99c6bd07f06902d60cf6efef85943d98d0fee6c507b67756e6b"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "22927743e74f576a1f540d2f8718bfabb0bea0759352c95731f86cc9bcf5fb45"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "8e99a6d8dfd82e6ab02fe8b7997f4173fd4c3ad85b621db5311dcc36d45d698f"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "b53b6f697a4986721ee1cae83ae781654bda179ef96d71b8d4c9183776ca1dad"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
@@ -104,6 +104,28 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/checker/src/constraints.rs",
   "crates/checker/src/contextual.rs",
   "crates/checker/src/declaration_emit.rs",
+  // h2-7a-m-3: the dormant NodeBuilder foundation joins the checker
+  // runtime-input closure (modules + relocated unit-test bodies).
+  "crates/checker/src/node_builder/chains.rs",
+  "crates/checker/src/node_builder/context.rs",
+  "crates/checker/src/node_builder/mod.rs",
+  "crates/checker/src/node_builder/serialize.rs",
+  "crates/checker/src/node_builder/signatures.rs",
+  "crates/checker/src/node_builder/specifier.rs",
+  "crates/checker/src/node_builder/statements.rs",
+  "crates/checker/src/node_builder/tracker.rs",
+  "crates/checker/src/syntactic_type_node_builder.rs",
+  "crates/checker/tests/unit/declaration_emit_members/tests.rs",
+  "crates/checker/tests/unit/node_builder_chains/tests.rs",
+  "crates/checker/tests/unit/node_builder_core/tests.rs",
+  "crates/checker/tests/unit/node_builder_serialize/tests.rs",
+  "crates/checker/tests/unit/node_builder_signatures/tests.rs",
+  "crates/checker/tests/unit/node_builder_specifier/tests.rs",
+  "crates/checker/tests/unit/node_builder_statements/tests.rs",
+  "crates/checker/tests/unit/node_builder_type_nodes/tests.rs",
+  "crates/checker/tests/unit/syntactic_type_node_builder/tests.rs",
+  "crates/emitter/tests/unit/factory_seams/tests.rs",
+  "crates/emitter/tests/unit/node_builder_seams/tests.rs",
   "crates/checker/src/elaboration.rs",
   "crates/checker/src/expr.rs",
   "crates/checker/src/facts.rs",
@@ -529,7 +551,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 206,
+    runtimeInputSet.size === 227,
     "H2.5g runtime input identity changed",
   );
 
