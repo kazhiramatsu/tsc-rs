@@ -114,6 +114,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/checker/src/node_builder/specifier.rs",
   "crates/checker/src/node_builder/statements.rs",
   "crates/checker/src/node_builder/tracker.rs",
+  "crates/checker/src/node_builder/type_nodes.rs",
   "crates/checker/src/syntactic_type_node_builder.rs",
   "crates/checker/tests/unit/declaration_emit_members/tests.rs",
   "crates/checker/tests/unit/node_builder_chains/tests.rs",
@@ -551,7 +552,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 227,
+    runtimeInputSet.size === 228,
     "H2.5g runtime input identity changed",
   );
 
