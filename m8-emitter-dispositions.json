@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "status": "draft",
+  "status": "frozen",
   "inventory_sha256": "77a1ab1dea3367cb6d913f158ee97932d8c256f5c907f7a3846a1a2fc99f6f38",
   "entries": [
     {
@@ -33081,5 +33081,6 @@
       "owner": "D2 static dependency closure",
       "evidence": "Exact shortest_direct_emitter_path=d2:f67261c43ce064354b2c0709ce342ff1751d03db9cd47a2b71520ebb174b603f -> d2:fff2fb75f6bdf0594ba3eb03d4da13ea8d557d02356692e3d5c7d16875b24c0d; lexical_path=<top>/createTypeChecker@46438:1/checkClassLikeDeclaration@84994:3/createImplementsDiagnostics@85090:5; source_slice_sha256=1e874b0375c58a33740f380fc7744901e65912568b424856bd99b05ec611cc5a. Runtime absence does not shrink the static closure."
     }
-  ]
+  ],
+  "adjudication_commit": "c3979e49053375711310e12fdb6a6fe148aab21b"
 }
