@@ -47,8 +47,8 @@ pub use execute::{
     MapLaneInputs,
 };
 pub use factory::{
-    NodeFactory, TransformArena, TransformNode, TransformNodeArray, TransformSource,
-    TransformSourceId,
+    GeneratedIdentifierFlags, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
+    TransformSource, TransformSourceId, TypeParenthesizer,
 };
 pub use host::{EmitHost, EmitSource};
 pub use metadata::{

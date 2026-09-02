@@ -820,13 +820,19 @@ fn create_numeric_literal(
     target: TransformSourceId,
     value: f64,
 ) -> BuildResult<TransformNode> {
-    create_node(
-        arena,
-        target,
-        NodeData::NumericLiteral(NumericLiteralData {
-            text: tsc_types::js_number_to_string(value),
-        }),
-    )
+    let magnitude = if value < 0.0 { -value } else { value };
+    let literal = arena
+        .factory()
+        .create_numeric_literal(target, tsc_types::js_number_to_string(magnitude))
+        .map_err(factory_error)?;
+    if value < 0.0 {
+        arena
+            .factory()
+            .create_prefix_unary_expression(target, SyntaxKind::MinusToken, literal)
+            .map_err(factory_error)
+    } else {
+        Ok(literal)
+    }
 }
 
 fn create_type_reference(
@@ -1906,21 +1912,23 @@ fn get_property_name_node_for_symbol_from_name_type(
     };
     let flags = checker.tables.flags_of(name_type);
     if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
-        let name = match &checker.tables.type_of(name_type).data {
+        let literal_type = checker.tables.type_of(name_type).data.clone();
+        if let TypeData::Literal {
+            value: LiteralValue::String(value),
+        } = &literal_type
+        {
+            if value.to_utf8().is_none() {
+                return arena
+                    .factory()
+                    .create_string_literal_from_code_units(target, value.units(), single_quote)
+                    .map(Some)
+                    .map_err(factory_error);
+            }
+        }
+        let name = match &literal_type {
             TypeData::Literal {
                 value: LiteralValue::String(value),
-            } => value
-                .to_utf8()
-                .ok_or_else(|| EmitResolverError::CheckerAborted {
-                    method: EmitResolverMethod::CreateTypeOfDeclaration,
-                    node: enclosing_resolver_node(
-                        checker,
-                        context
-                            .enclosing_declaration
-                            .unwrap_or_else(|| checker.binder.source(0).root),
-                    ),
-                    reason: "unpaired UTF-16 property name requires the m-3.5 factory face",
-                })?,
+            } => value.to_utf8().expect("lossless branch handled above"),
             TypeData::Literal {
                 value: LiteralValue::Number(value),
             } => tsc_types::js_number_to_string(*value),

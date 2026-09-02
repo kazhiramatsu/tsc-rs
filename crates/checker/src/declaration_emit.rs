@@ -3865,71 +3865,21 @@ impl<'a> CheckerState<'a> {
         let map_factory = |error| node_builder_factory_error(method, error);
         match value {
             LiteralValue::BigInt(pseudo) => factory
-                .create_node(
-                    target,
-                    NodeData::BigIntLiteral(tsc_syntax::nodes::BigIntLiteralData {
-                        text: format!("{}n", pseudo.to_base10_string()),
-                    }),
-                    tsc_emitter::TransformFlags::NONE,
-                )
+                .create_big_int_literal(target, format!("{}n", pseudo.to_base10_string()))
                 .map_err(map_factory),
-            LiteralValue::String(text) => {
-                let text = text.to_utf8().ok_or({
-                    // The lane-BD convention: unpaired UTF-16 payloads are a
-                    // typed m-3.5 factory-face residue, never lossy storage.
-                    tsc_emitter::EmitResolverError::CheckerAborted {
-                        method,
-                        node: EmitResolverNode::from_raw_source(
-                            u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
-                                .unwrap_or(0),
-                            enclosing_declaration,
-                        ),
-                        reason:
-                            "unpaired UTF-16 string literal requires the m-3.5 UTF-16 factory face",
-                    }
-                })?;
-                factory
-                    .create_node(
-                        target,
-                        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                            text,
-                            has_extended_unicode_escape: None,
-                        }),
-                        tsc_emitter::TransformFlags::NONE,
-                    )
-                    .map_err(map_factory)
-            }
+            LiteralValue::String(text) => factory
+                .create_string_literal_from_code_units(target, text.units(), false)
+                .map_err(map_factory),
             LiteralValue::Number(number) if number < 0.0 => {
                 let operand = factory
-                    .create_node(
-                        target,
-                        NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
-                            text: tsc_types::js_number_to_string(-number),
-                        }),
-                        tsc_emitter::TransformFlags::NONE,
-                    )
+                    .create_numeric_literal(target, tsc_types::js_number_to_string(-number))
                     .map_err(map_factory)?;
                 factory
-                    .create_node(
-                        target,
-                        NodeData::PrefixUnaryExpression(
-                            tsc_syntax::nodes::PrefixUnaryExpressionData {
-                                operator: SyntaxKind::MinusToken,
-                                operand: Some(operand.node()),
-                            },
-                        ),
-                        tsc_emitter::TransformFlags::NONE,
-                    )
+                    .create_prefix_unary_expression(target, SyntaxKind::MinusToken, operand)
                     .map_err(map_factory)
             }
             LiteralValue::Number(number) => factory
-                .create_node(
-                    target,
-                    NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
-                        text: tsc_types::js_number_to_string(number),
-                    }),
-                    tsc_emitter::TransformFlags::NONE,
-                )
+                .create_numeric_literal(target, tsc_types::js_number_to_string(number))
                 .map_err(map_factory),
         }
     }

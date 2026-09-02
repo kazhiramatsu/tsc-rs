@@ -3,20 +3,19 @@ use std::collections::{HashMap, HashSet};
 use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_emitter::{
     EmitFlags, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitResolverError,
-    EmitSymbolAccessibility, EmitSymbolExpansionOut, EmitSymbolMeaning, SyntheticComment,
-    SyntheticCommentKind, TransformArena, TransformNode, TransformSourceId,
+    EmitSymbolAccessibility, EmitSymbolExpansionOut, EmitSymbolMeaning, GeneratedIdentifierFlags,
+    SyntheticComment, SyntheticCommentKind, TransformArena, TransformNode, TransformNodeArray,
+    TransformSourceId,
 };
 use tsc_syntax::nodes::{
     ClassDeclarationData, ConstructorData, EmptyStatementData, EnumDeclarationData, EnumMemberData,
     ExportAssignmentData, ExportDeclarationData, ExportSpecifierData, ExpressionStatementData,
     ExpressionWithTypeArgumentsData, ExternalModuleReferenceData, GetAccessorData,
     HeritageClauseData, ImportClauseData, ImportDeclarationData, ImportEqualsDeclarationData,
-    ImportSpecifierData, InterfaceDeclarationData, MethodSignatureData, ModuleBlockData,
-    ModuleDeclarationData, NamedExportsData, NamedImportsData, NamespaceExportData,
-    NamespaceExportDeclarationData, NamespaceImportData, NumericLiteralData, ParameterData,
-    PrivateIdentifierData, PropertyDeclarationData, PropertySignatureData, SetAccessorData,
-    StringLiteralData, TypeAliasDeclarationData, VariableDeclarationData,
-    VariableDeclarationListData, VariableStatementData,
+    ImportSpecifierData, InterfaceDeclarationData, ModuleBlockData, ModuleDeclarationData,
+    NamedExportsData, NamedImportsData, NamespaceExportData, NamespaceExportDeclarationData,
+    NamespaceImportData, ParameterData, PropertyDeclarationData, PropertySignatureData,
+    SetAccessorData, TypeAliasDeclarationData,
 };
 use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
@@ -45,10 +44,8 @@ const ALLOW_ANONYMOUS_IDENTIFIER: u32 = 131_072;
 const IN_TYPE_ALIAS: u32 = 8_388_608;
 const IN_INITIAL_ENTITY_NAME: u32 = 16_777_216;
 
-// h2-7a-m-3: every create_/update_ helper below is the statement-level
-// NodeData spelling of an upstream factory face. Typed constructor and
-// parenthesizer faces remain owned by m-3.5; the shared arena factory still
-// validates children and applies its already-landed generic grammar rules.
+// Statement-level helpers below spell upstream typed factory calls through
+// the shared arena factory.
 
 fn array(
     arena: &mut TransformArena,
@@ -73,14 +70,10 @@ fn create_string_literal(
     target: TransformSourceId,
     text: impl Into<String>,
 ) -> BuildResult<TransformNode> {
-    create_node(
-        arena,
-        target,
-        NodeData::StringLiteral(StringLiteralData {
-            text: text.into(),
-            has_extended_unicode_escape: None,
-        }),
-    )
+    arena
+        .factory()
+        .create_string_literal(target, text, false)
+        .map_err(factory_error)
 }
 
 fn create_numeric_literal(
@@ -88,13 +81,19 @@ fn create_numeric_literal(
     target: TransformSourceId,
     value: f64,
 ) -> BuildResult<TransformNode> {
-    create_node(
-        arena,
-        target,
-        NodeData::NumericLiteral(NumericLiteralData {
-            text: tsc_types::js_number_to_string(value),
-        }),
-    )
+    let magnitude = if value < 0.0 { -value } else { value };
+    let literal = arena
+        .factory()
+        .create_numeric_literal(target, tsc_types::js_number_to_string(magnitude))
+        .map_err(factory_error)?;
+    if value < 0.0 {
+        arena
+            .factory()
+            .create_prefix_unary_expression(target, SyntaxKind::MinusToken, literal)
+            .map_err(factory_error)
+    } else {
+        Ok(literal)
+    }
 }
 
 fn create_private_identifier(
@@ -107,14 +106,10 @@ fn create_private_identifier(
     } else {
         format!("#{text}")
     };
-    create_node(
-        arena,
-        target,
-        NodeData::PrivateIdentifier(PrivateIdentifierData {
-            escaped_text: text.clone(),
-            text,
-        }),
-    )
+    arena
+        .factory()
+        .create_private_identifier(target, text)
+        .map_err(factory_error)
 }
 
 fn create_modifiers_from_flags(
@@ -122,29 +117,11 @@ fn create_modifiers_from_flags(
     target: TransformSourceId,
     flags: ModifierFlags,
 ) -> BuildResult<Option<NodeArrayId>> {
-    let mut modifiers = Vec::new();
-    for (flag, kind) in [
-        (ModifierFlags::EXPORT, SyntaxKind::ExportKeyword),
-        (ModifierFlags::DEFAULT, SyntaxKind::DefaultKeyword),
-        (ModifierFlags::AMBIENT, SyntaxKind::DeclareKeyword),
-        (ModifierFlags::PUBLIC, SyntaxKind::PublicKeyword),
-        (ModifierFlags::PROTECTED, SyntaxKind::ProtectedKeyword),
-        (ModifierFlags::PRIVATE, SyntaxKind::PrivateKeyword),
-        (ModifierFlags::ABSTRACT, SyntaxKind::AbstractKeyword),
-        (ModifierFlags::STATIC, SyntaxKind::StaticKeyword),
-        (ModifierFlags::READONLY, SyntaxKind::ReadonlyKeyword),
-        (ModifierFlags::OVERRIDE, SyntaxKind::OverrideKeyword),
-        (ModifierFlags::ACCESSOR, SyntaxKind::AccessorKeyword),
-        (ModifierFlags::ASYNC, SyntaxKind::AsyncKeyword),
-        (ModifierFlags::IN, SyntaxKind::InKeyword),
-        (ModifierFlags::OUT, SyntaxKind::OutKeyword),
-        (ModifierFlags::CONST, SyntaxKind::ConstKeyword),
-    ] {
-        if flags.intersects(flag) {
-            modifiers.push(create_token(arena, target, kind)?);
-        }
-    }
-    array(arena, target, modifiers)
+    arena
+        .factory()
+        .create_modifiers_from_modifier_flags(target, flags)
+        .map(|modifiers| modifiers.map(tsc_emitter::TransformNodeArray::array))
+        .map_err(factory_error)
 }
 
 fn transform_modifier_flags(
@@ -207,6 +184,31 @@ fn modifiers_of(data: &NodeData) -> Option<NodeArrayId> {
     }
 }
 
+fn can_have_modifiers(data: &NodeData) -> bool {
+    matches!(
+        data,
+        NodeData::ClassDeclaration(_)
+            | NodeData::EnumDeclaration(_)
+            | NodeData::ExportAssignment(_)
+            | NodeData::ExportDeclaration(_)
+            | NodeData::FunctionDeclaration(_)
+            | NodeData::ImportDeclaration(_)
+            | NodeData::ImportEqualsDeclaration(_)
+            | NodeData::InterfaceDeclaration(_)
+            | NodeData::ModuleDeclaration(_)
+            | NodeData::NamespaceExportDeclaration(_)
+            | NodeData::TypeAliasDeclaration(_)
+            | NodeData::VariableStatement(_)
+            | NodeData::Constructor(_)
+            | NodeData::GetAccessor(_)
+            | NodeData::SetAccessor(_)
+            | NodeData::MethodDeclaration(_)
+            | NodeData::MethodSignature(_)
+            | NodeData::PropertyDeclaration(_)
+            | NodeData::PropertySignature(_)
+    )
+}
+
 fn with_modifiers(mut data: NodeData, modifiers: Option<NodeArrayId>) -> NodeData {
     match &mut data {
         NodeData::ClassDeclaration(data) => data.modifiers = modifiers,
@@ -240,14 +242,10 @@ fn replace_modifiers(
     flags: ModifierFlags,
 ) -> BuildResult<TransformNode> {
     let modifiers = create_modifiers_from_flags(arena, target, flags)?;
-    let data = with_modifiers(
-        arena.node(node).map_err(factory_error)?.data.clone(),
-        modifiers,
-    );
-    let transform_flags = arena.transform_flags(node);
+    let modifiers = modifiers.map(|array| tsc_emitter::TransformNodeArray::new(target, array));
     arena
         .factory()
-        .update_node(node, data, transform_flags)
+        .replace_modifiers(node, modifiers)
         .map_err(factory_error)
 }
 
@@ -258,36 +256,23 @@ fn create_variable_statement(
     type_node: Option<TransformNode>,
     flags: NodeFlags,
 ) -> BuildResult<TransformNode> {
-    let declaration = create_node(
-        arena,
-        target,
-        NodeData::VariableDeclaration(VariableDeclarationData {
-            name: Some(name.node()),
-            exclamation_token: None,
-            r#type: type_node.map(TransformNode::node),
-            initializer: None,
-        }),
-    )?;
+    let declaration = arena
+        .factory()
+        .create_variable_declaration(target, name, None, type_node, None)
+        .map_err(factory_error)?;
     let declarations = required_array(arena, target, vec![declaration])?;
-    let list = create_node(
-        arena,
-        target,
-        NodeData::VariableDeclarationList(VariableDeclarationListData {
-            declarations: Some(declarations),
-        }),
-    )?;
     let list = arena
         .factory()
-        .set_node_flags(list, flags)
+        .create_variable_declaration_list(
+            target,
+            tsc_emitter::TransformNodeArray::new(target, declarations),
+            flags,
+        )
         .map_err(factory_error)?;
-    create_node(
-        arena,
-        target,
-        NodeData::VariableStatement(VariableStatementData {
-            modifiers: None,
-            declaration_list: Some(list.node()),
-        }),
-    )
+    arena
+        .factory()
+        .create_variable_statement(target, None, list)
+        .map_err(factory_error)
 }
 
 fn create_export_specifier_node(
@@ -564,11 +549,7 @@ fn simplify_class_declaration(
         if let NodeData::ClassDeclaration(class) = &mut data {
             class.name = None;
         }
-        let flags = arena.transform_flags(class_declaration);
-        class_declaration = arena
-            .factory()
-            .update_node(class_declaration, data, flags)
-            .map_err(factory_error)?;
+        class_declaration = super::update_factory_node(arena, class_declaration, data)?;
     }
     replace_modifiers(arena, target, class_declaration, modifiers)
 }
@@ -833,6 +814,9 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             return Ok(false);
         };
         for name in self.name_of_statement(statement)? {
+            if self.arena.generated_binding_base(name).is_some() {
+                continue;
+            }
             if self.identifier_text(name)? == Some(expected) {
                 return Ok(true);
             }
@@ -954,18 +938,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     None,
                 )?);
                 let statements_array = required_array(self.arena, self.target, body_statements)?;
-                let body_flags = self.arena.transform_flags(body);
-                let updated_body = self
-                    .arena
-                    .factory()
-                    .update_node(
-                        body,
-                        NodeData::ModuleBlock(ModuleBlockData {
-                            statements: Some(statements_array),
-                        }),
-                        body_flags,
-                    )
-                    .map_err(factory_error)?;
+                let updated_body = super::update_factory_node(
+                    self.arena,
+                    body,
+                    NodeData::ModuleBlock(ModuleBlockData {
+                        statements: Some(statements_array),
+                    }),
+                )?;
                 let mut updated_namespace_data = self
                     .arena
                     .node(namespace)
@@ -976,12 +955,8 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     return Ok(statements);
                 };
                 data.body = Some(updated_body.node());
-                let namespace_flags = self.arena.transform_flags(namespace);
-                namespace = self
-                    .arena
-                    .factory()
-                    .update_node(namespace, updated_namespace_data, namespace_flags)
-                    .map_err(factory_error)?;
+                namespace =
+                    super::update_factory_node(self.arena, namespace, updated_namespace_data)?;
                 statements[namespace_index] = namespace;
                 body_statements = self.array_nodes(Some(statements_array))?;
             }
@@ -1237,29 +1212,20 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             statements.remove(export_index);
         } else {
             let elements = required_array(self.arena, self.target, replacements)?;
-            let clause_flags = self.arena.transform_flags(clause);
-            let clause = self
-                .arena
-                .factory()
-                .update_node(
-                    clause,
-                    NodeData::NamedExports(NamedExportsData {
-                        elements: Some(elements),
-                    }),
-                    clause_flags,
-                )
-                .map_err(factory_error)?;
+            let clause = super::update_factory_node(
+                self.arena,
+                clause,
+                NodeData::NamedExports(NamedExportsData {
+                    elements: Some(elements),
+                }),
+            )?;
             let mut updated_data = self.arena.node(export).map_err(factory_error)?.data.clone();
             let NodeData::ExportDeclaration(export_data) = &mut updated_data else {
                 return Ok(statements);
             };
             export_data.export_clause = Some(clause.node());
-            let flags = self.arena.transform_flags(export);
-            statements[export_index] = self
-                .arena
-                .factory()
-                .update_node(export, updated_data, flags)
-                .map_err(factory_error)?;
+            statements[export_index] =
+                super::update_factory_node(self.arena, export, updated_data)?;
         }
         Ok(statements)
     }
@@ -1966,18 +1932,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         mut node: TransformNode,
         additional_modifier_flags: ModifierFlags,
     ) -> BuildResult<()> {
-        if modifiers_of(&self.arena.node(node).map_err(factory_error)?.data).is_some()
-            || matches!(
-                self.arena.node(node).map_err(factory_error)?.kind,
-                SyntaxKind::ClassDeclaration
-                    | SyntaxKind::EnumDeclaration
-                    | SyntaxKind::FunctionDeclaration
-                    | SyntaxKind::InterfaceDeclaration
-                    | SyntaxKind::ModuleDeclaration
-                    | SyntaxKind::TypeAliasDeclaration
-                    | SyntaxKind::VariableStatement
-            )
-        {
+        if can_have_modifiers(&self.arena.node(node).map_err(factory_error)?.data) {
             let old = self.effective_modifier_flags(node)?;
             let mut new = ModifierFlags::NONE;
             let enclosing = self.context.enclosing_declaration;
@@ -3370,9 +3325,93 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 )?;
                 self.add_result(import, ModifierFlags::NONE)?;
             }
-            SyntaxKind::ImportEqualsDeclaration | SyntaxKind::VariableDeclaration => {
-                let is_local_import = !target_data.flags.intersects(SymbolFlags::VALUE_MODULE)
-                    && self.checker.kind_of(declaration) != SyntaxKind::VariableDeclaration;
+            SyntaxKind::VariableDeclaration => {
+                let NodeData::VariableDeclaration(variable) = self.checker.data_of(declaration)
+                else {
+                    unreachable!("VariableDeclaration kind must carry VariableDeclaration data");
+                };
+                let initializer_id = variable.initializer.ok_or_else(|| {
+                    factory_error(tsc_emitter::TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::VariableDeclaration,
+                        field: "initializer",
+                    })
+                })?;
+                let NodeData::PropertyAccessExpression(initializer) =
+                    self.checker.data_of(initializer_id)
+                else {
+                    return Err(factory_error(
+                        tsc_emitter::TransformError::FactoryKindMismatch {
+                            expected: SyntaxKind::PropertyAccessExpression,
+                            actual: self.checker.kind_of(initializer_id),
+                        },
+                    ));
+                };
+                let initializer_name_id = initializer.name.ok_or_else(|| {
+                    factory_error(tsc_emitter::TransformError::RequiredChildRemoved {
+                        parent: SyntaxKind::PropertyAccessExpression,
+                        field: "name",
+                    })
+                })?;
+                let initializer_name =
+                    self.parse_name_text(initializer_name_id).ok_or_else(|| {
+                        factory_error(tsc_emitter::TransformError::UnexpectedChildKind {
+                            parent: SyntaxKind::PropertyAccessExpression,
+                            field: "name",
+                            actual: self.checker.kind_of(initializer_name_id),
+                        })
+                    })?;
+
+                let unique = self
+                    .arena
+                    .factory()
+                    .create_unique_name(self.target, local_name, GeneratedIdentifierFlags::NONE)
+                    .map_err(factory_error)?;
+                let specifier =
+                    specifier_for_module_symbol(self.checker, self.context, target, None)?;
+                let first_length =
+                    22 + specifier.encode_utf16().count() + local_name.encode_utf16().count();
+                let module = create_string_literal(self.arena, self.target, specifier)?;
+                let module_reference = self
+                    .arena
+                    .factory()
+                    .create_external_module_reference(self.target, module)
+                    .map_err(factory_error)?;
+                let first = self
+                    .arena
+                    .factory()
+                    .create_import_equals_declaration(
+                        self.target,
+                        None,
+                        false,
+                        unique,
+                        module_reference,
+                    )
+                    .map_err(factory_error)?;
+                add_approximate_length(self.context, first_length);
+                self.add_result(first, ModifierFlags::NONE)?;
+
+                let name = create_identifier(self.arena, self.target, local_name)?;
+                let member = create_identifier(self.arena, self.target, &initializer_name)?;
+                let qualified = self
+                    .arena
+                    .factory()
+                    .create_qualified_name(self.target, unique, member)
+                    .map_err(factory_error)?;
+                let second = self
+                    .arena
+                    .factory()
+                    .create_import_equals_declaration(self.target, None, false, name, qualified)
+                    .map_err(factory_error)?;
+                add_approximate_length(
+                    self.context,
+                    12 + local_name.encode_utf16().count()
+                        + local_name.encode_utf16().count()
+                        + initializer_name.encode_utf16().count(),
+                );
+                self.add_result(second, modifier_flags)?;
+            }
+            SyntaxKind::ImportEqualsDeclaration => {
+                let is_local_import = !target_data.flags.intersects(SymbolFlags::VALUE_MODULE);
                 let module_reference = if is_local_import {
                     chains_symbol_to_entity_name_node(
                         self.checker,

@@ -517,3 +517,63 @@ fn symbol_to_declarations_simplifies_class_interface_enum_and_module_modifiers()
         },
     );
 }
+
+#[test]
+fn javascript_require_property_alias_emits_generated_import_then_qualified_alias() {
+    let options = CompilerOptions {
+        allow_js: true,
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_declaration_statements(
+        &[
+            ("/m.js", "exports.y = 1;\n"),
+            (
+                "/main.js",
+                "const y = require(\"./m\").y;\nexports.y = y;\n",
+            ),
+        ],
+        1,
+        &options,
+        None,
+        |_checker, arena, _target, statements| {
+            let imports = statements
+                .iter()
+                .copied()
+                .filter(|&statement| {
+                    node(arena, statement).kind == SyntaxKind::ImportEqualsDeclaration
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(imports.len(), 2, "expected require binding plus alias");
+
+            let NodeData::ImportEqualsDeclaration(first) = &node(arena, imports[0]).data else {
+                unreachable!()
+            };
+            assert!(first.modifiers.is_none());
+            let generated = child(arena, imports[0], first.name);
+            assert_eq!(name_text(arena, imports[0], first.name), "y");
+            assert!(
+                arena.metadata(generated).is_some(),
+                "first import name carries generated-binding metadata",
+            );
+            assert_eq!(arena.generated_binding_base(generated), Some("y"));
+            let external = child(arena, imports[0], first.module_reference);
+            assert_eq!(
+                node(arena, external).kind,
+                SyntaxKind::ExternalModuleReference,
+            );
+
+            let NodeData::ImportEqualsDeclaration(second) = &node(arena, imports[1]).data else {
+                unreachable!()
+            };
+            assert!(second.modifiers.is_some());
+            assert_eq!(name_text(arena, imports[1], second.name), "y");
+            let qualified = child(arena, imports[1], second.module_reference);
+            let NodeData::QualifiedName(qualified_data) = &node(arena, qualified).data else {
+                panic!("second import must reference a qualified name")
+            };
+            assert_eq!(qualified_data.left, Some(generated.node()));
+            assert_eq!(name_text(arena, qualified, qualified_data.right), "y");
+        },
+    );
+}
