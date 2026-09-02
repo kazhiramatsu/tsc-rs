@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "d299220724eb9c7dba686296d8891f10c3fac5ce0683c8f9449c8104e0441085";
+  "3794aaaa6e95de61a0aa27a0994793afc04d4c1d53158fa22d23ee0af4b6503e";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "4c4e3c8d7ce236b6502b9400a5d45112831b0ccc4aa3c28601ca6cbd09c3c211"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "660880661c0ca6c521652d7e5f753090fdd0bfd6d3098c73bdc1cb146b9657c1"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "9648e8776a3c8d70c34395d2b604feb5e486f34d974bd888fbf1b9f3c5eceee4"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "b080161e11e938b4d11ae6a78f4d97aacea9eda0b18017603522aaca24b9c5d7"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "8e99a6d8dfd82e6ab02fe8b7997f4173fd4c3ad85b621db5311dcc36d45d698f"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "b53b6f697a4986721ee1cae83ae781654bda179ef96d71b8d4c9183776ca1dad"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "600fc28d4def4d182e0866652978baddda45e985fcdafae5d3e9ccc7ac7a9626"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "44cebc460dfbd4754e7dd70cad8722413de82092aba9551a2efafcec935766ca"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
@@ -227,6 +227,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/harness/tests/integration/h2_5h_project_emit.rs",
   "crates/program/tests/unit/option_validation_tests.rs",
   "crates/emitter/tests/integration/comment_scope_witness_contract.rs",
+  "crates/emitter/tests/integration/declaration_printer_reprint_contract.rs",
   "crates/emitter/tests/unit/factory_classifier/tests.rs",
   "crates/emitter/tests/unit/helpers/tests.rs",
   "crates/emitter/tests/unit/hook_chaining/tests.rs",
@@ -294,6 +295,7 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   // h2-6a m-3/ca-2 gate evidence and burn-down tooling: same pattern.
   "crates/compiler/tests/integration/source_map_emit_witness_contract.rs",
   "crates/compiler/tests/integration/source_map_band_probe.rs",
+  "crates/compiler/tests/integration/h2_7a_m35_controls.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit
   // runtime (emit acceptance routes through the harness emit drivers,
@@ -552,7 +554,7 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 227,
+    runtimeInputSet.size === 229,
     "H2.5g runtime input identity changed",
   );
 
