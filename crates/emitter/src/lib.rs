@@ -11,6 +11,7 @@ mod activity;
 mod artifact;
 mod builtins;
 mod comment_cursor;
+mod declarations;
 mod error;
 mod execute;
 mod factory;
@@ -35,6 +36,7 @@ pub use builtins::{
     get_script_transformers, get_script_transformers_for_source, transform_class_fields,
     transform_ecmascript_module, transform_type_script,
 };
+pub use declarations::{BoundaryEvent, DeclarationPathResolver, DeclarationTransformer};
 pub use error::{
     EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, EmitStage,
     UnsupportedEmitFeature,
