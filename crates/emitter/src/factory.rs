@@ -1261,6 +1261,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeCheckTypeOfConditionalType @6.0.3
+    /// tsc-hash: 157ce0811dcc1565701b7dfb866c4327d16c319b8b93e7e3f98d5fc45599f4ae
     /// tsc-span: _tsc.js:20524-20532
     pub fn parenthesize_check_type_of_conditional_type(
         factory: &mut NodeFactory<'_>,
@@ -1277,6 +1278,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeExtendsTypeOfConditionalType @6.0.3
+    /// tsc-hash: df215134e50a89e2f66339a064ea5077520521a0c51c236140f849e090c76eaa
     /// tsc-span: _tsc.js:20533-20539
     pub fn parenthesize_extends_type_of_conditional_type(
         factory: &mut NodeFactory<'_>,
@@ -1290,6 +1292,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeConstituentTypeOfUnionType @6.0.3
+    /// tsc-hash: 6a071b4a7c2eebb30005580cc9d725278da358dddc6e0a5a2543d51c9b33f0c3
     /// tsc-span: _tsc.js:20540-20548
     pub fn parenthesize_constituent_type_of_union_type(
         factory: &mut NodeFactory<'_>,
@@ -1306,6 +1309,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeConstituentTypeOfIntersectionType @6.0.3
+    /// tsc-hash: 16e074b57e8f85b242dacff120927e95da3283869f2623e6a1f48e715bddb0b4
     /// tsc-span: _tsc.js:20552-20560
     pub fn parenthesize_constituent_type_of_intersection_type(
         factory: &mut NodeFactory<'_>,
@@ -1322,6 +1326,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeOperandOfTypeOperator @6.0.3
+    /// tsc-hash: 63a1c7a5a630f81ce3a1e2fe93f2bdf4091c7efab7a5eaa7a7b763c2c1bfdbb6
     /// tsc-span: _tsc.js:20564-20570
     pub fn parenthesize_operand_of_type_operator(
         factory: &mut NodeFactory<'_>,
@@ -1335,6 +1340,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeOperandOfReadonlyTypeOperator @6.0.3
+    /// tsc-hash: 698f5d1853244b3042270eeaf1390ffc39a580368bedce9d8189a4256eb5a59b
     /// tsc-span: _tsc.js:20571-20577
     pub fn parenthesize_operand_of_readonly_type_operator(
         factory: &mut NodeFactory<'_>,
@@ -1348,6 +1354,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeNonArrayTypeOfPostfixType @6.0.3
+    /// tsc-hash: bfea293b8c62f6bf0135f40014a1398503089f618d07dd609b26ca786155ece9
     /// tsc-span: _tsc.js:20578-20587
     pub fn parenthesize_non_array_type_of_postfix_type(
         factory: &mut NodeFactory<'_>,
@@ -1399,6 +1406,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeElementTypeOfTupleType @6.0.3
+    /// tsc-hash: 0f276639c36bda09e21f1daa7c900c734ce7b21fdf7ccb2ee934a73a7ccd0393
     /// tsc-span: _tsc.js:20591-20594
     pub fn parenthesize_element_type_of_tuple_type(
         factory: &mut NodeFactory<'_>,
@@ -1412,6 +1420,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeTypeOfOptionalType @6.0.3
+    /// tsc-hash: 1b37b2c079682c48a5d78dc5432fc7966478742bda22faf5f8872132a29a0c04
     /// tsc-span: _tsc.js:20602-20606
     pub fn parenthesize_type_of_optional_type(
         factory: &mut NodeFactory<'_>,
@@ -1425,6 +1434,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeLeadingTypeArgument @6.0.3
+    /// tsc-hash: ddfd02d218841742dbccc0eab0bbb2245c34fa8339524d0ce413566b3babe969
     /// tsc-span: _tsc.js:20607-20609
     pub fn parenthesize_leading_type_argument(
         factory: &mut NodeFactory<'_>,
@@ -1467,6 +1477,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeConstituentTypesOfUnionType @6.0.3
+    /// tsc-hash: 4d1b0a46b52a261b197eafbcf44f75154fb99e165aa7ca54631ffe2ef9c43277
     /// tsc-span: _tsc.js:20549-20551
     pub fn parenthesize_constituent_types_of_union_type(
         factory: &mut NodeFactory<'_>,
@@ -1480,6 +1491,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeConstituentTypesOfIntersectionType @6.0.3
+    /// tsc-hash: 028652b3bf941fb7111a8ff5d194115cfd2321cd32da24cb0a6cdbda4644e2c4
     /// tsc-span: _tsc.js:20561-20563
     pub fn parenthesize_constituent_types_of_intersection_type(
         factory: &mut NodeFactory<'_>,
@@ -1493,6 +1505,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeElementTypesOfTupleType @6.0.3
+    /// tsc-hash: 75c7d31e894ea6dc5226fb2cae08f967660ff8309f4c465570b2e3a4f1d0b9b1
     /// tsc-span: _tsc.js:20588-20590
     pub fn parenthesize_element_types_of_tuple_type(
         factory: &mut NodeFactory<'_>,
@@ -1506,6 +1519,7 @@ impl TypeParenthesizer {
     }
 
     /// tsc-port: parenthesizeTypeArguments/parenthesizeOrdinalTypeArgument @6.0.3
+    /// tsc-hash: ea57c54b8172ed67a3011e7c347d1dc919bd7c2cdb730579be2325973a9f8080
     /// tsc-span: _tsc.js:20610-20617
     pub fn parenthesize_type_arguments(
         factory: &mut NodeFactory<'_>,
@@ -1697,6 +1711,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createIdentifier @6.0.3
+    /// tsc-hash: dd1baeac5d32597682b2f4f1acf9729f109bc958a82c19a446911a4bc94e709d
     /// tsc-span: _tsc.js:21609-21625
     pub fn create_identifier(
         &mut self,
@@ -1720,6 +1735,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createPrivateIdentifier @6.0.3
+    /// tsc-hash: 095d8d14824ed1e3e193ecbd3c0d5cdf52ba4c6f89d9c5c949d7d65c0d2375e7
     /// tsc-span: _tsc.js:21673-21676
     pub fn create_private_identifier(
         &mut self,
@@ -1742,6 +1758,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createUniqueName @6.0.3
+    /// tsc-hash: 63ce34b71e831906ac09351627344eeb9bf76d71b5685d4715fb1873a61ccec5
     /// tsc-span: _tsc.js:21647-21651
     pub fn create_unique_name(
         &mut self,
@@ -1774,6 +1791,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNumericLiteral @6.0.3
+    /// tsc-hash: 980f3b89b56e38a70c01d1c91a7badd1457360373e55352879a6cbec2ec3d68f
     /// tsc-span: _tsc.js:21508-21516
     pub fn create_numeric_literal(
         &mut self,
@@ -1802,6 +1820,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createBigIntLiteral @6.0.3
+    /// tsc-hash: 022cceccdf4a015574b3873f3fa517d8423e591fa13ba1155bfd39588ab996a4
     /// tsc-span: _tsc.js:21517-21522
     pub fn create_big_int_literal(
         &mut self,
@@ -1816,6 +1835,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createStringLiteral @6.0.3
+    /// tsc-hash: 2bf21e80bf4e61e4e1af7273cc968a2d4423ba01535d7cedc31a7ed35ebc1c2e
     /// tsc-span: _tsc.js:21529-21534
     pub fn create_string_literal(
         &mut self,
@@ -1839,6 +1859,7 @@ impl<'arena> NodeFactory<'arena> {
 
     /// Lossless UTF-16 spelling of createStringLiteral @6.0.3.
     /// tsc-port: createStringLiteral @6.0.3
+    /// tsc-hash: 2bf21e80bf4e61e4e1af7273cc968a2d4423ba01535d7cedc31a7ed35ebc1c2e
     /// tsc-span: _tsc.js:21529-21534
     pub fn create_string_literal_from_code_units(
         &mut self,
@@ -1856,6 +1877,7 @@ impl<'arena> NodeFactory<'arena> {
 
     /// Lossless UTF-16 spelling of createTemplateLiteralLikeNode @6.0.3.
     /// tsc-port: createTemplateLiteralLikeNode @6.0.3
+    /// tsc-hash: 1511a496596c3ef84c876eb6ea51776d475c854621a500428d83ea351bcdbfcb
     /// tsc-span: _tsc.js:22873-22879
     pub fn create_template_literal_like_from_code_units(
         &mut self,
@@ -1888,6 +1910,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTemplateHead @6.0.3
+    /// tsc-hash: 66009daaca51dc1c16219f047f47bef9667665635db9c7f881892e1937c15f1c
     /// tsc-span: _tsc.js:22891-22894
     pub fn create_template_head(
         &mut self,
@@ -1906,6 +1929,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNull @6.0.3
+    /// tsc-hash: 6d3657a649f6ef05b2185a7f92da6e9a9e5bccb728d07d7623dd864e3d2527cf
     /// tsc-span: _tsc.js:21773-21775
     pub fn create_null(
         &mut self,
@@ -1915,6 +1939,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTrue @6.0.3
+    /// tsc-hash: b2355b30279164e3edf79d14065fa95d18ffee0a82480f5f4260cce7ca37e997
     /// tsc-span: _tsc.js:21776-21778
     pub fn create_true(
         &mut self,
@@ -1924,6 +1949,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createFalse @6.0.3
+    /// tsc-hash: 91e0e60d7a8aa228fa0c3f681265e275234d0bd27275d86e90d30b94faf5beb0
     /// tsc-span: _tsc.js:21779-21781
     pub fn create_false(
         &mut self,
@@ -1933,6 +1959,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createModifier @6.0.3
+    /// tsc-hash: 16ab8287c8c7901cceb90a8aa4af2e88cc76cfff60cd24601fff5cb43b949240
     /// tsc-span: _tsc.js:21782-21784
     pub fn create_modifier(
         &mut self,
@@ -1943,6 +1970,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createModifiersFromModifierFlags @6.0.3
+    /// tsc-hash: 73ac99ed0d4ef0b813e77fbd2960f0d180815867a31a19c0b88b25437b7afef8
     /// tsc-span: _tsc.js:21785-21803
     pub fn create_modifiers_from_modifier_flags(
         &mut self,
@@ -1979,6 +2007,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createQualifiedName @6.0.3
+    /// tsc-hash: ea9c44a9536fb2859fd4832758c8effcf3d8fc49d914ae9bd1256a774ab6aed6
     /// tsc-span: _tsc.js:21804-21811
     pub fn create_qualified_name(
         &mut self,
@@ -1998,6 +2027,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateQualifiedName @6.0.3
+    /// tsc-hash: 4a54348b38bc483707af9d8fc1247dc025e36da5f3cb5eb3e30508c1c8595281
     /// tsc-span: _tsc.js:21812-21814
     pub fn update_qualified_name(
         &mut self,
@@ -2019,6 +2049,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createComputedPropertyName @6.0.3
+    /// tsc-hash: 3b149a7a43988fa82cfdc435da487233991b7592d92d071f6aefb86d7aeddc93
     /// tsc-span: _tsc.js:21815-21820
     pub fn create_computed_property_name(
         &mut self,
@@ -2038,6 +2069,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateComputedPropertyName @6.0.3
+    /// tsc-hash: 93e9e44bd9cb5471d6cb4947f7ebfeedb816b2b7ee584b8fa018198b67a1aee5
     /// tsc-span: _tsc.js:21821-21823
     pub fn update_computed_property_name(
         &mut self,
@@ -2058,6 +2090,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createKeywordTypeNode @6.0.3
+    /// tsc-hash: c535d4a3a91b9d3e92266d2f42920a0ef2e4fe642e0d712898fe93dbebb6117f
     /// tsc-span: _tsc.js:22130-22132
     pub fn create_keyword_type_node(
         &mut self,
@@ -2068,6 +2101,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTypePredicateNode @6.0.3
+    /// tsc-hash: 4660ec6804e795abb7153113fafde9c7df9490d92ab1bf032565919d2eb3a0d3
     /// tsc-span: _tsc.js:22133-22140
     pub fn create_type_predicate_node(
         &mut self,
@@ -2088,6 +2122,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateTypePredicateNode @6.0.3
+    /// tsc-hash: 837e1b51444e9f9b89e4f6a044c55ed13d24ba37987b1efbbd6dd77189e1b81a
     /// tsc-span: _tsc.js:22141-22143
     pub fn update_type_predicate_node(
         &mut self,
@@ -2118,6 +2153,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTypeReferenceNode @6.0.3
+    /// tsc-hash: f2446c3e6857b4c9c1415f0e42fde5ce046d7799226aea45f62d086108c0c8a7
     /// tsc-span: _tsc.js:22144-22150
     pub fn create_type_reference_node(
         &mut self,
@@ -2138,6 +2174,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateTypeReferenceNode @6.0.3
+    /// tsc-hash: 15b433e394bbd78ab1139c81e14eff92cdfad4d0ac10d6a6ff3b70c4e5f5384f
     /// tsc-span: _tsc.js:22151-22153
     pub fn update_type_reference_node(
         &mut self,
@@ -2162,6 +2199,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createFunctionTypeNode @6.0.3
+    /// tsc-hash: 723220f86e25512153be45ff3afe9a5583276e0069782b2959ef9f1960c7d422
     /// tsc-span: _tsc.js:22154-22167
     pub fn create_function_type_node(
         &mut self,
@@ -2183,6 +2221,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createConstructorTypeNode @6.0.3
+    /// tsc-hash: 455c2e88b7965d1fd83f44d855aa0b2685511bc10ec253cf8a48fc9d19e231fb
     /// tsc-span: _tsc.js:22176-22196
     pub fn create_constructor_type_node(
         &mut self,
@@ -2205,6 +2244,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTypeQueryNode @6.0.3
+    /// tsc-hash: 31e1f54c8ef6f8b36cd8058a3b6d6cab764502928034385310345af0295239d6
     /// tsc-span: _tsc.js:22210-22216
     pub fn create_type_query_node(
         &mut self,
@@ -2225,6 +2265,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateTypeQueryNode @6.0.3
+    /// tsc-hash: 62fa5bc36064341e2bf0d7e667c0d2f2d1eaf6852678d8174b92edf53915e6f7
     /// tsc-span: _tsc.js:22217-22219
     pub fn update_type_query_node(
         &mut self,
@@ -2248,6 +2289,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTypeLiteralNode @6.0.3
+    /// tsc-hash: 3210913fe0c3a8c31e249d34bef8c1e09648e3a0e5c38839f6e2efd8e00617bf
     /// tsc-span: _tsc.js:22220-22225
     pub fn create_type_literal_node(
         &mut self,
@@ -2264,6 +2306,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createArrayTypeNode @6.0.3
+    /// tsc-hash: 71e29dc77eaa156837ba89b71ffc6b028e29a3da6e605952ea80b7443b0a38aa
     /// tsc-span: _tsc.js:22229-22234
     pub fn create_array_type_node(
         &mut self,
@@ -2282,6 +2325,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTupleTypeNode @6.0.3
+    /// tsc-hash: 16e1e91fae1c7a14ceabac5a86b34b47dd8ae8c5abb5b75c8bde1924d07993a3
     /// tsc-span: _tsc.js:22238-22243
     pub fn create_tuple_type_node(
         &mut self,
@@ -2299,6 +2343,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNamedTupleMember @6.0.3
+    /// tsc-hash: b9c321f1be3f372a173ff70718534a5faf7f75dc9ca2e85e39acebd17bf51437
     /// tsc-span: _tsc.js:22247-22259
     pub fn create_named_tuple_member(
         &mut self,
@@ -2321,6 +2366,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createOptionalTypeNode @6.0.3
+    /// tsc-hash: 6f813cfb6a42736b3eac89e49ae158bb1ce05dac582b3f459a1dcc86e17eb47c
     /// tsc-span: _tsc.js:22260-22265
     pub fn create_optional_type_node(
         &mut self,
@@ -2338,6 +2384,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createRestTypeNode @6.0.3
+    /// tsc-hash: 95358d06d9e5e4137c4f285d0e0c0e2e6a4d68a668ddbdbce1eef2c8a4c68f9a
     /// tsc-span: _tsc.js:22269-22274
     pub fn create_rest_type_node(
         &mut self,
@@ -2354,6 +2401,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createUnionTypeNode @6.0.3
+    /// tsc-hash: 6adb99e1838a49bb83823cfaf97759760116f78c604beb7a8fdd0ca878d3f8db
     /// tsc-span: _tsc.js:22287-22292
     pub fn create_union_type_node(
         &mut self,
@@ -2371,6 +2419,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createIntersectionTypeNode @6.0.3
+    /// tsc-hash: 00d6b64783b04d826bc0ecd7a89e6d69a34eb70a9cb6dd89dec68d9c78aac108
     /// tsc-span: _tsc.js:22293-22298
     pub fn create_intersection_type_node(
         &mut self,
@@ -2389,6 +2438,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createConditionalTypeNode @6.0.3
+    /// tsc-hash: 26620ce9ec00d3d4431b1281e07c48a1cce3d4053d80b268e2f47abd4148c49d
     /// tsc-span: _tsc.js:22299-22309
     pub fn create_conditional_type_node(
         &mut self,
@@ -2415,6 +2465,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateConditionalTypeNode @6.0.3
+    /// tsc-hash: a9b797b561095291b77f07dfaf68b44637cd30b514c376740a5f79217684cfe2
     /// tsc-span: _tsc.js:22310-22312
     pub fn update_conditional_type_node(
         &mut self,
@@ -2448,6 +2499,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createInferTypeNode @6.0.3
+    /// tsc-hash: 3a5a517ad01a212dde9226f06e8915b407030a32ff3d40efae3f8d14760ebb80
     /// tsc-span: _tsc.js:22313-22318
     pub fn create_infer_type_node(
         &mut self,
@@ -2464,6 +2516,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTemplateLiteralType @6.0.3
+    /// tsc-hash: c9d6f05d997bcf9bb33292d79f296358c35a2f787d1b66803c2206ae11d8c65d
     /// tsc-span: _tsc.js:22322-22328
     pub fn create_template_literal_type(
         &mut self,
@@ -2482,6 +2535,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createImportTypeNode @6.0.3
+    /// tsc-hash: a950588693ed3752ed2f76f11c5a4034b8a56d876317d12a39e2d69819a068ae
     /// tsc-span: _tsc.js:22332-22344
     #[allow(clippy::too_many_arguments)]
     pub fn create_import_type_node(
@@ -2509,6 +2563,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateImportTypeNode @6.0.3
+    /// tsc-hash: 8c2532bf69ef911105aef4c352613095f64516e3d9257cdca4372b838362ffb4
     /// tsc-span: _tsc.js:22345-22347
     #[allow(clippy::too_many_arguments)]
     pub fn update_import_type_node(
@@ -2546,6 +2601,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createParenthesizedType @6.0.3
+    /// tsc-hash: af93078d7ab5922c44cce7268a62547f85cfd5dc932158376679ada4a609b094
     /// tsc-span: _tsc.js:22348-22353
     pub fn create_parenthesized_type(
         &mut self,
@@ -2562,6 +2618,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createThisTypeNode @6.0.3
+    /// tsc-hash: b07b24ff9384331e2fd5677569ae4a4771452581ceb03a89ac23b5e2fb1fb818
     /// tsc-span: _tsc.js:22357-22361
     pub fn create_this_type_node(
         &mut self,
@@ -2575,6 +2632,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTypeOperatorNode @6.0.3
+    /// tsc-hash: 912a60aaa14c05c5820b19ce24cebc78ad8c247acaa23c8430c13a49091ae65b
     /// tsc-span: _tsc.js:22362-22368
     pub fn create_type_operator_node(
         &mut self,
@@ -2598,6 +2656,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateTypeOperatorNode @6.0.3
+    /// tsc-hash: c0577d9718fb34c1aa3344cc3de64fc38f2addc54f3ae84479a20b67a9a63a3a
     /// tsc-span: _tsc.js:22369-22371
     pub fn update_type_operator_node(
         &mut self,
@@ -2619,6 +2678,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createIndexedAccessTypeNode @6.0.3
+    /// tsc-hash: 5c7144a5ad40365fd112084b684b5bcdf956fb3c4b564f95e3542d3c0a52780f
     /// tsc-span: _tsc.js:22372-22378
     pub fn create_indexed_access_type_node(
         &mut self,
@@ -2639,6 +2699,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateIndexedAccessTypeNode @6.0.3
+    /// tsc-hash: 15970351ab97b36b0be9b6e08d55dcd586bb6a293269133afce2220c0307061f
     /// tsc-span: _tsc.js:22379-22381
     pub fn update_indexed_access_type_node(
         &mut self,
@@ -2661,6 +2722,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createMappedTypeNode @6.0.3
+    /// tsc-hash: 0fce1cfe620cd3abc168e2a6f8472f4771169491d673c70cec1a1caf2ca2c6b8
     /// tsc-span: _tsc.js:22382-22397
     #[allow(clippy::too_many_arguments)]
     pub fn create_mapped_type_node(
@@ -2688,6 +2750,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createLiteralTypeNode @6.0.3
+    /// tsc-hash: 77717b3b5b2eef35aebafcfbb103733a859cc9af2c44baa3f185a92d35e28d43
     /// tsc-span: _tsc.js:22398-22403
     pub fn create_literal_type_node(
         &mut self,
@@ -2704,6 +2767,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTemplateLiteralTypeSpan @6.0.3
+    /// tsc-hash: b74c981670edd3edc82d407c9dd7af05e53cfe7118d393b0998405422941e2ee
     /// tsc-span: _tsc.js:22120-22129
     pub fn create_template_literal_type_span(
         &mut self,
@@ -2722,6 +2786,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createExpressionWithTypeArguments @6.0.3
+    /// tsc-hash: 9d82e84ce18b62e683344bdba7f4067959b02e3ba13c9303ea37889e54517ddf
     /// tsc-span: _tsc.js:22944-22954
     pub fn create_expression_with_type_arguments(
         &mut self,
@@ -2745,6 +2810,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTypeParameterDeclaration @6.0.3
+    /// tsc-hash: 473b9ac013591e2008c4c697e515baf6ff9ead4bed170531a0cbbf2f2ed7511a
     /// tsc-span: _tsc.js:21824-21834
     pub fn create_type_parameter_declaration(
         &mut self,
@@ -2768,6 +2834,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateTypeParameterDeclaration @6.0.3
+    /// tsc-hash: 788c8788bc75cad86a413051c1d6a3fee2af7ca35556280cf6624dff7910037b
     /// tsc-span: _tsc.js:21835-21837
     pub fn update_type_parameter_declaration(
         &mut self,
@@ -2801,6 +2868,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createParameterDeclaration @6.0.3
+    /// tsc-hash: 31cde0f942a7460844092dcd2b95e2e97bafbcd5a2dcc6f4f5e0a1b7f5f11ef5
     /// tsc-span: _tsc.js:21838-21853
     #[allow(clippy::too_many_arguments)]
     pub fn create_parameter_declaration(
@@ -2852,6 +2920,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateParameterDeclaration @6.0.3
+    /// tsc-hash: df52aba274cf57e89061d225869966a790bfd214c0c9a525040cfded629a3637
     /// tsc-span: _tsc.js:21854-21856
     #[allow(clippy::too_many_arguments)]
     pub fn update_parameter_declaration(
@@ -2892,6 +2961,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createPropertySignature @6.0.3
+    /// tsc-hash: 63cf0f85580adca8cecdc9964ca537b32ffb49c7abb016d9db2996c02d52fa0e
     /// tsc-span: _tsc.js:21870-21882
     pub fn create_property_signature(
         &mut self,
@@ -2915,6 +2985,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createPropertyDeclaration @6.0.3
+    /// tsc-hash: 2f7df66cb0e988da54fd316bcba05db7e36dc1c9f8472f465001a4007f1dd4bb
     /// tsc-span: _tsc.js:21890-21902
     pub fn create_property_declaration(
         &mut self,
@@ -2967,6 +3038,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createMethodSignature @6.0.3
+    /// tsc-hash: 81cf79b7cd2c1aec90fa92a6932715ca44940f8320269e0dfbe09588eefce280
     /// tsc-span: _tsc.js:21906-21923
     #[allow(clippy::too_many_arguments)]
     pub fn create_method_signature(
@@ -3044,6 +3116,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createMethodDeclaration @6.0.3
+    /// tsc-hash: ab2bb8f981f84e6971291e817bb111793868f0254f394570ed3056fc5bc28544
     /// tsc-span: _tsc.js:21924-21951
     #[allow(clippy::too_many_arguments)]
     pub fn create_method_declaration(
@@ -3091,6 +3164,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createConstructorDeclaration @6.0.3
+    /// tsc-hash: c5eefe07225bf0585ce38867bc66134c557c7da79684697fa32e2cc899276163
     /// tsc-span: _tsc.js:21982-22001
     pub fn create_constructor_declaration(
         &mut self,
@@ -3123,6 +3197,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createGetAccessorDeclaration @6.0.3
+    /// tsc-hash: f5c87298a2abeffe5ad1a6109406c98a7de78dfa72c5bd200e0c7d3e08b614c7
     /// tsc-span: _tsc.js:22012-22042
     pub fn create_get_accessor_declaration(
         &mut self,
@@ -3163,6 +3238,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createSetAccessorDeclaration @6.0.3
+    /// tsc-hash: 3bba80705cdd8bd650d471958328abd977688a800de71f71ca1a55203bad4354
     /// tsc-span: _tsc.js:22043-22064
     pub fn create_set_accessor_declaration(
         &mut self,
@@ -3196,6 +3272,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createCallSignature @6.0.3
+    /// tsc-hash: 32c5319dfe22e038d8d3dc8c218bdd631b95cd3dd11ef733087df755f2c30724
     /// tsc-span: _tsc.js:22075-22089
     pub fn create_call_signature(
         &mut self,
@@ -3216,6 +3293,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createConstructSignature @6.0.3
+    /// tsc-hash: c33ed25cf62032c76f611cd1792312083b28a7be4b41539846b851a25609a261
     /// tsc-span: _tsc.js:22090-22104
     pub fn create_construct_signature(
         &mut self,
@@ -3236,6 +3314,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createIndexSignature @6.0.3
+    /// tsc-hash: a124930b25a2975d85671d6890a0ccb372e9c5401be007da6e555d28a746b914
     /// tsc-span: _tsc.js:22105-22119
     pub fn create_index_signature(
         &mut self,
@@ -3257,6 +3336,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createFunctionDeclaration @6.0.3
+    /// tsc-hash: f0b57d5b5e5c6840a8efeaf5ba98282c519b05f1ce0d73ddedfc751e575812ae
     /// tsc-span: _tsc.js:23303-23328
     #[allow(clippy::too_many_arguments)]
     pub fn create_function_declaration(
@@ -3304,6 +3384,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createFunctionExpression @6.0.3
+    /// tsc-hash: 83a792bb983da8a130478b3366df8b8342f1363c86d100dd45b374794ed50473
     /// tsc-span: _tsc.js:22676-22700
     #[allow(clippy::too_many_arguments)]
     pub fn create_function_expression(
@@ -3374,6 +3455,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createArrowFunction @6.0.3
+    /// tsc-hash: 86ab9adbb9da5a28bf8a8dad687363b83f315bfa06def479590c1f305a367d72
     /// tsc-span: _tsc.js:22701-22719
     #[allow(clippy::too_many_arguments)]
     pub fn create_arrow_function(
@@ -3426,6 +3508,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createJSDocFunctionType @6.0.3
+    /// tsc-hash: faedb83d3042fa68c12e00798ec7535289532e88b98900d6b25da17a8113b193
     /// tsc-span: _tsc.js:23707-23719
     pub fn create_jsdoc_function_type(
         &mut self,
@@ -3450,6 +3533,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createBlock @6.0.3
+    /// tsc-hash: 55f45ae70ca3cf1ff88e796f6f2903492a2c2b0a04c6171196e0954bff771350
     /// tsc-span: _tsc.js:23045-23057
     pub fn create_block(
         &mut self,
@@ -3488,6 +3572,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createPrefixUnaryExpression @6.0.3
+    /// tsc-hash: 9340e19524cc302b3a5462effae0ae6072b65466ecc42b2fdfdeaa98253fa818
     /// tsc-span: _tsc.js:22759-22769
     pub fn create_prefix_unary_expression(
         &mut self,
@@ -3544,6 +3629,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createPropertyAccessExpression @6.0.3
+    /// tsc-hash: ed73474ca2fac1e817ecac78b28378368a34a5a097d3c81e9f138777a654d05c
     /// tsc-span: _tsc.js:22474-22488
     pub fn create_property_access_expression(
         &mut self,
@@ -3575,6 +3661,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createElementAccessExpression @6.0.3
+    /// tsc-hash: 803a9754018ad7ca337808e56e5ebfbc2f26dc717082946b1f4b30d9b13f8368
     /// tsc-span: _tsc.js:22524-22538
     pub fn create_element_access_expression(
         &mut self,
@@ -3600,6 +3687,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateBindingElement @6.0.3
+    /// tsc-hash: ceb986743d45f7b61e48c74a230ec55ddc7d87cdd373504d1461c786efe5c0e7
     /// tsc-span: _tsc.js:22438-22440
     pub fn update_binding_element(
         &mut self,
@@ -3644,6 +3732,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createVariableDeclaration @6.0.3
+    /// tsc-hash: f69a941184a04a14a893a7f878efe04e38c34c7ef2fd9d0208dfd6b3b1e49585
     /// tsc-span: _tsc.js:23274-23286
     pub fn create_variable_declaration(
         &mut self,
@@ -3670,6 +3759,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createVariableDeclarationList @6.0.3
+    /// tsc-hash: 324d5fd5f464f3047fb5d2b3c5761cd3a469334262e88077a32c862a5c1051d8
     /// tsc-span: _tsc.js:23287-23299
     pub fn create_variable_declaration_list(
         &mut self,
@@ -3697,6 +3787,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createVariableStatement @6.0.3
+    /// tsc-hash: d983b3f4c50c1983954810c3e38b933886c1ea1c0dd82ca010fd172f14f138ac
     /// tsc-span: _tsc.js:23058-23072
     pub fn create_variable_statement(
         &mut self,
@@ -3723,6 +3814,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createEmptyStatement @6.0.3
+    /// tsc-hash: bd30f754766c0eba7d66bcce0b1bc25b080d95febd09f6d40fccdbbaa9b3a86a
     /// tsc-span: _tsc.js:23073-23077
     pub fn create_empty_statement(
         &mut self,
@@ -3736,6 +3828,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createExpressionStatement @6.0.3
+    /// tsc-hash: 356fde9ecc71857651c8a89b5afd1e5ff130243b093215225c190b4dc1c58c29
     /// tsc-span: _tsc.js:23078-23085
     pub fn create_expression_statement(
         &mut self,
@@ -3753,6 +3846,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createClassDeclaration @6.0.3
+    /// tsc-hash: 4116022701afc60714ac17403b6470636b06686462a2951b6a090fab0c87f1c9
     /// tsc-span: _tsc.js:23339-23356
     pub fn create_class_declaration(
         &mut self,
@@ -3796,6 +3890,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateClassDeclaration @6.0.3
+    /// tsc-hash: e9a9bbea29832f1ee7b89c669fcbdabf91cf8994cb643fdf51f0953f531859af
     /// tsc-span: _tsc.js:23357-23359
     pub fn update_class_declaration(
         &mut self,
@@ -3832,6 +3927,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createInterfaceDeclaration @6.0.3
+    /// tsc-hash: fd7593ca57140b4d21704e0086a9a3fe7de50a9995942c7c016bce5b9ce7fb2f
     /// tsc-span: _tsc.js:23360-23373
     pub fn create_interface_declaration(
         &mut self,
@@ -3856,6 +3952,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createTypeAliasDeclaration @6.0.3
+    /// tsc-hash: b3e49567db105fe68eeee9696bc6aaa4bdaf62cdb5d7f886c371ac5fc9f1480b
     /// tsc-span: _tsc.js:23374-23388
     pub fn create_type_alias_declaration(
         &mut self,
@@ -3878,6 +3975,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createEnumDeclaration @6.0.3
+    /// tsc-hash: 0c84f0f447d6956fce64d8966fa7255547aac15f32c1185bd84db88281603e6b
     /// tsc-span: _tsc.js:23389-23401
     pub fn create_enum_declaration(
         &mut self,
@@ -3903,6 +4001,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createModuleDeclaration @6.0.3
+    /// tsc-hash: 5c93acf62127508d0a9e52f9662a085401065bf8333ddf36457fee89f385c8b5
     /// tsc-span: _tsc.js:23402-23418
     pub fn create_module_declaration(
         &mut self,
@@ -3942,6 +4041,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateModuleDeclaration @6.0.3
+    /// tsc-hash: fec3de9c79133c1b2261e7db8f5b5bed6fc43d035ec2d99f0020a86d22f90d5d
     /// tsc-span: _tsc.js:23419-23421
     pub fn update_module_declaration(
         &mut self,
@@ -3974,6 +4074,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createModuleBlock @6.0.3
+    /// tsc-hash: 2a85268a91eb2ed412acb4198bbbafee3460abbb477164fa9f7a8cbef67b884a
     /// tsc-span: _tsc.js:23422-23428
     pub fn create_module_block(
         &mut self,
@@ -3991,6 +4092,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateModuleBlock @6.0.3
+    /// tsc-hash: 75600d68fbf2ce6e8b0f74a61686bfafce59dbeb60d37780e75ba3670c539245
     /// tsc-span: _tsc.js:23429-23431
     pub fn update_module_block(
         &mut self,
@@ -4011,6 +4113,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNamespaceExportDeclaration @6.0.3
+    /// tsc-hash: 2afc9f27c4434b1c6144e4b96b2ebf2d6d33b7dfc2294225456814dfeea54eef
     /// tsc-span: _tsc.js:23443-23451
     pub fn create_namespace_export_declaration(
         &mut self,
@@ -4029,6 +4132,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createImportEqualsDeclaration @6.0.3
+    /// tsc-hash: 6af6e2d7c08f4e62fbdc9ba6e516855e34f4ef0b03f82127b378eee9fe8cd8b1
     /// tsc-span: _tsc.js:23460-23476
     pub fn create_import_equals_declaration(
         &mut self,
@@ -4058,6 +4162,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createImportDeclaration @6.0.3
+    /// tsc-hash: e116f2faf2ee4cce4b7326f5583963fd4d6cfee54db85f41ba3d4ad3f64fec2f
     /// tsc-span: _tsc.js:23477-23490
     pub fn create_import_declaration(
         &mut self,
@@ -4083,6 +4188,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createImportClause @6.0.3
+    /// tsc-hash: 60b27f351bbfe4e46fb868ceb2fb98f79b9cbf81ed0c051b43529f496ee7d7c7
     /// tsc-span: _tsc.js:23491-23510
     pub fn create_import_clause(
         &mut self,
@@ -4109,6 +4215,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createImportAttributes @6.0.3
+    /// tsc-hash: 50ab88de5743ce92432c926b4efcba8c1cdd887d900be70c148f9e670363ffdd
     /// tsc-span: _tsc.js:23543-23553
     pub fn create_import_attributes(
         &mut self,
@@ -4129,6 +4236,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createImportAttribute @6.0.3
+    /// tsc-hash: ca97951e35495e6668087824324d39f42da8fa45dac3986515bf6a742f959abb
     /// tsc-span: _tsc.js:23554-23560
     pub fn create_import_attribute(
         &mut self,
@@ -4147,6 +4255,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNamespaceImport @6.0.3
+    /// tsc-hash: b79562e8c9aae08811a7d9779a7cf41040904a880e1677019aa3f3f723878c13
     /// tsc-span: _tsc.js:23564-23573
     pub fn create_namespace_import(
         &mut self,
@@ -4165,6 +4274,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNamespaceExport @6.0.3
+    /// tsc-hash: 2bef163fa8ccf36f2fcbb0d4583c0fee21ab5607bd7c13a1785ca8440058dd59
     /// tsc-span: _tsc.js:23574-23583
     pub fn create_namespace_export(
         &mut self,
@@ -4183,6 +4293,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNamedImports @6.0.3
+    /// tsc-hash: 6859e60e136be0c2291d2340d91b1b81f2f05c18737de28d110ad6b64319bfb3
     /// tsc-span: _tsc.js:23584-23593
     pub fn create_named_imports(
         &mut self,
@@ -4201,6 +4312,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createImportSpecifier @6.0.3
+    /// tsc-hash: b6a75ae8f3acaf31a832a2a9fb939905b848197371dbd4ca84d40e86c5e92b84
     /// tsc-span: _tsc.js:23594-23605
     pub fn create_import_specifier(
         &mut self,
@@ -4223,6 +4335,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createExportAssignment @6.0.3
+    /// tsc-hash: ce4faa5df88ad7ee17d05b67cd4235cf005964aa029f49898c4b40039cbcf351
     /// tsc-span: _tsc.js:23606-23623
     pub fn create_export_assignment(
         &mut self,
@@ -4245,6 +4358,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createExportDeclaration @6.0.3
+    /// tsc-hash: 9a0b5dd2decaa4205a68486280acf4778c851fb338a6c64fd464c3fba40d3174
     /// tsc-span: _tsc.js:23624-23635
     pub fn create_export_declaration(
         &mut self,
@@ -4273,6 +4387,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateExportDeclaration @6.0.3
+    /// tsc-hash: fc193596760f2607c4177c742263b4ca9f3ac18c4e52ef79fb8ab05c5bd1294d
     /// tsc-span: _tsc.js:23636-23646
     pub fn update_export_declaration(
         &mut self,
@@ -4309,6 +4424,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNamedExports @6.0.3
+    /// tsc-hash: 460b70c2210a56afe53208e9ca9c35d8d0e307f8136796277e27424d870d8093
     /// tsc-span: _tsc.js:23647-23653
     pub fn create_named_exports(
         &mut self,
@@ -4327,6 +4443,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: updateNamedExports @6.0.3
+    /// tsc-hash: 7aeb946bff86ab842ddb34d311d51311e0a27be6fc2b04b6a4ec43f8ae4230c2
     /// tsc-span: _tsc.js:23654-23656
     pub fn update_named_exports(
         &mut self,
@@ -4347,6 +4464,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createExportSpecifier @6.0.3
+    /// tsc-hash: f58a66c6503fcb1ff04e93dfe984e9892e0a006efc1d44369110321ac37ed46a
     /// tsc-span: _tsc.js:23657-23668
     pub fn create_export_specifier(
         &mut self,
@@ -4369,6 +4487,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createExternalModuleReference @6.0.3
+    /// tsc-hash: f50a611d50a0ac36401a62a3ff2d1e53a24bfccc11eab10f28bae9cadc0800a7
     /// tsc-span: _tsc.js:23675-23683
     pub fn create_external_module_reference(
         &mut self,
@@ -4387,6 +4506,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createHeritageClause @6.0.3
+    /// tsc-hash: 709c54e3478568976cdbd05fd9248867e86cc414e67138ce1d7bdf96d912cbc0
     /// tsc-span: _tsc.js:24106-24122
     pub fn create_heritage_clause(
         &mut self,
@@ -4416,6 +4536,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createEnumMember @6.0.3
+    /// tsc-hash: 0e79cb062e2688378b68df053d049c0c451f1cab85d9e9b1ddfe201a228d3118
     /// tsc-span: _tsc.js:24194-24202
     pub fn create_enum_member(
         &mut self,
@@ -4437,6 +4558,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: replaceModifiers @6.0.3
+    /// tsc-hash: d4de45449da7572d85b4b83532e6a9ba1d825bb5a84fd6678f65f5476f854221
     /// tsc-span: _tsc.js:24933-24944
     pub fn replace_modifiers(
         &mut self,
@@ -4864,6 +4986,7 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: createNotEmittedTypeElement @6.0.3
+    /// tsc-hash: 3c0ce7b67743bc6f4e6a2d2810f9537a7d80f0aff7b4c82324f71a9dfd065d52
     /// tsc-span: _tsc.js:24368-24370
     pub fn create_not_emitted_type_element(
         &mut self,

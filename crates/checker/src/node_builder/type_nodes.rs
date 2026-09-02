@@ -95,6 +95,9 @@ fn node_array_or_empty(
     }
 }
 
+/// tsrs-native: shared NodeData-spelling seam for the typed NodeFactory faces
+/// (h2-7a-m-3.5 §5.8) — routes a face-built node through the arena factory
+/// with the face's exact transform-flag word; no upstream counterpart.
 pub(crate) fn create_factory_node(
     arena: &mut TransformArena,
     target: TransformSourceId,
@@ -724,6 +727,9 @@ pub(super) fn create_node(
     create_factory_node(arena, target, data, TransformFlags::CONTAINS_TYPE_SCRIPT)
 }
 
+/// tsrs-native: shared update seam for the typed NodeFactory update faces
+/// (h2-7a-m-3.5 §5.8) — same-node identity when unchanged, otherwise a fresh
+/// node with original provenance; no upstream counterpart.
 pub(crate) fn update_factory_node(
     arena: &mut TransformArena,
     original: TransformNode,
