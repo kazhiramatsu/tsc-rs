@@ -23,6 +23,7 @@ impl EmitSymbolTracker for RecordingTracker {
         &mut self,
         _access: &mut dyn EmitTrackerAccess,
         _symbol: EmitTrackerSymbol,
+        _symbol_flags: tsc_types::SymbolFlags,
         _enclosing_declaration: Option<EmitTrackerNode>,
         _meaning: EmitSymbolMeaning,
     ) -> Result<bool, EmitResolverError> {
@@ -373,6 +374,7 @@ fn front_doors_preserve_flags_and_build_real_node_shapes() {
                 Some(EmitNodeBuilderFlags::NONE),
                 None,
                 None,
+                None,
             )
             .expect("declaration front door")
             .expect("annotation node");
@@ -389,6 +391,7 @@ fn front_doors_preserve_flags_and_build_real_node_shapes() {
                 numeric_symbol,
                 Some(root),
                 Some(EmitNodeBuilderFlags::NONE),
+                None,
                 None,
                 None,
             )

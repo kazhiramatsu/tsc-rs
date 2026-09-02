@@ -90,6 +90,11 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     pub(crate) recovery_tracked_symbols: Option<Vec<RecoveryTrackedSymbol>>,
 }
 
+pub(crate) struct SyntheticModuleScope<'scope> {
+    pub(crate) enclosing_declaration: Option<NodeId>,
+    pub(crate) locals: &'scope tsc_binder::SymbolTable,
+}
+
 /// tsc-port: withContext @6.0.3
 /// tsc-hash: 125cf164389b2220563c80c84b08f1269efdad8469590526d730de6bc857bbd3
 /// tsc-span: _tsc.js:51205-51256
@@ -210,6 +215,51 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
         crate::node_builder::replay_sink::record(move || record);
     }
     Ok(produced)
+}
+
+/// tsrs-native: explicit one-call adapter for the existing synthetic module-scope overlay.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn with_context_in_synthetic_module_scope<'program, 'tracker, T: ReplayProduced>(
+    checker: &mut CheckerState<'program>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    enclosing_declaration: Option<NodeId>,
+    flags: Option<EmitNodeBuilderFlags>,
+    internal_flags: Option<EmitInternalNodeBuilderFlags>,
+    tracker: Option<&'tracker mut dyn EmitSymbolTracker>,
+    maximum_length: Option<u32>,
+    verbosity_level: Option<i32>,
+    scope: SyntheticModuleScope<'_>,
+    callback: impl FnOnce(
+        &mut CheckerState<'program>,
+        &mut TransformArena,
+        TransformSourceId,
+        &mut NodeBuilderContext<'tracker>,
+    ) -> Result<T, EmitResolverError>,
+    out: Option<&mut EmitSymbolExpansionOut>,
+) -> Result<Option<T>, EmitResolverError> {
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing_declaration,
+        flags,
+        internal_flags,
+        tracker,
+        maximum_length,
+        verbosity_level,
+        move |checker, arena, target, context| {
+            let restore = super::with_synthetic_module_scope(
+                context,
+                scope.enclosing_declaration,
+                scope.locals,
+            );
+            let result = callback(checker, arena, target, context);
+            super::restore_synthetic_module_scope(context, restore);
+            result
+        },
+        out,
+    )
 }
 
 /// Projection of a withContext result into the harness sink's classes. The
