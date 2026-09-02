@@ -2316,7 +2316,13 @@ impl CheckerState<'_> {
                 }
             })
             .collect::<Vec<_>>();
-        (matches.len() == 1).then_some(matches[0])
+        // `then_some` evaluates its argument eagerly: an empty match set must
+        // not index. (h2-7a-m-3.5: latent m-3 harness panic surfaced by P2.)
+        if matches.len() == 1 {
+            Some(matches[0])
+        } else {
+            None
+        }
     }
 
     fn declaration_replay_compare_seed(
