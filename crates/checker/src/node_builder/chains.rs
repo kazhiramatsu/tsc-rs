@@ -536,11 +536,6 @@ pub(super) fn lookup_symbol_chain_worker(
     meaning: EmitSymbolMeaning,
     yield_module_symbol: bool,
 ) -> BuildResult<Vec<SymbolId>> {
-    if !context.tracker.uses_basic_module_resolver_host
-        && checker.symbol_has_external_module_declaration(symbol)
-    {
-        return Ok(vec![symbol]);
-    }
     if yield_module_symbol && value_meaning(meaning) && context.enclosing_declaration_is_synthetic {
         if let Some(parent) = checker.binder.symbol(symbol).parent {
             if checker
@@ -730,11 +725,11 @@ pub(crate) fn specifier_for_module_symbol(
     let enclosing_file = context.enclosing_file;
     let enclosing_declaration = context.enclosing_declaration;
     let bundled = context.bundled;
-    if let Some(host) = context.tracker.caller_module_resolver_host() {
+    if enclosing_file.is_none() {
         return get_specifier_for_module_symbol(
             checker,
             symbol,
-            Some(host),
+            None,
             enclosing_file,
             enclosing_declaration,
             bundled,
@@ -742,11 +737,11 @@ pub(crate) fn specifier_for_module_symbol(
         )
         .map_err(|abort| checker_abort_error(checker, context, abort));
     }
-    if !context.tracker.uses_basic_module_resolver_host {
+    if let Some(host) = context.tracker.caller_module_resolver_host() {
         return get_specifier_for_module_symbol(
             checker,
             symbol,
-            None,
+            Some(host),
             enclosing_file,
             enclosing_declaration,
             bundled,

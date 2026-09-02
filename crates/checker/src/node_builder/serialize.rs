@@ -87,10 +87,6 @@ pub(crate) fn build_symbol_display_node(
         None,
         None,
         |checker, arena, target, context| {
-            // `symbolToString` supplies no declaration-emit tracker. Its
-            // builder context must therefore take getSpecifierForModuleSymbol's
-            // no-host arm, which preserves the source file name verbatim.
-            context.tracker.uses_basic_module_resolver_host = false;
             if allow_any_node_kind {
                 symbol_to_node(checker, arena, target, context, symbol, meaning)
             } else {
