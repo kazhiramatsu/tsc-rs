@@ -38,6 +38,9 @@ Non-row items ported under the owner header: `pushErrorFallbackNode` :114292-114
 - observation-content roll 4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad — reproduced: YES (byte-identical)
 - `--check` exit 0 twice: YES (check_receipt=hit); walk-preflight + pin-audit clean after the mint
 
+## Probe artifact succession (E3 cascade — the witness pin moved)
+- `node crates/oracle/h2-7a-probe-traces.mjs --check` refused after the witness re-mint (stale `witnesses` input pin) → `--write` (instrumented fresh-process double observation, 120 cases); trace-content roll ca24d47c… REPRODUCED, printed-results roll 7554535b… REPRODUCED, events 16,925 / printed_results 647 unchanged; witness pin dbbe7688… → 24c84397…; whole-file fingerprint fe62bebc… → 35f66909…; `--check` exit 0 twice (receipt hit); walk-preflight clean. The packet §1/§9 now record this cascade (the r5 text said "the probe does not re-mint" — corrected 2026-09-03).
+
 ## Resolver partition succession (P-head)
 m-3-head partition rows: 7 → 10 (`create_type_of_declaration_in_expando_scope`, `is_last_bodiless_overload_of_symbol`, `is_first_declaration_of_symbol`) — TO-VERIFY at the inventory re-mint.
 
