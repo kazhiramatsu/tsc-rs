@@ -17,7 +17,8 @@ Surfaces:
   3. hosted-policy rust_source_sha256 map (.github/ci/qualification-policy.v2.json)
   4. schema-contract embedded {path, sha256} consts (.github/ci/contracts/)
   5. fuzz manifest source references      (ratchets/fuzz-preflight.v1.json,
-                                           ratchets/fuzz-domain.v1.toml)
+                                           ratchets/fuzz-domain.v1.toml,
+                                           ratchets/fuzz-oracle-deviations.v1.json)
 
 Exit: 0 clean, 1 stale surfaces (ALL reported, never fail-first).
 """
@@ -35,6 +36,7 @@ HEX64 = re.compile(r"[0-9a-f]{64}")
 POLICY = ".github/ci/qualification-policy.v2.json"
 FUZZ_PREFLIGHT = "ratchets/fuzz-preflight.v1.json"
 FUZZ_DOMAIN = "ratchets/fuzz-domain.v1.toml"
+FUZZ_ORACLE = "ratchets/fuzz-oracle-deviations.v1.json"
 
 
 def disk_sha256(relative):
@@ -141,6 +143,11 @@ def main():
         tomllib.load(open(ROOT / FUZZ_DOMAIN, "rb")), domain_pairs
     )
     pair_surface(problems, f"fuzz-manifest:{FUZZ_DOMAIN}", domain_pairs)
+    # h2-7a-m-3.5 P7 repair: the oracle-deviations manifest pins checker
+    # sources too (state.rs drifted past a clean walk once).
+    oracle_pairs = []
+    embedded_pairs(json.load(open(ROOT / FUZZ_ORACLE)), oracle_pairs)
+    pair_surface(problems, f"fuzz-manifest:{FUZZ_ORACLE}", oracle_pairs)
 
     if problems:
         print(f"walk-preflight: {len(problems)} stale pin surface(s) — fix ALL, then walk ONCE:")
