@@ -1262,7 +1262,13 @@ fn is_symbol_accessible_with_error_names(
         return Ok(true);
     }
     let result = checker
-        .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
+        .emit_is_symbol_accessible_with_enclosing_kind(
+            symbol,
+            enclosing,
+            context.enclosing_declaration_is_synthetic,
+            meaning,
+            false,
+        )
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     restore_direct_symbol_visibility(checker, symbol, enclosing, meaning, context)?;
     let nested_enclosing = (!context.enclosing_declaration_is_synthetic).then_some(enclosing);

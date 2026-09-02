@@ -2754,8 +2754,10 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         let old_enclosing = self.context.enclosing_declaration;
         let old_enclosing_is_synthetic = self.context.enclosing_declaration_is_synthetic;
         let old_synthetic_scope_locals = self.context.synthetic_scope_locals.clone();
+        let old_synthetic_scope_kind = self.context.synthetic_scope_kind;
         self.adding_declare = false;
         self.context.enclosing_declaration_is_synthetic = true;
+        self.context.synthetic_scope_kind = Some(SyntaxKind::ModuleDeclaration);
         self.context.synthetic_scope_locals = Some(
             table
                 .iter()
@@ -2766,6 +2768,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         self.context.enclosing_declaration = old_enclosing;
         self.context.enclosing_declaration_is_synthetic = old_enclosing_is_synthetic;
         self.context.synthetic_scope_locals = old_synthetic_scope_locals;
+        self.context.synthetic_scope_kind = old_synthetic_scope_kind;
         self.adding_declare = old_adding_declare;
         let serialized_declarations = std::mem::replace(&mut self.results, old_results);
         visit_result?;
@@ -3788,12 +3791,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 self.target,
                 name_node,
                 type_node,
-                if self
-                    .context
-                    .enclosing_declaration
-                    .is_some_and(|declaration| {
-                        self.checker.kind_of(declaration) == SyntaxKind::ModuleDeclaration
-                    })
+                if (self.context.synthetic_scope_kind == Some(SyntaxKind::ModuleDeclaration)
+                    || self
+                        .context
+                        .enclosing_declaration
+                        .is_some_and(|declaration| {
+                            self.checker.kind_of(declaration) == SyntaxKind::ModuleDeclaration
+                        }))
                     && (!self
                         .checker
                         .symbol_flags(symbol)
@@ -4674,7 +4678,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         if let Some(enclosing) = self.enclosing_declaration {
             let accessible = self
                 .checker
-                .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
+                .emit_is_symbol_accessible_with_enclosing_kind(
+                    symbol,
+                    enclosing,
+                    self.context.enclosing_declaration_is_synthetic,
+                    meaning,
+                    false,
+                )
                 .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
                 .accessibility
                 == EmitSymbolAccessibility::Accessible;

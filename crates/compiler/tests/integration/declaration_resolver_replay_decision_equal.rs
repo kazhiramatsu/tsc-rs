@@ -42,6 +42,8 @@ const EXPECTED_WITNESS_OBSERVATION_ROLL: &str =
     "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad";
 const EXPECTED_PROBE_TRACE_ROLL: &str =
     "ca24d47c54b14df301817f76e88acd2b4ea2c6bf1cb1e94bb4b163113a60e188";
+const EXPECTED_PRINTED_RESULTS_ROLL: &str =
+    "7554535bd6245a5ec1b3f84bcfa16806ff50881ba5fb1e85f69c02356780c4e9";
 
 // Artifact upper-envelope constants transcribed from the FINAL E4 register.
 const EXPECTED_EVENT_VOLUMES: &[(&str, u64)] = &[
@@ -180,52 +182,55 @@ const EXPECTED_EXCLUDED_CAUSALITY_COUNTS: &[(&str, u64)] = &[
 // Filled from the FINAL artifacts by this P4 harness and frozen here under the
 // h2-7a-m-2 E4 register's "Harness constants for P4 transcription" row.
 // Order: replayed, lib-target, synthetic-without-original, ambiguous-symbol,
-// zero-declaration-symbol, shadow-string divergences.
-const EXPECTED_MEMBER_COUNTS: &[(&str, [u64; 6])] = &[
-    ("resolver.collectLinkedAliases", [12, 0, 0, 0, 0, 0]),
-    (
-        "resolver.createLateBoundIndexSignatures",
-        [161, 0, 0, 0, 0, 0],
-    ),
-    ("resolver.createLiteralConstValue", [8, 0, 0, 0, 0, 0]),
+// zero-declaration-symbol.
+const EXPECTED_MEMBER_COUNTS: &[(&str, [u64; 5])] = &[
+    ("resolver.collectLinkedAliases", [12, 0, 0, 0, 0]),
+    ("resolver.createLateBoundIndexSignatures", [161, 0, 0, 0, 0]),
+    ("resolver.createLiteralConstValue", [8, 0, 0, 0, 0]),
     (
         "resolver.createReturnTypeOfSignatureDeclaration",
-        [151, 0, 0, 0, 0, 0],
+        [151, 0, 0, 0, 0],
     ),
-    ("resolver.createTypeOfDeclaration", [313, 0, 7, 0, 0, 0]),
-    ("resolver.createTypeOfExpression", [4, 0, 0, 0, 0, 0]),
+    ("resolver.createTypeOfDeclaration", [313, 0, 7, 0, 0]),
+    ("resolver.createTypeOfExpression", [4, 0, 0, 0, 0]),
     (
         "resolver.getDeclarationStatementsForSourceFile",
-        [3, 0, 0, 0, 0, 0],
+        [3, 0, 0, 0, 0],
     ),
-    ("resolver.getEnumMemberValue", [3, 0, 0, 0, 0, 0]),
-    (
-        "resolver.getPropertiesOfContainerFunction",
-        [5, 0, 0, 0, 0, 0],
-    ),
-    ("resolver.isDeclarationVisible", [1_135, 0, 0, 0, 0, 0]),
+    ("resolver.getEnumMemberValue", [3, 0, 0, 0, 0]),
+    ("resolver.getPropertiesOfContainerFunction", [5, 0, 0, 0, 0]),
+    ("resolver.isDeclarationVisible", [1_135, 0, 0, 0, 0]),
     (
         "resolver.isDefinitelyReferenceToGlobalSymbolObject",
-        [0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
     ),
-    ("resolver.isEntityNameVisible", [209, 0, 0, 0, 0, 0]),
+    ("resolver.isEntityNameVisible", [209, 0, 0, 0, 0]),
+    ("resolver.isExpandoFunctionDeclaration", [156, 0, 0, 0, 0]),
+    ("resolver.isImplementationOfOverload", [202, 0, 0, 0, 0]),
+    ("resolver.isImportRequiredByAugmentation", [19, 0, 0, 0, 0]),
+    ("resolver.isLateBound", [4, 0, 0, 0, 0]),
+    ("resolver.isLiteralConstDeclaration", [644, 0, 0, 0, 0]),
+    ("resolver.isOptionalParameter", [56, 0, 0, 0, 0]),
+    ("resolver.isSymbolAccessible", [0, 0, 0, 0, 0]),
+    ("resolver.requiresAddingImplicitUndefined", [57, 0, 0, 0, 0]),
+];
+
+// Order: replayed/compared, skipped/excluded, mismatches/divergences.
+const EXPECTED_PRINTED_COUNTS: &[(&str, [u64; 3])] = &[
+    ("resolver.createLateBoundIndexSignatures", [161, 0, 0]),
+    ("resolver.createLiteralConstValue", [8, 0, 0]),
     (
-        "resolver.isExpandoFunctionDeclaration",
-        [156, 0, 0, 0, 0, 0],
+        "resolver.createReturnTypeOfSignatureDeclaration",
+        [151, 0, 0],
     ),
-    ("resolver.isImplementationOfOverload", [202, 0, 0, 0, 0, 0]),
-    (
-        "resolver.isImportRequiredByAugmentation",
-        [19, 0, 0, 0, 0, 0],
-    ),
-    ("resolver.isLateBound", [4, 0, 0, 0, 0, 0]),
-    ("resolver.isLiteralConstDeclaration", [644, 0, 0, 0, 0, 0]),
-    ("resolver.isOptionalParameter", [56, 0, 0, 0, 0, 0]),
-    ("resolver.isSymbolAccessible", [0, 0, 0, 0, 0, 0]),
-    (
-        "resolver.requiresAddingImplicitUndefined",
-        [57, 0, 0, 0, 0, 0],
-    ),
+    ("resolver.createTypeOfDeclaration", [313, 7, 0]),
+    ("resolver.createTypeOfExpression", [4, 0, 0]),
+    ("resolver.getDeclarationStatementsForSourceFile", [3, 0, 0]),
+];
+
+const EXPECTED_ERROR_NAME_TOTALS: &[(&str, u64)] = &[
+    ("resolver.isSymbolAccessible.result", 449),
+    ("resolver.isEntityNameVisible.result", 215),
 ];
 
 #[derive(Debug, Deserialize)]
@@ -278,6 +283,8 @@ struct PathHash {
 struct ProbeSummary {
     cases: u64,
     trace_content_roll: String,
+    printed_results: u64,
+    printed_results_roll: String,
     per_site_counts: BTreeMap<String, u64>,
 }
 
@@ -287,6 +294,7 @@ struct ProbeCase {
     #[serde(rename = "fileTable")]
     file_table: Value,
     trace_events: Value,
+    printed_results: Value,
 }
 
 struct ProjectedInputs {
@@ -341,7 +349,30 @@ fn declaration_resolver_replay_decision_equal() {
     let gating = first["gating_mismatches"]
         .as_array()
         .expect("gating mismatch array");
+    let printed_mismatches = first["printed_mismatches"]
+        .as_array()
+        .expect("printed mismatch array");
+    println!(
+        "replay summary: printed_counts={} printed_mismatches={} error_name_counts={} decision_lane_mismatches={} first_decision_rows={}",
+        first["printed_counts"],
+        printed_mismatches.len(),
+        first["error_name_counts"],
+        gating.len(),
+        Value::Array(gating.iter().take(5).cloned().collect()),
+    );
     assert_member_counts(&first["member_counts"]);
+    assert!(
+        printed_mismatches.is_empty(),
+        "printed-form replay has {} mismatches; first rows: {}",
+        printed_mismatches.len(),
+        Value::Array(printed_mismatches.iter().take(5).cloned().collect())
+    );
+    assert_lane_counts(
+        &first["printed_counts"],
+        EXPECTED_PRINTED_COUNTS,
+        "frozen per-member printed counts drifted",
+    );
+    assert_error_name_counts(&first["error_name_counts"]);
     assert_excluded_causality(&first["excluded_causality"]);
     assert!(
         gating.is_empty(),
@@ -373,6 +404,23 @@ fn assert_frozen_artifact_identity(witnesses: &WitnessArtifact, probes: &ProbeAr
         EXPECTED_MANIFEST_FINGERPRINT
     );
     assert_eq!(probes.summary.trace_content_roll, EXPECTED_PROBE_TRACE_ROLL);
+    assert_eq!(probes.summary.printed_results, 647);
+    assert_eq!(
+        probes.summary.printed_results_roll,
+        EXPECTED_PRINTED_RESULTS_ROLL
+    );
+    let printed_roll_input = Value::Array(
+        probes
+            .cases
+            .iter()
+            .map(|case| json!([&case.case_id, &case.printed_results]))
+            .collect(),
+    );
+    assert_eq!(
+        sha256(&serde_json::to_vec(&printed_roll_input).expect("printed roll serializes")),
+        EXPECTED_PRINTED_RESULTS_ROLL,
+        "schema-3 printed_results content roll"
+    );
     // The probe->witness binding: the probe pins the exact witness
     // artifact bytes it observed against; assert the pin matches the
     // checked-in witness file so the pair cannot drift apart.
@@ -484,7 +532,10 @@ fn run_full_pass(
     let mut gating_mismatches = Vec::new();
     let mut excluded_causality_rows = Vec::new();
     let mut seed_checks = 0_u64;
-    let mut member_counts = BTreeMap::<String, [u64; 6]>::new();
+    let mut member_counts = BTreeMap::<String, [u64; 5]>::new();
+    let mut printed_counts = BTreeMap::<String, [u64; 3]>::new();
+    let mut printed_mismatches = Vec::new();
+    let mut error_name_counts = BTreeMap::<String, [u64; 5]>::new();
     let mut traced_nested_edges = BTreeMap::<String, u64>::new();
     let mut replayed_nested_edges = BTreeMap::<String, u64>::new();
     let mut rust_nested_edges = BTreeMap::<String, u64>::new();
@@ -514,6 +565,7 @@ fn run_full_pass(
             "source_paths": replay_source_paths,
             "file_table": replay_file_table,
             "trace_events": replay_trace_events,
+            "printed_results": probe.printed_results,
         });
         let (checked, mut report) =
             CheckerState::with_declaration_emit_replay_observer_for_harness(request, || {
@@ -555,6 +607,19 @@ fn run_full_pass(
                 .cloned(),
         );
         aggregate_member_counts(&mut member_counts, &report["member_counts"]);
+        aggregate_named_lane_counts(
+            &mut printed_counts,
+            &report["printed_counts"],
+            ["replayed", "skipped", "mismatches"],
+        );
+        printed_mismatches.extend(
+            report["printed_mismatches"]
+                .as_array()
+                .expect("printed mismatch rows")
+                .iter()
+                .cloned(),
+        );
+        aggregate_error_name_counts(&mut error_name_counts, &report["error_name_counts"]);
         aggregate_count_object(&mut traced_nested_edges, &report["traced_nested_edges"]);
         aggregate_count_object(&mut replayed_nested_edges, &report["replayed_nested_edges"]);
         aggregate_count_object(&mut rust_nested_edges, &report["rust_nested_edges"]);
@@ -570,6 +635,9 @@ fn run_full_pass(
         "seed_checks": seed_checks,
         "member_counts": member_counts_json(&member_counts),
         "gating_mismatches": gating_mismatches,
+        "printed_counts": lane_counts_json(&printed_counts),
+        "printed_mismatches": printed_mismatches,
+        "error_name_counts": error_name_counts_json(&error_name_counts),
         "excluded_causality": {
             "count": excluded_causality_rows.len(),
             "rows": excluded_causality_rows,
@@ -1601,7 +1669,7 @@ fn string_value(value: &Value) -> String {
     value.as_str().expect("option is a string").to_owned()
 }
 
-fn aggregate_member_counts(target: &mut BTreeMap<String, [u64; 6]>, counts: &Value) {
+fn aggregate_member_counts(target: &mut BTreeMap<String, [u64; 5]>, counts: &Value) {
     for (member, row) in counts.as_object().expect("member counts object") {
         let excluded = row["excluded"].as_object().expect("excluded counts object");
         let values = target.entry(member.clone()).or_default();
@@ -1616,7 +1684,31 @@ fn aggregate_member_counts(target: &mut BTreeMap<String, [u64; 6]>, counts: &Val
         values[4] += excluded["zero-declaration-symbol"]
             .as_u64()
             .expect("zero-declaration count");
-        values[5] += row["shadow"].as_u64().expect("shadow count");
+    }
+}
+
+fn aggregate_named_lane_counts(
+    target: &mut BTreeMap<String, [u64; 3]>,
+    counts: &Value,
+    fields: [&str; 3],
+) {
+    for (name, row) in counts.as_object().expect("lane counts object") {
+        let values = target.entry(name.clone()).or_default();
+        for (index, field) in fields.iter().enumerate() {
+            values[index] += row[*field].as_u64().expect("lane count");
+        }
+    }
+}
+
+fn aggregate_error_name_counts(target: &mut BTreeMap<String, [u64; 5]>, counts: &Value) {
+    for (name, row) in counts.as_object().expect("error-name counts object") {
+        let values = target.entry(name.clone()).or_insert([0; 5]);
+        for (index, field) in ["compared", "excluded", "missing", "divergences", "extra"]
+            .iter()
+            .enumerate()
+        {
+            values[index] += row[*field].as_u64().expect("error-name count");
+        }
     }
 }
 
@@ -1626,11 +1718,29 @@ fn aggregate_count_object(target: &mut BTreeMap<String, u64>, counts: &Value) {
     }
 }
 
-fn member_counts_json(counts: &BTreeMap<String, [u64; 6]>) -> Value {
+fn member_counts_json(counts: &BTreeMap<String, [u64; 5]>) -> Value {
     Value::Object(
         counts
             .iter()
             .map(|(member, values)| (member.clone(), json!(values)))
+            .collect(),
+    )
+}
+
+fn lane_counts_json(counts: &BTreeMap<String, [u64; 3]>) -> Value {
+    Value::Object(
+        counts
+            .iter()
+            .map(|(name, values)| (name.clone(), json!(values)))
+            .collect(),
+    )
+}
+
+fn error_name_counts_json(counts: &BTreeMap<String, [u64; 5]>) -> Value {
+    Value::Object(
+        counts
+            .iter()
+            .map(|(name, values)| (name.clone(), json!(values)))
             .collect(),
     )
 }
@@ -1660,6 +1770,32 @@ fn assert_member_counts(actual: &Value) {
             .collect(),
     );
     assert_eq!(actual, &expected, "frozen per-member replay counts drifted");
+}
+
+fn assert_lane_counts(actual: &Value, expected: &[(&str, [u64; 3])], message: &str) {
+    let expected = Value::Object(
+        expected
+            .iter()
+            .map(|(name, counts)| ((*name).to_owned(), json!(counts)))
+            .collect(),
+    );
+    assert_eq!(actual, &expected, "{message}");
+}
+
+fn assert_error_name_counts(actual: &Value) {
+    let counts = actual.as_object().expect("error-name counts object");
+    assert_eq!(counts.len(), EXPECTED_ERROR_NAME_TOTALS.len());
+    for &(site, total) in EXPECTED_ERROR_NAME_TOTALS {
+        let row = counts.get(site).unwrap_or_else(|| panic!("missing {site}"));
+        let compared = row[0].as_u64().expect("error-name compared count");
+        let excluded = row[1].as_u64().expect("error-name excluded count");
+        let missing = row[2].as_u64().expect("error-name missing count");
+        let divergences = row[3].as_u64().expect("error-name divergence count");
+        let _extra = row[4].as_u64().expect("error-name extra topology count");
+        assert_eq!(compared + excluded, total, "{site} frozen denominator");
+        assert_eq!(missing, 0, "{site} keyed result misses");
+        assert_eq!(divergences, 0, "{site} exact triple divergences");
+    }
 }
 
 fn assert_excluded_causality(actual: &Value) {
