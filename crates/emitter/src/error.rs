@@ -11,6 +11,8 @@ use crate::{PrinterError, TransformError};
 pub enum UnsupportedEmitFeature {
     TargetedSelection,
     BundleRoot,
+    CustomTransformers,
+    IsolatedDeclarations,
     JavaScriptMap,
     Declaration,
     DeclarationMap,
@@ -27,6 +29,8 @@ impl UnsupportedEmitFeature {
         match self {
             Self::TargetedSelection => "targeted source-file selection",
             Self::BundleRoot => "bundle root",
+            Self::CustomTransformers => "custom declaration transformers",
+            Self::IsolatedDeclarations => "isolated declarations",
             Self::JavaScriptMap => "JavaScript source map",
             Self::Declaration => "declaration output",
             Self::DeclarationMap => "declaration map",
