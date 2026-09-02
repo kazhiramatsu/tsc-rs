@@ -779,7 +779,7 @@
             },
             "foundation_needed": {
               "type": "integer",
-              "minimum": 1
+              "minimum": 0
             },
             "pending": {
               "const": 0

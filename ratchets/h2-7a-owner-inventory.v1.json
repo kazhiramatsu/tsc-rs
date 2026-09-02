@@ -4,11 +4,11 @@
   "phase": "H2.7a-owner-inventory",
   "generator": {
     "path": "crates/oracle/h2-7a-owner-inventory.mjs",
-    "sha256": "d48269feb06c1bdd55edc47e241154b760d635ae417fb3b050e7026dd1ec1006"
+    "sha256": "836ed16d37b0725cc38d0931afc043c146c5dda3c59e09f9bd2be248b4e47702"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-owner-inventory.schema.json",
-    "sha256": "665cab903a73734c8f24e84ea883b64a9697750c58638cc305c5a9b5f8a7330b"
+    "sha256": "0c009f2acdb327abcec78575ccbaf90bba996ec6dfd5053d38fa5fd4d55d2282"
   },
   "inputs": {
     "typescript": {
@@ -21,7 +21,7 @@
     "option_owner": {
       "source": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "951be55b2a7f1a1e1f5f3ecacdf8a0dc6097c8e8b1c25d69eb887f11aac2d0d6"
+        "sha256": "d98d52596b9536987de180fdf964d0da50b3ccf75b853348fac805db3d97b8c2"
       },
       "span": {
         "start_line": 448,
@@ -40,11 +40,11 @@
       },
       "factory": {
         "path": "crates/emitter/src/factory.rs",
-        "sha256": "6e23f39f608312f02635940e6d235ba89a53c034bd8711cfffd8e004587ce2e2"
+        "sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
       },
       "resolver": {
         "path": "crates/emitter/src/resolver.rs",
-        "sha256": "0c41ff9e59f7f2a3781a2843ee52e96944bf27c5b139a9543dfc9a1fe5f7a71a"
+        "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
       }
     }
   },
@@ -4353,7 +4353,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2021",
+      "rust_anchor": "crates/emitter/src/factory.rs:2051",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4375,7 +4375,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3798",
+      "rust_anchor": "crates/emitter/src/factory.rs:3892",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4397,7 +4397,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4439",
+      "rust_anchor": "crates/emitter/src/factory.rs:4560",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4419,7 +4419,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2060",
+      "rust_anchor": "crates/emitter/src/factory.rs:2092",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4441,7 +4441,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2120",
+      "rust_anchor": "crates/emitter/src/factory.rs:2155",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4463,7 +4463,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2621",
+      "rust_anchor": "crates/emitter/src/factory.rs:2680",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4485,7 +4485,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2690",
+      "rust_anchor": "crates/emitter/src/factory.rs:2752",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4507,7 +4507,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1818",
+      "rust_anchor": "crates/emitter/src/factory.rs:1837",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4529,7 +4529,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2207",
+      "rust_anchor": "crates/emitter/src/factory.rs:2246",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4551,7 +4551,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1776",
+      "rust_anchor": "crates/emitter/src/factory.rs:1793",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4573,7 +4573,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3490",
+      "rust_anchor": "crates/emitter/src/factory.rs:3574",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4595,7 +4595,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1804",
+      "rust_anchor": "crates/emitter/src/factory.rs:1822",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4617,7 +4617,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1926",
+      "rust_anchor": "crates/emitter/src/factory.rs:1951",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4639,7 +4639,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1917",
+      "rust_anchor": "crates/emitter/src/factory.rs:1941",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4661,7 +4661,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2577",
+      "rust_anchor": "crates/emitter/src/factory.rs:2634",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4683,7 +4683,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1908",
+      "rust_anchor": "crates/emitter/src/factory.rs:1931",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4705,7 +4705,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2564",
+      "rust_anchor": "crates/emitter/src/factory.rs:2620",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4749,7 +4749,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2266",
+      "rust_anchor": "crates/emitter/src/factory.rs:2308",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4771,7 +4771,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2450",
+      "rust_anchor": "crates/emitter/src/factory.rs:2501",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4793,7 +4793,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2373",
+      "rust_anchor": "crates/emitter/src/factory.rs:2421",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4815,7 +4815,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2356",
+      "rust_anchor": "crates/emitter/src/factory.rs:2403",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4837,7 +4837,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1890",
+      "rust_anchor": "crates/emitter/src/factory.rs:1912",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4881,7 +4881,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2706",
+      "rust_anchor": "crates/emitter/src/factory.rs:2769",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4903,7 +4903,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2466",
+      "rust_anchor": "crates/emitter/src/factory.rs:2518",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4925,7 +4925,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2391",
+      "rust_anchor": "crates/emitter/src/factory.rs:2440",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4947,7 +4947,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2747",
+      "rust_anchor": "crates/emitter/src/factory.rs:2812",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -4991,7 +4991,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2663",
+      "rust_anchor": "crates/emitter/src/factory.rs:2724",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5013,7 +5013,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2250",
+      "rust_anchor": "crates/emitter/src/factory.rs:2291",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5035,7 +5035,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2301",
+      "rust_anchor": "crates/emitter/src/factory.rs:2345",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5057,7 +5057,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2323",
+      "rust_anchor": "crates/emitter/src/factory.rs:2368",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5079,7 +5079,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2340",
+      "rust_anchor": "crates/emitter/src/factory.rs:2386",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5101,7 +5101,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2284",
+      "rust_anchor": "crates/emitter/src/factory.rs:2327",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5123,7 +5123,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2000",
+      "rust_anchor": "crates/emitter/src/factory.rs:2029",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5145,7 +5145,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1981",
+      "rust_anchor": "crates/emitter/src/factory.rs:2009",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5167,7 +5167,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2511",
+      "rust_anchor": "crates/emitter/src/factory.rs:2565",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5189,7 +5189,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2140",
+      "rust_anchor": "crates/emitter/src/factory.rs:2176",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5211,7 +5211,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2894",
+      "rust_anchor": "crates/emitter/src/factory.rs:2963",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5233,7 +5233,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1935",
+      "rust_anchor": "crates/emitter/src/factory.rs:1961",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5255,7 +5255,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4866",
+      "rust_anchor": "crates/emitter/src/factory.rs:4988",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5299,7 +5299,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3238",
+      "rust_anchor": "crates/emitter/src/factory.rs:3316",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5321,7 +5321,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1945",
+      "rust_anchor": "crates/emitter/src/factory.rs:1972",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5343,7 +5343,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3198",
+      "rust_anchor": "crates/emitter/src/factory.rs:3274",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5365,7 +5365,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3218",
+      "rust_anchor": "crates/emitter/src/factory.rs:3295",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5409,7 +5409,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2969",
+      "rust_anchor": "crates/emitter/src/factory.rs:3040",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5453,7 +5453,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3125",
+      "rust_anchor": "crates/emitter/src/factory.rs:3199",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5475,7 +5475,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3165",
+      "rust_anchor": "crates/emitter/src/factory.rs:3240",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5497,7 +5497,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2185",
+      "rust_anchor": "crates/emitter/src/factory.rs:2223",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5519,7 +5519,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3259",
+      "rust_anchor": "crates/emitter/src/factory.rs:3338",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5541,7 +5541,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2164",
+      "rust_anchor": "crates/emitter/src/factory.rs:2201",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5563,7 +5563,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3428",
+      "rust_anchor": "crates/emitter/src/factory.rs:3510",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5607,7 +5607,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3452",
+      "rust_anchor": "crates/emitter/src/factory.rs:3535",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5651,7 +5651,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2070",
+      "rust_anchor": "crates/emitter/src/factory.rs:2103",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5673,7 +5673,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3602",
+      "rust_anchor": "crates/emitter/src/factory.rs:3689",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5695,7 +5695,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4111",
+      "rust_anchor": "crates/emitter/src/factory.rs:4217",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5717,7 +5717,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4131",
+      "rust_anchor": "crates/emitter/src/factory.rs:4238",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5739,7 +5739,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2484",
+      "rust_anchor": "crates/emitter/src/factory.rs:2537",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5761,7 +5761,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2548",
+      "rust_anchor": "crates/emitter/src/factory.rs:2603",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5783,7 +5783,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3546",
+      "rust_anchor": "crates/emitter/src/factory.rs:3631",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5805,7 +5805,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3577",
+      "rust_anchor": "crates/emitter/src/factory.rs:3663",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5827,7 +5827,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3944",
+      "rust_anchor": "crates/emitter/src/factory.rs:4043",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5849,7 +5849,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3993",
+      "rust_anchor": "crates/emitter/src/factory.rs:4094",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5871,7 +5871,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4247",
+      "rust_anchor": "crates/emitter/src/factory.rs:4360",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5893,7 +5893,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4349",
+      "rust_anchor": "crates/emitter/src/factory.rs:4466",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5915,7 +5915,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4311",
+      "rust_anchor": "crates/emitter/src/factory.rs:4426",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5937,7 +5937,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4275",
+      "rust_anchor": "crates/emitter/src/factory.rs:4389",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5959,7 +5959,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4329",
+      "rust_anchor": "crates/emitter/src/factory.rs:4445",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -5981,7 +5981,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3699",
+      "rust_anchor": "crates/emitter/src/factory.rs:3789",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6025,7 +6025,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3646",
+      "rust_anchor": "crates/emitter/src/factory.rs:3734",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6047,7 +6047,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4225",
+      "rust_anchor": "crates/emitter/src/factory.rs:4337",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6069,7 +6069,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3858",
+      "rust_anchor": "crates/emitter/src/factory.rs:3954",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6091,7 +6091,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4389",
+      "rust_anchor": "crates/emitter/src/factory.rs:4508",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6113,7 +6113,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3834",
+      "rust_anchor": "crates/emitter/src/factory.rs:3929",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6135,7 +6135,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2917",
+      "rust_anchor": "crates/emitter/src/factory.rs:2987",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6157,7 +6157,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3976",
+      "rust_anchor": "crates/emitter/src/factory.rs:4076",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6179,7 +6179,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3905",
+      "rust_anchor": "crates/emitter/src/factory.rs:4003",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6201,7 +6201,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4418",
+      "rust_anchor": "crates/emitter/src/factory.rs:4538",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6223,7 +6223,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3880",
+      "rust_anchor": "crates/emitter/src/factory.rs:3977",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6245,7 +6245,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3725",
+      "rust_anchor": "crates/emitter/src/factory.rs:3816",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6267,7 +6267,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3738",
+      "rust_anchor": "crates/emitter/src/factory.rs:3830",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6289,7 +6289,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2724",
+      "rust_anchor": "crates/emitter/src/factory.rs:2788",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6311,7 +6311,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1722",
+      "rust_anchor": "crates/emitter/src/factory.rs:1737",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6333,7 +6333,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:3755",
+      "rust_anchor": "crates/emitter/src/factory.rs:3848",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6355,7 +6355,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4060",
+      "rust_anchor": "crates/emitter/src/factory.rs:4164",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6377,7 +6377,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4085",
+      "rust_anchor": "crates/emitter/src/factory.rs:4190",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6399,7 +6399,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4203",
+      "rust_anchor": "crates/emitter/src/factory.rs:4314",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6421,7 +6421,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4185",
+      "rust_anchor": "crates/emitter/src/factory.rs:4295",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6443,7 +6443,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1744",
+      "rust_anchor": "crates/emitter/src/factory.rs:1760",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6465,7 +6465,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4031",
+      "rust_anchor": "crates/emitter/src/factory.rs:4134",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6487,7 +6487,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4371",
+      "rust_anchor": "crates/emitter/src/factory.rs:4489",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6509,7 +6509,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4013",
+      "rust_anchor": "crates/emitter/src/factory.rs:4115",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6531,7 +6531,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4149",
+      "rust_anchor": "crates/emitter/src/factory.rs:4257",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6553,7 +6553,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:4167",
+      "rust_anchor": "crates/emitter/src/factory.rs:4276",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6575,7 +6575,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1427",
+      "rust_anchor": "crates/emitter/src/factory.rs:1436",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6641,7 +6641,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1350",
+      "rust_anchor": "crates/emitter/src/factory.rs:1356",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6663,7 +6663,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1401",
+      "rust_anchor": "crates/emitter/src/factory.rs:1408",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6685,7 +6685,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1414",
+      "rust_anchor": "crates/emitter/src/factory.rs:1422",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6707,7 +6707,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1292",
+      "rust_anchor": "crates/emitter/src/factory.rs:1294",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6729,7 +6729,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1308",
+      "rust_anchor": "crates/emitter/src/factory.rs:1311",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6773,7 +6773,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1279",
+      "rust_anchor": "crates/emitter/src/factory.rs:1280",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6795,7 +6795,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1337",
+      "rust_anchor": "crates/emitter/src/factory.rs:1342",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6817,7 +6817,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:1324",
+      "rust_anchor": "crates/emitter/src/factory.rs:1328",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6839,7 +6839,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2641",
+      "rust_anchor": "crates/emitter/src/factory.rs:2701",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6861,7 +6861,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2600",
+      "rust_anchor": "crates/emitter/src/factory.rs:2658",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6883,7 +6883,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2227",
+      "rust_anchor": "crates/emitter/src/factory.rs:2267",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6905,7 +6905,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2770",
+      "rust_anchor": "crates/emitter/src/factory.rs:2836",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6927,7 +6927,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2040",
+      "rust_anchor": "crates/emitter/src/factory.rs:2071",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6949,7 +6949,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2090",
+      "rust_anchor": "crates/emitter/src/factory.rs:2124",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6971,7 +6971,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2417",
+      "rust_anchor": "crates/emitter/src/factory.rs:2467",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -6993,7 +6993,7 @@
         "H2.7b",
         "API1"
       ],
-      "rust_anchor": "crates/emitter/src/factory.rs:2854",
+      "rust_anchor": "crates/emitter/src/factory.rs:2922",
       "disposition": "audit-already-exact",
       "target_rung": null,
       "partition": null,
@@ -22895,5 +22895,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "fde21e1cfae36cb2b98f63fc7102e90079eb883ca20d5e080070e4486988fbc3"
+  "inventory_fingerprint_sha256": "07a22f5fcc7c51496d25aab8aba40bb79f91cced31d1f9cc4a2af9a286f27924"
 }
