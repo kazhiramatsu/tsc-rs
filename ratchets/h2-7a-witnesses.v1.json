@@ -35,7 +35,7 @@
     },
     "parent_packet": {
       "path": "docs/design/greenfield/slices/h2-7a.md",
-      "sha256": "ceadfb541c57617845b9945af48221550bfc2d7930535cbafbb7cc591f3701e9"
+      "sha256": "56191ae31e1c0c14f468b34630bc4637004d4eb42bd6f06647078103f1ebe5d7"
     },
     "test_suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -16788,5 +16788,5 @@
     "rust_runs": 0
   },
   "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
-  "witnesses_fingerprint_sha256": "edda8e6967a78830768a5cab31ffb1dc510dd4741a1b621248c6c5952dcd6dd5"
+  "witnesses_fingerprint_sha256": "012a808720f96adabd4762bd2749aa0083a05492a7c93c99719e300fa4708e4d"
 }

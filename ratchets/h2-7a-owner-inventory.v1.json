@@ -4,11 +4,11 @@
   "phase": "H2.7a-owner-inventory",
   "generator": {
     "path": "crates/oracle/h2-7a-owner-inventory.mjs",
-    "sha256": "836ed16d37b0725cc38d0931afc043c146c5dda3c59e09f9bd2be248b4e47702"
+    "sha256": "c2bbc20f97130be04358a66e84401cfb838b0f459bb55807a0af68f6be50a944"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-owner-inventory.schema.json",
-    "sha256": "0c009f2acdb327abcec78575ccbaf90bba996ec6dfd5053d38fa5fd4d55d2282"
+    "sha256": "ab509215f2bab9472ed1a9553472413f55e4e02407ff0752dcfd0f10432a44c9"
   },
   "inputs": {
     "typescript": {
@@ -103,6 +103,11 @@
       "already_exact": 308,
       "foundation_needed": 0,
       "pending": 0
+    },
+    "m4_anchors": {
+      "rows": 68,
+      "anchored": 0,
+      "header_verified": 0
     },
     "partition": {
       "m_3_head": 7,
@@ -22895,5 +22900,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "25cc3683f9a91ab2d3c0d0664a5616563ff1c6ddc992a5bb980afa966b0929a7"
+  "inventory_fingerprint_sha256": "94f1e111d75d60c7d25802fd0d586b5c4f716936f1a2ee03e798d6a85f04d211"
 }
