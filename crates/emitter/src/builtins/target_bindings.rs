@@ -507,10 +507,30 @@ fn allocate_ordinary_temp_name(
     }
 }
 
-pub(super) fn finalize_generated_binding_names(
+pub(crate) fn finalize_generated_binding_names(
     context: &mut TransformationContext,
     source: TransformSourceId,
     root: TransformNode,
+) -> Result<(), TransformError> {
+    finalize_generated_binding_names_with_policy(
+        context,
+        source,
+        root,
+        GeneratedNameReservedSetPolicy::TransformerRoot,
+    )
+}
+
+#[derive(Clone, Copy, Debug)]
+enum GeneratedNameReservedSetPolicy<'reserved> {
+    TransformerRoot,
+    PrintSource(&'reserved BTreeSet<String>),
+}
+
+fn finalize_generated_binding_names_with_policy(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
+    root: TransformNode,
+    reserved_set_policy: GeneratedNameReservedSetPolicy<'_>,
 ) -> Result<(), TransformError> {
     let mut events = Vec::new();
     collect_binding_name_events(context.arena(), source, root, true, &mut events)?;
@@ -518,7 +538,12 @@ pub(super) fn finalize_generated_binding_names(
         return Ok(());
     }
 
-    let reserved = collect_untagged_identifier_texts(context.arena(), source, root)?;
+    let reserved = match reserved_set_policy {
+        GeneratedNameReservedSetPolicy::TransformerRoot => {
+            collect_untagged_identifier_texts(context.arena(), source, root)?
+        }
+        GeneratedNameReservedSetPolicy::PrintSource(reserved) => reserved.clone(),
+    };
     let mut scopes = GeneratedBindingScopes::new(reserved, AncestorBindingPolicy::AllowShadow);
     let mut scope_stack = Vec::new();
     let mut assigned = BTreeMap::<GeneratedBindingId, String>::new();
@@ -710,6 +735,42 @@ pub(super) fn finalize_generated_binding_names(
         arena.set_generated_identifier_text(node, &name)?;
     }
     Ok(())
+}
+
+impl TransformationContext {
+    pub(crate) fn finalize_generated_binding_names_for_print(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<(), TransformError> {
+        let source = root.source();
+        let mut events = Vec::new();
+        collect_binding_name_events(self.arena(), source, root, true, &mut events)?;
+        let requires_print_finalization = events.iter().any(|event| {
+            matches!(
+                event,
+                BindingNameEvent::Identifier { binding, .. }
+                    if self.generated_binding_name(*binding).is_none()
+                        || self.generated_binding_was_finalized_for_print(*binding)
+            )
+        });
+        if !requires_print_finalization {
+            return Ok(());
+        }
+
+        let reserved = ParsedSourceIdentifierNames::collect(self.arena(), source)?.0;
+        finalize_generated_binding_names_with_policy(
+            self,
+            source,
+            root,
+            GeneratedNameReservedSetPolicy::PrintSource(&reserved),
+        )?;
+        for event in events {
+            if let BindingNameEvent::Identifier { binding, .. } = event {
+                self.record_print_finalized_generated_binding(binding);
+            }
+        }
+        Ok(())
+    }
 }
 
 pub(super) const fn is_function_scope_kind(kind: SyntaxKind) -> bool {

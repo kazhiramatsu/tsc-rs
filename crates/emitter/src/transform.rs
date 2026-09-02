@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::error::Error;
 use std::fmt;
 
@@ -443,6 +443,7 @@ pub struct TransformationContext {
     diagnostics: DiagnosticList,
     next_generated_binding_id: u64,
     generated_binding_names: BTreeMap<GeneratedBindingId, Box<str>>,
+    print_finalized_generated_bindings: BTreeSet<GeneratedBindingId>,
 }
 
 impl TransformationContext {
@@ -461,6 +462,7 @@ impl TransformationContext {
             diagnostics: Vec::new(),
             next_generated_binding_id: 0,
             generated_binding_names: BTreeMap::new(),
+            print_finalized_generated_bindings: BTreeSet::new(),
         }
     }
 
@@ -506,6 +508,17 @@ impl TransformationContext {
         self.generated_binding_names
             .get(&binding)
             .map(AsRef::as_ref)
+    }
+
+    pub(crate) fn generated_binding_was_finalized_for_print(
+        &self,
+        binding: GeneratedBindingId,
+    ) -> bool {
+        self.print_finalized_generated_bindings.contains(&binding)
+    }
+
+    pub(crate) fn record_print_finalized_generated_binding(&mut self, binding: GeneratedBindingId) {
+        self.print_finalized_generated_bindings.insert(binding);
     }
 
     /// Constructs nodes owned by an emit-time substitution.
@@ -774,6 +787,7 @@ impl TransformationContext {
         self.block_scope_stack.clear();
         self.emit_helpers.clear();
         self.generated_binding_names.clear();
+        self.print_finalized_generated_bindings.clear();
         self.arena.clear_session_metadata();
         self.state = TransformationState::Disposed;
     }
@@ -865,6 +879,18 @@ impl TransformationResult<'_> {
 
     pub const fn arena(&self) -> &TransformArena {
         self.context.arena()
+    }
+
+    pub fn arena_mut(&mut self) -> Result<&mut TransformArena, TransformError> {
+        self.context.arena_mut()
+    }
+
+    pub(crate) fn finalize_generated_names_for_print(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<(), TransformError> {
+        self.context
+            .finalize_generated_binding_names_for_print(root)
     }
 
     pub fn roots(&self) -> &[TransformRoot] {
