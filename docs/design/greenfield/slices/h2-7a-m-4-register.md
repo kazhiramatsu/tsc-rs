@@ -41,8 +41,8 @@ Non-row items ported under the owner header: `pushErrorFallbackNode` :114292-114
 ## Probe artifact succession (E3 cascade — the witness pin moved)
 - `node crates/oracle/h2-7a-probe-traces.mjs --check` refused after the witness re-mint (stale `witnesses` input pin) → `--write` (instrumented fresh-process double observation, 120 cases); trace-content roll ca24d47c… REPRODUCED, printed-results roll 7554535b… REPRODUCED, events 16,925 / printed_results 647 unchanged; witness pin dbbe7688… → 24c84397…; whole-file fingerprint fe62bebc… → 35f66909…; `--check` exit 0 twice (receipt hit); walk-preflight clean. The packet §1/§9 now record this cascade (the r5 text said "the probe does not re-mint" — corrected 2026-09-03).
 
-## Resolver partition succession (P-head)
-m-3-head partition rows: 7 → 10 (`create_type_of_declaration_in_expando_scope`, `is_last_bodiless_overload_of_symbol`, `is_first_declaration_of_symbol`) — TO-VERIFY at the inventory re-mint.
+## Resolver partition succession (P0 landing, measured)
+The inventory partition stays m_3_head 7 / m_2 12: the three m-4 resolver additions (`create_type_of_declaration_in_expando_scope`, `is_last_bodiless_overload_of_symbol`, `is_first_declaration_of_symbol`) are NOT rows of the frozen m-1 consumed-member subset (`RESOLVER_MEMBER_SPECS` unchanged); they are recorded here and in the ledger headers. The inventory re-minted for the moved `inputs.rust_evidence` pin on resolver.rs: rows changed 0, fingerprint 94f1e111… → 2766bf1e…; `--check` exit 0 twice. (The packet's "7 → 10" forecast is superseded by this measurement.)
 
 ## E4 surprise-trigger assessment (operator, 2026-09-03)
 No trigger fired → Phase P proceeds on this record (the m-2 §9.E4 rule); the one TO-VERIFY(P1) row is a measurement the P1 lane reports, not a fired trigger.

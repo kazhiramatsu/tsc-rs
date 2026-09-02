@@ -44,7 +44,7 @@
       },
       "resolver": {
         "path": "crates/emitter/src/resolver.rs",
-        "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+        "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
       }
     }
   },
@@ -22900,5 +22900,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "94f1e111d75d60c7d25802fd0d586b5c4f716936f1a2ee03e798d6a85f04d211"
+  "inventory_fingerprint_sha256": "2766bf1e6c6f5aa4c0a4597b8af6fe39e82f853e9db1727712f29a5650fce4ec"
 }
