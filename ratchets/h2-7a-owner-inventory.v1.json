@@ -40,7 +40,7 @@
       },
       "factory": {
         "path": "crates/emitter/src/factory.rs",
-        "sha256": "47f3c3d24cb0e71a5e617c2762b809c51d49401a9b765785255bcd6bf6912724"
+        "sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
       },
       "resolver": {
         "path": "crates/emitter/src/resolver.rs",
@@ -22900,5 +22900,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "40b3528bfef3f9dbe51ebf1f64869dfe14f9517c497aeb6e2a783a44250213d7"
+  "inventory_fingerprint_sha256": "5805eda9b9407d31444da6fe480be656cf7c38d0c631fe1ce2efb088acffdb2c"
 }
