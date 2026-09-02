@@ -33,7 +33,7 @@
     },
     "witnesses": {
       "path": "ratchets/h2-7a-witnesses.v1.json",
-      "sha256": "d74d593c0bd337f30f33b8906574778f549d8798a9f577e874b92ebc47de11e6",
+      "sha256": "dbbe7688461f3e438db3d5e6339e9be922541c356554428688022e6786c2a454",
       "case_manifest_fingerprint": "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1",
       "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad"
     },
@@ -31428,5 +31428,5 @@
     "typescript_oracle_runs": 2700
   },
   "reprint_content_roll_sha256": "364e4e3b38a0d67685274731acd660d208f37318036dc64b0d7a62e6bd310bca",
-  "printer_reprint_fingerprint_sha256": "b08dc68c5b4e50cbb462f600dc8f448bcc51e35916fdd848ff341a65a65c0ee3"
+  "printer_reprint_fingerprint_sha256": "e456ce7930138073eba2cf911982c347ade8e7e93d5246535206f5e6c6eddb18"
 }

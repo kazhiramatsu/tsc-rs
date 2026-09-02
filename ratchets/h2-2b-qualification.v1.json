@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-qualification.mjs",
-    "sha256": "38191b37753473a2a47f83dcca2c3af95dd4e134cb1653126d37ab4a79254b8b"
+    "sha256": "8005ff001677b87a70835cd2c3915a1f5993225960be9135f971af83c2b3d3e1"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_2a_merge": "c402252a0d9df4ca0f5332c7f64084087fe55886",
     "h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "b3714393af6f878bcaaa10f04dd1c98b40b2e7236ad15a6c9c684ad1a89524a5"
+      "sha256": "45f969138722b8d2a9130fc8fc76a1873eb15adff234ed59b80934d90a86cc3c"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "2f1f49af31cfcae3e7a6152b9dc9230369191cc2d76e6336ae3baff2493b9b50"
+      "sha256": "d572c0e0b4966416f7a515bd46e994a91a76046e5f9916b7bb629abc3f56641f"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "3794aaaa6e95de61a0aa27a0994793afc04d4c1d53158fa22d23ee0af4b6503e"
+      "sha256": "366c251c11fbd986ddf4a2e1d8cc1a51b7f3530acf3fcf925a0aca1867f571d6"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "fdd70939c03ca96aa64cc01252b08b5114c641e631ad68bfe420bf649293915b"
+      "sha256": "a4927bd1e8c59dd7a1db690304adc56a0708961da9ffc5702e6058d4f4c55cb0"
     },
     "h2_2a_qualification": {
       "path": "ratchets/h2-2a-qualification.v1.json",
-      "sha256": "79d09e158dde616921b67c167ccd6280ccf2b09aecaec77b52bd908d420831e9"
+      "sha256": "70dba8c0bdcd348ed8d7d074350fa2c3ffc4253c5e27aca450cb9c32bfec42a9"
     }
   },
   "execution_contract": {
@@ -7217,5 +7217,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "d9ad214b49fe3da8745e403ea937e4cfd432001ac6dfc3cbc28238cbc5eedf49"
+  "qualification_fingerprint_sha256": "32de4b30c10d1e2f2444249a2a12df9214b914599b067b03497d56d9373b80ff"
 }
