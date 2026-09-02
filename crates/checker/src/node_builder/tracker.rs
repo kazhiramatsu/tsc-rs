@@ -1,7 +1,8 @@
 use tsc_binder::SymbolId;
 use tsc_emitter::{
     EmitModuleSpecifierHost, EmitResolverError, EmitSymbolAccessibility, EmitSymbolMeaning,
-    EmitSymbolTracker, EmitTrackerAccess, EmitTrackerNode, EmitTrackerSymbol,
+    EmitSymbolTracker, EmitTrackerAccess, EmitTrackerNode, EmitTrackerNodeDescription,
+    EmitTrackerSymbol,
 };
 use tsc_syntax::NodeId;
 use tsc_types::SymbolFlags;
@@ -162,6 +163,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         let introduced_error = inner.track_symbol(
             access,
             tracker_symbol(symbol),
+            symbol_flags,
             enclosing_declaration
                 .map(|node| tracker_enclosing_node(node, enclosing_declaration_is_synthetic)),
             meaning,
@@ -258,17 +260,12 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     pub(crate) fn report_nonlocal_augmentation(
         &mut self,
         reported_diagnostic: &mut bool,
-        containing_file: NodeId,
-        parent_symbol: SymbolId,
-        augmenting_symbol: SymbolId,
+        primary_declaration: Option<EmitTrackerNodeDescription>,
+        augmenting_declarations: Vec<EmitTrackerNodeDescription>,
     ) {
         if let Some(inner) = self.inner.as_deref_mut() {
             Self::on_diagnostic_reported(reported_diagnostic);
-            inner.report_nonlocal_augmentation(
-                tracker_node(containing_file),
-                tracker_symbol(parent_symbol),
-                tracker_symbol(augmenting_symbol),
-            );
+            inner.report_nonlocal_augmentation(primary_declaration, augmenting_declarations);
         }
     }
 
@@ -316,9 +313,9 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-port: SymbolTrackerImpl.pushErrorFallbackNode @6.0.3
     /// tsc-hash: db55706784167d0fabdb0d4f8e58a8f1790a83aa703005a9c7f6cdbcdc5d760a
     /// tsc-span: _tsc.js:91060-91063
-    pub(crate) fn push_error_fallback_node(&mut self, node: Option<NodeId>) {
+    pub(crate) fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNodeDescription>) {
         if let Some(inner) = self.inner.as_deref_mut() {
-            inner.push_error_fallback_node(node.map(tracker_node));
+            inner.push_error_fallback_node(node);
         }
     }
 

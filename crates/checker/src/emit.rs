@@ -558,6 +558,69 @@ impl EmitResolver for CheckerSession<'_> {
         )
     }
 
+    /// tsc-port: shouldEmitFunctionProperties @6.0.3
+    /// tsc-hash: 1019be7df9648f1710946cbbe99f1b872a3b8c516f16028a4da3dfcd0880e2e9
+    /// tsc-span: _tsc.js:114736-114743
+    fn is_last_bodiless_overload_of_symbol(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsLastBodilessOverloadOfSymbol,
+            node,
+            |state, node| {
+                if matches!(
+                    state.data_of(node),
+                    tsc_syntax::NodeData::FunctionDeclaration(data) if data.body.is_some()
+                ) {
+                    return Ok(true);
+                }
+                let Some(symbol) = state.node_symbol(node) else {
+                    return Ok(true);
+                };
+                let last = state
+                    .binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .rev()
+                    .copied()
+                    .find(|&declaration| {
+                        matches!(
+                            state.data_of(declaration),
+                            tsc_syntax::NodeData::FunctionDeclaration(data)
+                                if data.body.is_none()
+                        )
+                    });
+                Ok(last.is_none_or(|last| last == node))
+            },
+        )
+    }
+
+    /// tsc-port: visitDeclarationSubtree @6.0.3 (first-declaration filter)
+    /// tsc-hash: 6bef4aa822019d44c58d0738e8c20b2f979f1b30a94bbb089b596794d54d19a3
+    /// tsc-span: _tsc.js:114986-114988
+    fn is_first_declaration_of_symbol(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::IsFirstDeclarationOfSymbol,
+            node,
+            |state, node| {
+                let Some(symbol) = state.node_symbol(node) else {
+                    return Ok(true);
+                };
+                Ok(state
+                    .binder
+                    .symbol(symbol)
+                    .declarations
+                    .first()
+                    .is_none_or(|&first| first == node))
+            },
+        )
+    }
+
     fn create_type_of_declaration(
         &self,
         arena: &mut tsc_emitter::TransformArena,
@@ -576,6 +639,37 @@ impl EmitResolver for CheckerSession<'_> {
             arena,
             target,
             declaration.node(),
+            enclosing_declaration.node(),
+            flags,
+            internal_flags,
+            tracker,
+        )
+    }
+
+    /// tsc-port: createTypeOfDeclarationInExpandoScope @6.0.3
+    /// tsc-hash: 37a21cd710c255c1fe8fc4e0e704b11c8062854069c854051651e47a8e392a90
+    /// tsc-span: _tsc.js:115400-115425
+    fn create_type_of_declaration_in_expando_scope(
+        &self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        declaration: EmitResolverNode,
+        function: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, EmitResolverError> {
+        let method = EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope;
+        let mut state = self.state.borrow_mut();
+        validate_resolver_node(&state, method, declaration)?;
+        validate_resolver_node(&state, method, function)?;
+        validate_resolver_node(&state, method, enclosing_declaration)?;
+        state.emit_create_type_of_declaration_in_expando_scope(
+            arena,
+            target,
+            declaration.node(),
+            function.node(),
             enclosing_declaration.node(),
             flags,
             internal_flags,

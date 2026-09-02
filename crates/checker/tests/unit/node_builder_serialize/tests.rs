@@ -23,6 +23,7 @@ impl EmitSymbolTracker for RecordingTracker {
         &mut self,
         _access: &mut dyn EmitTrackerAccess,
         _symbol: EmitTrackerSymbol,
+        _symbol_flags: tsc_types::SymbolFlags,
         _enclosing_declaration: Option<EmitTrackerNode>,
         _meaning: EmitSymbolMeaning,
     ) -> Result<bool, EmitResolverError> {

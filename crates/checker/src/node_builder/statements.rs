@@ -33,11 +33,12 @@ use super::{
     clone_parse_node, create_identifier, create_node, create_node_array, create_token,
     factory_error, get_declaration_with_type_annotation,
     index_info_to_index_signature_declaration_helper, project_parse_node,
-    restore_cloned_node_builder_context, restore_flags, save_restore_flags,
-    serialize_type_for_declaration_seam, set_text_range2,
+    restore_cloned_node_builder_context, restore_flags, restore_synthetic_module_scope,
+    save_restore_flags, serialize_type_for_declaration_seam, set_text_range2,
     signature_to_signature_declaration_helper, specifier_for_module_symbol,
-    type_parameter_to_declaration, type_to_type_node_helper, with_context, BuildResult,
-    NodeBuilderContext, SignatureDeclarationOptions,
+    tracker_node_description, type_parameter_to_declaration, type_to_type_node_helper,
+    with_context, with_synthetic_module_scope, BuildResult, NodeBuilderContext,
+    SignatureDeclarationOptions,
 };
 
 const ALLOW_ANONYMOUS_IDENTIFIER: u32 = 131_072;
@@ -1484,6 +1485,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 Some(self.checker.binder.source_of_node(declaration).root)
                     == self.context.enclosing_file
             });
+        let fallback = fallback.map(|node| tracker_node_description(self.checker, node));
         self.context.tracker.push_error_fallback_node(fallback);
         let result = self.serialize_symbol_worker(symbol, is_private, property_as_alias, None);
         self.context.tracker.pop_error_fallback_node();
@@ -2382,11 +2384,33 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 };
                 if is_nonlocal {
                     if let Some(file) = containing_file {
+                        let primary_declaration = self
+                            .checker
+                            .binder
+                            .symbol(symbol)
+                            .declarations
+                            .iter()
+                            .copied()
+                            .find(|&declaration| {
+                                self.checker.binder.source_of_node(declaration).root == file
+                            })
+                            .map(|declaration| tracker_node_description(self.checker, declaration));
+                        let augmenting_declarations = self
+                            .checker
+                            .binder
+                            .symbol(member)
+                            .declarations
+                            .iter()
+                            .copied()
+                            .filter(|&declaration| {
+                                self.checker.binder.source_of_node(declaration).root != file
+                            })
+                            .map(|declaration| tracker_node_description(self.checker, declaration))
+                            .collect();
                         self.context.tracker.report_nonlocal_augmentation(
                             &mut self.context.reported_diagnostic,
-                            file,
-                            symbol,
-                            member,
+                            primary_declaration,
+                            augmenting_declarations,
                         );
                     }
                     continue;
@@ -2751,24 +2775,11 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         }
         let old_results = std::mem::take(&mut self.results);
         let old_adding_declare = self.adding_declare;
-        let old_enclosing = self.context.enclosing_declaration;
-        let old_enclosing_is_synthetic = self.context.enclosing_declaration_is_synthetic;
-        let old_synthetic_scope_locals = self.context.synthetic_scope_locals.clone();
-        let old_synthetic_scope_kind = self.context.synthetic_scope_kind;
         self.adding_declare = false;
-        self.context.enclosing_declaration_is_synthetic = true;
-        self.context.synthetic_scope_kind = Some(SyntaxKind::ModuleDeclaration);
-        self.context.synthetic_scope_locals = Some(
-            table
-                .iter()
-                .map(|(name, &symbol)| (name.clone(), symbol))
-                .collect(),
-        );
+        let synthetic_parent = self.context.enclosing_declaration;
+        let scope_restore = with_synthetic_module_scope(self.context, synthetic_parent, &table);
         let visit_result = self.visit_symbol_table(&table, suppress_new_private_context, true);
-        self.context.enclosing_declaration = old_enclosing;
-        self.context.enclosing_declaration_is_synthetic = old_enclosing_is_synthetic;
-        self.context.synthetic_scope_locals = old_synthetic_scope_locals;
-        self.context.synthetic_scope_kind = old_synthetic_scope_kind;
+        restore_synthetic_module_scope(self.context, scope_restore);
         self.adding_declare = old_adding_declare;
         let serialized_declarations = std::mem::replace(&mut self.results, old_results);
         visit_result?;

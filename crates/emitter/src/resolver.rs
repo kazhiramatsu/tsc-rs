@@ -3,6 +3,7 @@ use std::fmt;
 
 use tsc_program::SourceFileId;
 use tsc_syntax::NodeId;
+use tsc_types::SymbolFlags;
 
 use crate::factory::{TransformArena, TransformNode, TransformSourceId};
 use crate::transform::TransformError;
@@ -292,14 +293,18 @@ pub trait EmitSymbolTracker {
         false
     }
 
+    /// tsc-port: trackSymbol @6.0.3
+    /// tsc-hash: d64605e9e90a69fc35680689c16e2c076a85f20902bf78ac699284e7189c7f85
+    /// tsc-span: _tsc.js:114360-114370
     fn track_symbol(
         &mut self,
         access: &mut dyn EmitTrackerAccess,
         symbol: EmitTrackerSymbol,
+        symbol_flags: SymbolFlags,
         enclosing_declaration: Option<EmitTrackerNode>,
         meaning: EmitSymbolMeaning,
     ) -> Result<bool, EmitResolverError> {
-        let _ = (access, symbol, enclosing_declaration, meaning);
+        let _ = (access, symbol, symbol_flags, enclosing_declaration, meaning);
         Ok(false)
     }
 
@@ -332,20 +337,25 @@ pub trait EmitSymbolTracker {
 
     fn report_truncation_error(&mut self) {}
 
+    /// tsc-port: reportNonlocalAugmentation @6.0.3
+    /// tsc-hash: 087a8e3b3f966c3356348f688be63ce7db15cc3179310de23a29fe56669d95fe
+    /// tsc-span: _tsc.js:114413-114425
     fn report_nonlocal_augmentation(
         &mut self,
-        containing_file: EmitTrackerNode,
-        parent_symbol: EmitTrackerSymbol,
-        augmenting_symbol: EmitTrackerSymbol,
+        primary_declaration: Option<EmitTrackerNodeDescription>,
+        augmenting_declarations: Vec<EmitTrackerNodeDescription>,
     ) {
-        let _ = (containing_file, parent_symbol, augmenting_symbol);
+        let _ = (primary_declaration, augmenting_declarations);
     }
 
     fn report_non_serializable_property(&mut self, property_name: &str) {
         let _ = property_name;
     }
 
-    fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNode>) {
+    /// tsc-port: pushErrorFallbackNode @6.0.3
+    /// tsc-hash: 3c76d7c1df2f8bb11f48c5d1fc17a8aa1f4045e220624ba13bef2eca2702f409
+    /// tsc-span: _tsc.js:114292-114300
+    fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNodeDescription>) {
         let _ = node;
     }
 
@@ -439,7 +449,10 @@ pub enum EmitResolverMethod {
     IsLiteralConstDeclaration,
     IsLateBound,
     IsImportRequiredByAugmentation,
+    IsLastBodilessOverloadOfSymbol,
+    IsFirstDeclarationOfSymbol,
     CreateTypeOfDeclaration,
+    CreateTypeOfDeclarationInExpandoScope,
     CreateReturnTypeOfSignatureDeclaration,
     CreateTypeOfExpression,
     CreateLiteralConstValue,
@@ -468,6 +481,7 @@ impl EmitExportContainerMode {
 }
 
 impl EmitResolverMethod {
+    /// tsrs-native: stable diagnostic names for the typed resolver operation set.
     pub const fn name(self) -> &'static str {
         match self {
             Self::GetConstantValue => "getConstantValue",
@@ -511,7 +525,10 @@ impl EmitResolverMethod {
             Self::IsLiteralConstDeclaration => "isLiteralConstDeclaration",
             Self::IsLateBound => "isLateBound",
             Self::IsImportRequiredByAugmentation => "isImportRequiredByAugmentation",
+            Self::IsLastBodilessOverloadOfSymbol => "isLastBodilessOverloadOfSymbol",
+            Self::IsFirstDeclarationOfSymbol => "isFirstDeclarationOfSymbol",
             Self::CreateTypeOfDeclaration => "createTypeOfDeclaration",
+            Self::CreateTypeOfDeclarationInExpandoScope => "createTypeOfDeclarationInExpandoScope",
             Self::CreateReturnTypeOfSignatureDeclaration => {
                 "createReturnTypeOfSignatureDeclaration"
             }
@@ -1082,6 +1099,64 @@ pub trait EmitResolver {
         Err(unavailable(
             EmitResolverMethod::CreateTypeOfDeclaration,
             declaration,
+        ))
+    }
+
+    /// Serialize an expando property's declaration under the synthetic
+    /// module scope formed from its container function's properties.
+    /// tsc-port: createTypeOfDeclarationInExpandoScope @6.0.3
+    /// tsc-hash: 37a21cd710c255c1fe8fc4e0e704b11c8062854069c854051651e47a8e392a90
+    /// tsc-span: _tsc.js:115400-115425
+    #[allow(clippy::too_many_arguments)]
+    fn create_type_of_declaration_in_expando_scope(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        declaration: EmitResolverNode,
+        function: EmitResolverNode,
+        enclosing_declaration: EmitResolverNode,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn EmitSymbolTracker,
+    ) -> Result<Option<TransformNode>, EmitResolverError> {
+        let _ = (
+            arena,
+            target,
+            function,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+        );
+        Err(unavailable(
+            EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope,
+            declaration,
+        ))
+    }
+
+    /// tsc-port: shouldEmitFunctionProperties @6.0.3
+    /// tsc-hash: 1019be7df9648f1710946cbbe99f1b872a3b8c516f16028a4da3dfcd0880e2e9
+    /// tsc-span: _tsc.js:114736-114743
+    fn is_last_bodiless_overload_of_symbol(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsLastBodilessOverloadOfSymbol,
+            node,
+        ))
+    }
+
+    /// tsc-port: visitDeclarationSubtree @6.0.3 (first-declaration filter)
+    /// tsc-hash: 6bef4aa822019d44c58d0738e8c20b2f979f1b30a94bbb089b596794d54d19a3
+    /// tsc-span: _tsc.js:114986-114988
+    fn is_first_declaration_of_symbol(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::IsFirstDeclarationOfSymbol,
+            node,
         ))
     }
 

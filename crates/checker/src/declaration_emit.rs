@@ -8,7 +8,7 @@
 use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 
-use tsc_binder::{node_util, SymbolId};
+use tsc_binder::{node_util, SymbolId, SymbolTable};
 use tsc_emitter::{
     create_printer, EmitFunctionProperty, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags,
     EmitResolverError, EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility,
@@ -1899,6 +1899,7 @@ struct DeclarationReplayFrame {
     entry: serde_json::Value,
     maximal_domain_call: Option<i64>,
     root: bool,
+    expando_function: Option<serde_json::Value>,
 }
 
 struct DeclarationReplayRoot {
@@ -1913,6 +1914,9 @@ struct DeclarationReplayRoot {
     /// specifier-override arms) for the serialization replay comparison.
     nested_decision_events: Vec<serde_json::Value>,
     accessibility_results: Vec<DeclarationReplayTracedAccessibilityObservation>,
+    /// The nearest preceding container-property query in this transform
+    /// window. Synthetic-enclosing createType roots use its function input.
+    expando_function: Option<serde_json::Value>,
 }
 
 #[derive(Default)]
@@ -1957,6 +1961,7 @@ enum DeclarationReplayInvocation {
         member: String,
         node: NodeId,
         enclosing: Option<NodeId>,
+        expando_function: Option<NodeId>,
         no_syntactic_printer: bool,
     },
 }
@@ -2451,6 +2456,7 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         &mut self,
         access: &mut dyn tsc_emitter::EmitTrackerAccess,
         symbol: tsc_emitter::EmitTrackerSymbol,
+        symbol_flags: SymbolFlags,
         enclosing_declaration: Option<tsc_emitter::EmitTrackerNode>,
         meaning: EmitSymbolMeaning,
     ) -> Result<bool, tsc_emitter::EmitResolverError> {
@@ -2470,6 +2476,9 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
         // tsc-port: trackSymbol @6.0.3 (:114360-114369) — the transformer
         // resolves accessibility and reports handleSymbolAccessibilityError's
         // issued-diagnostic verdict.
+        if symbol_flags.intersects(SymbolFlags::TYPE_PARAMETER) {
+            return Ok(false);
+        }
         let verdict = access.is_symbol_accessible(symbol, enclosing_declaration, meaning, true)?;
         Ok(verdict.accessibility != EmitSymbolAccessibility::Accessible)
     }
@@ -2557,9 +2566,8 @@ impl tsc_emitter::EmitSymbolTracker for DeclarationReplayRecordingTracker {
 
     fn report_nonlocal_augmentation(
         &mut self,
-        _containing_file: tsc_emitter::EmitTrackerNode,
-        _parent_symbol: tsc_emitter::EmitTrackerSymbol,
-        _augmenting_symbol: tsc_emitter::EmitTrackerSymbol,
+        _primary_declaration: Option<tsc_emitter::EmitTrackerNodeDescription>,
+        _augmenting_declarations: Vec<tsc_emitter::EmitTrackerNodeDescription>,
     ) {
         crate::node_builder::replay_sink::record(|| {
             crate::node_builder::replay_sink::DecisionEvent::Tracker {
@@ -2594,6 +2602,8 @@ fn declaration_replay_roots(
     > = BTreeMap::new();
     let mut all_nested = BTreeMap::new();
     let mut roots = Vec::new();
+    let mut in_transform_window = false;
+    let mut expando_function = None;
     let is_decision_lane = |site: &str| {
         site == "resolver.isSymbolAccessible.result"
             || site == "resolver.isEntityNameVisible.result"
@@ -2607,8 +2617,18 @@ fn declaration_replay_roots(
     for event in events {
         let site = replay_string_field(event, "site_id")?;
         let call_id = replay_i64_field(event, "call_id")?;
+        if site == "probe.transformSeed" {
+            in_transform_window = true;
+            expando_function = None;
+        } else if site == "declarations.declBlocked" {
+            in_transform_window = false;
+            expando_function = None;
+        }
         if call_id >= 0 && site.ends_with(".entry") {
             let member = site.trim_end_matches(".entry").to_owned();
+            if in_transform_window && member == "resolver.getPropertiesOfContainerFunction" {
+                expando_function = replay_array_field(event, "args")?.get(3).cloned();
+            }
             let parent_domain = stack
                 .iter()
                 .rev()
@@ -2617,6 +2637,10 @@ fn declaration_replay_roots(
             let is_domain = declaration_replay_is_domain_member(&member);
             let root = is_domain && inherited_root.is_none();
             let maximal_domain_call = if root { Some(call_id) } else { inherited_root };
+            let root_expando_function =
+                (root && in_transform_window && member == "resolver.createTypeOfDeclaration")
+                    .then(|| expando_function.clone())
+                    .flatten();
             if is_domain {
                 if let Some(parent) = parent_domain {
                     let edge = format!("{} -> {member}", parent.member);
@@ -2644,6 +2668,7 @@ fn declaration_replay_roots(
                 entry: event.clone(),
                 maximal_domain_call,
                 root,
+                expando_function: root_expando_function,
             });
             continue;
         }
@@ -2686,6 +2711,7 @@ fn declaration_replay_roots(
                     accessibility_results: accessibility_by_root
                         .remove(&call_id)
                         .unwrap_or_default(),
+                    expando_function: frame.expando_function,
                 });
             }
             continue;
@@ -3161,15 +3187,30 @@ impl CheckerState<'_> {
                         | "resolver.createTypeOfExpression"
                         | "resolver.createLateBoundIndexSignatures"
                 );
-                let enclosing = if takes_enclosing {
-                    Some(self.declaration_replay_resolve_node(
-                        entry_args.get(4).ok_or_else(|| {
-                            "serialization entry lacks an enclosing node".to_owned()
-                        })?,
-                        file_map,
-                    )?)
+                let (enclosing, expando_function) = if takes_enclosing {
+                    let enclosing_ref = entry_args
+                        .get(4)
+                        .ok_or_else(|| "serialization entry lacks an enclosing node".to_owned())?;
+                    match self.declaration_replay_resolve_node(enclosing_ref, file_map) {
+                        Ok(enclosing) => (Some(enclosing), None),
+                        Err(DeclarationReplayResolutionError::Excluded(
+                            DeclarationReplayExclusion::SyntheticWithoutOriginal,
+                        )) if root.member == "resolver.createTypeOfDeclaration" => {
+                            let function_ref = root.expando_function.as_ref().ok_or_else(|| {
+                                DeclarationReplayResolutionError::Invalid(
+                                    "synthetic createType root lacks a preceding container-function query"
+                                        .to_owned(),
+                                )
+                            })?;
+                            let function =
+                                self.declaration_replay_resolve_node(function_ref, file_map)?;
+                            let node_file = self.binder.file_index_of_node(node);
+                            (Some(self.binder.source(node_file).root), Some(function))
+                        }
+                        Err(error) => return Err(error),
+                    }
                 } else {
-                    None
+                    (None, None)
                 };
                 // The :115425 fakespace variant is recovered from the traced
                 // withContext internal words and asserted consistent.
@@ -3191,6 +3232,7 @@ impl CheckerState<'_> {
                     member: root.member.clone(),
                     node,
                     enclosing,
+                    expando_function,
                     no_syntactic_printer,
                 }
             }
@@ -3523,12 +3565,14 @@ impl CheckerState<'_> {
                 member,
                 node,
                 enclosing,
+                expando_function,
                 no_syntactic_printer,
             } => {
                 return self.declaration_replay_invoke_serialization(
                     &member,
                     node,
                     enclosing,
+                    expando_function,
                     no_syntactic_printer,
                 )
             }
@@ -3729,6 +3773,7 @@ impl CheckerState<'_> {
         member: &str,
         node: NodeId,
         enclosing: Option<NodeId>,
+        expando_function: Option<NodeId>,
         no_syntactic_printer: bool,
     ) -> Result<DeclarationReplayDecision, String> {
         let mut arena = tsc_emitter::TransformArena::new();
@@ -3758,8 +3803,19 @@ impl CheckerState<'_> {
         let outcome: Result<DeclarationReplaySerializedResult, tsc_emitter::EmitResolverError> = {
             let enclosing_or_root = enclosing.unwrap_or_else(|| self.binder.source(node_file).root);
             match member {
-                "resolver.createTypeOfDeclaration" => self
-                    .emit_create_type_of_declaration(
+                "resolver.createTypeOfDeclaration" => (if let Some(function) = expando_function {
+                    self.emit_create_type_of_declaration_in_expando_scope(
+                        &mut arena,
+                        target,
+                        node,
+                        function,
+                        enclosing_or_root,
+                        flags,
+                        internal,
+                        &mut tracker,
+                    )
+                } else {
+                    self.emit_create_type_of_declaration(
                         &mut arena,
                         target,
                         node,
@@ -3768,10 +3824,11 @@ impl CheckerState<'_> {
                         internal,
                         &mut tracker,
                     )
-                    .map(|produced| match produced {
-                        None => DeclarationReplaySerializedResult::Absent,
-                        Some(node) => DeclarationReplaySerializedResult::Node(node),
-                    }),
+                })
+                .map(|produced| match produced {
+                    None => DeclarationReplaySerializedResult::Absent,
+                    Some(node) => DeclarationReplaySerializedResult::Node(node),
+                }),
                 "resolver.createReturnTypeOfSignatureDeclaration" => self
                     .emit_create_return_type_of_signature_declaration(
                         &mut arena,
@@ -4584,6 +4641,46 @@ impl<'a> CheckerState<'a> {
             Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
             Some(internal_flags),
             Some(tracker),
+        )
+    }
+
+    /// tsc-port: createTypeOfDeclarationInExpandoScope @6.0.3
+    /// tsc-hash: 37a21cd710c255c1fe8fc4e0e704b11c8062854069c854051651e47a8e392a90
+    /// tsc-span: _tsc.js:115400-115425
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn emit_create_type_of_declaration_in_expando_scope(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        target: tsc_emitter::TransformSourceId,
+        declaration: NodeId,
+        function: NodeId,
+        enclosing_declaration: NodeId,
+        flags: tsc_emitter::EmitNodeBuilderFlags,
+        internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
+    ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
+        let method = tsc_emitter::EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope;
+        let properties = self
+            .emit_get_properties_of_container_function(function, 0)
+            .map_err(|abort| node_builder_abort_error(self, method, function, abort))?;
+        let mut locals = SymbolTable::default();
+        for property in properties {
+            locals.insert(property.name, SymbolId(property.symbol.symbol_index));
+        }
+        crate::node_builder::with_synthetic_module_scope_for_next_context(
+            Some(enclosing_declaration),
+            &locals,
+            || {
+                self.emit_create_type_of_declaration(
+                    arena,
+                    target,
+                    declaration,
+                    enclosing_declaration,
+                    flags,
+                    internal_flags,
+                    tracker,
+                )
+            },
         )
     }
 
