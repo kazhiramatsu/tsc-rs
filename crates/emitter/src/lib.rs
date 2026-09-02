@@ -37,9 +37,9 @@ pub use builtins::{
     transform_ecmascript_module, transform_type_script,
 };
 pub use declarations::{
-    transform_declaration_unit_for_harness, BoundaryEvent, DeclBlockedInputs,
-    DeclarationCustomTransformers, DeclarationPathResolver, DeclarationTransformOutcome,
-    DeclarationTransformer,
+    transform_declaration_unit_for_harness, transform_declaration_unit_with_observer_for_harness,
+    BoundaryEvent, DeclBlockedInputs, DeclarationCustomTransformers, DeclarationPathResolver,
+    DeclarationTransformOutcome, DeclarationTransformer,
 };
 pub use error::{
     EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, EmitStage,

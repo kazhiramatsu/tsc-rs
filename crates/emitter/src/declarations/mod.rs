@@ -24,9 +24,12 @@ use crate::{
 };
 
 pub use self::orchestration::{
-    transform_declaration_unit_for_harness, DeclBlockedInputs, DeclarationTransformOutcome,
+    transform_declaration_unit_for_harness, transform_declaration_unit_with_observer_for_harness,
+    DeclBlockedInputs, DeclarationTransformOutcome,
 };
-pub(crate) use self::selection::get_declaration_transformers;
+pub(crate) use self::selection::{
+    get_declaration_transformers, get_declaration_transformers_with_observer,
+};
 use self::state::{TransformState, VisitResult};
 use self::tracker::DeclarationSymbolTracker;
 
