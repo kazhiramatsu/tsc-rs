@@ -11,7 +11,7 @@ use super::diagnostics::{
 use super::ensure::is_function_like;
 use super::state::{adopt_result, VisitResult};
 use super::tracker::materialize_effects;
-use super::{statements_p2, DeclarationTransformer};
+use super::{statements, DeclarationTransformer};
 
 struct SubtreeFrame {
     previous_enclosing: Option<Option<TransformNode>>,
@@ -196,7 +196,7 @@ impl DeclarationTransformer<'_> {
                 // Upstream's second direct return: this happens after the
                 // diagnostic context was replaced and skips cleanup,
                 // adoption, and every frame restoration.
-                return statements_p2::recreate_binding_pattern(self, cx, name);
+                return statements::recreate_binding_pattern(self, cx, name);
             }
         }
 
@@ -256,14 +256,8 @@ impl DeclarationTransformer<'_> {
                             default_modifier_mask(),
                         )?;
                         let r#type = self.ensure_type(cx, input, false)?;
-                        let updated = p2_update_signature(
-                            cx,
-                            input,
-                            type_parameters,
-                            parameters,
-                            r#type,
-                            None,
-                        )?;
+                        let updated =
+                            update_signature(cx, input, type_parameters, parameters, r#type, None)?;
                         Ok(VisitResult::Node(updated))
                     }
                     SyntaxKind::Constructor => {
@@ -280,9 +274,7 @@ impl DeclarationTransformer<'_> {
                             parameters,
                             None,
                         )?;
-                        Ok(VisitResult::Node(p2_update_from_created(
-                            cx, input, created,
-                        )?))
+                        Ok(VisitResult::Node(update_from_created(cx, input, created)?))
                     }
                     SyntaxKind::MethodDeclaration => {
                         let NodeData::MethodDeclaration(data) =
@@ -323,9 +315,7 @@ impl DeclarationTransformer<'_> {
                                 r#type,
                                 None,
                             )?;
-                            Ok(VisitResult::Node(p2_update_from_created(
-                                cx, input, created,
-                            )?))
+                            Ok(VisitResult::Node(update_from_created(cx, input, created)?))
                         }
                     }
                     SyntaxKind::GetAccessor => {
@@ -393,7 +383,7 @@ impl DeclarationTransformer<'_> {
                                 };
                             let modifiers = self.ensure_modifiers(cx, input)?;
                             let updated =
-                                p2_update_property(cx, input, modifiers, r#type, initializer)?;
+                                update_property(cx, input, modifiers, r#type, initializer)?;
                             Ok(VisitResult::Node(updated))
                         }
                     }
@@ -416,7 +406,7 @@ impl DeclarationTransformer<'_> {
                             )?;
                             let r#type = self.ensure_type(cx, input, false)?;
                             let modifiers = self.ensure_modifiers(cx, input)?;
-                            Ok(VisitResult::Node(p2_update_signature(
+                            Ok(VisitResult::Node(update_signature(
                                 cx,
                                 input,
                                 type_parameters,
@@ -440,7 +430,7 @@ impl DeclarationTransformer<'_> {
                             default_modifier_mask(),
                         )?;
                         let r#type = self.ensure_type(cx, input, false)?;
-                        Ok(VisitResult::Node(p2_update_signature(
+                        Ok(VisitResult::Node(update_signature(
                             cx,
                             input,
                             type_parameters,
@@ -481,7 +471,7 @@ impl DeclarationTransformer<'_> {
                                 .create_keyword_type_node(input.source(), SyntaxKind::AnyKeyword)?,
                         };
                         let modifiers = self.ensure_modifiers(cx, input)?;
-                        Ok(VisitResult::Node(p2_update_signature(
+                        Ok(VisitResult::Node(update_signature(
                             cx,
                             input,
                             None,
@@ -495,7 +485,7 @@ impl DeclarationTransformer<'_> {
                         self.tracker.suppress_new_diagnostic_contexts = true;
                         let r#type = self.ensure_type(cx, input, false)?;
                         let initializer = self.ensure_no_initializer(cx, input)?;
-                        Ok(VisitResult::Node(p2_update_variable(
+                        Ok(VisitResult::Node(update_variable(
                             cx,
                             input,
                             r#type,
@@ -570,7 +560,7 @@ impl DeclarationTransformer<'_> {
                             modifiers
                                 .and_then(|array| cx.arena().node_array_ref(input.source(), array))
                         };
-                        Ok(VisitResult::Node(p2_update_signature(
+                        Ok(VisitResult::Node(update_signature(
                             cx,
                             input,
                             type_parameters,
@@ -601,14 +591,12 @@ impl DeclarationTransformer<'_> {
                         }) else {
                             return Ok(VisitResult::Node(input));
                         };
-                        let rewritten = statements_p2::rewrite_module_specifier(
-                            self,
-                            cx,
-                            input,
-                            Some(literal),
-                        )?
-                        .ok_or_else(|| Self::contract("literal import type lost its specifier"))?;
-                        let argument = p2_update_literal_type(cx, argument, rewritten)?;
+                        let rewritten =
+                            statements::rewrite_module_specifier(self, cx, input, Some(literal))?
+                                .ok_or_else(|| {
+                                Self::contract("literal import type lost its specifier")
+                            })?;
+                        let argument = update_literal_type(cx, argument, rewritten)?;
                         let attributes = data
                             .attributes
                             .and_then(|node| cx.arena().node_ref(input.source(), node));
@@ -926,13 +914,7 @@ pub(crate) fn preserve_js_doc(
     let original_js_doc = cx.arena().node(original)?.js_doc;
     let updated_js_doc = cx.arena().node(updated)?.js_doc;
     if original_js_doc.is_some() && updated_js_doc != original_js_doc {
-        // Update-style nodes carry the arena-owned jsDoc array through the
-        // factory's update path. Cross-kind creation needs the additive P2
-        // factory face before it can mutate Node.js_doc safely, so fail closed
-        // instead of silently dropping the attachment.
-        return Err(DeclarationTransformer::contract(
-            "updated declaration cannot adopt its original jsDoc array",
-        ));
+        cx.factory()?.set_js_doc_from_original(updated, original)?;
     }
     if let Some(range) = comment_range(cx.arena(), original)? {
         cx.arena_mut()?
@@ -1165,7 +1147,7 @@ fn signature_parts(
     }
 }
 
-fn p2_update_signature(
+fn update_signature(
     cx: &mut TransformationContext,
     original: TransformNode,
     type_parameters: Option<TransformNodeArray>,
@@ -1173,7 +1155,7 @@ fn p2_update_signature(
     r#type: Option<TransformNode>,
     modifiers: Option<TransformNodeArray>,
 ) -> Result<TransformNode, TransformError> {
-    // P2-face: replaced by the specific update* face from packet §3.7.
+    // Dispatch through the specific typed update face from packet §3.7.
     let data = match cx.arena().node(original)?.data.clone() {
         NodeData::ConstructSignature(mut data) => {
             data.type_parameters = type_parameters.map(TransformNodeArray::array);
@@ -1223,14 +1205,14 @@ fn p2_update_signature(
     cx.factory()?.update_node(original, data, flags)
 }
 
-fn p2_update_property(
+fn update_property(
     cx: &mut TransformationContext,
     original: TransformNode,
     modifiers: Option<TransformNodeArray>,
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    // P2-face: replaced by updatePropertyDeclaration/updatePropertySignature.
+    // Dispatch through the typed property update faces.
     let data = match cx.arena().node(original)?.data.clone() {
         NodeData::PropertyDeclaration(mut data) => {
             data.modifiers = modifiers.map(TransformNodeArray::array);
@@ -1254,13 +1236,13 @@ fn p2_update_property(
     cx.factory()?.update_node(original, data, flags)
 }
 
-fn p2_update_variable(
+fn update_variable(
     cx: &mut TransformationContext,
     original: TransformNode,
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    // P2-face: replaced by updateVariableDeclaration.
+    // Dispatch through the typed variable-declaration update face.
     let NodeData::VariableDeclaration(mut data) = cx.arena().node(original)?.data.clone() else {
         return Err(DeclarationTransformer::contract(
             "variable update kind mismatch",
@@ -1274,12 +1256,12 @@ fn p2_update_variable(
         .update_node(original, NodeData::VariableDeclaration(data), flags)
 }
 
-fn p2_update_literal_type(
+fn update_literal_type(
     cx: &mut TransformationContext,
     original: TransformNode,
     literal: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    // P2-face: replaced by updateLiteralTypeNode.
+    // Dispatch through the typed literal-type update face.
     let NodeData::LiteralType(mut data) = cx.arena().node(original)?.data.clone() else {
         return Err(DeclarationTransformer::contract(
             "literal-type update kind mismatch",
@@ -1291,13 +1273,12 @@ fn p2_update_literal_type(
         .update_node(original, NodeData::LiteralType(data), flags)
 }
 
-fn p2_update_from_created(
+fn update_from_created(
     cx: &mut TransformationContext,
     original: TransformNode,
     created: TransformNode,
 ) -> Result<TransformNode, TransformError> {
-    // P2-face: same-kind create/update bridge until the missing typed update
-    // faces land. Cloning the original is what retains its jsDoc array.
+    // Same-kind create/update bridge; updating the original retains its JSDoc array.
     let created_record = cx.arena().node(created)?.clone();
     if cx.arena().node(original)?.kind != created_record.kind {
         return Err(DeclarationTransformer::contract(

@@ -7,7 +7,7 @@ use tsc_program::SourceFileId;
 use tsc_syntax::{for_each_child, parse_source_file, NodeId, SourceFile, SyntaxKind};
 use tsc_types::CompilerOptions;
 
-use super::diagnostics::DiagnosticContext;
+use super::diagnostics::{comment_range, DiagnosticContext};
 use super::state::{TransformState, VisitResult};
 use super::tracker::DeclarationSymbolTracker;
 use super::*;
@@ -90,6 +90,11 @@ struct ProbeObservation {
     ensure_failed: bool,
     error_name_restored: bool,
     diagnostic_restored: bool,
+    original_js_doc: Option<tsc_syntax::NodeArrayId>,
+    output_js_doc: Option<tsc_syntax::NodeArrayId>,
+    original_comment_range: Option<crate::CommentRange>,
+    output_comment_range: Option<crate::CommentRange>,
+    output_kind: Option<SyntaxKind>,
 }
 
 struct ProbeTransformer<'a> {
@@ -127,6 +132,11 @@ impl Transformer for ProbeTransformer<'_> {
             ProbeAction::Visit(node) => {
                 let input = TransformNode::new(source, node);
                 let result = self.declaration.visit_declaration_subtree(cx, input)?;
+                let output = match &result {
+                    VisitResult::Node(output) => Some(*output),
+                    VisitResult::Nodes(outputs) => outputs.first().copied(),
+                    VisitResult::None => None,
+                };
                 let mut observation = self.observation.borrow_mut();
                 observation.visit_is_empty = match result {
                     VisitResult::None => true,
@@ -139,6 +149,16 @@ impl Transformer for ProbeTransformer<'_> {
                     .enclosing_declaration
                     .map(TransformNode::node);
                 observation.diagnostic_context = Some(self.declaration.tracker.diagnostic_context);
+                observation.original_js_doc = cx.arena().node(input)?.js_doc;
+                observation.original_comment_range = comment_range(cx.arena(), input)?;
+                if let Some(output) = output {
+                    observation.output_js_doc = cx.arena().node(output)?.js_doc;
+                    observation.output_comment_range = cx
+                        .arena()
+                        .metadata(output)
+                        .and_then(crate::EmitMetadata::comment_range);
+                    observation.output_kind = Some(cx.arena().node(output)?.kind);
+                }
             }
             ProbeAction::Ensure(ref nodes) => {
                 let mut results = Vec::with_capacity(nodes.len());
@@ -446,7 +466,7 @@ fn subtree_binding_pattern_direct_return_preserves_upstream_diagnostic_leak() {
         run_probe(&parsed, &options, &resolver, ProbeAction::Visit(variable));
     result.expect("binding-pattern probe");
     let observation = observation.borrow();
-    assert!(observation.visit_is_empty);
+    assert!(!observation.visit_is_empty);
     assert!(matches!(
         observation.diagnostic_context,
         Some(DiagnosticContext::ForNode(node)) if node.node() == variable
@@ -504,6 +524,39 @@ fn boundary_observer_records_rewritten_output_provenance_and_flags() {
     assert_ne!(events[0].output_ref, Some(events[0].input_ref));
     assert!(events[0].has_original);
     assert!(!events[0].transform_flags.is_empty());
+}
+
+#[test]
+fn private_method_collapse_preserves_jsdoc_array_and_comment_range() {
+    let parsed = parse_source_file(
+        "fixture.ts",
+        "class C {\n    /** method docs */\n    private method(): void {}\n}\n",
+        Default::default(),
+        None,
+    );
+    let method = nodes_of_kind(&parsed, SyntaxKind::MethodDeclaration)[0];
+    let options = CompilerOptions::default();
+    let resolver = FixtureResolver {
+        first_declaration: true,
+        synthesized_declaration: None,
+        synthesized_return: None,
+        fail_declaration: None,
+    };
+
+    let (result, observation) = run_probe(&parsed, &options, &resolver, ProbeAction::Visit(method));
+    result.expect("private method JSDoc transfer");
+    let observation = observation.borrow();
+    assert_eq!(
+        observation.output_kind,
+        Some(SyntaxKind::PropertyDeclaration)
+    );
+    assert!(observation.original_js_doc.is_some());
+    assert_eq!(observation.output_js_doc, observation.original_js_doc);
+    assert!(observation.original_comment_range.is_some());
+    assert_eq!(
+        observation.output_comment_range,
+        observation.original_comment_range
+    );
 }
 
 #[test]

@@ -11,6 +11,8 @@ use crate::{PrinterError, TransformError};
 pub enum UnsupportedEmitFeature {
     TargetedSelection,
     BundleRoot,
+    CustomTransformers,
+    IsolatedDeclarations,
     JavaScriptMap,
     Declaration,
     DeclarationMap,
@@ -20,7 +22,6 @@ pub enum UnsupportedEmitFeature {
     BuildInfoOnlyMode,
     StandaloneNodePrinting,
     NodeListPrinting,
-    IsolatedDeclarations,
 }
 
 impl UnsupportedEmitFeature {
@@ -28,6 +29,8 @@ impl UnsupportedEmitFeature {
         match self {
             Self::TargetedSelection => "targeted source-file selection",
             Self::BundleRoot => "bundle root",
+            Self::CustomTransformers => "custom declaration transformers",
+            Self::IsolatedDeclarations => "isolated declarations",
             Self::JavaScriptMap => "JavaScript source map",
             Self::Declaration => "declaration output",
             Self::DeclarationMap => "declaration map",
@@ -37,7 +40,6 @@ impl UnsupportedEmitFeature {
             Self::BuildInfoOnlyMode => "build-info-only mode",
             Self::StandaloneNodePrinting => "standalone-node printing",
             Self::NodeListPrinting => "node-list printing",
-            Self::IsolatedDeclarations => "isolated declarations",
         }
     }
 }
