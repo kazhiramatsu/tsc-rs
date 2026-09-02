@@ -21,7 +21,7 @@
   ],
   "properties": {
     "schema": {
-      "const": 2
+      "const": 3
     },
     "phase": {
       "const": "H2.7a-probe-traces"
@@ -503,6 +503,7 @@
         "case_id",
         "fileTable",
         "trace_events",
+        "printed_results",
         "public_output_roll",
         "inert"
       ],
@@ -528,6 +529,35 @@
         },
         "inert": {
           "const": true
+        },
+        "printed_results": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "oneOf": [
+                {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            }
+          }
         }
       }
     },
@@ -538,7 +568,9 @@
         "cases",
         "events",
         "per_site_counts",
-        "trace_content_roll"
+        "trace_content_roll",
+        "printed_results",
+        "printed_results_roll"
       ],
       "properties": {
         "cases": {
@@ -560,6 +592,14 @@
           }
         },
         "trace_content_roll": {
+          "$ref": "#/$defs/sha256"
+        },
+        "printed_results": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "printed_results_roll": {
           "$ref": "#/$defs/sha256"
         }
       }

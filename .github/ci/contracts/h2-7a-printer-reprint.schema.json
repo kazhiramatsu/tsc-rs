@@ -1,0 +1,647 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tsc-rs.invalid/contracts/h2-7a-printer-reprint.schema.json",
+  "title": "tsc-rs H2.7a printer reprint artifact v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "phase",
+    "typescript",
+    "generator",
+    "contract",
+    "inputs",
+    "printer_options",
+    "strata",
+    "rows",
+    "excluded",
+    "p4_inputs_sha256",
+    "summary",
+    "reprint_content_roll_sha256",
+    "printer_reprint_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "const": "h2-7a-printer-reprint"
+    },
+    "status": {
+      "const": "qualified-typescript-oracle"
+    },
+    "phase": {
+      "const": "H2.7a-printer-reprint"
+    },
+    "typescript": {
+      "$ref": "#/$defs/typescript"
+    },
+    "generator": {
+      "$ref": "#/$defs/path_hash"
+    },
+    "contract": {
+      "$ref": "#/$defs/path_hash"
+    },
+    "inputs": {
+      "$ref": "#/$defs/inputs"
+    },
+    "printer_options": {
+      "$ref": "#/$defs/printer_options"
+    },
+    "strata": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/stratum_record"
+      }
+    },
+    "rows": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/row"
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/parse_exclusion"
+          },
+          {
+            "$ref": "#/$defs/non_utf8_exclusion"
+          }
+        ]
+      }
+    },
+    "p4_inputs_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "reprint_content_roll_sha256": {
+      "$ref": "#/$defs/sha256"
+    },
+    "printer_reprint_fingerprint_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "typescript": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "bundle",
+        "implementation"
+      ],
+      "properties": {
+        "version": {
+          "const": "6.0.3"
+        },
+        "bundle": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "implementation": {
+          "$ref": "#/$defs/path_hash"
+        }
+      }
+    },
+    "witness_pins": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256",
+        "case_manifest_fingerprint",
+        "observation_content_roll_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "case_manifest_fingerprint": {
+          "$ref": "#/$defs/sha256"
+        },
+        "observation_content_roll_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "packet",
+        "parent_packet",
+        "witnesses",
+        "lib_directory",
+        "fixture_roots"
+      ],
+      "properties": {
+        "packet": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "parent_packet": {
+          "$ref": "#/$defs/path_hash"
+        },
+        "witnesses": {
+          "$ref": "#/$defs/witness_pins"
+        },
+        "lib_directory": {
+          "const": "vendor/typescript-6.0.3/lib"
+        },
+        "fixture_roots": {
+          "const": [
+            "ts-tests/tests/cases/compiler",
+            "ts-tests/tests/cases/conformance"
+          ]
+        }
+      }
+    },
+    "printer_options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "newLine_default",
+        "removeComments_default",
+        "noEmitHelpers",
+        "onlyPrintJsDocStyle",
+        "omitBraceSourceMapPositions",
+        "target_default"
+      ],
+      "properties": {
+        "newLine_default": {
+          "const": "lf"
+        },
+        "removeComments_default": {
+          "const": false
+        },
+        "noEmitHelpers": {
+          "const": true
+        },
+        "onlyPrintJsDocStyle": {
+          "const": true
+        },
+        "omitBraceSourceMapPositions": {
+          "const": true
+        },
+        "target_default": {
+          "const": null
+        }
+      }
+    },
+    "stratum_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "description",
+        "selection_contract"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "P1",
+            "P2",
+            "P3",
+            "P4"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "selection_contract": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "options": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "newLine",
+        "removeComments",
+        "target"
+      ],
+      "properties": {
+        "newLine": {
+          "enum": [
+            "lf",
+            "crlf"
+          ]
+        },
+        "removeComments": {
+          "type": "boolean"
+        },
+        "target": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      }
+    },
+    "p1_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "write_index",
+        "path",
+        "materialized_utf8_sha256"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "write_index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "materialized_utf8_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "p2_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fixture",
+        "fixture_sha256",
+        "unit"
+      ],
+      "properties": {
+        "fixture": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "unit": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "p2_fixture_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fixture",
+        "fixture_sha256"
+      ],
+      "properties": {
+        "fixture": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixture_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "p3_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "p4_source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "targets"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "stratum",
+        "source",
+        "file_name",
+        "options",
+        "input_sha256",
+        "input_bytes",
+        "expected_sha256",
+        "expected_bytes",
+        "fixed_point",
+        "repetitions"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stratum": {
+          "enum": [
+            "P1",
+            "P2",
+            "P3",
+            "P4"
+          ]
+        },
+        "source": {
+          "type": "object"
+        },
+        "file_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "options": {
+          "$ref": "#/$defs/options"
+        },
+        "input_utf8": {
+          "type": "string"
+        },
+        "input_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "input_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_utf8": {
+          "type": "string"
+        },
+        "expected_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "expected_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fixed_point": {
+          "type": "boolean"
+        },
+        "repetitions": {
+          "const": 2
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "stratum": {
+              "const": "P1"
+            },
+            "source": {
+              "$ref": "#/$defs/p1_source"
+            }
+          },
+          "required": [
+            "input_utf8",
+            "expected_utf8"
+          ]
+        },
+        {
+          "properties": {
+            "stratum": {
+              "const": "P2"
+            },
+            "source": {
+              "$ref": "#/$defs/p2_source"
+            }
+          },
+          "required": [
+            "input_utf8",
+            "expected_utf8"
+          ]
+        },
+        {
+          "properties": {
+            "stratum": {
+              "const": "P3"
+            },
+            "source": {
+              "$ref": "#/$defs/p3_source"
+            }
+          }
+        },
+        {
+          "properties": {
+            "stratum": {
+              "const": "P4"
+            },
+            "source": {
+              "$ref": "#/$defs/p4_source"
+            }
+          },
+          "required": [
+            "input_utf8",
+            "expected_utf8"
+          ]
+        }
+      ]
+    },
+    "parse_exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "stratum",
+        "source",
+        "reason",
+        "diagnostic_codes"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stratum": {
+          "const": "P2"
+        },
+        "source": {
+          "$ref": "#/$defs/p2_source"
+        },
+        "reason": {
+          "const": "parse-diagnostic"
+        },
+        "diagnostic_codes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "non_utf8_exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "stratum",
+        "source",
+        "reason"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stratum": {
+          "const": "P2"
+        },
+        "source": {
+          "$ref": "#/$defs/p2_fixture_source"
+        },
+        "reason": {
+          "const": "non-utf8-fixture"
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rows_by_stratum",
+        "gating_rows",
+        "excluded_rows",
+        "fixed_point_rows",
+        "input_bytes",
+        "expected_bytes",
+        "kind_coverage",
+        "typescript_oracle_runs"
+      ],
+      "properties": {
+        "rows_by_stratum": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "P1",
+            "P2",
+            "P3",
+            "P4"
+          ],
+          "properties": {
+            "P1": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "P2": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "P3": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "P4": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "gating_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "excluded_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "fixed_point_rows": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "P1"
+          ],
+          "properties": {
+            "P1": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "input_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expected_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind_coverage": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer",
+            "minimum": 1
+          }
+        },
+        "typescript_oracle_runs": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    }
+  }
+}

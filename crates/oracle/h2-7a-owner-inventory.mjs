@@ -162,10 +162,14 @@ const AUDIT_FOUNDATION_NEEDED = Object.freeze({
   rust_anchor: null,
 });
 
-function auditAlreadyExact(rustAnchor) {
+// h2-7a-m-3.5 §4: rows flipped at m-3.5 carry the upstream worker name
+// as `header`; the mint verifies `tsc-port: <header>` within ±3 lines of
+// the anchor. Legacy m-1 rows (no header) keep the range-only check.
+function auditAlreadyExact(rustAnchor, header = null) {
   return Object.freeze({
     disposition: "audit-already-exact",
     rust_anchor: rustAnchor,
+    header,
   });
 }
 
@@ -1379,6 +1383,14 @@ const measuredAuditNames = [
 const measuredAuditNameSet = new Set(measuredAuditNames);
 const curatedAuditNames = Object.keys(AUDIT_ROWS);
 const rustAnchorLineCounts = new Map();
+const rustAnchorLineCache = new Map();
+let headerVerifiedAuditRows = 0;
+function rustAnchorLines(relativePath) {
+  if (!rustAnchorLineCache.has(relativePath)) {
+    rustAnchorLineCache.set(relativePath, splitLines(readBytes(relativePath).toString("utf8")));
+  }
+  return rustAnchorLineCache.get(relativePath);
+}
 requireCondition(printerSubgraph.size + 1 === 184, "printer audit must contain 184 rows");
 requireCondition(
   factoryMemberSites.size + parenthesizerMemberSites.size === 124,
@@ -1417,6 +1429,16 @@ for (const name of curatedAuditNames) {
       Number(lineText) <= rustAnchorLineCounts.get(relativePath),
       `out-of-range curated Rust anchor for ${name}`,
     );
+    if (audit.header !== null && audit.header !== undefined) {
+      const lines = rustAnchorLines(relativePath);
+      const center = Number(lineText) - 1;
+      const window = lines.slice(Math.max(0, center - 3), center + 4).join("\n");
+      requireCondition(
+        window.includes(`tsc-port: ${audit.header} `) || window.includes(`tsc-port: ${audit.header}/`) || new RegExp(`tsc-port: [^\\n]*\\b${audit.header.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(window),
+        `curated Rust anchor for ${name} is not at a tsc-port header naming ${audit.header}`,
+      );
+      headerVerifiedAuditRows += 1;
+    }
   }
 }
 
