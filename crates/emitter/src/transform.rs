@@ -201,6 +201,8 @@ pub enum EmitHint {
     SourceFile,
     Expression,
     IdentifierName,
+    MappedTypeParameter,
+    ImportTypeNodeAttributes,
     Unspecified,
 }
 

@@ -68,7 +68,7 @@ pub use position::{
 };
 pub use printer::{
     create_printer, PrintRequest, PrintedText, Printer, PrinterError, PrinterOptions,
-    SourceFileTextMode,
+    SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
     EmitExportContainerMode, EmitFunctionProperty, EmitImportIncludeReason,
