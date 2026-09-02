@@ -728,11 +728,17 @@ fn modifiers(node: &Node) -> Option<tsc_syntax::NodeArrayId> {
         NodeData::SetAccessor(data) => data.modifiers,
         NodeData::IndexSignature(data) => data.modifiers,
         NodeData::ConstructorType(data) => data.modifiers,
+        NodeData::VariableStatement(data) => data.modifiers,
         NodeData::FunctionDeclaration(data) => data.modifiers,
         NodeData::ClassDeclaration(data) => data.modifiers,
         NodeData::InterfaceDeclaration(data) => data.modifiers,
         NodeData::TypeAliasDeclaration(data) => data.modifiers,
+        NodeData::EnumDeclaration(data) => data.modifiers,
         NodeData::ModuleDeclaration(data) => data.modifiers,
+        NodeData::ImportEqualsDeclaration(data) => data.modifiers,
+        NodeData::ImportDeclaration(data) => data.modifiers,
+        NodeData::ExportAssignment(data) => data.modifiers,
+        NodeData::ExportDeclaration(data) => data.modifiers,
         _ => None,
     }
 }

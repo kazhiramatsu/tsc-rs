@@ -20,10 +20,9 @@ pub(crate) struct NodeBuilderTracker<'tracker> {
     pub(crate) inner: Option<&'tracker mut dyn EmitSymbolTracker>,
     pub(crate) disable_track_symbol: bool,
     pub(crate) can_track_symbol: bool,
-    /// `true` is the nullish-coalescing fallback to
-    /// createBasicNodeBuilderModuleSpecifierResolutionHost. The concrete
-    /// checker-backed host is borrowed on demand by the specifier worker, so
-    /// it never aliases the mutable inner tracker.
+    /// Records that the caller supplied no module resolver host. The builder
+    /// still always has the checker-backed basic host in this case; this bit
+    /// is observational only and does not represent host absence.
     pub(crate) uses_basic_module_resolver_host: bool,
     /// `symbolTableToDeclarationStatements` replaces the caller's tracker
     /// with a wrapper that consumes accessible symbols as private declaration
@@ -87,8 +86,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         self.statement_symbols = restore.1;
     }
 
-    /// A `None` result selects the checker-backed basic host recorded by
-    /// `uses_basic_module_resolver_host`.
+    /// A `None` result selects the checker-backed basic host.
     /// tsc-port: withContext @6.0.3 (moduleResolverHost selection)
     /// tsc-hash: 48f43182478e60c913e8248cd1b555bc04b83c31cfbbcf7e790f6bb005ac13b6
     /// tsc-span: _tsc.js:51205-51206

@@ -68,6 +68,7 @@ impl DeclarationCustomTransformers {
 /// empty-output sentinel; array results produce one event per output node.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct BoundaryEvent {
+    pub is_top_level: bool,
     pub input_ref: TransformNode,
     pub output_ref: Option<TransformNode>,
     pub has_original: bool,
@@ -176,6 +177,7 @@ impl<'t> DeclarationTransformer<'t> {
     fn observe_boundary(
         &mut self,
         cx: &TransformationContext,
+        is_top_level: bool,
         input: TransformNode,
         result: &VisitResult,
     ) {
@@ -190,6 +192,7 @@ impl<'t> DeclarationTransformer<'t> {
         };
         if outputs.is_empty() {
             observer(BoundaryEvent {
+                is_top_level,
                 input_ref: input,
                 output_ref: None,
                 has_original: false,
@@ -199,6 +202,7 @@ impl<'t> DeclarationTransformer<'t> {
         }
         for &output in outputs {
             observer(BoundaryEvent {
+                is_top_level,
                 input_ref: input,
                 output_ref: Some(output),
                 has_original: cx

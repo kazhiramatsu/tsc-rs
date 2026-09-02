@@ -13,6 +13,29 @@ use super::{
     DeclarationCustomTransformers, DeclarationPathResolver,
 };
 
+fn mount_declaration_program_sources(
+    arena: &mut TransformArena,
+    host: &dyn EmitHost,
+    source: SourceFileId,
+) -> Result<crate::TransformSourceId, EmitFailure> {
+    let emit_source = host.source_file(source).ok_or(EmitFailure::Contract(
+        EmitContractViolation::PlannedSourceMissing(source),
+    ))?;
+    let syntax = emit_source.syntax().ok_or(EmitFailure::Contract(
+        EmitContractViolation::CheckedSyntaxUnavailable(source),
+    ))?;
+    let transform_source = arena.add_source(syntax, Some(source));
+    for &other in host.source_file_ids() {
+        if other == source {
+            continue;
+        }
+        if let Some(syntax) = host.source_file(other).and_then(|source| source.syntax()) {
+            arena.add_source(syntax, Some(other));
+        }
+    }
+    Ok(transform_source)
+}
+
 /// The five upstream inputs recorded at the declaration-blocking boundary.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeclBlockedInputs {
@@ -56,7 +79,7 @@ pub fn transform_declaration_unit_for_harness<'t>(
     let options = host.compiler_options();
 
     let mut arena = TransformArena::new();
-    let transform_source = arena.add_source(syntax, Some(source));
+    let transform_source = mount_declaration_program_sources(&mut arena, host, source)?;
     let transformers = get_declaration_transformers(
         options,
         resolver,
@@ -128,7 +151,7 @@ pub fn transform_declaration_unit_with_observer_for_harness<'t>(
     let options = host.compiler_options();
 
     let mut arena = TransformArena::new();
-    let transform_source = arena.add_source(syntax, Some(source));
+    let transform_source = mount_declaration_program_sources(&mut arena, host, source)?;
     let transformers = get_declaration_transformers_with_observer(
         options,
         resolver,

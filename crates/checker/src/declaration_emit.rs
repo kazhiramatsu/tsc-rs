@@ -1250,7 +1250,7 @@ impl CheckerState<'_> {
                 )?;
                 let error_module_name = self.symbol_to_string_via_node_builder(
                     symbol_external_module,
-                    Some(enclosing_declaration),
+                    None,
                     EmitSymbolMeaning::NAMESPACE,
                     SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
                 )?;

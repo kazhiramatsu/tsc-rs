@@ -612,7 +612,7 @@ fn run_transform_case(
         .filter(|write| write.kind == "declaration")
         .map(|write| {
             let key = OutputKey {
-                path: normalize_path(&write.path),
+                path: normalize_output_path(&write.path, &projected.current_directory),
                 source_files: write
                     .source_files
                     .iter()
@@ -731,6 +731,7 @@ fn run_transform_case(
                             &host,
                             &outcome.root,
                             outcome.decl_blocked,
+                            &projected.current_directory,
                             &mut result,
                             &mut expected_writes,
                             pass,
@@ -829,6 +830,7 @@ fn compare_window_bytes(
     host: &HarnessEmitHost<'_, '_, '_>,
     root: &TransformRoot,
     decl_blocked: bool,
+    current_directory: &str,
     result: &mut TransformationResult<'_>,
     expected_writes: &mut BTreeMap<OutputKey, WitnessWrite>,
     pass: &mut PassReport,
@@ -840,7 +842,7 @@ fn compare_window_bytes(
         .to_string_lossy()
         .into_owned();
     let key = OutputKey {
-        path: normalize_path(&declaration_path.to_string_lossy()),
+        path: normalize_output_path(&declaration_path.to_string_lossy(), current_directory),
         source_files: vec![normalize_path(&source_path)],
     };
     let expected_blocked = expected_decl_blocked(window);
@@ -987,6 +989,55 @@ fn normalize_diagnostic(diagnostic: &Diagnostic) -> WitnessDiagnostic {
 
 fn normalize_path(path: &str) -> String {
     path.replace('\\', "/")
+}
+
+fn normalize_output_path(path: &str, current_directory: &str) -> String {
+    // The probe records the writeFile callback's path verbatim, while Rust's
+    // preflight exposes the same output as an absolute path that may retain a
+    // `.` component. Probe runtime lines 130-160 normalize node/source
+    // coordinates only; lines 495-505 consume declarationFilePath without
+    // rewriting the callback key. Compare the frozen and planned paths in the
+    // same lexical, current-directory-relative domain.
+    fn collapse(path: &str) -> String {
+        let absolute = path.starts_with('/');
+        let mut components = Vec::new();
+        for component in path.split('/') {
+            match component {
+                "" | "." => {}
+                ".." if components.last().is_some_and(|last| *last != "..") => {
+                    components.pop();
+                }
+                ".." if !absolute => components.push(component),
+                ".." => {}
+                _ => components.push(component),
+            }
+        }
+        let joined = components.join("/");
+        if absolute {
+            format!("/{joined}")
+        } else {
+            joined
+        }
+    }
+
+    let current_directory = collapse(&normalize_path(current_directory));
+    let path = normalize_path(path);
+    let absolute = if path.starts_with('/') {
+        collapse(&path)
+    } else {
+        collapse(&format!("{current_directory}/{path}"))
+    };
+    if absolute == current_directory {
+        return ".".to_owned();
+    }
+    let prefix = if current_directory == "/" {
+        "/".to_owned()
+    } else {
+        format!("{current_directory}/")
+    };
+    absolute
+        .strip_prefix(&prefix)
+        .map_or(absolute.clone(), str::to_owned)
 }
 
 fn unified_diff(expected_name: &str, actual_name: &str, expected: &str, actual: &str) -> String {
@@ -1195,16 +1246,10 @@ fn actual_surface_event(
         ActualEvent::Boundary(event) => {
             let result = result?;
             let arena = result.arena();
-            let input = arena.node(event.input_ref).ok()?;
-            let source_root = arena.source(event.input_ref.source()).ok()?.syntax().root;
-            let source_root = arena.node_ref(event.input_ref.source(), source_root)?;
-            let source_root_kind = arena.node(source_root).ok()?.kind;
-            let is_top_level = input
-                .parent
-                .and_then(|parent| arena.node_ref(event.input_ref.source(), parent))
-                .and_then(|parent| arena.node(parent).ok())
-                .is_some_and(|parent| parent.kind == source_root_kind);
-            let site = if is_top_level {
+            // Probe transform wrappers are attached to the two functions, not
+            // inferred from AST ancestry (probe runtime :151, edit table
+            // :461-474). Nested module statements are a frozen counterexample.
+            let site = if event.is_top_level {
                 "declarations.transformTopLevelDeclaration.changed"
             } else {
                 "declarations.visitDeclarationSubtree.changed"
@@ -1436,7 +1481,11 @@ impl EmitResolver for RecordingResolver<'_, '_, '_, '_, '_> {
                 2,
                 self.resolver_node_ref(entity_name),
                 self.resolver_node_ref(enclosing_declaration),
-                false,
+                // The probe wrapper passes the defaulted third parameter into
+                // `__h27aEntryArgs`; a two-argument upstream call therefore
+                // records `true` here. See h2-7a-probe-traces.mjs:141, :242
+                // and the frozen `inaccessible-substitution` entry.
+                true,
                 false,
             ]),
         );

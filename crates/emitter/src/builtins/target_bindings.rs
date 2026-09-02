@@ -960,6 +960,29 @@ fn collect_binding_name_events(
         events.push(BindingNameEvent::ExitScope);
         return Ok(());
     }
+    // tsc-port: emitModuleBlock @6.0.3
+    if !scope_root && record.kind == SyntaxKind::ModuleBlock {
+        events.push(BindingNameEvent::EnterScope(
+            GeneratedBindingOwner::FunctionBody,
+        ));
+        let syntax = arena.source(source)?.syntax();
+        let mut children = Vec::new();
+        for_each_child(&syntax.arena, &record, |child| {
+            children.push(child);
+            false
+        });
+        for child in children {
+            collect_binding_name_events(
+                arena,
+                source,
+                TransformNode::new(source, child),
+                false,
+                events,
+            )?;
+        }
+        events.push(BindingNameEvent::ExitScope);
+        return Ok(());
+    }
     if let Some(binding) = arena
         .metadata(node)
         .and_then(|metadata| metadata.generated_binding_id())
