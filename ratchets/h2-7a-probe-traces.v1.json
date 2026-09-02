@@ -1,22 +1,22 @@
 {
-  "schema": 2,
+  "schema": 3,
   "phase": "H2.7a-probe-traces",
   "generator": {
     "path": "crates/oracle/h2-7a-probe-traces.mjs",
-    "sha256": "85de49a27c376349ab863af563e4c0a48be6ed18910f83411ece72bf935a7aef"
+    "sha256": "dd2d23f34d42de8b5748d66210d03536bbad61e2b4f91f5333cdf6417f839f08"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-probe-traces.schema.json",
-    "sha256": "de9bb2b7ba1a8843f658f3116934115463114f8c0f1d30ae1661dba54f20db10"
+    "sha256": "7a54a7d217a30841a3bc5d4b967b1f27ff8721ec5c9fa759dd2f1ee520e80334"
   },
   "witnesses": {
     "path": "ratchets/h2-7a-witnesses.v1.json",
-    "sha256": "db7a079959c261f0c667e4ddb0d2e41932ac50e3c3cd4bb21e4c302495d964ba"
+    "sha256": "ecf304d94766f8b7892fe6c4685b0668c6da70c429c27e5bbf70aa45067cf4a8"
   },
   "base_sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3",
-  "edit_table_sha256": "606ec408d47af400e0831afaabac02c54b51d6a38f5e78e2d54cdf4c2d0c405d",
-  "instrumented_output_sha256": "f4cb1c4786d409ad4450c754e141a90def2172fd0f27cb419b5ec21afaf72c5a",
-  "position_map_sha256": "224e5f3e57f46d4feb6531b4c424afad045f7ae1620a63d5350fbd5130f66d82",
+  "edit_table_sha256": "d073cc2fb322954b4e0a9a89e47a3acb2cbe517686a132c8f99853104359a340",
+  "instrumented_output_sha256": "e8f1be2f9f57c3c3db9b6fbc89f587312af13838d90374f544d433c6786a1081",
+  "position_map_sha256": "1eebd623fc6b0d4433a966a0bd3eda260774792906626fea49a559c844e6d36c",
   "case_manifest_fingerprint": "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1",
   "cases": [
     {
@@ -2027,6 +2027,12 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          54,
+          "(param: things.ThingB) => any"
+        ]
+      ],
       "public_output_roll": "801a5109831f3b6df05431bc9617b51774b1ffc99c4ccebf4ef6ea980c528894",
       "inert": true
     },
@@ -3030,6 +3036,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          32,
+          "{\n    ar?: import(\"./locale\").CustomLocale | undefined;\n    bg?: import(\"./locale\").CustomLocale | undefined;\n} & {\n    default: import(\"./locale\").Locale;\n}"
+        ]
       ],
       "public_output_roll": "df1b5cd3c3f19ce57210b2e38c4bff5e7db117c7600b6ef7ceff33bd6f0455e5",
       "inert": true
@@ -22698,6 +22710,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          135,
+          "(v: O[\"prop\"], p: Omit<O, \"prop\">, key: keyof O, p2: Omit<O, keyof I>) => void"
+        ],
+        [
+          270,
+          "(v: O[\"prop\"], p: Omit<O, \"prop\">, key: keyof O, p2: Omit<O, keyof I>) => void"
+        ],
+        [
+          441,
+          "(v: string, p: Omit<{\n    prop: string;\n    prop2: string;\n}, \"prop\">, key: keyof {\n    prop: string;\n    prop2: string;\n}, p2: Omit<{\n    prop: string;\n    prop2: string;\n}, \"prop\">) => void"
+        ],
+        [
+          579,
+          "(v: import(\"./aExp\").O[\"prop\"], p: Omit<import(\"./aExp\").O, \"prop\">, key: keyof import(\"./aExp\").O, p2: Omit<import(\"./aExp\").O, keyof import(\"./aExp\").I>) => void"
+        ]
+      ],
       "public_output_roll": "7b621d2450e4022a7736b56506ca0061d4d86a291660db54b31f688f87c2dce6",
       "inert": true
     },
@@ -24438,6 +24468,12 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          59,
+          "{\n    new (): {\n        [x: string]: (() => string) | (() => number);\n    };\n    [x: string]: {\n        [x: string]: (() => string) | (() => number);\n    } | (() => {\n        static: boolean;\n    }) | (() => {\n        static: string;\n    });\n}"
+        ]
+      ],
       "public_output_roll": "7390813d4fa0283a7d0929b8f2c6de1a726977e365b2c3c53c6cd13b92be7721",
       "inert": true
     },
@@ -25339,6 +25375,7 @@
           ]
         }
       ],
+      "printed_results": [],
       "public_output_roll": "817a1002ea027d40630ce2f528940abad0d1efdb09472a30a1fd910aa593b3a3",
       "inert": true
     },
@@ -27632,6 +27669,20 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          10,
+          null
+        ],
+        [
+          20,
+          "<T_1>() => T_1"
+        ],
+        [
+          68,
+          "<T_1>(t: T, t2: T_1) => void"
+        ]
       ],
       "public_output_roll": "d6622a69554d30fb23c4dfc7eb820c9432d63d174a089496a56865caba21b48c",
       "inert": true
@@ -30399,6 +30450,15 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          83,
+          [
+            "declare class Thing {\n}",
+            "declare class ElementsArray extends Array<any> {\n    constructor(arrayLength?: number);\n    constructor(arrayLength: number);\n    constructor(...items: any[]);\n}"
+          ]
+        ]
+      ],
       "public_output_roll": "851d33be13787131868b6ce22f2e98b05ea7da45acb0f7a0df9a0745da4f7124",
       "inert": true
     },
@@ -30417,6 +30477,7 @@
           ]
         }
       ],
+      "printed_results": [],
       "public_output_roll": "e21d1692ff3d4c4a572f01ed99bda084d0e18c5cc5d5071e64d4dc8278cdbd37",
       "inert": true
     },
@@ -30435,6 +30496,7 @@
           ]
         }
       ],
+      "printed_results": [],
       "public_output_roll": "d7608e4b3777410d7b49ec4c593907d258f6dd7d7a6b137a93ded2398d8a65e4",
       "inert": true
     },
@@ -31261,6 +31323,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          23,
+          "string"
+        ]
       ],
       "public_output_roll": "c561246bb1f748c775bbe55bdce24694af9089ed455c7c6ce2664322522dd893",
       "inert": true
@@ -33273,6 +33341,12 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          54,
+          "(param: things.ThingB) => any"
+        ]
+      ],
       "public_output_roll": "10500c9574630c64629022dce6e322f6e0238afeb8f34356e39b86820a33afb0",
       "inert": true
     },
@@ -33769,6 +33843,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          18,
+          "{\n    foo: never[];\n    bar: undefined;\n    baz: null;\n}"
+        ]
       ],
       "public_output_roll": "7756666a72e339ad331804280ac9e2f6ab1d809f17e7ba288a91c58b84f80906",
       "inert": true
@@ -34596,6 +34676,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          23,
+          "string"
+        ]
       ],
       "public_output_roll": "c561246bb1f748c775bbe55bdce24694af9089ed455c7c6ce2664322522dd893",
       "inert": true
@@ -36031,6 +36117,12 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          42,
+          "Foo<number[]>"
+        ]
+      ],
       "public_output_roll": "f4736f5597ccc54c3cc8bc7a10f7f2be2cf019a015a05cb3a832a904f4817e2d",
       "inert": true
     },
@@ -37086,6 +37178,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          34,
+          "{\n    TEST: {};\n}"
+        ]
       ],
       "public_output_roll": "3693fb1ac9dabc1d422f05e1253c169ff25570dc3afeb5236486b7b45d6463e4",
       "inert": true
@@ -39494,6 +39592,22 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          25,
+          "`data-${string}`"
+        ],
+        [
+          48,
+          [
+            "[dataSomething]?: (() => string) | undefined;"
+          ]
+        ],
+        [
+          70,
+          "string"
+        ]
+      ],
       "public_output_roll": "b9b931e6fc9998d11b9010b16b58a9e3197e548cbe486fab42f6d8109c8d305c",
       "inert": true
     },
@@ -40323,6 +40437,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          10,
+          null
+        ]
       ],
       "public_output_roll": "a9d6100c4f1c7a81ec701e43f8cbfdba18e6fdaca79b07d9af53f98926a29c4e",
       "inert": true
@@ -42082,6 +42202,16 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          20,
+          "any"
+        ],
+        [
+          45,
+          "any"
+        ]
       ],
       "public_output_roll": "8d8dedd98c4ac2bb7b644155adc1e3893b63f893aa4583ea18e78ed32ae48e67",
       "inert": true
@@ -54129,6 +54259,33 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          372,
+          [
+            "export class A {\n}",
+            "export class B {\n    static cat: string;\n}",
+            "export class C {\n    static Cls: {\n        new (): {};\n    };\n}",
+            "export class D {\n    constructor(a: number, b: number);\n}",
+            "export class E<T, U> {\n    static staticField: string;\n    static readonly staticReadonlyField: string;\n    static staticInitializedField: number;\n    static set s1(_p: string);\n    static get s1(): string;\n    static get s2(): string;\n    static set s3(_p: string);\n    constructor(a: T, b: U);\n    field: T & U;\n    readonly readonlyField: T & U;\n    initializedField: number;\n    set f1(_p: U);\n    get f1(): U;\n    get f2(): U;\n    set f3(_p: U);\n}",
+            "export class F<T, U> {\n    static create<A, B>(a: A, b: B): F<A, B>;\n    constructor(a: T, b: U);\n    field: T & U;\n}",
+            "export class I {\n}",
+            "export class J {\n}",
+            "export class K {\n    p1: number;\n    p2: string;\n    method(): number;\n}",
+            "export class L extends K {\n}",
+            "export class M {\n    prop: number;\n}",
+            "export class N<T> extends L {\n    constructor(param: T);\n    another: T;\n}",
+            "export class O<U> extends N<U> {\n    another2: U;\n}",
+            "declare const VariableBase_base: any;",
+            "export class VariableBase extends VariableBase_base {\n    [x: string]: any;\n}",
+            "export class HasStatics {\n    static staticMethod(): void;\n}",
+            "export class ExtendsStatics extends HasStatics {\n    static also(): void;\n}",
+            "export class G {\n}",
+            "declare class HH {\n}",
+            "export { HH as H, I as II, J as JJ };"
+          ]
+        ]
+      ],
       "public_output_roll": "41567f485a59d15daa92f265407cc9e6a01471753275582d23807dbea5022bf2",
       "inert": true
     },
@@ -61560,6 +61717,28 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          233,
+          [
+            "export function a(): void;",
+            "export function b(): void;",
+            "export namespace b {\n    let cat: string;\n}",
+            "export function c(): void;",
+            "export namespace c {\n    export { Cls };\n}",
+            "export function d(a: number, b: number): string;",
+            "export function e<T, U>(a: T, b: U): T & U;",
+            "export function f<T>(a: T): T;",
+            "export namespace f {\n    export { f as self };\n}",
+            "export function i(): void;",
+            "export function j(): void;",
+            "declare class Cls {\n}",
+            "export function g(a: {\n    x: string;\n}, b: {\n    y: typeof import(\".\").b;\n}): void | \"\";",
+            "declare function hh(a: {\n    x: string;\n}, b: {\n    y: typeof import(\".\").b;\n}): void | \"\";",
+            "export { hh as h, i as ii, j as jj };"
+          ]
+        ]
+      ],
       "public_output_roll": "7e6fd296c70644f5c308b3093b0be09a9de370cf701818298a89fec786f73905",
       "inert": true
     },
@@ -64183,6 +64362,12 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          72,
+          "() => DatastoreResult.T<string>"
+        ]
+      ],
       "public_output_roll": "0411f3c64f9921d1b9cc2c22317a6c3ec1ffe86e583ffeb1db524ada09503225",
       "inert": true
     },
@@ -66720,6 +66905,16 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          50,
+          null
+        ],
+        [
+          75,
+          "import(\"root\").RootProps"
+        ]
+      ],
       "public_output_roll": "b132472ad5d6c374b1fd95e1c5be52c4a20ea61c1a1cf79021e73eac58c65ab5",
       "inert": true
     },
@@ -67549,6 +67744,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          10,
+          null
+        ]
       ],
       "public_output_roll": "a9d6100c4f1c7a81ec701e43f8cbfdba18e6fdaca79b07d9af53f98926a29c4e",
       "inert": true
@@ -69546,6 +69747,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          14,
+          null
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          36,
+          null
+        ],
+        [
+          53,
+          null
+        ]
+      ],
       "public_output_roll": "816babfbebbddf92a1ca36bda57aafa292ff0f22c89b88390b28210f72375b16",
       "inert": true
     },
@@ -71125,6 +71344,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          46,
+          "(subFun: <Collection, Field extends keyof Collection>() => FlatArray<Collection[Field], 0>[]) => void"
+        ]
       ],
       "public_output_roll": "d5ced0e50edbeb0ca3fb4d3b632cfce685c1a3e5028c3c1a3903c3d5968a262c",
       "inert": true
@@ -77781,6 +78006,16 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          131,
+          "<Obj>(obj: Obj) => { [K in import(\"./internal\").PublicKeys1<keyof Obj>]: Obj[K]; }"
+        ],
+        [
+          169,
+          "<Obj>(obj: Obj) => { [K in keyof Obj extends infer T ? T extends keyof Obj ? T extends `_${string}` ? never : T : never : never]: Obj[K]; }"
+        ]
+      ],
       "public_output_roll": "f1fbc0e51aa2a04f7885309ca6596835abc457e5818a2ba36625531c1f685f89",
       "inert": true
     },
@@ -80125,6 +80360,12 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          63,
+          "<Num extends number, PowerOf extends number>(num: Num, powerOf: PowerOf) => Power<Num, PowerOf>"
+        ]
+      ],
       "public_output_roll": "13157e7fd750d7f01b845ae3c8831a5914c6a1290ef1559eb28211e45daec45b",
       "inert": true
     },
@@ -82185,6 +82426,7 @@
           ]
         }
       ],
+      "printed_results": [],
       "public_output_roll": "67b45045a7c3daed3b2ca5c1b14699a85438d9b07cb031e9061c3a8c64b3d7e8",
       "inert": true
     },
@@ -83546,6 +83788,14 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          35,
+          [
+            "[Test.someKey]: () => void;"
+          ]
+        ]
       ],
       "public_output_roll": "36638000655a9e755217975c2b63ff9a6f0036731ad7d57ede16a2527f637d81",
       "inert": true
@@ -87201,6 +87451,16 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          18,
+          null
+        ],
+        [
+          97,
+          "void"
+        ]
+      ],
       "public_output_roll": "cbfffa005459c8c8f31d84bfc5e5c5d3d113fc437bf744890f6244593fd17c42",
       "inert": true
     },
@@ -89828,6 +90088,7 @@
           ]
         }
       ],
+      "printed_results": [],
       "public_output_roll": "79c2dc799a149789d5d0aaea4849532cb4bd033f4e17260112d108a51294cb7f",
       "inert": true
     },
@@ -90492,6 +90753,16 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          10,
+          null
+        ],
+        [
+          19,
+          null
+        ]
       ],
       "public_output_roll": "2bfd94fe37b5202ddc656a7d2db7df95fb7868253d0a18fc4d27af41c5eff931",
       "inert": true
@@ -91611,6 +91882,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          33,
+          "Object"
+        ]
       ],
       "public_output_roll": "ab7b713f1e1b3ac7f3ae66974806da26c3ad89f4d11ba2f48ec19ef64b518209",
       "inert": true
@@ -98455,6 +98732,32 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          37,
+          null
+        ],
+        [
+          63,
+          "c"
+        ],
+        [
+          82,
+          "number"
+        ],
+        [
+          124,
+          null
+        ],
+        [
+          150,
+          "c"
+        ],
+        [
+          169,
+          "number"
+        ]
+      ],
       "public_output_roll": "906d588e079020e31b17f317cea3b1913f7f35c6fcaeb04ff6b16ef6ef2920bc",
       "inert": true
     },
@@ -105297,6 +105600,32 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          37,
+          null
+        ],
+        [
+          63,
+          "c"
+        ],
+        [
+          82,
+          "number"
+        ],
+        [
+          124,
+          null
+        ],
+        [
+          150,
+          "c"
+        ],
+        [
+          169,
+          "number"
+        ]
       ],
       "public_output_roll": "13451754698ccdd60a8c57dbfb6943b560dd573df0518ad14777f31cde4c81b2",
       "inert": true
@@ -114093,6 +114422,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          37,
+          null
+        ],
+        [
+          63,
+          "c"
+        ],
+        [
+          82,
+          "number"
+        ],
+        [
+          124,
+          null
+        ],
+        [
+          150,
+          "c"
+        ],
+        [
+          169,
+          "number"
+        ],
+        [
+          215,
+          "extMod.m1.m2.c"
+        ],
+        [
+          244,
+          "extMod.m4.m2.c"
+        ]
+      ],
       "public_output_roll": "b90fc2b87d05fe2aa1cc5a7c345c05948927abaf6e42b5dce757ae06bb0dfbc4",
       "inert": true
     },
@@ -122888,6 +123251,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          37,
+          null
+        ],
+        [
+          63,
+          "c"
+        ],
+        [
+          82,
+          "number"
+        ],
+        [
+          124,
+          null
+        ],
+        [
+          150,
+          "c"
+        ],
+        [
+          169,
+          "number"
+        ],
+        [
+          215,
+          "extMod.m1.m2.c"
+        ],
+        [
+          244,
+          "extMod.m4.m2.c"
+        ]
+      ],
       "public_output_roll": "31dd824e9f754d9feace09bbe1cce397e0e1fa046de98f9f46188c3fd24ce452",
       "inert": true
     },
@@ -125266,6 +125663,16 @@
             true
           ]
         }
+      ],
+      "printed_results": [
+        [
+          56,
+          "void"
+        ],
+        [
+          71,
+          "I"
+        ]
       ],
       "public_output_roll": "3a30887f053e55e9eae2fe41c1a53b3f2ef44119395a9e1e2aa7868d4ef0eb39",
       "inert": true
@@ -131391,6 +131798,16 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          105,
+          "{\n    (x: number, y: number): Point;\n    zero(): Point;\n}"
+        ],
+        [
+          172,
+          "<p extends Point>(a: p, b: p) => Rect<p>"
+        ]
+      ],
       "public_output_roll": "fd5ea585c2d60e6355e722deea53687405fe11258b0bb03b9bc307b0def8e5bc",
       "inert": true
     },
@@ -133140,6 +133557,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          41,
+          "number"
+        ]
       ],
       "public_output_roll": "aefbcca38b3ccdfdc99a1e94e62411de65d8875112d739058ea1083702e4b8f7",
       "inert": true
@@ -136056,6 +136479,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          14,
+          "void"
+        ],
+        [
+          24,
+          "boolean"
+        ],
+        [
+          38,
+          "void"
+        ],
+        [
+          48,
+          "boolean"
+        ],
+        [
+          54,
+          "boolean"
+        ],
+        [
+          68,
+          "void"
+        ],
+        [
+          78,
+          "boolean"
+        ],
+        [
+          84,
+          "boolean"
+        ]
       ],
       "public_output_roll": "890629794514e8102242fa2fac5fa957f95904ad3587ccba87fd969cea495ddb",
       "inert": true
@@ -148269,6 +148726,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          34,
+          "{\n    1: number;\n}"
+        ],
+        [
+          65,
+          "{\n    0: number;\n}"
+        ],
+        [
+          89,
+          "{\n    1: number;\n}"
+        ],
+        [
+          113,
+          "{\n    [-1]: number;\n}"
+        ],
+        [
+          137,
+          "{\n    [x: number]: number;\n}"
+        ],
+        [
+          179,
+          "{\n    [u]: number;\n}"
+        ],
+        [
+          203,
+          "{\n    [x: symbol]: number;\n}"
+        ],
+        [
+          247,
+          "{\n    [uu]: number;\n}"
+        ],
+        [
+          278,
+          "{\n    1: number;\n}"
+        ],
+        [
+          309,
+          "{\n    1: number;\n}"
+        ],
+        [
+          340,
+          "{\n    0: number;\n}"
+        ],
+        [
+          361,
+          "symbol"
+        ]
+      ],
       "public_output_roll": "914f0f44f5cda7ac1a45ab07f8f9226f80152cf900d4869d6b8d00c522b03179",
       "inert": true
     },
@@ -148913,6 +149420,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          12,
+          null
+        ]
       ],
       "public_output_roll": "aee3adc8fff70f0f30f06fe2fa0f96c6537b074eb6ab28470677348fff591a28",
       "inert": true
@@ -151225,6 +151738,12 @@
             true
           ]
         }
+      ],
+      "printed_results": [
+        [
+          67,
+          "{\n    readonly A: unique symbol;\n}"
+        ]
       ],
       "public_output_roll": "40f31b3b68981cbad8b8da832d72365c477bda54a453bf44113f1620654a101a",
       "inert": true
@@ -191259,6 +191778,20 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          718,
+          "<A, B>(_: A, b: B) => B"
+        ],
+        [
+          1073,
+          "<F extends TypeLambda>(F: SemiApplicative<F>) => {\n    <R2, O2, E2, B, A, C>(that: Kind<F, R2, O2, E2, B>, f: (a: A, b: B) => C): <R1, O1, E1>(self: Kind<F, R1, O1, E1, A>) => Kind<F, R1 & R2, O2 | O1, E2 | E1, C>;\n    <R1, O1_1, E1_1, A_1, R2, O2_1, E2_1, B_1, C_1>(self: Kind<F, R1, O1_1, E1_1, A_1>, that: Kind<F, R2, O2_1, E2_1, B_1>, f: (a: A_1, b: B_1) => C_1): Kind<F, R1 & R2, O1_1 | O2_1, E1_1 | E2_1, C_1>;\n}"
+        ],
+        [
+          1236,
+          "<F extends TypeLambda>(F: SemiApplicative<F>) => {\n    <R2, O2, E2, B>(that: Kind<F, R2, O2, E2, B>): <R1, O1, E1, _>(self: Kind<F, R1, O1, E1, _>) => Kind<F, R1 & R2, O2 | O1, E2 | E1, B>;\n    <R1, O1_1, E1_1, __1, R2, O2_1, E2_1, B_1>(self: Kind<F, R1, O1_1, E1_1, __1>, that: Kind<F, R2, O2_1, E2_1, B_1>): Kind<F, R1 & R2, O1_1 | O2_1, E1_1 | E2_1, B_1>;\n}"
+        ]
+      ],
       "public_output_roll": "bffefe0001508b37f1d7fb11abc13fe8396e799f156c7d7d000e61b0e7d46a49",
       "inert": true
     },
@@ -194035,6 +194568,20 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          21,
+          "false"
+        ],
+        [
+          49,
+          "0"
+        ],
+        [
+          74,
+          "any"
+        ]
+      ],
       "public_output_roll": "64afbe1695b7698f7be7dfb0ccc91da7ed85c8a33f68a71496ca317a9c6ae449",
       "inert": true
     },
@@ -195029,6 +195576,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "1"
+        ]
       ],
       "public_output_roll": "f4d3be11f8e0866db1d1aab6435e05d437caad817291d6b330c8e160bfc0936f",
       "inert": true
@@ -196213,6 +196766,20 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "\"FOO\""
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          32,
+          "\"FOO\""
+        ]
       ],
       "public_output_roll": "958372ba7b502d16bdb22d78ee4c7976c67b362680efb5df319aba823e993213",
       "inert": true
@@ -210805,6 +211372,32 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "\"nImported\""
+        ],
+        [
+          31,
+          "\"nNotImported\""
+        ],
+        [
+          136,
+          "(p1: typeof nImported, p2: typeof nNotImported, p3: typeof nPrivate) => {\n    foo: typeof nImported;\n    bar: typeof nPrivate;\n    baz: typeof nNotImported;\n}"
+        ],
+        [
+          150,
+          "\"private\""
+        ],
+        [
+          278,
+          "(p1: typeof nImported, p2: typeof import(\"./a\").nNotImported, p3: \"private\") => {\n    foo: typeof nImported;\n    bar: \"private\";\n    baz: typeof import(\"./a\").nNotImported;\n}"
+        ],
+        [
+          418,
+          "(p1: typeof a.nImported, p2: typeof a.nNotImported, p3: \"private\") => {\n    foo: typeof a.nImported;\n    bar: \"private\";\n    baz: typeof a.nNotImported;\n}"
+        ]
+      ],
       "public_output_roll": "d78e6bd4c95b961ae5063ba2c8577f7083dbb911e239a1af19bb1b52a2075c85",
       "inert": true
     },
@@ -213895,6 +214488,20 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          65,
+          null
+        ],
+        [
+          73,
+          null
+        ],
+        [
+          86,
+          "typeof HiddenClass"
+        ]
       ],
       "public_output_roll": "837a3ed9eee162996f4417c7e1f4dcb390f3b68c78bb89f75d44ae5d54b2886c",
       "inert": true
@@ -220509,6 +221116,36 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          28,
+          "{\n    new (): {\n        foo(): any;\n    };\n}"
+        ],
+        [
+          101,
+          "{\n    new (...args: any[]): {\n        timestamp: number;\n    };\n} & TBase"
+        ],
+        [
+          129,
+          "{\n    new (): {\n        foo(): any;\n    };\n}"
+        ],
+        [
+          137,
+          null
+        ],
+        [
+          144,
+          "string"
+        ],
+        [
+          155,
+          null
+        ],
+        [
+          195,
+          "{\n    new (...args: any[]): {\n        timestamp: number;\n    };\n} & typeof User"
+        ]
+      ],
       "public_output_roll": "91b943168221f5a7056765cb61d2e9a9b36415ff1384591b770a7fcdf3584a4f",
       "inert": true
     },
@@ -225244,6 +225881,20 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          76,
+          null
+        ],
+        [
+          84,
+          null
+        ],
+        [
+          97,
+          "{\n    new (): {\n        num: number;\n    };\n}"
+        ]
+      ],
       "public_output_roll": "b7e6ca1f21c9526e198866ef3b9e58539a7bc9c3d6c164f7b383c1f6e1fa4ffc",
       "inert": true
     },
@@ -227474,6 +228125,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          7,
+          null
+        ],
+        [
+          43,
+          "typeof C"
+        ],
+        [
+          51,
+          null
+        ],
+        [
+          64,
+          "typeof C"
+        ]
+      ],
       "public_output_roll": "180e28298a1f5e0286bfe581a69f5cf555c3b117551d784e32488155fe7d3279",
       "inert": true
     },
@@ -228443,6 +229112,16 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          7,
+          null
+        ],
+        [
+          27,
+          "void"
+        ]
+      ],
       "public_output_roll": "8219d8bc1f1ed1269f20d7b5b2b7ad7811aa2db923c1c4e752f9e8373dc07b1a",
       "inert": true
     },
@@ -229229,6 +229908,12 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          7,
+          null
+        ]
+      ],
       "public_output_roll": "faed7d0a095b92603c958b76463be44b1b297535c27244ba6bcdde86bd8af900",
       "inert": true
     },
@@ -230014,6 +230699,12 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          7,
+          null
+        ]
       ],
       "public_output_roll": "6fd3e965fa806d5a329a2c8c605cc11b403d3042382b507a685d49dd5419c78a",
       "inert": true
@@ -237766,6 +238457,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "7effdf9641883e31eacc12fa6bf56d16ff18e055c04ef00c47c1b7d681f5934d",
       "inert": true
     },
@@ -245517,6 +246258,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "a863b871b9190b3ba284c5c77a3f401354f65b994ae19f278c61d6cd552f7655",
       "inert": true
     },
@@ -250585,6 +251376,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "54d9e5904da8e469be5083f03cf7e0a6e0f39292fd3c4370211878b1a3aa81ce",
       "inert": true
@@ -255655,6 +256480,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "ebd8a2bca63f6a0fa25ddb74a03f02cfe68919d49fcf2df84fe5b78574d68973",
       "inert": true
     },
@@ -258146,6 +259005,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
+      ],
       "public_output_roll": "edf53b34bf84a87fbe668187b5e6606b87b75a3dfbe87f3841764a6b357dfefc",
       "inert": true
     },
@@ -260636,6 +261513,24 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
       ],
       "public_output_roll": "4b310502c8a5204f0ebb363208d910b7cb229f54e4105f54a45e57b200715b31",
       "inert": true
@@ -265706,6 +266601,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "c29e28edcd3c29aadfb52ad4b198f39e7916279dcf0e7b3c09bb92696610a54d",
       "inert": true
     },
@@ -270774,6 +271703,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "2ed4ef81ce68bb018b7e10d2ed56f90ab727af42cb4e0d9cb90243f144a5ac5b",
       "inert": true
@@ -278526,6 +279489,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "ac60284d3e6561ec6fffb70ad6c13c367ae364494aeb21b6c6507ec5ba3525d0",
       "inert": true
     },
@@ -286277,6 +287290,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "d3ff1664f83a110db06a09873749ecbdfcea7c6b41667ae011cd419db32aed30",
       "inert": true
     },
@@ -291345,6 +292408,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "1fb0c6954eef577d9c4a02e412f8ef56c4a2ee1e68ea346de8f7f098c5b8eef1",
       "inert": true
@@ -296415,6 +297512,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "cc214e038f6bf8b1ef0ea81d1443658517dbb2161fd6abbb63f1462127b0f8bd",
       "inert": true
     },
@@ -298906,6 +300037,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
+      ],
       "public_output_roll": "e352d64fcb1b03e99c18048b0188af97e46454230789f8fa15171508b4728a5d",
       "inert": true
     },
@@ -301396,6 +302545,24 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
       ],
       "public_output_roll": "01a44be423637ef1fbf1a1f01ccca9faa5350a17b37cdbb517ea0f00ae35e5c2",
       "inert": true
@@ -306466,6 +307633,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "5a93c8a2bb3cc58cd7031835226cb2f78b8bd8b4be631266733c00e3bce7feea",
       "inert": true
     },
@@ -311534,6 +312735,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "3b3ae1c4bc7897b94653d44baf510f66259ed73bd037374d65e046bb0f814cca",
       "inert": true
@@ -319286,6 +320521,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "929358c47d5368f9cfd3691f76cb75d71590d2c249180c153d6b0a4661546f50",
       "inert": true
     },
@@ -327037,6 +328322,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "f5887f767d0c3e4358401e0b7d53d1051c94dc4eb2111728081f446ef03faf50",
       "inert": true
     },
@@ -332105,6 +333440,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "f5f66a9c837424e2741ef2a7d48f37e4b68df7a070fd4ec76a44afbb4382df17",
       "inert": true
@@ -337175,6 +338544,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "7bdfbf02253f0b6d1c35f1e87ca7d49757ddbb50b39efda1684173c8535d130f",
       "inert": true
     },
@@ -339666,6 +341069,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
+      ],
       "public_output_roll": "df3df218776603b574c3e941f105536dd5301036a092b2dc642a3e71efb3603b",
       "inert": true
     },
@@ -342156,6 +343577,24 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
       ],
       "public_output_roll": "b05cefee12f0ff744ede645f1c63244a66e75767c0db52b5fd5f9dc617a53253",
       "inert": true
@@ -347226,6 +348665,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "4a07586ddf3b97031f7c55a26238a79373e17ff04c947d9c4528972155915a4b",
       "inert": true
     },
@@ -352294,6 +353767,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "d475f64f2fd52fe45bc2594ea6d7f2e5f0e48c0ab1c8eb337760bf420ac76447",
       "inert": true
@@ -360046,6 +361553,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "465443166933ad51b01319f0018375857ef7531c74e500591919aa6b082aba61",
       "inert": true
     },
@@ -367797,6 +369354,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "4c28f0cd3a3d77444bae41851a795bc3aadb183e01e13126a2e7ce03ac5828e4",
       "inert": true
     },
@@ -372865,6 +374472,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "1a696f839023c99e501c793913b703f6e47629a0fe08a0ab4d56f0f3fcb501fc",
       "inert": true
@@ -377935,6 +379576,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "bfa6b32befd3934a139ae5edad0fa9fb6806caf69a8a01096076eeeb9d937b32",
       "inert": true
     },
@@ -380426,6 +382101,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
+      ],
       "public_output_roll": "9b12643993deeeb4f08b150d520e0c2ac9b230ad192b87250f3a838d6b91cc93",
       "inert": true
     },
@@ -382916,6 +384609,24 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
       ],
       "public_output_roll": "5d364a4de588f0f56a0145755b4d80de437fd657dffeed1a065e3c12fd04d8e0",
       "inert": true
@@ -387986,6 +389697,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "95bfa6c929f793035e8d9e33ecaff9ef6bdb9a26afc419841f598e28cdac4eff",
       "inert": true
     },
@@ -393054,6 +394799,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "b0008ab42a6e4ee32c25832a43c96bd9e600202c06b53f69ff31175b10859218",
       "inert": true
@@ -400806,6 +402585,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "1aad33eec6167bc5c99f3d51141bf899ce24bfb685d42272012d2fd5fc5b1394",
       "inert": true
     },
@@ -408557,6 +410386,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "d620c86d70570b2dee8920a490ab104bda3a556ccc6b2b26567b1d4c01377c60",
       "inert": true
     },
@@ -413625,6 +415504,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "df05e18b7d06c0ab6d8da99e986bc1d18c5590e691765129637aa3f2cd68c68d",
       "inert": true
@@ -418695,6 +420608,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "cd117b006c4f56d796e56bb4df6977912d7aff5b5c29517f357e57b28382f087",
       "inert": true
     },
@@ -421186,6 +423133,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
+      ],
       "public_output_roll": "4fcedd9c89f1e44fa28e9a896c995419d10eee1197add2297f617929359eb69a",
       "inert": true
     },
@@ -423676,6 +425641,24 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
       ],
       "public_output_roll": "7e95e98d13d6e48d949a42cfbd6c533095823c7951014036dbea071b94d709df",
       "inert": true
@@ -428746,6 +430729,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "166bc6816f877ec085b9d577121ebef6e7f29598be282953f2d53bdde1da2bc9",
       "inert": true
     },
@@ -433814,6 +435831,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "2f9390e4af17c98011806f4286654bf4651e21e2687dd44450dbdd032071ff64",
       "inert": true
@@ -441566,6 +443617,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "9ddc8a7ba81d4ba02279b321808371ba3227c9117fefbd5bae3b1a8b7015b07b",
       "inert": true
     },
@@ -449317,6 +451418,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "7b532d77938f3b5e5e3c6677d1bc1e99ad1545e24379a8aa6fdc800d4e7cfc5b",
       "inert": true
     },
@@ -454385,6 +456536,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "ad8d15904d8a41c6fcdd96cd7546491971d433d82818ad5430d6c7da55c3547b",
       "inert": true
@@ -459455,6 +461640,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "0903f9f8454b42023a082c009ff28728daf0ebbd0e7fa7a63ea84eea0ddae276",
       "inert": true
     },
@@ -461946,6 +464165,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
+      ],
       "public_output_roll": "9ce8a42d47d5fc329aa32eba15024c678ad6c415ba8091174cc45487b9a28d62",
       "inert": true
     },
@@ -464436,6 +466673,24 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
       ],
       "public_output_roll": "44e9a299e47ce14cfc1c92835557610984f0d4413f0fa8f3852d053079f9ddcb",
       "inert": true
@@ -469506,6 +471761,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "bd1da400fc9cb9c8abe338a113d9e9b47ef7f88f70b86d087bc3667a23d85f0c",
       "inert": true
     },
@@ -474574,6 +476863,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "4525380945baaeabc4e4ecd5bd8cd88a48f43ce650ff3a630fa6eee751271654",
       "inert": true
@@ -482326,6 +484649,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "618567084e9ca2cbea86b5dc3ee774e1a7dcc260e750bc16b6e80ac5f855c123",
       "inert": true
     },
@@ -490077,6 +492450,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "739e7ae51730ef18be181bb1940a79e4665ea79b32584d313be3dc975e599713",
       "inert": true
     },
@@ -495145,6 +497568,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "3e2ccdea31574d6f9efd58d3e23e6d6731a4486ac97fe40e91b140ad577e7c50",
       "inert": true
@@ -500215,6 +502672,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "d5c3eb7ff3c9d38946ad613b3234b39a52cf7d47698d35cd8fb3a22ff8dc1c31",
       "inert": true
     },
@@ -502706,6 +505197,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
+      ],
       "public_output_roll": "7fc3fbca242639cf10c903eace7947d0f152e6f43147a7e60cef636698b45cc2",
       "inert": true
     },
@@ -505196,6 +507705,24 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
       ],
       "public_output_roll": "860b3b4aa23f7101acdc98dd0858a5ffab97062afdd65f3e596c43c41094a788",
       "inert": true
@@ -510266,6 +512793,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "a244f89b2d500676dfec4daccc16423cca04ffa48a0d8457d0e4b7eb150755d5",
       "inert": true
     },
@@ -515334,6 +517895,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "e2dfb3561395c3d3b72a57fa239b84862f56452ab7d846ff078d26c6b52be128",
       "inert": true
@@ -523086,6 +525681,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "3fa232788a70e08090296ae0c522c35b2453857872ca49922ea60e51be981915",
       "inert": true
     },
@@ -530837,6 +533482,56 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "m2_c1"
+        ],
+        [
+          150,
+          "m2_c1"
+        ],
+        [
+          170,
+          "number"
+        ],
+        [
+          179,
+          null
+        ],
+        [
+          204,
+          "c1"
+        ],
+        [
+          227,
+          "c1"
+        ]
+      ],
       "public_output_roll": "39c10bd812487f344cef579f4227e287c59a5a6dc376e101b4a8a2b8bd1d86da",
       "inert": true
     },
@@ -535905,6 +538600,40 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
       ],
       "public_output_roll": "f99a0549ddbbb7213bc933aac061b6d667fe8a63b20a4c6aaaba00e56bf84778",
       "inert": true
@@ -540975,6 +543704,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "920c64c9a2e2f4c34872dfd577f544f2cd3afbb7192bdf6ee5b9a5a3059d5393",
       "inert": true
     },
@@ -543466,6 +546229,24 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
+      ],
       "public_output_roll": "a64fd65df6375d41759a8cb73985efaef2d6cd2827c10b7634dfccad28784f75",
       "inert": true
     },
@@ -545956,6 +548737,24 @@
             false
           ]
         }
+      ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "c1"
+        ],
+        [
+          73,
+          "c1"
+        ]
       ],
       "public_output_roll": "88e727130bbde69732e8e9942c0ccf7156bcea3e7ea8d365ae6ffb65b47f5c3f",
       "inert": true
@@ -551026,6 +553825,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "cdd2c7e6a44cbac79398554c23a26b82ed7282d13f8044971fe6ee377ed70363",
       "inert": true
     },
@@ -556095,6 +558928,40 @@
           ]
         }
       ],
+      "printed_results": [
+        [
+          16,
+          "number"
+        ],
+        [
+          25,
+          null
+        ],
+        [
+          50,
+          "m1_c1"
+        ],
+        [
+          73,
+          "m1_c1"
+        ],
+        [
+          93,
+          "number"
+        ],
+        [
+          102,
+          null
+        ],
+        [
+          127,
+          "c1"
+        ],
+        [
+          150,
+          "c1"
+        ]
+      ],
       "public_output_roll": "4ee1b685b943a5303e6fbd90a988c4ca612fd423ddb3bb89bfe36967ce2d8747",
       "inert": true
     }
@@ -556166,7 +559033,9 @@
       "tracker.reportLikelyUnsafeImportRequiredError": 1,
       "tracker.trackSymbol": 538
     },
-    "trace_content_roll": "ca24d47c54b14df301817f76e88acd2b4ea2c6bf1cb1e94bb4b163113a60e188"
+    "trace_content_roll": "ca24d47c54b14df301817f76e88acd2b4ea2c6bf1cb1e94bb4b163113a60e188",
+    "printed_results": 647,
+    "printed_results_roll": "7554535bd6245a5ec1b3f84bcfa16806ff50881ba5fb1e85f69c02356780c4e9"
   },
-  "probe_traces_fingerprint_sha256": "5be18a951d80a0884214f832e3138f555f72c1e2539402295937edbf7a826c23"
+  "probe_traces_fingerprint_sha256": "044142c9c0aeb1175eb54c3b42e975499d7b2e6a32fd80dbd2375241f5bb9757"
 }

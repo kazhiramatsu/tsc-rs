@@ -4,7 +4,7 @@
   "phase": "H2.7a-owner-inventory",
   "generator": {
     "path": "crates/oracle/h2-7a-owner-inventory.mjs",
-    "sha256": "84683b7c48310e4cd61f486e34b5e8c6b62e4e42e844f80545eada917b039dc4"
+    "sha256": "b0d8ca3a837b447b79d0df97bced51e7a44e58f44cc743a16633b92e6671c56d"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-owner-inventory.schema.json",
@@ -22895,5 +22895,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "61f2735ddc5d53d4cd97e83301da13c5f15c7d85b58e037c0475630f98764e5d"
+  "inventory_fingerprint_sha256": "8d32f6ed890fe71b987a9d34e0cc9c6f8dd97078c35a8e6da2c783f594f1cf92"
 }
