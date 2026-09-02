@@ -1,13 +1,14 @@
 //! Dormant TypeScript declaration-transform foundation.
 
-// P1 is intentionally dormant until P2 supplies root/statement orchestration.
-// Keep its internally complete call graph warning-clean while it has no
-// production entry point.
 #![allow(dead_code)]
 
 mod diagnostics;
 mod ensure;
+mod orchestration;
+pub(crate) mod root;
+mod selection;
 mod state;
+mod statements;
 mod subtree;
 mod tracker;
 
@@ -22,6 +23,10 @@ use crate::{
     TransformationContext, Transformer,
 };
 
+pub use self::orchestration::{
+    transform_declaration_unit_for_harness, DeclBlockedInputs, DeclarationTransformOutcome,
+};
+pub(crate) use self::selection::get_declaration_transformers;
 use self::state::{TransformState, VisitResult};
 use self::tracker::DeclarationSymbolTracker;
 
@@ -34,6 +39,26 @@ pub trait DeclarationPathResolver {
     /// tsrs-native: effective declaration/JavaScript/source reference target
     /// injection (h2-7a-m-4 §5.8).
     fn reference_target_path(&self, source: SourceFileId) -> Option<PathBuf>;
+}
+
+/// Typed API1 control for the custom `afterDeclarations` chain.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct DeclarationCustomTransformers {
+    pub after_declarations: Vec<()>,
+}
+
+impl DeclarationCustomTransformers {
+    /// tsrs-native: the dormant declaration lane admits only an empty API1 control.
+    pub const fn none() -> Self {
+        Self {
+            after_declarations: Vec::new(),
+        }
+    }
+
+    /// tsrs-native: report whether the typed API1 control has any entries.
+    pub const fn is_empty(&self) -> bool {
+        self.after_declarations.is_empty()
+    }
 }
 
 /// One declaration visitor boundary observation. `output_ref == None` is the
@@ -184,9 +209,6 @@ impl<'t> DeclarationTransformer<'t> {
     }
 
     fn contract(detail: &'static str) -> TransformError {
-        // TransformError::Contract is owned by a later transform protocol
-        // expansion; this typed existing refusal keeps P1 inside transform.rs's
-        // hard boundary.
         TransformError::UnsupportedCompilerOption {
             option: "declaration transformer contract",
             detail,
@@ -204,199 +226,10 @@ impl Transformer for DeclarationTransformer<'_> {
         context: &mut TransformationContext,
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
-        root_p2::transform_root(self, context, root)
+        root::transform_root(self, context, root)
     }
 
     fn dispose(&mut self) {}
-}
-
-// P2 owns this module's implementation. Keeping the seam inline avoids
-// creating or editing P2's root.rs in the P1 lane.
-mod root_p2 {
-    use super::*;
-
-    /// tsrs-native: P2 transformRoot implementation seam.
-    pub(crate) fn transform_root(
-        transformer: &mut DeclarationTransformer<'_>,
-        context: &mut TransformationContext,
-        root: TransformRoot,
-    ) -> Result<TransformRoot, TransformError> {
-        // P2
-        let _ = (transformer.options, transformer.paths, context);
-        match root {
-            TransformRoot::Bundle(_) => Err(TransformError::Unsupported(
-                crate::UnsupportedEmitFeature::BundleRoot,
-            )),
-            TransformRoot::SourceFile(_) => Ok(root),
-        }
-    }
-}
-
-// P2 owns statements.rs. These narrow seams let the P1 subtree compile and
-// make the two source-equivalent direct-return paths testable.
-mod statements_p2 {
-    use super::*;
-
-    /// tsrs-native: P2 visitDeclarationStatements implementation seam.
-    pub(crate) fn visit_declaration_statement(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<VisitResult, TransformError> {
-        // P2
-        Ok(VisitResult::Node(input))
-    }
-
-    /// tsrs-native: P2 transformTopLevelDeclaration implementation seam.
-    pub(crate) fn transform_top_level_declaration(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<VisitResult, TransformError> {
-        // P2
-        Ok(VisitResult::Node(input))
-    }
-
-    /// tsrs-native: P2 transformImportDeclaration implementation seam.
-    pub(crate) fn transform_import_declaration(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<VisitResult, TransformError> {
-        // P2
-        Ok(VisitResult::Node(input))
-    }
-
-    /// tsrs-native: P2 transformImportEqualsDeclaration implementation seam.
-    pub(crate) fn transform_import_equals_declaration(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<VisitResult, TransformError> {
-        // P2
-        Ok(VisitResult::Node(input))
-    }
-
-    /// tsrs-native: P2 rewriteModuleSpecifier2 implementation seam.
-    pub(crate) fn rewrite_module_specifier(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        _parent: TransformNode,
-        input: Option<TransformNode>,
-    ) -> Result<Option<TransformNode>, TransformError> {
-        // P2
-        Ok(input)
-    }
-
-    /// tsrs-native: P2 transformAndReplaceLatePaintedStatements seam.
-    pub(crate) fn transform_and_replace_late_painted_statements(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        inputs: Vec<TransformNode>,
-    ) -> Result<Vec<TransformNode>, TransformError> {
-        // P2
-        Ok(inputs)
-    }
-
-    /// tsrs-native: P2 stripExportModifiers implementation seam.
-    pub(crate) fn strip_export_modifiers(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        // P2
-        Ok(input)
-    }
-
-    /// tsrs-native: P2 updateModuleDeclarationAndKeyword seam.
-    pub(crate) fn update_module_declaration_and_keyword(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<TransformNode, TransformError> {
-        // P2
-        Ok(input)
-    }
-
-    /// tsrs-native: P2 transformVariableStatement implementation seam.
-    pub(crate) fn transform_variable_statement(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<VisitResult, TransformError> {
-        // P2
-        Ok(VisitResult::Node(input))
-    }
-
-    /// tsrs-native: P2 recreateBindingPattern implementation seam.
-    pub(crate) fn recreate_binding_pattern(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        _name: TransformNode,
-    ) -> Result<VisitResult, TransformError> {
-        // P2
-        Ok(VisitResult::Nodes(Vec::new()))
-    }
-
-    /// tsrs-native: P2 recreateBindingElement implementation seam.
-    pub(crate) fn recreate_binding_element(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        input: TransformNode,
-    ) -> Result<VisitResult, TransformError> {
-        // P2
-        Ok(VisitResult::Node(input))
-    }
-
-    /// tsrs-native: P2 isScopeMarker2 implementation seam.
-    pub(crate) fn is_scope_marker(
-        _transformer: &DeclarationTransformer<'_>,
-        _cx: &TransformationContext,
-        _input: TransformNode,
-    ) -> Result<bool, TransformError> {
-        // P2
-        Ok(false)
-    }
-
-    /// tsrs-native: P2 hasScopeMarker2 implementation seam.
-    pub(crate) fn has_scope_marker(
-        _transformer: &DeclarationTransformer<'_>,
-        _cx: &TransformationContext,
-        _input: TransformNode,
-    ) -> Result<bool, TransformError> {
-        // P2
-        Ok(false)
-    }
-
-    /// tsrs-native: P2 transformHeritageClauses implementation seam.
-    pub(crate) fn transform_heritage_clauses(
-        _transformer: &mut DeclarationTransformer<'_>,
-        _cx: &mut TransformationContext,
-        inputs: Vec<TransformNode>,
-    ) -> Result<Vec<TransformNode>, TransformError> {
-        // P2
-        Ok(inputs)
-    }
-
-    /// tsrs-native: P2 shouldEmitFunctionProperties implementation seam.
-    pub(crate) fn should_emit_function_properties(
-        _transformer: &DeclarationTransformer<'_>,
-        _cx: &TransformationContext,
-        _input: TransformNode,
-    ) -> Result<bool, TransformError> {
-        // P2
-        Ok(false)
-    }
-
-    /// tsrs-native: P2 isPreservedDeclarationStatement implementation seam.
-    pub(crate) fn is_preserved_declaration_statement(
-        _transformer: &DeclarationTransformer<'_>,
-        _cx: &TransformationContext,
-        _input: TransformNode,
-    ) -> Result<bool, TransformError> {
-        // P2
-        Ok(false)
-    }
 }
 
 #[cfg(test)]

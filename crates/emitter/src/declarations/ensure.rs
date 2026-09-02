@@ -41,7 +41,7 @@ impl DeclarationTransformer<'_> {
                         }
                     }
                 }
-                p2_update_binding_pattern(cx, name, visited)
+                update_binding_pattern(cx, name, visited)
             }
             _ => Err(Self::contract(
                 "filterBindingPatternInitializers received a non-binding name",
@@ -663,12 +663,12 @@ pub(crate) fn can_have_literal_initializer(
     })
 }
 
-fn p2_update_binding_pattern(
+fn update_binding_pattern(
     cx: &mut TransformationContext,
     original: TransformNode,
     elements: Vec<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    // P2-face: replaced by updateArrayBindingPattern/updateObjectBindingPattern.
+    // Dispatch through the typed binding-pattern update faces.
     let array = match &cx.arena().node(original)?.data {
         NodeData::ArrayBindingPattern(data) => data.elements,
         NodeData::ObjectBindingPattern(data) => data.elements,

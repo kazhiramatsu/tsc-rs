@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::mem;
 
-use tsc_syntax::{FileReference, NodeId};
+use tsc_syntax::{FileReference, NodeId, TypeReferenceDirective};
 
 use crate::{TransformError, TransformNode, TransformSourceId, TransformationContext};
 
@@ -10,7 +10,7 @@ use super::subtree::preserve_js_doc;
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct RawFileReferences {
     pub(crate) referenced: Vec<(TransformSourceId, FileReference)>,
-    pub(crate) type_directives: Vec<FileReference>,
+    pub(crate) type_directives: Vec<TypeReferenceDirective>,
     pub(crate) lib_directives: Vec<FileReference>,
 }
 
