@@ -20,6 +20,7 @@ pub enum UnsupportedEmitFeature {
     BuildInfoOnlyMode,
     StandaloneNodePrinting,
     NodeListPrinting,
+    IsolatedDeclarations,
 }
 
 impl UnsupportedEmitFeature {
@@ -36,6 +37,7 @@ impl UnsupportedEmitFeature {
             Self::BuildInfoOnlyMode => "build-info-only mode",
             Self::StandaloneNodePrinting => "standalone-node printing",
             Self::NodeListPrinting => "node-list printing",
+            Self::IsolatedDeclarations => "isolated declarations",
         }
     }
 }
