@@ -3822,6 +3822,7 @@ impl CheckerState<'_> {
                         enclosing_or_root,
                         flags,
                         internal,
+                        None,
                         &mut tracker,
                     )
                 })
@@ -4619,6 +4620,7 @@ impl<'a> CheckerState<'a> {
         enclosing_declaration: NodeId,
         flags: tsc_emitter::EmitNodeBuilderFlags,
         internal_flags: tsc_emitter::EmitInternalNodeBuilderFlags,
+        synthetic_module_scope: Option<crate::node_builder::SyntheticModuleScope<'_>>,
         tracker: &mut dyn tsc_emitter::EmitSymbolTracker,
     ) -> Result<Option<tsc_emitter::TransformNode>, tsc_emitter::EmitResolverError> {
         let method = tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration;
@@ -4641,6 +4643,7 @@ impl<'a> CheckerState<'a> {
             Some(flags.union(tsc_emitter::EmitNodeBuilderFlags::MULTILINE_OBJECT_LITERALS)),
             Some(internal_flags),
             Some(tracker),
+            synthetic_module_scope,
         )
     }
 
@@ -4667,20 +4670,18 @@ impl<'a> CheckerState<'a> {
         for property in properties {
             locals.insert(property.name, SymbolId(property.symbol.symbol_index));
         }
-        crate::node_builder::with_synthetic_module_scope_for_next_context(
-            Some(enclosing_declaration),
-            &locals,
-            || {
-                self.emit_create_type_of_declaration(
-                    arena,
-                    target,
-                    declaration,
-                    enclosing_declaration,
-                    flags,
-                    internal_flags,
-                    tracker,
-                )
-            },
+        self.emit_create_type_of_declaration(
+            arena,
+            target,
+            declaration,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            Some(crate::node_builder::SyntheticModuleScope {
+                enclosing_declaration: Some(enclosing_declaration),
+                locals: &locals,
+            }),
+            tracker,
         )
     }
 

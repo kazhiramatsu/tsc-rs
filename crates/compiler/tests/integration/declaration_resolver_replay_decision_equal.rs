@@ -421,7 +421,7 @@ fn assert_frozen_artifact_identity(witnesses: &WitnessArtifact, probes: &ProbeAr
         EXPECTED_PRINTED_RESULTS_ROLL,
         "schema-3 printed_results content roll"
     );
-        // The probe->witness binding: the probe pins the exact witness
+    // The probe->witness binding: the probe pins the exact witness
     // artifact bytes it observed against; assert the pin matches the
     // checked-in witness file so the pair cannot drift apart (the m-4 E3
     // cascade re-minted the probe on the moved witness pin).

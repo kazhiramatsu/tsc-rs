@@ -26,11 +26,11 @@ pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
     check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
     restore_no_inference_fallback, restore_symbol_type_to_context, save_no_inference_fallback,
-    save_restore_flags, should_expand_type, FlagsRestore, NodeBuilderContext,
-    RecoveryTrackedSymbol, SymbolTypeRestore, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
+    save_restore_flags, should_expand_type, with_context, with_context_in_synthetic_module_scope,
+    FlagsRestore, NodeBuilderContext, RecoveryTrackedSymbol, SymbolTypeRestore,
+    SyntheticModuleScope, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
     NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH,
 };
-use context::{with_context as base_with_context, ReplayProduced};
 pub(crate) use serialize::{
     index_info_to_index_signature_declaration, serialize_return_type_for_signature,
     serialize_return_type_for_signature_seam, serialize_type_for_declaration,
@@ -53,22 +53,11 @@ use type_nodes::{
 pub(crate) use type_nodes::{create_factory_node, update_factory_node};
 pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
 
-#[derive(Clone)]
-struct SyntheticModuleScope {
-    enclosing_declaration: Option<tsc_syntax::NodeId>,
-    locals: tsc_binder::SymbolTable,
-}
-
 pub(crate) struct SyntheticModuleScopeRestore {
     enclosing_declaration: Option<tsc_syntax::NodeId>,
     enclosing_declaration_is_synthetic: bool,
     synthetic_scope_locals: Option<std::collections::HashMap<String, tsc_binder::SymbolId>>,
     synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
-}
-
-thread_local! {
-    static NEXT_SYNTHETIC_MODULE_SCOPE: std::cell::RefCell<Option<SyntheticModuleScope>> =
-        const { std::cell::RefCell::new(None) };
 }
 
 /// tsrs-native: shared install frame for the existing synthetic module-scope overlay.
@@ -104,69 +93,6 @@ pub(crate) fn restore_synthetic_module_scope(
     context.enclosing_declaration_is_synthetic = restore.enclosing_declaration_is_synthetic;
     context.synthetic_scope_locals = restore.synthetic_scope_locals;
     context.synthetic_scope_kind = restore.synthetic_scope_kind;
-}
-
-/// tsrs-native: carries an expando overlay into the ordinary serializer's next context.
-pub(crate) fn with_synthetic_module_scope_for_next_context<T>(
-    enclosing_declaration: Option<tsc_syntax::NodeId>,
-    locals: &tsc_binder::SymbolTable,
-    operation: impl FnOnce() -> T,
-) -> T {
-    let scope = SyntheticModuleScope {
-        enclosing_declaration,
-        locals: locals.clone(),
-    };
-    let previous = NEXT_SYNTHETIC_MODULE_SCOPE.with(|slot| slot.replace(Some(scope)));
-    let result = operation();
-    NEXT_SYNTHETIC_MODULE_SCOPE.with(|slot| {
-        slot.replace(previous);
-    });
-    result
-}
-
-/// tsrs-native: context-construction adapter for the existing synthetic-scope overlay.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
-    checker: &mut crate::state::CheckerState<'program>,
-    arena: &mut tsc_emitter::TransformArena,
-    target: tsc_emitter::TransformSourceId,
-    enclosing_declaration: Option<tsc_syntax::NodeId>,
-    flags: Option<tsc_emitter::EmitNodeBuilderFlags>,
-    internal_flags: Option<tsc_emitter::EmitInternalNodeBuilderFlags>,
-    tracker: Option<&'tracker mut dyn tsc_emitter::EmitSymbolTracker>,
-    maximum_length: Option<u32>,
-    verbosity_level: Option<i32>,
-    callback: impl FnOnce(
-        &mut crate::state::CheckerState<'program>,
-        &mut tsc_emitter::TransformArena,
-        tsc_emitter::TransformSourceId,
-        &mut NodeBuilderContext<'tracker>,
-    ) -> Result<T, tsc_emitter::EmitResolverError>,
-    out: Option<&mut tsc_emitter::EmitSymbolExpansionOut>,
-) -> Result<Option<T>, tsc_emitter::EmitResolverError> {
-    let scope = NEXT_SYNTHETIC_MODULE_SCOPE.with(|slot| slot.borrow_mut().take());
-    base_with_context(
-        checker,
-        arena,
-        target,
-        enclosing_declaration,
-        flags,
-        internal_flags,
-        tracker,
-        maximum_length,
-        verbosity_level,
-        move |checker, arena, target, context| {
-            let restore = scope.as_ref().map(|scope| {
-                with_synthetic_module_scope(context, scope.enclosing_declaration, &scope.locals)
-            });
-            let result = callback(checker, arena, target, context);
-            if let Some(restore) = restore {
-                restore_synthetic_module_scope(context, restore);
-            }
-            result
-        },
-        out,
-    )
 }
 
 /// tsrs-native: stable checker-node projection prepared before a tracker callback.

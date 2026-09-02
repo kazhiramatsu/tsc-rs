@@ -86,6 +86,7 @@ fn dm_serialize_type_of_declaration() {
                     root,
                     EmitNodeBuilderFlags::DECLARATION_EMIT,
                     EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                    None,
                     &mut tracker,
                 )
                 .expect("serialization succeeds")
@@ -106,6 +107,7 @@ fn dm_serialize_type_of_declaration() {
                 root,
                 EmitNodeBuilderFlags::DECLARATION_EMIT,
                 EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                None,
                 &mut tracker,
             )
             .expect("fallback succeeds")

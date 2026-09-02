@@ -642,6 +642,7 @@ impl EmitResolver for CheckerSession<'_> {
             enclosing_declaration.node(),
             flags,
             internal_flags,
+            None,
             tracker,
         )
     }
