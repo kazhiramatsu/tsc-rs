@@ -141,7 +141,11 @@ const PROBE_RUNTIME_LINE = [
   "function __h27aEntryArgs(site, args) { const first = args[0]; const second = args[1]; if (site === \"resolver.isSymbolAccessible\") return [args.length, __h27aSymbolRef(first), __h27aNodeRef(second), args[2], !!args[3]]; if (site === \"resolver.isEntityNameVisible\") return [args[3] ? 3 : 2, __h27aNodeRef(first), __h27aNodeRef(second), !!args[2], !!args[3]]; if (site === \"resolver.collectLinkedAliases\") return [__h27aNodeRef(first), !!second]; return [args.length, __h27aName(first), __h27aNodeRef(first), __h27aNodeRef(second), __h27aScalar(first), __h27aScalar(second)]; }",
   "function __h27aAccessibilityResult(result) { const errorNode = __h27aNodeRef(result && result.errorNode); const aliases = result && Object.prototype.hasOwnProperty.call(result, \"aliasesToMakeVisible\") ? Array.isArray(result.aliasesToMakeVisible) ? result.aliasesToMakeVisible.map(__h27aNodeRef) : [] : null; return [result ? __h27aInteger(result.accessibility) : -1, result && typeof result.errorSymbolName === \"string\" ? result.errorSymbolName : \"\", result && typeof result.errorModuleName === \"string\" ? result.errorModuleName : null, errorNode, aliases]; }",
   "function __h27aResultArgs(site, result) { if (site === \"resolver.isSymbolAccessible\" || site === \"resolver.isEntityNameVisible\") return __h27aAccessibilityResult(result); if (site === \"resolver.getPropertiesOfContainerFunction\") return [(Array.isArray(result) ? result : []).map((property) => [__h27aName(property), __h27aSymbolRef(property && property.parent), property && property.valueDeclaration ? __h27aNodeRef(property.valueDeclaration) : null])]; if (site === \"resolver.getEnumMemberValue\") { const value = result && result.value; if (!(value === void 0 || value === null || typeof value === \"string\" || typeof value === \"boolean\" || typeof value === \"number\" && Number.isSafeInteger(value))) throw new Error(\"h2-7a probe enum value is not JSON-safe\"); return [typeof value, value === void 0 ? null : value, !!(result && result.isSyntacticallyString)]; } if (site === \"resolver.collectLinkedAliases\") return [\"void\"]; const value = result && typeof result === \"object\" ? result.value : void 0; return [__h27aScalar(result), result == null, __h27aNodeRef(result), Array.isArray(result) ? result.length : -1, __h27aScalar(value), !!(result && result.isSyntacticallyString)]; }",
-  "function __h27aProbeCall(site, args, body) { const callId = __h27aBeginCall(site, __h27aEntryArgs(site, args)); let result; try { result = body(); } catch (error) { __h27aCallStack.pop(); throw error; } __h27aEndCall(site, callId, __h27aResultArgs(site, result)); return result; }",
+  "const __h27aPrintedResults = []; globalThis.__H2_7A_PRINTED_RESULTS__ = __h27aPrintedResults;",
+  "const __h27aPrintedSites = new Set([\"resolver.createTypeOfDeclaration\", \"resolver.createReturnTypeOfSignatureDeclaration\", \"resolver.createTypeOfExpression\", \"resolver.createLiteralConstValue\", \"resolver.getDeclarationStatementsForSourceFile\", \"resolver.createLateBoundIndexSignatures\"]);",
+  "function __h27aPrintOne(node, sourceFile) { const writer = createTextWriter(\"\\n\"); createPrinterWithRemoveComments().writeNode(4, node, sourceFile, writer); return writer.getText(); }",
+  "function __h27aPrinted(site, args, result) { const ctx = site === \"resolver.createLiteralConstValue\" || site === \"resolver.getDeclarationStatementsForSourceFile\" ? args[0] : args[1]; const original = ctx ? getParseTreeNode(ctx) : void 0; const sourceFile = original ? getSourceFileOfNode(original) : void 0; if (result == null) return null; if (Array.isArray(result)) return result.map((entry) => __h27aPrintOne(entry, sourceFile)); if (typeof result.kind !== \"number\") throw new Error(`h2-7a probe printed result is not a node at ${site}`); return __h27aPrintOne(result, sourceFile); }",
+  "function __h27aProbeCall(site, args, body) { const callId = __h27aBeginCall(site, __h27aEntryArgs(site, args)); let result; try { result = body(); } catch (error) { __h27aCallStack.pop(); throw error; } const printed = __h27aPrintedSites.has(site) ? __h27aPrinted(site, args, result) : void 0; const resultSeq = __h27aEventSeq; __h27aEndCall(site, callId, __h27aResultArgs(site, result)); if (printed !== void 0) __h27aPrintedResults.push([resultSeq, printed]); return result; }",
   "function __h27aProbeSyntacticCall(site, args, body) { const frame = { fallback: false }; const callId = __h27aBeginCall(site, [__h27aNodeRef(args[0])]); __h27aSyntacticFrames.push(frame); let result; try { result = body(); } catch (error) { __h27aSyntacticFrames.pop(); __h27aCallStack.pop(); throw error; } __h27aSyntacticFrames.pop(); __h27aEndCall(site, callId, [!frame.fallback, frame.fallback, __h27aNodeRef(result)]); return result; }",
   "function __h27aMarkSyntacticFallback(source, node, reportFallback) { for (const frame of __h27aSyntacticFrames) frame.fallback = true; __h27aTrace(`${source}.checkerFallback`, !!reportFallback, __h27aNodeRef(node)); }",
   "function __h27aProbeTransform(site, input, body) { const output = body(); if (output !== input) { const outputs = Array.isArray(output) ? output : [output]; if (outputs.length === 0) __h27aTrace(`${site}.changed`, __h27aNodeRef(input), __h27aSentinelNodeRef(), false, 0); for (const candidate of outputs) { const node = __h27aNode(candidate); __h27aTrace(`${site}.changed`, __h27aNodeRef(input), __h27aNodeRef(node), !!(node && node.original), node && typeof node.transformFlags === \"number\" ? __h27aInteger(node.transformFlags) : 0); } } return output; }",
@@ -656,9 +660,9 @@ function validateContractDocument() {
   );
   requireCondition(
     schema?.properties?.phase?.const === PHASE &&
-      schema?.properties?.schema?.const === 2 &&
+      schema?.properties?.schema?.const === 3 &&
       schema?.additionalProperties === false,
-    `${CONTRACT_RELATIVE_PATH} does not describe ${PHASE} schema 2`,
+    `${CONTRACT_RELATIVE_PATH} does not describe ${PHASE} schema 3`,
   );
   const expectedSites = [
     ...[...CALL_SITES].flatMap((site) => [`${site}.entry`, `${site}.result`]),
@@ -2579,11 +2583,14 @@ function runInternalObservation(contextPath, caseId) {
   requireCondition(tsApi?.version === "6.0.3", "instrumented TypeScript export unavailable");
   const publicOutputs = observeControl(tsApi, selected.control);
   const fileTable = structuredClone(globalThis.__H2_7A_PROBE_FILE_TABLE__ ?? []);
+  const printedResults = structuredClone(globalThis.__H2_7A_PRINTED_RESULTS__ ?? []);
+  validatePrintedResults(printedResults, traceEvents, caseId);
   validateTraceEvents(traceEvents, fileTable, caseId, selected.control);
   process.stdout.write(
     JSON.stringify({
       fileTable,
       trace_events: traceEvents,
+      printed_results: printedResults,
       public_outputs: publicOutputs,
     }),
   );
@@ -2625,6 +2632,7 @@ function observeCaseInFreshProcess(contextPath, expected) {
     caseId,
     expected.control,
   );
+  validatePrintedResults(observation.printed_results, observation.trace_events, caseId);
   requireCondition(
     observation.public_outputs !== null &&
       typeof observation.public_outputs === "object",
@@ -2642,10 +2650,12 @@ function observeProbeCases(witnessContext) {
       stableStringify({
         fileTable: first.fileTable,
         trace_events: first.trace_events,
+        printed_results: first.printed_results,
       }) ===
         stableStringify({
           fileTable: second.fileTable,
           trace_events: second.trace_events,
+          printed_results: second.printed_results,
         }),
       `${expected.case_id} trace-event sequence is nondeterministic`,
     );
@@ -2682,6 +2692,7 @@ function observeProbeCases(witnessContext) {
       case_id: expected.case_id,
       fileTable: first.fileTable,
       trace_events: first.trace_events,
+      printed_results: first.printed_results,
       public_output_roll: roll,
       inert: true,
     };
@@ -2719,13 +2730,60 @@ function summaryForCases(cases) {
       [...counts].sort(([left], [right]) => left.localeCompare(right)),
     ),
     trace_content_roll: traceContentRoll(cases),
+    printed_results: cases.reduce((total, entry) => total + entry.printed_results.length, 0),
+    printed_results_roll: printedResultsRoll(cases),
   };
+}
+
+// h2-7a-m-3.5 §8: printed-form capture of the six serialization members'
+// root results — schema-3 field OUTSIDE trace_events so the permanent
+// schema-2 projection guard stays byte-identical by construction.
+function printedResultsRoll(cases) {
+  return sha256(
+    Buffer.from(
+      stableStringify(cases.map(({ case_id, printed_results }) => [case_id, printed_results])),
+      "utf8",
+    ),
+  );
+}
+
+const PRINTED_RESULT_SITES = new Set([
+  "resolver.createTypeOfDeclaration.result",
+  "resolver.createReturnTypeOfSignatureDeclaration.result",
+  "resolver.createTypeOfExpression.result",
+  "resolver.createLiteralConstValue.result",
+  "resolver.getDeclarationStatementsForSourceFile.result",
+  "resolver.createLateBoundIndexSignatures.result",
+]);
+
+function validatePrintedResults(printedResults, traceEvents, caseId) {
+  requireCondition(Array.isArray(printedResults), `${caseId} printed_results is not an array`);
+  const resultSeqs = new Set(
+    traceEvents.filter((event) => PRINTED_RESULT_SITES.has(event.site_id)).map((event) => event.event_seq),
+  );
+  requireCondition(
+    printedResults.length === resultSeqs.size,
+    `${caseId} printed_results count ${printedResults.length} differs from serialization result events ${resultSeqs.size}`,
+  );
+  let previous = -1;
+  for (const entry of printedResults) {
+    requireCondition(
+      Array.isArray(entry) && entry.length === 2 && Number.isSafeInteger(entry[0]) && entry[0] > previous && resultSeqs.has(entry[0]),
+      `${caseId} printed_results entry is malformed or out of order`,
+    );
+    const printed = entry[1];
+    requireCondition(
+      printed === null || typeof printed === "string" || (Array.isArray(printed) && printed.every((item) => typeof item === "string")),
+      `${caseId} printed_results payload is not null/string/string[]`,
+    );
+    previous = entry[0];
+  }
 }
 
 function buildArtifact(witnessContext, instrumentation, cases) {
   return withFingerprint(
     {
-      schema: 2,
+      schema: 3,
       phase: PHASE,
       generator: pathHash(GENERATOR_RELATIVE_PATH),
       contract: pathHash(CONTRACT_RELATIVE_PATH),
@@ -2784,12 +2842,16 @@ function validateArtifact(artifact, witnessContext, instrumentation) {
   requireCondition(
     artifact !== null &&
       typeof artifact === "object" &&
-      artifact.schema === 2 &&
+      artifact.schema === 3 &&
       artifact.phase === PHASE &&
       hasValidFingerprint(artifact, "probe_traces_fingerprint_sha256"),
     "probe artifact schema/fingerprint is invalid",
   );
-  verifySchema2Projection(artifact, "validateArtifact");
+  if (witnessContext.relative_path === WITNESSES_RELATIVE_PATH) {
+    // h2-7a-m-3.5 E2: the 112-case guard is a property of the canonical
+    // corpus; the selftest context (3 cases) is exempt like fallbackSweep.
+    verifySchema2Projection(artifact, "validateArtifact");
+  }
   const expectedKeys = [
     "schema",
     "phase",
@@ -2808,7 +2870,7 @@ function validateArtifact(artifact, witnessContext, instrumentation) {
   requireCondition(
     stableStringify(Object.keys(artifact).sort()) ===
       stableStringify(expectedKeys),
-    "probe artifact has fields outside schema 2",
+    "probe artifact has fields outside schema 3",
   );
   requireCondition(
     stableStringify(artifact.generator) ===
@@ -2845,7 +2907,7 @@ function validateArtifact(artifact, witnessContext, instrumentation) {
         typeof entry === "object" &&
         stableStringify(Object.keys(entry).sort()) ===
           stableStringify(
-            ["case_id", "fileTable", "trace_events", "public_output_roll", "inert"].sort(),
+            ["case_id", "fileTable", "trace_events", "printed_results", "public_output_roll", "inert"].sort(),
           ) &&
         entry.case_id === expected.case_id &&
         entry.inert === true &&
@@ -2864,6 +2926,7 @@ function validateArtifact(artifact, witnessContext, instrumentation) {
       nodeRefs,
       entry.case_id,
     );
+    validatePrintedResults(entry.printed_results, entry.trace_events, entry.case_id);
   });
   requireCondition(
     stableStringify(artifact.summary) ===

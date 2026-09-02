@@ -47,8 +47,8 @@ pub use execute::{
     MapLaneInputs,
 };
 pub use factory::{
-    NodeFactory, TransformArena, TransformNode, TransformNodeArray, TransformSource,
-    TransformSourceId,
+    GeneratedIdentifierFlags, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
+    TransformSource, TransformSourceId, TypeParenthesizer,
 };
 pub use host::{EmitHost, EmitSource};
 pub use metadata::{
@@ -68,7 +68,7 @@ pub use position::{
 };
 pub use printer::{
     create_printer, PrintRequest, PrintedText, Printer, PrinterError, PrinterOptions,
-    SourceFileTextMode,
+    SourceFileTextMode, StandaloneWriter,
 };
 pub use resolver::{
     EmitExportContainerMode, EmitFunctionProperty, EmitImportIncludeReason,

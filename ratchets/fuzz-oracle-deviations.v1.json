@@ -20,7 +20,7 @@
     },
     {
       "path": "crates/checker/src/state.rs",
-      "sha256": "2ecfb291837a4f228ff0881cebd4df3762c0c0abef92804ad007ad09fe7d15ba"
+      "sha256": "c241882d616cbdb41706f40ff730ec2f8caaf377e2995eab589b0dda8bc3eee6"
     }
   ],
   "checks": [

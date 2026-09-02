@@ -5,7 +5,7 @@ use tsc_emitter::{
     EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitResolverError, EmitSymbolExpansionOut,
     EmitSymbolMeaning, EmitSymbolTracker, TransformArena, TransformNode, TransformSourceId,
 };
-use tsc_syntax::NodeId;
+use tsc_syntax::{NodeId, SyntaxKind};
 use tsc_types::{MapperId, ObjectFlags, TypeId};
 
 use crate::program::ProgramFileId;
@@ -73,6 +73,9 @@ pub(crate) struct NodeBuilderContext<'tracker> {
     /// Rust keeps the owning parse declaration separately, so preserve the
     /// lookup overlay explicitly.
     pub(crate) synthetic_scope_locals: Option<HashMap<String, SymbolId>>,
+    /// Kind of the synthesized declaration represented by the overlay.
+    /// Upstream observes this through `context.enclosingDeclaration.kind`.
+    pub(crate) synthetic_scope_kind: Option<SyntaxKind>,
     pub(crate) enclosing_symbol_types: HashMap<SymbolId, TypeId>,
     pub(crate) mapper: Option<MapperId>,
     pub(crate) depth: i32,
@@ -158,6 +161,7 @@ pub(crate) fn with_context<'program, 'tracker, T: ReplayProduced>(
         type_parameter_names_by_text: None,
         type_parameter_names_by_text_next_name_count: None,
         synthetic_scope_locals: None,
+        synthetic_scope_kind: None,
         enclosing_symbol_types: HashMap::new(),
         mapper: None,
         depth: 0,

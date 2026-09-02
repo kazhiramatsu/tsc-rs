@@ -1,6 +1,7 @@
 use super::*;
-use std::sync::atomic::AtomicUsize;
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 use std::sync::Mutex;
+use std::time::Duration;
 
 #[test]
 fn consumes_every_result_in_item_order_across_workers() {
@@ -44,15 +45,27 @@ fn zero_workers_and_empty_inputs_are_typed() {
 fn consume_error_stops_the_stream_and_reports_it() {
     let items: Vec<usize> = (0..64).collect();
     let executed = AtomicUsize::new(0);
+    let stopped = AtomicBool::new(false);
     let error = ordered_for_each(
         &items,
         3,
-        |_, item| {
+        |index, item| {
+            // Items past the failing index wait until the consumer has
+            // actually failed: the count below then measures what the
+            // workers run AFTER the stop, not how far the scheduler let
+            // them race ahead of an in-order consumer that was still
+            // waiting for item five (the reorder buffer is unbounded).
+            if index > 5 {
+                while !stopped.load(Ordering::Acquire) {
+                    std::thread::sleep(Duration::from_millis(1));
+                }
+            }
             executed.fetch_add(1, Ordering::Relaxed);
             *item
         },
         |index, _| {
             if index == 5 {
+                stopped.store(true, Ordering::Release);
                 Err("stop at five".to_owned())
             } else {
                 Ok(())
@@ -61,9 +74,10 @@ fn consume_error_stops_the_stream_and_reports_it() {
     )
     .unwrap_err();
     assert_eq!(error, "stop at five");
-    // Workers stop shortly after the consumer drops the channel; they must
-    // not have raced through the whole corpus while consumption was halted
-    // (bounded retention: channel capacity + in-flight per worker).
+    // After the stop each worker finishes the item it holds and can at most
+    // fill the bounded channel before the receiver is dropped (bounded
+    // retention: channel capacity + in-flight per worker); the workers must
+    // not run the rest of the corpus.
     assert!(
         executed.load(Ordering::Relaxed) <= 5 + 1 + 3 * 3,
         "executed {} items after an early stop",

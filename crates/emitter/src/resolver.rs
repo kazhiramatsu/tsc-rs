@@ -24,9 +24,9 @@ pub struct EmitSymbolAccessibilityResult {
     pub accessibility: EmitSymbolAccessibility,
     /// `Some` is reserved for a non-empty ordered alias list.
     pub aliases_to_make_visible: Option<Vec<EmitResolverNode>>,
-    /// Shadow-scoped until the m-3.5 error-name byte gate.
+    /// Error symbol name reported by the checker accessibility worker.
     pub error_symbol_name: Option<String>,
-    /// Shadow-scoped until the m-3.5 error-name byte gate.
+    /// Error module name reported by the checker accessibility worker.
     pub error_module_name: Option<String>,
     pub error_node: Option<EmitResolverNode>,
 }

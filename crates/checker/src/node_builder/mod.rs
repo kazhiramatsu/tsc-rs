@@ -49,6 +49,7 @@ use type_nodes::{
     add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
     create_node_array, create_token, factory_error, project_parse_node, BuildResult,
 };
+pub(crate) use type_nodes::{create_factory_node, update_factory_node};
 pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
 
 /// The declaration facts read directly from upstream's optional `symbol`
@@ -111,6 +112,12 @@ pub(crate) struct SyntacticScopeCleanup {
     type_parameter_names_by_text: Option<std::collections::HashSet<String>>,
     type_parameter_names_by_text_next_name_count: Option<std::collections::HashMap<String, u32>>,
     synthetic_scope_locals: Option<std::collections::HashMap<String, tsc_binder::SymbolId>>,
+    synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
+    reuses_synthetic_scope: bool,
+    first_new_parameter_local: Option<String>,
+    first_old_parameter_local: Option<(String, tsc_binder::SymbolId)>,
+    first_new_type_parameter_local: Option<String>,
+    first_old_type_parameter_local: Option<(String, tsc_binder::SymbolId)>,
 }
 
 impl SyntacticScopeCleanup {
@@ -130,11 +137,86 @@ impl SyntacticScopeCleanup {
                 .type_parameter_names_by_text_next_name_count
                 .clone(),
             synthetic_scope_locals: context.synthetic_scope_locals.clone(),
+            synthetic_scope_kind: context.synthetic_scope_kind,
+            reuses_synthetic_scope: context.enclosing_declaration_is_synthetic,
+            first_new_parameter_local: None,
+            first_old_parameter_local: None,
+            first_new_type_parameter_local: None,
+            first_old_type_parameter_local: None,
+        }
+    }
+
+    fn record_local(
+        first_new: &mut Option<String>,
+        first_old: &mut Option<(String, tsc_binder::SymbolId)>,
+        name: &str,
+        old_symbol: Option<tsc_binder::SymbolId>,
+    ) {
+        // `enterNewScope` appends every changed local, but its cleanup passes
+        // `Map.delete`/`Map.set` directly to upstream's short-circuiting
+        // `forEach`. Consequently only the first new and first overwritten
+        // local are cleaned up. Preserve that observable scope topology.
+        if let Some(old_symbol) = old_symbol {
+            if first_old.is_none() {
+                *first_old = Some((name.to_owned(), old_symbol));
+            }
+        } else if first_new.is_none() {
+            *first_new = Some(name.to_owned());
+        }
+    }
+
+    /// tsrs-native: enterNewScope changed-local bookkeeping for parameter locals (see record_local).
+    pub(crate) fn record_parameter_local(
+        &mut self,
+        name: &str,
+        old_symbol: Option<tsc_binder::SymbolId>,
+    ) {
+        if self.reuses_synthetic_scope {
+            Self::record_local(
+                &mut self.first_new_parameter_local,
+                &mut self.first_old_parameter_local,
+                name,
+                old_symbol,
+            );
+        }
+    }
+
+    /// tsrs-native: enterNewScope changed-local bookkeeping for type-parameter locals (see record_local).
+    pub(crate) fn record_type_parameter_local(
+        &mut self,
+        name: &str,
+        old_symbol: Option<tsc_binder::SymbolId>,
+    ) {
+        if self.reuses_synthetic_scope {
+            Self::record_local(
+                &mut self.first_new_type_parameter_local,
+                &mut self.first_old_type_parameter_local,
+                name,
+                old_symbol,
+            );
         }
     }
 
     /// tsrs-native: scoped save/restore completion (upstream closure capture).
     pub(crate) fn restore(self, context: &mut NodeBuilderContext<'_>) {
+        let synthetic_scope_locals = if self.reuses_synthetic_scope {
+            let mut locals = context.synthetic_scope_locals.take().unwrap_or_default();
+            if let Some(name) = self.first_new_parameter_local {
+                locals.remove(&name);
+            }
+            if let Some((name, symbol)) = self.first_old_parameter_local {
+                locals.insert(name, symbol);
+            }
+            if let Some(name) = self.first_new_type_parameter_local {
+                locals.remove(&name);
+            }
+            if let Some((name, symbol)) = self.first_old_type_parameter_local {
+                locals.insert(name, symbol);
+            }
+            Some(locals)
+        } else {
+            self.synthetic_scope_locals
+        };
         context.enclosing_declaration = self.enclosing_declaration;
         context.enclosing_declaration_is_synthetic = self.enclosing_declaration_is_synthetic;
         context.mapper = self.mapper;
@@ -147,7 +229,8 @@ impl SyntacticScopeCleanup {
         context.type_parameter_names_by_text = self.type_parameter_names_by_text;
         context.type_parameter_names_by_text_next_name_count =
             self.type_parameter_names_by_text_next_name_count;
-        context.synthetic_scope_locals = self.synthetic_scope_locals;
+        context.synthetic_scope_locals = synthetic_scope_locals;
+        context.synthetic_scope_kind = self.synthetic_scope_kind;
     }
 }
 
@@ -502,11 +585,19 @@ impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
             .map(tsc_binder::SymbolId)
             .filter(|&symbol| self.checker.binder.try_symbol(symbol).is_some())
             .ok_or_else(|| self.invalid_token())?;
+        let enclosing_is_synthetic =
+            enclosing_declaration.is_some_and(tracker::tracker_node_is_synthetic);
         let enclosing = enclosing_declaration
             .and_then(|node| self.node(node))
             .ok_or_else(|| self.invalid_token())?;
         self.checker
-            .emit_is_symbol_accessible(symbol, enclosing, meaning, should_compute_aliases)
+            .emit_is_symbol_accessible_with_enclosing_kind(
+                symbol,
+                enclosing,
+                enclosing_is_synthetic,
+                meaning,
+                should_compute_aliases,
+            )
             .map_err(|abort| self.abort(enclosing, abort))
     }
 
@@ -776,11 +867,7 @@ pub(crate) fn late_bound_index_signatures(
                             modifiers.push(
                                 arena
                                     .factory()
-                                    .create_token(
-                                        target,
-                                        SyntaxKind::StaticKeyword,
-                                        tsc_emitter::TransformFlags::NONE,
-                                    )
+                                    .create_modifier(target, SyntaxKind::StaticKeyword)
                                     .map_err(factory_error)?,
                             );
                         }
@@ -788,11 +875,7 @@ pub(crate) fn late_bound_index_signatures(
                             modifiers.push(
                                 arena
                                     .factory()
-                                    .create_token(
-                                        target,
-                                        SyntaxKind::ReadonlyKeyword,
-                                        tsc_emitter::TransformFlags::NONE,
-                                    )
+                                    .create_modifier(target, SyntaxKind::ReadonlyKeyword)
                                     .map_err(factory_error)?,
                             );
                         }
@@ -835,19 +918,16 @@ pub(crate) fn late_bound_index_signatures(
                         };
                         let property = arena
                             .factory()
-                            .create_node(
+                            .create_property_declaration(
                                 target,
-                                NodeData::PropertyDeclaration(
-                                    tsc_syntax::nodes::PropertyDeclarationData {
-                                        name: Some(name_in_arena.node()),
-                                        modifiers: modifiers_array,
-                                        question_token,
-                                        exclamation_token: None,
-                                        r#type: type_node.map(|node| node.node()),
-                                        initializer: None,
-                                    },
-                                ),
-                                tsc_emitter::TransformFlags::NONE,
+                                modifiers_array.map(|array| {
+                                    tsc_emitter::TransformNodeArray::new(target, array)
+                                }),
+                                name_in_arena,
+                                question_token
+                                    .map(|token| tsc_emitter::TransformNode::new(target, token)),
+                                type_node,
+                                None,
                             )
                             .map_err(factory_error)?;
                         result.push(property);
@@ -897,37 +977,17 @@ fn prepend_static_modifier(
     node: tsc_emitter::TransformNode,
     is_readonly: bool,
 ) -> Result<tsc_emitter::TransformNode, tsc_emitter::TransformError> {
-    use tsc_syntax::{NodeData, SyntaxKind};
-    let data = arena
-        .source(node.source())?
-        .syntax()
-        .arena
-        .node(node.node())
-        .data
-        .clone();
-    let NodeData::IndexSignature(mut data) = data else {
+    use tsc_syntax::SyntaxKind;
+    if arena.node(node)?.kind != SyntaxKind::IndexSignature {
         return Ok(node);
-    };
+    }
     let mut factory = arena.factory();
-    let mut modifiers = vec![factory.create_token(
-        target,
-        SyntaxKind::StaticKeyword,
-        tsc_emitter::TransformFlags::NONE,
-    )?];
+    let mut modifiers = vec![factory.create_modifier(target, SyntaxKind::StaticKeyword)?];
     if is_readonly {
-        modifiers.push(factory.create_token(
-            target,
-            SyntaxKind::ReadonlyKeyword,
-            tsc_emitter::TransformFlags::NONE,
-        )?);
+        modifiers.push(factory.create_modifier(target, SyntaxKind::ReadonlyKeyword)?);
     }
     let array = factory.create_node_array(target, modifiers)?;
-    data.modifiers = Some(array.array());
-    factory.update_node(
-        node,
-        NodeData::IndexSignature(data),
-        tsc_emitter::TransformFlags::NONE,
-    )
+    factory.replace_modifiers(node, Some(array))
 }
 
 #[cfg(test)]

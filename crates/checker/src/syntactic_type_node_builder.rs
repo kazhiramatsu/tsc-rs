@@ -8,8 +8,9 @@ use tsc_emitter::{
 };
 use tsc_syntax::nodes::{
     ArrayTypeData, ConstructorTypeData, FunctionTypeData, IdentifierData, IndexSignatureData,
-    LiteralTypeData, MethodSignatureData, NumericLiteralData, ParameterData, PropertySignatureData,
-    StringLiteralData, TupleTypeData, TypeLiteralData, UnionTypeData,
+    LiteralTypeData, MethodSignatureData, NumericLiteralData, ParameterData,
+    PrefixUnaryExpressionData, PropertySignatureData, StringLiteralData, TupleTypeData,
+    TypeLiteralData, UnionTypeData,
 };
 use tsc_syntax::{
     is_identifier_text_for_target, try_visit_each_child, NodeArrayId, NodeData,
@@ -295,13 +296,15 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         data: NodeData,
         flags: TransformFlags,
     ) -> Result<TransformNode, EmitResolverError> {
-        self.arena
-            .factory()
-            .create_node(source, data, flags)
-            .map_err(|error| EmitResolverError::Factory {
-                method: self.method,
-                error: Box::new(error),
-            })
+        crate::node_builder::create_factory_node(self.arena, source, data, flags).map_err(|error| {
+            match error {
+                EmitResolverError::Factory { error, .. } => EmitResolverError::Factory {
+                    method: self.method,
+                    error,
+                },
+                other => other,
+            }
+        })
     }
 
     fn create_type_node(
@@ -318,13 +321,19 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         kind: SyntaxKind,
         flags: TransformFlags,
     ) -> Result<TransformNode, EmitResolverError> {
-        self.arena
-            .factory()
-            .create_token(source, kind, flags)
-            .map_err(|error| EmitResolverError::Factory {
-                method: self.method,
-                error: Box::new(error),
-            })
+        let mut factory = self.arena.factory();
+        let result = match kind {
+            SyntaxKind::NullKeyword => factory.create_null(source),
+            SyntaxKind::TrueKeyword => factory.create_true(source),
+            SyntaxKind::FalseKeyword => factory.create_false(source),
+            SyntaxKind::ThisType => factory.create_this_type_node(source),
+            SyntaxKind::NotEmittedTypeElement => factory.create_not_emitted_type_element(source),
+            _ => factory.create_token(source, kind, flags),
+        };
+        result.map_err(|error| EmitResolverError::Factory {
+            method: self.method,
+            error: Box::new(error),
+        })
     }
 
     fn create_keyword_type(
@@ -332,7 +341,13 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         source: TransformSourceId,
         kind: SyntaxKind,
     ) -> Result<TransformNode, EmitResolverError> {
-        self.create_token(source, kind, TransformFlags::CONTAINS_TYPE_SCRIPT)
+        self.arena
+            .factory()
+            .create_keyword_type_node(source, kind)
+            .map_err(|error| EmitResolverError::Factory {
+                method: self.method,
+                error: Box::new(error),
+            })
     }
 
     fn create_node_array(
@@ -347,6 +362,20 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 method: self.method,
                 error: Box::new(error),
             })
+    }
+
+    fn node_in_source(
+        &mut self,
+        source: TransformSourceId,
+        node: TransformNode,
+    ) -> Result<TransformNode, EmitResolverError> {
+        if node.source() == source {
+            return Ok(node);
+        }
+        self.arena
+            .factory()
+            .clone_node_to_source(node, source)
+            .map_err(|error| self.factory_error(error))
     }
 
     fn create_identifier(
@@ -385,16 +414,29 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         source: TransformSourceId,
         value: f64,
     ) -> Result<TransformNode, EmitResolverError> {
-        let text = if value.fract() == 0.0 {
-            format!("{value:.0}")
+        let magnitude = if value < 0.0 { -value } else { value };
+        let text = if magnitude.fract() == 0.0 {
+            format!("{magnitude:.0}")
         } else {
-            value.to_string()
+            magnitude.to_string()
         };
-        self.create_node(
+        let literal = self.create_node(
             source,
             NodeData::NumericLiteral(NumericLiteralData { text }),
             TransformFlags::NONE,
-        )
+        )?;
+        if value < 0.0 {
+            self.create_node(
+                source,
+                NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                    operator: SyntaxKind::MinusToken,
+                    operand: Some(literal.node()),
+                }),
+                TransformFlags::NONE,
+            )
+        } else {
+            Ok(literal)
+        }
     }
 
     fn create_literal_type(
@@ -470,22 +512,15 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         original: TransformNode,
         data: NodeData,
     ) -> Result<TransformNode, EmitResolverError> {
-        if self.node(original)?.data == data {
-            return Ok(original);
-        }
-        let flags = self.arena.transform_flags(original);
-        let updated = self.create_node(original.source(), data, flags)?;
-        // Provenance is deliberately installed before the source range.
-        self.arena
-            .set_original_node(updated, Some(original))
-            .map_err(|error| self.factory_error(error))?;
-        self.arena
-            .factory()
-            .set_text_range(updated, original)
-            .map_err(|error| EmitResolverError::Factory {
-                method: self.method,
-                error: Box::new(error),
-            })
+        crate::node_builder::update_factory_node(self.arena, original, data).map_err(|error| {
+            match error {
+                EmitResolverError::Factory { error, .. } => EmitResolverError::Factory {
+                    method: self.method,
+                    error,
+                },
+                other => other,
+            }
+        })
     }
 
     fn clone_node(&mut self, node: TransformNode) -> Result<TransformNode, EmitResolverError> {
@@ -655,10 +690,12 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let Some(object) = self.try_visit_simple_type_node(object)? else {
             return Ok(None);
         };
-        data.object_type = Some(object.node());
+        data.object_type = Some(self.node_in_source(node.source(), object)?.node());
         data.index_type = match self.child(node.source(), data.index_type) {
             Some(index) => self
                 .visit_existing_node_tree_symbols(index)?
+                .map(|index| self.node_in_source(node.source(), index))
+                .transpose()?
                 .map(TransformNode::node),
             None => None,
         };
@@ -683,7 +720,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let Some(inner) = self.try_visit_simple_type_node(inner)? else {
             return Ok(None);
         };
-        data.r#type = Some(inner.node());
+        data.r#type = Some(self.node_in_source(node.source(), inner)?.node());
         self.update_node(node, NodeData::TypeOperator(data))
             .map(Some)
     }
@@ -3005,7 +3042,14 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         source: TransformSourceId,
         kind: SyntaxKind,
     ) -> Result<TransformNodeArray, EmitResolverError> {
-        let modifier = self.create_token(source, kind, TransformFlags::CONTAINS_TYPE_SCRIPT)?;
+        let modifier = self
+            .arena
+            .factory()
+            .create_modifier(source, kind)
+            .map_err(|error| EmitResolverError::Factory {
+                method: self.method,
+                error: Box::new(error),
+            })?;
         self.create_node_array(source, vec![modifier])
     }
 

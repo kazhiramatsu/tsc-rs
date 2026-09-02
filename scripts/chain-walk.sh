@@ -222,6 +222,7 @@ ORDER=(
   h2-7a-owner-inventory
   h2-7a-witnesses
   h2-7a-probe-traces
+  h2-7a-printer-reprint
 )
 # Coverage self-check: ORDER must stay in sync with the chain scripts on
 # disk, so the slice that adds or retires an oracle script CANNOT forget to

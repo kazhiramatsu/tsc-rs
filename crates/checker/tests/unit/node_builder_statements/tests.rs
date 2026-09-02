@@ -1,4 +1,7 @@
-use tsc_emitter::{SourceFileId, TransformArena, TransformNode, TransformSourceId};
+use tsc_emitter::{
+    create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterOptions, SourceFileId,
+    StandaloneWriter, TransformArena, TransformNode, TransformSourceId,
+};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::CompilerOptions;
 
@@ -128,6 +131,143 @@ fn module_statements(arena: &TransformArena, module: TransformNode) -> Vec<Trans
         panic!("module block expected")
     };
     array_nodes(arena, body, data.statements)
+}
+
+fn assert_property_require_alias_shape(main_text: &str, expected_generated_name: &str) {
+    let options = CompilerOptions {
+        allow_js: true,
+        check_js: Some(true),
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_program_state(
+        &[("/m.js", "exports.y = 1;\n"), ("/main.js", main_text)],
+        &options,
+        |checker| {
+            let root = checker.binder.source(1).root;
+            let table = checker
+                .binder
+                .locals_of(root)
+                .cloned()
+                .expect("main.js locals");
+            let mut arena_owner = TransformArena::new();
+            let targets = (0..checker.binder.file_count())
+                .map(|index| {
+                    arena_owner.add_source(
+                        checker.binder.source(index),
+                        Some(SourceFileId::from_raw(index as u32)),
+                    )
+                })
+                .collect::<Vec<_>>();
+            let target = targets[1];
+            let mut statements = None;
+            with_context(
+                checker,
+                &mut arena_owner,
+                target,
+                Some(root),
+                Some(EmitNodeBuilderFlags::NONE),
+                Some(EmitInternalNodeBuilderFlags::NONE),
+                None,
+                None,
+                None,
+                |checker, arena, target, context| {
+                    statements = Some(symbol_table_to_declaration_statements(
+                        checker, arena, target, &table, context,
+                    )?);
+                    Ok(())
+                },
+                None,
+            )
+            .expect("property require alias serialization succeeds");
+            let statements = statements.expect("serializer callback ran");
+            let arena = &mut arena_owner;
+            let imports = statements
+                .iter()
+                .copied()
+                .filter(|&statement| {
+                    node(arena, statement).kind == SyntaxKind::ImportEqualsDeclaration
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(
+                imports.len(),
+                2,
+                "property require alias emits two imports; produced kinds: {:?}",
+                statements
+                    .iter()
+                    .map(|&statement| node(arena, statement).kind)
+                    .collect::<Vec<_>>()
+            );
+
+            let NodeData::ImportEqualsDeclaration(first) = &node(arena, imports[0]).data else {
+                unreachable!()
+            };
+            let first_name = child(arena, imports[0], first.name);
+            assert_eq!(node(arena, first_name).kind, SyntaxKind::Identifier);
+            assert_eq!(arena.generated_binding_base(first_name), Some("y"));
+            let first_reference = child(arena, imports[0], first.module_reference);
+            let NodeData::ExternalModuleReference(reference) = &node(arena, first_reference).data
+            else {
+                panic!("first import must use an external module reference")
+            };
+            let specifier = child(arena, first_reference, reference.expression);
+            let NodeData::StringLiteral(specifier) = &node(arena, specifier).data else {
+                panic!("external module reference must hold a string literal")
+            };
+            assert!(!specifier.text.is_empty());
+
+            let NodeData::ImportEqualsDeclaration(second) = &node(arena, imports[1]).data else {
+                unreachable!()
+            };
+            assert_eq!(name_text(arena, imports[1], second.name), "y");
+            let second_name = child(arena, imports[1], second.name);
+            assert_eq!(arena.generated_binding_base(second_name), None);
+            let qualified = child(arena, imports[1], second.module_reference);
+            let NodeData::QualifiedName(qualified_data) = &node(arena, qualified).data else {
+                panic!("second import must use a qualified name")
+            };
+            let qualified_left = child(arena, qualified, qualified_data.left);
+            let qualified_right = child(arena, qualified, qualified_data.right);
+            assert_eq!(qualified_left, first_name, "generated identifier identity");
+            assert_eq!(
+                name_text(arena, qualified, Some(qualified_right.node())),
+                "y"
+            );
+            assert!(array_nodes(arena, imports[1], second.modifiers)
+                .iter()
+                .any(|&modifier| node(arena, modifier).kind == SyntaxKind::ExportKeyword));
+
+            let mut display = transform_nodes(std::mem::take(arena), Vec::new(), Vec::new(), true)
+                .expect("checker-built alias arena becomes a print result");
+            create_printer(
+                PrinterOptions::new(NewLineKind::LineFeed).with_declaration_syntax(true),
+            )
+            .print(
+                &mut display,
+                PrintRequest::StandaloneNode {
+                    node: imports[1],
+                    writer: StandaloneWriter::MultiLine,
+                },
+                None,
+            )
+            .expect("print second import-equals declaration");
+            let NodeData::Identifier(generated) = &display
+                .arena()
+                .node(first_name)
+                .expect("generated identifier after print")
+                .data
+            else {
+                unreachable!()
+            };
+            assert_eq!(generated.text, expected_generated_name);
+        },
+    );
+}
+
+#[test]
+fn property_require_alias_emits_unique_pair_and_finalizes_against_source_names() {
+    assert_property_require_alias_shape("const y = require(\"./m\").y;\n", "y_1");
+    assert_property_require_alias_shape("const y_1 = 0;\nconst y = require(\"./m\").y;\n", "y_2");
 }
 
 #[test]
@@ -514,6 +654,66 @@ fn symbol_to_declarations_simplifies_class_interface_enum_and_module_modifiers()
                 assert!(!flags.intersects(ModifierFlags::EXPORT | ModifierFlags::AMBIENT));
                 assert_eq!(flags.intersects(retained), !retained.is_empty());
             }
+        },
+    );
+}
+
+#[test]
+fn javascript_require_property_alias_emits_generated_import_then_qualified_alias() {
+    let options = CompilerOptions {
+        allow_js: true,
+        declaration: Some(true),
+        ..CompilerOptions::default()
+    };
+    with_declaration_statements(
+        &[
+            ("/m.js", "exports.y = 1;\n"),
+            (
+                "/main.js",
+                "const y = require(\"./m\").y;\nexports.y = y;\n",
+            ),
+        ],
+        1,
+        &options,
+        None,
+        |_checker, arena, _target, statements| {
+            let imports = statements
+                .iter()
+                .copied()
+                .filter(|&statement| {
+                    node(arena, statement).kind == SyntaxKind::ImportEqualsDeclaration
+                })
+                .collect::<Vec<_>>();
+            assert_eq!(imports.len(), 2, "expected require binding plus alias");
+
+            let NodeData::ImportEqualsDeclaration(first) = &node(arena, imports[0]).data else {
+                unreachable!()
+            };
+            assert!(first.modifiers.is_none());
+            let generated = child(arena, imports[0], first.name);
+            assert_eq!(name_text(arena, imports[0], first.name), "y");
+            assert!(
+                arena.metadata(generated).is_some(),
+                "first import name carries generated-binding metadata",
+            );
+            assert_eq!(arena.generated_binding_base(generated), Some("y"));
+            let external = child(arena, imports[0], first.module_reference);
+            assert_eq!(
+                node(arena, external).kind,
+                SyntaxKind::ExternalModuleReference,
+            );
+
+            let NodeData::ImportEqualsDeclaration(second) = &node(arena, imports[1]).data else {
+                unreachable!()
+            };
+            assert!(second.modifiers.is_some());
+            assert_eq!(name_text(arena, imports[1], second.name), "y");
+            let qualified = child(arena, imports[1], second.module_reference);
+            let NodeData::QualifiedName(qualified_data) = &node(arena, qualified).data else {
+                panic!("second import must reference a qualified name")
+            };
+            assert_eq!(qualified_data.left, Some(generated.node()));
+            assert_eq!(name_text(arena, qualified, qualified_data.right), "y");
         },
     );
 }

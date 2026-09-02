@@ -35,7 +35,7 @@
     },
     "parent_packet": {
       "path": "docs/design/greenfield/slices/h2-7a.md",
-      "sha256": "c9b4609baf4baaa288fdfbad73d819e1051761e6377ae701518db184c05f5bfd"
+      "sha256": "ceadfb541c57617845b9945af48221550bfc2d7930535cbafbb7cc591f3701e9"
     },
     "test_suite_expansion": {
       "path": "vendor/typescript-6.0.3/test-suite-expansion.v1.json",
@@ -67,7 +67,7 @@
     },
     "h2_6c_qualification": {
       "path": "ratchets/h2-6c-qualification.v1.json",
-      "sha256": "0d023031d56afe2253ffc7cd4829cb3abcb18b81418d4db65ad27d2be1bb7fa4"
+      "sha256": "427bc4f3638954f15cd9c1c007d386cb7069f383d51f198ce0b4a7192e2d2f6d"
     },
     "h2_6c_divergences": {
       "path": "ratchets/h2-6c-known-divergences.v1.json",
@@ -16788,5 +16788,5 @@
     "rust_runs": 0
   },
   "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
-  "witnesses_fingerprint_sha256": "55825c370ccfc1139a1ead065d160b4830ccd3174f4bf60c8086b0cef3154c14"
+  "witnesses_fingerprint_sha256": "edda8e6967a78830768a5cab31ffb1dc510dd4741a1b621248c6c5952dcd6dd5"
 }

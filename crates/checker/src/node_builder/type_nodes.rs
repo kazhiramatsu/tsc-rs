@@ -5,21 +5,20 @@ use tsc_emitter::{
     CommentRange, EmitFlags, EmitNodeBuilderFlags, EmitResolverError, EmitResolverMethod,
     EmitResolverNode, EmitSymbolAccessibility, EmitSymbolMeaning, SourceFileId, SourceRange,
     SyntheticComment, SyntheticCommentKind, TransformArena, TransformError, TransformFlags,
-    TransformNode, TransformSourceId,
+    TransformNode, TransformNodeArray, TransformSourceId,
 };
 use tsc_syntax::nodes::{
     ArrayTypeData, BigIntLiteralData, ConditionalTypeData, IdentifierData, IndexedAccessTypeData,
     InferTypeData, IntersectionTypeData, LiteralTypeData, MappedTypeData, NamedTupleMemberData,
     NumericLiteralData, OptionalTypeData, PrefixUnaryExpressionData, PropertySignatureData,
-    QualifiedNameData, RestTypeData, StringLiteralData, TemplateHeadData, TemplateLiteralTypeData,
-    TemplateLiteralTypeSpanData, TemplateMiddleData, TemplateTailData, TupleTypeData,
-    TypeLiteralData, TypeOperatorData, TypeParameterData, TypeQueryData, TypeReferenceData,
-    UnionTypeData,
+    QualifiedNameData, RestTypeData, StringLiteralData, TemplateLiteralTypeData,
+    TemplateLiteralTypeSpanData, TupleTypeData, TypeLiteralData, TypeOperatorData,
+    TypeParameterData, TypeQueryData, TypeReferenceData, UnionTypeData,
 };
-use tsc_syntax::{NodeData, NodeId, SyntaxKind};
+use tsc_syntax::{NodeArrayId, NodeData, NodeId, SyntaxKind};
 use tsc_types::{
-    CheckFlags, ElementFlags, IntersectionFlags, LiteralValue, ModifierFlags, ObjectFlags,
-    SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
+    CheckFlags, ElementFlags, IntersectionFlags, LiteralValue, ModifierFlags, NodeFlags,
+    ObjectFlags, SignatureFlags, SymbolFlags, TypeData, TypeFlags, TypeId,
 };
 
 use crate::annotate::is_reserved_member_name;
@@ -82,15 +81,821 @@ pub(super) fn factory_error(error: TransformError) -> EmitResolverError {
     }
 }
 
+fn node_array_or_empty(
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    array: Option<NodeArrayId>,
+) -> BuildResult<TransformNodeArray> {
+    match array {
+        Some(array) => Ok(TransformNodeArray::new(target, array)),
+        None => arena
+            .factory()
+            .create_node_array(target, Vec::new())
+            .map_err(factory_error),
+    }
+}
+
+/// tsrs-native: shared NodeData-spelling seam for the typed NodeFactory faces
+/// (h2-7a-m-3.5 §5.8) — routes a face-built node through the arena factory
+/// with the face's exact transform-flag word; no upstream counterpart.
+pub(crate) fn create_factory_node(
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    data: NodeData,
+    fallback_flags: TransformFlags,
+) -> BuildResult<TransformNode> {
+    let child = |id: Option<NodeId>| id.map(|id| TransformNode::new(target, id));
+    let array = |id: Option<NodeArrayId>| id.map(|id| TransformNodeArray::new(target, id));
+    let required_child = |id: Option<NodeId>, parent, field| {
+        child(id)
+            .ok_or_else(|| factory_error(TransformError::RequiredChildRemoved { parent, field }))
+    };
+    macro_rules! with_array_or_empty {
+        ($array:expr, $name:ident, $create:expr) => {{
+            let $name = node_array_or_empty(arena, target, $array)?;
+            $create
+        }};
+    }
+
+    let result = match data {
+        NodeData::Identifier(data) => arena.factory().create_identifier(target, data.text),
+        NodeData::PrivateIdentifier(data) => {
+            arena.factory().create_private_identifier(target, data.text)
+        }
+        NodeData::StringLiteral(data) => arena
+            .factory()
+            .create_string_literal(target, data.text, false),
+        NodeData::NumericLiteral(data) => arena.factory().create_numeric_literal(target, data.text),
+        NodeData::BigIntLiteral(data) => arena.factory().create_big_int_literal(target, data.text),
+        NodeData::TemplateHead(data) => {
+            arena
+                .factory()
+                .create_template_head(target, data.text, data.raw_text)
+        }
+        NodeData::QualifiedName(data) => arena.factory().create_qualified_name(
+            target,
+            required_child(data.left, SyntaxKind::QualifiedName, "left")?,
+            required_child(data.right, SyntaxKind::QualifiedName, "right")?,
+        ),
+        NodeData::ComputedPropertyName(data) => arena.factory().create_computed_property_name(
+            target,
+            required_child(
+                data.expression,
+                SyntaxKind::ComputedPropertyName,
+                "expression",
+            )?,
+        ),
+        NodeData::TypeParameter(data) => arena.factory().create_type_parameter_declaration(
+            target,
+            array(data.modifiers),
+            required_child(data.name, SyntaxKind::TypeParameter, "name")?,
+            child(data.constraint),
+            child(data.r#default),
+        ),
+        NodeData::Parameter(data) => arena.factory().create_parameter_declaration(
+            target,
+            array(data.modifiers),
+            child(data.dot_dot_dot_token),
+            required_child(data.name, SyntaxKind::Parameter, "name")?,
+            child(data.question_token),
+            child(data.r#type),
+            child(data.initializer),
+        ),
+        NodeData::PropertySignature(data) => arena.factory().create_property_signature(
+            target,
+            array(data.modifiers),
+            required_child(data.name, SyntaxKind::PropertySignature, "name")?,
+            child(data.question_token),
+            child(data.r#type),
+        ),
+        NodeData::PropertyDeclaration(data) => arena.factory().create_property_declaration(
+            target,
+            array(data.modifiers),
+            required_child(data.name, SyntaxKind::PropertyDeclaration, "name")?,
+            child(data.question_token.or(data.exclamation_token)),
+            child(data.r#type),
+            child(data.initializer),
+        ),
+        NodeData::MethodSignature(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_method_signature(
+                target,
+                array(data.modifiers),
+                required_child(data.name, SyntaxKind::MethodSignature, "name")?,
+                child(data.question_token),
+                array(data.type_parameters),
+                parameters,
+                child(data.r#type),
+            )
+        ),
+        NodeData::MethodDeclaration(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_method_declaration(
+                target,
+                array(data.modifiers),
+                child(data.asterisk_token),
+                required_child(data.name, SyntaxKind::MethodDeclaration, "name")?,
+                child(data.question_token),
+                array(data.type_parameters),
+                parameters,
+                child(data.r#type),
+                child(data.body),
+            )
+        ),
+        NodeData::Constructor(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_constructor_declaration(
+                target,
+                array(data.modifiers),
+                parameters,
+                child(data.body),
+            )
+        ),
+        NodeData::GetAccessor(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_get_accessor_declaration(
+                target,
+                array(data.modifiers),
+                required_child(data.name, SyntaxKind::GetAccessor, "name")?,
+                parameters,
+                child(data.r#type),
+                child(data.body),
+            )
+        ),
+        NodeData::SetAccessor(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_set_accessor_declaration(
+                target,
+                array(data.modifiers),
+                required_child(data.name, SyntaxKind::SetAccessor, "name")?,
+                parameters,
+                child(data.body),
+            )
+        ),
+        NodeData::CallSignature(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_call_signature(
+                target,
+                array(data.type_parameters),
+                parameters,
+                child(data.r#type),
+            )
+        ),
+        NodeData::ConstructSignature(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_construct_signature(
+                target,
+                array(data.type_parameters),
+                parameters,
+                child(data.r#type),
+            )
+        ),
+        NodeData::IndexSignature(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_index_signature(
+                target,
+                array(data.modifiers),
+                parameters,
+                required_child(data.r#type, SyntaxKind::IndexSignature, "type")?,
+            )
+        ),
+        NodeData::TypePredicate(data) => arena.factory().create_type_predicate_node(
+            target,
+            child(data.asserts_modifier),
+            required_child(
+                data.parameter_name,
+                SyntaxKind::TypePredicate,
+                "parameterName",
+            )?,
+            child(data.r#type),
+        ),
+        NodeData::TypeReference(data) => arena.factory().create_type_reference_node(
+            target,
+            required_child(data.type_name, SyntaxKind::TypeReference, "typeName")?,
+            array(data.type_arguments),
+        ),
+        NodeData::FunctionType(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_function_type_node(
+                target,
+                array(data.type_parameters),
+                parameters,
+                required_child(data.r#type, SyntaxKind::FunctionType, "type")?,
+            )
+        ),
+        NodeData::ConstructorType(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_constructor_type_node(
+                target,
+                array(data.modifiers),
+                array(data.type_parameters),
+                parameters,
+                required_child(data.r#type, SyntaxKind::ConstructorType, "type")?,
+            )
+        ),
+        NodeData::TypeQuery(data) => arena.factory().create_type_query_node(
+            target,
+            required_child(data.expr_name, SyntaxKind::TypeQuery, "exprName")?,
+            array(data.type_arguments),
+        ),
+        NodeData::TypeLiteral(data) => with_array_or_empty!(
+            data.members,
+            members,
+            arena.factory().create_type_literal_node(target, members)
+        ),
+        NodeData::ArrayType(data) => arena.factory().create_array_type_node(
+            target,
+            required_child(data.element_type, SyntaxKind::ArrayType, "elementType")?,
+        ),
+        NodeData::TupleType(data) => with_array_or_empty!(
+            data.elements,
+            elements,
+            arena.factory().create_tuple_type_node(target, elements)
+        ),
+        NodeData::NamedTupleMember(data) => arena.factory().create_named_tuple_member(
+            target,
+            child(data.dot_dot_dot_token),
+            required_child(data.name, SyntaxKind::NamedTupleMember, "name")?,
+            child(data.question_token),
+            required_child(data.r#type, SyntaxKind::NamedTupleMember, "type")?,
+        ),
+        NodeData::OptionalType(data) => arena.factory().create_optional_type_node(
+            target,
+            required_child(data.r#type, SyntaxKind::OptionalType, "type")?,
+        ),
+        NodeData::RestType(data) => arena.factory().create_rest_type_node(
+            target,
+            required_child(data.r#type, SyntaxKind::RestType, "type")?,
+        ),
+        NodeData::UnionType(data) => with_array_or_empty!(
+            data.types,
+            types,
+            arena.factory().create_union_type_node(target, types)
+        ),
+        NodeData::IntersectionType(data) => with_array_or_empty!(
+            data.types,
+            types,
+            arena.factory().create_intersection_type_node(target, types)
+        ),
+        NodeData::ConditionalType(data) => arena.factory().create_conditional_type_node(
+            target,
+            required_child(data.check_type, SyntaxKind::ConditionalType, "checkType")?,
+            required_child(
+                data.extends_type,
+                SyntaxKind::ConditionalType,
+                "extendsType",
+            )?,
+            required_child(data.true_type, SyntaxKind::ConditionalType, "trueType")?,
+            required_child(data.false_type, SyntaxKind::ConditionalType, "falseType")?,
+        ),
+        NodeData::InferType(data) => arena.factory().create_infer_type_node(
+            target,
+            required_child(data.type_parameter, SyntaxKind::InferType, "typeParameter")?,
+        ),
+        NodeData::TemplateLiteralType(data) => with_array_or_empty!(
+            data.template_spans,
+            template_spans,
+            arena.factory().create_template_literal_type(
+                target,
+                required_child(data.head, SyntaxKind::TemplateLiteralType, "head")?,
+                template_spans,
+            )
+        ),
+        NodeData::ImportType(data) => arena.factory().create_import_type_node(
+            target,
+            required_child(data.argument, SyntaxKind::ImportType, "argument")?,
+            child(data.attributes),
+            child(data.qualifier),
+            array(data.type_arguments),
+            data.is_type_of,
+        ),
+        NodeData::ParenthesizedType(data) => arena.factory().create_parenthesized_type(
+            target,
+            required_child(data.r#type, SyntaxKind::ParenthesizedType, "type")?,
+        ),
+        NodeData::TypeOperator(data) => arena.factory().create_type_operator_node(
+            target,
+            data.operator,
+            required_child(data.r#type, SyntaxKind::TypeOperator, "type")?,
+        ),
+        NodeData::IndexedAccessType(data) => arena.factory().create_indexed_access_type_node(
+            target,
+            required_child(
+                data.object_type,
+                SyntaxKind::IndexedAccessType,
+                "objectType",
+            )?,
+            required_child(data.index_type, SyntaxKind::IndexedAccessType, "indexType")?,
+        ),
+        NodeData::MappedType(data) => arena.factory().create_mapped_type_node(
+            target,
+            child(data.readonly_token),
+            required_child(data.type_parameter, SyntaxKind::MappedType, "typeParameter")?,
+            child(data.name_type),
+            child(data.question_token),
+            child(data.r#type),
+            array(data.members),
+        ),
+        NodeData::LiteralType(data) => arena.factory().create_literal_type_node(
+            target,
+            required_child(data.literal, SyntaxKind::LiteralType, "literal")?,
+        ),
+        NodeData::TemplateLiteralTypeSpan(data) => {
+            arena.factory().create_template_literal_type_span(
+                target,
+                required_child(data.r#type, SyntaxKind::TemplateLiteralTypeSpan, "type")?,
+                required_child(data.literal, SyntaxKind::TemplateLiteralTypeSpan, "literal")?,
+            )
+        }
+        NodeData::ExpressionWithTypeArguments(data) => {
+            arena.factory().create_expression_with_type_arguments(
+                target,
+                required_child(
+                    data.expression,
+                    SyntaxKind::ExpressionWithTypeArguments,
+                    "expression",
+                )?,
+                array(data.type_arguments),
+            )
+        }
+        NodeData::JSDocFunctionType(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena
+                .factory()
+                .create_jsdoc_function_type(target, parameters, child(data.r#type))
+        ),
+        NodeData::PrefixUnaryExpression(data) => arena.factory().create_prefix_unary_expression(
+            target,
+            data.operator,
+            required_child(data.operand, SyntaxKind::PrefixUnaryExpression, "operand")?,
+        ),
+        NodeData::PropertyAccessExpression(data) if data.question_dot_token.is_none() => {
+            arena.factory().create_property_access_expression(
+                target,
+                required_child(
+                    data.expression,
+                    SyntaxKind::PropertyAccessExpression,
+                    "expression",
+                )?,
+                required_child(data.name, SyntaxKind::PropertyAccessExpression, "name")?,
+            )
+        }
+        NodeData::ElementAccessExpression(data) if data.question_dot_token.is_none() => {
+            arena.factory().create_element_access_expression(
+                target,
+                required_child(
+                    data.expression,
+                    SyntaxKind::ElementAccessExpression,
+                    "expression",
+                )?,
+                required_child(
+                    data.argument_expression,
+                    SyntaxKind::ElementAccessExpression,
+                    "argumentExpression",
+                )?,
+            )
+        }
+        NodeData::FunctionDeclaration(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_function_declaration(
+                target,
+                array(data.modifiers),
+                child(data.asterisk_token),
+                child(data.name),
+                array(data.type_parameters),
+                parameters,
+                child(data.r#type),
+                child(data.body),
+            )
+        ),
+        NodeData::FunctionExpression(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_function_expression(
+                target,
+                array(data.modifiers),
+                child(data.asterisk_token),
+                child(data.name),
+                array(data.type_parameters),
+                parameters,
+                child(data.r#type),
+                required_child(data.body, SyntaxKind::FunctionExpression, "body")?,
+            )
+        ),
+        NodeData::ArrowFunction(data) => with_array_or_empty!(
+            data.parameters,
+            parameters,
+            arena.factory().create_arrow_function(
+                target,
+                array(data.modifiers),
+                array(data.type_parameters),
+                parameters,
+                child(data.r#type),
+                child(data.equals_greater_than_token),
+                required_child(data.body, SyntaxKind::ArrowFunction, "body")?,
+            )
+        ),
+        NodeData::Block(data) => with_array_or_empty!(
+            data.statements,
+            statements,
+            arena.factory().create_block(target, statements, false)
+        ),
+        NodeData::VariableDeclaration(data) => arena.factory().create_variable_declaration(
+            target,
+            required_child(data.name, SyntaxKind::VariableDeclaration, "name")?,
+            child(data.exclamation_token),
+            child(data.r#type),
+            child(data.initializer),
+        ),
+        NodeData::VariableDeclarationList(data) => with_array_or_empty!(
+            data.declarations,
+            declarations,
+            arena
+                .factory()
+                .create_variable_declaration_list(target, declarations, NodeFlags::NONE,)
+        ),
+        NodeData::VariableStatement(data) => arena.factory().create_variable_statement(
+            target,
+            array(data.modifiers),
+            required_child(
+                data.declaration_list,
+                SyntaxKind::VariableStatement,
+                "declarationList",
+            )?,
+        ),
+        NodeData::EmptyStatement(_) => arena.factory().create_empty_statement(target),
+        NodeData::ExpressionStatement(data) => arena.factory().create_expression_statement(
+            target,
+            required_child(
+                data.expression,
+                SyntaxKind::ExpressionStatement,
+                "expression",
+            )?,
+        ),
+        NodeData::ClassDeclaration(data) => with_array_or_empty!(
+            data.members,
+            members,
+            arena.factory().create_class_declaration(
+                target,
+                array(data.modifiers),
+                child(data.name),
+                array(data.type_parameters),
+                array(data.heritage_clauses),
+                members,
+            )
+        ),
+        NodeData::InterfaceDeclaration(data) => with_array_or_empty!(
+            data.members,
+            members,
+            arena.factory().create_interface_declaration(
+                target,
+                array(data.modifiers),
+                required_child(data.name, SyntaxKind::InterfaceDeclaration, "name")?,
+                array(data.type_parameters),
+                array(data.heritage_clauses),
+                members,
+            )
+        ),
+        NodeData::TypeAliasDeclaration(data) => arena.factory().create_type_alias_declaration(
+            target,
+            array(data.modifiers),
+            required_child(data.name, SyntaxKind::TypeAliasDeclaration, "name")?,
+            array(data.type_parameters),
+            required_child(data.r#type, SyntaxKind::TypeAliasDeclaration, "type")?,
+        ),
+        NodeData::EnumDeclaration(data) => with_array_or_empty!(
+            data.members,
+            members,
+            arena.factory().create_enum_declaration(
+                target,
+                array(data.modifiers),
+                required_child(data.name, SyntaxKind::EnumDeclaration, "name")?,
+                members,
+            )
+        ),
+        NodeData::ModuleDeclaration(data) => arena.factory().create_module_declaration(
+            target,
+            array(data.modifiers),
+            required_child(data.name, SyntaxKind::ModuleDeclaration, "name")?,
+            child(data.body),
+            NodeFlags::NONE,
+        ),
+        NodeData::ModuleBlock(data) => with_array_or_empty!(
+            data.statements,
+            statements,
+            arena.factory().create_module_block(target, statements)
+        ),
+        NodeData::NamespaceExportDeclaration(data) => {
+            arena.factory().create_namespace_export_declaration(
+                target,
+                required_child(data.name, SyntaxKind::NamespaceExportDeclaration, "name")?,
+            )
+        }
+        NodeData::ImportEqualsDeclaration(data) => {
+            arena.factory().create_import_equals_declaration(
+                target,
+                array(data.modifiers),
+                data.is_type_only,
+                required_child(data.name, SyntaxKind::ImportEqualsDeclaration, "name")?,
+                required_child(
+                    data.module_reference,
+                    SyntaxKind::ImportEqualsDeclaration,
+                    "moduleReference",
+                )?,
+            )
+        }
+        NodeData::ImportDeclaration(data) => arena.factory().create_import_declaration(
+            target,
+            array(data.modifiers),
+            child(data.import_clause),
+            required_child(
+                data.module_specifier,
+                SyntaxKind::ImportDeclaration,
+                "moduleSpecifier",
+            )?,
+            child(data.attributes),
+        ),
+        NodeData::ImportClause(data) => arena.factory().create_import_clause(
+            target,
+            data.phase_modifier,
+            child(data.name),
+            child(data.named_bindings),
+        ),
+        NodeData::ImportAttributes(data) => with_array_or_empty!(
+            data.elements,
+            elements,
+            arena.factory().create_import_attributes(
+                target,
+                elements,
+                data.multi_line,
+                Some(data.token),
+            )
+        ),
+        NodeData::ImportAttribute(data) => arena.factory().create_import_attribute(
+            target,
+            required_child(data.name, SyntaxKind::ImportAttribute, "name")?,
+            required_child(data.value, SyntaxKind::ImportAttribute, "value")?,
+        ),
+        NodeData::NamespaceImport(data) => arena.factory().create_namespace_import(
+            target,
+            required_child(data.name, SyntaxKind::NamespaceImport, "name")?,
+        ),
+        NodeData::NamespaceExport(data) => arena.factory().create_namespace_export(
+            target,
+            required_child(data.name, SyntaxKind::NamespaceExport, "name")?,
+        ),
+        NodeData::NamedImports(data) => with_array_or_empty!(
+            data.elements,
+            elements,
+            arena.factory().create_named_imports(target, elements)
+        ),
+        NodeData::ImportSpecifier(data) => arena.factory().create_import_specifier(
+            target,
+            data.is_type_only,
+            child(data.property_name),
+            required_child(data.name, SyntaxKind::ImportSpecifier, "name")?,
+        ),
+        NodeData::ExportAssignment(data) => arena.factory().create_export_assignment(
+            target,
+            array(data.modifiers),
+            data.is_export_equals.unwrap_or(false),
+            required_child(data.expression, SyntaxKind::ExportAssignment, "expression")?,
+        ),
+        NodeData::ExportDeclaration(data) => arena.factory().create_export_declaration(
+            target,
+            array(data.modifiers),
+            data.is_type_only,
+            child(data.export_clause),
+            child(data.module_specifier),
+            child(data.attributes),
+        ),
+        NodeData::NamedExports(data) => with_array_or_empty!(
+            data.elements,
+            elements,
+            arena.factory().create_named_exports(target, elements)
+        ),
+        NodeData::ExportSpecifier(data) => arena.factory().create_export_specifier(
+            target,
+            data.is_type_only,
+            child(data.property_name),
+            required_child(data.name, SyntaxKind::ExportSpecifier, "name")?,
+        ),
+        NodeData::ExternalModuleReference(data) => {
+            arena.factory().create_external_module_reference(
+                target,
+                required_child(
+                    data.expression,
+                    SyntaxKind::ExternalModuleReference,
+                    "expression",
+                )?,
+            )
+        }
+        NodeData::HeritageClause(data) => with_array_or_empty!(
+            data.types,
+            types,
+            arena
+                .factory()
+                .create_heritage_clause(target, data.token, types)
+        ),
+        NodeData::EnumMember(data) => arena.factory().create_enum_member(
+            target,
+            required_child(data.name, SyntaxKind::EnumMember, "name")?,
+            child(data.initializer),
+        ),
+        other => arena.factory().create_node(target, other, fallback_flags),
+    };
+    result.map_err(factory_error)
+}
+
 pub(super) fn create_node(
     arena: &mut TransformArena,
     target: TransformSourceId,
     data: NodeData,
 ) -> BuildResult<TransformNode> {
-    arena
-        .factory()
-        .create_node(target, data, TransformFlags::CONTAINS_TYPE_SCRIPT)
-        .map_err(factory_error)
+    create_factory_node(arena, target, data, TransformFlags::CONTAINS_TYPE_SCRIPT)
+}
+
+/// tsrs-native: shared update seam for the typed NodeFactory update faces
+/// (h2-7a-m-3.5 §5.8) — same-node identity when unchanged, otherwise a fresh
+/// node with original provenance; no upstream counterpart.
+pub(crate) fn update_factory_node(
+    arena: &mut TransformArena,
+    original: TransformNode,
+    data: NodeData,
+) -> BuildResult<TransformNode> {
+    let source = original.source();
+    let original_flags = arena.transform_flags(original);
+    let child = |id: Option<NodeId>| id.map(|id| TransformNode::new(source, id));
+    let array = |id: Option<NodeArrayId>| id.map(|id| TransformNodeArray::new(source, id));
+    let required_child = |id: Option<NodeId>, parent, field| {
+        child(id)
+            .ok_or_else(|| factory_error(TransformError::RequiredChildRemoved { parent, field }))
+    };
+    let required_array = |id: Option<NodeArrayId>, parent, field| {
+        array(id)
+            .ok_or_else(|| factory_error(TransformError::RequiredChildRemoved { parent, field }))
+    };
+    let result = match data {
+        NodeData::QualifiedName(data) => arena.factory().update_qualified_name(
+            original,
+            required_child(data.left, SyntaxKind::QualifiedName, "left")?,
+            required_child(data.right, SyntaxKind::QualifiedName, "right")?,
+        ),
+        NodeData::ComputedPropertyName(data) => arena.factory().update_computed_property_name(
+            original,
+            required_child(
+                data.expression,
+                SyntaxKind::ComputedPropertyName,
+                "expression",
+            )?,
+        ),
+        NodeData::TypeParameter(data) => arena.factory().update_type_parameter_declaration(
+            original,
+            array(data.modifiers),
+            required_child(data.name, SyntaxKind::TypeParameter, "name")?,
+            child(data.constraint),
+            child(data.r#default),
+        ),
+        NodeData::Parameter(data) => arena.factory().update_parameter_declaration(
+            original,
+            array(data.modifiers),
+            child(data.dot_dot_dot_token),
+            required_child(data.name, SyntaxKind::Parameter, "name")?,
+            child(data.question_token),
+            child(data.r#type),
+            child(data.initializer),
+        ),
+        NodeData::TypePredicate(data) => arena.factory().update_type_predicate_node(
+            original,
+            child(data.asserts_modifier),
+            required_child(
+                data.parameter_name,
+                SyntaxKind::TypePredicate,
+                "parameterName",
+            )?,
+            child(data.r#type),
+        ),
+        NodeData::TypeReference(data) => arena.factory().update_type_reference_node(
+            original,
+            required_child(data.type_name, SyntaxKind::TypeReference, "typeName")?,
+            array(data.type_arguments),
+        ),
+        NodeData::TypeQuery(data) => arena.factory().update_type_query_node(
+            original,
+            required_child(data.expr_name, SyntaxKind::TypeQuery, "exprName")?,
+            array(data.type_arguments),
+        ),
+        NodeData::ConditionalType(data) => arena.factory().update_conditional_type_node(
+            original,
+            required_child(data.check_type, SyntaxKind::ConditionalType, "checkType")?,
+            required_child(
+                data.extends_type,
+                SyntaxKind::ConditionalType,
+                "extendsType",
+            )?,
+            required_child(data.true_type, SyntaxKind::ConditionalType, "trueType")?,
+            required_child(data.false_type, SyntaxKind::ConditionalType, "falseType")?,
+        ),
+        NodeData::ImportType(data) => arena.factory().update_import_type_node(
+            original,
+            required_child(data.argument, SyntaxKind::ImportType, "argument")?,
+            child(data.attributes),
+            child(data.qualifier),
+            array(data.type_arguments),
+            data.is_type_of,
+        ),
+        NodeData::TypeOperator(data) => arena.factory().update_type_operator_node(
+            original,
+            required_child(data.r#type, SyntaxKind::TypeOperator, "type")?,
+        ),
+        NodeData::IndexedAccessType(data) => arena.factory().update_indexed_access_type_node(
+            original,
+            required_child(
+                data.object_type,
+                SyntaxKind::IndexedAccessType,
+                "objectType",
+            )?,
+            required_child(data.index_type, SyntaxKind::IndexedAccessType, "indexType")?,
+        ),
+        NodeData::BindingElement(data) => arena.factory().update_binding_element(
+            original,
+            child(data.dot_dot_dot_token),
+            child(data.property_name),
+            required_child(data.name, SyntaxKind::BindingElement, "name")?,
+            child(data.initializer),
+        ),
+        NodeData::ClassDeclaration(data) => arena.factory().update_class_declaration(
+            original,
+            array(data.modifiers),
+            child(data.name),
+            array(data.type_parameters),
+            array(data.heritage_clauses),
+            required_array(data.members, SyntaxKind::ClassDeclaration, "members")?,
+        ),
+        NodeData::ModuleDeclaration(data) => arena.factory().update_module_declaration(
+            original,
+            array(data.modifiers),
+            required_child(data.name, SyntaxKind::ModuleDeclaration, "name")?,
+            child(data.body),
+        ),
+        NodeData::ModuleBlock(data) => arena.factory().update_module_block(
+            original,
+            required_array(data.statements, SyntaxKind::ModuleBlock, "statements")?,
+        ),
+        NodeData::ExportDeclaration(data) => arena.factory().update_export_declaration(
+            original,
+            array(data.modifiers),
+            data.is_type_only,
+            child(data.export_clause),
+            child(data.module_specifier),
+            child(data.attributes),
+        ),
+        NodeData::NamedExports(data) => arena.factory().update_named_exports(
+            original,
+            required_array(data.elements, SyntaxKind::NamedExports, "elements")?,
+        ),
+        NodeData::Constructor(data) => arena.factory().update_constructor_declaration(
+            original,
+            data.modifiers,
+            data.parameters,
+            data.body,
+            original_flags,
+        ),
+        NodeData::GetAccessor(data) => arena.factory().update_get_accessor_declaration(
+            original,
+            data.modifiers,
+            data.name,
+            data.parameters,
+            data.r#type,
+            data.body,
+            original_flags,
+        ),
+        NodeData::SetAccessor(data) => arena.factory().update_set_accessor_declaration(
+            original,
+            data.modifiers,
+            data.name,
+            data.parameters,
+            data.body,
+            original_flags,
+        ),
+        other => {
+            let flags = arena.transform_flags(original);
+            arena.factory().update_node(original, other, flags)
+        }
+    };
+    result.map_err(factory_error)
 }
 
 pub(super) fn create_token(
@@ -98,10 +903,28 @@ pub(super) fn create_token(
     target: TransformSourceId,
     kind: SyntaxKind,
 ) -> BuildResult<TransformNode> {
-    arena
-        .factory()
-        .create_token(target, kind, TransformFlags::CONTAINS_TYPE_SCRIPT)
-        .map_err(factory_error)
+    let mut factory = arena.factory();
+    let result = match kind {
+        SyntaxKind::NullKeyword => factory.create_null(target),
+        SyntaxKind::TrueKeyword => factory.create_true(target),
+        SyntaxKind::FalseKeyword => factory.create_false(target),
+        SyntaxKind::ThisType => factory.create_this_type_node(target),
+        SyntaxKind::NotEmittedTypeElement => factory.create_not_emitted_type_element(target),
+        SyntaxKind::AnyKeyword
+        | SyntaxKind::BigIntKeyword
+        | SyntaxKind::BooleanKeyword
+        | SyntaxKind::IntrinsicKeyword
+        | SyntaxKind::NeverKeyword
+        | SyntaxKind::NumberKeyword
+        | SyntaxKind::ObjectKeyword
+        | SyntaxKind::StringKeyword
+        | SyntaxKind::SymbolKeyword
+        | SyntaxKind::UndefinedKeyword
+        | SyntaxKind::UnknownKeyword
+        | SyntaxKind::VoidKeyword => factory.create_keyword_type_node(target, kind),
+        _ => factory.create_modifier(target, kind),
+    };
+    result.map_err(factory_error)
 }
 
 pub(super) fn create_identifier(
@@ -210,6 +1033,25 @@ pub(super) fn clone_parse_node(
         .map(Some)
 }
 
+pub(super) fn clone_parse_node_to_source(
+    checker: &CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    node: NodeId,
+) -> BuildResult<Option<TransformNode>> {
+    let Some(original) = project_parse_node(checker, arena, node)? else {
+        return Ok(None);
+    };
+    if original.source() != target {
+        return arena
+            .factory()
+            .clone_node_to_source(original, target)
+            .map(Some)
+            .map_err(factory_error);
+    }
+    clone_parse_node(checker, arena, node)
+}
+
 pub(super) fn range_synthesized_node_to_parse(
     checker: &CheckerState<'_>,
     arena: &mut TransformArena,
@@ -264,7 +1106,10 @@ fn create_keyword_type_node(
     target: TransformSourceId,
     kind: SyntaxKind,
 ) -> BuildResult<TransformNode> {
-    create_token(arena, target, kind)
+    arena
+        .factory()
+        .create_keyword_type_node(target, kind)
+        .map_err(factory_error)
 }
 
 fn create_literal_type_node(
@@ -316,7 +1161,6 @@ fn create_array_type_node(
     target: TransformSourceId,
     element: TransformNode,
 ) -> BuildResult<TransformNode> {
-    // h2-7a-m-3.5: parenthesizer face
     create_node(
         arena,
         target,
@@ -332,7 +1176,6 @@ fn create_type_operator_node(
     operator: SyntaxKind,
     r#type: TransformNode,
 ) -> BuildResult<TransformNode> {
-    // h2-7a-m-3.5: parenthesizer face
     create_node(
         arena,
         target,
@@ -349,7 +1192,6 @@ fn create_union_or_intersection_node(
     types: Vec<TransformNode>,
     union: bool,
 ) -> BuildResult<TransformNode> {
-    // h2-7a-m-3.5: parenthesizer face
     let types = Some(create_node_array(arena, target, types)?);
     create_node(
         arena,
@@ -420,7 +1262,13 @@ fn is_symbol_accessible_with_error_names(
         return Ok(true);
     }
     let result = checker
-        .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
+        .emit_is_symbol_accessible_with_enclosing_kind(
+            symbol,
+            enclosing,
+            context.enclosing_declaration_is_synthetic,
+            meaning,
+            false,
+        )
         .map_err(|abort| checker_abort_error(checker, context, abort))?;
     restore_direct_symbol_visibility(checker, symbol, enclosing, meaning, context)?;
     let nested_enclosing = (!context.enclosing_declaration_is_synthetic).then_some(enclosing);
@@ -747,27 +1595,13 @@ fn type_to_type_node_worker(
             unreachable!("StringLiteral flag implies string literal payload")
         };
         add_approximate_length(context, value.len() + 2);
-        let Some(text) = value.to_utf8() else {
-            return Err(EmitResolverError::CheckerAborted {
-                method: METHOD,
-                node: resolver_node(checker, context),
-                reason: "unpaired UTF-16 string literal requires the m-3.5 UTF-16 factory face",
-            });
-        };
-        let literal = create_node(
-            arena,
-            target,
-            NodeData::StringLiteral(StringLiteralData {
-                text,
-                has_extended_unicode_escape: None,
-            }),
-        )?;
+        let single_quote = has_flag(context, USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE);
+        let literal = arena
+            .factory()
+            .create_string_literal_from_code_units(target, value.units(), single_quote)
+            .map_err(factory_error)?;
         let metadata = arena.metadata_mut(literal);
         metadata.add_flags(EmitFlags::NO_ASCII_ESCAPING);
-        metadata.set_string_literal_single_quote(has_flag(
-            context,
-            USE_SINGLE_QUOTES_FOR_STRING_LITERAL_TYPE,
-        ));
         return create_literal_type_node(arena, target, literal).map(Some);
     }
     if flags.intersects(TypeFlags::NUMBER_LITERAL) {
@@ -1145,21 +1979,15 @@ fn type_to_type_node_worker(
         let TypeData::TemplateLiteral { texts, types } = ty.data else {
             unreachable!("TemplateLiteral flag implies template payload")
         };
-        let Some(head_text) = texts[0].to_utf8() else {
-            return Err(EmitResolverError::CheckerAborted {
-                method: METHOD,
-                node: resolver_node(checker, context),
-                reason: "unpaired UTF-16 template text requires the m-3.5 UTF-16 factory face",
-            });
-        };
-        let head = create_node(
-            arena,
-            target,
-            NodeData::TemplateHead(TemplateHeadData {
-                text: head_text,
-                raw_text: None,
-            }),
-        )?;
+        let head = arena
+            .factory()
+            .create_template_literal_like_from_code_units(
+                target,
+                SyntaxKind::TemplateHead,
+                texts[0].units(),
+                None,
+            )
+            .map_err(factory_error)?;
         let mut spans = Vec::with_capacity(types.len());
         for (index, span_type) in types.iter().copied().enumerate() {
             let Some(span_type) =
@@ -1167,28 +1995,20 @@ fn type_to_type_node_worker(
             else {
                 return Ok(None);
             };
-            let Some(text) = texts[index + 1].to_utf8() else {
-                return Err(EmitResolverError::CheckerAborted {
-                    method: METHOD,
-                    node: resolver_node(checker, context),
-                    reason: "unpaired UTF-16 template text requires the m-3.5 UTF-16 factory face",
-                });
+            let kind = if index + 1 == types.len() {
+                SyntaxKind::TemplateTail
+            } else {
+                SyntaxKind::TemplateMiddle
             };
-            let literal = create_node(
-                arena,
-                target,
-                if index + 1 == types.len() {
-                    NodeData::TemplateTail(TemplateTailData {
-                        text,
-                        raw_text: None,
-                    })
-                } else {
-                    NodeData::TemplateMiddle(TemplateMiddleData {
-                        text,
-                        raw_text: None,
-                    })
-                },
-            )?;
+            let literal = arena
+                .factory()
+                .create_template_literal_like_from_code_units(
+                    target,
+                    kind,
+                    texts[index + 1].units(),
+                    None,
+                )
+                .map_err(factory_error)?;
             spans.push(create_node(
                 arena,
                 target,
@@ -1249,7 +2069,6 @@ fn type_to_type_node_worker(
             return Ok(None);
         };
         add_approximate_length(context, 2);
-        // h2-7a-m-3.5: parenthesizer face
         return create_node(
             arena,
             target,
@@ -1476,7 +2295,6 @@ fn conditional_type_to_type_node(
         )?;
         let infer = create_infer_type_node(arena, target, &name, None)?;
         let never = create_keyword_type_node(arena, target, SyntaxKind::NeverKeyword)?;
-        // h2-7a-m-3.5: parenthesizer face
         return create_node(
             arena,
             target,
@@ -1514,7 +2332,6 @@ fn conditional_type_to_type_node(
     else {
         return Ok(None);
     };
-    // h2-7a-m-3.5: parenthesizer face
     create_node(
         arena,
         target,
@@ -1821,7 +2638,6 @@ fn create_mapped_type_node_from_type(
             return Ok(result);
         };
         let never = create_keyword_type_node(arena, target, SyntaxKind::NeverKeyword)?;
-        // h2-7a-m-3.5: parenthesizer face
         return create_node(
             arena,
             target,
@@ -1849,7 +2665,6 @@ fn create_mapped_type_node_from_type(
             return Ok(result);
         };
         let never = create_keyword_type_node(arena, target, SyntaxKind::NeverKeyword)?;
-        // h2-7a-m-3.5: parenthesizer face
         return create_node(
             arena,
             target,
@@ -2529,7 +3344,6 @@ fn type_reference_to_type_node(
                         }),
                     )?
                 } else if flags.intersects(ElementFlags::OPTIONAL) {
-                    // h2-7a-m-3.5: parenthesizer face
                     create_node(
                         arena,
                         target,

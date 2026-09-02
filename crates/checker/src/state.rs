@@ -253,6 +253,12 @@ pub(crate) struct InProgressMappedType {
 pub struct CheckerState<'a> {
     pub binder: ProgramBinder<'a>,
     pub options: &'a CompilerOptions,
+    /// Hook-less, session-owned substrate for checker display
+    /// nodes. Sources are mounted lazily by [`Self::emit_display_target`].
+    pub(crate) emit_display:
+        Option<std::rc::Rc<std::cell::RefCell<tsc_emitter::TransformationResult<'static>>>>,
+    pub(crate) emit_display_sources:
+        std::collections::BTreeMap<usize, tsc_emitter::TransformSourceId>,
     pub tables: TypeTables,
     /// tsc strictFunctionTypes via getStrictOptionValue.
     pub strict_function_types: bool,
@@ -1040,6 +1046,52 @@ impl<'a> CheckerState<'a> {
         Self::from_program_binder(ProgramBinder::from_snapshot(snapshot), options)
     }
 
+    /// Lazily construct the hook-less result that owns checker-built display
+    /// nodes for the lifetime of this checker session.
+    /// tsrs-native: lazily created hook-less TransformationResult owning checker-built display nodes.
+    pub(crate) fn emit_display_result(
+        &mut self,
+    ) -> std::rc::Rc<std::cell::RefCell<tsc_emitter::TransformationResult<'static>>> {
+        self.emit_display
+            .get_or_insert_with(|| {
+                std::rc::Rc::new(std::cell::RefCell::new(
+                    tsc_emitter::transform_nodes(
+                        tsc_emitter::TransformArena::new(),
+                        Vec::new(),
+                        Vec::new(),
+                        true,
+                    )
+                    .expect("hook-less checker display transform must initialize"),
+                ))
+            })
+            .clone()
+    }
+
+    /// Mount one binder source into the checker display arena on first use.
+    /// tsrs-native: per-file arena mount for checker-built display nodes.
+    pub(crate) fn emit_display_target(
+        &mut self,
+        file_index: usize,
+    ) -> tsc_emitter::TransformSourceId {
+        if let Some(&target) = self.emit_display_sources.get(&file_index) {
+            return target;
+        }
+        assert!(file_index < self.binder.file_count());
+        let display = self.emit_display_result();
+        let target = display
+            .borrow_mut()
+            .arena_mut()
+            .expect("checker display result remains live")
+            .add_source(
+                self.binder.source(file_index),
+                Some(tsc_program::SourceFileId::from_raw(
+                    u32::try_from(file_index).expect("checker source index exceeds u32"),
+                )),
+            );
+        self.emit_display_sources.insert(file_index, target);
+        target
+    }
+
     fn from_program_binder(mut binder: ProgramBinder<'a>, options: &'a CompilerOptions) -> Self {
         let strict_null_checks = options.strict_option_value(options.strict_null_checks);
         let strict_function_types = options.strict_option_value(options.strict_function_types);
@@ -1057,6 +1109,8 @@ impl<'a> CheckerState<'a> {
         let mut state = Self {
             binder,
             options,
+            emit_display: None,
+            emit_display_sources: std::collections::BTreeMap::new(),
             tables,
             strict_function_types,
             links: LinksTables::default(),

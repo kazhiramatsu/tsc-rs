@@ -10,13 +10,43 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
-    EmitFunctionProperty, EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility,
-    EmitSymbolAccessibilityResult, EmitSymbolMeaning,
+    create_printer, EmitFunctionProperty, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags,
+    EmitResolverError, EmitResolverNode, EmitResolverSymbol, EmitSymbolAccessibility,
+    EmitSymbolAccessibilityResult, EmitSymbolMeaning, NewLineKind, PrintRequest, PrinterOptions,
+    StandaloneWriter,
 };
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{CheckFlags, CompilerOptions, ModifierFlags, NodeFlags, SymbolFlags};
 
-use crate::state::{CheckResult, CheckerState};
+use crate::state::{CheckAbort, CheckResult, CheckerState, OracleCrashKind};
+
+/// SymbolFormatFlags word consumed by checker `symbolToString`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct SymbolFormatFlags(u32);
+
+impl SymbolFormatFlags {
+    const WRITE_TYPE_PARAMETERS_OR_ARGUMENTS: Self = Self(1);
+    const USE_ONLY_EXTERNAL_ALIASING: Self = Self(2);
+    const ALLOW_ANY_NODE_KIND: Self = Self(4);
+    const USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE: Self = Self(8);
+    const WRITE_COMPUTED_PROPS: Self = Self(16);
+    const DO_NOT_INCLUDE_SYMBOL_CHAIN: Self = Self(32);
+
+    const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+}
+
+fn declaration_emit_symbol_builder_abort(error: EmitResolverError) -> CheckAbort {
+    match error {
+        EmitResolverError::CheckerAborted { reason, .. }
+            if reason == OracleCrashKind::OuterJsdocTemplateReferenceDisplay.description() =>
+        {
+            CheckAbort::OracleCrash(OracleCrashKind::OuterJsdocTemplateReferenceDisplay)
+        }
+        error => panic!("symbolToString NodeBuilder failed unexpectedly: {error}"),
+    }
+}
 
 /// Narrow bridge to the two already-exact display prerequisites. The impl
 /// stays beside their private bodies in `check.rs`; declaration-emit owns all
@@ -883,6 +913,76 @@ impl CheckerState<'_> {
         }
     }
 
+    /// tsc-port: symbolToString @6.0.3
+    /// tsc-hash: db59b39300442558c3a8f0e1f1d1681dbfaf0fdb3951350b225677ed4851157e
+    /// tsc-span: _tsc.js:50649-50681
+    fn symbol_to_string_via_node_builder(
+        &mut self,
+        symbol: SymbolId,
+        enclosing: Option<NodeId>,
+        meaning: EmitSymbolMeaning,
+        format_flags: SymbolFormatFlags,
+    ) -> CheckResult<String> {
+        let mut flags = 70_221_824_u32;
+        let mut internal_flags = 0_u32;
+        if format_flags.contains(SymbolFormatFlags::USE_ONLY_EXTERNAL_ALIASING) {
+            flags |= 128;
+        }
+        if format_flags.contains(SymbolFormatFlags::WRITE_TYPE_PARAMETERS_OR_ARGUMENTS) {
+            flags |= 512;
+        }
+        if format_flags.contains(SymbolFormatFlags::USE_ALIAS_DEFINED_OUTSIDE_CURRENT_SCOPE) {
+            flags |= 16_384;
+        }
+        if format_flags.contains(SymbolFormatFlags::DO_NOT_INCLUDE_SYMBOL_CHAIN) {
+            internal_flags |= 4;
+        }
+        if format_flags.contains(SymbolFormatFlags::WRITE_COMPUTED_PROPS) {
+            internal_flags |= 1;
+        }
+
+        // The m-3 resolver adapters already replay the upstream
+        // symbolToString withContext call after receiving an inaccessible
+        // result. Build the authoritative string in the session arena without
+        // double-inserting that same decision event into the armed sink.
+        let replay_events = crate::node_builder::replay_sink::armed()
+            .then(crate::node_builder::replay_sink::disarm);
+        let node = self.emit_build_symbol_display_node(
+            symbol,
+            enclosing,
+            meaning,
+            EmitNodeBuilderFlags(flags),
+            EmitInternalNodeBuilderFlags(internal_flags),
+            format_flags.contains(SymbolFormatFlags::ALLOW_ANY_NODE_KIND),
+        );
+        if let Some(events) = replay_events {
+            crate::node_builder::replay_sink::arm();
+            for event in events {
+                crate::node_builder::replay_sink::record(move || event);
+            }
+        }
+        let node = node.map_err(declaration_emit_symbol_builder_abort)?;
+
+        let mut options = PrinterOptions::new(NewLineKind::LineFeed)
+            .with_remove_comments(true)
+            .with_declaration_syntax(true);
+        if enclosing.is_some_and(|node| self.kind_of(node) == SyntaxKind::SourceFile) {
+            options = options.with_never_ascii_escape(true);
+        }
+        let display = self.emit_display_result();
+        let printed = create_printer(options)
+            .print(
+                &mut display.borrow_mut(),
+                PrintRequest::StandaloneNode {
+                    node,
+                    writer: StandaloneWriter::SingleLine,
+                },
+                None,
+            )
+            .expect("symbolToString standalone printing must succeed");
+        Ok(printed.text().to_owned())
+    }
+
     /// tsc-port: isAnySymbolAccessible @6.0.3
     /// tsc-hash: 196ddf5926730f5e6f16ff4f2a7d59e1abf506c39cfc64d9ff90bd1a065f6cb1
     /// tsc-span: _tsc.js:50450-50498
@@ -986,16 +1086,29 @@ impl CheckerState<'_> {
             return Ok(Some(self.accessible_result()));
         }
         if let Some(had_accessible_chain) = had_accessible_chain {
-            return Ok(Some(
-                self.accessibility_result(
-                    EmitSymbolAccessibility::NotAccessible,
-                    None,
-                    Some(self.symbol_display_name(initial_symbol)),
-                    (had_accessible_chain != initial_symbol)
-                        .then(|| self.symbol_display_name(had_accessible_chain)),
-                    None,
-                ),
-            ));
+            let error_symbol_name = self.symbol_to_string_via_node_builder(
+                initial_symbol,
+                Some(enclosing_declaration),
+                EmitSymbolMeaning(meaning.bits() as u32),
+                SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
+            )?;
+            let error_module_name = if had_accessible_chain != initial_symbol {
+                Some(self.symbol_to_string_via_node_builder(
+                    had_accessible_chain,
+                    Some(enclosing_declaration),
+                    EmitSymbolMeaning::NAMESPACE,
+                    SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
+                )?)
+            } else {
+                None
+            };
+            return Ok(Some(self.accessibility_result(
+                EmitSymbolAccessibility::NotAccessible,
+                None,
+                Some(error_symbol_name),
+                error_module_name,
+                None,
+            )));
         }
         Ok(None)
     }
@@ -1010,24 +1123,91 @@ impl CheckerState<'_> {
         meaning: EmitSymbolMeaning,
         should_compute_aliases_to_make_visible: bool,
     ) -> CheckResult<EmitSymbolAccessibilityResult> {
+        self.emit_is_symbol_accessible_with_enclosing_kind(
+            symbol,
+            enclosing_declaration,
+            false,
+            meaning,
+            should_compute_aliases_to_make_visible,
+        )
+    }
+
+    /// tsrs-native: enclosing-kind overload of the isSymbolAccessible port (synthetic enclosing declarations from the harness replay).
+    pub(crate) fn emit_is_symbol_accessible_with_enclosing_kind(
+        &mut self,
+        symbol: SymbolId,
+        enclosing_declaration: NodeId,
+        enclosing_is_synthetic: bool,
+        meaning: EmitSymbolMeaning,
+        should_compute_aliases_to_make_visible: bool,
+    ) -> CheckResult<EmitSymbolAccessibilityResult> {
+        self.emit_is_symbol_accessible_with_observation(
+            symbol,
+            symbol,
+            enclosing_declaration,
+            enclosing_is_synthetic,
+            meaning,
+            should_compute_aliases_to_make_visible,
+        )
+    }
+
+    /// tsrs-native: isSymbolAccessible entry that records the replay observation for the m-3.5 error-name lane.
+    pub(crate) fn emit_is_symbol_accessible_with_observation(
+        &mut self,
+        symbol: SymbolId,
+        observation_symbol: SymbolId,
+        enclosing_declaration: NodeId,
+        enclosing_is_synthetic: bool,
+        meaning: EmitSymbolMeaning,
+        should_compute_aliases_to_make_visible: bool,
+    ) -> CheckResult<EmitSymbolAccessibilityResult> {
         let _replay_call = DeclarationReplayCallGuard::enter("resolver.isSymbolAccessible");
-        self.is_symbol_accessible_worker(
+        let result = self.is_symbol_accessible_worker(
             Some(symbol),
             Some(enclosing_declaration),
             Self::symbol_flags_from_emit_meaning(meaning),
             should_compute_aliases_to_make_visible,
             /*allow_modules*/ true,
-        )
+        )?;
+        record_declaration_replay_symbol_accessibility_result(
+            observation_symbol,
+            enclosing_declaration,
+            enclosing_is_synthetic,
+            meaning,
+            should_compute_aliases_to_make_visible,
+            &result,
+        );
+        Ok(result)
+    }
+
+    /// tsrs-native: records an always-accessible replay observation without re-running the accessibility worker (harness plumbing).
+    pub(crate) fn emit_accessible_symbol_observation(
+        &mut self,
+        symbol: SymbolId,
+        enclosing_declaration: NodeId,
+        enclosing_is_synthetic: bool,
+        meaning: EmitSymbolMeaning,
+        should_compute_aliases_to_make_visible: bool,
+    ) -> EmitSymbolAccessibilityResult {
+        let _replay_call = DeclarationReplayCallGuard::enter("resolver.isSymbolAccessible");
+        let result = self.accessible_result();
+        record_declaration_replay_symbol_accessibility_result(
+            symbol,
+            enclosing_declaration,
+            enclosing_is_synthetic,
+            meaning,
+            should_compute_aliases_to_make_visible,
+            &result,
+        );
+        result
     }
 
     /// tsc-port: isSymbolAccessibleWorker @6.0.3
     /// tsc-hash: 4fee32d2060129fdfc29d3a6fa609ff0833ad395201fe036f155bd6b73df5a6b
     /// tsc-span: _tsc.js:50509-50533
     ///
-    /// Error names intentionally use merge.rs's simple symbol display. They
-    /// are SHADOW semantics until the m-3.5 full symbolToString byte gate;
-    /// accessibility, alias ordering, module identity, and error-node
-    /// selection are authoritative here.
+    /// Both result names come from the NodeBuilder + standalone-printer
+    /// symbolToString path and are byte-gated by the replay harness.
     pub(crate) fn is_symbol_accessible_worker(
         &mut self,
         symbol: Option<SymbolId>,
@@ -1062,21 +1242,39 @@ impl CheckerState<'_> {
             let enclosing_external_module =
                 self.get_external_module_container(enclosing_declaration)?;
             if Some(symbol_external_module) != enclosing_external_module {
+                let error_symbol_name = self.symbol_to_string_via_node_builder(
+                    symbol,
+                    Some(enclosing_declaration),
+                    EmitSymbolMeaning(meaning.bits() as u32),
+                    SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
+                )?;
+                let error_module_name = self.symbol_to_string_via_node_builder(
+                    symbol_external_module,
+                    Some(enclosing_declaration),
+                    EmitSymbolMeaning::NAMESPACE,
+                    SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
+                )?;
                 return Ok(self.accessibility_result(
                     EmitSymbolAccessibility::CannotBeNamed,
                     None,
-                    Some(self.symbol_display_name(symbol)),
-                    Some(self.symbol_display_name(symbol_external_module)),
+                    Some(error_symbol_name),
+                    Some(error_module_name),
                     self.is_in_js_file(enclosing_declaration)
                         .then(|| self.declaration_emit_resolver_node(enclosing_declaration)),
                 ));
             }
         }
 
+        let error_symbol_name = self.symbol_to_string_via_node_builder(
+            symbol,
+            Some(enclosing_declaration),
+            EmitSymbolMeaning(meaning.bits() as u32),
+            SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
+        )?;
         Ok(self.accessibility_result(
             EmitSymbolAccessibility::NotAccessible,
             None,
-            Some(self.symbol_display_name(symbol)),
+            Some(error_symbol_name),
             None,
             None,
         ))
@@ -1182,6 +1380,26 @@ impl CheckerState<'_> {
         should_compute_aliases_to_make_visible: bool,
     ) -> CheckResult<EmitSymbolAccessibilityResult> {
         let _replay_call = DeclarationReplayCallGuard::enter("resolver.isEntityNameVisible");
+        let result = self.emit_is_entity_name_visible_worker(
+            entity_name,
+            enclosing_declaration,
+            should_compute_aliases_to_make_visible,
+        )?;
+        record_declaration_replay_entity_name_visibility_result(
+            entity_name,
+            enclosing_declaration,
+            should_compute_aliases_to_make_visible,
+            &result,
+        );
+        Ok(result)
+    }
+
+    fn emit_is_entity_name_visible_worker(
+        &mut self,
+        entity_name: NodeId,
+        enclosing_declaration: NodeId,
+        should_compute_aliases_to_make_visible: bool,
+    ) -> CheckResult<EmitSymbolAccessibilityResult> {
         let emit_meaning = self.get_meaning_of_entity_name_reference(entity_name);
         let meaning = Self::symbol_flags_from_emit_meaning(emit_meaning);
         let first_identifier = self.first_identifier(entity_name);
@@ -1460,11 +1678,43 @@ struct DeclarationReplayPending {
     report: Option<Result<serde_json::Value, String>>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DeclarationReplayAccessibilityObservation {
+    site: &'static str,
+    entry: DeclarationReplayAccessibilityEntry,
+    accessibility: u8,
+    error_symbol_name: String,
+    error_module_name: Option<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum DeclarationReplayAccessibilityEntry {
+    Symbol {
+        symbol: SymbolId,
+        enclosing: NodeId,
+        enclosing_is_synthetic: bool,
+        meaning: EmitSymbolMeaning,
+        should_compute_aliases: bool,
+    },
+    EntityName {
+        entity_name: NodeId,
+        enclosing: NodeId,
+        should_compute_aliases: bool,
+    },
+}
+
+#[derive(Clone)]
+struct DeclarationReplayTracedAccessibilityObservation {
+    entry: serde_json::Value,
+    result: serde_json::Value,
+}
+
 #[derive(Default)]
 struct DeclarationReplayCapture {
     calls: Vec<&'static str>,
     edges: BTreeMap<String, u64>,
     visibility_writes: Vec<(NodeId, bool)>,
+    accessibility_results: Vec<DeclarationReplayAccessibilityObservation>,
 }
 
 struct DeclarationReplayCallGuard {
@@ -1510,6 +1760,60 @@ fn record_declaration_replay_visibility_write(node: NodeId, value: bool) {
     DECLARATION_REPLAY_CAPTURE.with(|slot| {
         if let Some(capture) = slot.borrow_mut().as_mut() {
             capture.visibility_writes.push((node, value));
+        }
+    });
+}
+
+fn record_declaration_replay_symbol_accessibility_result(
+    symbol: SymbolId,
+    enclosing: NodeId,
+    enclosing_is_synthetic: bool,
+    meaning: EmitSymbolMeaning,
+    should_compute_aliases: bool,
+    result: &EmitSymbolAccessibilityResult,
+) {
+    DECLARATION_REPLAY_CAPTURE.with(|slot| {
+        if let Some(capture) = slot.borrow_mut().as_mut() {
+            capture
+                .accessibility_results
+                .push(DeclarationReplayAccessibilityObservation {
+                    site: "resolver.isSymbolAccessible.result",
+                    entry: DeclarationReplayAccessibilityEntry::Symbol {
+                        symbol,
+                        enclosing,
+                        enclosing_is_synthetic,
+                        meaning,
+                        should_compute_aliases,
+                    },
+                    accessibility: result.accessibility as u8,
+                    error_symbol_name: result.error_symbol_name.clone().unwrap_or_default(),
+                    error_module_name: result.error_module_name.clone(),
+                });
+        }
+    });
+}
+
+fn record_declaration_replay_entity_name_visibility_result(
+    entity_name: NodeId,
+    enclosing: NodeId,
+    should_compute_aliases: bool,
+    result: &EmitSymbolAccessibilityResult,
+) {
+    DECLARATION_REPLAY_CAPTURE.with(|slot| {
+        if let Some(capture) = slot.borrow_mut().as_mut() {
+            capture
+                .accessibility_results
+                .push(DeclarationReplayAccessibilityObservation {
+                    site: "resolver.isEntityNameVisible.result",
+                    entry: DeclarationReplayAccessibilityEntry::EntityName {
+                        entity_name,
+                        enclosing,
+                        should_compute_aliases,
+                    },
+                    accessibility: result.accessibility as u8,
+                    error_symbol_name: result.error_symbol_name.clone().unwrap_or_default(),
+                    error_module_name: result.error_module_name.clone(),
+                });
         }
     });
 }
@@ -1608,13 +1912,20 @@ struct DeclarationReplayRoot {
     /// span (withContext exits, tracker callbacks, syntactic frames,
     /// specifier-override arms) for the serialization replay comparison.
     nested_decision_events: Vec<serde_json::Value>,
+    accessibility_results: Vec<DeclarationReplayTracedAccessibilityObservation>,
 }
 
 #[derive(Default)]
 struct DeclarationReplayMemberCounts {
     replayed: u64,
     excluded: BTreeMap<&'static str, u64>,
-    shadow: u64,
+}
+
+#[derive(Default)]
+struct DeclarationReplayPrintedCounts {
+    replayed: u64,
+    skipped: u64,
+    mismatches: u64,
 }
 
 enum DeclarationReplayInvocation {
@@ -1661,7 +1972,48 @@ enum DeclarationReplayDecision {
     Serialized {
         produced: crate::node_builder::replay_sink::ProducedClass,
         events: Vec<crate::node_builder::replay_sink::DecisionEvent>,
+        printed: serde_json::Value,
     },
+}
+
+enum DeclarationReplaySerializedResult {
+    Absent,
+    Node(tsc_emitter::TransformNode),
+    Nodes(Vec<tsc_emitter::TransformNode>),
+}
+
+fn declaration_replay_print_serialized_result(
+    display: &mut tsc_emitter::TransformationResult<'_>,
+    serialized: &DeclarationReplaySerializedResult,
+) -> Result<serde_json::Value, String> {
+    let mut printer = create_printer(
+        PrinterOptions::new(NewLineKind::LineFeed)
+            .with_remove_comments(true)
+            .with_declaration_syntax(true),
+    );
+    let mut print_node = |node| {
+        printer
+            .print(
+                display,
+                PrintRequest::StandaloneNode {
+                    node,
+                    writer: StandaloneWriter::MultiLine,
+                },
+                None,
+            )
+            .map(|printed| serde_json::Value::String(printed.text().to_owned()))
+            .map_err(|error| format!("serialization standalone printing failed: {error}"))
+    };
+    match serialized {
+        DeclarationReplaySerializedResult::Absent => Ok(serde_json::Value::Null),
+        DeclarationReplaySerializedResult::Node(node) => print_node(*node),
+        DeclarationReplaySerializedResult::Nodes(nodes) => nodes
+            .iter()
+            .copied()
+            .map(&mut print_node)
+            .collect::<Result<Vec<_>, _>>()
+            .map(serde_json::Value::Array),
+    }
 }
 
 impl CheckerState<'_> {
@@ -1729,6 +2081,7 @@ impl CheckerState<'_> {
         let file_map = self.declaration_replay_file_map(request)?;
         let events = replay_array_field(request, "trace_events")?;
         let (roots, traced_nested_edges) = declaration_replay_roots(events, case_id)?;
+        let printed_results = declaration_replay_printed_results(request)?;
         let roots_by_sequence = roots
             .into_iter()
             .map(|root| (root.result_sequence, root))
@@ -1744,6 +2097,20 @@ impl CheckerState<'_> {
             })
             .collect::<BTreeMap<_, _>>();
         let mut gating_mismatches = Vec::new();
+        let mut printed_mismatches = Vec::new();
+        let mut printed_counts = declaration_replay_domain_members()
+            .iter()
+            .copied()
+            .filter(|member| declaration_replay_serialization_member(member))
+            .map(|member| (member.to_owned(), DeclarationReplayPrintedCounts::default()))
+            .collect::<BTreeMap<_, _>>();
+        let mut accessibility_counts = [
+            "resolver.isSymbolAccessible.result",
+            "resolver.isEntityNameVisible.result",
+        ]
+        .into_iter()
+        .map(|site| (site, DeclarationReplayAccessibilityCounts::default()))
+        .collect::<BTreeMap<_, _>>();
         let mut seed_checks = 0_u64;
         let mut replayed_nested_edges = BTreeMap::new();
         let mut rust_nested_edges = BTreeMap::new();
@@ -1766,20 +2133,65 @@ impl CheckerState<'_> {
             match self.declaration_replay_root(root, &file_map) {
                 Ok(DeclarationReplayRootOutcome::Excluded(class)) => {
                     *counts.excluded.entry(class.name()).or_default() += 1;
+                    if declaration_replay_serialization_member(&root.member) {
+                        let expected = printed_results.get(&sequence).ok_or_else(|| {
+                            format!("{case_id} event {sequence}: missing printed result")
+                        })?;
+                        let _ = expected;
+                        printed_counts
+                            .get_mut(&root.member)
+                            .expect("serialization printed-count row")
+                            .skipped += 1;
+                    }
+                    for (site, observations) in
+                        declaration_replay_traced_accessibility_counts(root)?
+                    {
+                        accessibility_counts
+                            .get_mut(site)
+                            .expect("accessibility count row")
+                            .excluded += observations;
+                    }
                 }
                 Ok(DeclarationReplayRootOutcome::Replayed {
                     gating_mismatch,
-                    shadow_divergences,
                     expected_nested_edges,
                     actual_nested_edges,
+                    printed,
+                    accessibility_counts: root_accessibility_counts,
                 }) => {
                     counts.replayed += 1;
-                    counts.shadow += shadow_divergences;
                     if let Some(detail) = gating_mismatch {
                         gating_mismatches.push(format!(
                             "{case_id} event {sequence} {}: {detail}",
                             root.member
                         ));
+                    }
+                    for (site, root_counts) in root_accessibility_counts {
+                        let counts = accessibility_counts
+                            .get_mut(site)
+                            .expect("accessibility count row");
+                        counts.compared += root_counts.compared;
+                        counts.missing += root_counts.missing;
+                        counts.divergences += root_counts.divergences;
+                        counts.extra += root_counts.extra;
+                    }
+                    if declaration_replay_serialization_member(&root.member) {
+                        let expected = printed_results.get(&sequence).ok_or_else(|| {
+                            format!("{case_id} event {sequence}: missing printed result")
+                        })?;
+                        let counts = printed_counts
+                            .get_mut(&root.member)
+                            .expect("serialization printed-count row");
+                        counts.replayed += 1;
+                        if printed.as_ref() != Some(expected) {
+                            counts.mismatches += 1;
+                            printed_mismatches.push(format!(
+                                "{case_id} event {sequence} {}: expected {}, actual {}",
+                                root.member,
+                                expected,
+                                printed.unwrap_or(serde_json::Value::Null),
+                            ));
+                        }
                     }
                     merge_replay_counts(&mut replayed_nested_edges, &expected_nested_edges);
                     merge_replay_counts(&mut rust_nested_edges, &actual_nested_edges);
@@ -1810,7 +2222,34 @@ impl CheckerState<'_> {
                     serde_json::json!({
                         "replayed": counts.replayed,
                         "excluded": excluded,
-                        "shadow": counts.shadow,
+                    }),
+                )
+            })
+            .collect::<serde_json::Map<_, _>>();
+        let printed_counts_json = printed_counts
+            .into_iter()
+            .map(|(member, counts)| {
+                (
+                    member,
+                    serde_json::json!({
+                        "replayed": counts.replayed,
+                        "skipped": counts.skipped,
+                        "mismatches": counts.mismatches,
+                    }),
+                )
+            })
+            .collect::<serde_json::Map<_, _>>();
+        let accessibility_counts_json = accessibility_counts
+            .into_iter()
+            .map(|(site, counts)| {
+                (
+                    site.to_owned(),
+                    serde_json::json!({
+                        "compared": counts.compared,
+                        "excluded": counts.excluded,
+                        "missing": counts.missing,
+                        "divergences": counts.divergences,
+                        "extra": counts.extra,
                     }),
                 )
             })
@@ -1821,6 +2260,9 @@ impl CheckerState<'_> {
             "seed_checks": seed_checks,
             "member_counts": counts_json,
             "gating_mismatches": gating_mismatches,
+            "printed_counts": printed_counts_json,
+            "printed_mismatches": printed_mismatches,
+            "error_name_counts": accessibility_counts_json,
             "traced_nested_edges": replay_counts_json(&traced_nested_edges),
             "replayed_nested_edges": replay_counts_json(&replayed_nested_edges),
             "rust_nested_edges": replay_counts_json(&rust_nested_edges),
@@ -1833,9 +2275,10 @@ enum DeclarationReplayRootOutcome {
     Excluded(DeclarationReplayExclusion),
     Replayed {
         gating_mismatch: Option<String>,
-        shadow_divergences: u64,
         expected_nested_edges: BTreeMap<String, u64>,
         actual_nested_edges: BTreeMap<String, u64>,
+        printed: Option<serde_json::Value>,
+        accessibility_counts: BTreeMap<&'static str, DeclarationReplayAccessibilityCounts>,
     },
 }
 
@@ -1936,6 +2379,37 @@ fn replay_array_field<'a>(
         .and_then(serde_json::Value::as_array)
         .map(Vec::as_slice)
         .ok_or_else(|| format!("missing array field {field:?}"))
+}
+
+fn declaration_replay_serialization_member(member: &str) -> bool {
+    matches!(
+        member,
+        "resolver.createTypeOfDeclaration"
+            | "resolver.createReturnTypeOfSignatureDeclaration"
+            | "resolver.createTypeOfExpression"
+            | "resolver.createLiteralConstValue"
+            | "resolver.getDeclarationStatementsForSourceFile"
+            | "resolver.createLateBoundIndexSignatures"
+    )
+}
+
+fn declaration_replay_printed_results(
+    request: &serde_json::Value,
+) -> Result<BTreeMap<u64, serde_json::Value>, String> {
+    let mut results = BTreeMap::new();
+    for row in replay_array_field(request, "printed_results")? {
+        let row = row
+            .as_array()
+            .filter(|row| row.len() == 2)
+            .ok_or_else(|| "printed_results row is malformed".to_owned())?;
+        let sequence = row[0]
+            .as_u64()
+            .ok_or_else(|| "printed_results sequence is not unsigned".to_owned())?;
+        if results.insert(sequence, row[1].clone()).is_some() {
+            return Err(format!("duplicate printed_results sequence {sequence}"));
+        }
+    }
+    Ok(results)
 }
 
 /// h2-7a-m-3 §6.2: the harness tracker. Records every callback into the
@@ -2114,10 +2588,16 @@ fn declaration_replay_roots(
     let mut writes: BTreeMap<i64, Vec<(serde_json::Value, bool)>> = BTreeMap::new();
     let mut nested_by_root: BTreeMap<i64, BTreeMap<String, u64>> = BTreeMap::new();
     let mut decision_by_root: BTreeMap<i64, Vec<serde_json::Value>> = BTreeMap::new();
+    let mut accessibility_by_root: BTreeMap<
+        i64,
+        Vec<DeclarationReplayTracedAccessibilityObservation>,
+    > = BTreeMap::new();
     let mut all_nested = BTreeMap::new();
     let mut roots = Vec::new();
     let is_decision_lane = |site: &str| {
-        site == "nodebuilder.withContext.result"
+        site == "resolver.isSymbolAccessible.result"
+            || site == "resolver.isEntityNameVisible.result"
+            || site == "nodebuilder.withContext.result"
             || site == "nodebuilder.withContext.decision"
             || site.starts_with("nodebuilder.moduleSpecifierOverride")
             || site.starts_with("tracker.")
@@ -2184,6 +2664,16 @@ fn declaration_replay_roots(
                         .push(event.clone());
                 }
             }
+            if declaration_replay_accessibility_site(site).is_some() {
+                if let Some(root_id) = frame.maximal_domain_call {
+                    accessibility_by_root.entry(root_id).or_default().push(
+                        DeclarationReplayTracedAccessibilityObservation {
+                            entry: frame.entry.clone(),
+                            result: event.clone(),
+                        },
+                    );
+                }
+            }
             if frame.root {
                 roots.push(DeclarationReplayRoot {
                     member: frame.member,
@@ -2193,6 +2683,9 @@ fn declaration_replay_roots(
                     visibility_writes: writes.remove(&call_id).unwrap_or_default(),
                     nested_edges: nested_by_root.remove(&call_id).unwrap_or_default(),
                     nested_decision_events: decision_by_root.remove(&call_id).unwrap_or_default(),
+                    accessibility_results: accessibility_by_root
+                        .remove(&call_id)
+                        .unwrap_or_default(),
                 });
             }
             continue;
@@ -2316,7 +2809,13 @@ impl CheckerState<'_> {
                 }
             })
             .collect::<Vec<_>>();
-        (matches.len() == 1).then_some(matches[0])
+        // `then_some` evaluates its argument eagerly: an empty match set must
+        // not index. This also keeps replay-session node identities stable.
+        if matches.len() == 1 {
+            Some(matches[0])
+        } else {
+            None
+        }
     }
 
     fn declaration_replay_compare_seed(
@@ -2424,17 +2923,23 @@ impl CheckerState<'_> {
             ));
         }
         mismatches.extend(preparation.input_mismatches);
-        let shadow_divergences = declaration_replay_shadow_divergences(
-            &decision,
-            &preparation.expected_shadow_symbol,
-            &preparation.expected_shadow_module,
-        );
+        let (accessibility_counts, accessibility_mismatches) = self
+            .declaration_replay_compare_accessibility_results(
+                root,
+                &capture.accessibility_results,
+                file_map,
+            )?;
+        mismatches.extend(accessibility_mismatches);
 
         Ok(DeclarationReplayRootOutcome::Replayed {
             gating_mismatch: (!mismatches.is_empty()).then(|| mismatches.join("; ")),
-            shadow_divergences,
             expected_nested_edges: root.nested_edges.clone(),
             actual_nested_edges: capture.edges,
+            printed: match decision {
+                DeclarationReplayDecision::Serialized { printed, .. } => Some(printed),
+                _ => None,
+            },
+            accessibility_counts,
         })
     }
 }
@@ -2443,8 +2948,6 @@ struct DeclarationReplayPreparation {
     invocation: DeclarationReplayInvocation,
     expected: serde_json::Value,
     expected_paint: BTreeSet<(DeclarationReplayCoordinate, bool)>,
-    expected_shadow_symbol: Option<String>,
-    expected_shadow_module: Option<Option<String>>,
     input_mismatches: Vec<String>,
 }
 
@@ -2799,18 +3302,15 @@ impl CheckerState<'_> {
             },
         };
 
-        let (expected, expected_shadow_symbol, expected_shadow_module) = if matches!(
+        let expected = if matches!(
             invocation,
             DeclarationReplayInvocation::Serialization { .. }
         ) {
-            (
-                self.declaration_replay_expected_serialized(root, file_map)
-                    .map_err(DeclarationReplayResolutionError::Invalid)?,
-                None,
-                None,
-            )
+            self.declaration_replay_expected_serialized(root, file_map)
+                .map_err(DeclarationReplayResolutionError::Invalid)?
         } else {
             self.declaration_replay_expected_decision(&root.member, result_args, file_map)?
+                .0
         };
         let expected_paint = root
             .visibility_writes
@@ -2829,8 +3329,6 @@ impl CheckerState<'_> {
             invocation,
             expected,
             expected_paint,
-            expected_shadow_symbol,
-            expected_shadow_module,
             input_mismatches,
         })
     }
@@ -2906,11 +3404,13 @@ impl CheckerState<'_> {
                     serde_json::json!({
                         "kind": "accessibility",
                         "accessibility": accessibility,
+                        "error_symbol_name": error_symbol,
+                        "error_module_name": error_module,
                         "error_node": error_node.map_or(serde_json::Value::Null, DeclarationReplayCoordinate::json),
                         "aliases": aliases,
                     }),
-                    Some(error_symbol),
-                    Some(error_module),
+                    None,
+                    None,
                 ))
             }
             "resolver.getPropertiesOfContainerFunction" => {
@@ -3106,7 +3606,22 @@ impl CheckerState<'_> {
         for event in &root.nested_decision_events {
             let site = replay_string_field(event, "site_id")?;
             let args = replay_array_field(event, "args")?;
+            if matches!(
+                site,
+                "resolver.isSymbolAccessible.result" | "resolver.isEntityNameVisible.result"
+            ) {
+                // L3 compares these ordered triples as their own decision
+                // lane below; they are not NodeBuilder sink events.
+                continue;
+            }
             if site == "nodebuilder.withContext.result" {
+                // IgnoreErrors contexts here are the symbolToString workers
+                // used solely to materialize L3 error names. Their call
+                // cardinality follows nested accessibility topology, which is
+                // explicitly non-gating; the keyed L3 lane gates their bytes.
+                if args.get(2).and_then(serde_json::Value::as_u64) == Some(70_221_824) {
+                    continue;
+                }
                 events.push(serde_json::json!({
                     "site": site,
                     "status": args.get(1).cloned().unwrap_or(serde_json::Value::Null),
@@ -3240,11 +3755,7 @@ impl CheckerState<'_> {
         };
         let mut tracker = DeclarationReplayRecordingTracker;
         crate::node_builder::replay_sink::arm();
-        let outcome: Result<
-            crate::node_builder::replay_sink::ProducedClass,
-            tsc_emitter::EmitResolverError,
-        > = {
-            use crate::node_builder::replay_sink::ProducedClass;
+        let outcome: Result<DeclarationReplaySerializedResult, tsc_emitter::EmitResolverError> = {
             let enclosing_or_root = enclosing.unwrap_or_else(|| self.binder.source(node_file).root);
             match member {
                 "resolver.createTypeOfDeclaration" => self
@@ -3258,8 +3769,8 @@ impl CheckerState<'_> {
                         &mut tracker,
                     )
                     .map(|produced| match produced {
-                        None => ProducedClass::Absent,
-                        Some(node) => crate::node_builder::transform_node_class(&arena, node),
+                        None => DeclarationReplaySerializedResult::Absent,
+                        Some(node) => DeclarationReplaySerializedResult::Node(node),
                     }),
                 "resolver.createReturnTypeOfSignatureDeclaration" => self
                     .emit_create_return_type_of_signature_declaration(
@@ -3272,8 +3783,8 @@ impl CheckerState<'_> {
                         &mut tracker,
                     )
                     .map(|produced| match produced {
-                        None => ProducedClass::Absent,
-                        Some(node) => crate::node_builder::transform_node_class(&arena, node),
+                        None => DeclarationReplaySerializedResult::Absent,
+                        Some(node) => DeclarationReplaySerializedResult::Node(node),
                     }),
                 "resolver.createTypeOfExpression" => self
                     .emit_create_type_of_expression(
@@ -3286,12 +3797,12 @@ impl CheckerState<'_> {
                         &mut tracker,
                     )
                     .map(|produced| match produced {
-                        None => ProducedClass::Absent,
-                        Some(node) => crate::node_builder::transform_node_class(&arena, node),
+                        None => DeclarationReplaySerializedResult::Absent,
+                        Some(node) => DeclarationReplaySerializedResult::Node(node),
                     }),
                 "resolver.createLiteralConstValue" => self
                     .emit_create_literal_const_value(&mut arena, target, node, &mut tracker)
-                    .map(|node| crate::node_builder::transform_node_class(&arena, node)),
+                    .map(DeclarationReplaySerializedResult::Node),
                 "resolver.getDeclarationStatementsForSourceFile" => self
                     .emit_get_declaration_statements_for_source_file(
                         &mut arena,
@@ -3302,10 +3813,8 @@ impl CheckerState<'_> {
                         &mut tracker,
                     )
                     .map(|produced| match produced {
-                        None => ProducedClass::Absent,
-                        Some(nodes) => ProducedClass::Container {
-                            length: nodes.len(),
-                        },
+                        None => DeclarationReplaySerializedResult::Absent,
+                        Some(nodes) => DeclarationReplaySerializedResult::Nodes(nodes),
                     }),
                 "resolver.createLateBoundIndexSignatures" => self
                     .emit_create_late_bound_index_signatures(
@@ -3318,10 +3827,8 @@ impl CheckerState<'_> {
                         &mut tracker,
                     )
                     .map(|produced| match produced {
-                        None => ProducedClass::Absent,
-                        Some(nodes) => ProducedClass::Container {
-                            length: nodes.len(),
-                        },
+                        None => DeclarationReplaySerializedResult::Absent,
+                        Some(nodes) => DeclarationReplaySerializedResult::Nodes(nodes),
                     }),
                 other => Err(tsc_emitter::EmitResolverError::CheckerAborted {
                     method: tsc_emitter::EmitResolverMethod::CreateTypeOfDeclaration,
@@ -3339,7 +3846,27 @@ impl CheckerState<'_> {
         };
         let events = crate::node_builder::replay_sink::disarm();
         match outcome {
-            Ok(produced) => Ok(DeclarationReplayDecision::Serialized { produced, events }),
+            Ok(serialized) => {
+                use crate::node_builder::replay_sink::ProducedClass;
+                let produced = match &serialized {
+                    DeclarationReplaySerializedResult::Absent => ProducedClass::Absent,
+                    DeclarationReplaySerializedResult::Node(node) => {
+                        crate::node_builder::transform_node_class(&arena, *node)
+                    }
+                    DeclarationReplaySerializedResult::Nodes(nodes) => ProducedClass::Container {
+                        length: nodes.len(),
+                    },
+                };
+                let mut display = tsc_emitter::transform_nodes(arena, Vec::new(), Vec::new(), true)
+                    .map_err(|error| format!("serialization print arena failed: {error}"))?;
+                let printed =
+                    declaration_replay_print_serialized_result(&mut display, &serialized)?;
+                Ok(DeclarationReplayDecision::Serialized {
+                    produced,
+                    events,
+                    printed,
+                })
+            }
             Err(error) => Err(format!("serialization member failed: {error}")),
         }
     }
@@ -3354,9 +3881,20 @@ impl CheckerState<'_> {
                 Ok(serde_json::json!({"kind": "boolean", "value": value}))
             }
             DeclarationReplayDecision::Void => Ok(serde_json::json!({"kind": "void"})),
-            DeclarationReplayDecision::Serialized { produced, events } => {
+            DeclarationReplayDecision::Serialized {
+                produced, events, ..
+            } => {
                 let events = events
                     .iter()
+                    .filter(|event| {
+                        !matches!(
+                            event,
+                            crate::node_builder::replay_sink::DecisionEvent::WithContextResult {
+                                flags: 70_221_824,
+                                ..
+                            }
+                        )
+                    })
                     .map(|event| self.declaration_replay_actual_event_json(event, file_map))
                     .collect::<Result<Vec<_>, _>>()?;
                 Ok(serde_json::json!({
@@ -3407,6 +3945,8 @@ impl CheckerState<'_> {
                 Ok(serde_json::json!({
                     "kind": "accessibility",
                     "accessibility": result.accessibility as u8,
+                    "error_symbol_name": result.error_symbol_name.clone().unwrap_or_default(),
+                    "error_module_name": result.error_module_name,
                     "error_node": error_node,
                     "aliases": aliases,
                 }))
@@ -3581,26 +4121,367 @@ fn declaration_replay_expected_symbol(
     Ok(serde_json::json!([name, declaration_count, declarations]))
 }
 
-fn declaration_replay_shadow_divergences(
-    decision: &DeclarationReplayDecision,
-    expected_symbol: &Option<String>,
-    expected_module: &Option<Option<String>>,
-) -> u64 {
-    let DeclarationReplayDecision::Accessibility(result) = decision else {
-        return 0;
-    };
-    let mut divergences = 0;
-    if let Some(expected) = expected_symbol {
-        if result.error_symbol_name.as_deref().unwrap_or("") != expected {
-            divergences += 1;
-        }
+#[derive(Clone, Copy, Debug, Default)]
+struct DeclarationReplayAccessibilityCounts {
+    compared: u64,
+    excluded: u64,
+    missing: u64,
+    divergences: u64,
+    extra: u64,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct DeclarationReplayAccessibilityKey {
+    site: &'static str,
+    subject: String,
+    enclosing: String,
+    meaning: Option<u32>,
+    should_compute_aliases: bool,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct DeclarationReplayAccessibilityTriple {
+    accessibility: u8,
+    error_symbol_name: String,
+    error_module_name: Option<String>,
+}
+
+fn declaration_replay_accessibility_site(site: &str) -> Option<&'static str> {
+    match site {
+        "resolver.isSymbolAccessible.result" => Some("resolver.isSymbolAccessible.result"),
+        "resolver.isEntityNameVisible.result" => Some("resolver.isEntityNameVisible.result"),
+        _ => None,
     }
-    if let Some(expected) = expected_module {
-        if &result.error_module_name != expected {
-            divergences += 1;
-        }
+}
+
+fn declaration_replay_traced_accessibility_counts(
+    root: &DeclarationReplayRoot,
+) -> Result<BTreeMap<&'static str, u64>, String> {
+    let mut results = BTreeMap::new();
+    for observation in &root.accessibility_results {
+        let site = replay_string_field(&observation.result, "site_id")?;
+        let Some(site) = declaration_replay_accessibility_site(site) else {
+            continue;
+        };
+        *results.entry(site).or_default() += 1;
     }
-    divergences
+    Ok(results)
+}
+
+fn declaration_replay_accessibility_key_json(
+    key: &DeclarationReplayAccessibilityKey,
+) -> serde_json::Value {
+    serde_json::json!({
+        "subject": key.subject,
+        "enclosing": key.enclosing,
+        "meaning": key.meaning,
+        "should_compute_aliases": key.should_compute_aliases,
+    })
+}
+
+fn declaration_replay_accessibility_triple_json(
+    triple: &DeclarationReplayAccessibilityTriple,
+) -> serde_json::Value {
+    serde_json::json!([
+        triple.accessibility,
+        triple.error_symbol_name,
+        triple.error_module_name,
+    ])
+}
+
+fn declaration_replay_resolution_error_text(error: DeclarationReplayResolutionError) -> String {
+    match error {
+        DeclarationReplayResolutionError::Excluded(class) => {
+            format!("{} reference", class.name())
+        }
+        DeclarationReplayResolutionError::Invalid(detail) => detail,
+    }
+}
+
+fn declaration_replay_expected_node_key(
+    value: &serde_json::Value,
+    file_map: &DeclarationReplayFileMap,
+) -> Result<String, String> {
+    declaration_replay_coordinate(value, file_map, true)
+        .map(|coordinate| {
+            coordinate.map_or_else(|| value.to_string(), |value| value.json().to_string())
+        })
+        .map_err(declaration_replay_resolution_error_text)
+}
+
+impl CheckerState<'_> {
+    fn declaration_replay_expected_accessibility_observation(
+        &self,
+        observation: &DeclarationReplayTracedAccessibilityObservation,
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<
+        (
+            DeclarationReplayAccessibilityKey,
+            DeclarationReplayAccessibilityTriple,
+        ),
+        String,
+    > {
+        let site = declaration_replay_accessibility_site(replay_string_field(
+            &observation.result,
+            "site_id",
+        )?)
+        .ok_or_else(|| "traced accessibility observation has an invalid result site".to_owned())?;
+        let entry_site = replay_string_field(&observation.entry, "site_id")?;
+        if entry_site.strip_suffix(".entry") != site.strip_suffix(".result") {
+            return Err(format!(
+                "accessibility entry/result site mismatch: {entry_site} vs {site}"
+            ));
+        }
+        let entry = replay_array_field(&observation.entry, "args")?;
+        let key = if site == "resolver.isSymbolAccessible.result" {
+            let subject = declaration_replay_expected_symbol(
+                entry
+                    .get(2)
+                    .ok_or_else(|| format!("{entry_site} lacks symbolRef"))?,
+                file_map,
+            )
+            .map_err(declaration_replay_resolution_error_text)?
+            .to_string();
+            let enclosing = declaration_replay_expected_node_key(
+                entry
+                    .get(3)
+                    .ok_or_else(|| format!("{entry_site} lacks enclosing nodeRef"))?,
+                file_map,
+            )?;
+            let meaning = entry
+                .get(4)
+                .and_then(serde_json::Value::as_u64)
+                .and_then(|value| u32::try_from(value).ok())
+                .ok_or_else(|| format!("{entry_site} lacks meaning"))?;
+            let should_compute_aliases = entry
+                .get(5)
+                .and_then(serde_json::Value::as_bool)
+                .ok_or_else(|| format!("{entry_site} lacks shouldCompute flag"))?;
+            DeclarationReplayAccessibilityKey {
+                site,
+                subject,
+                enclosing,
+                meaning: Some(meaning),
+                should_compute_aliases,
+            }
+        } else {
+            let subject = declaration_replay_expected_required_node(
+                entry
+                    .get(2)
+                    .ok_or_else(|| format!("{entry_site} lacks entity nodeRef"))?,
+                file_map,
+            )
+            .map_err(declaration_replay_resolution_error_text)?
+            .json()
+            .to_string();
+            let enclosing = declaration_replay_expected_required_node(
+                entry
+                    .get(3)
+                    .ok_or_else(|| format!("{entry_site} lacks enclosing nodeRef"))?,
+                file_map,
+            )
+            .map_err(declaration_replay_resolution_error_text)?
+            .json()
+            .to_string();
+            let should_compute_aliases = entry
+                .get(4)
+                .and_then(serde_json::Value::as_bool)
+                .ok_or_else(|| format!("{entry_site} lacks shouldCompute flag"))?;
+            DeclarationReplayAccessibilityKey {
+                site,
+                subject,
+                enclosing,
+                meaning: None,
+                should_compute_aliases,
+            }
+        };
+        let result = replay_array_field(&observation.result, "args")?;
+        let accessibility = result
+            .get(1)
+            .and_then(serde_json::Value::as_u64)
+            .and_then(|value| u8::try_from(value).ok())
+            .ok_or_else(|| format!("{site} lacks accessibility"))?;
+        let error_symbol_name = result
+            .get(2)
+            .and_then(serde_json::Value::as_str)
+            .ok_or_else(|| format!("{site} lacks errorSymbolName"))?
+            .to_owned();
+        let error_module_name = match result.get(3) {
+            Some(serde_json::Value::Null) => None,
+            Some(value) => Some(
+                value
+                    .as_str()
+                    .ok_or_else(|| format!("{site} has invalid errorModuleName"))?
+                    .to_owned(),
+            ),
+            None => return Err(format!("{site} lacks errorModuleName")),
+        };
+        Ok((
+            key,
+            DeclarationReplayAccessibilityTriple {
+                accessibility,
+                error_symbol_name,
+                error_module_name,
+            },
+        ))
+    }
+
+    fn declaration_replay_actual_accessibility_observation(
+        &self,
+        observation: &DeclarationReplayAccessibilityObservation,
+        file_map: &DeclarationReplayFileMap,
+    ) -> (
+        DeclarationReplayAccessibilityKey,
+        DeclarationReplayAccessibilityTriple,
+    ) {
+        let (subject, enclosing, meaning, should_compute_aliases) = match observation.entry {
+            DeclarationReplayAccessibilityEntry::Symbol {
+                symbol,
+                enclosing,
+                enclosing_is_synthetic,
+                meaning,
+                should_compute_aliases,
+            } => (
+                self.declaration_replay_project_symbol(symbol, file_map)
+                    .map(|value| value.to_string())
+                    .unwrap_or_else(|error| format!("unprojectable-symbol-{}:{error}", symbol.0)),
+                if enclosing_is_synthetic {
+                    "[-1,-1,-1,-1,-1,-1,-1,-1]".to_owned()
+                } else {
+                    self.declaration_replay_project_node(enclosing, file_map)
+                        .map(|value| value.json().to_string())
+                        .unwrap_or_else(|error| {
+                            format!("unprojectable-node-{}:{error}", enclosing.0)
+                        })
+                },
+                Some(meaning.0),
+                should_compute_aliases,
+            ),
+            DeclarationReplayAccessibilityEntry::EntityName {
+                entity_name,
+                enclosing,
+                should_compute_aliases,
+            } => (
+                self.declaration_replay_project_node(entity_name, file_map)
+                    .map(|value| value.json().to_string())
+                    .unwrap_or_else(|error| {
+                        format!("unprojectable-node-{}:{error}", entity_name.0)
+                    }),
+                self.declaration_replay_project_node(enclosing, file_map)
+                    .map(|value| value.json().to_string())
+                    .unwrap_or_else(|error| format!("unprojectable-node-{}:{error}", enclosing.0)),
+                None,
+                should_compute_aliases,
+            ),
+        };
+        (
+            DeclarationReplayAccessibilityKey {
+                site: observation.site,
+                subject,
+                enclosing,
+                meaning,
+                should_compute_aliases,
+            },
+            DeclarationReplayAccessibilityTriple {
+                accessibility: observation.accessibility,
+                error_symbol_name: observation.error_symbol_name.clone(),
+                error_module_name: observation.error_module_name.clone(),
+            },
+        )
+    }
+
+    fn declaration_replay_compare_accessibility_results(
+        &self,
+        root: &DeclarationReplayRoot,
+        actual: &[DeclarationReplayAccessibilityObservation],
+        file_map: &DeclarationReplayFileMap,
+    ) -> Result<
+        (
+            BTreeMap<&'static str, DeclarationReplayAccessibilityCounts>,
+            Vec<String>,
+        ),
+        String,
+    > {
+        let mut expected_by_key = BTreeMap::<
+            DeclarationReplayAccessibilityKey,
+            Vec<DeclarationReplayAccessibilityTriple>,
+        >::new();
+        for observation in &root.accessibility_results {
+            let (key, triple) =
+                self.declaration_replay_expected_accessibility_observation(observation, file_map)?;
+            expected_by_key.entry(key).or_default().push(triple);
+        }
+        let mut actual_by_key = BTreeMap::<
+            DeclarationReplayAccessibilityKey,
+            Vec<DeclarationReplayAccessibilityTriple>,
+        >::new();
+        for observation in actual {
+            let (key, triple) =
+                self.declaration_replay_actual_accessibility_observation(observation, file_map);
+            actual_by_key.entry(key).or_default().push(triple);
+        }
+        let mut counts = [
+            "resolver.isSymbolAccessible.result",
+            "resolver.isEntityNameVisible.result",
+        ]
+        .into_iter()
+        .map(|site| (site, DeclarationReplayAccessibilityCounts::default()))
+        .collect::<BTreeMap<_, _>>();
+        let mut mismatches = Vec::new();
+        for (key, expected) in &expected_by_key {
+            let row = counts.get_mut(key.site).expect("accessibility count row");
+            row.compared += expected.len() as u64;
+            let Some(actual) = actual_by_key.get(key) else {
+                row.missing += expected.len() as u64;
+                mismatches.push(format!(
+                    "{} keyed result missing for {}: expected {}",
+                    key.site,
+                    declaration_replay_accessibility_key_json(key),
+                    serde_json::Value::Array(
+                        expected
+                            .iter()
+                            .map(declaration_replay_accessibility_triple_json)
+                            .collect(),
+                    ),
+                ));
+                continue;
+            };
+            let divergent = expected
+                .iter()
+                .filter(|expected| !actual.contains(expected))
+                .cloned()
+                .collect::<Vec<_>>();
+            row.divergences += divergent.len() as u64;
+            if !divergent.is_empty() {
+                mismatches.push(format!(
+                    "{} keyed triple differs for {}: expected {}, actual {}",
+                    key.site,
+                    declaration_replay_accessibility_key_json(key),
+                    serde_json::Value::Array(
+                        divergent
+                            .iter()
+                            .map(declaration_replay_accessibility_triple_json)
+                            .collect(),
+                    ),
+                    serde_json::Value::Array(
+                        actual
+                            .iter()
+                            .map(declaration_replay_accessibility_triple_json)
+                            .collect(),
+                    ),
+                ));
+            }
+        }
+        for (key, actual) in actual_by_key {
+            if !expected_by_key.contains_key(&key) {
+                counts
+                    .get_mut(key.site)
+                    .expect("accessibility count row")
+                    .extra += actual.len() as u64;
+            }
+        }
+        Ok((counts, mismatches))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -3859,71 +4740,21 @@ impl<'a> CheckerState<'a> {
         let map_factory = |error| node_builder_factory_error(method, error);
         match value {
             LiteralValue::BigInt(pseudo) => factory
-                .create_node(
-                    target,
-                    NodeData::BigIntLiteral(tsc_syntax::nodes::BigIntLiteralData {
-                        text: format!("{}n", pseudo.to_base10_string()),
-                    }),
-                    tsc_emitter::TransformFlags::NONE,
-                )
+                .create_big_int_literal(target, format!("{}n", pseudo.to_base10_string()))
                 .map_err(map_factory),
-            LiteralValue::String(text) => {
-                let text = text.to_utf8().ok_or({
-                    // The lane-BD convention: unpaired UTF-16 payloads are a
-                    // typed m-3.5 factory-face residue, never lossy storage.
-                    tsc_emitter::EmitResolverError::CheckerAborted {
-                        method,
-                        node: EmitResolverNode::from_raw_source(
-                            u32::try_from(self.binder.file_index_of_node(enclosing_declaration))
-                                .unwrap_or(0),
-                            enclosing_declaration,
-                        ),
-                        reason:
-                            "unpaired UTF-16 string literal requires the m-3.5 UTF-16 factory face",
-                    }
-                })?;
-                factory
-                    .create_node(
-                        target,
-                        NodeData::StringLiteral(tsc_syntax::nodes::StringLiteralData {
-                            text,
-                            has_extended_unicode_escape: None,
-                        }),
-                        tsc_emitter::TransformFlags::NONE,
-                    )
-                    .map_err(map_factory)
-            }
+            LiteralValue::String(text) => factory
+                .create_string_literal_from_code_units(target, text.units(), false)
+                .map_err(map_factory),
             LiteralValue::Number(number) if number < 0.0 => {
                 let operand = factory
-                    .create_node(
-                        target,
-                        NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
-                            text: tsc_types::js_number_to_string(-number),
-                        }),
-                        tsc_emitter::TransformFlags::NONE,
-                    )
+                    .create_numeric_literal(target, tsc_types::js_number_to_string(-number))
                     .map_err(map_factory)?;
                 factory
-                    .create_node(
-                        target,
-                        NodeData::PrefixUnaryExpression(
-                            tsc_syntax::nodes::PrefixUnaryExpressionData {
-                                operator: SyntaxKind::MinusToken,
-                                operand: Some(operand.node()),
-                            },
-                        ),
-                        tsc_emitter::TransformFlags::NONE,
-                    )
+                    .create_prefix_unary_expression(target, SyntaxKind::MinusToken, operand)
                     .map_err(map_factory)
             }
             LiteralValue::Number(number) => factory
-                .create_node(
-                    target,
-                    NodeData::NumericLiteral(tsc_syntax::nodes::NumericLiteralData {
-                        text: tsc_types::js_number_to_string(number),
-                    }),
-                    tsc_emitter::TransformFlags::NONE,
-                )
+                .create_numeric_literal(target, tsc_types::js_number_to_string(number))
                 .map_err(map_factory),
         }
     }

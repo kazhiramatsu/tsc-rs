@@ -15,13 +15,13 @@ use crate::state::{CheckAbort, CheckerState, IndexInfo, SignatureId};
 
 use super::signatures::{elide_initializer_and_set_emit_flags, track_computed_name};
 use super::type_nodes::{
-    checker_abort_error, clone_parse_node, create_identifier, create_node, create_node_array,
-    create_token, factory_error, project_parse_node, set_no_ascii_escaping,
+    checker_abort_error, clone_parse_node_to_source, create_identifier, create_node,
+    create_node_array, create_token, factory_error, project_parse_node, set_no_ascii_escaping,
     type_to_type_node_helper, BuildResult,
 };
 use super::{
-    add_symbol_type_to_context, can_possibly_expand_type, chains_symbol_to_expression,
-    chains_symbol_to_type_node,
+    add_symbol_type_to_context, can_possibly_expand_type, chains_symbol_to_entity_name_node,
+    chains_symbol_to_expression, chains_symbol_to_type_node,
     existing_type_node_is_not_reference_or_is_reference_with_compatible_type_argument_count,
     get_declaration_with_type_annotation, get_enclosing_declaration_ignoring_fake_scope,
     get_module_specifier_override, get_type_from_type_node2,
@@ -36,6 +36,128 @@ use super::{
 const METHOD: EmitResolverMethod = EmitResolverMethod::CreateTypeOfDeclaration;
 const ALLOW_UNRESOLVED_NAMES: u32 = 8;
 const IGNORE_ERRORS: EmitNodeBuilderFlags = EmitNodeBuilderFlags(70_221_824);
+
+/// Build the syntax consumed by checker `symbolToString` through the same
+/// m-3 NodeBuilder context as declaration serialization.
+///
+/// tsc-port: symbolToString @6.0.3
+/// tsc-hash: db59b39300442558c3a8f0e1f1d1681dbfaf0fdb3951350b225677ed4851157e
+/// tsc-span: _tsc.js:50649-50681
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn build_symbol_display_node(
+    checker: &mut CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    symbol: SymbolId,
+    enclosing: Option<NodeId>,
+    meaning: EmitSymbolMeaning,
+    flags: EmitNodeBuilderFlags,
+    internal_flags: EmitInternalNodeBuilderFlags,
+    allow_any_node_kind: bool,
+) -> BuildResult<TransformNode> {
+    if let Some(enclosing) = enclosing {
+        let file_index = checker.binder.file_index_of_node(enclosing);
+        let resolver = EmitResolverNode::new(
+            SourceFileId::from_raw(
+                u32::try_from(file_index).expect("checker source index exceeds u32"),
+            ),
+            enclosing,
+        );
+        if arena
+            .parse_tree_transform_node(resolver)
+            .map_err(factory_error)?
+            .is_none()
+        {
+            arena.add_source(
+                checker.binder.source(file_index),
+                Some(SourceFileId::from_raw(
+                    u32::try_from(file_index).expect("checker source index exceeds u32"),
+                )),
+            );
+        }
+    }
+    with_context(
+        checker,
+        arena,
+        target,
+        enclosing,
+        Some(flags),
+        Some(internal_flags),
+        None,
+        None,
+        None,
+        |checker, arena, target, context| {
+            // `symbolToString` supplies no declaration-emit tracker. Its
+            // builder context must therefore take getSpecifierForModuleSymbol's
+            // no-host arm, which preserves the source file name verbatim.
+            context.tracker.uses_basic_module_resolver_host = false;
+            if allow_any_node_kind {
+                symbol_to_node(checker, arena, target, context, symbol, meaning)
+            } else {
+                chains_symbol_to_entity_name_node(checker, arena, target, context, symbol)
+            }
+        },
+        None,
+    )
+    .map(|node| node.expect("IgnoreErrors symbolToString must produce a node"))
+}
+
+impl CheckerState<'_> {
+    /// Build one symbol display node directly into the session-owned emit
+    /// display result. The enclosing and declaration files are mounted only
+    /// when this symbol first needs them.
+    /// tsrs-native: session-owned display-result adapter around build_symbol_display_node.
+    pub(crate) fn emit_build_symbol_display_node(
+        &mut self,
+        symbol: SymbolId,
+        enclosing: Option<NodeId>,
+        meaning: EmitSymbolMeaning,
+        flags: EmitNodeBuilderFlags,
+        internal_flags: EmitInternalNodeBuilderFlags,
+        allow_any_node_kind: bool,
+    ) -> BuildResult<TransformNode> {
+        let target_file = enclosing
+            .map(|node| self.binder.file_index_of_node(node))
+            .or_else(|| {
+                self.binder
+                    .symbol(symbol)
+                    .declarations
+                    .first()
+                    .map(|&node| self.binder.file_index_of_node(node))
+            })
+            .unwrap_or(0);
+        let target = self.emit_display_target(target_file);
+        let mut files = self
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .map(|&node| self.binder.file_index_of_node(node))
+            .collect::<std::collections::BTreeSet<_>>();
+        if let Some(enclosing) = enclosing {
+            files.insert(self.binder.file_index_of_node(enclosing));
+        }
+        for file_index in files {
+            self.emit_display_target(file_index);
+        }
+
+        let display = self.emit_display_result();
+        let mut display = display.borrow_mut();
+        build_symbol_display_node(
+            self,
+            display
+                .arena_mut()
+                .expect("checker display result remains live"),
+            target,
+            symbol,
+            enclosing,
+            meaning,
+            flags,
+            internal_flags,
+            allow_any_node_kind,
+        )
+    }
+}
 
 fn program_source_id(checker: &CheckerState<'_>, file_index: usize) -> SourceFileId {
     let raw = checker
@@ -352,11 +474,9 @@ fn serialize_parameter_name_from_parse(
     };
     match checker.kind_of(name) {
         SyntaxKind::Identifier => {
-            let name = clone_parse_node(checker, arena, name)?.unwrap_or(create_identifier(
-                arena,
-                target,
-                &checker.symbol_display_name(symbol),
-            )?);
+            let name = clone_parse_node_to_source(checker, arena, target, name)?.unwrap_or(
+                create_identifier(arena, target, &checker.symbol_display_name(symbol))?,
+            );
             Ok(set_no_ascii_escaping(arena, name))
         }
         SyntaxKind::QualifiedName => {
@@ -365,7 +485,7 @@ fn serialize_parameter_name_from_parse(
                 _ => None,
             };
             let name = right
-                .map(|right| clone_parse_node(checker, arena, right))
+                .map(|right| clone_parse_node_to_source(checker, arena, target, right))
                 .transpose()?
                 .flatten()
                 .unwrap_or(create_identifier(
@@ -688,7 +808,7 @@ pub(crate) fn serialize_type_for_declaration_seam(
     r#type: TypeId,
     symbol: Option<SymbolId>,
 ) -> BuildResult<Option<TransformNode>> {
-    serialize_type_for_declaration_in_context(
+    let result = serialize_type_for_declaration_in_context(
         checker,
         arena,
         target,
@@ -696,7 +816,19 @@ pub(crate) fn serialize_type_for_declaration_seam(
         declaration,
         r#type,
         symbol,
-    )
+    )?;
+    result
+        .map(|node| {
+            if node.source() == target {
+                Ok(node)
+            } else {
+                arena
+                    .factory()
+                    .clone_node_to_source(node, target)
+                    .map_err(factory_error)
+            }
+        })
+        .transpose()
 }
 
 /// tsrs-native: checker-side routing seam behind the syntactic resolver member.
@@ -707,7 +839,20 @@ pub(crate) fn serialize_return_type_for_signature_seam(
     context: &mut NodeBuilderContext<'_>,
     signature: SignatureId,
 ) -> BuildResult<Option<TransformNode>> {
-    serialize_return_type_for_signature_in_context(checker, arena, target, context, signature)
+    let result =
+        serialize_return_type_for_signature_in_context(checker, arena, target, context, signature)?;
+    result
+        .map(|node| {
+            if node.source() == target {
+                Ok(node)
+            } else {
+                arena
+                    .factory()
+                    .clone_node_to_source(node, target)
+                    .map_err(factory_error)
+            }
+        })
+        .transpose()
 }
 
 /// tsrs-native: checker-side routing seam behind the syntactic tryReuse member.
@@ -1044,44 +1189,56 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
         }
     }
 
-    fn project_parse_node(&self, node: NodeId) -> BuildResult<Option<TransformNode>> {
+    fn project_parse_node(&mut self, node: NodeId) -> BuildResult<Option<TransformNode>> {
+        let file_index = self.checker.binder.file_index_of_node(node);
+        let resolver = EmitResolverNode::new(
+            SourceFileId::from_raw(
+                u32::try_from(file_index).expect("checker source index exceeds u32"),
+            ),
+            node,
+        );
+        if self
+            .arena_snapshot
+            .parse_tree_transform_node(resolver)
+            .map_err(factory_error)?
+            .is_none()
+        {
+            self.arena_snapshot.add_source(
+                self.checker.binder.source(file_index),
+                Some(SourceFileId::from_raw(
+                    u32::try_from(file_index).expect("checker source index exceeds u32"),
+                )),
+            );
+        }
         self.arena_snapshot
-            .parse_tree_transform_node(resolver_node(self.checker, node))
+            .parse_tree_transform_node(resolver)
             .map_err(factory_error)
     }
 
     /// `isSymbolAccessibleWorker` formats inaccessible symbol/module names
-    /// through the public NodeBuilder `symbolToNode` front door upstream
-    /// (:50488-50529, :50649-50679). The emitted strings remain shadow-owned
-    /// until m-3.5, but these nested `withContext` decisions are part of the
-    /// m-3 replay contract.
+    /// through the public NodeBuilder `symbolToNode` front door upstream.
     fn build_accessibility_error_name(
         &mut self,
         symbol: SymbolId,
         enclosing: NodeId,
         enclosing_is_synthetic: bool,
         meaning: EmitSymbolMeaning,
-    ) -> BuildResult<()> {
+    ) -> BuildResult<TransformNode> {
         let target = self
             .project_parse_node(enclosing)?
             .ok_or_else(|| self.invalid_token_error(Some(enclosing)))?
             .source();
-        with_context(
+        build_symbol_display_node(
             self.checker,
             &mut self.arena_snapshot,
             target,
+            symbol,
             (!enclosing_is_synthetic).then_some(enclosing),
-            Some(IGNORE_ERRORS),
-            None,
-            None,
-            None,
-            None,
-            |checker, arena, target, context| {
-                symbol_to_node(checker, arena, target, context, symbol, meaning)
-            },
-            None,
-        )?;
-        Ok(())
+            meaning,
+            IGNORE_ERRORS,
+            EmitInternalNodeBuilderFlags::NONE,
+            true,
+        )
     }
 
     fn accessibility_error_module_symbol(
@@ -1120,12 +1277,10 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
         meaning: EmitSymbolMeaning,
         should_compute_aliases: bool,
     ) -> BuildResult<EmitSymbolAccessibilityResult> {
-        // The emitter seam represents a signature fake block with its real
-        // source-file token plus `enclosing_is_synthetic`. Querying that real
-        // file would expose its exports table and spuriously run
-        // hasVisibleDeclarations. Upstream's fake block instead reaches an
-        // exported member through its external-module container, whose
-        // module fast path is accessible without painting the member.
+        // Rust represents the signature fake block with its real source-file
+        // token. Preserve upstream's module-container accessibility decision,
+        // while the replay observation retains the member symbol passed at
+        // the resolver entry.
         let access_symbol = if enclosing_is_synthetic && !should_compute_aliases {
             self.checker
                 .binder
@@ -1147,7 +1302,14 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
         };
         let result = self
             .checker
-            .emit_is_symbol_accessible(access_symbol, enclosing, meaning, should_compute_aliases)
+            .emit_is_symbol_accessible_with_observation(
+                access_symbol,
+                symbol,
+                enclosing,
+                enclosing_is_synthetic,
+                meaning,
+                should_compute_aliases,
+            )
             .map_err(|abort| {
                 callback_abort_error(self.checker, self.method, Some(enclosing), abort)
             })?;
@@ -1211,13 +1373,13 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
                 .iter()
                 .any(|&declaration| self.checker.kind_of(declaration) == SyntaxKind::TypeParameter)
         {
-            return Ok(EmitSymbolAccessibilityResult {
-                accessibility: EmitSymbolAccessibility::Accessible,
-                aliases_to_make_visible: None,
-                error_symbol_name: None,
-                error_module_name: None,
-                error_node: None,
-            });
+            return Ok(self.checker.emit_accessible_symbol_observation(
+                symbol,
+                enclosing,
+                enclosing_is_synthetic,
+                meaning,
+                should_compute_aliases,
+            ));
         }
         self.is_symbol_accessible_with_error_names(
             symbol,
@@ -2248,7 +2410,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         node: TransformNode,
     ) -> Result<SyntacticScopeCleanup, EmitResolverError> {
         let node = self.parse_node(node)?;
-        let cleanup = SyntacticScopeCleanup::capture(context);
+        let mut cleanup = SyntacticScopeCleanup::capture(context);
         if node_util::is_function_like_kind(self.checker.kind_of(node))
             || self.checker.kind_of(node) == SyntaxKind::JSDocSignature
         {
@@ -2266,14 +2428,17 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                 None,
             );
             if context.enclosing_declaration_is_synthetic {
-                let locals = context
-                    .synthetic_scope_locals
-                    .get_or_insert_with(std::collections::HashMap::new);
                 for &parameter in &signature.parameters {
-                    locals.insert(
-                        self.checker.binder.symbol(parameter).escaped_name.clone(),
-                        parameter,
-                    );
+                    let name = self.checker.binder.symbol(parameter).escaped_name.clone();
+                    let old_symbol = context
+                        .synthetic_scope_locals
+                        .as_ref()
+                        .and_then(|locals| locals.get(&name).copied());
+                    cleanup.record_parameter_local(&name, old_symbol);
+                    context
+                        .synthetic_scope_locals
+                        .get_or_insert_with(std::collections::HashMap::new)
+                        .insert(name, parameter);
                 }
             }
             if context
@@ -2292,6 +2457,11 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         self.checker.tables.type_of(type_parameter).symbol,
                         &arena.node(name).map_err(factory_error)?.data,
                     ) {
+                        let old_symbol = context
+                            .synthetic_scope_locals
+                            .as_ref()
+                            .and_then(|locals| locals.get(&data.escaped_text).copied());
+                        cleanup.record_type_parameter_local(&data.escaped_text, old_symbol);
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(std::collections::HashMap::new)
@@ -2339,6 +2509,11 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
                         self.checker.tables.type_of(type_parameter).symbol,
                         &arena.node(name).map_err(factory_error)?.data,
                     ) {
+                        let old_symbol = context
+                            .synthetic_scope_locals
+                            .as_ref()
+                            .and_then(|locals| locals.get(&data.escaped_text).copied());
+                        cleanup.record_type_parameter_local(&data.escaped_text, old_symbol);
                         context
                             .synthetic_scope_locals
                             .get_or_insert_with(std::collections::HashMap::new)

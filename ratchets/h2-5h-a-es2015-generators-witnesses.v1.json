@@ -34,14 +34,14 @@
   "lineage": {
     "foundation": {
       "path": "ratchets/h2-5h-a-foundation.v1.json",
-      "sha256": "07b4e889b7a2afc03f1dae4339d3e20df3332500ed0d1983d91d7f62f36e40d2"
+      "sha256": "ed4185a9d9892aa84c7f2b10553cb60e874369b67143072b6b664fc9277b7747"
     },
-    "foundation_fingerprint_sha256": "d1352edc73c43e4ff1711424fd9d723059902d2a153deb0d8acc12e9af860857",
+    "foundation_fingerprint_sha256": "53cd4c4a6c04bbb97446a101c0a40d68b901fed7f4b8204b0ec7c1a5759a01c7",
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "18f75f7f353d119cfa83c33777ce569427b9fe442b2587d0b8d81a5cd233034b"
+      "sha256": "653f3708ae79a91fe9ca2170c35b168f783feecd8bd7d6a17b170268fbc18863"
     },
-    "owner_graph_fingerprint_sha256": "65f847c14f207616a987c74fb5e7ad7069a5b55be937fd8c913a38194b3e80b6",
+    "owner_graph_fingerprint_sha256": "123440db49cd9788bc939be6716e0d0feb1e139015405309605661d0b87a51a2",
     "handoff": {
       "path": "docs/design/greenfield/slices/h2-5h-a.md",
       "sha256": "39b4627f7040d0c2e97d80f8f891fdaca1fdf9765043ddc17b019c6090e0dc0d"
@@ -2787,5 +2787,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "witnesses_fingerprint_sha256": "622dcf102a1f20463bf035d879c0a90cf3204592976dbaafdbcb28a82eaf9bae"
+  "witnesses_fingerprint_sha256": "292724a904066d1faddbae2398cc227527ced32f495d50e91893ebb59e861c38"
 }
