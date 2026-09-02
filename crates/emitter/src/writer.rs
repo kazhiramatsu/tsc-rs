@@ -28,6 +28,7 @@ impl NewLineKind {
 pub struct TextWriter {
     output: String,
     new_line: &'static str,
+    single_line: bool,
     indent: u32,
     line_start: bool,
     line_count: u32,
@@ -53,8 +54,27 @@ impl TextWriter {
         Self {
             output: String::new(),
             new_line: new_line.text(),
+            single_line: false,
             indent: 0,
             line_start: true,
+            line_count: 0,
+            line_position: GeneratedUtf16Position::new(0),
+            text_position: GeneratedUtf16Position::new(0),
+            has_trailing_comment: false,
+            recording: None,
+        }
+    }
+
+    /// tsc-port: createSingleLineStringWriter @6.0.3
+    /// tsc-hash: d67a4fec077149442ca7a65ee5cc194c09ac015d8ce8998b8c8977bbbc1ef5ac
+    /// tsc-span: _tsc.js:12672-12703
+    pub fn single_line() -> Self {
+        Self {
+            output: String::new(),
+            new_line: " ",
+            single_line: true,
+            indent: 0,
+            line_start: false,
             line_count: 0,
             line_position: GeneratedUtf16Position::new(0),
             text_position: GeneratedUtf16Position::new(0),
@@ -128,12 +148,26 @@ impl TextWriter {
         if text.is_empty() {
             return;
         }
+        if self.single_line {
+            self.append_single_line(text);
+            return;
+        }
         if self.line_start {
             let indentation = INDENT.repeat(self.indent as usize);
             self.append_and_measure(&indentation);
             self.line_start = false;
         }
         self.append_and_measure(text);
+    }
+
+    fn append_single_line(&mut self, text: &str) {
+        self.output.push_str(text);
+        let text_utf16_length = u32::try_from(text.encode_utf16().count())
+            .expect("emitted text length exceeds the UTF-16 position domain");
+        self.text_position = self
+            .text_position
+            .checked_add(text_utf16_length)
+            .expect("emitted text position overflowed");
     }
 
     fn append_and_measure(&mut self, text: &str) {
@@ -176,6 +210,10 @@ impl TextWriter {
     /// raw write still leaves the writer off the start-of-line state, matching
     /// the defined-string branch in TypeScript's writer.
     pub fn raw_write(&mut self, text: &str) {
+        if self.single_line {
+            self.append_single_line(text);
+            return;
+        }
         if text.is_empty() {
             self.line_start = false;
         } else {
@@ -191,13 +229,17 @@ impl TextWriter {
     }
 
     pub fn write_comment(&mut self, text: &str) {
-        if !text.is_empty() {
+        if !self.single_line && !text.is_empty() {
             self.has_trailing_comment = true;
         }
         self.write_text(text);
     }
 
     pub fn write_line(&mut self, force: bool) {
+        if self.single_line {
+            self.append_single_line(" ");
+            return;
+        }
         if !self.line_start || force {
             self.output.push_str(self.new_line);
             let new_line_length = u32::try_from(self.new_line.encode_utf16().count())
@@ -217,6 +259,9 @@ impl TextWriter {
     }
 
     pub fn increase_indent(&mut self) {
+        if self.single_line {
+            return;
+        }
         self.indent = self
             .indent
             .checked_add(1)
@@ -224,6 +269,9 @@ impl TextWriter {
     }
 
     pub fn decrease_indent(&mut self) {
+        if self.single_line {
+            return;
+        }
         self.indent = self
             .indent
             .checked_sub(1)
@@ -243,6 +291,9 @@ impl TextWriter {
     }
 
     pub fn column(&self) -> u32 {
+        if self.single_line {
+            return 0;
+        }
         if self.line_start {
             self.indent
                 .checked_mul(INDENT.len() as u32)
@@ -264,11 +315,11 @@ impl TextWriter {
     }
 
     pub const fn is_at_start_of_line(&self) -> bool {
-        self.line_start
+        !self.single_line && self.line_start
     }
 
     pub const fn has_trailing_comment(&self) -> bool {
-        self.has_trailing_comment
+        !self.single_line && self.has_trailing_comment
     }
 
     pub fn has_trailing_whitespace(&self) -> bool {
@@ -281,7 +332,7 @@ impl TextWriter {
     pub fn clear(&mut self) {
         self.output.clear();
         self.indent = 0;
-        self.line_start = true;
+        self.line_start = !self.single_line;
         self.line_count = 0;
         self.line_position = GeneratedUtf16Position::new(0);
         self.text_position = GeneratedUtf16Position::new(0);

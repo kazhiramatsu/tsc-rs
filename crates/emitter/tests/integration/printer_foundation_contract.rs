@@ -1,6 +1,7 @@
 use tsc_emitter::{
     create_printer, transform_nodes, NewLineKind, PrintRequest, PrinterError, PrinterOptions,
-    SourceFileTextMode, TransformArena, TransformBundle, TransformRoot, UnsupportedEmitFeature,
+    SourceFileTextMode, StandaloneWriter, TransformArena, TransformBundle, TransformRoot,
+    UnsupportedEmitFeature,
 };
 use tsc_syntax::{parse_source_file, LanguageVariant, NodeData, ParseOptions};
 
@@ -658,10 +659,18 @@ fn recording_absent_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
         _ => unreachable!(),
     };
     assert_eq!(
-        printer.print(&mut result, PrintRequest::StandaloneNode(root), None),
-        Err(PrinterError::Unsupported(
-            UnsupportedEmitFeature::StandaloneNodePrinting
-        ))
+        printer
+            .print(
+                &mut result,
+                PrintRequest::StandaloneNode {
+                    node: root,
+                    writer: StandaloneWriter::MultiLine,
+                },
+                None,
+            )
+            .unwrap()
+            .text(),
+        text
     );
     assert_eq!(
         printer.print(&mut result, PrintRequest::JavaScriptMap(source), None),

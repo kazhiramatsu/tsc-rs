@@ -360,6 +360,72 @@ impl<'a> SourceTrivia<'a> {
     }
 }
 
+fn is_declaration_type_token(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::AnyKeyword
+            | SyntaxKind::UnknownKeyword
+            | SyntaxKind::NumberKeyword
+            | SyntaxKind::BigIntKeyword
+            | SyntaxKind::ObjectKeyword
+            | SyntaxKind::BooleanKeyword
+            | SyntaxKind::StringKeyword
+            | SyntaxKind::SymbolKeyword
+            | SyntaxKind::VoidKeyword
+            | SyntaxKind::UndefinedKeyword
+            | SyntaxKind::NeverKeyword
+            | SyntaxKind::IntrinsicKeyword
+            | SyntaxKind::ThisType
+    )
+}
+
+fn is_dormant_declaration_syntax_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::NotEmittedTypeElement
+            | SyntaxKind::QualifiedName
+            | SyntaxKind::TypeParameter
+            | SyntaxKind::PropertySignature
+            | SyntaxKind::MethodSignature
+            | SyntaxKind::CallSignature
+            | SyntaxKind::ConstructSignature
+            | SyntaxKind::IndexSignature
+            | SyntaxKind::TypePredicate
+            | SyntaxKind::TypeReference
+            | SyntaxKind::FunctionType
+            | SyntaxKind::JSDocFunctionType
+            | SyntaxKind::ConstructorType
+            | SyntaxKind::TypeQuery
+            | SyntaxKind::TypeLiteral
+            | SyntaxKind::ArrayType
+            | SyntaxKind::RestType
+            | SyntaxKind::TupleType
+            | SyntaxKind::NamedTupleMember
+            | SyntaxKind::OptionalType
+            | SyntaxKind::UnionType
+            | SyntaxKind::IntersectionType
+            | SyntaxKind::ConditionalType
+            | SyntaxKind::InferType
+            | SyntaxKind::ParenthesizedType
+            | SyntaxKind::TypeOperator
+            | SyntaxKind::IndexedAccessType
+            | SyntaxKind::MappedType
+            | SyntaxKind::LiteralType
+            | SyntaxKind::TemplateLiteralType
+            | SyntaxKind::TemplateLiteralTypeSpan
+            | SyntaxKind::ImportType
+            | SyntaxKind::InterfaceDeclaration
+            | SyntaxKind::TypeAliasDeclaration
+            | SyntaxKind::EnumDeclaration
+            | SyntaxKind::EnumMember
+            | SyntaxKind::ModuleDeclaration
+            | SyntaxKind::ModuleBlock
+            | SyntaxKind::ImportEqualsDeclaration
+            | SyntaxKind::NamespaceExportDeclaration
+            | SyntaxKind::ExternalModuleReference
+    )
+}
+
 /// Identifies which emitter boundary owns trivia immediately before a node.
 /// Delimited-list starts must retain comments after `{`/`[`, while ordinary
 /// nodes and later siblings suppress trivia already owned by their container
@@ -655,6 +721,10 @@ pub struct PrinterOptions {
     remove_comments: bool,
     no_emit_helpers: bool,
     import_helpers: bool,
+    declaration_syntax: bool,
+    only_print_js_doc_style: bool,
+    omit_brace_source_map_positions: bool,
+    never_ascii_escape: bool,
     target: Option<ScriptTarget>,
     source_file_text_mode: SourceFileTextMode,
 }
@@ -666,6 +736,10 @@ impl PrinterOptions {
             remove_comments: false,
             no_emit_helpers: false,
             import_helpers: false,
+            declaration_syntax: false,
+            only_print_js_doc_style: false,
+            omit_brace_source_map_positions: false,
+            never_ascii_escape: false,
             target: None,
             source_file_text_mode: SourceFileTextMode::PreserveUnchanged,
         }
@@ -687,6 +761,31 @@ impl PrinterOptions {
     /// suppresses them for external-module sources.
     pub const fn with_import_helpers(mut self, value: bool) -> Self {
         self.import_helpers = value;
+        self
+    }
+
+    /// Rust's dormant declaration-printer gate. Upstream prints TypeScript
+    /// syntax unconditionally because the JavaScript transform removes it.
+    pub const fn with_declaration_syntax(mut self, value: bool) -> Self {
+        self.declaration_syntax = value;
+        self
+    }
+
+    /// Upstream `onlyPrintJsDocStyle`.
+    pub const fn with_only_print_js_doc_style(mut self, value: bool) -> Self {
+        self.only_print_js_doc_style = value;
+        self
+    }
+
+    /// Upstream `omitBraceSourceMapPositions`.
+    pub const fn with_omit_brace_source_map_positions(mut self, value: bool) -> Self {
+        self.omit_brace_source_map_positions = value;
+        self
+    }
+
+    /// Upstream `neverAsciiEscape`.
+    pub const fn with_never_ascii_escape(mut self, value: bool) -> Self {
+        self.never_ascii_escape = value;
         self
     }
 
@@ -712,6 +811,22 @@ impl PrinterOptions {
         self.no_emit_helpers
     }
 
+    pub const fn declaration_syntax(self) -> bool {
+        self.declaration_syntax
+    }
+
+    pub const fn only_print_js_doc_style(self) -> bool {
+        self.only_print_js_doc_style
+    }
+
+    pub const fn omit_brace_source_map_positions(self) -> bool {
+        self.omit_brace_source_map_positions
+    }
+
+    pub const fn never_ascii_escape(self) -> bool {
+        self.never_ascii_escape
+    }
+
     pub const fn target(self) -> Option<ScriptTarget> {
         self.target
     }
@@ -721,10 +836,20 @@ impl PrinterOptions {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum StandaloneWriter {
+    #[default]
+    MultiLine,
+    SingleLine,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum PrintRequest {
     SourceFile(TransformSourceId),
-    StandaloneNode(TransformNode),
+    StandaloneNode {
+        node: TransformNode,
+        writer: StandaloneWriter,
+    },
     NodeList(TransformNodeArray),
     Bundle(TransformBundle),
     JavaScriptMap(TransformSourceId),
@@ -911,9 +1036,9 @@ impl Printer {
             PrintRequest::SourceFile(source) => {
                 self.print_source_file(transformation, source, recording)
             }
-            PrintRequest::StandaloneNode(_) => Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::StandaloneNodePrinting,
-            )),
+            PrintRequest::StandaloneNode { node, writer } => {
+                self.print_standalone_node(transformation, node, writer, recording)
+            }
             PrintRequest::NodeList(_) => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::NodeListPrinting,
             )),
@@ -927,6 +1052,43 @@ impl Printer {
                 UnsupportedEmitFeature::Declaration,
             )),
         }
+    }
+
+    /// tsc-port: writeNode @6.0.3
+    /// tsc-hash: 1faa4b1ad32ddc496f52a2e31dd914466cce9579d208d8779d6ecb9909b742a9
+    /// tsc-span: _tsc.js:117028-117037
+    fn print_standalone_node(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        writer_kind: StandaloneWriter,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
+    ) -> Result<PrintedText, PrinterError> {
+        if recording.is_some() {
+            return Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::JavaScriptMap,
+            ));
+        }
+        transformation.arena().node(node)?;
+        self.prepare_emission_plan(transformation, node)?;
+        let mut writer = match writer_kind {
+            StandaloneWriter::MultiLine => create_text_writer(self.options.new_line),
+            StandaloneWriter::SingleLine => TextWriter::single_line(),
+        };
+        self.emit_leading_comments_for_node(transformation, node, &mut writer)?;
+        self.emit_node_with_hint(
+            transformation,
+            node,
+            EmitHint::Unspecified,
+            EmitContext::file_root(),
+            &mut writer,
+        )?;
+        self.emit_trailing_comments_for_node(transformation, node, &mut writer)?;
+        Ok(PrintedText {
+            text: writer.text().to_owned(),
+            end: writer.location(),
+            source_map: None,
+        })
     }
 
     fn print_source_file(
@@ -1284,7 +1446,26 @@ impl Printer {
                 source_owned_detached_prefix,
                 &mut writer,
             )?;
+            if self.options.declaration_syntax
+                && original_source_was_statementless
+                && !self.options.remove_comments
+            {
+                let source = transformation.arena().source(source_id)?.syntax();
+                emit_leading_comments(
+                    SourceTrivia::whole(source.text()),
+                    &mut writer,
+                    true,
+                    self.options.only_print_js_doc_style,
+                );
+            }
             self.emit_helpers(source_helpers, &mut writer)?;
+            if self.options.declaration_syntax {
+                self.emit_triple_slash_directives_if_needed(
+                    transformation,
+                    source_id,
+                    &mut writer,
+                )?;
+            }
         }
         for (statement_index, raw_statement) in statements.into_iter().enumerate() {
             if statement_index == helper_offset {
@@ -1296,6 +1477,13 @@ impl Printer {
                 pending_detached_comments =
                     PendingDetachedComments::from_prefix(source_owned_detached_prefix);
                 self.emit_helpers(source_helpers, &mut writer)?;
+                if self.options.declaration_syntax {
+                    self.emit_triple_slash_directives_if_needed(
+                        transformation,
+                        source_id,
+                        &mut writer,
+                    )?;
+                }
             }
             let statement = transformation
                 .arena()
@@ -1368,9 +1556,17 @@ impl Printer {
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
         }
-        if original_source_was_statementless && !self.options.remove_comments {
+        if original_source_was_statementless
+            && !self.options.remove_comments
+            && !self.options.declaration_syntax
+        {
             let source = transformation.arena().source(source_id)?.syntax();
-            emit_leading_comments(SourceTrivia::whole(source.text()), &mut writer, true);
+            emit_leading_comments(
+                SourceTrivia::whole(source.text()),
+                &mut writer,
+                true,
+                self.options.only_print_js_doc_style,
+            );
         } else if !transformation
             .arena()
             .metadata(root)
@@ -1419,6 +1615,88 @@ impl Printer {
             end,
             source_map,
         })
+    }
+
+    /// tsc-port: emitTripleSlashDirectivesIfNeeded @6.0.3
+    /// tsc-hash: 6c334999bc8404e05df9221ab8ec629fc4d500d4071735210a243e87d494b2ac
+    /// tsc-span: _tsc.js:119723-119725
+    /// tsc-port: emitTripleSlashDirectives @6.0.3
+    /// tsc-hash: e8634e09eef4fe22194bb6e5644eba4080d5c8d07055accfaed6513b3c5236f9
+    /// tsc-span: _tsc.js:119726-119752
+    fn emit_triple_slash_directives_if_needed(
+        &self,
+        transformation: &TransformationResult<'_>,
+        source_id: TransformSourceId,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let source = transformation.arena().source(source_id)?.syntax();
+        if !source.is_declaration_file {
+            return Ok(());
+        }
+        if let Some(module_name) = &source.module_name {
+            writer.write_comment(&format!("/// <amd-module name=\"{module_name}\" />"));
+            writer.write_line(false);
+        }
+        for dependency in &source.amd_dependencies {
+            if let Some(name) = &dependency.name {
+                writer.write_comment(&format!(
+                    "/// <amd-dependency name=\"{name}\" path=\"{}\" />",
+                    dependency.path
+                ));
+            } else {
+                writer.write_comment(&format!(
+                    "/// <amd-dependency path=\"{}\" />",
+                    dependency.path
+                ));
+            }
+            writer.write_line(false);
+        }
+        for reference in &source.referenced_files {
+            let preserve = if reference.preserve {
+                "preserve=\"true\" "
+            } else {
+                ""
+            };
+            writer.write_comment(&format!(
+                "/// <reference path=\"{}\" {preserve}/>",
+                reference.file_name
+            ));
+            writer.write_line(false);
+        }
+        for reference in &source.type_reference_directives {
+            let resolution_mode = match reference.resolution_mode {
+                Some(tsc_syntax::TypeReferenceDirectiveResolutionMode::Import) => {
+                    "resolution-mode=\"import\" "
+                }
+                Some(tsc_syntax::TypeReferenceDirectiveResolutionMode::Require) => {
+                    "resolution-mode=\"require\" "
+                }
+                None => "",
+            };
+            let preserve = if reference.preserve {
+                "preserve=\"true\" "
+            } else {
+                ""
+            };
+            writer.write_comment(&format!(
+                "/// <reference types=\"{}\" {resolution_mode}{preserve}/>",
+                reference.file_name
+            ));
+            writer.write_line(false);
+        }
+        for reference in &source.lib_reference_directives {
+            let preserve = if reference.preserve {
+                "preserve=\"true\" "
+            } else {
+                ""
+            };
+            writer.write_comment(&format!(
+                "/// <reference lib=\"{}\" {preserve}/>",
+                reference.file_name
+            ));
+            writer.write_line(false);
+        }
+        Ok(())
     }
 
     fn is_system_register_statement(
@@ -1544,6 +1822,7 @@ impl Printer {
                 recording.suppress();
             }
         }
+        let saved_preserve_source_newlines = self.before_emit_node_notification(node);
         let mut deferred_source_comments = DeferredExpressionSourceCommentsState::default();
         let worker_result = self.emit_transformed_node_worker(
             transformation,
@@ -1552,6 +1831,7 @@ impl Printer {
             &mut deferred_source_comments,
             writer,
         );
+        self.after_emit_node_notification(saved_preserve_source_newlines);
         if suppress_nested_maps {
             if let Some(recording) = writer.recording_mut() {
                 recording.unsuppress();
@@ -1566,6 +1846,57 @@ impl Printer {
         Ok(())
     }
 
+    /// Rust does not expose `preserveSourceNewlines`; retain the upstream
+    /// notification point so that adding it later cannot reorder emission.
+    ///
+    /// tsc-port: beforeEmitNode @6.0.3
+    /// tsc-hash: 4b5529c64de8b8462c8931377371899835204fd56e712ef6a5b90a22607a02f6
+    /// tsc-span: _tsc.js:117165-117169
+    fn before_emit_node_notification(&self, _node: TransformNode) -> bool {
+        false
+    }
+
+    /// Paired restoration point for `before_emit_node_notification`; it is a
+    /// no-op until Rust grows upstream's `preserveSourceNewlines` state.
+    ///
+    /// tsc-port: afterEmitNode @6.0.3
+    /// tsc-hash: 7f396586c77d31ddd9c53f59c604199b02dc31f12f3ed6363ccd3686b2968615
+    /// tsc-span: _tsc.js:117170-117172
+    fn after_emit_node_notification(&self, _saved_preserve_source_newlines: bool) {}
+
+    /// tsc-port: pipelineEmitWithHintWorker @6.0.3
+    /// tsc-hash: 485ac452835fedcb20a856f43e6eca9b8cd6b08f424fe054dccb3a176e673371
+    /// tsc-span: _tsc.js:117236-117704
+    /// tsc-port: emitParameter @6.0.3
+    /// tsc-hash: c8a71c70afb1914a0fbbd0f27249f82412abaaa22edb5556dd0eaa008edbc216
+    /// tsc-span: _tsc.js:117855-117871
+    /// tsc-port: emitPropertyDeclaration @6.0.3
+    /// tsc-hash: 3a8a77a1520e0f2514117112ee985ff76c5f002894a8e362c15b7c3d1d3f229e
+    /// tsc-span: _tsc.js:117883-117896
+    /// tsc-port: emitMethodDeclaration @6.0.3
+    /// tsc-hash: 89a778e7fe25aecb9601b99b118ef6a16b7f9083b80365708c49788fdc91a9ff
+    /// tsc-span: _tsc.js:117903-117914
+    /// tsc-port: emitConstructor @6.0.3
+    /// tsc-hash: 2e020b18d76deff748d37e85149cf9e12a99ed95368bf1ef0e74cedbf7c16685
+    /// tsc-span: _tsc.js:117921-117930
+    /// tsc-port: emitAccessorDeclaration @6.0.3
+    /// tsc-hash: b78bdd3026fb4a0a93d8226592ecf9a0b8167eb27c0747cac1a32ade5b8e643e
+    /// tsc-span: _tsc.js:117931-117943
+    /// tsc-port: emitFunctionDeclaration @6.0.3
+    /// tsc-hash: 493a7abd257afbac55b4af652e59977613d43a863a375c064700bc0d441dfa30
+    /// tsc-span: _tsc.js:118953-118955
+    /// tsc-port: emitFunctionDeclarationOrExpression @6.0.3
+    /// tsc-hash: 6d2c34fd59ec1e7c8c3ffa2e58652d6717fc7200756562032ca22a17ab18dd72
+    /// tsc-span: _tsc.js:118956-118968
+    /// tsc-port: emitSignatureAndBody @6.0.3
+    /// tsc-hash: 89b92f0b4759c58fe92caf1d0f3d783f883659010450f9f40cf948d5453a0847
+    /// tsc-span: _tsc.js:118969-118982
+    /// tsc-port: emitFunctionBody @6.0.3
+    /// tsc-hash: 5bc2a3b365b98256dc41fff5e345647e6934a4d88cf2d6db43283bc837a9cf94
+    /// tsc-span: _tsc.js:118983-118990
+    /// tsc-port: emitEmptyFunctionBody @6.0.3
+    /// tsc-hash: 9a3b4a37b6a91928c82b35ed375078a7d4b893092d3ab9dc27caa22f8f5f4b04
+    /// tsc-span: _tsc.js:118991-118993
     fn emit_transformed_node_worker(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -1583,6 +1914,11 @@ impl Printer {
             || NodeFlags::from_bits(record.flags).contains(NodeFlags::SYNTHESIZED)
             || self.emission_plan.structured_nodes.contains(&node);
         let multi_line = record.multi_line == Some(true);
+        let declaration_source = transformation
+            .arena()
+            .source(node.source())?
+            .syntax()
+            .is_declaration_file;
         let json_source = transformation
             .arena()
             .source(node.source())?
@@ -1590,6 +1926,20 @@ impl Printer {
             .file_name
             .to_ascii_lowercase()
             .ends_with(".json");
+
+        if !self.options.declaration_syntax
+            && !declaration_source
+            && is_dormant_declaration_syntax_kind(record.kind)
+        {
+            return if changed {
+                Err(PrinterError::UnsupportedTransformedSyntax {
+                    node,
+                    kind: record.kind,
+                })
+            } else {
+                self.write_original_without_leading_trivia(transformation, node, writer)
+            };
+        }
 
         match record.data {
             NodeData::Token if record.kind == SyntaxKind::JsxOpeningFragment => {
@@ -1599,6 +1949,15 @@ impl Printer {
             NodeData::Token if record.kind == SyntaxKind::JsxClosingFragment => {
                 writer.write_punctuation("</>");
                 Ok(())
+            }
+            NodeData::Token if record.kind == SyntaxKind::NotEmittedTypeElement => {
+                self.emit_not_emitted_type_element(node, record.kind)
+            }
+            NodeData::Token
+                if is_declaration_type_token(record.kind)
+                    && (self.options.declaration_syntax || declaration_source) =>
+            {
+                self.emit_keyword_type(node, record.kind, writer)
             }
             NodeData::Token if changed => {
                 let text = tsc_syntax::tokens::token_to_string(record.kind).ok_or(
@@ -1624,6 +1983,193 @@ impl Printer {
             }
             NodeData::PrivateIdentifier(data) if changed => {
                 writer.write_symbol(&data.text);
+                Ok(())
+            }
+            NodeData::QualifiedName(data) => {
+                self.emit_qualified_name(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::TypeParameter(data) => {
+                self.emit_type_parameter(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::PropertySignature(data) => self.emit_property_signature(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::MethodSignature(data) => {
+                self.emit_method_signature(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::CallSignature(data) => {
+                self.emit_call_signature(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::ConstructSignature(data) => self.emit_construct_signature(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::IndexSignature(data) => {
+                self.emit_index_signature(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::TypePredicate(data) => {
+                self.emit_type_predicate(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::TypeReference(data) => {
+                self.emit_type_reference(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::FunctionType(data) => {
+                self.emit_function_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::JSDocFunctionType(data) => self.emit_js_doc_function_type(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::ConstructorType(data) => {
+                self.emit_constructor_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::TypeQuery(data) => {
+                self.emit_type_query(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::TypeLiteral(data) => {
+                self.emit_type_literal(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::ArrayType(data) => {
+                self.emit_array_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::RestType(data) => {
+                self.emit_rest_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::TupleType(data) => {
+                self.emit_tuple_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::NamedTupleMember(data) => self.emit_named_tuple_member(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::OptionalType(data) => {
+                self.emit_optional_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::UnionType(data) => {
+                self.emit_union_type(transformation, node, data.types, expression_context, writer)
+            }
+            NodeData::IntersectionType(data) => self.emit_intersection_type(
+                transformation,
+                node,
+                data.types,
+                expression_context,
+                writer,
+            ),
+            NodeData::ConditionalType(data) => {
+                self.emit_conditional_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::InferType(data) => {
+                self.emit_infer_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::ParenthesizedType(data) => self.emit_parenthesized_type(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::TypeOperator(data) => {
+                self.emit_type_operator(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::IndexedAccessType(data) => self.emit_indexed_access_type(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::MappedType(data) => {
+                self.emit_mapped_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::LiteralType(data) => {
+                self.emit_literal_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::TemplateLiteralType(data) => {
+                self.emit_template_type(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::TemplateLiteralTypeSpan(data) => self.emit_template_type_span(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::ImportType(data) => {
+                self.emit_import_type_node(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::InterfaceDeclaration(data) => self.emit_interface_declaration(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::TypeAliasDeclaration(data) => self.emit_type_alias_declaration(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::EnumDeclaration(data) => {
+                self.emit_enum_declaration(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::EnumMember(data) => {
+                self.emit_enum_member(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::ModuleDeclaration(data) => self.emit_module_declaration(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::ModuleBlock(data) => {
+                self.emit_module_block(transformation, node, &data, expression_context, writer)
+            }
+            NodeData::ImportEqualsDeclaration(data) => self.emit_import_equals_declaration(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::NamespaceExportDeclaration(data) => self.emit_namespace_export_declaration(
+                transformation,
+                node,
+                &data,
+                expression_context,
+                writer,
+            ),
+            NodeData::ExternalModuleReference(data)
+                if self.options.declaration_syntax || declaration_source =>
+            {
+                self.require_declaration_syntax(node, SyntaxKind::ExternalModuleReference)?;
+                writer.write_keyword("require");
+                writer.write_punctuation("(");
+                self.emit_required_node_with_context(
+                    transformation,
+                    node.source(),
+                    data.expression,
+                    SyntaxKind::ExternalModuleReference,
+                    "expression",
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
+                writer.write_punctuation(")");
                 Ok(())
             }
             NodeData::NumericLiteral(data) if changed => {
@@ -2120,6 +2666,14 @@ impl Printer {
             NodeData::NoSubstitutionTemplateLiteral(_) if !changed => {
                 self.write_original_without_leading_trivia_verbatim(transformation, node, writer)
             }
+            NodeData::NoSubstitutionTemplateLiteral(data) => self.emit_template_literal_token(
+                transformation,
+                node,
+                record.kind,
+                &data.text,
+                data.raw_text.as_deref(),
+                writer,
+            ),
             NodeData::TemplateExpression(data) => {
                 self.emit_required_node_with_context(
                     transformation,
@@ -2139,24 +2693,30 @@ impl Printer {
                     writer,
                 )
             }
-            NodeData::TemplateHead(data) => {
-                writer.write_punctuation("`");
-                writer.write_literal(data.raw_text.as_deref().unwrap_or(&data.text));
-                writer.write_punctuation("${");
-                Ok(())
-            }
-            NodeData::TemplateMiddle(data) => {
-                writer.write_punctuation("}");
-                writer.write_literal(data.raw_text.as_deref().unwrap_or(&data.text));
-                writer.write_punctuation("${");
-                Ok(())
-            }
-            NodeData::TemplateTail(data) => {
-                writer.write_punctuation("}");
-                writer.write_literal(data.raw_text.as_deref().unwrap_or(&data.text));
-                writer.write_punctuation("`");
-                Ok(())
-            }
+            NodeData::TemplateHead(data) => self.emit_template_literal_token(
+                transformation,
+                node,
+                record.kind,
+                &data.text,
+                data.raw_text.as_deref(),
+                writer,
+            ),
+            NodeData::TemplateMiddle(data) => self.emit_template_literal_token(
+                transformation,
+                node,
+                record.kind,
+                &data.text,
+                data.raw_text.as_deref(),
+                writer,
+            ),
+            NodeData::TemplateTail(data) => self.emit_template_literal_token(
+                transformation,
+                node,
+                record.kind,
+                &data.text,
+                data.raw_text.as_deref(),
+                writer,
+            ),
             NodeData::TemplateSpan(data) => {
                 let expression = data.expression.and_then(|expression| {
                     transformation.arena().node_ref(node.source(), expression)
@@ -2313,14 +2873,26 @@ impl Printer {
                 Ok(())
             }
             NodeData::ImportClause(data) => {
-                if data.is_type_only || data.phase_modifier == Some(SyntaxKind::TypeKeyword) {
+                let type_only =
+                    data.is_type_only || data.phase_modifier == Some(SyntaxKind::TypeKeyword);
+                if type_only && !self.options.declaration_syntax {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
                         kind: record.kind,
                     });
                 }
                 let mut phase = None;
-                if let Some(phase_modifier) = data.phase_modifier {
+                if type_only {
+                    phase = Some(self.emit_token_with_comments(
+                        transformation,
+                        node,
+                        FixedToken::keyword(SyntaxKind::TypeKeyword),
+                        self.original_node_start_cursor(transformation, node)?,
+                        false,
+                        writer,
+                    )?);
+                    writer.write_space(" ");
+                } else if let Some(phase_modifier) = data.phase_modifier {
                     if phase_modifier != SyntaxKind::DeferKeyword {
                         return Err(PrinterError::UnsupportedTransformedSyntax {
                             node,
@@ -2465,11 +3037,22 @@ impl Printer {
                 writer,
             ),
             NodeData::ImportSpecifier(data) => {
-                if data.is_type_only {
+                if data.is_type_only && !self.options.declaration_syntax {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
                         kind: record.kind,
                     });
+                }
+                if data.is_type_only {
+                    self.emit_token_with_comments(
+                        transformation,
+                        node,
+                        FixedToken::keyword(SyntaxKind::TypeKeyword),
+                        self.original_node_start_cursor(transformation, node)?,
+                        false,
+                        writer,
+                    )?;
+                    writer.write_space(" ");
                 }
                 self.emit_renamed_specifier(
                     transformation,
@@ -2482,7 +3065,7 @@ impl Printer {
                 )
             }
             NodeData::ExportDeclaration(data) => {
-                if data.is_type_only {
+                if data.is_type_only && !self.options.declaration_syntax {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
                         kind: record.kind,
@@ -2508,6 +3091,20 @@ impl Printer {
                     writer,
                 )?;
                 writer.write_space(" ");
+                let export_item_anchor = if data.is_type_only {
+                    let anchor = self.emit_token_with_comments(
+                        transformation,
+                        node,
+                        FixedToken::keyword(SyntaxKind::TypeKeyword),
+                        export_keyword,
+                        false,
+                        writer,
+                    )?;
+                    writer.write_space(" ");
+                    anchor
+                } else {
+                    export_keyword
+                };
                 let mut semicolon_owner = None;
                 let from_anchor = if let Some(clause_id) = data.export_clause {
                     let clause = transformation
@@ -2516,7 +3113,7 @@ impl Printer {
                         .ok_or(PrinterError::UnknownStatement(clause_id.0))?;
                     let prefix = self.token_owned_child_prefix(
                         transformation,
-                        export_keyword,
+                        export_item_anchor,
                         Some(clause),
                     )?;
                     self.emit_leading_comments_for_node_worker(
@@ -2540,7 +3137,7 @@ impl Printer {
                         transformation,
                         node,
                         FixedToken::punctuation(SyntaxKind::AsteriskToken),
-                        export_keyword,
+                        export_item_anchor,
                         false,
                         writer,
                     )?)
@@ -2713,11 +3310,22 @@ impl Printer {
                 )
             }
             NodeData::ExportSpecifier(data) => {
-                if data.is_type_only {
+                if data.is_type_only && !self.options.declaration_syntax {
                     return Err(PrinterError::UnsupportedTransformedSyntax {
                         node,
                         kind: record.kind,
                     });
+                }
+                if data.is_type_only {
+                    self.emit_token_with_comments(
+                        transformation,
+                        node,
+                        FixedToken::keyword(SyntaxKind::TypeKeyword),
+                        self.original_node_start_cursor(transformation, node)?,
+                        false,
+                        writer,
+                    )?;
+                    writer.write_space(" ");
                 }
                 self.emit_renamed_specifier(
                     transformation,
@@ -2931,17 +3539,43 @@ impl Printer {
                     initializer_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                if self.options.declaration_syntax {
+                    self.emit_optional_declaration_token(
+                        transformation,
+                        node.source(),
+                        data.exclamation_token,
+                        expression_context,
+                        writer,
+                    )?;
+                    self.emit_type_annotation(
+                        transformation,
+                        node,
+                        data.r#type,
+                        expression_context,
+                        writer,
+                    )?;
+                }
                 if let Some(initializer) = data.initializer {
-                    let erased_type = transformation
-                        .arena()
-                        .metadata(name)
-                        .and_then(crate::EmitMetadata::type_node);
+                    let erased_type = (!self.options.declaration_syntax)
+                        .then(|| {
+                            transformation
+                                .arena()
+                                .metadata(name)
+                                .and_then(crate::EmitMetadata::type_node)
+                        })
+                        .flatten();
                     if erased_type.is_some() {
                         // setTypeNode makes the declaration name retain
                         // comments before an erased annotation.
                         self.emit_trailing_comments_at_node_position(transformation, name, writer)?;
                     }
-                    let equal_cursor = if let Some(r#type) = erased_type {
+                    let declared_type = self
+                        .options
+                        .declaration_syntax
+                        .then_some(data.r#type)
+                        .flatten()
+                        .and_then(|r#type| transformation.arena().node_ref(node.source(), r#type));
+                    let equal_cursor = if let Some(r#type) = declared_type.or(erased_type) {
                         self.original_node_end_cursor(transformation, r#type)?
                     } else {
                         self.original_node_end_cursor(transformation, name)?
@@ -3697,13 +4331,25 @@ impl Printer {
                 } else {
                     writer.write_space(" ");
                 }
-                self.emit_parameter_list(
-                    transformation,
-                    node.source(),
-                    data.parameters,
-                    expression_context,
-                    writer,
-                )?;
+                if self.options.declaration_syntax {
+                    self.emit_signature_head(
+                        transformation,
+                        node.source(),
+                        data.type_parameters,
+                        data.parameters,
+                        data.r#type,
+                        expression_context,
+                        writer,
+                    )?;
+                } else {
+                    self.emit_parameter_list(
+                        transformation,
+                        node.source(),
+                        data.parameters,
+                        expression_context,
+                        writer,
+                    )?;
+                }
                 if let Some(body) = data.body {
                     writer.write_space(" ");
                     self.emit_node_id_with_context(
@@ -3713,6 +4359,8 @@ impl Printer {
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                } else if self.options.declaration_syntax {
+                    writer.write_trailing_semicolon(";");
                 }
                 Ok(())
             }
@@ -3764,13 +4412,25 @@ impl Printer {
                 if indented {
                     writer.increase_indent();
                 }
-                self.emit_parameter_list(
-                    transformation,
-                    node.source(),
-                    data.parameters,
-                    expression_context,
-                    writer,
-                )?;
+                if self.options.declaration_syntax {
+                    self.emit_signature_head(
+                        transformation,
+                        node.source(),
+                        data.type_parameters,
+                        data.parameters,
+                        data.r#type,
+                        expression_context,
+                        writer,
+                    )?;
+                } else {
+                    self.emit_parameter_list(
+                        transformation,
+                        node.source(),
+                        data.parameters,
+                        expression_context,
+                        writer,
+                    )?;
+                }
                 if let Some(body) = data.body {
                     writer.write_space(" ");
                     self.emit_node_id_with_context(
@@ -3796,6 +4456,15 @@ impl Printer {
                 )? {
                     writer.write_space(" ");
                 }
+                if self.options.declaration_syntax {
+                    self.emit_type_parameters(
+                        transformation,
+                        node.source(),
+                        data.type_parameters,
+                        expression_context,
+                        writer,
+                    )?;
+                }
                 self.emit_arrow_parameter_list(
                     transformation,
                     node,
@@ -3803,6 +4472,15 @@ impl Printer {
                     expression_context,
                     writer,
                 )?;
+                if self.options.declaration_syntax {
+                    self.emit_type_annotation(
+                        transformation,
+                        node,
+                        data.r#type,
+                        expression_context,
+                        writer,
+                    )?;
+                }
                 writer.write_space(" ");
                 // `emitArrowFunctionHead` emits the retained token node
                 // itself. That node passes through the ordinary comments
@@ -3889,15 +4567,42 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
-                let erased_type = transformation
-                    .arena()
-                    .metadata(name)
-                    .and_then(crate::EmitMetadata::type_node);
+                if self.options.declaration_syntax {
+                    self.emit_optional_declaration_token(
+                        transformation,
+                        node.source(),
+                        data.question_token,
+                        expression_context,
+                        writer,
+                    )?;
+                    self.emit_type_annotation(
+                        transformation,
+                        node,
+                        data.r#type,
+                        expression_context,
+                        writer,
+                    )?;
+                }
+                let erased_type = (!self.options.declaration_syntax)
+                    .then(|| {
+                        transformation
+                            .arena()
+                            .metadata(name)
+                            .and_then(crate::EmitMetadata::type_node)
+                    })
+                    .flatten();
                 if erased_type.is_some() {
                     self.emit_trailing_comments_at_node_position(transformation, name, writer)?;
                 }
                 if let Some(initializer) = data.initializer {
-                    let equal_cursor = erased_type
+                    let declared_type = self
+                        .options
+                        .declaration_syntax
+                        .then_some(data.r#type)
+                        .flatten()
+                        .and_then(|r#type| transformation.arena().node_ref(node.source(), r#type));
+                    let equal_cursor = declared_type
+                        .or(erased_type)
                         .map(|r#type| self.original_node_end_cursor(transformation, r#type))
                         .transpose()?
                         .unwrap_or(self.original_node_end_cursor(transformation, name)?);
@@ -3931,6 +4636,7 @@ impl Printer {
                 node.source(),
                 data.modifiers,
                 data.name,
+                data.type_parameters,
                 data.heritage_clauses,
                 data.members,
                 false,
@@ -3943,6 +4649,7 @@ impl Printer {
                 node.source(),
                 data.modifiers,
                 data.name,
+                data.type_parameters,
                 data.heritage_clauses,
                 data.members,
                 true,
@@ -3997,11 +4704,43 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                if self.options.declaration_syntax {
+                    self.emit_optional_declaration_token(
+                        transformation,
+                        node.source(),
+                        data.question_token,
+                        expression_context,
+                        writer,
+                    )?;
+                    self.emit_optional_declaration_token(
+                        transformation,
+                        node.source(),
+                        data.exclamation_token,
+                        expression_context,
+                        writer,
+                    )?;
+                    self.emit_type_annotation(
+                        transformation,
+                        node,
+                        data.r#type,
+                        expression_context,
+                        writer,
+                    )?;
+                }
                 if let Some(initializer) = data.initializer {
-                    let equal_cursor = transformation
-                        .arena()
-                        .metadata(name)
-                        .and_then(crate::EmitMetadata::type_node)
+                    let declared_type = self
+                        .options
+                        .declaration_syntax
+                        .then_some(data.r#type)
+                        .flatten()
+                        .and_then(|r#type| transformation.arena().node_ref(node.source(), r#type));
+                    let equal_cursor = declared_type
+                        .or_else(|| {
+                            transformation
+                                .arena()
+                                .metadata(name)
+                                .and_then(crate::EmitMetadata::type_node)
+                        })
                         .map(|r#type| self.original_node_end_cursor(transformation, r#type))
                         .transpose()?
                         .unwrap_or(self.original_node_end_cursor(transformation, name)?);
@@ -4059,6 +4798,8 @@ impl Printer {
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                } else if self.options.declaration_syntax {
+                    writer.write_trailing_semicolon(";");
                 }
                 Ok(())
             }
@@ -4090,6 +4831,15 @@ impl Printer {
                     expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                     writer,
                 )?;
+                if self.options.declaration_syntax {
+                    self.emit_optional_declaration_token(
+                        transformation,
+                        node.source(),
+                        data.question_token,
+                        expression_context,
+                        writer,
+                    )?;
+                }
                 self.emit_signature_head(
                     transformation,
                     node.source(),
@@ -4108,6 +4858,8 @@ impl Printer {
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                } else if self.options.declaration_syntax {
+                    writer.write_trailing_semicolon(";");
                 }
                 Ok(())
             }
@@ -4150,6 +4902,8 @@ impl Printer {
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                } else if self.options.declaration_syntax {
+                    writer.write_trailing_semicolon(";");
                 }
                 Ok(())
             }
@@ -4192,6 +4946,8 @@ impl Printer {
                         expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                         writer,
                     )?;
+                } else if self.options.declaration_syntax {
+                    writer.write_trailing_semicolon(";");
                 }
                 Ok(())
             }
@@ -7320,6 +8076,12 @@ impl Printer {
         }
     }
 
+    /// tsc-port: emitClassDeclaration @6.0.3
+    /// tsc-hash: 77f56050655c5c665c24f2eed672cf60d8ba8513416f9d34b19b1627bf1786ef
+    /// tsc-span: _tsc.js:119059-119061
+    /// tsc-port: emitClassDeclarationOrExpression @6.0.3
+    /// tsc-hash: 7f38f7abe1799deb70b1601157c52ddc1b4d9d44c83c871ecdee9dea01859c48
+    /// tsc-span: _tsc.js:119062-119090
     #[allow(clippy::too_many_arguments)]
     fn emit_class(
         &self,
@@ -7328,6 +8090,7 @@ impl Printer {
         source: TransformSourceId,
         modifiers: Option<tsc_syntax::NodeArrayId>,
         name: Option<tsc_syntax::NodeId>,
+        type_parameters: Option<tsc_syntax::NodeArrayId>,
         heritage_clauses: Option<tsc_syntax::NodeArrayId>,
         members: Option<tsc_syntax::NodeArrayId>,
         expression: bool,
@@ -7389,6 +8152,15 @@ impl Printer {
                 parent: SyntaxKind::ClassDeclaration,
                 field: "name",
             });
+        }
+        if self.options.declaration_syntax {
+            self.emit_type_parameters(
+                transformation,
+                source,
+                type_parameters,
+                expression_context,
+                writer,
+            )?;
         }
         let indented = transformation
             .arena()
@@ -7502,6 +8274,2225 @@ impl Printer {
         Ok(item_range.start() > list_range.start())
     }
 
+    fn require_declaration_syntax(
+        &self,
+        node: TransformNode,
+        kind: SyntaxKind,
+    ) -> Result<(), PrinterError> {
+        if !self.options.declaration_syntax {
+            return Err(PrinterError::UnsupportedTransformedSyntax { node, kind });
+        }
+        Ok(())
+    }
+
+    /// tsc-port: getLiteralText @6.0.3 (template literal branch)
+    /// tsc-hash: 63ffd830d257789e366b227dba4cc1c5b7d45f9474c6f53a562ca3708682929b
+    /// tsc-span: _tsc.js:13647-13680
+    fn emit_template_literal_token(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        kind: SyntaxKind,
+        text: &str,
+        raw_text: Option<&str>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let metadata = transformation.arena().metadata(node);
+        let no_ascii_escaping = self.options.never_ascii_escape
+            || metadata
+                .is_some_and(|metadata| metadata.flags().contains(EmitFlags::NO_ASCII_ESCAPING));
+        let escaped;
+        let body = if let Some(raw_text) = raw_text {
+            raw_text
+        } else {
+            let code_units = metadata
+                .and_then(crate::EmitMetadata::javascript_string_value)
+                .map_or_else(
+                    || text.encode_utf16().collect::<Vec<_>>(),
+                    |value| value.code_units().to_vec(),
+                );
+            escaped = escape_template_literal_text(&code_units, no_ascii_escaping);
+            &escaped
+        };
+        match kind {
+            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                writer.write_punctuation("`");
+                writer.write_literal(body);
+                writer.write_punctuation("`");
+            }
+            SyntaxKind::TemplateHead => {
+                writer.write_punctuation("`");
+                writer.write_literal(body);
+                writer.write_punctuation("${");
+            }
+            SyntaxKind::TemplateMiddle => {
+                writer.write_punctuation("}");
+                writer.write_literal(body);
+                writer.write_punctuation("${");
+            }
+            SyntaxKind::TemplateTail => {
+                writer.write_punctuation("}");
+                writer.write_literal(body);
+                writer.write_punctuation("`");
+            }
+            _ => return Err(PrinterError::UnsupportedTransformedSyntax { node, kind }),
+        }
+        Ok(())
+    }
+
+    /// tsc-port: emitThisType @6.0.3
+    /// tsc-hash: d75b657cf5e7a3c209094a72473126fbce0c124ed139ade6a9d6b5bdf52ff6e7
+    /// tsc-span: _tsc.js:118097-118099
+    fn emit_keyword_type(
+        &self,
+        node: TransformNode,
+        kind: SyntaxKind,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, kind)?;
+        let text = if kind == SyntaxKind::ThisType {
+            "this"
+        } else {
+            tsc_syntax::tokens::token_to_string(kind)
+                .ok_or(PrinterError::UnsupportedTransformedSyntax { node, kind })?
+        };
+        writer.write_keyword(text);
+        Ok(())
+    }
+
+    fn emit_not_emitted_type_element(
+        &self,
+        node: TransformNode,
+        kind: SyntaxKind,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, kind)
+    }
+
+    /// tsc-port: emitQualifiedName @6.0.3
+    /// tsc-hash: ebedd7893440dc33457775800e5533cc6c97530ca1bbb8fd866e479df24fb07d
+    /// tsc-span: _tsc.js:117822-117826
+    fn emit_qualified_name(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::QualifiedNameData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::QualifiedName)?;
+        self.emit_entity_name(
+            transformation,
+            node.source(),
+            data.left,
+            SyntaxKind::QualifiedName,
+            "left",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_punctuation(".");
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.right,
+            SyntaxKind::QualifiedName,
+            "right",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitEntityName @6.0.3
+    /// tsc-hash: 8f715291167ffb0555490dbd94be7e310d035af910ebdf65c3eca52b1c46c58c
+    /// tsc-span: _tsc.js:117827-117833
+    #[allow(clippy::too_many_arguments)]
+    fn emit_entity_name(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        entity_name: Option<NodeId>,
+        parent: SyntaxKind,
+        field: &'static str,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_required_node_with_context(
+            transformation,
+            source,
+            entity_name,
+            parent,
+            field,
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitTypeParameter @6.0.3
+    /// tsc-hash: b4b47c664d9316e4783ee0627731ef922859682ef4501ffa1877f9b327281b16
+    /// tsc-span: _tsc.js:117839-117854
+    fn emit_type_parameter(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TypeParameterData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TypeParameter)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::TypeParameter,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        if let Some(constraint) = data.constraint {
+            writer.write_space(" ");
+            writer.write_keyword("extends");
+            writer.write_space(" ");
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                constraint,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        if let Some(default) = data.r#default {
+            writer.write_space(" ");
+            writer.write_operator("=");
+            writer.write_space(" ");
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                default,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: emitPropertySignature @6.0.3
+    /// tsc-hash: d00ad651bf20c3f2d211a7170fb80a3a3c1797061618e054a6e27777af77321b
+    /// tsc-span: _tsc.js:117876-117882
+    fn emit_property_signature(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::PropertySignatureData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::PropertySignature)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::PropertySignature,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_optional_declaration_token(
+            transformation,
+            node.source(),
+            data.question_token,
+            expression_context,
+            writer,
+        )?;
+        self.emit_type_annotation(
+            transformation,
+            node,
+            data.r#type,
+            expression_context,
+            writer,
+        )?;
+        if let Some(initializer) = data.initializer {
+            writer.write_space(" ");
+            writer.write_operator("=");
+            writer.write_space(" ");
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                initializer,
+                expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
+                writer,
+            )?;
+        }
+        if let Some(last) = data.initializer.or(data.r#type).or(data.name) {
+            let last = transformation
+                .arena()
+                .node_ref(node.source(), last)
+                .ok_or(PrinterError::UnknownStatement(last.0))?;
+            self.emit_trailing_comments_for_node(transformation, last, writer)?;
+        }
+        writer.write_trailing_semicolon(";");
+        Ok(())
+    }
+
+    /// tsc-port: emitMethodSignature @6.0.3
+    /// tsc-hash: c453a10e9122fd15e599e716d22d84334b123491fb8115c53aaf5681466f3bd2
+    /// tsc-span: _tsc.js:117897-117902
+    fn emit_method_signature(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::MethodSignatureData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::MethodSignature)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::MethodSignature,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_optional_declaration_token(
+            transformation,
+            node.source(),
+            data.question_token,
+            expression_context,
+            writer,
+        )?;
+        self.emit_signature_head(
+            transformation,
+            node.source(),
+            data.type_parameters,
+            data.parameters,
+            data.r#type,
+            expression_context,
+            writer,
+        )?;
+        writer.write_trailing_semicolon(";");
+        Ok(())
+    }
+
+    /// tsc-port: emitCallSignature @6.0.3
+    /// tsc-hash: ad8f666751fee27890100b6ff7dd45406df263bd93b068ccb8329c37f619e087
+    /// tsc-span: _tsc.js:117944-117946
+    fn emit_call_signature(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::CallSignatureData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::CallSignature)?;
+        self.emit_signature_head(
+            transformation,
+            node.source(),
+            data.type_parameters,
+            data.parameters,
+            data.r#type,
+            expression_context,
+            writer,
+        )?;
+        writer.write_trailing_semicolon(";");
+        Ok(())
+    }
+
+    /// tsc-port: emitConstructSignature @6.0.3
+    /// tsc-hash: 9a6d030c141f03f6a5704263ebc9908418993c72321d28e7bd16c9ff987bb7f2
+    /// tsc-span: _tsc.js:117947-117951
+    fn emit_construct_signature(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ConstructSignatureData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ConstructSignature)?;
+        writer.write_keyword("new");
+        writer.write_space(" ");
+        self.emit_signature_head(
+            transformation,
+            node.source(),
+            data.type_parameters,
+            data.parameters,
+            data.r#type,
+            expression_context,
+            writer,
+        )?;
+        writer.write_trailing_semicolon(";");
+        Ok(())
+    }
+
+    /// tsc-port: emitIndexSignature @6.0.3
+    /// tsc-hash: 44c42588c8ee7a43adc413cf88ce3429e9385bced611a037399d3a21f503e698
+    /// tsc-span: _tsc.js:117952-117962
+    fn emit_index_signature(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::IndexSignatureData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::IndexSignature)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        writer.write_punctuation("[");
+        self.emit_comma_list(
+            transformation,
+            node.source(),
+            data.parameters,
+            expression_context,
+            writer,
+        )?;
+        writer.write_punctuation("]");
+        self.emit_type_annotation(
+            transformation,
+            node,
+            data.r#type,
+            expression_context,
+            writer,
+        )?;
+        writer.write_trailing_semicolon(";");
+        Ok(())
+    }
+
+    /// tsc-port: emitTypePredicate @6.0.3
+    /// tsc-hash: 082f59f934578b5e48d4595ca6707b47cdef2a2240e149011b78c81513244d3f
+    /// tsc-span: _tsc.js:117970-117982
+    fn emit_type_predicate(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TypePredicateData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TypePredicate)?;
+        if let Some(asserts_modifier) = data.asserts_modifier {
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                asserts_modifier,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            writer.write_space(" ");
+        }
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.parameter_name,
+            SyntaxKind::TypePredicate,
+            "parameter_name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        if let Some(r#type) = data.r#type {
+            writer.write_space(" ");
+            writer.write_keyword("is");
+            writer.write_space(" ");
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                r#type,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: emitTypeReference @6.0.3
+    /// tsc-hash: e3725371faf2095a7765b812f7a70b6f0a9476e60d3218bada22a91fd6caff46
+    /// tsc-span: _tsc.js:117983-117986
+    fn emit_type_reference(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TypeReferenceData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TypeReference)?;
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.type_name,
+            SyntaxKind::TypeReference,
+            "type_name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_type_arguments(
+            transformation,
+            node.source(),
+            data.type_arguments,
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitFunctionType @6.0.3
+    /// tsc-hash: e821a7f2097f595a2652d37be70554d7d62de730f1029c7df673d280a27ce28f
+    /// tsc-span: _tsc.js:117987-117989
+    fn emit_function_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::FunctionTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::FunctionType)?;
+        self.emit_function_type_head(
+            transformation,
+            node,
+            data.type_parameters,
+            data.parameters,
+            expression_context,
+            writer,
+        )?;
+        self.emit_function_type_body(
+            transformation,
+            node,
+            data.r#type,
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitFunctionTypeHead @6.0.3
+    /// tsc-hash: ddb7d8dad42cc356afba13a1c1d86c3872d219bf1017c9e339222fc7ae0d413e
+    /// tsc-span: _tsc.js:117990-117995
+    fn emit_function_type_head(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        type_parameters: Option<tsc_syntax::NodeArrayId>,
+        parameters: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_type_parameters(
+            transformation,
+            node.source(),
+            type_parameters,
+            expression_context,
+            writer,
+        )?;
+        self.emit_parameter_list(
+            transformation,
+            node.source(),
+            parameters,
+            expression_context,
+            writer,
+        )?;
+        writer.write_space(" ");
+        writer.write_punctuation("=>");
+        Ok(())
+    }
+
+    /// tsc-port: emitFunctionTypeBody @6.0.3
+    /// tsc-hash: 1c493fdc5b06bb3b4bd47832322f3b57b2cfd441c58956e233f5bdb7c6e83711
+    /// tsc-span: _tsc.js:117996-117999
+    fn emit_function_type_body(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        r#type: Option<NodeId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        writer.write_space(" ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            r#type,
+            SyntaxKind::FunctionType,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitJSDocFunctionType @6.0.3
+    /// tsc-hash: 7a5813af2db9941bcb60820287b97acc64edf63bac38d87f7d90b815b15aeac9
+    /// tsc-span: _tsc.js:118000-118005
+    fn emit_js_doc_function_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::JSDocFunctionTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::JSDocFunctionType)?;
+        writer.write_keyword("function");
+        self.emit_parameter_list(
+            transformation,
+            node.source(),
+            data.parameters,
+            expression_context,
+            writer,
+        )?;
+        writer.write_punctuation(":");
+        writer.write_space(" ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::JSDocFunctionType,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitConstructorType @6.0.3
+    /// tsc-hash: be259ca6036db88662a7435626fd40fe64b6e96bb36f5fb381cfd3e9f5ed294e
+    /// tsc-span: _tsc.js:118018-118023
+    fn emit_constructor_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ConstructorTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ConstructorType)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        writer.write_keyword("new");
+        writer.write_space(" ");
+        self.emit_function_type_head(
+            transformation,
+            node,
+            data.type_parameters,
+            data.parameters,
+            expression_context,
+            writer,
+        )?;
+        self.emit_function_type_body(
+            transformation,
+            node,
+            data.r#type,
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitTypeQuery @6.0.3
+    /// tsc-hash: 552c03413848b77bb2c2580f844a69ea8521c0ce23e2a0817ddb88ac8dd5d440
+    /// tsc-span: _tsc.js:118024-118029
+    fn emit_type_query(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TypeQueryData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TypeQuery)?;
+        writer.write_keyword("typeof");
+        writer.write_space(" ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.expr_name,
+            SyntaxKind::TypeQuery,
+            "expr_name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_type_arguments(
+            transformation,
+            node.source(),
+            data.type_arguments,
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitTypeLiteral @6.0.3
+    /// tsc-hash: 4405f0cec90a476574e9fab3fcaea7b064a6ee2b1ff15139dcc6dffc4931d655
+    /// tsc-span: _tsc.js:118030-118038
+    fn emit_type_literal(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TypeLiteralData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TypeLiteral)?;
+        writer.write_punctuation("{");
+        self.emit_declaration_members(
+            transformation,
+            node,
+            data.members,
+            true,
+            expression_context,
+            writer,
+        )?;
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    /// tsc-port: emitArrayType @6.0.3
+    /// tsc-hash: 784e73693c25c0121b1e99c2b8f42b4e5d16efbbd2baa2946d4142b863f86038
+    /// tsc-span: _tsc.js:118039-118043
+    fn emit_array_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ArrayTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ArrayType)?;
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.element_type,
+            SyntaxKind::ArrayType,
+            "element_type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_punctuation("[]");
+        Ok(())
+    }
+
+    /// tsc-port: emitRestOrJSDocVariadicType @6.0.3
+    /// tsc-hash: 0c537e5af9b680d3e92913404528d5f4430baeb1d421fee15b0d115158402910
+    /// tsc-span: _tsc.js:118044-118047
+    fn emit_rest_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::RestTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::RestType)?;
+        writer.write_punctuation("...");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::RestType,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitTupleType @6.0.3
+    /// tsc-hash: 42c0fe0a359963ad1f9fe324025c4700aeb30a048855eebc88aa2b71d178a210
+    /// tsc-span: _tsc.js:118048-118053
+    fn emit_tuple_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TupleTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TupleType)?;
+        writer.write_punctuation("[");
+        let single_line = transformation
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::SINGLE_LINE));
+        if single_line {
+            self.emit_comma_list(
+                transformation,
+                node.source(),
+                data.elements,
+                expression_context,
+                writer,
+            )?;
+        } else {
+            self.emit_multiline_comma_list(
+                transformation,
+                node,
+                data.elements,
+                expression_context,
+                writer,
+            )?;
+        }
+        writer.write_punctuation("]");
+        Ok(())
+    }
+
+    /// tsc-port: emitNamedTupleMember @6.0.3
+    /// tsc-hash: 85b9ebf0be566066920a0c5a0392fd6e765591f21884b507c67036cfd1d821b6
+    /// tsc-span: _tsc.js:118054-118061
+    fn emit_named_tuple_member(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::NamedTupleMemberData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::NamedTupleMember)?;
+        self.emit_optional_declaration_token(
+            transformation,
+            node.source(),
+            data.dot_dot_dot_token,
+            expression_context,
+            writer,
+        )?;
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::NamedTupleMember,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_optional_declaration_token(
+            transformation,
+            node.source(),
+            data.question_token,
+            expression_context,
+            writer,
+        )?;
+        writer.write_punctuation(":");
+        writer.write_space(" ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::NamedTupleMember,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitOptionalType @6.0.3
+    /// tsc-hash: 1a7781f324de8e31a81330fed735b758db78d51496d1c3240ed6a093b0cb7944
+    /// tsc-span: _tsc.js:118062-118065
+    fn emit_optional_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::OptionalTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::OptionalType)?;
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::OptionalType,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_punctuation("?");
+        Ok(())
+    }
+
+    /// tsc-port: emitUnionType @6.0.3
+    /// tsc-hash: fb8f0297dd6a009f4606f7e17ca66cbefdd62358fec9f00e6568f85e55a50950
+    /// tsc-span: _tsc.js:118066-118068
+    fn emit_union_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        types: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::UnionType)?;
+        self.emit_separated_declaration_list(
+            transformation,
+            node.source(),
+            types,
+            " | ",
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitIntersectionType @6.0.3
+    /// tsc-hash: 64e3c75674756dbb325a9432527f72236d6afaf97b6203e7790ce845615ec8c6
+    /// tsc-span: _tsc.js:118069-118071
+    fn emit_intersection_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        types: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::IntersectionType)?;
+        self.emit_separated_declaration_list(
+            transformation,
+            node.source(),
+            types,
+            " & ",
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitConditionalType @6.0.3
+    /// tsc-hash: 33227d715f305d8ab0457b6f1eba849dd5569a2f48a7a79b6300178a28453f29
+    /// tsc-span: _tsc.js:118072-118086
+    fn emit_conditional_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ConditionalTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ConditionalType)?;
+        for (field, child) in [
+            ("check_type", data.check_type),
+            ("extends_type", data.extends_type),
+            ("true_type", data.true_type),
+            ("false_type", data.false_type),
+        ] {
+            if child.is_none() {
+                return Err(PrinterError::MissingTransformedChild {
+                    parent: SyntaxKind::ConditionalType,
+                    field,
+                });
+            }
+        }
+        self.emit_node_id_with_context(
+            transformation,
+            node.source(),
+            data.check_type.expect("validated"),
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_space(" ");
+        writer.write_keyword("extends");
+        writer.write_space(" ");
+        self.emit_node_id_with_context(
+            transformation,
+            node.source(),
+            data.extends_type.expect("validated"),
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write(" ? ");
+        self.emit_node_id_with_context(
+            transformation,
+            node.source(),
+            data.true_type.expect("validated"),
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write(" : ");
+        self.emit_node_id_with_context(
+            transformation,
+            node.source(),
+            data.false_type.expect("validated"),
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitInferType @6.0.3
+    /// tsc-hash: 281f93eb3164220a04716ef4839ac42c621c0f005a7c1eac5395a7d5b7b9dea0
+    /// tsc-span: _tsc.js:118087-118091
+    fn emit_infer_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::InferTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::InferType)?;
+        writer.write_keyword("infer");
+        writer.write_space(" ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.type_parameter,
+            SyntaxKind::InferType,
+            "type_parameter",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitParenthesizedType @6.0.3
+    /// tsc-hash: 5a06d974b21ffba8f31b1ea70107284c127a68ec5d299aa0e7bcf8fd7a27c974
+    /// tsc-span: _tsc.js:118092-118096
+    fn emit_parenthesized_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ParenthesizedTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ParenthesizedType)?;
+        writer.write_punctuation("(");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::ParenthesizedType,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_punctuation(")");
+        Ok(())
+    }
+
+    /// tsc-port: emitTypeOperator @6.0.3
+    /// tsc-hash: 46d8711cebd95cf3b7cbb96104179d371d144cb0ce6ac807a94f8273163a7984
+    /// tsc-span: _tsc.js:118100-118105
+    fn emit_type_operator(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TypeOperatorData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TypeOperator)?;
+        let keyword = tsc_syntax::tokens::token_to_string(data.operator).ok_or(
+            PrinterError::UnsupportedTransformedSyntax {
+                node,
+                kind: data.operator,
+            },
+        )?;
+        writer.write_keyword(keyword);
+        writer.write_space(" ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::TypeOperator,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitIndexedAccessType @6.0.3
+    /// tsc-hash: a3b21279dae193d893d8d2b91f950989375284c60d6ca04862459772937b29e7
+    /// tsc-span: _tsc.js:118106-118111
+    fn emit_indexed_access_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::IndexedAccessTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::IndexedAccessType)?;
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.object_type,
+            SyntaxKind::IndexedAccessType,
+            "object_type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_punctuation("[");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.index_type,
+            SyntaxKind::IndexedAccessType,
+            "index_type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_punctuation("]");
+        Ok(())
+    }
+
+    /// tsc-port: emitMappedType @6.0.3
+    /// tsc-hash: 0ccb115f108d7e8b67a71ab71418c720c2dd1ee4183c50a7db173917335b2c62
+    /// tsc-span: _tsc.js:118112-118155
+    fn emit_mapped_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::MappedTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::MappedType)?;
+        let single_line = transformation
+            .arena()
+            .metadata(node)
+            .is_some_and(|metadata| metadata.flags().contains(EmitFlags::SINGLE_LINE));
+        writer.write_punctuation("{");
+        if single_line {
+            writer.write_space(" ");
+        } else {
+            writer.write_line(false);
+            writer.increase_indent();
+        }
+        if let Some(readonly) = data.readonly_token {
+            let readonly_node = transformation
+                .arena()
+                .node_ref(node.source(), readonly)
+                .ok_or(PrinterError::UnknownStatement(readonly.0))?;
+            let readonly_kind = transformation.arena().node(readonly_node)?.kind;
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                readonly,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            if readonly_kind != SyntaxKind::ReadonlyKeyword {
+                writer.write_keyword("readonly");
+            }
+            writer.write_space(" ");
+        }
+        writer.write_punctuation("[");
+        self.emit_mapped_type_parameter(
+            transformation,
+            node,
+            data.type_parameter,
+            expression_context,
+            writer,
+        )?;
+        if let Some(name_type) = data.name_type {
+            writer.write_space(" ");
+            writer.write_keyword("as");
+            writer.write_space(" ");
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                name_type,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        writer.write_punctuation("]");
+        if let Some(question) = data.question_token {
+            let question_node = transformation
+                .arena()
+                .node_ref(node.source(), question)
+                .ok_or(PrinterError::UnknownStatement(question.0))?;
+            let question_kind = transformation.arena().node(question_node)?.kind;
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                question,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            if question_kind != SyntaxKind::QuestionToken {
+                writer.write_punctuation("?");
+            }
+        }
+        writer.write_punctuation(":");
+        writer.write_space(" ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::MappedType,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_trailing_semicolon(";");
+        if single_line {
+            writer.write_space(" ");
+        } else {
+            writer.write_line(false);
+            writer.decrease_indent();
+        }
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    /// tsc-port: emitMappedTypeParameter @6.0.3
+    /// tsc-hash: 141ca701935794107bb8a37f6f2294a9ccb7175244008a8ef5c82e83cf28b812
+    /// tsc-span: _tsc.js:117705-117711
+    fn emit_mapped_type_parameter(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        type_parameter: Option<NodeId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let type_parameter = type_parameter.ok_or(PrinterError::MissingTransformedChild {
+            parent: SyntaxKind::MappedType,
+            field: "type_parameter",
+        })?;
+        let parameter = transformation
+            .arena()
+            .node_ref(parent.source(), type_parameter)
+            .ok_or(PrinterError::UnknownStatement(type_parameter.0))?;
+        let NodeData::TypeParameter(data) = transformation.arena().node(parameter)?.data.clone()
+        else {
+            return Err(PrinterError::UnsupportedTransformedSyntax {
+                node: parameter,
+                kind: transformation.arena().node(parameter)?.kind,
+            });
+        };
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            parent.source(),
+            data.name,
+            SyntaxKind::TypeParameter,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_space(" ");
+        writer.write_keyword("in");
+        writer.write_space(" ");
+        self.emit_required_node_with_context(
+            transformation,
+            parent.source(),
+            data.constraint,
+            SyntaxKind::TypeParameter,
+            "constraint",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitLiteralType @6.0.3
+    /// tsc-hash: cd6cdcccc2cd7030d87d064b893d92d879a3427659c0af7d26afd7703e1c912c
+    /// tsc-span: _tsc.js:118156-118158
+    fn emit_literal_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::LiteralTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::LiteralType)?;
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.literal,
+            SyntaxKind::LiteralType,
+            "literal",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitTemplateType @6.0.3
+    /// tsc-hash: a103ecde7074e564c344001e6fb5dc66f292a6461d054e9881d850aaee10913a
+    /// tsc-span: _tsc.js:118159-118162
+    fn emit_template_type(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TemplateLiteralTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TemplateLiteralType)?;
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.head,
+            SyntaxKind::TemplateLiteralType,
+            "head",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_node_array(
+            transformation,
+            node.source(),
+            data.template_spans,
+            "",
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitTemplateTypeSpan @6.0.3
+    /// tsc-hash: 5ae710e2c4e04e2b9c9002d8cc05a395b8e3998f1343b535b5c26a7a2322c3e2
+    /// tsc-span: _tsc.js:117963-117966
+    fn emit_template_type_span(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TemplateLiteralTypeSpanData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TemplateLiteralTypeSpan)?;
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::TemplateLiteralTypeSpan,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.literal,
+            SyntaxKind::TemplateLiteralTypeSpan,
+            "literal",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )
+    }
+
+    /// tsc-port: emitImportTypeNode @6.0.3
+    /// tsc-hash: 3275fb7835d9be5a86ad2ac9f2227eb27a18d7869e2bf6f4be007b9c17c62a0a
+    /// tsc-span: _tsc.js:118163-118182
+    fn emit_import_type_node(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ImportTypeData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ImportType)?;
+        if data.is_type_of {
+            writer.write_keyword("typeof");
+            writer.write_space(" ");
+        }
+        writer.write_keyword("import");
+        writer.write_punctuation("(");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.argument,
+            SyntaxKind::ImportType,
+            "argument",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        if let Some(attributes) = data.attributes {
+            writer.write_punctuation(",");
+            writer.write_space(" ");
+            self.emit_import_type_node_attributes(
+                transformation,
+                node.source(),
+                attributes,
+                expression_context,
+                writer,
+            )?;
+        }
+        writer.write_punctuation(")");
+        if let Some(qualifier) = data.qualifier {
+            writer.write_punctuation(".");
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                qualifier,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        self.emit_type_arguments(
+            transformation,
+            node.source(),
+            data.type_arguments,
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: emitImportTypeNodeAttributes @6.0.3
+    /// tsc-hash: c2028e6703acc1bf61520b1e7d35939630903c14182894f429a798dc396a8486
+    /// tsc-span: _tsc.js:119305-119315
+    fn emit_import_type_node_attributes(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        attributes: NodeId,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let attributes_node = transformation
+            .arena()
+            .node_ref(source, attributes)
+            .ok_or(PrinterError::UnknownStatement(attributes.0))?;
+        let NodeData::ImportAttributes(data) = &transformation.arena().node(attributes_node)?.data
+        else {
+            return Err(PrinterError::UnsupportedTransformedSyntax {
+                node: attributes_node,
+                kind: transformation.arena().node(attributes_node)?.kind,
+            });
+        };
+        writer.write_punctuation("{");
+        writer.write_space(" ");
+        writer.write_keyword(if data.token == SyntaxKind::AssertKeyword {
+            "assert"
+        } else {
+            "with"
+        });
+        writer.write_punctuation(":");
+        writer.write_space(" ");
+        self.emit_import_attribute_elements(
+            transformation,
+            attributes_node,
+            data.elements,
+            expression_context,
+            writer,
+        )?;
+        writer.write_space(" ");
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    /// tsc-port: emitInterfaceDeclaration @6.0.3
+    /// tsc-hash: a887761fc0ac81b4b98c2b77710cc09bf25d3ac5fa7463c1617716c2d5cef1fe
+    /// tsc-span: _tsc.js:119091-119110
+    fn emit_interface_declaration(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::InterfaceDeclarationData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::InterfaceDeclaration)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        writer.write_keyword("interface");
+        writer.write_space(" ");
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::InterfaceDeclaration,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_type_parameters(
+            transformation,
+            node.source(),
+            data.type_parameters,
+            expression_context,
+            writer,
+        )?;
+        self.emit_node_array(
+            transformation,
+            node.source(),
+            data.heritage_clauses,
+            "",
+            expression_context,
+            writer,
+        )?;
+        writer.write_space(" ");
+        writer.write_punctuation("{");
+        self.emit_declaration_members(
+            transformation,
+            node,
+            data.members,
+            false,
+            expression_context,
+            writer,
+        )?;
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    /// tsc-port: emitTypeAliasDeclaration @6.0.3
+    /// tsc-hash: 5d8d7d0554fee809348cf6483cee70c6b8907ff9f96a0d910364c40c9a9c6797
+    /// tsc-span: _tsc.js:119111-119127
+    fn emit_type_alias_declaration(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::TypeAliasDeclarationData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::TypeAliasDeclaration)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        writer.write_keyword("type");
+        writer.write_space(" ");
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::TypeAliasDeclaration,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        self.emit_type_parameters(
+            transformation,
+            node.source(),
+            data.type_parameters,
+            expression_context,
+            writer,
+        )?;
+        writer.write(" = ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.r#type,
+            SyntaxKind::TypeAliasDeclaration,
+            "type",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_trailing_semicolon(";");
+        Ok(())
+    }
+
+    /// tsc-port: emitEnumDeclaration @6.0.3
+    /// tsc-hash: 69ecc6800787365590d79116bd96bf15095f6af95adc7b04aba062f2e0c37513
+    /// tsc-span: _tsc.js:119128-119142
+    fn emit_enum_declaration(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::EnumDeclarationData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::EnumDeclaration)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        writer.write_keyword("enum");
+        writer.write_space(" ");
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::EnumDeclaration,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_space(" ");
+        writer.write_punctuation("{");
+        self.emit_multiline_comma_list(
+            transformation,
+            node,
+            data.members,
+            expression_context,
+            writer,
+        )?;
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    /// tsc-port: emitEnumMember @6.0.3
+    /// tsc-hash: c28a8e02b7550102a2e93faf51bbc441e33af66e89a3bdf2429ea07327572505
+    /// tsc-span: _tsc.js:119542-119545
+    fn emit_enum_member(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::EnumMemberData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::EnumMember)?;
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::EnumMember,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        if let Some(initializer) = data.initializer {
+            writer.write(" = ");
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                initializer,
+                expression_context.for_child(ExpressionSyntaxContext::DISALLOWED_COMMA),
+                writer,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: emitModuleDeclaration @6.0.3
+    /// tsc-hash: c1481129cf6fab009c9bc1dd9fbd483e583386e4e100dc9521bc8df8dd2355cf
+    /// tsc-span: _tsc.js:119143-119164
+    fn emit_module_declaration(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ModuleDeclarationData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ModuleDeclaration)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        let flags = NodeFlags::from_bits(transformation.arena().node(node)?.flags);
+        if !flags.contains(NodeFlags::GLOBAL_AUGMENTATION) {
+            writer.write_keyword(if flags.contains(NodeFlags::NAMESPACE) {
+                "namespace"
+            } else {
+                "module"
+            });
+            writer.write_space(" ");
+        }
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::ModuleDeclaration,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        let Some(mut body_id) = data.body else {
+            writer.write_trailing_semicolon(";");
+            return Ok(());
+        };
+        loop {
+            let body = transformation
+                .arena()
+                .node_ref(node.source(), body_id)
+                .ok_or(PrinterError::UnknownStatement(body_id.0))?;
+            let record = transformation.arena().node(body)?.clone();
+            let NodeData::ModuleDeclaration(nested) = record.data else {
+                writer.write_space(" ");
+                self.emit_node_id_with_context(
+                    transformation,
+                    node.source(),
+                    body_id,
+                    expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                    writer,
+                )?;
+                return Ok(());
+            };
+            writer.write_punctuation(".");
+            self.emit_required_identifier_name_with_context(
+                transformation,
+                node.source(),
+                nested.name,
+                SyntaxKind::ModuleDeclaration,
+                "name",
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            let Some(next) = nested.body else {
+                writer.write_trailing_semicolon(";");
+                return Ok(());
+            };
+            body_id = next;
+        }
+    }
+
+    /// tsc-port: emitModuleBlock @6.0.3
+    /// tsc-hash: 54ae984d8d907e6bd1eec35f3566d5cbcfe73158edbfc6a81e5af58406aaaf2d
+    /// tsc-span: _tsc.js:119165-119174
+    fn emit_module_block(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ModuleBlockData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ModuleBlock)?;
+        writer.write_punctuation("{");
+        if self.node_array_has_elements(transformation, node.source(), data.statements)? {
+            self.emit_declaration_members(
+                transformation,
+                node,
+                data.statements,
+                false,
+                expression_context,
+                writer,
+            )?;
+        } else {
+            let record = transformation.arena().node(node)?;
+            let source = transformation.arena().source(node.source())?.syntax();
+            let source_is_multiline =
+                match SourceRange::from_raw(record.pos, record.end, source.positions())? {
+                    SourceRange::Original(range) => source
+                        .text()
+                        .get(range.start().value() as usize..range.end().value() as usize)
+                        .is_some_and(|text| text.chars().any(is_line_break)),
+                    SourceRange::Synthesized => false,
+                };
+            if record.multi_line == Some(true) || source_is_multiline {
+                writer.write_line(false);
+            } else {
+                writer.write_space(" ");
+            }
+        }
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    /// tsc-port: emitImportEqualsDeclaration @6.0.3
+    /// tsc-hash: 5d3d7449427b95cc8c112f097efbd64c805dc4f998240807ea2550fbfa2bdcc7
+    /// tsc-span: _tsc.js:119187-119206
+    /// tsc-port: emitModuleReference @6.0.3
+    /// tsc-hash: fb936c397637c44e73d70e1dc33e89bb31a7f8b640c9b913d981c7354cdaf1fb
+    /// tsc-span: _tsc.js:119207-119213
+    fn emit_import_equals_declaration(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::ImportEqualsDeclarationData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::ImportEqualsDeclaration)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        writer.write_keyword("import");
+        writer.write_space(" ");
+        if data.is_type_only {
+            writer.write_keyword("type");
+            writer.write_space(" ");
+        }
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::ImportEqualsDeclaration,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write(" = ");
+        self.emit_required_node_with_context(
+            transformation,
+            node.source(),
+            data.module_reference,
+            SyntaxKind::ImportEqualsDeclaration,
+            "module_reference",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_trailing_semicolon(";");
+        Ok(())
+    }
+
+    /// tsc-port: emitNamespaceExportDeclaration @6.0.3
+    /// tsc-hash: 4692dde51cd3dca56831d11006d62fa42bb38b43ded95918b1f5a96e9e1f6c52
+    /// tsc-span: _tsc.js:119333-119342
+    fn emit_namespace_export_declaration(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        node: TransformNode,
+        data: &tsc_syntax::nodes::NamespaceExportDeclarationData,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.require_declaration_syntax(node, SyntaxKind::NamespaceExportDeclaration)?;
+        if self.emit_modifiers(
+            transformation,
+            node.source(),
+            data.modifiers,
+            expression_context,
+            writer,
+        )? {
+            writer.write_space(" ");
+        }
+        writer.write("export as namespace ");
+        self.emit_required_identifier_name_with_context(
+            transformation,
+            node.source(),
+            data.name,
+            SyntaxKind::NamespaceExportDeclaration,
+            "name",
+            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+            writer,
+        )?;
+        writer.write_trailing_semicolon(";");
+        Ok(())
+    }
+
+    fn emit_import_attribute_elements(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        elements: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        writer.write_punctuation("{");
+        if self.node_array_has_elements(transformation, parent.source(), elements)? {
+            writer.write_space(" ");
+            self.emit_comma_list(
+                transformation,
+                parent.source(),
+                elements,
+                expression_context,
+                writer,
+            )?;
+            writer.write_space(" ");
+        }
+        writer.write_punctuation("}");
+        Ok(())
+    }
+
+    fn emit_optional_declaration_token(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        token: Option<NodeId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if let Some(token) = token {
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                token,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        Ok(())
+    }
+
+    fn emit_type_annotation(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        r#type: Option<NodeId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if let Some(r#type) = r#type {
+            writer.write_punctuation(":");
+            writer.write_space(" ");
+            let type_node = transformation
+                .arena()
+                .node_ref(parent.source(), r#type)
+                .ok_or(PrinterError::UnknownStatement(r#type.0))?;
+            self.emit_leading_comments_for_node(transformation, type_node, writer)?;
+            self.emit_node_id_with_context(
+                transformation,
+                parent.source(),
+                r#type,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
+        Ok(())
+    }
+
+    /// tsc-port: emitTypeParameters @6.0.3
+    /// tsc-hash: 67edb593d7741ab6b3273370e553eda19470127765c51d0346e8c30c93e71bf6
+    /// tsc-span: _tsc.js:119970-119975
+    fn emit_type_parameters(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        type_parameters: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        if self.node_array_has_elements(transformation, source, type_parameters)? {
+            writer.write_punctuation("<");
+            self.emit_comma_list(
+                transformation,
+                source,
+                type_parameters,
+                expression_context,
+                writer,
+            )?;
+            writer.write_punctuation(">");
+        }
+        Ok(())
+    }
+
+    fn emit_comma_list(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        array: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        self.emit_separated_declaration_list(
+            transformation,
+            source,
+            array,
+            ", ",
+            expression_context,
+            writer,
+        )
+    }
+
+    /// tsc-port: writeDelimiter @6.0.3
+    /// tsc-hash: f8dc9b88204f8d780bb48a54acb56c93bb62b7c6a12e1f065b472bb48da4550c
+    /// tsc-span: _tsc.js:119993-120014
+    /// tsc-port: emitList @6.0.3
+    /// tsc-hash: 8a0512c2af9ba16a7481b372c31ae88611a0f3f8b4daaf5919a7278927262b5c
+    /// tsc-span: _tsc.js:120015-120025
+    fn emit_separated_declaration_list(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        array: Option<tsc_syntax::NodeArrayId>,
+        separator: &str,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let Some(array) =
+            array.and_then(|array| transformation.arena().node_array_ref(source, array))
+        else {
+            return Ok(());
+        };
+        let ids = transformation.arena().node_array(array)?.nodes.clone();
+        for (index, id) in ids.iter().copied().enumerate() {
+            let child = transformation
+                .arena()
+                .node_ref(source, id)
+                .ok_or(PrinterError::UnknownStatement(id.0))?;
+            if index == 0 {
+                self.emit_leading_comments_for_delimited_list_start(transformation, child, writer)?;
+            } else {
+                writer.write(separator);
+                self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
+            }
+            self.emit_node_id_with_context(
+                transformation,
+                source,
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            self.emit_list_element_end_comments(transformation, child, writer)?;
+        }
+        Ok(())
+    }
+
+    fn emit_separated_declaration_list_item_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        child: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let owner = self.expression_comment_phase_owner_for_node(transformation, child)?;
+        let source = transformation
+            .arena()
+            .source(owner.range.source())?
+            .syntax();
+        if let SourceRange::Original(range) = owner.range.range() {
+            let start = range.start().value() as usize;
+            let code_start = range
+                .without_leading_trivia(source.text(), source.positions())?
+                .start()
+                .value() as usize;
+            if start < code_start {
+                let before = writer.text().len();
+                emit_same_line_trailing_block_comments(
+                    SourceTrivia::new(source.text(), start, code_start),
+                    writer,
+                );
+                if writer.text().len() != before && !writer.has_trailing_whitespace() {
+                    writer.write_space(" ");
+                }
+            }
+        }
+        self.emit_leading_comments_for_node_after_sibling(transformation, child, writer)
+    }
+
+    fn emit_multiline_declaration_list_item_comments(
+        &self,
+        transformation: &TransformationResult<'_>,
+        child: TransformNode,
+        writer: &mut TextWriter,
+    ) -> Result<bool, PrinterError> {
+        let owner = self.expression_comment_phase_owner_for_node(transformation, child)?;
+        let source = transformation
+            .arena()
+            .source(owner.range.source())?
+            .syntax();
+        let SourceRange::Original(range) = owner.range.range() else {
+            return Ok(false);
+        };
+        let start = range.start().value() as usize;
+        let code_start = range
+            .without_leading_trivia(source.text(), source.positions())?
+            .start()
+            .value() as usize;
+        let mut previous_end = start;
+        if start < code_start {
+            let mut comments = collect_source_comment_ranges(source.text(), start, true);
+            comments.extend(collect_source_comment_ranges(source.text(), start, false));
+            comments.retain(|comment| comment.end <= code_start);
+            comments.sort_by_key(|comment| (comment.start, comment.end));
+            comments.dedup_by_key(|comment| (comment.start, comment.end));
+            for comment in comments {
+                if self.options.remove_comments
+                    || (self.options.only_print_js_doc_style
+                        && !should_write_js_doc_style_comment(source.text(), comment.start))
+                {
+                    previous_end = comment.end;
+                    continue;
+                }
+                if source.text()[previous_end..comment.start]
+                    .chars()
+                    .any(is_line_break)
+                {
+                    writer.write_line(false);
+                } else if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
+                    writer.write_space(" ");
+                }
+                write_source_comment(source.text(), comment.start, comment.end, writer);
+                if source_comment_will_emit_new_line(&comment) {
+                    writer.write_line(false);
+                }
+                previous_end = comment.end;
+            }
+        }
+        Ok(source.text()[previous_end..code_start]
+            .chars()
+            .any(is_line_break))
+    }
+
+    fn emit_multiline_comma_list(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        array: Option<tsc_syntax::NodeArrayId>,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let ids = array
+            .and_then(|array| {
+                transformation
+                    .arena()
+                    .node_array_ref(parent.source(), array)
+            })
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .map(|array| array.nodes.clone())
+            .unwrap_or_default();
+        if ids.is_empty() {
+            writer.write_line(false);
+            return Ok(());
+        }
+        let force_line_after_comments =
+            transformation.arena().node(parent)?.kind == SyntaxKind::TupleType;
+        writer.increase_indent();
+        let first = transformation
+            .arena()
+            .node_ref(parent.source(), ids[0])
+            .ok_or(PrinterError::UnknownStatement(ids[0].0))?;
+        if !force_line_after_comments {
+            writer.write_line(false);
+        }
+        let source_line_break =
+            self.emit_multiline_declaration_list_item_comments(transformation, first, writer)?;
+        if force_line_after_comments || source_line_break {
+            writer.write_line(false);
+        } else if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
+            writer.write_space(" ");
+        }
+        for (index, id) in ids.iter().copied().enumerate() {
+            let child = transformation
+                .arena()
+                .node_ref(parent.source(), id)
+                .ok_or(PrinterError::UnknownStatement(id.0))?;
+            self.emit_node_id_with_context(
+                transformation,
+                parent.source(),
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            self.emit_list_element_end_comments(transformation, child, writer)?;
+            if index + 1 < ids.len() {
+                writer.write_punctuation(",");
+                let next = transformation
+                    .arena()
+                    .node_ref(parent.source(), ids[index + 1])
+                    .ok_or(PrinterError::UnknownStatement(ids[index + 1].0))?;
+                if !force_line_after_comments {
+                    writer.write_line(false);
+                }
+                let source_line_break = self.emit_multiline_declaration_list_item_comments(
+                    transformation,
+                    next,
+                    writer,
+                )?;
+                if force_line_after_comments || source_line_break {
+                    writer.write_line(false);
+                } else if !writer.is_at_start_of_line() && !writer.has_trailing_whitespace() {
+                    writer.write_space(" ");
+                }
+            } else {
+                writer.write_line(false);
+            }
+        }
+        writer.decrease_indent();
+        Ok(())
+    }
+
+    /// tsc-port: emitNodeList @6.0.3
+    /// tsc-hash: 9286227d388af8c22b8ceb9909204c1b0e7338f14fd54f346c09bd1deabe987d
+    /// tsc-span: _tsc.js:120029-120067
+    /// tsc-port: emitNodeListItems @6.0.3
+    /// tsc-hash: ebeb65a71c929bbfdf5d1ebd4b2e7216f15bd37117166ef8fbee5b3a9b0a6b40
+    /// tsc-span: _tsc.js:120068-120155
+    /// tsc-port: getLeadingLineTerminatorCount @6.0.3
+    /// tsc-hash: 893244ddd50971f9938c07f3bb0b10b520dfbf70880816b69aa4b00cc1384819
+    /// tsc-span: _tsc.js:120268-120300
+    /// tsc-port: getSeparatingLineTerminatorCount @6.0.3
+    /// tsc-hash: 78d63da04f114ae40f8ad9f012131e94a83000cf268d393c5608372aab734539
+    /// tsc-span: _tsc.js:120301-120329
+    /// tsc-port: getClosingLineTerminatorCount @6.0.3
+    /// tsc-hash: 30b0be7e1586d76d08caeaa3f4605323147137e9c73a0bd825dd3c92881635dc
+    /// tsc-span: _tsc.js:120330-120360
+    /// tsc-port: getEffectiveLines @6.0.3
+    /// tsc-hash: 2388b561e153c74144d22225ad2d6d27bf741aa488e60585c473744b3c03539b
+    /// tsc-span: _tsc.js:120361-120374
+    fn emit_declaration_members(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        parent: TransformNode,
+        members: Option<tsc_syntax::NodeArrayId>,
+        no_space_if_empty: bool,
+        expression_context: EmitContext,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let ids = members
+            .and_then(|array| {
+                transformation
+                    .arena()
+                    .node_array_ref(parent.source(), array)
+            })
+            .map(|array| transformation.arena().node_array(array))
+            .transpose()?
+            .map(|array| array.nodes.clone())
+            .unwrap_or_default();
+        if ids.is_empty() {
+            if !no_space_if_empty {
+                writer.write_line(false);
+            }
+            return Ok(());
+        }
+        writer.write_line(false);
+        writer.increase_indent();
+        for (index, id) in ids.iter().copied().enumerate() {
+            let member = transformation
+                .arena()
+                .node_ref(parent.source(), id)
+                .ok_or(PrinterError::UnknownStatement(id.0))?;
+            if index == 0 {
+                self.emit_leading_comments_for_node(transformation, member, writer)?;
+            } else {
+                self.emit_leading_comments_for_node_after_sibling(transformation, member, writer)?;
+            }
+            self.emit_node_id_with_context(
+                transformation,
+                parent.source(),
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+            self.emit_trailing_comments_for_node(transformation, member, writer)?;
+            writer.write_line(false);
+        }
+        writer.decrease_indent();
+        Ok(())
+    }
+
     /// Emit TypeArguments list delimiters as part of the syntax surface.
     /// transformTypeScript removes JSX type arguments before JavaScript/JSX
     /// output; an identity/standalone TSX print still owns a non-empty
@@ -7521,11 +10512,10 @@ impl Printer {
     ) -> Result<(), PrinterError> {
         if self.node_array_has_elements(transformation, source, type_arguments)? {
             writer.write_punctuation("<");
-            self.emit_node_array(
+            self.emit_comma_list(
                 transformation,
                 source,
                 type_arguments,
-                ", ",
                 expression_context,
                 writer,
             )?;
@@ -7554,18 +10544,13 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.node_array_has_elements(transformation, source, type_parameters)? {
-            writer.write_punctuation("<");
-            self.emit_node_array(
-                transformation,
-                source,
-                type_parameters,
-                ", ",
-                expression_context,
-                writer,
-            )?;
-            writer.write_punctuation(">");
-        }
+        self.emit_type_parameters(
+            transformation,
+            source,
+            type_parameters,
+            expression_context,
+            writer,
+        )?;
         self.emit_parameter_list(
             transformation,
             source,
@@ -7587,6 +10572,9 @@ impl Printer {
         Ok(())
     }
 
+    /// tsc-port: emitParametersForIndexSignature @6.0.3
+    /// tsc-hash: f8d6242cc9ba28683f5b66fafe283cc94112bd81dce6ad0f776a6a56fbb56b82
+    /// tsc-span: _tsc.js:119990-119992
     fn emit_parameter_list(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -8347,6 +11335,9 @@ impl Printer {
         )
     }
 
+    /// tsc-port: emitDecoratorsAndModifiers @6.0.3
+    /// tsc-hash: 8fb50c70cd68d557886307bc8242e2f79f0533fea4c44e498feb8ce7c0eba899
+    /// tsc-span: _tsc.js:119846-119902
     fn emit_modifiers(
         &self,
         transformation: &mut TransformationResult<'_>,
@@ -8744,6 +11735,7 @@ impl Printer {
             syntax.text(),
             array.end as usize,
             &BTreeSet::new(),
+            false,
             writer,
         );
         Ok(())
@@ -10275,6 +13267,7 @@ impl Printer {
         let boundary = owner_range.end().value() as usize;
         let emitted_through = emit_same_line_trailing_comments(
             SourceTrivia::from_start(source.text(), boundary),
+            self.options.only_print_js_doc_style,
             writer,
         )
         .map(|end| SourceBytePosition::new(end as u32, source.positions()))
@@ -10403,7 +13396,11 @@ impl Printer {
         // `isEmittedNode=false` branch preserves recognized triple-slash
         // pragmas when the erased statement starts at source position zero.
         if owner.kind == SyntaxKind::NotEmittedStatement {
-            if start == 0 && code_start > start && resume.is_none() {
+            if !self.options.declaration_syntax
+                && start == 0
+                && code_start > start
+                && resume.is_none()
+            {
                 emit_triple_slash_leading_comments(&source.text()[start..code_start], writer);
             }
             return Ok(SourceLeadingCommentPhaseVisit::Suppressed);
@@ -10451,6 +13448,7 @@ impl Printer {
                     source.text(),
                     trivia_start,
                     &BTreeSet::new(),
+                    self.options.only_print_js_doc_style,
                     writer,
                 );
             } else {
@@ -10458,6 +13456,7 @@ impl Printer {
                     SourceTrivia::new(source.text(), trivia_start, code_start),
                     writer,
                     true,
+                    false,
                 );
             }
         }
@@ -10647,7 +13646,9 @@ impl Printer {
             })?;
         let trivia = SourceTrivia::new(source.text(), start, end);
         match prefix.policy {
-            DetachedSourceCommentPolicy::All => emit_leading_comments(trivia, writer, true),
+            DetachedSourceCommentPolicy::All => {
+                emit_leading_comments(trivia, writer, true, self.options.only_print_js_doc_style)
+            }
             DetachedSourceCommentPolicy::PinnedOnly => emit_pinned_leading_comments(trivia, writer),
         }
         Ok(())
@@ -10700,6 +13701,7 @@ impl Printer {
         }
         emit_same_line_trailing_comments(
             SourceTrivia::from_start(source.text(), range.end().value() as usize),
+            self.options.only_print_js_doc_style,
             writer,
         );
         Ok(())
@@ -10820,6 +13822,7 @@ impl Printer {
         let boundary = range.end().value() as usize;
         let emitted_through = emit_same_line_trailing_comments(
             SourceTrivia::from_start(source.text(), boundary),
+            self.options.only_print_js_doc_style,
             writer,
         )
         .map(|end| SourceBytePosition::new(end as u32, source.positions()))
@@ -11034,6 +14037,7 @@ impl Printer {
                     source.text(),
                     position,
                     &excluded,
+                    false,
                     writer,
                 );
             }
@@ -11045,6 +14049,7 @@ impl Printer {
                 source.text(),
                 expression_range.end().value() as usize,
                 &BTreeSet::new(),
+                false,
                 writer,
             );
         }
@@ -11382,6 +14387,9 @@ impl Printer {
     /// validation. `writeTokenText` advances `pos` by the fixed spelling's
     /// length; ES2019 optional-catch lowering relies on that behavior when a
     /// synthetic `(` advances over the original block's `{` position.
+    /// tsc-port: emitTokenWithComment @6.0.3
+    /// tsc-hash: d7df39bba502705facedce379a636ae55b168b77701df5e72abf10ec444c2e50
+    /// tsc-span: _tsc.js:118731-118764
     fn emit_token_with_comments(
         &self,
         transformation: &TransformationResult<'_>,
@@ -11518,14 +14526,16 @@ impl Printer {
         // neighboring cursor looks — hence the `similar` gate
         // (replay-falsified: the default-value conditional's colon
         // otherwise records the source comma after the initializer).
-        let record_braces = matches!(
-            token.kind,
-            SyntaxKind::OpenBraceToken | SyntaxKind::CloseBraceToken
-        ) || (matches!(
-            token.kind,
-            SyntaxKind::QuestionToken | SyntaxKind::ColonToken
-        ) && owner_record.kind == SyntaxKind::ConditionalExpression
-            && similar);
+        let record_braces = (!self.options.omit_brace_source_map_positions
+            && matches!(
+                token.kind,
+                SyntaxKind::OpenBraceToken | SyntaxKind::CloseBraceToken
+            ))
+            || (matches!(
+                token.kind,
+                SyntaxKind::QuestionToken | SyntaxKind::ColonToken
+            ) && owner_record.kind == SyntaxKind::ConditionalExpression
+                && similar);
         let Some((cursor_source, start_position)) = cursor.source_position() else {
             #[cfg(test)]
             crate::token_cursor::record_cursor_work(0);
@@ -11808,7 +14818,7 @@ impl Printer {
             .map(|comment| u32::try_from(comment.end).unwrap_or(u32::MAX))
             .chain(emitted_through)
             .max();
-        emit_source_leading_comments_of_position(source.text(), start, &excluded, writer);
+        emit_source_leading_comments_of_position(source.text(), start, &excluded, false, writer);
         if needs_indent {
             writer.decrease_indent();
         }
@@ -12030,7 +15040,7 @@ impl Printer {
                 .windows(2)
                 .any(|pair| pair == b"/*" || pair == b"//")
         {
-            emit_leading_comments(tail, writer, true);
+            emit_leading_comments(tail, writer, true, self.options.only_print_js_doc_style);
         }
         Ok(())
     }
@@ -12057,6 +15067,7 @@ impl Printer {
         if start < end && source.text().as_bytes()[start] == b'{' {
             emit_same_line_trailing_comments(
                 SourceTrivia::new(source.text(), start + 1, end),
+                false,
                 writer,
             );
         }
@@ -12148,11 +15159,11 @@ impl Printer {
         if multi_line {
             writer.write_line(false);
             writer.increase_indent();
-            emit_leading_comments(inner, writer, true);
+            emit_leading_comments(inner, writer, true, false);
             writer.decrease_indent();
         } else {
             writer.write_space(" ");
-            emit_leading_comments(inner, writer, true);
+            emit_leading_comments(inner, writer, true, false);
         }
         Ok(true)
     }
@@ -12257,7 +15268,7 @@ impl Printer {
             .windows(2)
             .any(|pair| pair == b"/*" || pair == b"//")
         {
-            emit_leading_comments(trivia, writer, true);
+            emit_leading_comments(trivia, writer, true, false);
         }
         Ok(())
     }
@@ -12381,9 +15392,19 @@ impl Printer {
         };
         let position = range.end().value() as usize;
         if !ambient_scope.retains_end(CommentCursor::new(node.source(), range.end())) {
-            emit_source_trailing_comments_of_position(source.text(), position, writer);
+            emit_same_line_trailing_comments(
+                SourceTrivia::from_start(source.text(), position),
+                self.options.only_print_js_doc_style,
+                writer,
+            );
         }
-        emit_source_leading_comments_of_position(source.text(), position, &BTreeSet::new(), writer);
+        emit_source_leading_comments_of_position(
+            source.text(),
+            position,
+            &BTreeSet::new(),
+            false,
+            writer,
+        );
         Ok(())
     }
 
@@ -12433,7 +15454,7 @@ impl Printer {
         if !ambient_scope.retains_end(CommentCursor::new(original.source(), range.end())) {
             emit_source_trailing_comments_of_position(source.text(), start, writer);
         }
-        emit_source_leading_comments_of_position(source.text(), start, &excluded, writer);
+        emit_source_leading_comments_of_position(source.text(), start, &excluded, false, writer);
         Ok(())
     }
 
@@ -12642,6 +15663,10 @@ impl Printer {
         classify: fn(&mut TextWriter, &str),
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
+        if self.options.omit_brace_source_map_positions {
+            classify(writer, spelling);
+            return Ok(());
+        }
         self.record_token_map_side(
             transformation,
             MapBoundary::Before,
@@ -12702,7 +15727,7 @@ fn emit_empty_node_array_boundary_comments(
     wrote_comment |= collect_source_comment_ranges(source, leading_position, false)
         .into_iter()
         .any(|comment| !emitted.contains(&(comment.start, comment.end)));
-    emit_source_leading_comments_of_position(source, leading_position, &emitted, writer);
+    emit_source_leading_comments_of_position(source, leading_position, &emitted, false, writer);
     wrote_comment
 }
 
@@ -12749,7 +15774,7 @@ fn emit_empty_multiline_block_boundary_comments(
 
     writer.write_line(false);
     writer.increase_indent();
-    emit_source_leading_comments_of_position(source, leading_position, &emitted, writer);
+    emit_source_leading_comments_of_position(source, leading_position, &emitted, false, writer);
     writer.decrease_indent();
 }
 
@@ -12778,15 +15803,22 @@ fn empty_node_array_boundary_has_comments(
             .any(|comment| !suppressed.contains(&(comment.start, comment.end)))
 }
 
+/// tsc-port: emitLeadingComment @6.0.3
+/// tsc-hash: 35d2197a2d7a2b1904ebcf44899bf3a97b8f3ff986d060c7b6b75e2b0ec157ce
+/// tsc-span: _tsc.js:121151-121165
 fn emit_source_leading_comments_of_position(
     source: &str,
     position: usize,
     excluded: &BTreeSet<(usize, usize)>,
+    only_print_js_doc_style: bool,
     writer: &mut TextWriter,
 ) {
     let mut wrote_comment = false;
     for comment in collect_source_comment_ranges(source, position, false) {
         if excluded.contains(&(comment.start, comment.end)) {
+            continue;
+        }
+        if only_print_js_doc_style && !should_write_js_doc_style_comment(source, comment.start) {
             continue;
         }
         if !wrote_comment
@@ -12965,8 +15997,12 @@ fn collect_source_comment_ranges(
     ranges
 }
 
+/// tsc-port: emitTrailingComment @6.0.3
+/// tsc-hash: 14654b8999872d42159a4d2c11a27fb01fbe47c50e8131b82de8453536d60394
+/// tsc-span: _tsc.js:121179-121190
 fn emit_same_line_trailing_comments(
     rest: SourceTrivia<'_>,
+    only_print_js_doc_style: bool,
     writer: &mut TextWriter,
 ) -> Option<usize> {
     let mut cursor = rest.start;
@@ -13023,6 +16059,15 @@ fn emit_same_line_trailing_comments(
         } else {
             return last_comment_end;
         };
+        if only_print_js_doc_style && !should_write_js_doc_style_comment(rest.source, comment.start)
+        {
+            cursor = comment.end;
+            last_comment_end = Some(comment.end);
+            if comment.kind == SourceCommentKind::Line {
+                return last_comment_end;
+            }
+            continue;
+        }
         if !writer.has_trailing_whitespace() {
             writer.write_space(" ");
         }
@@ -13172,6 +16217,16 @@ fn is_pinned_source_comment(source: &str, comment: SourceCommentRange) -> bool {
     source.as_bytes().get(comment.start..comment.start + 3) == Some(b"/*!")
 }
 
+/// tsc-port: shouldWriteComment @6.0.3
+/// tsc-hash: 9585a2c5cae9ab168b146d094a846dae3f07e50b659fd70090364a9be630bf29
+/// tsc-span: _tsc.js:121145-121150
+fn should_write_js_doc_style_comment(source: &str, comment_start: usize) -> bool {
+    let bytes = source.as_bytes();
+    bytes.get(comment_start..comment_start + 3) == Some(b"/*!")
+        || (bytes.get(comment_start..comment_start + 3) == Some(b"/**")
+            && bytes.get(comment_start + 3) != Some(&b'/'))
+}
+
 fn contains_two_line_breaks(source: &str, start: usize, end: usize) -> bool {
     let Some(text) = source.get(start..end) else {
         return false;
@@ -13306,10 +16361,17 @@ fn emit_triple_slash_leading_comments(trivia: &str, writer: &mut TextWriter) {
     }
 }
 
+/// tsc-port: emitLeadingComments @6.0.3
+/// tsc-hash: 365543958b2ff53ab2f1731d2c6e2cba39658cc427517b6cce17442adad56cd4
+/// tsc-span: _tsc.js:121123-121134
+/// tsc-port: emitNonTripleSlashLeadingComment @6.0.3
+/// tsc-hash: b7244a97ba8a9d1ff78f49ca89ec4ec51c6cc70b2d81dea5ca6fa593f39a37dd
+/// tsc-span: _tsc.js:121140-121144
 fn emit_leading_comments(
     trivia: SourceTrivia<'_>,
     writer: &mut TextWriter,
     trailing_separator: bool,
+    only_print_js_doc_style: bool,
 ) {
     let text = trivia.text();
     let bytes = text.as_bytes();
@@ -13321,6 +16383,24 @@ fn emit_leading_comments(
         }
         let comment_follows = bytes.get(cursor..cursor + 2) == Some(b"//")
             || bytes.get(cursor..cursor + 2) == Some(b"/*");
+        if comment_follows
+            && only_print_js_doc_style
+            && !should_write_js_doc_style_comment(trivia.source, trivia.start + cursor)
+        {
+            if bytes.get(cursor..cursor + 2) == Some(b"//") {
+                cursor += 2;
+                while cursor < bytes.len() && !matches!(bytes[cursor], b'\r' | b'\n') {
+                    cursor += 1;
+                }
+            } else {
+                cursor += 2;
+                while cursor + 1 < bytes.len() && &bytes[cursor..cursor + 2] != b"*/" {
+                    cursor += 1;
+                }
+                cursor = (cursor + 2).min(bytes.len());
+            }
+            continue;
+        }
         if comment_follows
             && (text[whitespace_start..cursor].contains('\r')
                 || text[whitespace_start..cursor].contains('\n'))
@@ -13410,6 +16490,9 @@ fn source_comment_utf16_location(source: &str, byte: usize) -> (u32, u32) {
     (line, character)
 }
 
+/// tsc-port: emitComment @6.0.3
+/// tsc-hash: de39b3978e8dba172c826b342b82c229fa28a6dfac8d407647aae6f2736857a6
+/// tsc-span: _tsc.js:121268-121273
 /// tsc-port: writeCommentRange @6.0.3
 /// tsc-hash: 38bb9a8ad12c162ca638f01b60e4d17574d6bcfb54ffe941f257f40f02fc7d8b
 /// tsc-span: _tsc.js:16867-16919
@@ -13549,6 +16632,47 @@ fn quote_string_literal(text: &str, single_quote: bool, no_ascii_escaping: bool)
         single_quote,
         no_ascii_escaping,
     )
+}
+
+fn escape_template_literal_text(units: &[u16], no_ascii_escaping: bool) -> String {
+    let mut escaped = String::with_capacity(units.len());
+    let mut index = 0usize;
+    while index < units.len() {
+        let unit = units[index];
+        if no_ascii_escaping
+            && (0xd800..=0xdbff).contains(&unit)
+            && units
+                .get(index + 1)
+                .is_some_and(|next| (0xdc00..=0xdfff).contains(next))
+        {
+            let next = units[index + 1];
+            let scalar = 0x10000 + (((unit - 0xd800) as u32) << 10) + (next - 0xdc00) as u32;
+            if let Some(character) = char::from_u32(scalar) {
+                push_quoted_character(&mut escaped, character, '`', false);
+            }
+            index += 2;
+            continue;
+        }
+        if (!no_ascii_escaping && unit > 0x7f) || (0xd800..=0xdfff).contains(&unit) {
+            use std::fmt::Write;
+            let _ = write!(escaped, "\\u{unit:04X}");
+            index += 1;
+            continue;
+        }
+        if unit == 0 {
+            let digit_follows = units
+                .get(index + 1)
+                .is_some_and(|next| (0x30..=0x39).contains(next));
+            escaped.push_str(if digit_follows { "\\x00" } else { "\\0" });
+            index += 1;
+            continue;
+        }
+        if let Some(character) = char::from_u32(unit as u32) {
+            push_quoted_character(&mut escaped, character, '`', !no_ascii_escaping);
+        }
+        index += 1;
+    }
+    escaped.replace("${", "\\${")
 }
 
 fn quote_javascript_string(units: &[u16], single_quote: bool, no_ascii_escaping: bool) -> String {
