@@ -241,17 +241,23 @@ impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
                 .symbol_flags(symbol)
                 .intersects(SymbolFlags::TYPE_PARAMETER)
         {
-            return Ok(EmitSymbolAccessibilityResult {
-                accessibility: EmitSymbolAccessibility::Accessible,
-                aliases_to_make_visible: None,
-                error_symbol_name: None,
-                error_module_name: None,
-                error_node: None,
-            });
+            return Ok(self.checker.emit_accessible_symbol_observation(
+                symbol,
+                enclosing,
+                enclosing_is_synthetic,
+                meaning,
+                should_compute_aliases,
+            ));
         }
         let result = self
             .checker
-            .emit_is_symbol_accessible(symbol, enclosing, meaning, should_compute_aliases)
+            .emit_is_symbol_accessible_with_enclosing_kind(
+                symbol,
+                enclosing,
+                enclosing_is_synthetic,
+                meaning,
+                should_compute_aliases,
+            )
             .map_err(|abort| tracker_error(self.checker, Some(enclosing), abort))?;
         // The statement wrapper performs the name-building call before it
         // forwards an inaccessible symbol to the declaration-transform
@@ -530,6 +536,22 @@ pub(super) fn lookup_symbol_chain_worker(
     meaning: EmitSymbolMeaning,
     yield_module_symbol: bool,
 ) -> BuildResult<Vec<SymbolId>> {
+    if !context.tracker.uses_basic_module_resolver_host
+        && checker.symbol_has_external_module_declaration(symbol)
+    {
+        return Ok(vec![symbol]);
+    }
+    if yield_module_symbol && value_meaning(meaning) && context.enclosing_declaration_is_synthetic {
+        if let Some(parent) = checker.binder.symbol(symbol).parent {
+            if checker
+                .symbol_flags(symbol)
+                .intersects(SymbolFlags::FUNCTION)
+                && checker.symbol_has_external_module_declaration(parent)
+            {
+                return Ok(vec![parent, symbol]);
+            }
+        }
+    }
     if !checker
         .symbol_flags(symbol)
         .intersects(SymbolFlags::TYPE_PARAMETER)
@@ -713,6 +735,18 @@ pub(crate) fn specifier_for_module_symbol(
             checker,
             symbol,
             Some(host),
+            enclosing_file,
+            enclosing_declaration,
+            bundled,
+            override_import_mode,
+        )
+        .map_err(|abort| checker_abort_error(checker, context, abort));
+    }
+    if !context.tracker.uses_basic_module_resolver_host {
+        return get_specifier_for_module_symbol(
+            checker,
+            symbol,
+            None,
             enclosing_file,
             enclosing_declaration,
             bundled,
@@ -1443,6 +1477,17 @@ fn type_parameter_shadows_other_type_parameter_in_scope(
     context: &NodeBuilderContext<'_>,
     r#type: TypeId,
 ) -> BuildResult<bool> {
+    if let Some(resolved) = context
+        .synthetic_scope_locals
+        .as_ref()
+        .and_then(|locals| locals.get(escaped_name))
+        .copied()
+    {
+        return Ok(checker
+            .symbol_flags(resolved)
+            .intersects(SymbolFlags::TYPE_PARAMETER)
+            && checker.tables.type_of(r#type).symbol != Some(resolved));
+    }
     let resolved = checker
         .resolve_name(
             context.enclosing_declaration,
@@ -1719,8 +1764,7 @@ fn create_expression_from_symbol_chain(
         context.flags.0 ^= IN_INITIAL_ENTITY_NAME;
     }
     let mut first = first_utf16(&name);
-    if index == 0
-        && matches!(first, Some(value) if value == u16::from(b'\'') || value == u16::from(b'"'))
+    if matches!(first, Some(value) if value == u16::from(b'\'') || value == u16::from(b'"'))
         && checker.symbol_has_external_module_declaration(symbol)
     {
         let specifier = specifier_for_module_symbol(checker, context, symbol, None)?;
@@ -2382,7 +2426,13 @@ pub(crate) fn get_module_specifier_override(
     if let Some(symbol) = node_symbol {
         if let Some(enclosing) = context.enclosing_declaration {
             let accessible = checker
-                .emit_is_symbol_accessible(symbol, enclosing, meaning, false)
+                .emit_is_symbol_accessible_with_enclosing_kind(
+                    symbol,
+                    enclosing,
+                    context.enclosing_declaration_is_synthetic,
+                    meaning,
+                    false,
+                )
                 .map_err(|abort| checker_abort_error(checker, context, abort))?;
             if accessible.accessibility == tsc_emitter::EmitSymbolAccessibility::Accessible {
                 parent_symbol =

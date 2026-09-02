@@ -956,6 +956,7 @@ pub(crate) struct ScopeRestore {
     type_parameter_names_by_text: Option<HashSet<String>>,
     type_parameter_names_by_text_next_name_count: Option<HashMap<String, u32>>,
     synthetic_scope_locals: Option<HashMap<String, SymbolId>>,
+    synthetic_scope_kind: Option<SyntaxKind>,
 }
 
 /// tsc-port: enterNewScope @6.0.3
@@ -983,6 +984,7 @@ pub(crate) fn enter_new_scope(
             .type_parameter_names_by_text_next_name_count
             .clone(),
         synthetic_scope_locals: context.synthetic_scope_locals.clone(),
+        synthetic_scope_kind: context.synthetic_scope_kind,
     };
     context.must_create_type_parameter_symbol_list = true;
     context.must_create_type_parameters_names_lookups = true;
@@ -997,6 +999,7 @@ pub(crate) fn enter_new_scope(
     let creates_fake_scope = expanded_parameters.is_some_and(|parameters| !parameters.is_empty());
     if context.enclosing_declaration.is_some() && declaration.is_some() && creates_fake_scope {
         context.enclosing_declaration_is_synthetic = true;
+        context.synthetic_scope_kind = Some(SyntaxKind::Block);
     }
 
     if let (Some(expanded), Some(original)) = (expanded_parameters, original_parameters) {
@@ -1075,6 +1078,7 @@ pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: Scop
     context.type_parameter_names_by_text_next_name_count =
         restore.type_parameter_names_by_text_next_name_count;
     context.synthetic_scope_locals = restore.synthetic_scope_locals;
+    context.synthetic_scope_kind = restore.synthetic_scope_kind;
 }
 
 /// tsc-port: enterNewScope.bindPattern @6.0.3
