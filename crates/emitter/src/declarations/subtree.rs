@@ -3,7 +3,10 @@ use tsc_syntax::{
 };
 use tsc_types::ModifierFlags;
 
-use crate::{EmitFlags, TransformError, TransformNode, TransformNodeArray, TransformationContext};
+use crate::{
+    EmitFlags, TransformError, TransformFlags, TransformNode, TransformNodeArray,
+    TransformationContext,
+};
 
 use super::diagnostics::{
     can_produce_diagnostics, comment_range, DiagnosticContext, DiagnosticContextPlan,
@@ -32,7 +35,7 @@ impl DeclarationTransformer<'_> {
     ) -> Result<VisitResult, TransformError> {
         let result = self.visit_declaration_subtree_worker(cx, input);
         if let Ok(result) = &result {
-            self.observe_boundary(cx, input, result);
+            self.observe_boundary(cx, false, input, result);
         }
         result
     }
@@ -331,7 +334,6 @@ impl DeclarationTransformer<'_> {
                                 self.has_effective_modifier(cx, input, ModifierFlags::PRIVATE)?,
                             )?;
                             let r#type = self.ensure_type(cx, input, false)?;
-                            let flags = cx.arena().transform_flags(input);
                             Ok(VisitResult::Node(
                                 cx.factory()?.update_get_accessor_declaration(
                                     input,
@@ -340,7 +342,7 @@ impl DeclarationTransformer<'_> {
                                     Some(parameters.array()),
                                     r#type.map(TransformNode::node),
                                     None,
-                                    flags,
+                                    TransformFlags::CONTAINS_TYPE_SCRIPT,
                                 )?,
                             ))
                         }
@@ -357,7 +359,6 @@ impl DeclarationTransformer<'_> {
                                 input,
                                 self.has_effective_modifier(cx, input, ModifierFlags::PRIVATE)?,
                             )?;
-                            let flags = cx.arena().transform_flags(input);
                             Ok(VisitResult::Node(
                                 cx.factory()?.update_set_accessor_declaration(
                                     input,
@@ -365,7 +366,7 @@ impl DeclarationTransformer<'_> {
                                     Some(name.node()),
                                     Some(parameters.array()),
                                     None,
-                                    flags,
+                                    TransformFlags::CONTAINS_TYPE_SCRIPT,
                                 )?,
                             ))
                         }
@@ -862,7 +863,14 @@ impl DeclarationTransformer<'_> {
         if cx.arena().node(input)?.data == data {
             return Ok(input);
         }
-        let flags = cx.arena().transform_flags(input);
+        let kind = cx.arena().node(input)?.kind;
+        let mut flags = cx.arena().transform_flags(input);
+        if kind == SyntaxKind::TypeParameter
+            || kind as u16 >= SyntaxKind::FirstTypeNode as u16
+                && kind as u16 <= SyntaxKind::LastTypeNode as u16
+        {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
         cx.factory()?.update_node(input, data, flags)
     }
 
@@ -1155,54 +1163,60 @@ fn update_signature(
     r#type: Option<TransformNode>,
     modifiers: Option<TransformNodeArray>,
 ) -> Result<TransformNode, TransformError> {
-    // Dispatch through the specific typed update face from packet §3.7.
-    let data = match cx.arena().node(original)?.data.clone() {
-        NodeData::ConstructSignature(mut data) => {
-            data.type_parameters = type_parameters.map(TransformNodeArray::array);
-            data.parameters = Some(parameters.array());
-            data.r#type = r#type.map(TransformNode::node);
-            NodeData::ConstructSignature(data)
+    match cx.arena().node(original)?.data.clone() {
+        NodeData::ConstructSignature(_) => {
+            cx.factory()?
+                .update_construct_signature(original, type_parameters, parameters, r#type)
         }
-        NodeData::MethodSignature(mut data) => {
-            data.type_parameters = type_parameters.map(TransformNodeArray::array);
-            data.parameters = Some(parameters.array());
-            data.r#type = r#type.map(TransformNode::node);
-            data.modifiers = modifiers.map(TransformNodeArray::array);
-            NodeData::MethodSignature(data)
+        NodeData::MethodSignature(data) => {
+            let name = data
+                .name
+                .and_then(|node| cx.arena().node_ref(original.source(), node))
+                .ok_or_else(|| DeclarationTransformer::contract("method has no name"))?;
+            let question = data
+                .question_token
+                .and_then(|node| cx.arena().node_ref(original.source(), node));
+            cx.factory()?.update_method_signature(
+                original,
+                modifiers,
+                name,
+                question,
+                type_parameters,
+                parameters,
+                r#type,
+            )
         }
-        NodeData::CallSignature(mut data) => {
-            data.type_parameters = type_parameters.map(TransformNodeArray::array);
-            data.parameters = Some(parameters.array());
-            data.r#type = r#type.map(TransformNode::node);
-            NodeData::CallSignature(data)
+        NodeData::CallSignature(_) => {
+            cx.factory()?
+                .update_call_signature(original, type_parameters, parameters, r#type)
         }
-        NodeData::IndexSignature(mut data) => {
-            data.parameters = Some(parameters.array());
-            data.r#type = r#type.map(TransformNode::node);
-            data.modifiers = modifiers.map(TransformNodeArray::array);
-            NodeData::IndexSignature(data)
+        NodeData::IndexSignature(_) => {
+            let r#type = r#type
+                .ok_or_else(|| DeclarationTransformer::contract("index signature has no type"))?;
+            cx.factory()?
+                .update_index_signature(original, modifiers, parameters, r#type)
         }
-        NodeData::FunctionType(mut data) => {
-            data.type_parameters = type_parameters.map(TransformNodeArray::array);
-            data.parameters = Some(parameters.array());
-            data.r#type = r#type.map(TransformNode::node);
-            NodeData::FunctionType(data)
+        NodeData::FunctionType(_) => {
+            let r#type = r#type
+                .ok_or_else(|| DeclarationTransformer::contract("function type has no type"))?;
+            cx.factory()?
+                .update_function_type_node(original, type_parameters, parameters, r#type)
         }
-        NodeData::ConstructorType(mut data) => {
-            data.type_parameters = type_parameters.map(TransformNodeArray::array);
-            data.parameters = Some(parameters.array());
-            data.r#type = r#type.map(TransformNode::node);
-            data.modifiers = modifiers.map(TransformNodeArray::array);
-            NodeData::ConstructorType(data)
+        NodeData::ConstructorType(_) => {
+            let r#type = r#type
+                .ok_or_else(|| DeclarationTransformer::contract("constructor type has no type"))?;
+            cx.factory()?.update_constructor_type_node(
+                original,
+                modifiers,
+                type_parameters,
+                parameters,
+                r#type,
+            )
         }
-        _ => {
-            return Err(DeclarationTransformer::contract(
-                "signature update kind mismatch",
-            ))
-        }
-    };
-    let flags = cx.arena().transform_flags(original);
-    cx.factory()?.update_node(original, data, flags)
+        _ => Err(DeclarationTransformer::contract(
+            "signature update kind mismatch",
+        )),
+    }
 }
 
 fn update_property(
@@ -1212,28 +1226,73 @@ fn update_property(
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    // Dispatch through the typed property update faces.
-    let data = match cx.arena().node(original)?.data.clone() {
-        NodeData::PropertyDeclaration(mut data) => {
-            data.modifiers = modifiers.map(TransformNodeArray::array);
-            data.r#type = r#type.map(TransformNode::node);
-            data.initializer = initializer.map(TransformNode::node);
-            NodeData::PropertyDeclaration(data)
+    let data = cx.arena().node(original)?.data.clone();
+    match data {
+        NodeData::PropertyDeclaration(data) => {
+            let name = data
+                .name
+                .and_then(|node| cx.arena().node_ref(original.source(), node))
+                .ok_or_else(|| DeclarationTransformer::contract("property has no name"))?;
+            let question_or_exclamation = data
+                .question_token
+                .or(data.exclamation_token)
+                .and_then(|node| cx.arena().node_ref(original.source(), node));
+            let updated = cx.factory()?.update_property_declaration(
+                original,
+                modifiers,
+                name,
+                question_or_exclamation,
+                r#type,
+                initializer,
+            )?;
+            if updated != original && contains_typescript_modifier(cx, modifiers)? {
+                let flags =
+                    cx.arena().transform_flags(updated) | TransformFlags::CONTAINS_TYPE_SCRIPT;
+                cx.arena_mut()?.set_transform_flags(updated, flags);
+            }
+            Ok(updated)
         }
-        NodeData::PropertySignature(mut data) => {
-            data.modifiers = modifiers.map(TransformNodeArray::array);
-            data.r#type = r#type.map(TransformNode::node);
-            data.initializer = None;
-            NodeData::PropertySignature(data)
+        NodeData::PropertySignature(data) => {
+            let name = data
+                .name
+                .and_then(|node| cx.arena().node_ref(original.source(), node))
+                .ok_or_else(|| DeclarationTransformer::contract("property has no name"))?;
+            let question = data
+                .question_token
+                .and_then(|node| cx.arena().node_ref(original.source(), node));
+            cx.factory()?
+                .update_property_signature(original, modifiers, name, question, r#type)
         }
-        _ => {
-            return Err(DeclarationTransformer::contract(
-                "property update kind mismatch",
-            ))
-        }
+        _ => Err(DeclarationTransformer::contract(
+            "property update kind mismatch",
+        )),
+    }
+}
+
+fn contains_typescript_modifier(
+    cx: &TransformationContext,
+    modifiers: Option<TransformNodeArray>,
+) -> Result<bool, TransformError> {
+    let Some(modifiers) = modifiers else {
+        return Ok(false);
     };
-    let flags = cx.arena().transform_flags(original);
-    cx.factory()?.update_node(original, data, flags)
+    Ok(cx.arena().node_array(modifiers)?.nodes.iter().any(|&node| {
+        cx.arena()
+            .node(TransformNode::new(modifiers.source(), node))
+            .is_ok_and(|node| {
+                matches!(
+                    node.kind,
+                    SyntaxKind::PublicKeyword
+                        | SyntaxKind::PrivateKeyword
+                        | SyntaxKind::ProtectedKeyword
+                        | SyntaxKind::ReadonlyKeyword
+                        | SyntaxKind::AbstractKeyword
+                        | SyntaxKind::DeclareKeyword
+                        | SyntaxKind::OverrideKeyword
+                        | SyntaxKind::AccessorKeyword
+                )
+            })
+    }))
 }
 
 fn update_variable(
@@ -1242,18 +1301,17 @@ fn update_variable(
     r#type: Option<TransformNode>,
     initializer: Option<TransformNode>,
 ) -> Result<TransformNode, TransformError> {
-    // Dispatch through the typed variable-declaration update face.
-    let NodeData::VariableDeclaration(mut data) = cx.arena().node(original)?.data.clone() else {
+    let NodeData::VariableDeclaration(data) = cx.arena().node(original)?.data.clone() else {
         return Err(DeclarationTransformer::contract(
             "variable update kind mismatch",
         ));
     };
-    data.exclamation_token = None;
-    data.r#type = r#type.map(TransformNode::node);
-    data.initializer = initializer.map(TransformNode::node);
-    let flags = cx.arena().transform_flags(original);
+    let name = data
+        .name
+        .and_then(|node| cx.arena().node_ref(original.source(), node))
+        .ok_or_else(|| DeclarationTransformer::contract("variable has no name"))?;
     cx.factory()?
-        .update_node(original, NodeData::VariableDeclaration(data), flags)
+        .update_variable_declaration(original, name, None, r#type, initializer)
 }
 
 fn update_literal_type(

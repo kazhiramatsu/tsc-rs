@@ -6130,6 +6130,25 @@ impl<'arena> NodeFactory<'arena> {
         Ok(generated)
     }
 
+    /// Create the automatic temporary spelling used by
+    /// `getGeneratedNameForNode` for a non-member source node.
+    ///
+    /// tsc-port: getGeneratedNameForNode @6.0.3 (non-member default-flag arm)
+    /// tsc-hash: 7aeec7c8966a869665e0b8f01a41cd52e75bc957006170fd446ea819be9a6ea0
+    /// tsc-span: _tsc.js:21652-21666
+    pub fn get_generated_name_for_non_member_node(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let generated = self.create_identifier(node.source, "")?;
+        let binding = self.arena.allocate_generated_binding_id();
+        self.arena
+            .metadata_mut(generated)
+            .set_generated_binding_id(binding);
+        self.arena.set_original_node(generated, Some(node))?;
+        Ok(generated)
+    }
+
     /// tsc-port: createObjectBindingPattern @6.0.3
     /// tsc-hash: 23d7a5579cd4dfaa4635b01de2c532bbaeabc4068a99d8ababa9f708fc61c827
     /// tsc-span: _tsc.js:22407-22415
