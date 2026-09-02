@@ -17,7 +17,7 @@ use crate::{
 pub(crate) struct GeneratedBindingId(u64);
 
 impl GeneratedBindingId {
-    const fn new(raw: u64) -> Self {
+    pub(crate) const fn new(raw: u64) -> Self {
         Self(raw)
     }
 }
@@ -439,7 +439,6 @@ pub struct TransformationContext {
     block_scope_stack: Vec<Vec<TransformNode>>,
     emit_helpers: Vec<EmitHelper>,
     diagnostics: DiagnosticList,
-    next_generated_binding_id: u64,
     generated_binding_names: BTreeMap<GeneratedBindingId, Box<str>>,
 }
 
@@ -457,7 +456,6 @@ impl TransformationContext {
             block_scope_stack: Vec::new(),
             emit_helpers: Vec::new(),
             diagnostics: Vec::new(),
-            next_generated_binding_id: 0,
             generated_binding_names: BTreeMap::new(),
         }
     }
@@ -484,12 +482,7 @@ impl TransformationContext {
         &mut self,
     ) -> Result<GeneratedBindingId, TransformError> {
         self.require_before_completed("allocate a generated binding identity")?;
-        let id = GeneratedBindingId::new(self.next_generated_binding_id);
-        self.next_generated_binding_id = self
-            .next_generated_binding_id
-            .checked_add(1)
-            .expect("generated binding identity overflow");
-        Ok(id)
+        Ok(self.arena.allocate_generated_binding_id())
     }
 
     pub(crate) fn record_generated_binding_name(

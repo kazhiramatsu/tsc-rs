@@ -15,8 +15,8 @@ use crate::state::{CheckAbort, CheckerState, IndexInfo, SignatureId};
 
 use super::signatures::{elide_initializer_and_set_emit_flags, track_computed_name};
 use super::type_nodes::{
-    checker_abort_error, clone_parse_node, create_identifier, create_node, create_node_array,
-    create_token, factory_error, project_parse_node, set_no_ascii_escaping,
+    checker_abort_error, clone_parse_node_to_source, create_identifier, create_node,
+    create_node_array, create_token, factory_error, project_parse_node, set_no_ascii_escaping,
     type_to_type_node_helper, BuildResult,
 };
 use super::{
@@ -352,11 +352,9 @@ fn serialize_parameter_name_from_parse(
     };
     match checker.kind_of(name) {
         SyntaxKind::Identifier => {
-            let name = clone_parse_node(checker, arena, name)?.unwrap_or(create_identifier(
-                arena,
-                target,
-                &checker.symbol_display_name(symbol),
-            )?);
+            let name = clone_parse_node_to_source(checker, arena, target, name)?.unwrap_or(
+                create_identifier(arena, target, &checker.symbol_display_name(symbol))?,
+            );
             Ok(set_no_ascii_escaping(arena, name))
         }
         SyntaxKind::QualifiedName => {
@@ -365,7 +363,7 @@ fn serialize_parameter_name_from_parse(
                 _ => None,
             };
             let name = right
-                .map(|right| clone_parse_node(checker, arena, right))
+                .map(|right| clone_parse_node_to_source(checker, arena, target, right))
                 .transpose()?
                 .flatten()
                 .unwrap_or(create_identifier(
@@ -688,7 +686,7 @@ pub(crate) fn serialize_type_for_declaration_seam(
     r#type: TypeId,
     symbol: Option<SymbolId>,
 ) -> BuildResult<Option<TransformNode>> {
-    serialize_type_for_declaration_in_context(
+    let result = serialize_type_for_declaration_in_context(
         checker,
         arena,
         target,
@@ -696,7 +694,19 @@ pub(crate) fn serialize_type_for_declaration_seam(
         declaration,
         r#type,
         symbol,
-    )
+    )?;
+    result
+        .map(|node| {
+            if node.source() == target {
+                Ok(node)
+            } else {
+                arena
+                    .factory()
+                    .clone_node_to_source(node, target)
+                    .map_err(factory_error)
+            }
+        })
+        .transpose()
 }
 
 /// tsrs-native: checker-side routing seam behind the syntactic resolver member.
@@ -707,7 +717,20 @@ pub(crate) fn serialize_return_type_for_signature_seam(
     context: &mut NodeBuilderContext<'_>,
     signature: SignatureId,
 ) -> BuildResult<Option<TransformNode>> {
-    serialize_return_type_for_signature_in_context(checker, arena, target, context, signature)
+    let result =
+        serialize_return_type_for_signature_in_context(checker, arena, target, context, signature)?;
+    result
+        .map(|node| {
+            if node.source() == target {
+                Ok(node)
+            } else {
+                arena
+                    .factory()
+                    .clone_node_to_source(node, target)
+                    .map_err(factory_error)
+            }
+        })
+        .transpose()
 }
 
 /// tsrs-native: checker-side routing seam behind the syntactic tryReuse member.
@@ -1053,7 +1076,7 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
     /// `isSymbolAccessibleWorker` formats inaccessible symbol/module names
     /// through the public NodeBuilder `symbolToNode` front door upstream
     /// (:50488-50529, :50649-50679). The emitted strings remain shadow-owned
-    /// until m-3.5, but these nested `withContext` decisions are part of the
+    /// at the factory boundary, but these nested `withContext` decisions are part of the
     /// m-3 replay contract.
     fn build_accessibility_error_name(
         &mut self,

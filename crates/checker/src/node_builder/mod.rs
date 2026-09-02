@@ -49,6 +49,7 @@ use type_nodes::{
     add_approximate_length, checker_abort_error, clone_parse_node, create_identifier, create_node,
     create_node_array, create_token, factory_error, project_parse_node, BuildResult,
 };
+pub(crate) use type_nodes::{create_factory_node, update_factory_node};
 pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
 
 /// The declaration facts read directly from upstream's optional `symbol`
@@ -776,11 +777,7 @@ pub(crate) fn late_bound_index_signatures(
                             modifiers.push(
                                 arena
                                     .factory()
-                                    .create_token(
-                                        target,
-                                        SyntaxKind::StaticKeyword,
-                                        tsc_emitter::TransformFlags::NONE,
-                                    )
+                                    .create_modifier(target, SyntaxKind::StaticKeyword)
                                     .map_err(factory_error)?,
                             );
                         }
@@ -788,11 +785,7 @@ pub(crate) fn late_bound_index_signatures(
                             modifiers.push(
                                 arena
                                     .factory()
-                                    .create_token(
-                                        target,
-                                        SyntaxKind::ReadonlyKeyword,
-                                        tsc_emitter::TransformFlags::NONE,
-                                    )
+                                    .create_modifier(target, SyntaxKind::ReadonlyKeyword)
                                     .map_err(factory_error)?,
                             );
                         }
@@ -835,19 +828,16 @@ pub(crate) fn late_bound_index_signatures(
                         };
                         let property = arena
                             .factory()
-                            .create_node(
+                            .create_property_declaration(
                                 target,
-                                NodeData::PropertyDeclaration(
-                                    tsc_syntax::nodes::PropertyDeclarationData {
-                                        name: Some(name_in_arena.node()),
-                                        modifiers: modifiers_array,
-                                        question_token,
-                                        exclamation_token: None,
-                                        r#type: type_node.map(|node| node.node()),
-                                        initializer: None,
-                                    },
-                                ),
-                                tsc_emitter::TransformFlags::NONE,
+                                modifiers_array.map(|array| {
+                                    tsc_emitter::TransformNodeArray::new(target, array)
+                                }),
+                                name_in_arena,
+                                question_token
+                                    .map(|token| tsc_emitter::TransformNode::new(target, token)),
+                                type_node,
+                                None,
                             )
                             .map_err(factory_error)?;
                         result.push(property);
@@ -897,37 +887,17 @@ fn prepend_static_modifier(
     node: tsc_emitter::TransformNode,
     is_readonly: bool,
 ) -> Result<tsc_emitter::TransformNode, tsc_emitter::TransformError> {
-    use tsc_syntax::{NodeData, SyntaxKind};
-    let data = arena
-        .source(node.source())?
-        .syntax()
-        .arena
-        .node(node.node())
-        .data
-        .clone();
-    let NodeData::IndexSignature(mut data) = data else {
+    use tsc_syntax::SyntaxKind;
+    if arena.node(node)?.kind != SyntaxKind::IndexSignature {
         return Ok(node);
-    };
+    }
     let mut factory = arena.factory();
-    let mut modifiers = vec![factory.create_token(
-        target,
-        SyntaxKind::StaticKeyword,
-        tsc_emitter::TransformFlags::NONE,
-    )?];
+    let mut modifiers = vec![factory.create_modifier(target, SyntaxKind::StaticKeyword)?];
     if is_readonly {
-        modifiers.push(factory.create_token(
-            target,
-            SyntaxKind::ReadonlyKeyword,
-            tsc_emitter::TransformFlags::NONE,
-        )?);
+        modifiers.push(factory.create_modifier(target, SyntaxKind::ReadonlyKeyword)?);
     }
     let array = factory.create_node_array(target, modifiers)?;
-    data.modifiers = Some(array.array());
-    factory.update_node(
-        node,
-        NodeData::IndexSignature(data),
-        tsc_emitter::TransformFlags::NONE,
-    )
+    factory.replace_modifiers(node, Some(array))
 }
 
 #[cfg(test)]

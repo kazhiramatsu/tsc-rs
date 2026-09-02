@@ -1,14 +1,16 @@
 use std::collections::BTreeMap;
 
 use tsc_program::SourceFileId;
+use tsc_syntax::nodes::*;
 use tsc_syntax::{
     for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
     NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind,
 };
-use tsc_types::NodeFlags;
+use tsc_types::{ModifierFlags, NodeFlags};
 
 use crate::{
-    EmitFlags, EmitMetadata, EmitResolverNode, SourceRange, TransformError, TransformFlags,
+    transform::GeneratedBindingId, EmitFlags, EmitMetadata, EmitResolverNode, JavaScriptString,
+    SourceRange, TransformError, TransformFlags,
 };
 
 /// Typed spelling for an unscoped emit-helper reference.
@@ -102,7 +104,9 @@ pub struct TransformNode {
 }
 
 impl TransformNode {
-    pub(crate) const fn new(source: TransformSourceId, node: NodeId) -> Self {
+    /// Construct a source-scoped handle. Factory consumers validate the raw
+    /// identity against the arena before attaching it as a child.
+    pub const fn new(source: TransformSourceId, node: NodeId) -> Self {
         Self { source, node }
     }
 
@@ -123,7 +127,9 @@ pub struct TransformNodeArray {
 }
 
 impl TransformNodeArray {
-    pub(crate) const fn new(source: TransformSourceId, array: NodeArrayId) -> Self {
+    /// Construct a source-scoped array handle. Typed faces validate it before
+    /// observing or attaching the array.
+    pub const fn new(source: TransformSourceId, array: NodeArrayId) -> Self {
         Self { source, array }
     }
 
@@ -166,6 +172,7 @@ pub struct TransformArena {
     node_transform_flags: BTreeMap<TransformNode, TransformFlags>,
     array_transform_flags: BTreeMap<TransformNodeArray, TransformFlags>,
     metadata: BTreeMap<TransformNode, EmitMetadata>,
+    next_generated_binding_id: u64,
 }
 
 impl TransformArena {
@@ -175,7 +182,21 @@ impl TransformArena {
             node_transform_flags: BTreeMap::new(),
             array_transform_flags: BTreeMap::new(),
             metadata: BTreeMap::new(),
+            next_generated_binding_id: 0,
         }
+    }
+
+    /// Allocate an emit-session generated-binding identity independently of
+    /// transformation-context lifecycle. Checker-built arenas use the same
+    /// identity channel as transformer-built arenas.
+    /// tsrs-native: arena ownership required by createUniqueName @6.0.3.
+    pub(crate) fn allocate_generated_binding_id(&mut self) -> GeneratedBindingId {
+        let id = GeneratedBindingId::new(self.next_generated_binding_id);
+        self.next_generated_binding_id = self
+            .next_generated_binding_id
+            .checked_add(1)
+            .expect("generated binding identity overflow");
+        id
     }
 
     /// Borrow a synthetic-node constructor over this arena. The checker's
@@ -472,6 +493,14 @@ impl TransformArena {
 
     pub fn metadata(&self, node: TransformNode) -> Option<&EmitMetadata> {
         self.metadata.get(&node)
+    }
+
+    /// Inspect the source-numbered base attached to a generated identifier.
+    /// This keeps the opaque binding identity private while allowing factory
+    /// consumers to verify `createUniqueName` provenance.
+    pub fn generated_binding_base(&self, node: TransformNode) -> Option<&str> {
+        self.metadata(node)
+            .and_then(EmitMetadata::generated_binding_base)
     }
 
     pub fn metadata_mut(&mut self, node: TransformNode) -> &mut EmitMetadata {
@@ -1195,6 +1224,311 @@ const PRECEDENCE_LEFT_HAND_SIDE: i8 = 18;
 const PRECEDENCE_MEMBER: i8 = 19;
 const PRECEDENCE_PRIMARY: i8 = 20;
 
+/// Optional facets accepted by `createUniqueName`. The low three kind bits
+/// are factory-owned and therefore intentionally unavailable to callers.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct GeneratedIdentifierFlags(u8);
+
+impl GeneratedIdentifierFlags {
+    pub const NONE: Self = Self(0);
+    pub const RESERVED_IN_NESTED_SCOPES: Self = Self(8);
+    pub const OPTIMISTIC: Self = Self(16);
+    pub const FILE_LEVEL: Self = Self(32);
+
+    pub const fn contains(self, other: Self) -> bool {
+        self.0 & other.0 == other.0
+    }
+}
+
+impl std::ops::BitOr for GeneratedIdentifierFlags {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Self(self.0 | rhs.0)
+    }
+}
+
+/// The type-only half of TypeScript's `createParenthesizerRules`.
+///
+/// Every decision is kind-driven except the two upstream structural probes:
+/// JSDoc postfix-question propagation and the leading generic function-type
+/// argument check. Wrappers are always fresh `ParenthesizedType` nodes.
+pub struct TypeParenthesizer;
+
+impl TypeParenthesizer {
+    fn kind(factory: &NodeFactory<'_>, node: TransformNode) -> Result<SyntaxKind, TransformError> {
+        Ok(factory.arena.node(node)?.kind)
+    }
+
+    /// tsc-port: parenthesizeCheckTypeOfConditionalType @6.0.3
+    /// tsc-span: _tsc.js:20524-20532
+    pub fn parenthesize_check_type_of_conditional_type(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if matches!(
+            Self::kind(factory, node)?,
+            SyntaxKind::FunctionType | SyntaxKind::ConstructorType | SyntaxKind::ConditionalType
+        ) {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Ok(node)
+        }
+    }
+
+    /// tsc-port: parenthesizeExtendsTypeOfConditionalType @6.0.3
+    /// tsc-span: _tsc.js:20533-20539
+    pub fn parenthesize_extends_type_of_conditional_type(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if Self::kind(factory, node)? == SyntaxKind::ConditionalType {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Ok(node)
+        }
+    }
+
+    /// tsc-port: parenthesizeConstituentTypeOfUnionType @6.0.3
+    /// tsc-span: _tsc.js:20540-20548
+    pub fn parenthesize_constituent_type_of_union_type(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if matches!(
+            Self::kind(factory, node)?,
+            SyntaxKind::UnionType | SyntaxKind::IntersectionType
+        ) {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Self::parenthesize_check_type_of_conditional_type(factory, node)
+        }
+    }
+
+    /// tsc-port: parenthesizeConstituentTypeOfIntersectionType @6.0.3
+    /// tsc-span: _tsc.js:20552-20560
+    pub fn parenthesize_constituent_type_of_intersection_type(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if matches!(
+            Self::kind(factory, node)?,
+            SyntaxKind::UnionType | SyntaxKind::IntersectionType
+        ) {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Self::parenthesize_constituent_type_of_union_type(factory, node)
+        }
+    }
+
+    /// tsc-port: parenthesizeOperandOfTypeOperator @6.0.3
+    /// tsc-span: _tsc.js:20564-20570
+    pub fn parenthesize_operand_of_type_operator(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if Self::kind(factory, node)? == SyntaxKind::IntersectionType {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Self::parenthesize_constituent_type_of_intersection_type(factory, node)
+        }
+    }
+
+    /// tsc-port: parenthesizeOperandOfReadonlyTypeOperator @6.0.3
+    /// tsc-span: _tsc.js:20571-20577
+    pub fn parenthesize_operand_of_readonly_type_operator(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if Self::kind(factory, node)? == SyntaxKind::TypeOperator {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Self::parenthesize_operand_of_type_operator(factory, node)
+        }
+    }
+
+    /// tsc-port: parenthesizeNonArrayTypeOfPostfixType @6.0.3
+    /// tsc-span: _tsc.js:20578-20587
+    pub fn parenthesize_non_array_type_of_postfix_type(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if matches!(
+            Self::kind(factory, node)?,
+            SyntaxKind::InferType | SyntaxKind::TypeOperator | SyntaxKind::TypeQuery
+        ) {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Self::parenthesize_operand_of_type_operator(factory, node)
+        }
+    }
+
+    fn has_jsdoc_postfix_question(
+        factory: &NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<bool, TransformError> {
+        let source = node.source;
+        let child = |id: Option<NodeId>| id.and_then(|id| factory.arena.node_ref(source, id));
+        let data = &factory.arena.node(node)?.data;
+        let nested = match data {
+            NodeData::JSDocNullableType(data) => return Ok(data.postfix),
+            NodeData::NamedTupleMember(data) => child(data.r#type),
+            NodeData::FunctionType(data) => child(data.r#type),
+            NodeData::ConstructorType(data) => child(data.r#type),
+            NodeData::TypeOperator(data) => child(data.r#type),
+            NodeData::ConditionalType(data) => child(data.false_type),
+            NodeData::UnionType(data) => factory
+                .array_node_handles(source, data.types)?
+                .and_then(|nodes| nodes.last().copied()),
+            NodeData::IntersectionType(data) => factory
+                .array_node_handles(source, data.types)?
+                .and_then(|nodes| nodes.last().copied()),
+            NodeData::InferType(data) => child(data.type_parameter).and_then(|parameter| {
+                let NodeData::TypeParameter(data) = &factory.arena.node(parameter).ok()?.data
+                else {
+                    return None;
+                };
+                child(data.constraint)
+            }),
+            _ => None,
+        };
+        match nested {
+            Some(nested) => Self::has_jsdoc_postfix_question(factory, nested),
+            None => Ok(false),
+        }
+    }
+
+    /// tsc-port: parenthesizeElementTypeOfTupleType @6.0.3
+    /// tsc-span: _tsc.js:20591-20594
+    pub fn parenthesize_element_type_of_tuple_type(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if Self::has_jsdoc_postfix_question(factory, node)? {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Ok(node)
+        }
+    }
+
+    /// tsc-port: parenthesizeTypeOfOptionalType @6.0.3
+    /// tsc-span: _tsc.js:20602-20606
+    pub fn parenthesize_type_of_optional_type(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if Self::has_jsdoc_postfix_question(factory, node)? {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Self::parenthesize_non_array_type_of_postfix_type(factory, node)
+        }
+    }
+
+    /// tsc-port: parenthesizeLeadingTypeArgument @6.0.3
+    /// tsc-span: _tsc.js:20607-20609
+    pub fn parenthesize_leading_type_argument(
+        factory: &mut NodeFactory<'_>,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let has_type_parameters = match &factory.arena.node(node)?.data {
+            NodeData::FunctionType(data) => data.type_parameters.is_some(),
+            NodeData::ConstructorType(data) => data.type_parameters.is_some(),
+            _ => false,
+        };
+        if has_type_parameters {
+            factory.create_parenthesized_type(node.source, node)
+        } else {
+            Ok(node)
+        }
+    }
+
+    fn map_array(
+        factory: &mut NodeFactory<'_>,
+        array: TransformNodeArray,
+        mut rule: impl FnMut(
+            &mut NodeFactory<'_>,
+            TransformNode,
+        ) -> Result<TransformNode, TransformError>,
+    ) -> Result<TransformNodeArray, TransformError> {
+        let original = factory.arena.node_array(array)?.clone();
+        let mut changed = false;
+        let mut nodes = Vec::with_capacity(original.nodes.len());
+        for id in original.nodes {
+            let node = TransformNode::new(array.source, id);
+            let mapped = rule(factory, node)?;
+            changed |= mapped != node;
+            nodes.push(mapped);
+        }
+        if changed {
+            factory.create_node_array(array.source, nodes)
+        } else {
+            Ok(array)
+        }
+    }
+
+    /// tsc-port: parenthesizeConstituentTypesOfUnionType @6.0.3
+    /// tsc-span: _tsc.js:20549-20551
+    pub fn parenthesize_constituent_types_of_union_type(
+        factory: &mut NodeFactory<'_>,
+        array: TransformNodeArray,
+    ) -> Result<TransformNodeArray, TransformError> {
+        Self::map_array(
+            factory,
+            array,
+            Self::parenthesize_constituent_type_of_union_type,
+        )
+    }
+
+    /// tsc-port: parenthesizeConstituentTypesOfIntersectionType @6.0.3
+    /// tsc-span: _tsc.js:20561-20563
+    pub fn parenthesize_constituent_types_of_intersection_type(
+        factory: &mut NodeFactory<'_>,
+        array: TransformNodeArray,
+    ) -> Result<TransformNodeArray, TransformError> {
+        Self::map_array(
+            factory,
+            array,
+            Self::parenthesize_constituent_type_of_intersection_type,
+        )
+    }
+
+    /// tsc-port: parenthesizeElementTypesOfTupleType @6.0.3
+    /// tsc-span: _tsc.js:20588-20590
+    pub fn parenthesize_element_types_of_tuple_type(
+        factory: &mut NodeFactory<'_>,
+        array: TransformNodeArray,
+    ) -> Result<TransformNodeArray, TransformError> {
+        Self::map_array(
+            factory,
+            array,
+            Self::parenthesize_element_type_of_tuple_type,
+        )
+    }
+
+    /// tsc-port: parenthesizeTypeArguments/parenthesizeOrdinalTypeArgument @6.0.3
+    /// tsc-span: _tsc.js:20610-20617
+    pub fn parenthesize_type_arguments(
+        factory: &mut NodeFactory<'_>,
+        array: Option<TransformNodeArray>,
+    ) -> Result<Option<TransformNodeArray>, TransformError> {
+        let Some(array) = array else { return Ok(None) };
+        if factory.arena.node_array(array)?.nodes.is_empty() {
+            return Ok(None);
+        }
+        let mut index = 0usize;
+        Self::map_array(factory, array, |factory, node| {
+            let result = if index == 0 {
+                Self::parenthesize_leading_type_argument(factory, node)
+            } else {
+                Ok(node)
+            };
+            index += 1;
+            result
+        })
+        .map(Some)
+    }
+}
+
 /// Synthetic-node constructor scoped to one mutable transform arena.
 pub struct NodeFactory<'arena> {
     arena: &'arena mut TransformArena,
@@ -1216,6 +1550,3220 @@ impl<'arena> NodeFactory<'arena> {
 
     pub(crate) fn new(arena: &'arena mut TransformArena) -> Self {
         Self { arena }
+    }
+
+    fn node_id(
+        &self,
+        source: TransformSourceId,
+        node: TransformNode,
+    ) -> Result<NodeId, TransformError> {
+        if node.source != source {
+            return Err(TransformError::CrossSourceNode {
+                expected: source,
+                actual: node.source,
+            });
+        }
+        self.arena.node(node)?;
+        Ok(node.node)
+    }
+
+    fn optional_node_id(
+        &self,
+        source: TransformSourceId,
+        node: Option<TransformNode>,
+    ) -> Result<Option<NodeId>, TransformError> {
+        node.map(|node| self.node_id(source, node)).transpose()
+    }
+
+    fn array_id(
+        &self,
+        source: TransformSourceId,
+        array: TransformNodeArray,
+    ) -> Result<NodeArrayId, TransformError> {
+        if array.source != source {
+            return Err(TransformError::CrossSourceNode {
+                expected: source,
+                actual: array.source,
+            });
+        }
+        self.arena.node_array(array)?;
+        Ok(array.array)
+    }
+
+    fn optional_array_id(
+        &self,
+        source: TransformSourceId,
+        array: Option<TransformNodeArray>,
+    ) -> Result<Option<NodeArrayId>, TransformError> {
+        array.map(|array| self.array_id(source, array)).transpose()
+    }
+
+    fn array_node_handles(
+        &self,
+        source: TransformSourceId,
+        array: Option<NodeArrayId>,
+    ) -> Result<Option<Vec<TransformNode>>, TransformError> {
+        let Some(array) = array else { return Ok(None) };
+        let array =
+            self.arena
+                .node_array_ref(source, array)
+                .ok_or(TransformError::UnknownNodeArray(TransformNodeArray {
+                    source,
+                    array,
+                }))?;
+        Ok(Some(
+            self.arena
+                .node_array(array)?
+                .nodes
+                .iter()
+                .map(|&node| TransformNode::new(source, node))
+                .collect(),
+        ))
+    }
+
+    fn child_flags(&self, child: Option<TransformNode>) -> Result<TransformFlags, TransformError> {
+        child
+            .map(|child| self.arena.propagate_child_flags(child))
+            .transpose()
+            .map(Option::unwrap_or_default)
+    }
+
+    fn children_flags(
+        &self,
+        children: Option<TransformNodeArray>,
+    ) -> Result<TransformFlags, TransformError> {
+        children
+            .map(|children| {
+                self.arena.node_array(children)?;
+                Ok(self.arena.array_transform_flags(children))
+            })
+            .transpose()
+            .map(Option::unwrap_or_default)
+    }
+
+    fn name_flags(&self, name: Option<TransformNode>) -> Result<TransformFlags, TransformError> {
+        let Some(name) = name else {
+            return Ok(TransformFlags::NONE);
+        };
+        let mut flags = self.arena.propagate_child_flags(name)?;
+        if self.arena.node(name)?.kind == SyntaxKind::Identifier {
+            flags = flags & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        }
+        Ok(flags)
+    }
+
+    fn modifier_flags(
+        &self,
+        modifiers: Option<TransformNodeArray>,
+    ) -> Result<ModifierFlags, TransformError> {
+        let Some(modifiers) = modifiers else {
+            return Ok(ModifierFlags::NONE);
+        };
+        let mut flags = ModifierFlags::NONE;
+        for &node in &self.arena.node_array(modifiers)?.nodes {
+            let kind = self
+                .arena
+                .node(TransformNode::new(modifiers.source, node))?
+                .kind;
+            flags |= match kind {
+                SyntaxKind::ExportKeyword => ModifierFlags::EXPORT,
+                SyntaxKind::DeclareKeyword => ModifierFlags::AMBIENT,
+                SyntaxKind::DefaultKeyword => ModifierFlags::DEFAULT,
+                SyntaxKind::ConstKeyword => ModifierFlags::CONST,
+                SyntaxKind::PublicKeyword => ModifierFlags::PUBLIC,
+                SyntaxKind::PrivateKeyword => ModifierFlags::PRIVATE,
+                SyntaxKind::ProtectedKeyword => ModifierFlags::PROTECTED,
+                SyntaxKind::AbstractKeyword => ModifierFlags::ABSTRACT,
+                SyntaxKind::StaticKeyword => ModifierFlags::STATIC,
+                SyntaxKind::OverrideKeyword => ModifierFlags::OVERRIDE,
+                SyntaxKind::ReadonlyKeyword => ModifierFlags::READONLY,
+                SyntaxKind::AccessorKeyword => ModifierFlags::ACCESSOR,
+                SyntaxKind::AsyncKeyword => ModifierFlags::ASYNC,
+                SyntaxKind::InKeyword => ModifierFlags::IN,
+                SyntaxKind::OutKeyword => ModifierFlags::OUT,
+                _ => ModifierFlags::NONE,
+            };
+        }
+        Ok(flags)
+    }
+
+    fn finish_update(
+        &mut self,
+        updated: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.arena.set_original_node(updated, Some(original))?;
+        self.set_text_range(updated, original)
+    }
+
+    /// tsc-port: createIdentifier @6.0.3
+    /// tsc-span: _tsc.js:21609-21625
+    pub fn create_identifier(
+        &mut self,
+        source: TransformSourceId,
+        text: impl Into<String>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
+        let flags = if text == "await" {
+            TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT
+        } else {
+            TransformFlags::NONE
+        };
+        self.create_node(
+            source,
+            NodeData::Identifier(IdentifierData {
+                escaped_text: tsc_syntax::escape_leading_underscores(&text),
+                text,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createPrivateIdentifier @6.0.3
+    /// tsc-span: _tsc.js:21673-21676
+    pub fn create_private_identifier(
+        &mut self,
+        source: TransformSourceId,
+        text: impl Into<String>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
+        assert!(
+            text.starts_with('#'),
+            "private identifier text must start with #"
+        );
+        self.create_node(
+            source,
+            NodeData::PrivateIdentifier(PrivateIdentifierData {
+                escaped_text: tsc_syntax::escape_leading_underscores(&text),
+                text,
+            }),
+            TransformFlags::CONTAINS_CLASS_FIELDS,
+        )
+    }
+
+    /// tsc-port: createUniqueName @6.0.3
+    /// tsc-span: _tsc.js:21647-21651
+    pub fn create_unique_name(
+        &mut self,
+        source: TransformSourceId,
+        text: impl Into<String>,
+        flags: GeneratedIdentifierFlags,
+    ) -> Result<TransformNode, TransformError> {
+        assert!(
+            !flags.contains(GeneratedIdentifierFlags::FILE_LEVEL)
+                || flags.contains(GeneratedIdentifierFlags::OPTIMISTIC),
+            "file-level generated names must also be optimistic"
+        );
+        let text = text.into();
+        let identifier = self.create_identifier(source, text.clone())?;
+        let binding = self.arena.allocate_generated_binding_id();
+        let metadata = self.arena.metadata_mut(identifier);
+        metadata.set_generated_binding_id(binding);
+        if flags.contains(GeneratedIdentifierFlags::OPTIMISTIC) {
+            metadata.set_generated_binding_preferred_base(&text);
+        } else {
+            metadata.set_generated_binding_base(&text);
+        }
+        if flags.contains(GeneratedIdentifierFlags::FILE_LEVEL) {
+            metadata.mark_generated_binding_file_level_optimistic();
+        }
+        if flags.contains(GeneratedIdentifierFlags::RESERVED_IN_NESTED_SCOPES) {
+            metadata.reserve_generated_binding_in_nested_scopes();
+        }
+        Ok(identifier)
+    }
+
+    /// tsc-port: createNumericLiteral @6.0.3
+    /// tsc-span: _tsc.js:21508-21516
+    pub fn create_numeric_literal(
+        &mut self,
+        source: TransformSourceId,
+        text: impl Into<String>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = text.into();
+        assert!(
+            !text.starts_with('-'),
+            "negative numbers must use createPrefixUnaryExpression"
+        );
+        let flags = if text.starts_with("0b")
+            || text.starts_with("0B")
+            || text.starts_with("0o")
+            || text.starts_with("0O")
+        {
+            TransformFlags::CONTAINS_ES_2015
+        } else {
+            TransformFlags::NONE
+        };
+        self.create_node(
+            source,
+            NodeData::NumericLiteral(NumericLiteralData { text }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createBigIntLiteral @6.0.3
+    /// tsc-span: _tsc.js:21517-21522
+    pub fn create_big_int_literal(
+        &mut self,
+        source: TransformSourceId,
+        text: impl Into<String>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::BigIntLiteral(BigIntLiteralData { text: text.into() }),
+            TransformFlags::CONTAINS_ES_2020,
+        )
+    }
+
+    /// tsc-port: createStringLiteral @6.0.3
+    /// tsc-span: _tsc.js:21529-21534
+    pub fn create_string_literal(
+        &mut self,
+        source: TransformSourceId,
+        text: impl Into<String>,
+        single_quote: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let literal = self.create_node(
+            source,
+            NodeData::StringLiteral(StringLiteralData {
+                text: text.into(),
+                has_extended_unicode_escape: None,
+            }),
+            TransformFlags::NONE,
+        )?;
+        self.arena
+            .metadata_mut(literal)
+            .set_string_literal_single_quote(single_quote);
+        Ok(literal)
+    }
+
+    /// Lossless UTF-16 spelling of createStringLiteral @6.0.3.
+    /// tsc-port: createStringLiteral @6.0.3
+    /// tsc-span: _tsc.js:21529-21534
+    pub fn create_string_literal_from_code_units(
+        &mut self,
+        source: TransformSourceId,
+        units: &[u16],
+        single_quote: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let literal =
+            self.create_string_literal(source, String::from_utf16_lossy(units), single_quote)?;
+        self.arena
+            .metadata_mut(literal)
+            .set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
+        Ok(literal)
+    }
+
+    /// Lossless UTF-16 spelling of createTemplateLiteralLikeNode @6.0.3.
+    /// tsc-port: createTemplateLiteralLikeNode @6.0.3
+    /// tsc-span: _tsc.js:22873-22879
+    pub fn create_template_literal_like_from_code_units(
+        &mut self,
+        source: TransformSourceId,
+        kind: SyntaxKind,
+        units: &[u16],
+        raw: Option<&[u16]>,
+    ) -> Result<TransformNode, TransformError> {
+        let text = String::from_utf16_lossy(units);
+        let raw_text = raw.map(String::from_utf16_lossy);
+        let data = match kind {
+            SyntaxKind::NoSubstitutionTemplateLiteral => {
+                NodeData::NoSubstitutionTemplateLiteral(NoSubstitutionTemplateLiteralData {
+                    text,
+                    raw_text,
+                })
+            }
+            SyntaxKind::TemplateHead => NodeData::TemplateHead(TemplateHeadData { text, raw_text }),
+            SyntaxKind::TemplateMiddle => {
+                NodeData::TemplateMiddle(TemplateMiddleData { text, raw_text })
+            }
+            SyntaxKind::TemplateTail => NodeData::TemplateTail(TemplateTailData { text, raw_text }),
+            _ => return Err(TransformError::FactoryTokenKindExpected(kind)),
+        };
+        let literal = self.create_node(source, data, TransformFlags::CONTAINS_ES_2015)?;
+        self.arena
+            .metadata_mut(literal)
+            .set_javascript_string_value(JavaScriptString::from_code_units(units.to_vec()));
+        Ok(literal)
+    }
+
+    /// tsc-port: createTemplateHead @6.0.3
+    /// tsc-span: _tsc.js:22891-22894
+    pub fn create_template_head(
+        &mut self,
+        source: TransformSourceId,
+        text: impl Into<String>,
+        raw_text: Option<String>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::TemplateHead(TemplateHeadData {
+                text: text.into(),
+                raw_text,
+            }),
+            TransformFlags::CONTAINS_ES_2015,
+        )
+    }
+
+    /// tsc-port: createNull @6.0.3
+    /// tsc-span: _tsc.js:21773-21775
+    pub fn create_null(
+        &mut self,
+        source: TransformSourceId,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_token(source, SyntaxKind::NullKeyword, TransformFlags::NONE)
+    }
+
+    /// tsc-port: createTrue @6.0.3
+    /// tsc-span: _tsc.js:21776-21778
+    pub fn create_true(
+        &mut self,
+        source: TransformSourceId,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_token(source, SyntaxKind::TrueKeyword, TransformFlags::NONE)
+    }
+
+    /// tsc-port: createFalse @6.0.3
+    /// tsc-span: _tsc.js:21779-21781
+    pub fn create_false(
+        &mut self,
+        source: TransformSourceId,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_token(source, SyntaxKind::FalseKeyword, TransformFlags::NONE)
+    }
+
+    /// tsc-port: createModifier @6.0.3
+    /// tsc-span: _tsc.js:21782-21784
+    pub fn create_modifier(
+        &mut self,
+        source: TransformSourceId,
+        kind: SyntaxKind,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_token(source, kind, classify_created_token_flags(kind))
+    }
+
+    /// tsc-port: createModifiersFromModifierFlags @6.0.3
+    /// tsc-span: _tsc.js:21785-21803
+    pub fn create_modifiers_from_modifier_flags(
+        &mut self,
+        source: TransformSourceId,
+        flags: ModifierFlags,
+    ) -> Result<Option<TransformNodeArray>, TransformError> {
+        let mut modifiers = Vec::new();
+        for (flag, kind) in [
+            (ModifierFlags::EXPORT, SyntaxKind::ExportKeyword),
+            (ModifierFlags::AMBIENT, SyntaxKind::DeclareKeyword),
+            (ModifierFlags::DEFAULT, SyntaxKind::DefaultKeyword),
+            (ModifierFlags::CONST, SyntaxKind::ConstKeyword),
+            (ModifierFlags::PUBLIC, SyntaxKind::PublicKeyword),
+            (ModifierFlags::PRIVATE, SyntaxKind::PrivateKeyword),
+            (ModifierFlags::PROTECTED, SyntaxKind::ProtectedKeyword),
+            (ModifierFlags::ABSTRACT, SyntaxKind::AbstractKeyword),
+            (ModifierFlags::STATIC, SyntaxKind::StaticKeyword),
+            (ModifierFlags::OVERRIDE, SyntaxKind::OverrideKeyword),
+            (ModifierFlags::READONLY, SyntaxKind::ReadonlyKeyword),
+            (ModifierFlags::ACCESSOR, SyntaxKind::AccessorKeyword),
+            (ModifierFlags::ASYNC, SyntaxKind::AsyncKeyword),
+            (ModifierFlags::IN, SyntaxKind::InKeyword),
+            (ModifierFlags::OUT, SyntaxKind::OutKeyword),
+        ] {
+            if flags.contains(flag) {
+                modifiers.push(self.create_modifier(source, kind)?);
+            }
+        }
+        if modifiers.is_empty() {
+            Ok(None)
+        } else {
+            self.create_node_array(source, modifiers).map(Some)
+        }
+    }
+
+    /// tsc-port: createQualifiedName @6.0.3
+    /// tsc-span: _tsc.js:21804-21811
+    pub fn create_qualified_name(
+        &mut self,
+        source: TransformSourceId,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.child_flags(Some(left))? | self.name_flags(Some(right))?;
+        self.create_node(
+            source,
+            NodeData::QualifiedName(QualifiedNameData {
+                left: Some(self.node_id(source, left)?),
+                right: Some(self.node_id(source, right)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateQualifiedName @6.0.3
+    /// tsc-span: _tsc.js:21812-21814
+    pub fn update_qualified_name(
+        &mut self,
+        original: TransformNode,
+        left: TransformNode,
+        right: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::QualifiedName(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::QualifiedName,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.left == Some(left.node) && data.right == Some(right.node) {
+            return Ok(original);
+        }
+        let updated = self.create_qualified_name(original.source, left, right)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createComputedPropertyName @6.0.3
+    /// tsc-span: _tsc.js:21815-21820
+    pub fn create_computed_property_name(
+        &mut self,
+        source: TransformSourceId,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.child_flags(Some(expression))?
+            | TransformFlags::CONTAINS_ES_2015
+            | TransformFlags::CONTAINS_COMPUTED_PROPERTY_NAME;
+        self.create_node(
+            source,
+            NodeData::ComputedPropertyName(ComputedPropertyNameData {
+                expression: Some(self.node_id(source, expression)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateComputedPropertyName @6.0.3
+    /// tsc-span: _tsc.js:21821-21823
+    pub fn update_computed_property_name(
+        &mut self,
+        original: TransformNode,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ComputedPropertyName(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ComputedPropertyName,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.expression == Some(expression.node) {
+            return Ok(original);
+        }
+        let updated = self.create_computed_property_name(original.source, expression)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createKeywordTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22130-22132
+    pub fn create_keyword_type_node(
+        &mut self,
+        source: TransformSourceId,
+        kind: SyntaxKind,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_token(source, kind, classify_created_token_flags(kind))
+    }
+
+    /// tsc-port: createTypePredicateNode @6.0.3
+    /// tsc-span: _tsc.js:22133-22140
+    pub fn create_type_predicate_node(
+        &mut self,
+        source: TransformSourceId,
+        asserts_modifier: Option<TransformNode>,
+        parameter_name: TransformNode,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::TypePredicate(TypePredicateData {
+                asserts_modifier: self.optional_node_id(source, asserts_modifier)?,
+                parameter_name: Some(self.node_id(source, parameter_name)?),
+                r#type: self.optional_node_id(source, r#type)?,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: updateTypePredicateNode @6.0.3
+    /// tsc-span: _tsc.js:22141-22143
+    pub fn update_type_predicate_node(
+        &mut self,
+        original: TransformNode,
+        asserts_modifier: Option<TransformNode>,
+        parameter_name: TransformNode,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::TypePredicate(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::TypePredicate,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.asserts_modifier == asserts_modifier.map(TransformNode::node)
+            && data.parameter_name == Some(parameter_name.node)
+            && data.r#type == r#type.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_type_predicate_node(
+            original.source,
+            asserts_modifier,
+            parameter_name,
+            r#type,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createTypeReferenceNode @6.0.3
+    /// tsc-span: _tsc.js:22144-22150
+    pub fn create_type_reference_node(
+        &mut self,
+        source: TransformSourceId,
+        type_name: TransformNode,
+        type_arguments: Option<TransformNodeArray>,
+    ) -> Result<TransformNode, TransformError> {
+        self.node_id(source, type_name)?;
+        let type_arguments = TypeParenthesizer::parenthesize_type_arguments(self, type_arguments)?;
+        self.create_node(
+            source,
+            NodeData::TypeReference(TypeReferenceData {
+                type_arguments: self.optional_array_id(source, type_arguments)?,
+                type_name: Some(type_name.node),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: updateTypeReferenceNode @6.0.3
+    /// tsc-span: _tsc.js:22151-22153
+    pub fn update_type_reference_node(
+        &mut self,
+        original: TransformNode,
+        type_name: TransformNode,
+        type_arguments: Option<TransformNodeArray>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::TypeReference(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::TypeReference,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.type_name == Some(type_name.node)
+            && data.type_arguments == type_arguments.map(TransformNodeArray::array)
+        {
+            return Ok(original);
+        }
+        let updated =
+            self.create_type_reference_node(original.source, type_name, type_arguments)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createFunctionTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22154-22167
+    pub fn create_function_type_node(
+        &mut self,
+        source: TransformSourceId,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::FunctionType(FunctionTypeData {
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: Some(self.node_id(source, r#type)?),
+                modifiers: None,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createConstructorTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22176-22196
+    pub fn create_constructor_type_node(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::ConstructorType(ConstructorTypeData {
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: Some(self.node_id(source, r#type)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createTypeQueryNode @6.0.3
+    /// tsc-span: _tsc.js:22210-22216
+    pub fn create_type_query_node(
+        &mut self,
+        source: TransformSourceId,
+        expr_name: TransformNode,
+        type_arguments: Option<TransformNodeArray>,
+    ) -> Result<TransformNode, TransformError> {
+        self.node_id(source, expr_name)?;
+        let type_arguments = TypeParenthesizer::parenthesize_type_arguments(self, type_arguments)?;
+        self.create_node(
+            source,
+            NodeData::TypeQuery(TypeQueryData {
+                type_arguments: self.optional_array_id(source, type_arguments)?,
+                expr_name: Some(expr_name.node),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: updateTypeQueryNode @6.0.3
+    /// tsc-span: _tsc.js:22217-22219
+    pub fn update_type_query_node(
+        &mut self,
+        original: TransformNode,
+        expr_name: TransformNode,
+        type_arguments: Option<TransformNodeArray>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::TypeQuery(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::TypeQuery,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.expr_name == Some(expr_name.node)
+            && data.type_arguments == type_arguments.map(TransformNodeArray::array)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_type_query_node(original.source, expr_name, type_arguments)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createTypeLiteralNode @6.0.3
+    /// tsc-span: _tsc.js:22220-22225
+    pub fn create_type_literal_node(
+        &mut self,
+        source: TransformSourceId,
+        members: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::TypeLiteral(TypeLiteralData {
+                members: Some(self.array_id(source, members)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createArrayTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22229-22234
+    pub fn create_array_type_node(
+        &mut self,
+        source: TransformSourceId,
+        element_type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let element_type =
+            TypeParenthesizer::parenthesize_non_array_type_of_postfix_type(self, element_type)?;
+        self.create_node(
+            source,
+            NodeData::ArrayType(ArrayTypeData {
+                element_type: Some(self.node_id(source, element_type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createTupleTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22238-22243
+    pub fn create_tuple_type_node(
+        &mut self,
+        source: TransformSourceId,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let elements = TypeParenthesizer::parenthesize_element_types_of_tuple_type(self, elements)?;
+        self.create_node(
+            source,
+            NodeData::TupleType(TupleTypeData {
+                elements: Some(self.array_id(source, elements)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createNamedTupleMember @6.0.3
+    /// tsc-span: _tsc.js:22247-22259
+    pub fn create_named_tuple_member(
+        &mut self,
+        source: TransformSourceId,
+        dot_dot_dot_token: Option<TransformNode>,
+        name: TransformNode,
+        question_token: Option<TransformNode>,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::NamedTupleMember(NamedTupleMemberData {
+                dot_dot_dot_token: self.optional_node_id(source, dot_dot_dot_token)?,
+                name: Some(self.node_id(source, name)?),
+                question_token: self.optional_node_id(source, question_token)?,
+                r#type: Some(self.node_id(source, r#type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createOptionalTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22260-22265
+    pub fn create_optional_type_node(
+        &mut self,
+        source: TransformSourceId,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let r#type = TypeParenthesizer::parenthesize_type_of_optional_type(self, r#type)?;
+        self.create_node(
+            source,
+            NodeData::OptionalType(OptionalTypeData {
+                r#type: Some(self.node_id(source, r#type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createRestTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22269-22274
+    pub fn create_rest_type_node(
+        &mut self,
+        source: TransformSourceId,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::RestType(RestTypeData {
+                r#type: Some(self.node_id(source, r#type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createUnionTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22287-22292
+    pub fn create_union_type_node(
+        &mut self,
+        source: TransformSourceId,
+        types: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let types = TypeParenthesizer::parenthesize_constituent_types_of_union_type(self, types)?;
+        self.create_node(
+            source,
+            NodeData::UnionType(UnionTypeData {
+                types: Some(self.array_id(source, types)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createIntersectionTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22293-22298
+    pub fn create_intersection_type_node(
+        &mut self,
+        source: TransformSourceId,
+        types: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let types =
+            TypeParenthesizer::parenthesize_constituent_types_of_intersection_type(self, types)?;
+        self.create_node(
+            source,
+            NodeData::IntersectionType(IntersectionTypeData {
+                types: Some(self.array_id(source, types)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createConditionalTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22299-22309
+    pub fn create_conditional_type_node(
+        &mut self,
+        source: TransformSourceId,
+        check_type: TransformNode,
+        extends_type: TransformNode,
+        true_type: TransformNode,
+        false_type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let check_type =
+            TypeParenthesizer::parenthesize_check_type_of_conditional_type(self, check_type)?;
+        let extends_type =
+            TypeParenthesizer::parenthesize_extends_type_of_conditional_type(self, extends_type)?;
+        self.create_node(
+            source,
+            NodeData::ConditionalType(ConditionalTypeData {
+                check_type: Some(self.node_id(source, check_type)?),
+                extends_type: Some(self.node_id(source, extends_type)?),
+                true_type: Some(self.node_id(source, true_type)?),
+                false_type: Some(self.node_id(source, false_type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: updateConditionalTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22310-22312
+    pub fn update_conditional_type_node(
+        &mut self,
+        original: TransformNode,
+        check_type: TransformNode,
+        extends_type: TransformNode,
+        true_type: TransformNode,
+        false_type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ConditionalType(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ConditionalType,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.check_type == Some(check_type.node)
+            && data.extends_type == Some(extends_type.node)
+            && data.true_type == Some(true_type.node)
+            && data.false_type == Some(false_type.node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_conditional_type_node(
+            original.source,
+            check_type,
+            extends_type,
+            true_type,
+            false_type,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createInferTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22313-22318
+    pub fn create_infer_type_node(
+        &mut self,
+        source: TransformSourceId,
+        type_parameter: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::InferType(InferTypeData {
+                type_parameter: Some(self.node_id(source, type_parameter)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createTemplateLiteralType @6.0.3
+    /// tsc-span: _tsc.js:22322-22328
+    pub fn create_template_literal_type(
+        &mut self,
+        source: TransformSourceId,
+        head: TransformNode,
+        template_spans: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::TemplateLiteralType(TemplateLiteralTypeData {
+                head: Some(self.node_id(source, head)?),
+                template_spans: Some(self.array_id(source, template_spans)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createImportTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22332-22344
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_import_type_node(
+        &mut self,
+        source: TransformSourceId,
+        argument: TransformNode,
+        attributes: Option<TransformNode>,
+        qualifier: Option<TransformNode>,
+        type_arguments: Option<TransformNodeArray>,
+        is_type_of: bool,
+    ) -> Result<TransformNode, TransformError> {
+        self.node_id(source, argument)?;
+        let type_arguments = TypeParenthesizer::parenthesize_type_arguments(self, type_arguments)?;
+        self.create_node(
+            source,
+            NodeData::ImportType(ImportTypeData {
+                type_arguments: self.optional_array_id(source, type_arguments)?,
+                is_type_of,
+                argument: Some(argument.node),
+                attributes: self.optional_node_id(source, attributes)?,
+                qualifier: self.optional_node_id(source, qualifier)?,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: updateImportTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22345-22347
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_import_type_node(
+        &mut self,
+        original: TransformNode,
+        argument: TransformNode,
+        attributes: Option<TransformNode>,
+        qualifier: Option<TransformNode>,
+        type_arguments: Option<TransformNodeArray>,
+        is_type_of: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ImportType(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ImportType,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.argument == Some(argument.node)
+            && data.attributes == attributes.map(TransformNode::node)
+            && data.qualifier == qualifier.map(TransformNode::node)
+            && data.type_arguments == type_arguments.map(TransformNodeArray::array)
+            && data.is_type_of == is_type_of
+        {
+            return Ok(original);
+        }
+        let updated = self.create_import_type_node(
+            original.source,
+            argument,
+            attributes,
+            qualifier,
+            type_arguments,
+            is_type_of,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createParenthesizedType @6.0.3
+    /// tsc-span: _tsc.js:22348-22353
+    pub fn create_parenthesized_type(
+        &mut self,
+        source: TransformSourceId,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::ParenthesizedType(ParenthesizedTypeData {
+                r#type: Some(self.node_id(source, r#type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createThisTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22357-22361
+    pub fn create_this_type_node(
+        &mut self,
+        source: TransformSourceId,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_token(
+            source,
+            SyntaxKind::ThisType,
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createTypeOperatorNode @6.0.3
+    /// tsc-span: _tsc.js:22362-22368
+    pub fn create_type_operator_node(
+        &mut self,
+        source: TransformSourceId,
+        operator: SyntaxKind,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let r#type = if operator == SyntaxKind::ReadonlyKeyword {
+            TypeParenthesizer::parenthesize_operand_of_readonly_type_operator(self, r#type)?
+        } else {
+            TypeParenthesizer::parenthesize_operand_of_type_operator(self, r#type)?
+        };
+        self.create_node(
+            source,
+            NodeData::TypeOperator(TypeOperatorData {
+                operator,
+                r#type: Some(self.node_id(source, r#type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: updateTypeOperatorNode @6.0.3
+    /// tsc-span: _tsc.js:22369-22371
+    pub fn update_type_operator_node(
+        &mut self,
+        original: TransformNode,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::TypeOperator(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::TypeOperator,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.r#type == Some(r#type.node) {
+            return Ok(original);
+        }
+        let operator = data.operator;
+        let updated = self.create_type_operator_node(original.source, operator, r#type)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createIndexedAccessTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22372-22378
+    pub fn create_indexed_access_type_node(
+        &mut self,
+        source: TransformSourceId,
+        object_type: TransformNode,
+        index_type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let object_type =
+            TypeParenthesizer::parenthesize_non_array_type_of_postfix_type(self, object_type)?;
+        self.create_node(
+            source,
+            NodeData::IndexedAccessType(IndexedAccessTypeData {
+                object_type: Some(self.node_id(source, object_type)?),
+                index_type: Some(self.node_id(source, index_type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: updateIndexedAccessTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22379-22381
+    pub fn update_indexed_access_type_node(
+        &mut self,
+        original: TransformNode,
+        object_type: TransformNode,
+        index_type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::IndexedAccessType(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::IndexedAccessType,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.object_type == Some(object_type.node) && data.index_type == Some(index_type.node) {
+            return Ok(original);
+        }
+        let updated =
+            self.create_indexed_access_type_node(original.source, object_type, index_type)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createMappedTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22382-22397
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_mapped_type_node(
+        &mut self,
+        source: TransformSourceId,
+        readonly_token: Option<TransformNode>,
+        type_parameter: TransformNode,
+        name_type: Option<TransformNode>,
+        question_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+        members: Option<TransformNodeArray>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::MappedType(MappedTypeData {
+                readonly_token: self.optional_node_id(source, readonly_token)?,
+                type_parameter: Some(self.node_id(source, type_parameter)?),
+                name_type: self.optional_node_id(source, name_type)?,
+                question_token: self.optional_node_id(source, question_token)?,
+                r#type: self.optional_node_id(source, r#type)?,
+                members: self.optional_array_id(source, members)?,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createLiteralTypeNode @6.0.3
+    /// tsc-span: _tsc.js:22398-22403
+    pub fn create_literal_type_node(
+        &mut self,
+        source: TransformSourceId,
+        literal: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::LiteralType(LiteralTypeData {
+                literal: Some(self.node_id(source, literal)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createTemplateLiteralTypeSpan @6.0.3
+    /// tsc-span: _tsc.js:22120-22129
+    pub fn create_template_literal_type_span(
+        &mut self,
+        source: TransformSourceId,
+        r#type: TransformNode,
+        literal: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::TemplateLiteralTypeSpan(TemplateLiteralTypeSpanData {
+                r#type: Some(self.node_id(source, r#type)?),
+                literal: Some(self.node_id(source, literal)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createExpressionWithTypeArguments @6.0.3
+    /// tsc-span: _tsc.js:22944-22954
+    pub fn create_expression_with_type_arguments(
+        &mut self,
+        source: TransformSourceId,
+        expression: TransformNode,
+        type_arguments: Option<TransformNodeArray>,
+    ) -> Result<TransformNode, TransformError> {
+        self.node_id(source, expression)?;
+        let type_arguments = TypeParenthesizer::parenthesize_type_arguments(self, type_arguments)?;
+        let flags = self.child_flags(Some(expression))?
+            | self.children_flags(type_arguments)?
+            | TransformFlags::CONTAINS_ES_2015;
+        self.create_node(
+            source,
+            NodeData::ExpressionWithTypeArguments(ExpressionWithTypeArgumentsData {
+                type_arguments: self.optional_array_id(source, type_arguments)?,
+                expression: Some(expression.node),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createTypeParameterDeclaration @6.0.3
+    /// tsc-span: _tsc.js:21824-21834
+    pub fn create_type_parameter_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        constraint: Option<TransformNode>,
+        default_type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::TypeParameter(TypeParameterData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                constraint: self.optional_node_id(source, constraint)?,
+                r#default: self.optional_node_id(source, default_type)?,
+                expression: None,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: updateTypeParameterDeclaration @6.0.3
+    /// tsc-span: _tsc.js:21835-21837
+    pub fn update_type_parameter_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        constraint: Option<TransformNode>,
+        default_type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::TypeParameter(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::TypeParameter,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == Some(name.node)
+            && data.constraint == constraint.map(TransformNode::node)
+            && data.r#default == default_type.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_type_parameter_declaration(
+            original.source,
+            modifiers,
+            name,
+            constraint,
+            default_type,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createParameterDeclaration @6.0.3
+    /// tsc-span: _tsc.js:21838-21853
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_parameter_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        dot_dot_dot_token: Option<TransformNode>,
+        name: TransformNode,
+        question_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let is_this = matches!(
+            &self.arena.node(name)?.data,
+            NodeData::Identifier(data) if data.escaped_text == "this"
+        );
+        let mut flags = TransformFlags::CONTAINS_TYPE_SCRIPT;
+        if !is_this {
+            flags = self.children_flags(modifiers)?
+                | self.child_flags(dot_dot_dot_token)?
+                | self.name_flags(Some(name))?
+                | self.child_flags(question_token)?
+                | self.child_flags(initializer)?;
+            if question_token.is_some() || r#type.is_some() {
+                flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+            }
+            if dot_dot_dot_token.is_some() || initializer.is_some() {
+                flags |= TransformFlags::CONTAINS_ES_2015;
+            }
+            if self
+                .modifier_flags(modifiers)?
+                .intersects(ModifierFlags::PARAMETER_PROPERTY_MODIFIER)
+            {
+                flags |= TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX;
+            }
+        }
+        self.create_node(
+            source,
+            NodeData::Parameter(ParameterData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                dot_dot_dot_token: self.optional_node_id(source, dot_dot_dot_token)?,
+                question_token: self.optional_node_id(source, question_token)?,
+                r#type: self.optional_node_id(source, r#type)?,
+                initializer: self.optional_node_id(source, initializer)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateParameterDeclaration @6.0.3
+    /// tsc-span: _tsc.js:21854-21856
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_parameter_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        dot_dot_dot_token: Option<TransformNode>,
+        name: TransformNode,
+        question_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::Parameter(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::Parameter,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.dot_dot_dot_token == dot_dot_dot_token.map(TransformNode::node)
+            && data.name == Some(name.node)
+            && data.question_token == question_token.map(TransformNode::node)
+            && data.r#type == r#type.map(TransformNode::node)
+            && data.initializer == initializer.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_parameter_declaration(
+            original.source,
+            modifiers,
+            dot_dot_dot_token,
+            name,
+            question_token,
+            r#type,
+            initializer,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createPropertySignature @6.0.3
+    /// tsc-span: _tsc.js:21870-21882
+    pub fn create_property_signature(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        question_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::PropertySignature(PropertySignatureData {
+                name: Some(self.node_id(source, name)?),
+                question_token: self.optional_node_id(source, question_token)?,
+                modifiers: self.optional_array_id(source, modifiers)?,
+                r#type: self.optional_node_id(source, r#type)?,
+                initializer: None,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createPropertyDeclaration @6.0.3
+    /// tsc-span: _tsc.js:21890-21902
+    pub fn create_property_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        question_or_exclamation_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let token_kind = question_or_exclamation_token
+            .map(|token| self.arena.node(token).map(|node| node.kind))
+            .transpose()?;
+        let question_token = (token_kind == Some(SyntaxKind::QuestionToken))
+            .then_some(question_or_exclamation_token)
+            .flatten();
+        let exclamation_token = (token_kind == Some(SyntaxKind::ExclamationToken))
+            .then_some(question_or_exclamation_token)
+            .flatten();
+        let modifier_flags = self.modifier_flags(modifiers)?;
+        let name_kind = self.arena.node(name)?.kind;
+        let mut flags = self.children_flags(modifiers)?
+            | self.name_flags(Some(name))?
+            | self.child_flags(initializer)?
+            | TransformFlags::CONTAINS_CLASS_FIELDS;
+        if modifier_flags.contains(ModifierFlags::AMBIENT)
+            || question_token.is_some()
+            || exclamation_token.is_some()
+            || r#type.is_some()
+        {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        if name_kind == SyntaxKind::ComputedPropertyName
+            || modifier_flags.contains(ModifierFlags::STATIC) && initializer.is_some()
+        {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX;
+        }
+        self.create_node(
+            source,
+            NodeData::PropertyDeclaration(PropertyDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                question_token: self.optional_node_id(source, question_token)?,
+                exclamation_token: self.optional_node_id(source, exclamation_token)?,
+                r#type: self.optional_node_id(source, r#type)?,
+                initializer: self.optional_node_id(source, initializer)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createMethodSignature @6.0.3
+    /// tsc-span: _tsc.js:21906-21923
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_method_signature(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        question_token: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::MethodSignature(MethodSignatureData {
+                name: Some(self.node_id(source, name)?),
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+                question_token: self.optional_node_id(source, question_token)?,
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    fn function_facets(is_async: bool, is_generator: bool) -> TransformFlags {
+        if is_async && is_generator {
+            TransformFlags::CONTAINS_ES_2018
+        } else if is_async {
+            TransformFlags::CONTAINS_ES_2017
+        } else if is_generator {
+            TransformFlags::CONTAINS_GENERATOR
+        } else {
+            TransformFlags::NONE
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn function_like_flags(
+        &self,
+        modifiers: Option<TransformNodeArray>,
+        asterisk_token: Option<TransformNode>,
+        name: Option<TransformNode>,
+        question_token: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+        body: TransformNode,
+        hoisted: bool,
+        method: bool,
+    ) -> Result<TransformFlags, TransformError> {
+        let is_async = self
+            .modifier_flags(modifiers)?
+            .contains(ModifierFlags::ASYNC);
+        let mut flags = self.children_flags(modifiers)?
+            | self.child_flags(asterisk_token)?
+            | self.name_flags(name)?
+            | self.child_flags(question_token)?
+            | self.children_flags(type_parameters)?
+            | self.children_flags(Some(parameters))?
+            | self.child_flags(r#type)?
+            | (self.child_flags(Some(body))? & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
+            | Self::function_facets(is_async, asterisk_token.is_some());
+        if type_parameters.is_some() || r#type.is_some() || question_token.is_some() {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        if hoisted {
+            flags |= TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
+        }
+        if method {
+            flags |= TransformFlags::CONTAINS_ES_2015;
+        }
+        Ok(flags)
+    }
+
+    /// tsc-port: createMethodDeclaration @6.0.3
+    /// tsc-span: _tsc.js:21924-21951
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_method_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        asterisk_token: Option<TransformNode>,
+        name: TransformNode,
+        question_token: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+        body: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = match body {
+            None => TransformFlags::CONTAINS_TYPE_SCRIPT,
+            Some(body) => self.function_like_flags(
+                modifiers,
+                asterisk_token,
+                Some(name),
+                question_token,
+                type_parameters,
+                parameters,
+                r#type,
+                body,
+                false,
+                true,
+            )?,
+        };
+        self.create_node(
+            source,
+            NodeData::MethodDeclaration(MethodDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+                asterisk_token: self.optional_node_id(source, asterisk_token)?,
+                question_token: self.optional_node_id(source, question_token)?,
+                exclamation_token: None,
+                body: self.optional_node_id(source, body)?,
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createConstructorDeclaration @6.0.3
+    /// tsc-span: _tsc.js:21982-22001
+    pub fn create_constructor_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        body: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = if let Some(body) = body {
+            self.children_flags(modifiers)?
+                | self.children_flags(Some(parameters))?
+                | (self.child_flags(Some(body))?
+                    & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
+                | TransformFlags::CONTAINS_ES_2015
+        } else {
+            TransformFlags::CONTAINS_TYPE_SCRIPT
+        };
+        self.create_node(
+            source,
+            NodeData::Constructor(ConstructorData {
+                name: None,
+                type_parameters: None,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: None,
+                body: self.optional_node_id(source, body)?,
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createGetAccessorDeclaration @6.0.3
+    /// tsc-span: _tsc.js:22012-22042
+    pub fn create_get_accessor_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+        body: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = if let Some(body) = body {
+            self.children_flags(modifiers)?
+                | self.name_flags(Some(name))?
+                | self.children_flags(Some(parameters))?
+                | self.child_flags(r#type)?
+                | (self.child_flags(Some(body))?
+                    & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
+                | if r#type.is_some() {
+                    TransformFlags::CONTAINS_TYPE_SCRIPT
+                } else {
+                    TransformFlags::NONE
+                }
+        } else {
+            TransformFlags::CONTAINS_TYPE_SCRIPT
+        };
+        self.create_node(
+            source,
+            NodeData::GetAccessor(GetAccessorData {
+                name: Some(self.node_id(source, name)?),
+                type_parameters: None,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+                body: self.optional_node_id(source, body)?,
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createSetAccessorDeclaration @6.0.3
+    /// tsc-span: _tsc.js:22043-22064
+    pub fn create_set_accessor_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        parameters: TransformNodeArray,
+        body: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = if let Some(body) = body {
+            self.children_flags(modifiers)?
+                | self.name_flags(Some(name))?
+                | self.children_flags(Some(parameters))?
+                | (self.child_flags(Some(body))?
+                    & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
+        } else {
+            TransformFlags::CONTAINS_TYPE_SCRIPT
+        };
+        self.create_node(
+            source,
+            NodeData::SetAccessor(SetAccessorData {
+                name: Some(self.node_id(source, name)?),
+                type_parameters: None,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: None,
+                body: self.optional_node_id(source, body)?,
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createCallSignature @6.0.3
+    /// tsc-span: _tsc.js:22075-22089
+    pub fn create_call_signature(
+        &mut self,
+        source: TransformSourceId,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::CallSignature(CallSignatureData {
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createConstructSignature @6.0.3
+    /// tsc-span: _tsc.js:22090-22104
+    pub fn create_construct_signature(
+        &mut self,
+        source: TransformSourceId,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::ConstructSignature(ConstructSignatureData {
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createIndexSignature @6.0.3
+    /// tsc-span: _tsc.js:22105-22119
+    pub fn create_index_signature(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::IndexSignature(IndexSignatureData {
+                type_parameters: None,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: Some(self.node_id(source, r#type)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createFunctionDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23303-23328
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_function_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        asterisk_token: Option<TransformNode>,
+        name: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+        body: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let ambient = self
+            .modifier_flags(modifiers)?
+            .contains(ModifierFlags::AMBIENT);
+        let flags = match body.filter(|_| !ambient) {
+            None => TransformFlags::CONTAINS_TYPE_SCRIPT,
+            Some(body) => self.function_like_flags(
+                modifiers,
+                asterisk_token,
+                name,
+                None,
+                type_parameters,
+                parameters,
+                r#type,
+                body,
+                true,
+                false,
+            )?,
+        };
+        self.create_node(
+            source,
+            NodeData::FunctionDeclaration(FunctionDeclarationData {
+                name: self.optional_node_id(source, name)?,
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+                asterisk_token: self.optional_node_id(source, asterisk_token)?,
+                body: self.optional_node_id(source, body)?,
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createFunctionExpression @6.0.3
+    /// tsc-span: _tsc.js:22676-22700
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_function_expression(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        asterisk_token: Option<TransformNode>,
+        name: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+        body: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.function_like_flags(
+            modifiers,
+            asterisk_token,
+            name,
+            None,
+            type_parameters,
+            parameters,
+            r#type,
+            body,
+            true,
+            false,
+        )?;
+        self.create_node(
+            source,
+            NodeData::FunctionExpression(FunctionExpressionData {
+                name: self.optional_node_id(source, name)?,
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+                asterisk_token: self.optional_node_id(source, asterisk_token)?,
+                body: Some(self.node_id(source, body)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            flags,
+        )
+    }
+
+    fn parenthesize_concise_body(
+        &mut self,
+        body: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if self.arena.node(body)?.kind == SyntaxKind::Block {
+            return Ok(body);
+        }
+        let emitted = self.skip_partially_emitted_expressions(body)?;
+        let comma = self.arena.node(emitted)?.kind == SyntaxKind::CommaListExpression
+            || self.binary_operator(emitted)? == Some(SyntaxKind::CommaToken);
+        let object = self
+            .arena
+            .node(self.leftmost_expression(emitted, false)?)?
+            .kind
+            == SyntaxKind::ObjectLiteralExpression;
+        if !comma && !object {
+            return Ok(body);
+        }
+        let flags = self.arena.propagate_child_flags(body)?;
+        let parenthesized = self.create_node(
+            body.source,
+            NodeData::ParenthesizedExpression(ParenthesizedExpressionData {
+                expression: Some(body.node),
+            }),
+            flags,
+        )?;
+        self.set_text_range(parenthesized, body)
+    }
+
+    /// tsc-port: createArrowFunction @6.0.3
+    /// tsc-span: _tsc.js:22701-22719
+    #[allow(clippy::too_many_arguments)]
+    pub fn create_arrow_function(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+        equals_greater_than_token: Option<TransformNode>,
+        body: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let equals_greater_than_token = match equals_greater_than_token {
+            Some(token) => token,
+            None => self.create_token(
+                source,
+                SyntaxKind::EqualsGreaterThanToken,
+                TransformFlags::NONE,
+            )?,
+        };
+        let body = self.parenthesize_concise_body(body)?;
+        let is_async = self
+            .modifier_flags(modifiers)?
+            .contains(ModifierFlags::ASYNC);
+        let mut flags = self.children_flags(modifiers)?
+            | self.children_flags(type_parameters)?
+            | self.children_flags(Some(parameters))?
+            | self.child_flags(r#type)?
+            | self.child_flags(Some(equals_greater_than_token))?
+            | (self.child_flags(Some(body))? & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
+            | TransformFlags::CONTAINS_ES_2015;
+        if type_parameters.is_some() || r#type.is_some() {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        if is_async {
+            flags |= TransformFlags::CONTAINS_ES_2017 | TransformFlags::CONTAINS_LEXICAL_THIS;
+        }
+        self.create_node(
+            source,
+            NodeData::ArrowFunction(ArrowFunctionData {
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+                body: Some(self.node_id(source, body)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                equals_greater_than_token: Some(self.node_id(source, equals_greater_than_token)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createJSDocFunctionType @6.0.3
+    /// tsc-span: _tsc.js:23707-23719
+    pub fn create_jsdoc_function_type(
+        &mut self,
+        source: TransformSourceId,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let mut flags = self.children_flags(Some(parameters))?;
+        if r#type.is_some() {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        self.create_node(
+            source,
+            NodeData::JSDocFunctionType(JSDocFunctionTypeData {
+                name: None,
+                type_parameters: None,
+                parameters: Some(self.array_id(source, parameters)?),
+                r#type: self.optional_node_id(source, r#type)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createBlock @6.0.3
+    /// tsc-span: _tsc.js:23045-23057
+    pub fn create_block(
+        &mut self,
+        source: TransformSourceId,
+        statements: TransformNodeArray,
+        multi_line: bool,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.children_flags(Some(statements))?;
+        let node = self.create_node(
+            source,
+            NodeData::Block(BlockData {
+                statements: Some(self.array_id(source, statements)?),
+            }),
+            flags,
+        )?;
+        self.set_multi_line(node, multi_line)
+    }
+
+    fn parenthesize_operand_of_prefix_unary(
+        &mut self,
+        operand: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let emitted = self.skip_partially_emitted_expressions(operand)?;
+        if self.expression_precedence(emitted)? >= PRECEDENCE_UNARY {
+            return Ok(operand);
+        }
+        let flags = self.arena.propagate_child_flags(operand)?;
+        let parenthesized = self.create_node(
+            operand.source,
+            NodeData::ParenthesizedExpression(ParenthesizedExpressionData {
+                expression: Some(operand.node),
+            }),
+            flags,
+        )?;
+        self.set_text_range(parenthesized, operand)
+    }
+
+    /// tsc-port: createPrefixUnaryExpression @6.0.3
+    /// tsc-span: _tsc.js:22759-22769
+    pub fn create_prefix_unary_expression(
+        &mut self,
+        source: TransformSourceId,
+        operator: SyntaxKind,
+        operand: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let operand = self.parenthesize_operand_of_prefix_unary(operand)?;
+        let mut flags = self.child_flags(Some(operand))?;
+        let ordinary_identifier = self.arena.node(operand)?.kind == SyntaxKind::Identifier
+            && self.arena.metadata(operand).is_none_or(|metadata| {
+                metadata.generated_binding_id().is_none()
+                    && !metadata.flags().contains(EmitFlags::LOCAL_NAME)
+            });
+        if matches!(
+            operator,
+            SyntaxKind::PlusPlusToken | SyntaxKind::MinusMinusToken
+        ) && ordinary_identifier
+        {
+            flags |= TransformFlags::CONTAINS_UPDATE_EXPRESSION_FOR_IDENTIFIER;
+        }
+        self.create_node(
+            source,
+            NodeData::PrefixUnaryExpression(PrefixUnaryExpressionData {
+                operator,
+                operand: Some(self.node_id(source, operand)?),
+            }),
+            flags,
+        )
+    }
+
+    fn parenthesize_left_side_of_access(
+        &mut self,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let emitted = self.skip_partially_emitted_expressions(expression)?;
+        let record = self.arena.node(emitted)?;
+        let optional = NodeFlags::from_bits(record.flags).contains(NodeFlags::OPTIONAL_CHAIN);
+        let left_hand_side = self.expression_precedence(emitted)? >= PRECEDENCE_LEFT_HAND_SIDE
+            && !(record.kind == SyntaxKind::NewExpression
+                && matches!(&record.data, NodeData::NewExpression(data) if data.arguments.is_none()));
+        if left_hand_side && !optional {
+            return Ok(expression);
+        }
+        let flags = self.arena.propagate_child_flags(expression)?;
+        let parenthesized = self.create_node(
+            expression.source,
+            NodeData::ParenthesizedExpression(ParenthesizedExpressionData {
+                expression: Some(expression.node),
+            }),
+            flags,
+        )?;
+        self.set_text_range(parenthesized, expression)
+    }
+
+    /// tsc-port: createPropertyAccessExpression @6.0.3
+    /// tsc-span: _tsc.js:22474-22488
+    pub fn create_property_access_expression(
+        &mut self,
+        source: TransformSourceId,
+        expression: TransformNode,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let original_expression = expression;
+        let expression = self.parenthesize_left_side_of_access(expression)?;
+        let name_flags = if self.arena.node(name)?.kind == SyntaxKind::Identifier {
+            self.name_flags(Some(name))?
+        } else {
+            self.child_flags(Some(name))?
+                | TransformFlags::CONTAINS_PRIVATE_IDENTIFIER_IN_EXPRESSION
+        };
+        let mut flags = self.child_flags(Some(expression))? | name_flags;
+        if self.arena.node(original_expression)?.kind == SyntaxKind::SuperKeyword {
+            flags |= TransformFlags::CONTAINS_ES_2017 | TransformFlags::CONTAINS_ES_2018;
+        }
+        self.create_node(
+            source,
+            NodeData::PropertyAccessExpression(PropertyAccessExpressionData {
+                name: Some(self.node_id(source, name)?),
+                expression: Some(self.node_id(source, expression)?),
+                question_dot_token: None,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createElementAccessExpression @6.0.3
+    /// tsc-span: _tsc.js:22524-22538
+    pub fn create_element_access_expression(
+        &mut self,
+        source: TransformSourceId,
+        expression: TransformNode,
+        index: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let original_expression = expression;
+        let expression = self.parenthesize_left_side_of_access(expression)?;
+        let mut flags = self.child_flags(Some(expression))? | self.child_flags(Some(index))?;
+        if self.arena.node(original_expression)?.kind == SyntaxKind::SuperKeyword {
+            flags |= TransformFlags::CONTAINS_ES_2017 | TransformFlags::CONTAINS_ES_2018;
+        }
+        self.create_node(
+            source,
+            NodeData::ElementAccessExpression(ElementAccessExpressionData {
+                expression: Some(self.node_id(source, expression)?),
+                question_dot_token: None,
+                argument_expression: Some(self.node_id(source, index)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateBindingElement @6.0.3
+    /// tsc-span: _tsc.js:22438-22440
+    pub fn update_binding_element(
+        &mut self,
+        original: TransformNode,
+        dot_dot_dot_token: Option<TransformNode>,
+        property_name: Option<TransformNode>,
+        name: TransformNode,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::BindingElement(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::BindingElement,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.dot_dot_dot_token == dot_dot_dot_token.map(TransformNode::node)
+            && data.property_name == property_name.map(TransformNode::node)
+            && data.name == Some(name.node)
+            && data.initializer == initializer.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let mut flags = self.child_flags(dot_dot_dot_token)?
+            | self.name_flags(property_name)?
+            | self.name_flags(Some(name))?
+            | self.child_flags(initializer)?
+            | TransformFlags::CONTAINS_ES_2015;
+        if dot_dot_dot_token.is_some() {
+            flags |= TransformFlags::CONTAINS_REST_OR_SPREAD;
+        }
+        let updated = self.create_node(
+            original.source,
+            NodeData::BindingElement(BindingElementData {
+                name: Some(self.node_id(original.source, name)?),
+                property_name: self.optional_node_id(original.source, property_name)?,
+                dot_dot_dot_token: self.optional_node_id(original.source, dot_dot_dot_token)?,
+                initializer: self.optional_node_id(original.source, initializer)?,
+            }),
+            flags,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createVariableDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23274-23286
+    pub fn create_variable_declaration(
+        &mut self,
+        source: TransformSourceId,
+        name: TransformNode,
+        exclamation_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let mut flags = self.name_flags(Some(name))? | self.child_flags(initializer)?;
+        if exclamation_token.is_some() || r#type.is_some() {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        self.create_node(
+            source,
+            NodeData::VariableDeclaration(VariableDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                exclamation_token: self.optional_node_id(source, exclamation_token)?,
+                r#type: self.optional_node_id(source, r#type)?,
+                initializer: self.optional_node_id(source, initializer)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createVariableDeclarationList @6.0.3
+    /// tsc-span: _tsc.js:23287-23299
+    pub fn create_variable_declaration_list(
+        &mut self,
+        source: TransformSourceId,
+        declarations: TransformNodeArray,
+        node_flags: NodeFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let mut flags = self.children_flags(Some(declarations))?
+            | TransformFlags::CONTAINS_HOISTED_DECLARATION_OR_COMPLETION;
+        if node_flags.intersects(NodeFlags::BLOCK_SCOPED) {
+            flags |=
+                TransformFlags::CONTAINS_ES_2015 | TransformFlags::CONTAINS_BLOCK_SCOPED_BINDING;
+        }
+        if node_flags.intersects(NodeFlags::USING) {
+            flags |= TransformFlags::CONTAINS_ES_NEXT;
+        }
+        let node = self.create_node(
+            source,
+            NodeData::VariableDeclarationList(VariableDeclarationListData {
+                declarations: Some(self.array_id(source, declarations)?),
+            }),
+            flags,
+        )?;
+        self.set_node_flags(node, node_flags & NodeFlags::BLOCK_SCOPED)
+    }
+
+    /// tsc-port: createVariableStatement @6.0.3
+    /// tsc-span: _tsc.js:23058-23072
+    pub fn create_variable_statement(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        declaration_list: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = if self
+            .modifier_flags(modifiers)?
+            .contains(ModifierFlags::AMBIENT)
+        {
+            TransformFlags::CONTAINS_TYPE_SCRIPT
+        } else {
+            self.children_flags(modifiers)? | self.child_flags(Some(declaration_list))?
+        };
+        self.create_node(
+            source,
+            NodeData::VariableStatement(VariableStatementData {
+                modifiers: self.optional_array_id(source, modifiers)?,
+                declaration_list: Some(self.node_id(source, declaration_list)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createEmptyStatement @6.0.3
+    /// tsc-span: _tsc.js:23073-23077
+    pub fn create_empty_statement(
+        &mut self,
+        source: TransformSourceId,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::EmptyStatement(EmptyStatementData {}),
+            TransformFlags::NONE,
+        )
+    }
+
+    /// tsc-port: createExpressionStatement @6.0.3
+    /// tsc-span: _tsc.js:23078-23085
+    pub fn create_expression_statement(
+        &mut self,
+        source: TransformSourceId,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.child_flags(Some(expression))?;
+        self.create_node(
+            source,
+            NodeData::ExpressionStatement(ExpressionStatementData {
+                expression: Some(self.node_id(source, expression)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createClassDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23339-23356
+    pub fn create_class_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        heritage_clauses: Option<TransformNodeArray>,
+        members: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let ambient = self
+            .modifier_flags(modifiers)?
+            .contains(ModifierFlags::AMBIENT);
+        let mut flags = if ambient {
+            TransformFlags::CONTAINS_TYPE_SCRIPT
+        } else {
+            self.children_flags(modifiers)?
+                | self.name_flags(name)?
+                | self.children_flags(type_parameters)?
+                | self.children_flags(heritage_clauses)?
+                | self.children_flags(Some(members))?
+                | TransformFlags::CONTAINS_ES_2015
+        };
+        if !ambient && type_parameters.is_some() {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        if flags.contains(TransformFlags::CONTAINS_TYPE_SCRIPT_CLASS_SYNTAX) {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        self.create_node(
+            source,
+            NodeData::ClassDeclaration(ClassDeclarationData {
+                name: self.optional_node_id(source, name)?,
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                heritage_clauses: self.optional_array_id(source, heritage_clauses)?,
+                members: Some(self.array_id(source, members)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateClassDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23357-23359
+    pub fn update_class_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        heritage_clauses: Option<TransformNodeArray>,
+        members: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ClassDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ClassDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == name.map(TransformNode::node)
+            && data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.heritage_clauses == heritage_clauses.map(TransformNodeArray::array)
+            && data.members == Some(members.array)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_class_declaration(
+            original.source,
+            modifiers,
+            name,
+            type_parameters,
+            heritage_clauses,
+            members,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createInterfaceDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23360-23373
+    pub fn create_interface_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        type_parameters: Option<TransformNodeArray>,
+        heritage_clauses: Option<TransformNodeArray>,
+        members: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::InterfaceDeclaration(InterfaceDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                heritage_clauses: self.optional_array_id(source, heritage_clauses)?,
+                members: Some(self.array_id(source, members)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createTypeAliasDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23374-23388
+    pub fn create_type_alias_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        type_parameters: Option<TransformNodeArray>,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::TypeAliasDeclaration(TypeAliasDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                type_parameters: self.optional_array_id(source, type_parameters)?,
+                r#type: Some(self.node_id(source, r#type)?),
+            }),
+            TransformFlags::CONTAINS_TYPE_SCRIPT,
+        )
+    }
+
+    /// tsc-port: createEnumDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23389-23401
+    pub fn create_enum_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        members: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = (self.children_flags(modifiers)?
+            | self.child_flags(Some(name))?
+            | self.children_flags(Some(members))?
+            | TransformFlags::CONTAINS_TYPE_SCRIPT)
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::EnumDeclaration(EnumDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                members: Some(self.array_id(source, members)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createModuleDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23402-23418
+    pub fn create_module_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        body: Option<TransformNode>,
+        node_flags: NodeFlags,
+    ) -> Result<TransformNode, TransformError> {
+        let ambient = self
+            .modifier_flags(modifiers)?
+            .contains(ModifierFlags::AMBIENT);
+        let flags = if ambient {
+            TransformFlags::CONTAINS_TYPE_SCRIPT
+        } else {
+            self.children_flags(modifiers)?
+                | self.child_flags(Some(name))?
+                | self.child_flags(body)?
+                | TransformFlags::CONTAINS_TYPE_SCRIPT
+        } & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        let node = self.create_node(
+            source,
+            NodeData::ModuleDeclaration(ModuleDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                body: self.optional_node_id(source, body)?,
+            }),
+            flags,
+        )?;
+        self.set_node_flags(
+            node,
+            node_flags
+                & (NodeFlags::NAMESPACE
+                    | NodeFlags::NESTED_NAMESPACE
+                    | NodeFlags::GLOBAL_AUGMENTATION),
+        )
+    }
+
+    /// tsc-port: updateModuleDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23419-23421
+    pub fn update_module_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        body: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.arena.node(original)?.clone();
+        let NodeData::ModuleDeclaration(data) = &record.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ModuleDeclaration,
+                actual: record.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == Some(name.node)
+            && data.body == body.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_module_declaration(
+            original.source,
+            modifiers,
+            name,
+            body,
+            NodeFlags::from_bits(record.flags),
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createModuleBlock @6.0.3
+    /// tsc-span: _tsc.js:23422-23428
+    pub fn create_module_block(
+        &mut self,
+        source: TransformSourceId,
+        statements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.children_flags(Some(statements))?;
+        self.create_node(
+            source,
+            NodeData::ModuleBlock(ModuleBlockData {
+                statements: Some(self.array_id(source, statements)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateModuleBlock @6.0.3
+    /// tsc-span: _tsc.js:23429-23431
+    pub fn update_module_block(
+        &mut self,
+        original: TransformNode,
+        statements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ModuleBlock(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ModuleBlock,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.statements == Some(statements.array) {
+            return Ok(original);
+        }
+        let updated = self.create_module_block(original.source, statements)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createNamespaceExportDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23443-23451
+    pub fn create_namespace_export_declaration(
+        &mut self,
+        source: TransformSourceId,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.name_flags(Some(name))? | TransformFlags::CONTAINS_TYPE_SCRIPT;
+        self.create_node(
+            source,
+            NodeData::NamespaceExportDeclaration(NamespaceExportDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: None,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createImportEqualsDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23460-23476
+    pub fn create_import_equals_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        is_type_only: bool,
+        name: TransformNode,
+        module_reference: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let mut flags = self.children_flags(modifiers)?
+            | self.name_flags(Some(name))?
+            | self.child_flags(Some(module_reference))?;
+        if self.arena.node(module_reference)?.kind != SyntaxKind::ExternalModuleReference {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        flags = flags & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::ImportEqualsDeclaration(ImportEqualsDeclarationData {
+                name: Some(self.node_id(source, name)?),
+                modifiers: self.optional_array_id(source, modifiers)?,
+                is_type_only,
+                module_reference: Some(self.node_id(source, module_reference)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createImportDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23477-23490
+    pub fn create_import_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        import_clause: Option<TransformNode>,
+        module_specifier: TransformNode,
+        attributes: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = (self.child_flags(import_clause)?
+            | self.child_flags(Some(module_specifier))?)
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::ImportDeclaration(ImportDeclarationData {
+                modifiers: self.optional_array_id(source, modifiers)?,
+                import_clause: self.optional_node_id(source, import_clause)?,
+                module_specifier: Some(self.node_id(source, module_specifier)?),
+                attributes: self.optional_node_id(source, attributes)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createImportClause @6.0.3
+    /// tsc-span: _tsc.js:23491-23510
+    pub fn create_import_clause(
+        &mut self,
+        source: TransformSourceId,
+        phase_modifier: Option<SyntaxKind>,
+        name: Option<TransformNode>,
+        named_bindings: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let mut flags = self.child_flags(name)? | self.child_flags(named_bindings)?;
+        if phase_modifier == Some(SyntaxKind::TypeKeyword) {
+            flags |= TransformFlags::CONTAINS_TYPE_SCRIPT;
+        }
+        flags = flags & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::ImportClause(ImportClauseData {
+                name: self.optional_node_id(source, name)?,
+                is_type_only: phase_modifier == Some(SyntaxKind::TypeKeyword),
+                phase_modifier,
+                named_bindings: self.optional_node_id(source, named_bindings)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createImportAttributes @6.0.3
+    /// tsc-span: _tsc.js:23543-23553
+    pub fn create_import_attributes(
+        &mut self,
+        source: TransformSourceId,
+        elements: TransformNodeArray,
+        multi_line: Option<bool>,
+        token: Option<SyntaxKind>,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::ImportAttributes(ImportAttributesData {
+                token: token.unwrap_or(SyntaxKind::WithKeyword),
+                elements: Some(self.array_id(source, elements)?),
+                multi_line,
+            }),
+            TransformFlags::CONTAINS_ES_NEXT,
+        )
+    }
+
+    /// tsc-port: createImportAttribute @6.0.3
+    /// tsc-span: _tsc.js:23554-23560
+    pub fn create_import_attribute(
+        &mut self,
+        source: TransformSourceId,
+        name: TransformNode,
+        value: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_node(
+            source,
+            NodeData::ImportAttribute(ImportAttributeData {
+                name: Some(self.node_id(source, name)?),
+                value: Some(self.node_id(source, value)?),
+            }),
+            TransformFlags::CONTAINS_ES_NEXT,
+        )
+    }
+
+    /// tsc-port: createNamespaceImport @6.0.3
+    /// tsc-span: _tsc.js:23564-23573
+    pub fn create_namespace_import(
+        &mut self,
+        source: TransformSourceId,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags =
+            self.child_flags(Some(name))? & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::NamespaceImport(NamespaceImportData {
+                name: Some(self.node_id(source, name)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createNamespaceExport @6.0.3
+    /// tsc-span: _tsc.js:23574-23583
+    pub fn create_namespace_export(
+        &mut self,
+        source: TransformSourceId,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = (self.child_flags(Some(name))? | TransformFlags::CONTAINS_ES_2020)
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::NamespaceExport(NamespaceExportData {
+                name: Some(self.node_id(source, name)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createNamedImports @6.0.3
+    /// tsc-span: _tsc.js:23584-23593
+    pub fn create_named_imports(
+        &mut self,
+        source: TransformSourceId,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.children_flags(Some(elements))?
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::NamedImports(NamedImportsData {
+                elements: Some(self.array_id(source, elements)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createImportSpecifier @6.0.3
+    /// tsc-span: _tsc.js:23594-23605
+    pub fn create_import_specifier(
+        &mut self,
+        source: TransformSourceId,
+        is_type_only: bool,
+        property_name: Option<TransformNode>,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = (self.child_flags(property_name)? | self.child_flags(Some(name))?)
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::ImportSpecifier(ImportSpecifierData {
+                name: Some(self.node_id(source, name)?),
+                property_name: self.optional_node_id(source, property_name)?,
+                is_type_only,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createExportAssignment @6.0.3
+    /// tsc-span: _tsc.js:23606-23623
+    pub fn create_export_assignment(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        is_export_equals: bool,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = (self.children_flags(modifiers)? | self.child_flags(Some(expression))?)
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::ExportAssignment(ExportAssignmentData {
+                modifiers: self.optional_array_id(source, modifiers)?,
+                is_export_equals: Some(is_export_equals),
+                expression: Some(self.node_id(source, expression)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createExportDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23624-23635
+    pub fn create_export_declaration(
+        &mut self,
+        source: TransformSourceId,
+        modifiers: Option<TransformNodeArray>,
+        is_type_only: bool,
+        export_clause: Option<TransformNode>,
+        module_specifier: Option<TransformNode>,
+        attributes: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = (self.children_flags(modifiers)?
+            | self.child_flags(export_clause)?
+            | self.child_flags(module_specifier)?)
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::ExportDeclaration(ExportDeclarationData {
+                modifiers: self.optional_array_id(source, modifiers)?,
+                is_type_only,
+                export_clause: self.optional_node_id(source, export_clause)?,
+                module_specifier: self.optional_node_id(source, module_specifier)?,
+                attributes: self.optional_node_id(source, attributes)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateExportDeclaration @6.0.3
+    /// tsc-span: _tsc.js:23636-23646
+    pub fn update_export_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        is_type_only: bool,
+        export_clause: Option<TransformNode>,
+        module_specifier: Option<TransformNode>,
+        attributes: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ExportDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ExportDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.is_type_only == is_type_only
+            && data.export_clause == export_clause.map(TransformNode::node)
+            && data.module_specifier == module_specifier.map(TransformNode::node)
+            && data.attributes == attributes.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_export_declaration(
+            original.source,
+            modifiers,
+            is_type_only,
+            export_clause,
+            module_specifier,
+            attributes,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createNamedExports @6.0.3
+    /// tsc-span: _tsc.js:23647-23653
+    pub fn create_named_exports(
+        &mut self,
+        source: TransformSourceId,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.children_flags(Some(elements))?
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::NamedExports(NamedExportsData {
+                elements: Some(self.array_id(source, elements)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateNamedExports @6.0.3
+    /// tsc-span: _tsc.js:23654-23656
+    pub fn update_named_exports(
+        &mut self,
+        original: TransformNode,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::NamedExports(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::NamedExports,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.elements == Some(elements.array) {
+            return Ok(original);
+        }
+        let updated = self.create_named_exports(original.source, elements)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createExportSpecifier @6.0.3
+    /// tsc-span: _tsc.js:23657-23668
+    pub fn create_export_specifier(
+        &mut self,
+        source: TransformSourceId,
+        is_type_only: bool,
+        property_name: Option<TransformNode>,
+        name: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = (self.child_flags(property_name)? | self.child_flags(Some(name))?)
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::ExportSpecifier(ExportSpecifierData {
+                name: Some(self.node_id(source, name)?),
+                is_type_only,
+                property_name: self.optional_node_id(source, property_name)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createExternalModuleReference @6.0.3
+    /// tsc-span: _tsc.js:23675-23683
+    pub fn create_external_module_reference(
+        &mut self,
+        source: TransformSourceId,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.child_flags(Some(expression))?
+            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT;
+        self.create_node(
+            source,
+            NodeData::ExternalModuleReference(ExternalModuleReferenceData {
+                expression: Some(self.node_id(source, expression)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createHeritageClause @6.0.3
+    /// tsc-span: _tsc.js:24106-24122
+    pub fn create_heritage_clause(
+        &mut self,
+        source: TransformSourceId,
+        token: SyntaxKind,
+        types: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let mut flags = self.children_flags(Some(types))?;
+        flags |= match token {
+            SyntaxKind::ExtendsKeyword => TransformFlags::CONTAINS_ES_2015,
+            SyntaxKind::ImplementsKeyword => TransformFlags::CONTAINS_TYPE_SCRIPT,
+            _ => {
+                return Err(TransformError::FactoryKindMismatch {
+                    expected: SyntaxKind::ExtendsKeyword,
+                    actual: token,
+                })
+            }
+        };
+        self.create_node(
+            source,
+            NodeData::HeritageClause(HeritageClauseData {
+                token,
+                types: Some(self.array_id(source, types)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: createEnumMember @6.0.3
+    /// tsc-span: _tsc.js:24194-24202
+    pub fn create_enum_member(
+        &mut self,
+        source: TransformSourceId,
+        name: TransformNode,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.child_flags(Some(name))?
+            | self.child_flags(initializer)?
+            | TransformFlags::CONTAINS_TYPE_SCRIPT;
+        self.create_node(
+            source,
+            NodeData::EnumMember(EnumMemberData {
+                name: Some(self.node_id(source, name)?),
+                initializer: self.optional_node_id(source, initializer)?,
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: replaceModifiers @6.0.3
+    /// tsc-span: _tsc.js:24933-24944
+    pub fn replace_modifiers(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.arena.node(original)?.clone();
+        let modifiers_id = self.optional_array_id(original.source, modifiers)?;
+        let current_modifiers = match &record.data {
+            NodeData::TypeParameter(data) => data.modifiers,
+            NodeData::Parameter(data) => data.modifiers,
+            NodeData::ConstructorType(data) => data.modifiers,
+            NodeData::PropertySignature(data) => data.modifiers,
+            NodeData::PropertyDeclaration(data) => data.modifiers,
+            NodeData::MethodSignature(data) => data.modifiers,
+            NodeData::MethodDeclaration(data) => data.modifiers,
+            NodeData::Constructor(data) => data.modifiers,
+            NodeData::GetAccessor(data) => data.modifiers,
+            NodeData::SetAccessor(data) => data.modifiers,
+            NodeData::IndexSignature(data) => data.modifiers,
+            NodeData::FunctionExpression(data) => data.modifiers,
+            NodeData::ArrowFunction(data) => data.modifiers,
+            NodeData::ClassExpression(data) => data.modifiers,
+            NodeData::VariableStatement(data) => data.modifiers,
+            NodeData::FunctionDeclaration(data) => data.modifiers,
+            NodeData::ClassDeclaration(data) => data.modifiers,
+            NodeData::InterfaceDeclaration(data) => data.modifiers,
+            NodeData::TypeAliasDeclaration(data) => data.modifiers,
+            NodeData::EnumDeclaration(data) => data.modifiers,
+            NodeData::ModuleDeclaration(data) => data.modifiers,
+            NodeData::ImportEqualsDeclaration(data) => data.modifiers,
+            NodeData::ImportDeclaration(data) => data.modifiers,
+            NodeData::ExportAssignment(data) => data.modifiers,
+            NodeData::ExportDeclaration(data) => data.modifiers,
+            _ => {
+                return Err(TransformError::FactoryKindMismatch {
+                    expected: SyntaxKind::Unknown,
+                    actual: record.kind,
+                })
+            }
+        };
+        if current_modifiers == modifiers_id {
+            return Ok(original);
+        }
+
+        let source = original.source;
+        let child = |id: Option<NodeId>| id.map(|id| TransformNode::new(source, id));
+        let array = |id: Option<NodeArrayId>| id.map(|id| TransformNodeArray::new(source, id));
+        let required_child = |id: Option<NodeId>, parent, field| {
+            id.map(|id| TransformNode::new(source, id))
+                .ok_or(TransformError::RequiredChildRemoved { parent, field })
+        };
+        let required_array = |id: Option<NodeArrayId>, parent, field| {
+            id.map(|id| TransformNodeArray::new(source, id))
+                .ok_or(TransformError::RequiredChildRemoved { parent, field })
+        };
+        let updated = match record.data {
+            NodeData::TypeParameter(data) => self.create_type_parameter_declaration(
+                source,
+                modifiers,
+                required_child(data.name, SyntaxKind::TypeParameter, "name")?,
+                child(data.constraint),
+                child(data.r#default),
+            )?,
+            NodeData::Parameter(data) => self.create_parameter_declaration(
+                source,
+                modifiers,
+                child(data.dot_dot_dot_token),
+                required_child(data.name, SyntaxKind::Parameter, "name")?,
+                child(data.question_token),
+                child(data.r#type),
+                child(data.initializer),
+            )?,
+            NodeData::ConstructorType(data) => self.create_constructor_type_node(
+                source,
+                modifiers,
+                array(data.type_parameters),
+                required_array(data.parameters, SyntaxKind::ConstructorType, "parameters")?,
+                required_child(data.r#type, SyntaxKind::ConstructorType, "type")?,
+            )?,
+            NodeData::PropertySignature(data) => self.create_property_signature(
+                source,
+                modifiers,
+                required_child(data.name, SyntaxKind::PropertySignature, "name")?,
+                child(data.question_token),
+                child(data.r#type),
+            )?,
+            NodeData::PropertyDeclaration(data) => self.create_property_declaration(
+                source,
+                modifiers,
+                required_child(data.name, SyntaxKind::PropertyDeclaration, "name")?,
+                child(data.question_token.or(data.exclamation_token)),
+                child(data.r#type),
+                child(data.initializer),
+            )?,
+            NodeData::MethodSignature(data) => self.create_method_signature(
+                source,
+                modifiers,
+                required_child(data.name, SyntaxKind::MethodSignature, "name")?,
+                child(data.question_token),
+                array(data.type_parameters),
+                required_array(data.parameters, SyntaxKind::MethodSignature, "parameters")?,
+                child(data.r#type),
+            )?,
+            NodeData::MethodDeclaration(data) => self.create_method_declaration(
+                source,
+                modifiers,
+                child(data.asterisk_token),
+                required_child(data.name, SyntaxKind::MethodDeclaration, "name")?,
+                child(data.question_token),
+                array(data.type_parameters),
+                required_array(data.parameters, SyntaxKind::MethodDeclaration, "parameters")?,
+                child(data.r#type),
+                child(data.body),
+            )?,
+            NodeData::Constructor(data) => {
+                let parameters =
+                    required_array(data.parameters, SyntaxKind::Constructor, "parameters")?;
+                let body = child(data.body);
+                let transform_flags = if let Some(body) = body {
+                    self.children_flags(modifiers)?
+                        | self.children_flags(Some(parameters))?
+                        | (self.child_flags(Some(body))?
+                            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
+                        | TransformFlags::CONTAINS_ES_2015
+                } else {
+                    TransformFlags::CONTAINS_TYPE_SCRIPT
+                };
+                return self.update_constructor_declaration(
+                    original,
+                    modifiers_id,
+                    Some(parameters.array()),
+                    body.map(TransformNode::node),
+                    transform_flags,
+                );
+            }
+            NodeData::GetAccessor(data) => {
+                let name = required_child(data.name, SyntaxKind::GetAccessor, "name")?;
+                let parameters =
+                    required_array(data.parameters, SyntaxKind::GetAccessor, "parameters")?;
+                let r#type = child(data.r#type);
+                let body = child(data.body);
+                let transform_flags = if let Some(body) = body {
+                    self.children_flags(modifiers)?
+                        | self.name_flags(Some(name))?
+                        | self.children_flags(Some(parameters))?
+                        | self.child_flags(r#type)?
+                        | (self.child_flags(Some(body))?
+                            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
+                        | if r#type.is_some() {
+                            TransformFlags::CONTAINS_TYPE_SCRIPT
+                        } else {
+                            TransformFlags::NONE
+                        }
+                } else {
+                    TransformFlags::CONTAINS_TYPE_SCRIPT
+                };
+                return self.update_get_accessor_declaration(
+                    original,
+                    modifiers_id,
+                    Some(name.node()),
+                    Some(parameters.array()),
+                    r#type.map(TransformNode::node),
+                    body.map(TransformNode::node),
+                    transform_flags,
+                );
+            }
+            NodeData::SetAccessor(data) => {
+                let name = required_child(data.name, SyntaxKind::SetAccessor, "name")?;
+                let parameters =
+                    required_array(data.parameters, SyntaxKind::SetAccessor, "parameters")?;
+                let body = child(data.body);
+                let transform_flags = if let Some(body) = body {
+                    self.children_flags(modifiers)?
+                        | self.name_flags(Some(name))?
+                        | self.children_flags(Some(parameters))?
+                        | (self.child_flags(Some(body))?
+                            & !TransformFlags::CONTAINS_POSSIBLE_TOP_LEVEL_AWAIT)
+                } else {
+                    TransformFlags::CONTAINS_TYPE_SCRIPT
+                };
+                return self.update_set_accessor_declaration(
+                    original,
+                    modifiers_id,
+                    Some(name.node()),
+                    Some(parameters.array()),
+                    body.map(TransformNode::node),
+                    transform_flags,
+                );
+            }
+            NodeData::IndexSignature(data) => self.create_index_signature(
+                source,
+                modifiers,
+                required_array(data.parameters, SyntaxKind::IndexSignature, "parameters")?,
+                required_child(data.r#type, SyntaxKind::IndexSignature, "type")?,
+            )?,
+            NodeData::FunctionExpression(data) => self.create_function_expression(
+                source,
+                modifiers,
+                child(data.asterisk_token),
+                child(data.name),
+                array(data.type_parameters),
+                required_array(
+                    data.parameters,
+                    SyntaxKind::FunctionExpression,
+                    "parameters",
+                )?,
+                child(data.r#type),
+                required_child(data.body, SyntaxKind::FunctionExpression, "body")?,
+            )?,
+            NodeData::ArrowFunction(data) => self.create_arrow_function(
+                source,
+                modifiers,
+                array(data.type_parameters),
+                required_array(data.parameters, SyntaxKind::ArrowFunction, "parameters")?,
+                child(data.r#type),
+                child(data.equals_greater_than_token),
+                required_child(data.body, SyntaxKind::ArrowFunction, "body")?,
+            )?,
+            NodeData::VariableStatement(data) => self.create_variable_statement(
+                source,
+                modifiers,
+                required_child(
+                    data.declaration_list,
+                    SyntaxKind::VariableStatement,
+                    "declarationList",
+                )?,
+            )?,
+            NodeData::FunctionDeclaration(data) => self.create_function_declaration(
+                source,
+                modifiers,
+                child(data.asterisk_token),
+                child(data.name),
+                array(data.type_parameters),
+                required_array(
+                    data.parameters,
+                    SyntaxKind::FunctionDeclaration,
+                    "parameters",
+                )?,
+                child(data.r#type),
+                child(data.body),
+            )?,
+            NodeData::ClassDeclaration(data) => {
+                return self.update_class_declaration(
+                    original,
+                    modifiers,
+                    child(data.name),
+                    array(data.type_parameters),
+                    array(data.heritage_clauses),
+                    required_array(data.members, SyntaxKind::ClassDeclaration, "members")?,
+                );
+            }
+            NodeData::InterfaceDeclaration(data) => self.create_interface_declaration(
+                source,
+                modifiers,
+                required_child(data.name, SyntaxKind::InterfaceDeclaration, "name")?,
+                array(data.type_parameters),
+                array(data.heritage_clauses),
+                required_array(data.members, SyntaxKind::InterfaceDeclaration, "members")?,
+            )?,
+            NodeData::TypeAliasDeclaration(data) => self.create_type_alias_declaration(
+                source,
+                modifiers,
+                required_child(data.name, SyntaxKind::TypeAliasDeclaration, "name")?,
+                array(data.type_parameters),
+                required_child(data.r#type, SyntaxKind::TypeAliasDeclaration, "type")?,
+            )?,
+            NodeData::EnumDeclaration(data) => self.create_enum_declaration(
+                source,
+                modifiers,
+                required_child(data.name, SyntaxKind::EnumDeclaration, "name")?,
+                required_array(data.members, SyntaxKind::EnumDeclaration, "members")?,
+            )?,
+            NodeData::ModuleDeclaration(data) => {
+                return self.update_module_declaration(
+                    original,
+                    modifiers,
+                    required_child(data.name, SyntaxKind::ModuleDeclaration, "name")?,
+                    child(data.body),
+                );
+            }
+            NodeData::ImportEqualsDeclaration(data) => self.create_import_equals_declaration(
+                source,
+                modifiers,
+                data.is_type_only,
+                required_child(data.name, SyntaxKind::ImportEqualsDeclaration, "name")?,
+                required_child(
+                    data.module_reference,
+                    SyntaxKind::ImportEqualsDeclaration,
+                    "moduleReference",
+                )?,
+            )?,
+            NodeData::ImportDeclaration(data) => self.create_import_declaration(
+                source,
+                modifiers,
+                child(data.import_clause),
+                required_child(
+                    data.module_specifier,
+                    SyntaxKind::ImportDeclaration,
+                    "moduleSpecifier",
+                )?,
+                child(data.attributes),
+            )?,
+            NodeData::ExportAssignment(data) => self.create_export_assignment(
+                source,
+                modifiers,
+                data.is_export_equals.unwrap_or(false),
+                required_child(data.expression, SyntaxKind::ExportAssignment, "expression")?,
+            )?,
+            NodeData::ExportDeclaration(data) => {
+                return self.update_export_declaration(
+                    original,
+                    modifiers,
+                    data.is_type_only,
+                    child(data.export_clause),
+                    child(data.module_specifier),
+                    child(data.attributes),
+                );
+            }
+            NodeData::ClassExpression(mut data) => {
+                data.modifiers = modifiers_id;
+                let flags = self.arena.transform_flags(original);
+                return self.update_node(original, NodeData::ClassExpression(data), flags);
+            }
+            _ => unreachable!("modifier-bearing kind was classified above"),
+        };
+        self.finish_update(updated, original)
     }
 
     pub fn create_node(
@@ -1292,11 +4840,15 @@ impl<'arena> NodeFactory<'arena> {
         kind: SyntaxKind,
         transform_flags: TransformFlags,
     ) -> Result<TransformNode, TransformError> {
-        // ThisType (198) is the one kind-only TYPE node: the parser stores it
-        // as token data (parser.rs finish_kind_only_node), so the NodeBuilder
-        // constructs it here. A named allowlist, not a blanket lift of the
-        // token ceiling (h2-7a-m-3 §4 seam 3).
-        if kind > SyntaxKind::LastToken && kind != SyntaxKind::ThisType {
+        // ThisType and NotEmittedTypeElement are the named kind-only nodes
+        // admitted above the token range. Keep this an allowlist: all other
+        // non-token kinds must use their typed constructor.
+        if kind > SyntaxKind::LastToken
+            && !matches!(
+                kind,
+                SyntaxKind::ThisType | SyntaxKind::NotEmittedTypeElement
+            )
+        {
             return Err(TransformError::FactoryTokenKindExpected(kind));
         }
         let syntax = &mut self.arena.source_mut(source)?.source;
@@ -1309,6 +4861,19 @@ impl<'arena> NodeFactory<'arena> {
         let node = TransformNode { source, node: id };
         self.arena.set_transform_flags(node, transform_flags);
         Ok(node)
+    }
+
+    /// tsc-port: createNotEmittedTypeElement @6.0.3
+    /// tsc-span: _tsc.js:24368-24370
+    pub fn create_not_emitted_type_element(
+        &mut self,
+        source: TransformSourceId,
+    ) -> Result<TransformNode, TransformError> {
+        self.create_token(
+            source,
+            SyntaxKind::NotEmittedTypeElement,
+            TransformFlags::NONE,
+        )
     }
 
     pub fn create_node_array(
