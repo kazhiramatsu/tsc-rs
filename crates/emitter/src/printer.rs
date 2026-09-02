@@ -1070,6 +1070,7 @@ impl Printer {
             ));
         }
         transformation.arena().node(node)?;
+        transformation.finalize_generated_names_for_print(node)?;
         self.prepare_emission_plan(transformation, node)?;
         let mut writer = match writer_kind {
             StandaloneWriter::MultiLine => create_text_writer(self.options.new_line),
@@ -1104,6 +1105,7 @@ impl Printer {
         }
 
         let root = transformation.arena().root(source_id)?;
+        transformation.finalize_generated_names_for_print(root)?;
         self.prepare_emission_plan(transformation, root)?;
         if transformation
             .arena()
