@@ -41,7 +41,7 @@ const IGNORE_ERRORS: EmitNodeBuilderFlags = EmitNodeBuilderFlags(70_221_824);
 /// m-3 NodeBuilder context as declaration serialization.
 ///
 /// tsc-port: symbolToString @6.0.3
-/// tsc-hash: 3a1a15d315589ed9dac69fc722a9a8a657f01ce7e980e097d536b34b12a318fa
+/// tsc-hash: db59b39300442558c3a8f0e1f1d1681dbfaf0fdb3951350b225677ed4851157e
 /// tsc-span: _tsc.js:50649-50681
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn build_symbol_display_node(
@@ -106,6 +106,7 @@ impl CheckerState<'_> {
     /// Build one symbol display node directly into the session-owned emit
     /// display result. The enclosing and declaration files are mounted only
     /// when this symbol first needs them.
+    /// tsrs-native: session-owned display-result adapter around build_symbol_display_node.
     pub(crate) fn emit_build_symbol_display_node(
         &mut self,
         symbol: SymbolId,

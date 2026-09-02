@@ -165,6 +165,7 @@ impl SyntacticScopeCleanup {
         }
     }
 
+    /// tsrs-native: enterNewScope changed-local bookkeeping for parameter locals (see record_local).
     pub(crate) fn record_parameter_local(
         &mut self,
         name: &str,
@@ -180,6 +181,7 @@ impl SyntacticScopeCleanup {
         }
     }
 
+    /// tsrs-native: enterNewScope changed-local bookkeeping for type-parameter locals (see record_local).
     pub(crate) fn record_type_parameter_local(
         &mut self,
         name: &str,

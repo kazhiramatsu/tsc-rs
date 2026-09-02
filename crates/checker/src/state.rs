@@ -1048,6 +1048,7 @@ impl<'a> CheckerState<'a> {
 
     /// Lazily construct the hook-less result that owns checker-built display
     /// nodes for the lifetime of this checker session.
+    /// tsrs-native: lazily created hook-less TransformationResult owning checker-built display nodes.
     pub(crate) fn emit_display_result(
         &mut self,
     ) -> std::rc::Rc<std::cell::RefCell<tsc_emitter::TransformationResult<'static>>> {
@@ -1067,6 +1068,7 @@ impl<'a> CheckerState<'a> {
     }
 
     /// Mount one binder source into the checker display arena on first use.
+    /// tsrs-native: per-file arena mount for checker-built display nodes.
     pub(crate) fn emit_display_target(
         &mut self,
         file_index: usize,

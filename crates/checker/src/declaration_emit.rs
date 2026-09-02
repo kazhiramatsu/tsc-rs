@@ -914,7 +914,7 @@ impl CheckerState<'_> {
     }
 
     /// tsc-port: symbolToString @6.0.3
-    /// tsc-hash: 3a1a15d315589ed9dac69fc722a9a8a657f01ce7e980e097d536b34b12a318fa
+    /// tsc-hash: db59b39300442558c3a8f0e1f1d1681dbfaf0fdb3951350b225677ed4851157e
     /// tsc-span: _tsc.js:50649-50681
     fn symbol_to_string_via_node_builder(
         &mut self,
@@ -1132,6 +1132,7 @@ impl CheckerState<'_> {
         )
     }
 
+    /// tsrs-native: enclosing-kind overload of the isSymbolAccessible port (synthetic enclosing declarations from the harness replay).
     pub(crate) fn emit_is_symbol_accessible_with_enclosing_kind(
         &mut self,
         symbol: SymbolId,
@@ -1150,6 +1151,7 @@ impl CheckerState<'_> {
         )
     }
 
+    /// tsrs-native: isSymbolAccessible entry that records the replay observation for the m-3.5 error-name lane.
     pub(crate) fn emit_is_symbol_accessible_with_observation(
         &mut self,
         symbol: SymbolId,
@@ -1178,6 +1180,7 @@ impl CheckerState<'_> {
         Ok(result)
     }
 
+    /// tsrs-native: records an always-accessible replay observation without re-running the accessibility worker (harness plumbing).
     pub(crate) fn emit_accessible_symbol_observation(
         &mut self,
         symbol: SymbolId,
