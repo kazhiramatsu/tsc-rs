@@ -4412,7 +4412,8 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_2c_acceptance::run_h2_5g(&workspace)?;
     h2_2c_acceptance::run_h2_5h(&workspace)?;
     h2_2c_acceptance::run_h2_6a(&workspace)?;
-    h2_2c_acceptance::run_h2_6b(&workspace)
+    h2_2c_acceptance::run_h2_6b(&workspace)?;
+    h2_2c_acceptance::run_h2_6c(&workspace)
 }
 
 fn h2_5a_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7815,6 +7816,13 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
         || ci_h2_6b_oracle_gates(&workspace),
     )?;
     resume.run_phase(
+        "h2-6c-oracle",
+        local_ci_resume::InputScope::NodeRuntimeOracle,
+        "",
+        &[],
+        || ci_h2_6c_oracle_gates(&workspace),
+    )?;
+    resume.run_phase(
         "h2-owner-controls",
         local_ci_resume::InputScope::Verification,
         "",
@@ -8973,6 +8981,33 @@ fn ci_h2_6b_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .current_dir(workspace)
             .arg("crates/oracle/h2-6b-qualification.mjs")
+            .arg("--check"),
+    )
+}
+
+fn ci_h2_6c_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("--check")
+            .arg("crates/oracle/h2-6c-census.mjs"),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("crates/oracle/h2-6c-census.mjs")
+            .arg("--check"),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("--check")
+            .arg("crates/oracle/h2-6c-qualification.mjs"),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("crates/oracle/h2-6c-qualification.mjs")
             .arg("--check"),
     )
 }
