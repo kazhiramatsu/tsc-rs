@@ -152,7 +152,8 @@ function rustOwnerBoundaryFixture() {
     "h2_2c_acceptance::run_h2_5g(&workspace)?;",
     "h2_2c_acceptance::run_h2_5h(&workspace)?;",
     "h2_2c_acceptance::run_h2_6a(&workspace)?;",
-    "h2_2c_acceptance::run_h2_6b(&workspace)",
+    "h2_2c_acceptance::run_h2_6b(&workspace)?;",
+    "h2_2c_acceptance::run_h2_6c(&workspace)",
   ].map((statement) => `    ${statement}`).join("\n");
   const moduleDeclarations = HOSTED_MODULE_PATHS.map((modulePath) =>
     `mod ${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)};`,
@@ -185,7 +186,7 @@ pub fn run_owner_controls(workspace: &Path) -> Result<(), Box<dyn Error>> {
 `
         : "";
       const targetFunctions = modulePath.endsWith("/h2_2c_acceptance.rs")
-        ? ["run_h2_4a", "run_h2_4b", "run_h2_5a", "run_h2_5b", "run_h2_5c", "run_h2_5d", "run_h2_5e", "run_h2_5f", "run_h2_5g", "run_h2_5h", "run_h2_6a", "run_h2_6b"]
+        ? ["run_h2_4a", "run_h2_4b", "run_h2_5a", "run_h2_5b", "run_h2_5c", "run_h2_5d", "run_h2_5e", "run_h2_5f", "run_h2_5g", "run_h2_5h", "run_h2_6a", "run_h2_6b", "run_h2_6c"]
           .map((functionName) => `
 pub fn ${functionName}(workspace: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
@@ -230,10 +231,6 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
         "ratchets/h2-5h-qualification.v1.json",
       ],
       [
-        ".github/ci/contracts/h2-6a-qualification.schema.json",
-        "ratchets/h2-6a-qualification.v1.json",
-      ],
-      [
         ".github/ci/contracts/h2-5h-a-foundation.schema.json",
         "ratchets/h2-5h-a-foundation.v1.json",
       ],
@@ -262,12 +259,24 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
         "ratchets/h2-6a-witnesses.v1.json",
       ],
       [
+        ".github/ci/contracts/h2-6a-qualification.schema.json",
+        "ratchets/h2-6a-qualification.v1.json",
+      ],
+      [
         ".github/ci/contracts/h2-6b-witnesses.schema.json",
         "ratchets/h2-6b-witnesses.v1.json",
       ],
       [
         ".github/ci/contracts/h2-6b-qualification.schema.json",
         "ratchets/h2-6b-qualification.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-6c-census.schema.json",
+        "ratchets/h2-6c-census.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-6c-qualification.schema.json",
+        "ratchets/h2-6c-qualification.v1.json",
       ],
       [
         ".github/ci/contracts/h2-7a-owner-inventory.schema.json",
@@ -290,6 +299,22 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
         "ratchets/h2-7a-close.v1.json",
       ],
     ],
+  );
+});
+
+test("registered h2 artifact labels follow the chain-walk ORDER", () => {
+  const chainWalk = fs.readFileSync(new URL("../../scripts/chain-walk.sh", import.meta.url), "utf8");
+  const orderBlock = chainWalk.match(/^ORDER=\(\n([\s\S]*?)^\)\n/mu);
+  assert.ok(orderBlock, "chain-walk ORDER is present");
+  const order = orderBlock[1].match(/[a-z0-9-]+/gu) ?? [];
+  const firstPostFiveG = order.indexOf("h2-5g-qualification");
+  assert.notEqual(firstPostFiveG, -1, "chain-walk ORDER has the post-5g boundary");
+  const registered = ARTIFACT_SCHEMA_CONTRACTS.map(({ schema }) =>
+    schema.slice(schema.lastIndexOf("/") + 1).replace(/\.schema\.json$/u, ""),
+  );
+  assert.deepEqual(
+    registered.filter((rung) => order.includes(rung)),
+    order.slice(firstPostFiveG),
   );
 });
 

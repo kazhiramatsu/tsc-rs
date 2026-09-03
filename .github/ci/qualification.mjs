@@ -78,6 +78,7 @@ const HOSTED_ACCEPTANCE_QUALIFIED_CALLS = Object.freeze([
   "h2_2c_acceptance::run_h2_5h",
   "h2_2c_acceptance::run_h2_6a",
   "h2_2c_acceptance::run_h2_6b",
+  "h2_2c_acceptance::run_h2_6c",
 ]);
 
 const HOSTED_ACCEPTANCE_CANONICAL_BODY = [
@@ -109,11 +110,6 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     label: "H2.5h qualification",
     schema: ".github/ci/contracts/h2-5h-qualification.schema.json",
     artifact: "ratchets/h2-5h-qualification.v1.json",
-  }),
-  Object.freeze({
-    label: "H2.6a qualification",
-    schema: ".github/ci/contracts/h2-6a-qualification.schema.json",
-    artifact: "ratchets/h2-6a-qualification.v1.json",
   }),
   Object.freeze({
     label: "H2.5h-a foundation",
@@ -151,6 +147,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     artifact: "ratchets/h2-6a-witnesses.v1.json",
   }),
   Object.freeze({
+    label: "H2.6a qualification",
+    schema: ".github/ci/contracts/h2-6a-qualification.schema.json",
+    artifact: "ratchets/h2-6a-qualification.v1.json",
+  }),
+  Object.freeze({
     label: "H2.6b source-map witnesses",
     schema: ".github/ci/contracts/h2-6b-witnesses.schema.json",
     artifact: "ratchets/h2-6b-witnesses.v1.json",
@@ -159,6 +160,16 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     label: "H2.6b qualification",
     schema: ".github/ci/contracts/h2-6b-qualification.schema.json",
     artifact: "ratchets/h2-6b-qualification.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.6c census",
+    schema: ".github/ci/contracts/h2-6c-census.schema.json",
+    artifact: "ratchets/h2-6c-census.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.6c qualification",
+    schema: ".github/ci/contracts/h2-6c-qualification.schema.json",
+    artifact: "ratchets/h2-6c-qualification.v1.json",
   }),
   Object.freeze({
     label: "H2.7a owner inventory",
