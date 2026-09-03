@@ -19,15 +19,15 @@
 H2.7a first-blocker 0 / chain 0. H2.7b forecast (count-only, recorded not const): first-blocker 1 / chain 2,456.
 
 ## Close artifact — first mint (the walk)
-- generator sha256: `__GEN__`; contract sha256: `__CONTRACT__`; `close_fingerprint_sha256`: `__FP__`
-- `--check` exit 0 twice: `__YES__`; `--selftest` (lane) output recorded in `target/session-notes/ca/lanes/STATUS.md`
+- generator sha256: `98513cda8a8b2c8f574761960b49b4e77e840ff654d36277259bb0c1eb86bac7`; contract sha256: `42a7b5e1e0bac3a47c5943c031fab0fc78db2899c377f81e9579b7b63d99121f`; `close_fingerprint_sha256`: `152b5954e283d07849cb4965a51b88140838724bdb3f9679d4c6f851d5105562`
+- `--check` exit 0 twice: YES (the walk's round-2 check + the tail's qual check; minted in round 1 at ORDER position 70); `--selftest` (lane) output recorded in `target/session-notes/ca/lanes/STATUS-ca-lane.md`
 
 ## Registration surfaces (same commit)
 chain-walk.sh ORDER 69 → 70; plan.rs LADDER_ORDER 70; qualification.mjs + qualification.test.mjs 18 → 19 pairs; pin-index consumer entry (3 semantic + 1 unmatched); contracts.rs `mod h2_7a_ca_controls`; h2-5g-profile.mjs NON_RUNTIME_SHADOW_INPUTS +1 (runtime count stays 241).
 
 ## Landing (separate LAST commit)
-h2-5g-profile.mjs:634-636 (`H2.7b` / `non-bundle-declaration-output` / `H2.7b`) + comment; h2-5g-profile.schema.json:228-230; h2-5h-a-foundation.mjs:1296-1304 + comment. Commit: `__LANDING__`.
+h2-5g-profile.mjs:634-636 (`H2.7b` / `non-bundle-declaration-output` / `H2.7b`) + comment; h2-5g-profile.schema.json:228-230; h2-5h-a-foundation.mjs:1296-1304 + comment. Commit: 6a18bd73 (lane/ca-close; P1 = 0489a6b9; merged into h2/7a-ca as c29edbf5).
 
 ## Walk / gate / PR
-- walk cert `__WALK__` (rounds: `__ROUNDS__`; 5g observations 0: `__YES__`); final-head artifact fingerprints: owner-inventory `__`, witnesses `__`, probe-traces `__`, printer-reprint `__`, close `__`
-- `cargo xtask ci --baseline 424ff3e1`: `__GATE_LINE__`; hosted `gates`: `__HOSTED__`; PR `__CA_PR__` merged `__CA_MERGE__` → H2.7a CLOSED.
+- walk cert `20260903-141336-72734` at c29edbf5 (PRE_SUITE green; round 1 re-minted 8 rungs: h2-5g-profile, the six h2-5h-a artifacts, h2-7a-close; round 2 CLEAN; 5g receipt hit both rounds — observations 0; harness-pins current; 19 contracts valid); re-mint commit 16ab372f. Final-head artifact fingerprints (the four H2.7a artifacts were receipt hits — unchanged): owner-inventory `0a39b0e0149929b51c265617cd55bbfb5d15b9798c06aaa7831ca131f0f28a0e`, witnesses `4088dd1190682ce698a77a47d9df1628e2ef626d1003aef184fbb2292139bc0c`, probe-traces `d1fbac0a70761bac4620b2a076ce38f65f2d408fa4e16d4b100e50d7db657c96`, printer-reprint `fd455be9a6ba9cc91bc0ea500646b189eecc56ef62585078a72f3ce02e38e634`, close `152b5954e283d07849cb4965a51b88140838724bdb3f9679d4c6f851d5105562`
+- `cargo xtask ci --baseline 424ff3e1`, hosted `gates`, and the merge: recorded in the PR #501 body at the final head (the m-4 precedent); merge closes H2.7a.
