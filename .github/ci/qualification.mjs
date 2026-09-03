@@ -196,6 +196,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     schema: ".github/ci/contracts/h2-7a-close.schema.json",
     artifact: "ratchets/h2-7a-close.v1.json",
   }),
+  Object.freeze({
+    label: "H2.7b qualification",
+    schema: ".github/ci/contracts/h2-7b-qualification.schema.json",
+    artifact: "ratchets/h2-7b-qualification.v1.json",
+  }),
 ]);
 
 const JSON_SCHEMA_KEYWORDS = new Set([

@@ -7823,6 +7823,13 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
         || ci_h2_6c_oracle_gates(&workspace),
     )?;
     resume.run_phase(
+        "h2-7b-oracle",
+        local_ci_resume::InputScope::NodeRuntimeOracle,
+        "",
+        &[],
+        || ci_h2_7b_oracle_gates(&workspace),
+    )?;
+    resume.run_phase(
         "h2-owner-controls",
         local_ci_resume::InputScope::Verification,
         "",
@@ -9008,6 +9015,24 @@ fn ci_h2_6c_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .current_dir(workspace)
             .arg("crates/oracle/h2-6c-qualification.mjs")
+            .arg("--check"),
+    )
+}
+
+fn ci_h2_7b_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    // h2-7b m-1 (mid-train fence amendment, packet §9.6): the band census +
+    // qualification machine's freshness check; no runtime activation and no
+    // hosted call until the m-2 rung defines `run_h2_7b`.
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("--check")
+            .arg("crates/oracle/h2-7b-qualification.mjs"),
+    )?;
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("crates/oracle/h2-7b-qualification.mjs")
             .arg("--check"),
     )
 }

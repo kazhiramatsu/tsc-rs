@@ -28,13 +28,13 @@ const INPUT_HASHES = Object.freeze({
   "ratchets/h1-owner-inventory.v1.json":
     "6148160678bf0b34a8310551eac8c9ab3f2afb1cd9260fa8eaa59efadc71abb5",
   "ratchets/h1-rust-omissions.v1.json":
-    "7ae53689d9d7c7264ad841d1480638fb2eb49ad3e278f8c0643e652919c6f1cd",
+    "8447df36c2d023958bf0501cf93f641ea4e443992844ef0bbdc1aa0e68b84bb2",
   "ratchets/h1-emit-profile.v1.json":
     "d7a7d212780ef94cb9675c104ec8d2ca28af95764fa78f8aeb8c7c25885fa7db",
   "ratchets/h1-emit-oracle.v1.json":
     "c0c06a1472c2f49d9d90b733f3d594e737d62d350da9e4c8317d7e2331c0056d",
   "ratchets/h1-emit-qualification.v1.json":
-    "ec2eadee8506c960851784155134fb0972f194fd7e25975d206ea40ebcb9c75a",
+    "2ca53d81e79ed0009797ccae03b39cd010e41e737e66a6a4ebc2483b0f7d4398",
   "vendor/typescript-6.0.3/compiler-profile-classification.v1.json":
     "7158d2e4fac5b6d43ee9382d5dadac7d27e358c86bd532e07b4d1f9ff85ad5b0",
   "vendor/typescript-6.0.3/conformance-profile-classification.v1.json":
@@ -377,9 +377,9 @@ function buildOwnerInventory() {
     dependency_edges: dependencyRows.length,
     rust_converse_rows: rustConverse.length,
     undispositioned_owners: owners.filter((owner) => !owner.owner_slice || !owner.disposition).length,
-    unmapped_rust_converse_rows: rustConverse.filter((row) => row.upstream_owners.length === 0).length,
+    unmapped_rust_converse_rows: rustConverse.filter((row) => row.upstream_owners.length === 0).length, owner_arms: ARM_SPECS.length,
   };
-  requireCondition(summary.owner_roots === 50, `unexpected H2 owner root count ${summary.owner_roots}`);
+  requireCondition(summary.owner_roots === 50 && summary.owner_arms === 4, `unexpected H2 owner root/arm count ${summary.owner_roots}/${summary.owner_arms}`);
   requireCondition(summary.undispositioned_owners === 0, "H2 owner inventory retained an undispositioned owner");
   requireCondition(summary.unmapped_rust_converse_rows === 0, "H2 Rust converse retained an unmapped row");
 
@@ -404,7 +404,7 @@ function buildOwnerInventory() {
     slices: [...new Set(owners.map((entry) => entry.owner_slice))].sort(),
     owners,
     dependencies: dependencyRows,
-    rust_converse: rustConverse,
+    rust_converse: rustConverse, owner_arms: renderOwnerArms(),
     summary,
   };
   return withFingerprint(owner, "inventory_fingerprint_sha256");
@@ -484,6 +484,178 @@ function blockerSlice(blocker) {
   };
   if (feature !== undefined && featureSlices[feature]) return featureSlices[feature];
   throw new Error(`H2.0a has no owner slice for blocker ${blocker}`);
+}
+
+// H2.7b declaration arms are machine-distinct partitions inside the frozen
+// whole-function roots.  They are rendered from the pinned _tsc.js line
+// ranges and deliberately never enter selectedByDeclaration.
+const ARM_SPECS = Object.freeze([
+  Object.freeze({
+    key: "declaration-source-output-paths",
+    source: TSC_SOURCE,
+    enclosure: Object.freeze({
+      name: "getOutputPathsFor",
+      start_line: 116373,
+      range: Object.freeze({ start: 116373, end: 116387 }),
+    }),
+    ranges: Object.freeze([{ start: 116383, end: 116383 }]),
+    shared_lines: Object.freeze([
+      { start: 116381, end: 116381, owners: ["declaration-source-output-paths", "source-output-paths"] },
+      { start: 116385, end: 116385, owners: ["declaration-source-output-paths", "source-output-paths"] },
+    ]),
+    owner_slice: "H2.7b",
+    disposition: "deferred-h2",
+    role: "declaration output path selection arm",
+    activation: "declaration output enabled without the bundle path",
+    consumers: ["source-output-paths", "output-enumeration"],
+    dependencies: [
+      { name: "getDeclarationEmitOutputFilePath", owner: "declaration-output-path" },
+      { name: "getEmitDeclarations", owner: "H2.8b" },
+      { name: "isJsonSourceFile", owner: "H2.8a" },
+      { lines: { start: 116375, end: 116376 }, owner: "bundle-output-paths" },
+      { lines: { start: 116384, end: 116384 }, owner: "H2.7e" },
+    ],
+  }),
+  Object.freeze({
+    key: "declaration-emit",
+    source: TSC_SOURCE,
+    enclosure: Object.freeze({
+      name: "emitFiles",
+      start_line: 116530,
+      range: Object.freeze({ start: 116530, end: 116858 }),
+    }),
+    ranges: Object.freeze([
+      { start: 116640, end: 116640 },
+      { start: 116642, end: 116642 },
+      { start: 116644, end: 116645 },
+      { start: 116649, end: 116649 },
+      { start: 116651, end: 116668 },
+      { start: 116670, end: 116670 },
+      { start: 116672, end: 116679 },
+      { start: 116681, end: 116695 },
+      { start: 116697, end: 116699 },
+      { start: 116703, end: 116708 },
+      { start: 116712, end: 116715 },
+      { start: 116716, end: 116735 },
+    ]),
+    shared_lines: Object.freeze([
+      { start: 116641, end: 116641, owners: ["declaration-emit", "program-emit"] },
+      { start: 116643, end: 116643, owners: ["declaration-emit", "program-emit"] },
+      { start: 116646, end: 116646, owners: ["declaration-emit", "bundle-output-paths"] },
+      { start: 116647, end: 116647, owners: ["declaration-emit", "H2.7c"] },
+      { start: 116648, end: 116648, owners: ["declaration-emit", "bundle-output-paths"] },
+      { start: 116650, end: 116650, owners: ["declaration-emit", "program-emit", "H2.8c"] },
+      { start: 116669, end: 116669, owners: ["declaration-emit", "H2.9"] },
+      { start: 116671, end: 116671, owners: ["declaration-emit", "H2.7c"] },
+      { start: 116696, end: 116696, owners: ["declaration-emit", "H2.7e"] },
+      { start: 116700, end: 116702, owners: ["declaration-emit", "H2.7e"] },
+    ]),
+    owner_slice: "H2.7b",
+    disposition: "deferred-h2",
+    role: "declaration emit orchestration arm",
+    activation: "getEmitDeclarations and declaration output are active",
+    consumers: ["emit-files", "program-emit"],
+    dependencies: [
+      { lines: { start: 116680, end: 116680 }, owner: "H2.7e" },
+      { lines: { start: 116709, end: 116711 }, owner: "H2.7e" },
+      { lines: { start: 116736, end: 116743 }, owner: "H2.8a" },
+      { lines: { start: 116527, end: 116529 }, owner: "H2.8d" },
+      { name: "transformNodes", owner: "transform-runtime" },
+      { name: "getDeclarationTransformers", owner: "declaration-transformer-selection" },
+      { name: "createPrinter", owner: "printer" },
+      { name: "emitResolverSkipsTypeChecking", owner: "H2.8d" },
+      { name: "canIncludeBindAndCheckDiagnostics", owner: "H2.7a" },
+      { name: "printSourceFileOrBundle", owner: "declaration-write" },
+    ],
+  }),
+  Object.freeze({
+    key: "declaration-write",
+    source: TSC_SOURCE,
+    enclosure: Object.freeze({
+      name: "emitFiles",
+      start_line: 116530,
+      range: Object.freeze({ start: 116530, end: 116858 }),
+    }),
+    ranges: Object.freeze([{ start: 116803, end: 116803 }]),
+    shared_lines: Object.freeze([
+      { start: 116744, end: 116749, owners: ["declaration-write", "emit-files"] },
+      { start: 116761, end: 116763, owners: ["declaration-write", "emit-files"] },
+      { start: 116764, end: 116764, owners: ["declaration-write", "H2.7e"] },
+      { start: 116796, end: 116798, owners: ["declaration-write", "emit-files"] },
+      { start: 116799, end: 116802, owners: ["declaration-write", "emit-files"] },
+    ]),
+    owner_slice: "H2.7b",
+    disposition: "deferred-h2",
+    role: "declaration write-result arm",
+    activation: "a declaration printer write reaches the callback",
+    consumers: ["emit-files"],
+    dependencies: [
+      { lines: { start: 116750, end: 116758 }, owner: "H2.7e" },
+      { lines: { start: 116765, end: 116795 }, owner: "H2.7e" },
+      { lines: { start: 116759, end: 116760 }, owner: "bundle-output-paths" },
+      { name: "writeFile", owner: "write-file" },
+      { lines: { start: 116805, end: 116807 }, owner: "H2.8a" },
+    ],
+  }),
+  Object.freeze({
+    key: "declaration-collision-preflight",
+    source: TSC_SOURCE,
+    enclosure: Object.freeze({
+      name: "verifyCompilerOptions",
+      start_line: 124750,
+      range: Object.freeze({ start: 124750, end: 125051 }),
+    }),
+    ranges: Object.freeze([{ start: 125025, end: 125025 }]),
+    shared_lines: Object.freeze([
+      { start: 125022, end: 125024, owners: ["declaration-collision-preflight", "program-emit"] },
+    ]),
+    owner_slice: "H2.7b",
+    disposition: "deferred-h2",
+    role: "declaration output collision preflight arm",
+    activation: "Program.emit verifies a declaration path before writing",
+    consumers: ["program-emit", "emit-files"],
+    dependencies: [
+      { lines: { start: 125018, end: 125021 }, owner: "H2.8a" },
+      { lines: { start: 125026, end: 125027 }, owner: "H2.8a" },
+      { name: "verifyEmitFilePath", owner: "H2.8a" },
+      { lines: { start: 125028, end: 125050 }, owner: "H2.8a" },
+      { name: "blockEmittingOfFile", owner: "H2.8a" },
+      { name: "isEmitBlocked", owner: "H2.8a" },
+    ],
+  }),
+]);
+
+function renderOwnerArms() {
+  return ARM_SPECS.map(({ source, enclosure, ranges, ...arm }) => {
+    const text = fileText(source);
+    const enclosureRange = enclosure.range;
+    requireCondition(
+      enclosure.start_line === enclosureRange.start,
+      `${arm.key} enclosure start line changed`,
+    );
+    requireCondition(
+      enclosureRange.start <= enclosureRange.end,
+      `${arm.key} enclosure range is invalid`,
+    );
+    for (const range of ranges) {
+      requireCondition(
+        range.start >= enclosureRange.start && range.end <= enclosureRange.end,
+        `${arm.key} segment escaped its enclosure`,
+      );
+    }
+    return {
+      ...arm,
+      enclosure: {
+        ...enclosure,
+        range: { ...enclosureRange },
+        sha256: sourceSliceHash(text, enclosureRange.start, enclosureRange.end),
+      },
+      ranges: ranges.map((range) => ({
+        ...range,
+        sha256: sourceSliceHash(text, range.start, range.end),
+      })),
+    };
+  });
 }
 
 function sourceKindSlice(sourcePath) {

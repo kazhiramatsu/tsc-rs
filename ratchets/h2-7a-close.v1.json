@@ -26,29 +26,29 @@
   "inputs": {
     "owner_inventory": {
       "path": "ratchets/h2-7a-owner-inventory.v1.json",
-      "sha256": "85a11e329cca798511846b34628c705031d156378d9b3372947585e73b603db0",
-      "inventory_fingerprint_sha256": "8d89f371ca37dddf6c8d8ad5926a2b8f1de40426046eb07836f60d26b2135fef"
+      "sha256": "b4b215fe9de5df92d774c20f1532431f3e14657d8313c37a1d798abf2780185e",
+      "inventory_fingerprint_sha256": "5e07058912115d8a66dd67316bcf9f18ddc32b696682cf4652cc93925b8fceab"
     },
     "witnesses": {
       "path": "ratchets/h2-7a-witnesses.v1.json",
-      "sha256": "91eced0a48965a3cc2c6884cdcab26e17a7012b6dc228ea5ebbdc92110ea138c",
-      "witnesses_fingerprint_sha256": "e3bea5616d442452cd1d30263e6908bfa548e0971086112ebc04732d842d7360",
+      "sha256": "65b01d645d65a140b31dd3f6ee63add24f51b150179004d7dcb0517c13b9d98c",
+      "witnesses_fingerprint_sha256": "3f72dc690e68f15115ccb5e685ded356ada7183b8f346830aa03da4e08c4ae8b",
       "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
       "case_manifest_fingerprint": "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1"
     },
     "probe_traces": {
       "path": "ratchets/h2-7a-probe-traces.v1.json",
-      "sha256": "b36fa3af8576addcedcaa8432648e0bb774c37579ab7ce4918df1ded15936ca3",
-      "probe_traces_fingerprint_sha256": "63e996b522e0a856036da0aa732299daeb0971c42cc8d1796b5bb97202372313"
+      "sha256": "6edc0ced36c57d061c0c28d92c4da843d1349298909f715fcc43e8f1e264eef8",
+      "probe_traces_fingerprint_sha256": "92ba2983d8fe8d09b05eafdaa3a0563befac63c73a2054e0c403bfc6b0864b1b"
     },
     "printer_reprint": {
       "path": "ratchets/h2-7a-printer-reprint.v1.json",
-      "sha256": "eca75d156126c80cc0c8fc65711b8e002f9322d70e2f4ea1bb361c5bae49be46",
-      "printer_reprint_fingerprint_sha256": "e1e2f196c80926a0dfe265353b679cce6a929af2b2ae0457520b7659fe3e1b87"
+      "sha256": "1508dbed3739154734fb613aea79f39f9379f85900bf8b7acc023adeb51b2796",
+      "printer_reprint_fingerprint_sha256": "3b655915ac5ddb05ed18126897eac3ddf422e5dbb979edd82df1abbfd140c6df"
     },
     "candidate_dispositions": {
       "path": "ratchets/h2-candidate-dispositions.v1.json",
-      "sha256": "cdcf5446e5f676e2fc96f4919d334b5266dbe21f58112b09d921d2b6a9e456c1"
+      "sha256": "ee8dfc2fdeffb36c0543ac9896c262d0bec2cfff475c1b5e49f42964827d50a7"
     }
   },
   "runtime_contract": {
@@ -248,5 +248,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "f52ca4741a8c1327121ea93b378630f79a111d04bf8993ce6ae47be8f1b4f1f4"
+  "close_fingerprint_sha256": "bb64d659425de274d1937f7d41ab2b970c326446c6922e97defb3e6be1cb374d"
 }

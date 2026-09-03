@@ -16,11 +16,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "b9c94ef9ae4ac2b63d31a59ff4a56a265184236ec1262ea5de0946f024e6e99d"
+    "sha256": "4d2a6d989cc1878fd6981898773a9d5b9308b5fbb2c4fab84a4d0d9eeb482b9c"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-owner-inventory.schema.json",
-    "sha256": "65896ac3cfeae0644447fac886d171535a674d25592b47f4d33b9fdd4c2efdf9"
+    "sha256": "f5f692e39816e7288b4ecaa26d74ec207cf64825a08392e2c9ff32ed8a5be584"
   },
   "inputs": {
     "h1_owner_inventory": {
@@ -29,7 +29,7 @@
     },
     "h1_rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "7ae53689d9d7c7264ad841d1480638fb2eb49ad3e278f8c0643e652919c6f1cd"
+      "sha256": "8447df36c2d023958bf0501cf93f641ea4e443992844ef0bbdc1aa0e68b84bb2"
     }
   },
   "closure_model": "complete H2 one-shot compiler owner-root universe plus exact source-symbol references between roots; each runtime slice regenerates the transitive helper closure and may suffix-split independent SCCs before admission",
@@ -2352,6 +2352,474 @@
       "disposition": "shared-h1-seam"
     }
   ],
+  "owner_arms": [
+    {
+      "key": "declaration-source-output-paths",
+      "shared_lines": [
+        {
+          "start": 116381,
+          "end": 116381,
+          "owners": [
+            "declaration-source-output-paths",
+            "source-output-paths"
+          ]
+        },
+        {
+          "start": 116385,
+          "end": 116385,
+          "owners": [
+            "declaration-source-output-paths",
+            "source-output-paths"
+          ]
+        }
+      ],
+      "owner_slice": "H2.7b",
+      "disposition": "deferred-h2",
+      "role": "declaration output path selection arm",
+      "activation": "declaration output enabled without the bundle path",
+      "consumers": [
+        "source-output-paths",
+        "output-enumeration"
+      ],
+      "dependencies": [
+        {
+          "name": "getDeclarationEmitOutputFilePath",
+          "owner": "declaration-output-path"
+        },
+        {
+          "name": "getEmitDeclarations",
+          "owner": "H2.8b"
+        },
+        {
+          "name": "isJsonSourceFile",
+          "owner": "H2.8a"
+        },
+        {
+          "lines": {
+            "start": 116375,
+            "end": 116376
+          },
+          "owner": "bundle-output-paths"
+        },
+        {
+          "lines": {
+            "start": 116384,
+            "end": 116384
+          },
+          "owner": "H2.7e"
+        }
+      ],
+      "enclosure": {
+        "name": "getOutputPathsFor",
+        "start_line": 116373,
+        "range": {
+          "start": 116373,
+          "end": 116387
+        },
+        "sha256": "f3ef9e378ec2b224d2f434b49f6ffd2a9597e7cc102f504653c9027a49c5ebd2"
+      },
+      "ranges": [
+        {
+          "start": 116383,
+          "end": 116383,
+          "sha256": "1df9475d0d687c8adf2b9a2273f8cd2e7c92e6dc6e86cf8ac8df4f4a2101d6e9"
+        }
+      ]
+    },
+    {
+      "key": "declaration-emit",
+      "shared_lines": [
+        {
+          "start": 116641,
+          "end": 116641,
+          "owners": [
+            "declaration-emit",
+            "program-emit"
+          ]
+        },
+        {
+          "start": 116643,
+          "end": 116643,
+          "owners": [
+            "declaration-emit",
+            "program-emit"
+          ]
+        },
+        {
+          "start": 116646,
+          "end": 116646,
+          "owners": [
+            "declaration-emit",
+            "bundle-output-paths"
+          ]
+        },
+        {
+          "start": 116647,
+          "end": 116647,
+          "owners": [
+            "declaration-emit",
+            "H2.7c"
+          ]
+        },
+        {
+          "start": 116648,
+          "end": 116648,
+          "owners": [
+            "declaration-emit",
+            "bundle-output-paths"
+          ]
+        },
+        {
+          "start": 116650,
+          "end": 116650,
+          "owners": [
+            "declaration-emit",
+            "program-emit",
+            "H2.8c"
+          ]
+        },
+        {
+          "start": 116669,
+          "end": 116669,
+          "owners": [
+            "declaration-emit",
+            "H2.9"
+          ]
+        },
+        {
+          "start": 116671,
+          "end": 116671,
+          "owners": [
+            "declaration-emit",
+            "H2.7c"
+          ]
+        },
+        {
+          "start": 116696,
+          "end": 116696,
+          "owners": [
+            "declaration-emit",
+            "H2.7e"
+          ]
+        },
+        {
+          "start": 116700,
+          "end": 116702,
+          "owners": [
+            "declaration-emit",
+            "H2.7e"
+          ]
+        }
+      ],
+      "owner_slice": "H2.7b",
+      "disposition": "deferred-h2",
+      "role": "declaration emit orchestration arm",
+      "activation": "getEmitDeclarations and declaration output are active",
+      "consumers": [
+        "emit-files",
+        "program-emit"
+      ],
+      "dependencies": [
+        {
+          "lines": {
+            "start": 116680,
+            "end": 116680
+          },
+          "owner": "H2.7e"
+        },
+        {
+          "lines": {
+            "start": 116709,
+            "end": 116711
+          },
+          "owner": "H2.7e"
+        },
+        {
+          "lines": {
+            "start": 116736,
+            "end": 116743
+          },
+          "owner": "H2.8a"
+        },
+        {
+          "lines": {
+            "start": 116527,
+            "end": 116529
+          },
+          "owner": "H2.8d"
+        },
+        {
+          "name": "transformNodes",
+          "owner": "transform-runtime"
+        },
+        {
+          "name": "getDeclarationTransformers",
+          "owner": "declaration-transformer-selection"
+        },
+        {
+          "name": "createPrinter",
+          "owner": "printer"
+        },
+        {
+          "name": "emitResolverSkipsTypeChecking",
+          "owner": "H2.8d"
+        },
+        {
+          "name": "canIncludeBindAndCheckDiagnostics",
+          "owner": "H2.7a"
+        },
+        {
+          "name": "printSourceFileOrBundle",
+          "owner": "declaration-write"
+        }
+      ],
+      "enclosure": {
+        "name": "emitFiles",
+        "start_line": 116530,
+        "range": {
+          "start": 116530,
+          "end": 116858
+        },
+        "sha256": "62e93c3a8e9e2840b759bbaa0fa6de5e548ebd565748dbbddb47a933a1cf442c"
+      },
+      "ranges": [
+        {
+          "start": 116640,
+          "end": 116640,
+          "sha256": "5890043660be29b44d8901804a7187d093bd6f86b53bd94bae10229afdb77d42"
+        },
+        {
+          "start": 116642,
+          "end": 116642,
+          "sha256": "a5e8edb0dfe77c7fa14fce710ed4a70e8e4c62f4cca3b95f5c699b4e5b45986f"
+        },
+        {
+          "start": 116644,
+          "end": 116645,
+          "sha256": "895b9838195efc5ed0a8bcd7a8cdf50ecd8880791724601f1b1c916173c7436e"
+        },
+        {
+          "start": 116649,
+          "end": 116649,
+          "sha256": "563e487f8f3bc831567ef1a6492c589829b1c2925dc4208ff651ee38361c1305"
+        },
+        {
+          "start": 116651,
+          "end": 116668,
+          "sha256": "8daeff2535e1767fa7498da9b58cb95a69b3a0fb2545ee835089808797a860e8"
+        },
+        {
+          "start": 116670,
+          "end": 116670,
+          "sha256": "c77656ede19ddc004e67cd1424f8e471274cea8de7f4d5461091688ec31c8d98"
+        },
+        {
+          "start": 116672,
+          "end": 116679,
+          "sha256": "abc877e6d4573ed8c61cda575bc2e21868d012e4ba26c289e4128a96203e4ba6"
+        },
+        {
+          "start": 116681,
+          "end": 116695,
+          "sha256": "f5b426c869e98efdcb7bcd4ec8157ee2e0d1fc71f7d19e52634fe4a36ccace82"
+        },
+        {
+          "start": 116697,
+          "end": 116699,
+          "sha256": "4ff0009db6ddd1ac16840f3df8473ad932cacac5dbe2c7c7b742e46ade9b3c1a"
+        },
+        {
+          "start": 116703,
+          "end": 116708,
+          "sha256": "4d22450b429a9976d65fce0b78d917123b096fdda2899d5d0861ef919ee4ec99"
+        },
+        {
+          "start": 116712,
+          "end": 116715,
+          "sha256": "d0eb18e967d8794e4a279b81c05476b681d500f21617e8d14ca6671286aa2a17"
+        },
+        {
+          "start": 116716,
+          "end": 116735,
+          "sha256": "4e2c2a3777eb8c8337cfbe0780bdfc63b4a49564bf6bd7c34e720fd69ec72c5b"
+        }
+      ]
+    },
+    {
+      "key": "declaration-write",
+      "shared_lines": [
+        {
+          "start": 116744,
+          "end": 116749,
+          "owners": [
+            "declaration-write",
+            "emit-files"
+          ]
+        },
+        {
+          "start": 116761,
+          "end": 116763,
+          "owners": [
+            "declaration-write",
+            "emit-files"
+          ]
+        },
+        {
+          "start": 116764,
+          "end": 116764,
+          "owners": [
+            "declaration-write",
+            "H2.7e"
+          ]
+        },
+        {
+          "start": 116796,
+          "end": 116798,
+          "owners": [
+            "declaration-write",
+            "emit-files"
+          ]
+        },
+        {
+          "start": 116799,
+          "end": 116802,
+          "owners": [
+            "declaration-write",
+            "emit-files"
+          ]
+        }
+      ],
+      "owner_slice": "H2.7b",
+      "disposition": "deferred-h2",
+      "role": "declaration write-result arm",
+      "activation": "a declaration printer write reaches the callback",
+      "consumers": [
+        "emit-files"
+      ],
+      "dependencies": [
+        {
+          "lines": {
+            "start": 116750,
+            "end": 116758
+          },
+          "owner": "H2.7e"
+        },
+        {
+          "lines": {
+            "start": 116765,
+            "end": 116795
+          },
+          "owner": "H2.7e"
+        },
+        {
+          "lines": {
+            "start": 116759,
+            "end": 116760
+          },
+          "owner": "bundle-output-paths"
+        },
+        {
+          "name": "writeFile",
+          "owner": "write-file"
+        },
+        {
+          "lines": {
+            "start": 116805,
+            "end": 116807
+          },
+          "owner": "H2.8a"
+        }
+      ],
+      "enclosure": {
+        "name": "emitFiles",
+        "start_line": 116530,
+        "range": {
+          "start": 116530,
+          "end": 116858
+        },
+        "sha256": "62e93c3a8e9e2840b759bbaa0fa6de5e548ebd565748dbbddb47a933a1cf442c"
+      },
+      "ranges": [
+        {
+          "start": 116803,
+          "end": 116803,
+          "sha256": "f131b54af793e0b9bd8452d358a3fc1a548e75b96eb38ec8e72d314654d2e221"
+        }
+      ]
+    },
+    {
+      "key": "declaration-collision-preflight",
+      "shared_lines": [
+        {
+          "start": 125022,
+          "end": 125024,
+          "owners": [
+            "declaration-collision-preflight",
+            "program-emit"
+          ]
+        }
+      ],
+      "owner_slice": "H2.7b",
+      "disposition": "deferred-h2",
+      "role": "declaration output collision preflight arm",
+      "activation": "Program.emit verifies a declaration path before writing",
+      "consumers": [
+        "program-emit",
+        "emit-files"
+      ],
+      "dependencies": [
+        {
+          "lines": {
+            "start": 125018,
+            "end": 125021
+          },
+          "owner": "H2.8a"
+        },
+        {
+          "lines": {
+            "start": 125026,
+            "end": 125027
+          },
+          "owner": "H2.8a"
+        },
+        {
+          "name": "verifyEmitFilePath",
+          "owner": "H2.8a"
+        },
+        {
+          "lines": {
+            "start": 125028,
+            "end": 125050
+          },
+          "owner": "H2.8a"
+        },
+        {
+          "name": "blockEmittingOfFile",
+          "owner": "H2.8a"
+        },
+        {
+          "name": "isEmitBlocked",
+          "owner": "H2.8a"
+        }
+      ],
+      "enclosure": {
+        "name": "verifyCompilerOptions",
+        "start_line": 124750,
+        "range": {
+          "start": 124750,
+          "end": 125051
+        },
+        "sha256": "fc7806b2076792cd537fd8623983e04f9347a8630cb7403534f84b3cbaa00a1c"
+      },
+      "ranges": [
+        {
+          "start": 125025,
+          "end": 125025,
+          "sha256": "c772477bbd1f6fdf23684463952333eec16ab387524ad2b82ea3da1bc5a3a013"
+        }
+      ]
+    }
+  ],
   "summary": {
     "owner_roots": 50,
     "closed_h1_roots": 1,
@@ -2360,7 +2828,8 @@
     "dependency_edges": 46,
     "rust_converse_rows": 14,
     "undispositioned_owners": 0,
-    "unmapped_rust_converse_rows": 0
+    "unmapped_rust_converse_rows": 0,
+    "owner_arms": 4
   },
-  "inventory_fingerprint_sha256": "fbee69330958cfdc073064da163d4fce4aa677e651a3f01c337e4e6c342c5dd4"
+  "inventory_fingerprint_sha256": "3cb2128e3a88ac3210ada9121f759946953e2aa6c0dddf02eff82aa56b83b3db"
 }
