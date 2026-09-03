@@ -191,7 +191,7 @@ const EXPECTED_MEMBER_COUNTS: &[(&str, [u64; 5])] = &[
         "resolver.createReturnTypeOfSignatureDeclaration",
         [151, 0, 0, 0, 0],
     ),
-    ("resolver.createTypeOfDeclaration", [313, 0, 7, 0, 0]),
+    ("resolver.createTypeOfDeclaration", [320, 0, 0, 0, 0]),
     ("resolver.createTypeOfExpression", [4, 0, 0, 0, 0]),
     (
         "resolver.getDeclarationStatementsForSourceFile",
@@ -223,7 +223,7 @@ const EXPECTED_PRINTED_COUNTS: &[(&str, [u64; 3])] = &[
         "resolver.createReturnTypeOfSignatureDeclaration",
         [151, 0, 0],
     ),
-    ("resolver.createTypeOfDeclaration", [313, 7, 0]),
+    ("resolver.createTypeOfDeclaration", [320, 0, 0]),
     ("resolver.createTypeOfExpression", [4, 0, 0]),
     ("resolver.getDeclarationStatementsForSourceFile", [3, 0, 0]),
 ];
@@ -234,74 +234,74 @@ const EXPECTED_ERROR_NAME_TOTALS: &[(&str, u64)] = &[
 ];
 
 #[derive(Debug, Deserialize)]
-struct WitnessArtifact {
-    observation_content_roll_sha256: String,
-    case_manifest: CaseManifest,
+pub(super) struct WitnessArtifact {
+    pub(super) observation_content_roll_sha256: String,
+    pub(super) case_manifest: CaseManifest,
 }
 
 #[derive(Debug, Deserialize)]
-struct CaseManifest {
-    case_manifest_fingerprint: String,
-    cases: Vec<ManifestCase>,
+pub(super) struct CaseManifest {
+    pub(super) case_manifest_fingerprint: String,
+    pub(super) cases: Vec<ManifestCase>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ManifestCase {
-    case_id: String,
-    suite: String,
-    fixture_id: String,
-    matrix: CaseMatrix,
-    option_record: Value,
-    input_files: Vec<ManifestInput>,
+pub(super) struct ManifestCase {
+    pub(super) case_id: String,
+    pub(super) suite: String,
+    pub(super) fixture_id: String,
+    pub(super) matrix: CaseMatrix,
+    pub(super) option_record: Value,
+    pub(super) input_files: Vec<ManifestInput>,
 }
 
 #[derive(Debug, Deserialize)]
-struct CaseMatrix {
-    configuration_index: Option<u32>,
+pub(super) struct CaseMatrix {
+    pub(super) configuration_index: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ManifestInput {
-    path: String,
-    sha256: String,
+pub(super) struct ManifestInput {
+    pub(super) path: String,
+    pub(super) sha256: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct ProbeArtifact {
-    case_manifest_fingerprint: String,
-    witnesses: PathHash,
-    summary: ProbeSummary,
-    cases: Vec<ProbeCase>,
+pub(super) struct PathHash {
+    pub(super) sha256: String,
 }
 
 #[derive(Debug, Deserialize)]
-struct PathHash {
-    sha256: String,
+pub(super) struct ProbeArtifact {
+    pub(super) witnesses: PathHash,
+    pub(super) case_manifest_fingerprint: String,
+    pub(super) summary: ProbeSummary,
+    pub(super) cases: Vec<ProbeCase>,
 }
 
 #[derive(Debug, Deserialize)]
-struct ProbeSummary {
-    cases: u64,
-    trace_content_roll: String,
-    printed_results: u64,
-    printed_results_roll: String,
-    per_site_counts: BTreeMap<String, u64>,
+pub(super) struct ProbeSummary {
+    pub(super) cases: u64,
+    pub(super) trace_content_roll: String,
+    pub(super) printed_results: u64,
+    pub(super) printed_results_roll: String,
+    pub(super) per_site_counts: BTreeMap<String, u64>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
-struct ProbeCase {
-    case_id: String,
+pub(super) struct ProbeCase {
+    pub(super) case_id: String,
     #[serde(rename = "fileTable")]
-    file_table: Value,
-    trace_events: Value,
-    printed_results: Value,
+    pub(super) file_table: Value,
+    pub(super) trace_events: Value,
+    pub(super) printed_results: Value,
 }
 
-struct ProjectedInputs {
-    libs: Vec<InputFile>,
-    files: Vec<InputFile>,
-    options: CompilerOptions,
-    current_directory: String,
+pub(super) struct ProjectedInputs {
+    pub(super) libs: Vec<InputFile>,
+    pub(super) files: Vec<InputFile>,
+    pub(super) options: CompilerOptions,
+    pub(super) current_directory: String,
 }
 
 #[test]
@@ -382,7 +382,7 @@ fn declaration_resolver_replay_decision_equal() {
     );
 }
 
-fn workspace_root() -> PathBuf {
+pub(super) fn workspace_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
@@ -390,7 +390,7 @@ fn limits() -> ProgramLoadLimits {
     ProgramLoadLimits::new(128, 1_024, 32, 8 * 1_024 * 1_024, 64 * 1_024 * 1_024)
 }
 
-fn assert_frozen_artifact_identity(witnesses: &WitnessArtifact, probes: &ProbeArtifact) {
+pub(super) fn assert_frozen_artifact_identity(witnesses: &WitnessArtifact, probes: &ProbeArtifact) {
     assert_eq!(
         witnesses.case_manifest.case_manifest_fingerprint,
         EXPECTED_MANIFEST_FINGERPRINT
@@ -423,7 +423,8 @@ fn assert_frozen_artifact_identity(witnesses: &WitnessArtifact, probes: &ProbeAr
     );
     // The probe->witness binding: the probe pins the exact witness
     // artifact bytes it observed against; assert the pin matches the
-    // checked-in witness file so the pair cannot drift apart.
+    // checked-in witness file so the pair cannot drift apart (the m-4 E3
+    // cascade re-minted the probe on the moved witness pin).
     assert_eq!(probes.witnesses.sha256, sha256(WITNESSES));
     assert_eq!(witnesses.case_manifest.cases.len(), 120);
     assert_eq!(probes.summary.cases, 120);
@@ -1143,7 +1144,7 @@ fn trace_args(event: &Value) -> Result<&[Value], String> {
         .ok_or_else(|| "trace event lacks args".to_owned())
 }
 
-fn expand_case(
+pub(super) fn expand_case(
     workspace: &Path,
     case: &ManifestCase,
     corpus: &UpstreamExecutionCorpus,
@@ -1427,7 +1428,7 @@ fn parse_directive(line: &str) -> Option<(&str, &str)> {
     (!name.is_empty()).then_some((name, value.trim()))
 }
 
-fn verify_expanded_inputs(case: &ManifestCase, prepared: &PreparedProgram) {
+pub(super) fn verify_expanded_inputs(case: &ManifestCase, prepared: &PreparedProgram) {
     for expected in &case.input_files {
         let matches = prepared
             .source_files()
@@ -1451,7 +1452,7 @@ fn verify_expanded_inputs(case: &ManifestCase, prepared: &PreparedProgram) {
     }
 }
 
-fn project_replay_request(
+pub(super) fn project_replay_request(
     prepared: &PreparedProgram,
     source_paths: &[String],
     file_table: &Value,
@@ -1575,7 +1576,10 @@ fn project_lib_node_positions(
     }
 }
 
-fn project_checker_inputs(prepared: &PreparedProgram, case: &ManifestCase) -> ProjectedInputs {
+pub(super) fn project_checker_inputs(
+    prepared: &PreparedProgram,
+    case: &ManifestCase,
+) -> ProjectedInputs {
     let library_ids = prepared.library_files();
     let mut libs = Vec::with_capacity(library_ids.len());
     for (position, source_file) in library_ids.iter().copied().enumerate() {
@@ -1860,6 +1864,6 @@ fn assert_excluded_causality(actual: &Value) {
     );
 }
 
-fn sha256(bytes: &[u8]) -> String {
+pub(super) fn sha256(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }

@@ -1,8 +1,8 @@
 use super::*;
 use crate::state::test_support::with_program_state;
 use tsc_emitter::{
-    EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitSymbolTracker, SourceFileId,
-    TransformArena,
+    EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitResolverNode, EmitSymbolTracker,
+    SourceFileId, TransformArena,
 };
 use tsc_types::CompilerOptions;
 
@@ -86,6 +86,7 @@ fn dm_serialize_type_of_declaration() {
                     root,
                     EmitNodeBuilderFlags::DECLARATION_EMIT,
                     EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                    None,
                     &mut tracker,
                 )
                 .expect("serialization succeeds")
@@ -106,11 +107,95 @@ fn dm_serialize_type_of_declaration() {
                 root,
                 EmitNodeBuilderFlags::DECLARATION_EMIT,
                 EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                None,
                 &mut tracker,
             )
             .expect("fallback succeeds")
             .expect("fallback token");
         assert_eq!(node_kind(arena, target, node), SyntaxKind::AnyKeyword);
+    });
+}
+
+#[test]
+fn dm_serialize_type_of_expando_property_in_synthetic_scope() {
+    with_member_state("function f() {}\nf.x = 1;", |checker, arena, target| {
+        let function = statement_at(checker, 0);
+        let properties = checker
+            .emit_get_properties_of_container_function(function, 0)
+            .expect("container properties resolve");
+        let declaration = properties
+            .iter()
+            .find(|property| property.name == "x")
+            .and_then(|property| property.value_declaration)
+            .expect("expando property declaration")
+            .node();
+        let root = checker.binder.source(0).root;
+        let mut tracker = NoopTracker;
+        let node = checker
+            .emit_create_type_of_declaration_in_expando_scope(
+                arena,
+                target,
+                declaration,
+                function,
+                root,
+                EmitNodeBuilderFlags::DECLARATION_EMIT,
+                EmitInternalNodeBuilderFlags::DECLARATION_EMIT
+                    .union(EmitInternalNodeBuilderFlags::NO_SYNTACTIC_PRINTER),
+                &mut tracker,
+            )
+            .expect("expando serialization succeeds")
+            .expect("expando property type serializes");
+        assert_eq!(node_kind(arena, target, node), SyntaxKind::NumberKeyword);
+    });
+}
+
+#[test]
+fn dm_symbol_declaration_order_facts_follow_binder_declarations() {
+    let options = CompilerOptions::default();
+    let source = tsc_syntax::parse_source_file(
+        "/main.ts".to_owned(),
+        "function f(x: string): string;\n\
+         function f(x: number): number;\n\
+         function f(x: unknown) { return x; }"
+            .to_owned(),
+        Default::default(),
+        None,
+    );
+    let NodeData::SourceFile(data) = &source.arena.node(source.root).data else {
+        panic!("source file expected")
+    };
+    let declarations = source
+        .arena
+        .node_array(data.statements.expect("statements"))
+        .nodes
+        .clone();
+    let mut binder = tsc_binder::Binder::with_bases(&source, &options, 1, 0);
+    binder.bind_source_file();
+    let mut state = CheckerState::from_program(vec![&binder], &options);
+    state.merge_module_augmentations();
+    let session = crate::emit::CheckerSession::from_checked_state(state);
+
+    session.with_emit_resolver(|resolver| {
+        let node = |node| EmitResolverNode::from_raw_source(0, node);
+        assert!(!resolver
+            .is_last_bodiless_overload_of_symbol(node(declarations[0]))
+            .expect("first overload fact"));
+        assert!(resolver
+            .is_last_bodiless_overload_of_symbol(node(declarations[1]))
+            .expect("last overload fact"));
+        assert!(resolver
+            .is_last_bodiless_overload_of_symbol(node(declarations[2]))
+            .expect("implementation fact"));
+
+        assert!(resolver
+            .is_first_declaration_of_symbol(node(declarations[0]))
+            .expect("first declaration fact"));
+        assert!(!resolver
+            .is_first_declaration_of_symbol(node(declarations[1]))
+            .expect("second declaration fact"));
+        assert!(!resolver
+            .is_first_declaration_of_symbol(node(declarations[2]))
+            .expect("implementation declaration fact"));
     });
 }
 

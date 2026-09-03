@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use tsc_program::{ResolutionMode, SourceFileId};
-use tsc_syntax::SourceFile;
+use tsc_syntax::{FileReference, SourceFile};
 use tsc_types::CompilerOptions;
 
 /// Borrowed, read-only facts for one Program source visible to emission.
@@ -81,6 +81,28 @@ pub trait EmitHost {
     fn use_case_sensitive_file_names(&self) -> bool;
     fn source_file_ids(&self) -> &[SourceFileId];
     fn source_file(&self, id: SourceFileId) -> Option<EmitSource<'_>>;
+
+    /// Resolve a preserved triple-slash path reference against its containing
+    /// source. Hosts with redirect-aware Program resolution may override this
+    /// lexical default; the declaration transformer observes only the resolved
+    /// source identity.
+    ///
+    /// tsc-port: getSourceFileFromReference @6.0.3
+    /// tsc-hash: fd088e64de540c2728db419ad570897cc4baebd184a4c4b847a66537bd43f0cf
+    /// tsc-span: _tsc.js:124170-124172
+    fn source_file_from_reference(
+        &self,
+        referencing_file: SourceFileId,
+        reference: &FileReference,
+    ) -> Option<EmitSource<'_>> {
+        let referencing = self.source_file(referencing_file)?;
+        let directory = referencing.path().parent().unwrap_or_else(|| Path::new(""));
+        let target = self.canonical_output_path(&directory.join(&reference.file_name));
+        self.source_file_ids().iter().find_map(|&id| {
+            let candidate = self.source_file(id)?;
+            (candidate.canonical_path() == target).then_some(candidate)
+        })
+    }
 
     /// tsc-port: getEmitModuleFormatOfFileWorker @6.0.3
     /// tsc-hash: ffe7b58092e4af38c9484bef12201ef7524d2e3d26ba829ea59087f1a2c0d2a1

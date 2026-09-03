@@ -562,7 +562,8 @@
         "reached_rows",
         "reached_by_surface",
         "option_rows",
-        "unresolved_candidates"
+        "unresolved_candidates",
+        "m4_anchors"
       ],
       "properties": {
         "total_rows": {
@@ -834,6 +835,30 @@
         },
         "unresolved_candidates": {
           "const": 0
+        },
+        "m4_anchors": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "rows",
+            "anchored",
+            "header_verified"
+          ],
+          "properties": {
+            "rows": {
+              "const": 68
+            },
+            "anchored": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 68
+            },
+            "header_verified": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 68
+            }
+          }
         }
       }
     }

@@ -2,9 +2,10 @@ use std::collections::BTreeMap;
 
 use tsc_program::SourceFileId;
 use tsc_syntax::nodes::*;
+use tsc_syntax::FileReference;
 use tsc_syntax::{
     for_each_observable_field, try_visit_each_child, Node, NodeArray, NodeArrayId, NodeData,
-    NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind,
+    NodeDataChildVisitor, NodeId, ObservableField, SourceFile, SyntaxKind, TypeReferenceDirective,
 };
 use tsc_types::{ModifierFlags, NodeFlags};
 
@@ -5126,6 +5127,29 @@ impl<'arena> NodeFactory<'arena> {
         Ok(clone)
     }
 
+    /// tsrs-native: cross-kind declaration creation must retain the original
+    /// node's arena-owned JSDoc array (h2-7a-m-4 §5.12).
+    pub(crate) fn set_js_doc_from_original(
+        &mut self,
+        updated: TransformNode,
+        original: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        if updated.source != original.source {
+            return Err(TransformError::CrossSourceNode {
+                expected: original.source,
+                actual: updated.source,
+            });
+        }
+        let js_doc = self.arena.node(original)?.js_doc;
+        self.arena
+            .source_mut(updated.source)?
+            .source
+            .arena
+            .node_mut(updated.node)
+            .js_doc = js_doc;
+        Ok(updated)
+    }
+
     /// Clone a reused syntax subtree into another mounted source while
     /// preserving its original-chain projection.
     ///
@@ -6066,6 +6090,1031 @@ impl<'arena> NodeFactory<'arena> {
         record.pos = pos;
         record.end = end;
         Ok(node)
+    }
+
+    /// tsc-port: getGeneratedNameForNode @6.0.3
+    /// tsc-hash: 7aeec7c8966a869665e0b8f01a41cd52e75bc957006170fd446ea819be9a6ea0
+    /// tsc-span: _tsc.js:21652-21666
+    pub fn get_generated_name_for_node(
+        &mut self,
+        node: TransformNode,
+        flags: GeneratedIdentifierFlags,
+        prefix: Option<&str>,
+        suffix: Option<&str>,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.arena.node(node)?;
+        // `isMemberName` in the upstream helper is deliberately narrower than
+        // the literal-node family: string/numeric literals use the stable
+        // generated@NodeId spelling even when their text happens to look like
+        // an identifier.
+        let base = match &record.data {
+            NodeData::Identifier(data) => data.text.clone(),
+            NodeData::PrivateIdentifier(data) => data.text.clone(),
+            _ => format!("generated@{}", node.node.0),
+        };
+        let mut text = String::new();
+        if let Some(prefix) = prefix {
+            text.push_str(prefix);
+        }
+        text.push_str(&base);
+        if let Some(suffix) = suffix {
+            text.push_str(suffix);
+        }
+        let flags = if prefix.is_some() || suffix.is_some() {
+            flags | GeneratedIdentifierFlags::OPTIMISTIC
+        } else {
+            flags
+        };
+        let generated = self.create_unique_name(node.source, text, flags)?;
+        self.arena.set_original_node(generated, Some(node))?;
+        Ok(generated)
+    }
+
+    /// Create the automatic temporary spelling used by
+    /// `getGeneratedNameForNode` for a non-member source node.
+    ///
+    /// tsc-port: getGeneratedNameForNode @6.0.3 (non-member default-flag arm)
+    /// tsc-hash: 7aeec7c8966a869665e0b8f01a41cd52e75bc957006170fd446ea819be9a6ea0
+    /// tsc-span: _tsc.js:21652-21666
+    pub fn get_generated_name_for_non_member_node(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let generated = self.create_identifier(node.source, "")?;
+        let binding = self.arena.allocate_generated_binding_id();
+        self.arena
+            .metadata_mut(generated)
+            .set_generated_binding_id(binding);
+        self.arena.set_original_node(generated, Some(node))?;
+        Ok(generated)
+    }
+
+    /// tsc-port: createObjectBindingPattern @6.0.3
+    /// tsc-hash: 23d7a5579cd4dfaa4635b01de2c532bbaeabc4068a99d8ababa9f708fc61c827
+    /// tsc-span: _tsc.js:22407-22415
+    ///
+    /// The m-3.5 census carried only this face's classifier header, not a
+    /// callable typed constructor.
+    pub fn create_object_binding_pattern(
+        &mut self,
+        source: TransformSourceId,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let mut flags = self.children_flags(Some(elements))?
+            | TransformFlags::CONTAINS_ES_2015
+            | TransformFlags::CONTAINS_BINDING_PATTERN;
+        if flags.contains(TransformFlags::CONTAINS_REST_OR_SPREAD) {
+            flags |=
+                TransformFlags::CONTAINS_ES_2018 | TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD;
+        }
+        self.create_node(
+            source,
+            NodeData::ObjectBindingPattern(ObjectBindingPatternData {
+                elements: Some(self.array_id(source, elements)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateObjectBindingPattern @6.0.3
+    /// tsc-hash: a1877f7e9c670537afcd95fa37782cc6ceb2f526f24b395c6a82041793550d3f
+    /// tsc-span: _tsc.js:22416-22418
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_object_binding_pattern(
+        &mut self,
+        original: TransformNode,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ObjectBindingPattern(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ObjectBindingPattern,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.elements == Some(elements.array) {
+            return Ok(original);
+        }
+        let updated = self.create_object_binding_pattern(original.source, elements)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: createArrayBindingPattern @6.0.3
+    /// tsc-hash: bfaf580f0cf09f3625153d01c95fece6e5bed1ef4870c7b59651a14268e6a21c
+    /// tsc-span: _tsc.js:22419-22424
+    ///
+    /// Binding-pattern creation paired with `create_object_binding_pattern`.
+    pub fn create_array_binding_pattern(
+        &mut self,
+        source: TransformSourceId,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let flags = self.children_flags(Some(elements))?
+            | TransformFlags::CONTAINS_ES_2015
+            | TransformFlags::CONTAINS_BINDING_PATTERN;
+        self.create_node(
+            source,
+            NodeData::ArrayBindingPattern(ArrayBindingPatternData {
+                elements: Some(self.array_id(source, elements)?),
+            }),
+            flags,
+        )
+    }
+
+    /// tsc-port: updateArrayBindingPattern @6.0.3
+    /// tsc-hash: ae9ab75e1a9b7dcc480dc265373b88b3e065b2ab608c71268602266ff8d74d2e
+    /// tsc-span: _tsc.js:22425-22427
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_array_binding_pattern(
+        &mut self,
+        original: TransformNode,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ArrayBindingPattern(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ArrayBindingPattern,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.elements == Some(elements.array) {
+            return Ok(original);
+        }
+        let updated = self.create_array_binding_pattern(original.source, elements)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateCallSignature @6.0.3
+    /// tsc-hash: c49efe9cf9993da89238c41a22c7e8c289df6ec7458c3dcd14f401a91df53fee
+    /// tsc-span: _tsc.js:22087-22089
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_call_signature(
+        &mut self,
+        original: TransformNode,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::CallSignature(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::CallSignature,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.parameters == Some(parameters.array)
+            && data.r#type == r#type.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated =
+            self.create_call_signature(original.source, type_parameters, parameters, r#type)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateConstructSignature @6.0.3
+    /// tsc-hash: 59110741e7881d179ddb838f6377163dda60c2a66b4c8fdae0dd62c198920817
+    /// tsc-span: _tsc.js:22102-22104
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_construct_signature(
+        &mut self,
+        original: TransformNode,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ConstructSignature(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ConstructSignature,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.parameters == Some(parameters.array)
+            && data.r#type == r#type.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated =
+            self.create_construct_signature(original.source, type_parameters, parameters, r#type)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateIndexSignature @6.0.3
+    /// tsc-hash: 8e2eedfa4017cbd1f9e101cda70f9ea752b509f0cf6d03733ebc3a20402e3602
+    /// tsc-span: _tsc.js:22117-22119
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_index_signature(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::IndexSignature(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::IndexSignature,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.parameters == Some(parameters.array)
+            && data.r#type == Some(r#type.node)
+        {
+            return Ok(original);
+        }
+        let updated =
+            self.create_index_signature(original.source, modifiers, parameters, r#type)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateFunctionTypeNode @6.0.3
+    /// tsc-hash: e278aa99e2ebfb90ef9964f8e9bc9856f0061b63a0bfe74fb8048282003060b0
+    /// tsc-span: _tsc.js:22167-22169
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_function_type_node(
+        &mut self,
+        original: TransformNode,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::FunctionType(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::FunctionType,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.parameters == Some(parameters.array)
+            && data.r#type == Some(r#type.node)
+        {
+            return Ok(original);
+        }
+        let modifiers = data.modifiers;
+        let updated =
+            self.create_function_type_node(original.source, type_parameters, parameters, r#type)?;
+        if let NodeData::FunctionType(updated_data) = &mut self
+            .arena
+            .source_mut(updated.source)?
+            .source
+            .arena
+            .node_mut(updated.node)
+            .data
+        {
+            updated_data.modifiers = modifiers;
+        }
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateConstructorTypeNode @6.0.3
+    /// tsc-hash: 53812dd5f88b1561212ad4eeb0d33c849f9eba8c1cad7b59319dbfeb1a1a64ed
+    /// tsc-span: _tsc.js:22201-22203
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_constructor_type_node(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ConstructorType(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ConstructorType,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.parameters == Some(parameters.array)
+            && data.r#type == Some(r#type.node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_constructor_type_node(
+            original.source,
+            modifiers,
+            type_parameters,
+            parameters,
+            r#type,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateLiteralTypeNode @6.0.3
+    /// tsc-hash: 298b40fa2ea6b8f79d877d670c29066ad61d87e29b4615626bce3ea0c7d1f698
+    /// tsc-span: _tsc.js:22404-22406
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_literal_type_node(
+        &mut self,
+        original: TransformNode,
+        literal: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::LiteralType(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::LiteralType,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.literal == Some(literal.node) {
+            return Ok(original);
+        }
+        let updated = self.create_literal_type_node(original.source, literal)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateExpressionWithTypeArguments @6.0.3
+    /// tsc-hash: 419b692ee8529550e84aa5a83ca2ecc21844853e3c24e60ed3efa404125bfb4e
+    /// tsc-span: _tsc.js:22955-22957
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_expression_with_type_arguments(
+        &mut self,
+        original: TransformNode,
+        expression: TransformNode,
+        type_arguments: Option<TransformNodeArray>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ExpressionWithTypeArguments(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ExpressionWithTypeArguments,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.expression == Some(expression.node)
+            && data.type_arguments == type_arguments.map(TransformNodeArray::array)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_expression_with_type_arguments(
+            original.source,
+            expression,
+            type_arguments,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateMethodSignature @6.0.3
+    /// tsc-hash: 23759da43eecf0cf1b5b1dc0077def1ad113179fee3d9b2e26abb143b6f45a51
+    /// tsc-span: _tsc.js:21921-21923
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_method_signature(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        question_token: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::MethodSignature(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::MethodSignature,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == Some(name.node)
+            && data.question_token == question_token.map(TransformNode::node)
+            && data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.parameters == Some(parameters.array)
+            && data.r#type == r#type.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_method_signature(
+            original.source,
+            modifiers,
+            name,
+            question_token,
+            type_parameters,
+            parameters,
+            r#type,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updatePropertySignature @6.0.3
+    /// tsc-hash: f4085b45d8681eb86f901f6b607dc2b6955faf9b0c6a11ae03a8a41e1ebf62b3
+    /// tsc-span: _tsc.js:21881-21883
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_property_signature(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        question_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::PropertySignature(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::PropertySignature,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == Some(name.node)
+            && data.question_token == question_token.map(TransformNode::node)
+            && data.r#type == r#type.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let initializer = data.initializer;
+        let updated = self.create_property_signature(
+            original.source,
+            modifiers,
+            name,
+            question_token,
+            r#type,
+        )?;
+        if let NodeData::PropertySignature(updated_data) = &mut self
+            .arena
+            .source_mut(updated.source)?
+            .source
+            .arena
+            .node_mut(updated.node)
+            .data
+        {
+            updated_data.initializer = initializer;
+        }
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updatePropertyDeclaration @6.0.3
+    /// tsc-hash: 993e39266d70e68575e3d46b2efaf63e3642f3cf00fecf2087d108c103260d68
+    /// tsc-span: _tsc.js:21903-21905
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_property_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        question_or_exclamation_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::PropertyDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::PropertyDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        let token_kind = question_or_exclamation_token
+            .map(|token| self.arena.node(token).map(|record| record.kind))
+            .transpose()?;
+        let question_token = (token_kind == Some(SyntaxKind::QuestionToken))
+            .then(|| question_or_exclamation_token.map(TransformNode::node))
+            .flatten();
+        let exclamation_token = (token_kind == Some(SyntaxKind::ExclamationToken))
+            .then(|| question_or_exclamation_token.map(TransformNode::node))
+            .flatten();
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == Some(name.node)
+            && data.question_token == question_token
+            && data.exclamation_token == exclamation_token
+            && data.r#type == r#type.map(TransformNode::node)
+            && data.initializer == initializer.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_property_declaration(
+            original.source,
+            modifiers,
+            name,
+            question_or_exclamation_token,
+            r#type,
+            initializer,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateVariableDeclaration @6.0.3
+    /// tsc-hash: 358c095739f3d61b27920e79d77d32db503831a16900ebbd8c316453ebd4319a
+    /// tsc-span: _tsc.js:23284-23286
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_variable_declaration(
+        &mut self,
+        original: TransformNode,
+        name: TransformNode,
+        exclamation_token: Option<TransformNode>,
+        r#type: Option<TransformNode>,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::VariableDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::VariableDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.name == Some(name.node)
+            && data.exclamation_token == exclamation_token.map(TransformNode::node)
+            && data.r#type == r#type.map(TransformNode::node)
+            && data.initializer == initializer.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_variable_declaration(
+            original.source,
+            name,
+            exclamation_token,
+            r#type,
+            initializer,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateVariableDeclarationList @6.0.3
+    /// tsc-hash: b781eb4611be5c3cd53060e1d106f959cd5c77bf804b8b3e17962e5f4f6fee41
+    /// tsc-span: _tsc.js:23300-23302
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_variable_declaration_list(
+        &mut self,
+        original: TransformNode,
+        declarations: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.arena.node(original)?;
+        let NodeData::VariableDeclarationList(data) = &record.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::VariableDeclarationList,
+                actual: record.kind,
+            });
+        };
+        if data.declarations == Some(declarations.array) {
+            return Ok(original);
+        }
+        let node_flags = NodeFlags::from_bits(record.flags);
+        let updated =
+            self.create_variable_declaration_list(original.source, declarations, node_flags)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateVariableStatement @6.0.3
+    /// tsc-hash: 6f9cc9c2a3ca6c613b932a8e29fb14d79a1c7605ba091b31d0379294dabf7584
+    /// tsc-span: _tsc.js:23070-23072
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_variable_statement(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        declaration_list: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::VariableStatement(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::VariableStatement,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.declaration_list == Some(declaration_list.node)
+        {
+            return Ok(original);
+        }
+        let updated =
+            self.create_variable_statement(original.source, modifiers, declaration_list)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateFunctionDeclaration @6.0.3
+    /// tsc-hash: 9462b0124a59adde30893b9a303fd35ea26098e55d29b4546f99c96171f9b8b3
+    /// tsc-span: _tsc.js:23328-23330
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_function_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        asterisk_token: Option<TransformNode>,
+        name: Option<TransformNode>,
+        type_parameters: Option<TransformNodeArray>,
+        parameters: TransformNodeArray,
+        r#type: Option<TransformNode>,
+        body: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::FunctionDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::FunctionDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.asterisk_token == asterisk_token.map(TransformNode::node)
+            && data.name == name.map(TransformNode::node)
+            && data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.parameters == Some(parameters.array)
+            && data.r#type == r#type.map(TransformNode::node)
+            && data.body == body.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_function_declaration(
+            original.source,
+            modifiers,
+            asterisk_token,
+            name,
+            type_parameters,
+            parameters,
+            r#type,
+            body,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateInterfaceDeclaration @6.0.3
+    /// tsc-hash: 997b1720a05cfc7ee297629d53fb51da0f26514f9c41a8c01cd20ae557bdb7af
+    /// tsc-span: _tsc.js:23371-23373
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_interface_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        type_parameters: Option<TransformNodeArray>,
+        heritage_clauses: Option<TransformNodeArray>,
+        members: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::InterfaceDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::InterfaceDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == Some(name.node)
+            && data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.heritage_clauses == heritage_clauses.map(TransformNodeArray::array)
+            && data.members == Some(members.array)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_interface_declaration(
+            original.source,
+            modifiers,
+            name,
+            type_parameters,
+            heritage_clauses,
+            members,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateTypeAliasDeclaration @6.0.3
+    /// tsc-hash: 18f2a4d1aea8004552afd48aea56ce5c95d9ecfada79d091cb90836b64ae4fe9
+    /// tsc-span: _tsc.js:23386-23388
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_type_alias_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        type_parameters: Option<TransformNodeArray>,
+        r#type: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::TypeAliasDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::TypeAliasDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == Some(name.node)
+            && data.type_parameters == type_parameters.map(TransformNodeArray::array)
+            && data.r#type == Some(r#type.node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_type_alias_declaration(
+            original.source,
+            modifiers,
+            name,
+            type_parameters,
+            r#type,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateEnumDeclaration @6.0.3
+    /// tsc-hash: 456a159c79f01073a60a0e3026433b233e67d47b869f17f4473bbe84e17381d3
+    /// tsc-span: _tsc.js:23399-23401
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_enum_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        name: TransformNode,
+        members: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::EnumDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::EnumDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.name == Some(name.node)
+            && data.members == Some(members.array)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_enum_declaration(original.source, modifiers, name, members)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateImportEqualsDeclaration @6.0.3
+    /// tsc-hash: 14e52bd20433b9decff3e9461edd6b4574de1e1daa4f24738a5c7b1f80ef9336
+    /// tsc-span: _tsc.js:23474-23476
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_import_equals_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        is_type_only: bool,
+        name: TransformNode,
+        module_reference: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ImportEqualsDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ImportEqualsDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.is_type_only == is_type_only
+            && data.name == Some(name.node)
+            && data.module_reference == Some(module_reference.node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_import_equals_declaration(
+            original.source,
+            modifiers,
+            is_type_only,
+            name,
+            module_reference,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateImportDeclaration @6.0.3
+    /// tsc-hash: 564a286760581b87138d31c781afc65cc1e9d92bcab78603fafcd9f63210e034
+    /// tsc-span: _tsc.js:23488-23490
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_import_declaration(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        import_clause: Option<TransformNode>,
+        module_specifier: TransformNode,
+        attributes: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ImportDeclaration(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ImportDeclaration,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.import_clause == import_clause.map(TransformNode::node)
+            && data.module_specifier == Some(module_specifier.node)
+            && data.attributes == attributes.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_import_declaration(
+            original.source,
+            modifiers,
+            import_clause,
+            module_specifier,
+            attributes,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateImportClause @6.0.3
+    /// tsc-hash: 41b6dd8eca7438e60623695dd4bf4f9457b5217a369a5f9401bb095f48c6201c
+    /// tsc-span: _tsc.js:23507-23512
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_import_clause(
+        &mut self,
+        original: TransformNode,
+        phase_modifier: Option<SyntaxKind>,
+        name: Option<TransformNode>,
+        named_bindings: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ImportClause(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ImportClause,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.phase_modifier == phase_modifier
+            && data.name == name.map(TransformNode::node)
+            && data.named_bindings == named_bindings.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated =
+            self.create_import_clause(original.source, phase_modifier, name, named_bindings)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateNamedImports @6.0.3
+    /// tsc-hash: d87b33ca4751d24e4337f8cffa0c153ba744058af100132936582319bc40f149
+    /// tsc-span: _tsc.js:23591-23593
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_named_imports(
+        &mut self,
+        original: TransformNode,
+        elements: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::NamedImports(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::NamedImports,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.elements == Some(elements.array) {
+            return Ok(original);
+        }
+        let updated = self.create_named_imports(original.source, elements)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateExportAssignment @6.0.3
+    /// tsc-hash: 58aedbb908b41a70067e8c16957132448269b5cc6e814f4709ba207b77d98858
+    /// tsc-span: _tsc.js:23621-23623
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_export_assignment(
+        &mut self,
+        original: TransformNode,
+        modifiers: Option<TransformNodeArray>,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ExportAssignment(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ExportAssignment,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.modifiers == modifiers.map(TransformNodeArray::array)
+            && data.expression == Some(expression.node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_export_assignment(
+            original.source,
+            modifiers,
+            data.is_export_equals.unwrap_or(false),
+            expression,
+        )?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateExternalModuleReference @6.0.3
+    /// tsc-hash: a1fdfc130d05c893eb25b64974f6b92edcb35f548e502be14b7385ab47cc2c91
+    /// tsc-span: _tsc.js:23682-23684
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_external_module_reference(
+        &mut self,
+        original: TransformNode,
+        expression: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::ExternalModuleReference(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::ExternalModuleReference,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.expression == Some(expression.node) {
+            return Ok(original);
+        }
+        let updated = self.create_external_module_reference(original.source, expression)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateHeritageClause @6.0.3
+    /// tsc-hash: d4e5edbc9ae4d5a75a96e2c8b456b0f39b2613b802b5c329a3eff339ad399006
+    /// tsc-span: _tsc.js:24123-24125
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_heritage_clause(
+        &mut self,
+        original: TransformNode,
+        types: TransformNodeArray,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::HeritageClause(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::HeritageClause,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.types == Some(types.array) {
+            return Ok(original);
+        }
+        let updated = self.create_heritage_clause(original.source, data.token, types)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateEnumMember @6.0.3
+    /// tsc-hash: 90d682b2bebda075bce747cd5dcc0c7ccf617d371564be4a72897cbf697a732f
+    /// tsc-span: _tsc.js:24202-24204
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    pub fn update_enum_member(
+        &mut self,
+        original: TransformNode,
+        name: TransformNode,
+        initializer: Option<TransformNode>,
+    ) -> Result<TransformNode, TransformError> {
+        let NodeData::EnumMember(data) = &self.arena.node(original)?.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::EnumMember,
+                actual: self.arena.node(original)?.kind,
+            });
+        };
+        if data.name == Some(name.node) && data.initializer == initializer.map(TransformNode::node)
+        {
+            return Ok(original);
+        }
+        let updated = self.create_enum_member(original.source, name, initializer)?;
+        self.finish_update(updated, original)
+    }
+
+    /// tsc-port: updateSourceFile @6.0.3
+    /// tsc-hash: ab02b476644b993482e9e449d7808b3c8c00a249a4ba3a94e93a8b01f8c63dc9
+    /// tsc-span: _tsc.js:24316-24327
+    /// tsc-update-helper: update @6.0.3; _tsc.js:24995-25001;
+    /// 384440fe1fa8372895737f3042fe78d813be2d2c8cffa728d419bdfc9dd67707
+    #[allow(clippy::too_many_arguments)]
+    pub fn update_source_file(
+        &mut self,
+        original: TransformNode,
+        statements: TransformNodeArray,
+        is_declaration_file: bool,
+        referenced_files: Vec<FileReference>,
+        type_reference_directives: Vec<TypeReferenceDirective>,
+        _has_no_default_lib: bool,
+        lib_reference_directives: Vec<FileReference>,
+    ) -> Result<TransformNode, TransformError> {
+        let record = self.arena.node(original)?.clone();
+        let NodeData::SourceFile(data) = record.data else {
+            return Err(TransformError::FactoryKindMismatch {
+                expected: SyntaxKind::SourceFile,
+                actual: record.kind,
+            });
+        };
+        let source = self.arena.source(original.source)?;
+        if data.statements == Some(statements.array)
+            && source.syntax().is_declaration_file == is_declaration_file
+            && source.syntax().referenced_files == referenced_files
+            && source.syntax().type_reference_directives == type_reference_directives
+            && source.syntax().lib_reference_directives == lib_reference_directives
+        {
+            return Ok(original);
+        }
+        let flags = self.children_flags(Some(statements))?
+            | self.child_flags(
+                data.end_of_file_token
+                    .and_then(|node| self.arena.node_ref(original.source, node)),
+            )?;
+        let updated = self.create_node(
+            original.source,
+            NodeData::SourceFile(SourceFileData {
+                statements: Some(self.array_id(original.source, statements)?),
+                end_of_file_token: data.end_of_file_token,
+            }),
+            flags,
+        )?;
+        let updated = self.finish_update(updated, original)?;
+        let syntax = &mut self.arena.source_mut(original.source)?.source;
+        syntax.is_declaration_file = is_declaration_file;
+        syntax.referenced_files = referenced_files;
+        syntax.type_reference_directives = type_reference_directives;
+        syntax.lib_reference_directives = lib_reference_directives;
+        Ok(updated)
     }
 
     pub fn set_multi_line(

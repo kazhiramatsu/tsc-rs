@@ -28,9 +28,9 @@ use super::{
     index_info_to_index_signature_declaration_helper, restore_flags,
     restore_symbol_type_to_context, save_restore_flags, serialize_inferred_type_for_declaration,
     set_text_range2, symbol_to_node, type_predicate_to_type_predicate_node_helper, with_context,
-    NodeBuilderContext, SyntacticAccessorDeclarations, SyntacticBuilderResolver,
-    SyntacticRecoveryBoundary, SyntacticScopeCleanup, SyntacticSymbol, SyntacticTrackedEntityName,
-    SyntacticTypeNodeBuilder,
+    with_context_in_synthetic_module_scope, NodeBuilderContext, SyntacticAccessorDeclarations,
+    SyntacticBuilderResolver, SyntacticRecoveryBoundary, SyntacticScopeCleanup, SyntacticSymbol,
+    SyntacticTrackedEntityName, SyntacticTypeNodeBuilder, SyntheticModuleScope,
 };
 
 const METHOD: EmitResolverMethod = EmitResolverMethod::CreateTypeOfDeclaration;
@@ -87,10 +87,6 @@ pub(crate) fn build_symbol_display_node(
         None,
         None,
         |checker, arena, target, context| {
-            // `symbolToString` supplies no declaration-emit tracker. Its
-            // builder context must therefore take getSpecifierForModuleSymbol's
-            // no-host arm, which preserves the source file name verbatim.
-            context.tracker.uses_basic_module_resolver_host = false;
             if allow_any_node_kind {
                 symbol_to_node(checker, arena, target, context, symbol, meaning)
             } else {
@@ -963,36 +959,57 @@ pub(crate) fn serialize_type_for_declaration(
     flags: Option<EmitNodeBuilderFlags>,
     internal_flags: Option<EmitInternalNodeBuilderFlags>,
     tracker: Option<&mut dyn EmitSymbolTracker>,
+    synthetic_module_scope: Option<SyntheticModuleScope<'_>>,
 ) -> BuildResult<Option<TransformNode>> {
-    with_context(
-        checker,
-        arena,
-        target,
-        enclosing_declaration,
-        flags,
-        internal_flags,
-        tracker,
-        None,
-        None,
-        |checker, arena, target, context| {
-            let Some(declaration) = project_parse_node(checker, arena, declaration)? else {
-                return Ok(None);
-            };
-            let symbol = syntactic_symbol(checker, symbol);
-            let builder = SyntacticTypeNodeBuilder::new(checker.options);
-            let snapshot = arena.clone();
-            let mut resolver = ProductionSyntacticBuilderResolver::new(checker, snapshot, METHOD);
-            builder.serialize_type_of_declaration(
-                &mut resolver,
-                arena,
-                target,
-                context,
-                declaration,
-                Some(symbol),
-            )
-        },
-        None,
-    )
+    let serialize = |checker: &mut CheckerState<'_>,
+                     arena: &mut TransformArena,
+                     target: TransformSourceId,
+                     context: &mut NodeBuilderContext<'_>| {
+        let Some(declaration) = project_parse_node(checker, arena, declaration)? else {
+            return Ok(None);
+        };
+        let symbol = syntactic_symbol(checker, symbol);
+        let builder = SyntacticTypeNodeBuilder::new(checker.options);
+        let snapshot = arena.clone();
+        let mut resolver = ProductionSyntacticBuilderResolver::new(checker, snapshot, METHOD);
+        builder.serialize_type_of_declaration(
+            &mut resolver,
+            arena,
+            target,
+            context,
+            declaration,
+            Some(symbol),
+        )
+    };
+    match synthetic_module_scope {
+        Some(scope) => with_context_in_synthetic_module_scope(
+            checker,
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+            None,
+            None,
+            scope,
+            serialize,
+            None,
+        ),
+        None => with_context(
+            checker,
+            arena,
+            target,
+            enclosing_declaration,
+            flags,
+            internal_flags,
+            tracker,
+            None,
+            None,
+            serialize,
+            None,
+        ),
+    }
     .map(Option::flatten)
 }
 

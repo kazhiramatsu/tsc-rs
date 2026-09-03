@@ -1,7 +1,8 @@
 use tsc_binder::SymbolId;
 use tsc_emitter::{
     EmitModuleSpecifierHost, EmitResolverError, EmitSymbolAccessibility, EmitSymbolMeaning,
-    EmitSymbolTracker, EmitTrackerAccess, EmitTrackerNode, EmitTrackerSymbol,
+    EmitSymbolTracker, EmitTrackerAccess, EmitTrackerNode, EmitTrackerNodeDescription,
+    EmitTrackerSymbol,
 };
 use tsc_syntax::NodeId;
 use tsc_types::SymbolFlags;
@@ -19,10 +20,9 @@ pub(crate) struct NodeBuilderTracker<'tracker> {
     pub(crate) inner: Option<&'tracker mut dyn EmitSymbolTracker>,
     pub(crate) disable_track_symbol: bool,
     pub(crate) can_track_symbol: bool,
-    /// `true` is the nullish-coalescing fallback to
-    /// createBasicNodeBuilderModuleSpecifierResolutionHost. The concrete
-    /// checker-backed host is borrowed on demand by the specifier worker, so
-    /// it never aliases the mutable inner tracker.
+    /// Records that the caller supplied no module resolver host. The builder
+    /// still always has the checker-backed basic host in this case; this bit
+    /// is observational only and does not represent host absence.
     pub(crate) uses_basic_module_resolver_host: bool,
     /// `symbolTableToDeclarationStatements` replaces the caller's tracker
     /// with a wrapper that consumes accessible symbols as private declaration
@@ -86,8 +86,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         self.statement_symbols = restore.1;
     }
 
-    /// A `None` result selects the checker-backed basic host recorded by
-    /// `uses_basic_module_resolver_host`.
+    /// A `None` result selects the checker-backed basic host.
     /// tsc-port: withContext @6.0.3 (moduleResolverHost selection)
     /// tsc-hash: 48f43182478e60c913e8248cd1b555bc04b83c31cfbbcf7e790f6bb005ac13b6
     /// tsc-span: _tsc.js:51205-51206
@@ -162,6 +161,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         let introduced_error = inner.track_symbol(
             access,
             tracker_symbol(symbol),
+            symbol_flags,
             enclosing_declaration
                 .map(|node| tracker_enclosing_node(node, enclosing_declaration_is_synthetic)),
             meaning,
@@ -258,17 +258,12 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     pub(crate) fn report_nonlocal_augmentation(
         &mut self,
         reported_diagnostic: &mut bool,
-        containing_file: NodeId,
-        parent_symbol: SymbolId,
-        augmenting_symbol: SymbolId,
+        primary_declaration: Option<EmitTrackerNodeDescription>,
+        augmenting_declarations: Vec<EmitTrackerNodeDescription>,
     ) {
         if let Some(inner) = self.inner.as_deref_mut() {
             Self::on_diagnostic_reported(reported_diagnostic);
-            inner.report_nonlocal_augmentation(
-                tracker_node(containing_file),
-                tracker_symbol(parent_symbol),
-                tracker_symbol(augmenting_symbol),
-            );
+            inner.report_nonlocal_augmentation(primary_declaration, augmenting_declarations);
         }
     }
 
@@ -316,9 +311,9 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-port: SymbolTrackerImpl.pushErrorFallbackNode @6.0.3
     /// tsc-hash: db55706784167d0fabdb0d4f8e58a8f1790a83aa703005a9c7f6cdbcdc5d760a
     /// tsc-span: _tsc.js:91060-91063
-    pub(crate) fn push_error_fallback_node(&mut self, node: Option<NodeId>) {
+    pub(crate) fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNodeDescription>) {
         if let Some(inner) = self.inner.as_deref_mut() {
-            inner.push_error_fallback_node(node.map(tracker_node));
+            inner.push_error_fallback_node(node);
         }
     }
 

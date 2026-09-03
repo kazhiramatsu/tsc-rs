@@ -173,6 +173,95 @@ function auditAlreadyExact(rustAnchor, header = null) {
   });
 }
 
+// h2-7a-m-4 §2a / §6 L4: the 68 `target_rung = h2-7a-m-4` rows (the
+// declarations-module owner + 60 nested + 6 siblings, and the selection seam)
+// gain a Rust anchor at Phase P5. Each entry names the Rust item that owns the
+// row's behavior and the upstream name its `tsc-port:` header must carry
+// within ±3 lines. Empty until P5 (a dormant table; the mint verifies every
+// entry it holds and reports the counts under `summary.m4_anchors`).
+// Keys are `<name>@<upstream start line>` because the owner nests two
+// `cleanup` functions (:115238 and :115687).
+const M4_ANCHORS = Object.freeze({
+  "transformDeclarations@114265": m4Anchor("crates/emitter/src/declarations/mod.rs:91", "transformDeclarations"),
+  "reportExpandoFunctionErrors@114316": m4Anchor("crates/emitter/src/declarations/tracker.rs:207", "reportExpandoFunctionErrors"),
+  "reportInferenceFallback@114327": m4Anchor("crates/emitter/src/declarations/tracker.rs:296", "reportInferenceFallback"),
+  "handleSymbolAccessibilityError@114336": m4Anchor("crates/emitter/src/declarations/tracker.rs:149", "handleSymbolAccessibilityError"),
+  "trackSymbol@114360": m4Anchor("crates/emitter/src/declarations/tracker.rs:273", "trackSymbol"),
+  "reportPrivateInBaseOfClassExpression@114371": m4Anchor("crates/emitter/src/declarations/tracker.rs:321", "reportPrivateInBaseOfClassExpression"),
+  "errorDeclarationNameWithFallback@114381": m4Anchor("crates/emitter/src/declarations/tracker.rs:216", "errorDeclarationNameWithFallback"),
+  "reportInaccessibleUniqueSymbolError@114384": m4Anchor("crates/emitter/src/declarations/tracker.rs:346", "reportInaccessibleUniqueSymbolError"),
+  "reportCyclicStructureError@114389": m4Anchor("crates/emitter/src/declarations/tracker.rs:356", "reportCyclicStructureError"),
+  "reportInaccessibleThisError@114394": m4Anchor("crates/emitter/src/declarations/tracker.rs:366", "reportInaccessibleThisError"),
+  "reportLikelyUnsafeImportRequiredError@114399": m4Anchor("crates/emitter/src/declarations/tracker.rs:376", "reportLikelyUnsafeImportRequiredError"),
+  "reportTruncationError@114408": m4Anchor("crates/emitter/src/declarations/tracker.rs:400", "reportTruncationError"),
+  "reportNonlocalAugmentation@114413": m4Anchor("crates/emitter/src/declarations/tracker.rs:416", "reportNonlocalAugmentation"),
+  "reportNonSerializableProperty@114426": m4Anchor("crates/emitter/src/declarations/tracker.rs:443", "reportNonSerializableProperty"),
+  "transformDeclarationsForJS@114431": m4Anchor("crates/emitter/src/declarations/root.rs:194", "transformDeclarationsForJS"),
+  "transformRoot@114441": m4Anchor("crates/emitter/src/declarations/root.rs:77", "transformRoot"),
+  "collectFileReferences@114557": m4Anchor("crates/emitter/src/declarations/root.rs:17", "collectFileReferences"),
+  "copyFileReferenceAsSynthetic@114562": m4Anchor("crates/emitter/src/declarations/root.rs:37", "copyFileReferenceAsSynthetic"),
+  "getTypeReferences@114568": m4Anchor("crates/emitter/src/declarations/root.rs:54", "getTypeReferences"),
+  "getLibReferences@114574": m4Anchor("crates/emitter/src/declarations/root.rs:65", "getLibReferences"),
+  "getReferencedFiles@114580": m4Anchor("crates/emitter/src/declarations/root.rs:225", "getReferencedFiles"),
+  "filterBindingPatternInitializers@114615": m4Anchor("crates/emitter/src/declarations/ensure.rs:15", "filterBindingPatternInitializers"),
+  "visitBindingElement@114625": m4Anchor("crates/emitter/src/declarations/ensure.rs:52", "visitBindingElement"),
+  "ensureParameter@114642": m4Anchor("crates/emitter/src/declarations/ensure.rs:102", "ensureParameter"),
+  "shouldPrintWithInitializer@114667": m4Anchor("crates/emitter/src/declarations/ensure.rs:169", "shouldPrintWithInitializer"),
+  "ensureNoInitializer@114670": m4Anchor("crates/emitter/src/declarations/ensure.rs:185", "ensureNoInitializer"),
+  "ensureType@114680": m4Anchor("crates/emitter/src/declarations/ensure.rs:221", "ensureType"),
+  "isDeclarationAndNotVisible@114713": m4Anchor("crates/emitter/src/declarations/subtree.rs:682", "isDeclarationAndNotVisible"),
+  "shouldEmitFunctionProperties@114736": m4Anchor("crates/emitter/src/declarations/statements.rs:1730", "shouldEmitFunctionProperties"),
+  "getBindingNameVisible@114744": m4Anchor("crates/emitter/src/declarations/subtree.rs:713", "getBindingNameVisible"),
+  "updateParamsList@114754": m4Anchor("crates/emitter/src/declarations/ensure.rs:328", "updateParamsList"),
+  "updateAccessorParamsList@114764": m4Anchor("crates/emitter/src/declarations/ensure.rs:362", "updateAccessorParamsList"),
+  "ensureTypeParams@114793": m4Anchor("crates/emitter/src/declarations/ensure.rs:426", "ensureTypeParams"),
+  "isEnclosingDeclaration@114796": m4Anchor("crates/emitter/src/declarations/subtree.rs:753", "isEnclosingDeclaration"),
+  "checkEntityNameVisibility@114799": m4Anchor("crates/emitter/src/declarations/subtree.rs:774", "checkEntityNameVisibility"),
+  "preserveJsDoc@114803": m4Anchor("crates/emitter/src/declarations/subtree.rs:914", "preserveJsDoc"),
+  "rewriteModuleSpecifier2@114809": m4Anchor("crates/emitter/src/declarations/statements.rs:1701", "rewriteModuleSpecifier2"),
+  "transformImportEqualsDeclaration@114822": m4Anchor("crates/emitter/src/declarations/statements.rs:1389", "transformImportEqualsDeclaration"),
+  "transformImportDeclaration@114841": m4Anchor("crates/emitter/src/declarations/statements.rs:1462", "transformImportDeclaration"),
+  "tryGetResolutionModeOverride@114915": m4Anchor("crates/emitter/src/declarations/statements.rs:1658", "tryGetResolutionModeOverride"),
+  "transformAndReplaceLatePaintedStatements@114919": m4Anchor("crates/emitter/src/declarations/statements.rs:758", "transformAndReplaceLatePaintedStatements"),
+  "visitLateVisibilityMarkedStatements@114932": m4Anchor("crates/emitter/src/declarations/statements.rs:801", "visitLateVisibilityMarkedStatements"),
+  "visitDeclarationSubtree@114952": m4Anchor("crates/emitter/src/declarations/subtree.rs:28", "visitDeclarationSubtree"),
+  "cleanup@115238": m4Anchor("crates/emitter/src/declarations/statements.rs:708", "cleanup"),
+  "isPrivateMethodTypeParameter@115257": m4Anchor("crates/emitter/src/declarations/subtree.rs:834", "isPrivateMethodTypeParameter"),
+  "visitDeclarationStatements@115260": m4Anchor("crates/emitter/src/declarations/statements.rs:28", "visitDeclarationStatements"),
+  "stripExportModifiers@115315": m4Anchor("crates/emitter/src/declarations/statements.rs:1120", "stripExportModifiers"),
+  "updateModuleDeclarationAndKeyword@115322": m4Anchor("crates/emitter/src/declarations/statements.rs:1144", "updateModuleDeclarationAndKeyword"),
+  "transformTopLevelDeclaration@115337": m4Anchor("crates/emitter/src/declarations/statements.rs:151", "transformTopLevelDeclaration"),
+  "walkBindingPattern@115572": m4Anchor("crates/emitter/src/declarations/statements.rs:1010", "walkBindingPattern"),
+  "cleanup@115687": m4Anchor("crates/emitter/src/declarations/subtree.rs:649", "cleanup"),
+  "transformVariableStatement@115705": m4Anchor("crates/emitter/src/declarations/statements.rs:853", "transformVariableStatement"),
+  "recreateBindingPattern@115721": m4Anchor("crates/emitter/src/declarations/statements.rs:1062", "recreateBindingPattern"),
+  "recreateBindingElement@115724": m4Anchor("crates/emitter/src/declarations/statements.rs:1086", "recreateBindingElement"),
+  "checkName@115744": m4Anchor("crates/emitter/src/declarations/subtree.rs:792", "checkName"),
+  "shouldStripInternal@115760": m4Anchor("crates/emitter/src/declarations/ensure.rs:494", "shouldStripInternal"),
+  "isScopeMarker2@115763": m4Anchor("crates/emitter/src/declarations/statements.rs:1184", "isScopeMarker2"),
+  "hasScopeMarker2@115766": m4Anchor("crates/emitter/src/declarations/statements.rs:1194", "hasScopeMarker2"),
+  "ensureModifiers@115769": m4Anchor("crates/emitter/src/declarations/ensure.rs:441", "ensureModifiers"),
+  "ensureModifierFlags@115777": m4Anchor("crates/emitter/src/declarations/ensure.rs:458", "ensureModifierFlags"),
+  "transformHeritageClauses@115787": m4Anchor("crates/emitter/src/declarations/statements.rs:1208", "transformHeritageClauses"),
+  "isAlwaysType@115803": m4Anchor("crates/emitter/src/declarations/ensure.rs:639", "isAlwaysType"),
+  "maskModifiers@115809": m4Anchor("crates/emitter/src/declarations/ensure.rs:604", "maskModifiers"),
+  "maskModifierFlags@115812": m4Anchor("crates/emitter/src/declarations/ensure.rs:618", "maskModifierFlags"),
+  "canHaveLiteralInitializer@115822": m4Anchor("crates/emitter/src/declarations/ensure.rs:649", "canHaveLiteralInitializer"),
+  "isPreservedDeclarationStatement@115833": m4Anchor("crates/emitter/src/declarations/statements.rs:1748", "isPreservedDeclarationStatement"),
+  "isProcessedComponent@115850": m4Anchor("crates/emitter/src/declarations/subtree.rs:935", "isProcessedComponent"),
+  "getDeclarationTransformers@115950": m4Anchor("crates/emitter/src/declarations/selection.rs:9", "getDeclarationTransformers"),
+});
+function m4Anchor(rustAnchor, header = null) {
+  return Object.freeze({ rust_anchor: rustAnchor, header });
+}
+function m4AnchorKey(name, node) {
+  return `${name}@${nodeSpan(node).start_line}`;
+}
+function m4RustAnchor(name, node) {
+  const anchor = M4_ANCHORS[m4AnchorKey(name, node)];
+  return anchor === undefined ? null : anchor.rust_anchor;
+}
+
 // H2.7a m-1 deliverable 4: curated current-Rust coverage of every measured
 // printer, factory, and parenthesizer row. An exact row names the concrete
 // Rust arm which owns its current behavior; a foundation row deliberately has
@@ -901,13 +990,14 @@ for (const node of declarationFunctions) {
   const isOwner = node === transformDeclarations;
   const isNested = declarationNested.includes(node);
   const isDiagnostics = name === "getDeclarationDiagnostics";
-  rows.push(
+    rows.push(
     rowForNode({
       surface: "declarations-module",
       name,
       kind: isOwner ? "owner" : isNested ? "nested" : "sibling",
       node,
       reachability: isNested ? "reached" : "direct",
+      rustAnchor: isDiagnostics ? null : m4RustAnchor(name, node),
       consumers: isDiagnostics
         ? ["H2.7c"]
         : ["H2.7a", "H2.7b", "H2.7c", "H2.7d", "H2.7e", "H2.8c", "H2.8d", "BLD1"],
@@ -925,10 +1015,11 @@ const getDeclarationTransformers = findFunction("getDeclarationTransformers", 11
 rows.push(
   rowForNode({
     surface: "selection-seam",
-    name: "getDeclarationTransformers",
+        name: "getDeclarationTransformers",
     kind: "owner",
     node: getDeclarationTransformers,
     reachability: "direct",
+    rustAnchor: m4RustAnchor("getDeclarationTransformers", getDeclarationTransformers),
     consumers: ["H2.7a", "H2.7b", "API1"],
     disposition: "declaration-selection-foundation",
     targetRung: "h2-7a-m-4",
@@ -1442,6 +1533,39 @@ for (const name of curatedAuditNames) {
   }
 }
 
+// h2-7a-m-4 §6 L4: every M4_ANCHORS entry names an m-4 row, its anchor is an
+// in-range crates/emitter path, and (when a header is given) the ±3-line
+// window around it carries the `tsc-port:` header for that upstream name.
+const m4RowNames = new Set([
+  ...declarationFunctions
+    .filter((node) => functionName(node) !== "getDeclarationDiagnostics")
+    .map((node) => m4AnchorKey(functionName(node), node)),
+  m4AnchorKey("getDeclarationTransformers", getDeclarationTransformers),
+]);
+requireCondition(m4RowNames.size === 68, "m-4 anchor domain must contain 68 rows");
+let m4HeaderVerifiedRows = 0;
+for (const [name, anchor] of Object.entries(M4_ANCHORS)) {
+  requireCondition(m4RowNames.has(name), `m-4 anchor names a non-m-4 row ${name}`);
+  const match = anchor.rust_anchor.match(
+    /^(crates\/emitter\/[A-Za-z0-9_./-]+):([1-9][0-9]*)$/u,
+  );
+  requireCondition(match !== null, `malformed m-4 Rust anchor for ${name}`);
+  const [, relativePath, lineText] = match;
+  const lines = rustAnchorLines(relativePath);
+  requireCondition(Number(lineText) <= lines.length, `out-of-range m-4 Rust anchor for ${name}`);
+  if (anchor.header !== null) {
+    const center = Number(lineText) - 1;
+    const window = lines.slice(Math.max(0, center - 3), center + 4).join("\n");
+    requireCondition(
+      window.includes(`tsc-port: ${anchor.header} `) ||
+        window.includes(`tsc-port: ${anchor.header}/`) ||
+        new RegExp(`tsc-port: [^\\n]*\\b${anchor.header}\\b`, "u").test(window),
+      `m-4 Rust anchor for ${name} is not at a tsc-port header naming ${anchor.header}`,
+    );
+    m4HeaderVerifiedRows += 1;
+  }
+}
+
 // One-hop reached-helper closure. Only identifiers bound by TypeScript to a
 // SourceFile-level FunctionDeclaration qualify; local callbacks and nested
 // workers therefore cannot enter through spelling alone.
@@ -1629,7 +1753,12 @@ const summary = {
     parenthesizer_members: parenthesizerMemberSites.size,
     parenthesizer_calls: parenthesizerReferences.length,
   },
-  audit: auditCounts,
+    audit: auditCounts,
+  m4_anchors: {
+    rows: m4RowNames.size,
+    anchored: Object.keys(M4_ANCHORS).length,
+    header_verified: m4HeaderVerifiedRows,
+  },
   partition: partitionCounts,
   reached_rows: reachedRows,
   reached_by_surface: {

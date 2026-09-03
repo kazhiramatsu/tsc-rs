@@ -18,7 +18,7 @@ use super::*;
 
 #[derive(Default)]
 struct TrackerLog {
-    track_calls: Vec<(u64, Option<u64>, EmitSymbolMeaning)>,
+    track_calls: Vec<(u64, SymbolFlags, Option<u64>, EmitSymbolMeaning)>,
     inference_fallbacks: Vec<u64>,
     truncation_errors: u32,
     fallback_stack_events: Vec<Option<u64>>,
@@ -40,11 +40,13 @@ impl EmitSymbolTracker for RecordingTracker {
         &mut self,
         access: &mut dyn EmitTrackerAccess,
         symbol: EmitTrackerSymbol,
+        symbol_flags: SymbolFlags,
         enclosing_declaration: Option<EmitTrackerNode>,
         meaning: EmitSymbolMeaning,
     ) -> Result<bool, EmitResolverError> {
         self.log.borrow_mut().track_calls.push((
             symbol.0,
+            symbol_flags,
             enclosing_declaration.map(|node| node.0),
             meaning,
         ));
@@ -115,14 +117,23 @@ impl EmitSymbolTracker for RecordingTracker {
 
     fn report_nonlocal_augmentation(
         &mut self,
-        containing_file: EmitTrackerNode,
-        parent_symbol: EmitTrackerSymbol,
-        augmenting_symbol: EmitTrackerSymbol,
+        primary_declaration: Option<EmitTrackerNodeDescription>,
+        augmenting_declarations: Vec<EmitTrackerNodeDescription>,
     ) {
-        self.log.borrow_mut().report_events.push(format!(
-            "nonlocal:{}:{}:{}",
-            containing_file.0, parent_symbol.0, augmenting_symbol.0
-        ));
+        let primary = primary_declaration
+            .and_then(|description| description.parse)
+            .map(|node| node.node().0)
+            .unwrap_or(u32::MAX);
+        let augmenting = augmenting_declarations
+            .into_iter()
+            .filter_map(|description| description.parse)
+            .map(|node| node.node().0.to_string())
+            .collect::<Vec<_>>()
+            .join(",");
+        self.log
+            .borrow_mut()
+            .report_events
+            .push(format!("nonlocal:{primary}:{augmenting}"));
     }
 
     fn report_non_serializable_property(&mut self, property_name: &str) {
@@ -132,11 +143,11 @@ impl EmitSymbolTracker for RecordingTracker {
             .push(format!("nonserial:{property_name}"));
     }
 
-    fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNode>) {
-        self.log
-            .borrow_mut()
-            .fallback_stack_events
-            .push(node.map(|node| node.0));
+    fn push_error_fallback_node(&mut self, node: Option<EmitTrackerNodeDescription>) {
+        self.log.borrow_mut().fallback_stack_events.push(
+            node.and_then(|description| description.parse)
+                .map(|node| u64::from(node.node().0)),
+        );
     }
 
     fn pop_error_fallback_node(&mut self) {
@@ -570,7 +581,12 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
         assert!(context.reported_diagnostic);
         assert_eq!(log.borrow().inference_fallbacks, vec![31]);
 
-        context.tracker.push_error_fallback_node(Some(NodeId(40)));
+        context
+            .tracker
+            .push_error_fallback_node(Some(EmitTrackerNodeDescription {
+                parse: Some(EmitResolverNode::from_raw_source(0, NodeId(40))),
+                original: None,
+            }));
         context.tracker.pop_error_fallback_node();
         assert_eq!(log.borrow().fallback_stack_events, vec![Some(40), None]);
 
@@ -605,9 +621,14 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
         context.reported_diagnostic = false;
         context.tracker.report_nonlocal_augmentation(
             &mut context.reported_diagnostic,
-            NodeId(41),
-            SymbolId(42),
-            SymbolId(43),
+            Some(EmitTrackerNodeDescription {
+                parse: Some(EmitResolverNode::from_raw_source(0, NodeId(41))),
+                original: None,
+            }),
+            vec![EmitTrackerNodeDescription {
+                parse: Some(EmitResolverNode::from_raw_source(1, NodeId(43))),
+                original: None,
+            }],
         );
         assert!(context.reported_diagnostic);
         context.reported_diagnostic = false;
@@ -623,7 +644,7 @@ fn node_builder_tracker_forwards_gates_and_records_only_non_type_parameters() {
                 "inaccessible-unique",
                 "cyclic",
                 "unsafe-import:pkg:Thing",
-                "nonlocal:41:42:43",
+                "nonlocal:41:43",
                 "nonserial:property",
             ]
         );

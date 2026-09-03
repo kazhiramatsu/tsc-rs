@@ -26,8 +26,9 @@ pub(crate) use context::{
     add_symbol_type_to_context, can_possibly_expand_type, check_truncation_length,
     check_truncation_length_if_expanding, no_inference_fallback_is_set, restore_flags,
     restore_no_inference_fallback, restore_symbol_type_to_context, save_no_inference_fallback,
-    save_restore_flags, should_expand_type, with_context, FlagsRestore, NodeBuilderContext,
-    RecoveryTrackedSymbol, SymbolTypeRestore, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
+    save_restore_flags, should_expand_type, with_context, with_context_in_synthetic_module_scope,
+    FlagsRestore, NodeBuilderContext, RecoveryTrackedSymbol, SymbolTypeRestore,
+    SyntheticModuleScope, TrackedSymbol, DEFAULT_MAXIMUM_TRUNCATION_LENGTH,
     NO_TRUNCATION_MAXIMUM_TRUNCATION_LENGTH,
 };
 pub(crate) use serialize::{
@@ -51,6 +52,64 @@ use type_nodes::{
 };
 pub(crate) use type_nodes::{create_factory_node, update_factory_node};
 pub(crate) use type_nodes::{map_to_type_nodes, type_to_type_node_helper};
+
+pub(crate) struct SyntheticModuleScopeRestore {
+    enclosing_declaration: Option<tsc_syntax::NodeId>,
+    enclosing_declaration_is_synthetic: bool,
+    synthetic_scope_locals: Option<std::collections::HashMap<String, tsc_binder::SymbolId>>,
+    synthetic_scope_kind: Option<tsc_syntax::SyntaxKind>,
+}
+
+/// tsrs-native: shared install frame for the existing synthetic module-scope overlay.
+pub(crate) fn with_synthetic_module_scope(
+    context: &mut NodeBuilderContext<'_>,
+    enclosing_declaration: Option<tsc_syntax::NodeId>,
+    locals: &tsc_binder::SymbolTable,
+) -> SyntheticModuleScopeRestore {
+    let restore = SyntheticModuleScopeRestore {
+        enclosing_declaration: context.enclosing_declaration,
+        enclosing_declaration_is_synthetic: context.enclosing_declaration_is_synthetic,
+        synthetic_scope_locals: context.synthetic_scope_locals.clone(),
+        synthetic_scope_kind: context.synthetic_scope_kind,
+    };
+    context.enclosing_declaration = enclosing_declaration;
+    context.enclosing_declaration_is_synthetic = true;
+    context.synthetic_scope_kind = Some(tsc_syntax::SyntaxKind::ModuleDeclaration);
+    context.synthetic_scope_locals = Some(
+        locals
+            .iter()
+            .map(|(name, &symbol)| (name.clone(), symbol))
+            .collect(),
+    );
+    restore
+}
+
+/// tsrs-native: shared restore half of the synthetic module-scope overlay frame.
+pub(crate) fn restore_synthetic_module_scope(
+    context: &mut NodeBuilderContext<'_>,
+    restore: SyntheticModuleScopeRestore,
+) {
+    context.enclosing_declaration = restore.enclosing_declaration;
+    context.enclosing_declaration_is_synthetic = restore.enclosing_declaration_is_synthetic;
+    context.synthetic_scope_locals = restore.synthetic_scope_locals;
+    context.synthetic_scope_kind = restore.synthetic_scope_kind;
+}
+
+/// tsrs-native: stable checker-node projection prepared before a tracker callback.
+pub(crate) fn tracker_node_description(
+    checker: &crate::state::CheckerState<'_>,
+    node: tsc_syntax::NodeId,
+) -> tsc_emitter::EmitTrackerNodeDescription {
+    let file_index = checker.binder.file_index_of_node(node);
+    let source = checker
+        .authoritative_source_tokens
+        .get(file_index)
+        .map_or_else(|| u32::try_from(file_index).unwrap_or(0), |token| token.0);
+    tsc_emitter::EmitTrackerNodeDescription {
+        parse: Some(tsc_emitter::EmitResolverNode::from_raw_source(source, node)),
+        original: None,
+    }
+}
 
 /// The declaration facts read directly from upstream's optional `symbol`
 /// argument by the syntactic variable-declaration arm. Keeping them beside
@@ -832,12 +891,14 @@ pub(crate) fn late_bound_index_signatures(
                                 let mut access = StandaloneTrackerAccess { checker, method };
                                 let symbol_token =
                                     tsc_emitter::EmitTrackerSymbol(u64::from(resolved.0));
+                                let symbol_flags = access.checker.symbol_flags(resolved);
                                 let enclosing_token = tsc_emitter::EmitTrackerNode(u64::from(
                                     enclosing_declaration.0,
                                 ));
                                 tracker.track_symbol(
                                     &mut access,
                                     symbol_token,
+                                    symbol_flags,
                                     Some(enclosing_token),
                                     tsc_emitter::EmitSymbolMeaning(111_551),
                                 )?;

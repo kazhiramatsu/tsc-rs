@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-1e-profile.mjs",
-    "sha256": "c687189312aa4a3a63cea08277462a4826f2fafead46ed1298c45aed7c017297"
+    "sha256": "f7e97e3c2cddcbbceb585ea8251b79af1d034e3f7b6aee48b5a037f0adfa8494"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-1e-profile.schema.json",
@@ -28,11 +28,11 @@
     "historical": {
       "profile": {
         "path": "ratchets/h2-1d-profile.v1.json",
-        "sha256": "f9a29563bd795a8eefad2ad57d59d508f23fcbf47ed6dbb019e17ad8aece6321"
+        "sha256": "d52121f9e4f4778ccb212301784e755b6a132fef9e2fc6b83b2cc9ddd92baeb7"
       },
       "qualification": {
         "path": "ratchets/h2-1d-qualification.v1.json",
-        "sha256": "c66bc448bb0c49fee1e3628fba4d852baf4572b951fa80e7e462e848bbdb25a3"
+        "sha256": "739996772f3359deebf559cb94012b5a7ae0d4b83b021a4a0a923450ee95a206"
       },
       "owner_controls": {
         "path": "ratchets/h2-1d-owner-controls.v1.json",
@@ -40,11 +40,11 @@
       },
       "profile_generator": {
         "path": "crates/oracle/h2-1d-profile.mjs",
-        "sha256": "a4247f097cee048dcbf509501530934d88e07b3e35ac1a8950ccc768fb324f04"
+        "sha256": "9ebd0deeeec55b3eba9440e70efcace759f6e87f5a4dacedb4dc4e22f57a03ad"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-1d-qualification.mjs",
-        "sha256": "4b299a813481914174e5b62feff8f2f10fdcd8ed0d686584104da942f5fac41b"
+        "sha256": "63678b14d2f64f2886c4403be974fcf95cd1b41b8b7dbab8c87c40d7b6d729d7"
       },
       "owner_controls_generator": {
         "path": "crates/oracle/h2-1d-owner-controls.mjs",
@@ -67,12 +67,12 @@
   },
   "qualification": {
     "path": "ratchets/h2-1e-qualification.v1.json",
-    "sha256": "965f15135ddef55bd40a39cc9aaa90fbf26f3eb40ddc0fafc5e6093bee644976"
+    "sha256": "4c126ad5b6113c9b3292483ab7f90bb086833cff2a90db119d76fbabce77541d"
   },
   "runtime_inputs": [
     {
       "path": "crates/checker/src/emit.rs",
-      "sha256": "c351f25c41f1a5d150a4e8bd5d84895fb21e756762aee1edbdd3fa8cbb660987"
+      "sha256": "d4962ef8a316c9e5a4d2367e5db41dc5da15880c11d4e83301e9792b38c7ee38"
     },
     {
       "path": "crates/checker/src/modules.rs",
@@ -116,11 +116,11 @@
     },
     {
       "path": "crates/emitter/src/factory.rs",
-      "sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+      "sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
     },
     {
       "path": "crates/emitter/src/host.rs",
-      "sha256": "2711421284a2a80b345cdc21dccd897b6c3c3908035f7bb9d080976a5af029a7"
+      "sha256": "2d543ecfd68757a76c97d30a4d77618e445a9500a34f7f42f4fc0d8339b64e1e"
     },
     {
       "path": "crates/emitter/src/printer.rs",
@@ -128,7 +128,7 @@
     },
     {
       "path": "crates/emitter/src/resolver.rs",
-      "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+      "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
     },
     {
       "path": "crates/emitter/src/transform.rs",
@@ -279,7 +279,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "43f023d32fabd86a9dd2cb92d17a5fce059b42a44e4ad9160384b63f3d8af242"
+      "sha256": "c9a77c68efcc846b11d37bd5752b59e0adb3656bbef99a91c42bead6cb35e4de"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -287,7 +287,7 @@
     },
     "historical_h2_1d_profile": {
       "path": "ratchets/h2-1d-profile.v1.json",
-      "sha256": "f9a29563bd795a8eefad2ad57d59d508f23fcbf47ed6dbb019e17ad8aece6321"
+      "sha256": "d52121f9e4f4778ccb212301784e755b6a132fef9e2fc6b83b2cc9ddd92baeb7"
     },
     "local_full_gate": "cargo xtask ci --baseline 3cfa24fd7ef3bdd8dab97d4adf860306fac75782",
     "hosted_gate": "cargo xtask acceptance",
@@ -303,5 +303,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "cb13e80b14832163956cab981ecf19d87d00206b44dfdfd5be0e820252634d58"
+  "profile_fingerprint_sha256": "bfcc696cfcda5c124b9b7fd8d0bc107d0737fffcda6f19072f5fde6d4351c0d0"
 }

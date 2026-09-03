@@ -4,6 +4,8 @@ mod automatic_type_directive_session_contract;
 mod cli_contract;
 #[path = "integration/declaration_resolver_replay_decision_equal.rs"]
 mod declaration_resolver_replay_decision_equal;
+#[path = "integration/declaration_transformer_replay_decision_equal.rs"]
+mod declaration_transformer_replay_decision_equal;
 #[path = "integration/emit_session_contract.rs"]
 mod emit_session_contract;
 #[path = "integration/es2015_generators_witness_contract.rs"]
@@ -24,6 +26,8 @@ mod h2_5h_ca2a_promote_contract;
 mod h2_5h_ca2b_seam_contract;
 #[path = "integration/h2_7a_m35_controls.rs"]
 mod h2_7a_m35_controls;
+#[path = "integration/h2_7a_m4_controls.rs"]
+mod h2_7a_m4_controls;
 #[path = "integration/h2_7a_partition_projection.rs"]
 mod h2_7a_partition_projection;
 #[path = "integration/library_loader_session_contract.rs"]

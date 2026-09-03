@@ -4,11 +4,11 @@
   "phase": "H2.7a-owner-inventory",
   "generator": {
     "path": "crates/oracle/h2-7a-owner-inventory.mjs",
-    "sha256": "836ed16d37b0725cc38d0931afc043c146c5dda3c59e09f9bd2be248b4e47702"
+    "sha256": "bfe1b90dc739ed1d8f99efb0816e28badf5649e4d45fff44e4d008e9abfc9288"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-owner-inventory.schema.json",
-    "sha256": "0c009f2acdb327abcec78575ccbaf90bba996ec6dfd5053d38fa5fd4d55d2282"
+    "sha256": "ab509215f2bab9472ed1a9553472413f55e4e02407ff0752dcfd0f10432a44c9"
   },
   "inputs": {
     "typescript": {
@@ -21,7 +21,7 @@
     "option_owner": {
       "source": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "23986ca2a187b3555841c00c32fe429c64b39ae7255f551348b7b67d6da2b876"
+        "sha256": "866ca08d944134f0d455d87396a99f72392c7e31381a8f4bfef5ce69bc7bb1d4"
       },
       "span": {
         "start_line": 448,
@@ -40,11 +40,11 @@
       },
       "factory": {
         "path": "crates/emitter/src/factory.rs",
-        "sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+        "sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
       },
       "resolver": {
         "path": "crates/emitter/src/resolver.rs",
-        "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+        "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
       }
     }
   },
@@ -103,6 +103,11 @@
       "already_exact": 308,
       "foundation_needed": 0,
       "pending": 0
+    },
+    "m4_anchors": {
+      "rows": 68,
+      "anchored": 68,
+      "header_verified": 68
     },
     "partition": {
       "m_3_head": 7,
@@ -2531,7 +2536,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/mod.rs:91",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2557,7 +2562,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:207",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2583,7 +2588,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:296",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2609,7 +2614,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:149",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2635,7 +2640,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:273",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2661,7 +2666,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:321",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2687,7 +2692,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:216",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2713,7 +2718,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:346",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2739,7 +2744,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:356",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2765,7 +2770,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:366",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2791,7 +2796,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:376",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2817,7 +2822,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:400",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2843,7 +2848,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:416",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2869,7 +2874,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/tracker.rs:443",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2895,7 +2900,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/root.rs:194",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2921,7 +2926,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/root.rs:77",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2947,7 +2952,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/root.rs:17",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2973,7 +2978,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/root.rs:37",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -2999,7 +3004,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/root.rs:54",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3025,7 +3030,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/root.rs:65",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3051,7 +3056,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/root.rs:225",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3077,7 +3082,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:15",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3103,7 +3108,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:52",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3129,7 +3134,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:102",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3155,7 +3160,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:169",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3181,7 +3186,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:185",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3207,7 +3212,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:221",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3233,7 +3238,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:682",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3259,7 +3264,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1730",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3285,7 +3290,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:713",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3311,7 +3316,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:328",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3337,7 +3342,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:362",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3363,7 +3368,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:426",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3389,7 +3394,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:753",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3415,7 +3420,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:774",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3441,7 +3446,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:914",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3467,7 +3472,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1701",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3493,7 +3498,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1389",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3519,7 +3524,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1462",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3545,7 +3550,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1658",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3571,7 +3576,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:758",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3597,7 +3602,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:801",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3623,7 +3628,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:28",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3649,7 +3654,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:708",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3675,7 +3680,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:834",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3701,7 +3706,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:28",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3727,7 +3732,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1120",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3753,7 +3758,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1144",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3779,7 +3784,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:151",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3805,7 +3810,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1010",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3831,7 +3836,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:649",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3857,7 +3862,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:853",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3883,7 +3888,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1062",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3909,7 +3914,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1086",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3935,7 +3940,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:792",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3961,7 +3966,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:494",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -3987,7 +3992,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1184",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4013,7 +4018,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1194",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4039,7 +4044,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:441",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4065,7 +4070,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:458",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4091,7 +4096,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1208",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4117,7 +4122,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:639",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4143,7 +4148,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:604",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4169,7 +4174,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:618",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4195,7 +4200,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/ensure.rs:649",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4221,7 +4226,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/statements.rs:1748",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -4247,7 +4252,7 @@
         "H2.8c",
         "H2.8d"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/subtree.rs:935",
       "disposition": "declaration-transformer-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -19970,7 +19975,7 @@
         "H2.7a",
         "H2.7b"
       ],
-      "rust_anchor": null,
+      "rust_anchor": "crates/emitter/src/declarations/selection.rs:9",
       "disposition": "declaration-selection-foundation",
       "target_rung": "h2-7a-m-4",
       "partition": null
@@ -22895,5 +22900,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "25cc3683f9a91ab2d3c0d0664a5616563ff1c6ddc992a5bb980afa966b0929a7"
+  "inventory_fingerprint_sha256": "0a39b0e0149929b51c265617cd55bbfb5d15b9798c06aaa7831ca131f0f28a0e"
 }

@@ -56,6 +56,21 @@ fn serialization_members_fail_closed_by_default() {
             .unwrap_err(),
     );
     unavailable(
+        EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope,
+        resolver
+            .create_type_of_declaration_in_expando_scope(
+                &mut arena,
+                source,
+                node,
+                node,
+                enclosing,
+                EmitNodeBuilderFlags::DECLARATION_EMIT,
+                EmitInternalNodeBuilderFlags::DECLARATION_EMIT,
+                &mut tracker,
+            )
+            .unwrap_err(),
+    );
+    unavailable(
         EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
         resolver
             .create_return_type_of_signature_declaration(
@@ -115,6 +130,28 @@ fn serialization_members_fail_closed_by_default() {
                 &mut tracker,
             )
             .unwrap_err(),
+    );
+    unavailable(
+        EmitResolverMethod::IsLastBodilessOverloadOfSymbol,
+        resolver
+            .is_last_bodiless_overload_of_symbol(node)
+            .unwrap_err(),
+    );
+    unavailable(
+        EmitResolverMethod::IsFirstDeclarationOfSymbol,
+        resolver.is_first_declaration_of_symbol(node).unwrap_err(),
+    );
+    assert_eq!(
+        EmitResolverMethod::CreateTypeOfDeclarationInExpandoScope.name(),
+        "createTypeOfDeclarationInExpandoScope"
+    );
+    assert_eq!(
+        EmitResolverMethod::IsLastBodilessOverloadOfSymbol.name(),
+        "isLastBodilessOverloadOfSymbol"
+    );
+    assert_eq!(
+        EmitResolverMethod::IsFirstDeclarationOfSymbol.name(),
+        "isFirstDeclarationOfSymbol"
     );
 
     let symbol = EmitResolverSymbol {
