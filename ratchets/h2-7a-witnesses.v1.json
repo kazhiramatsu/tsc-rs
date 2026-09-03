@@ -67,7 +67,7 @@
     },
     "h2_6c_qualification": {
       "path": "ratchets/h2-6c-qualification.v1.json",
-      "sha256": "dab88643f75680ceb44d82f26c32d2d8fb1a69f5edf0540d63c51993cbe9c547"
+      "sha256": "70f79bfdc89329845dd5f8313ae2f9fbb2cabb1c7ff85821a8bf603e5d8dba1b"
     },
     "h2_6c_divergences": {
       "path": "ratchets/h2-6c-known-divergences.v1.json",
@@ -16788,5 +16788,5 @@
     "rust_runs": 0
   },
   "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
-  "witnesses_fingerprint_sha256": "4088dd1190682ce698a77a47d9df1628e2ef626d1003aef184fbb2292139bc0c"
+  "witnesses_fingerprint_sha256": "bc0e7dd61ace450bb4c474ab1e6082c68f3ab44d288155b26e0d5068fc35e05e"
 }

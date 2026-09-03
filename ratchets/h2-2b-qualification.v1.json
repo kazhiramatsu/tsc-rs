@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-qualification.mjs",
-    "sha256": "414f1b53e869a24c675338f7e73f1890b1b3be8551c19b82cce5fc7dcfa0b732"
+    "sha256": "85f377d729358ba4a1f0d8f60ea18f9a1879b4216528c7b9af62d583abb3b1b1"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_2a_merge": "c402252a0d9df4ca0f5332c7f64084087fe55886",
     "h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "e1e39741f1d5141ab9b47d6cce48a904a911ee79af718cd5af226367cfa23dba"
+      "sha256": "7f50bc4e03eecd1ffc1cb1a074b5bbead27b71eef9f66b5f2240f44c5b003caf"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "3d322e768b533bd3abaf0daa5bb1373d9053d6d632821cf2a0cc2b586df1d3d7"
+      "sha256": "07d7310513ba0840e0bd052f58a6e9e59f18eb142e15c5d91eff0a7691502ef9"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "88328bfc075151e7f4450c5c33a5a5d869d93d73dc03cc6b240d4a312528199c"
+      "sha256": "b0c29fab32c6eb70a94a1ed608058f8c5300dc603cc1cbc14e7bd1a0fb0effb4"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "8c3efb3186ea7ef2e952bde6bfcac6734576a169d70d309cf0023feaa60cf028"
+      "sha256": "7f2194c7b44f2a17cdb9bd602449535c17d9ede58793d4754ea04b033bff0a62"
     },
     "h2_2a_qualification": {
       "path": "ratchets/h2-2a-qualification.v1.json",
-      "sha256": "b038364d4975bbfdd95897d8a8fb0d9970d11c16db7bdb2c410aee6eea1477a7"
+      "sha256": "b75d7fb2df7d52c04c73dd4a0628e0cddb9d599e88eb905a62e5e8f7390cd9c1"
     }
   },
   "execution_contract": {
@@ -7217,5 +7217,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "f9abe22dc75d5a93fc80ebde5a4fa280331707dc32eb6c04d93a7c88e6e4a147"
+  "qualification_fingerprint_sha256": "b7a2e516a9bcb02b32c0a99bbcef21ca22a6763679912a88296bdebb3db289b8"
 }
