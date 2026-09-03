@@ -1621,6 +1621,33 @@
       "semantic": [],
       "unmatched": []
     },
+    "crates/oracle/h2-7a-close.mjs": {
+      "family": "oracle-script",
+      "pins": [],
+      "semantic": [
+        {
+          "grammar": "D",
+          "note": "frozen H2.6c-close baseline (h2-7a-ca \u00a74.1); never repinned",
+          "path": "crates/emitter/src/plan.rs"
+        },
+        {
+          "grammar": "D",
+          "note": "frozen H2.6c-close baseline (h2-7a-ca \u00a74.1); never repinned",
+          "path": "crates/emitter/src/execute.rs"
+        },
+        {
+          "grammar": "D",
+          "note": "frozen H2.6c-close baseline (h2-7a-ca \u00a74.1); never repinned",
+          "path": "crates/emitter/src/activity.rs"
+        }
+      ],
+      "unmatched": [
+        {
+          "literal": "ed0036eb9d22227c3fba7980d852509a6aba42566c9a39329c761d1b4c61a79b",
+          "note": "H2_6C_CLOSE_CASES_ROLL_SHA256: frozen H2.6c-close candidate-dispositions cases roll (h2-7a-ca \u00a74.1; semantic, never repinned)"
+        }
+      ]
+    },
     "crates/oracle/h2-transition.mjs": {
       "family": "oracle-script",
       "pins": [

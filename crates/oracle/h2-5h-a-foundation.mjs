@@ -1293,14 +1293,12 @@ function loadParentProfile(requireParent) {
       parent.status === "qualified" &&
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
-      // The H2.6c ca landing rewrote the live transition block again:
-      // H2.6c is ACTIVE, the ladder points at H2.7a (dormant declaration
-      // foundation — the next RUNTIME activation is H2.7b), and the
-      // map-era adoption fields ride the h2_6c_* block (h2-6c-ca.md §5;
-      // the 6a/6b-era values are history).
-      parent.transition.next_slice === "H2.7a" &&
-      parent.transition.next_slice_scope ===
-        "declaration-owner-inventory-and-dormant-foundation" &&
+      // The H2.7a close landing (h2-7a-ca.md §5) rewrote the live
+      // transition block: the dormant declaration foundation closed with
+      // zero admissions, and next_slice now re-converges with H2.7b's
+      // runtime activation on non-bundle declaration output.
+      parent.transition.next_slice === "H2.7b" &&
+      parent.transition.next_slice_scope === "non-bundle-declaration-output" &&
       parent.transition.next_runtime_activation_slice === "H2.7b" &&
       canonical(parent.transition.active_runtime_slices) ===
         canonical([...CLOSED_THROUGH_H2_5G, "H2.5h", "H2.6a", "H2.6b", "H2.6c"]) &&
