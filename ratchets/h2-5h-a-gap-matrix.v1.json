@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "653f3708ae79a91fe9ca2170c35b168f783feecd8bd7d6a17b170268fbc18863"
+      "sha256": "4c13048b6c40a54f5cb43986e42ad3fc5156ae36b50b7b64308e30d3c6a589f0"
     },
-    "owner_graph_fingerprint_sha256": "123440db49cd9788bc939be6716e0d0feb1e139015405309605661d0b87a51a2",
+    "owner_graph_fingerprint_sha256": "c14ac1a2a46c02bdf81d896556d625f80a34960a521dfcaf5149d28e3ee5c37b",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
@@ -126,7 +126,7 @@
           "symbol": "pub fn create_node",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+            "sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
           }
         },
         {
@@ -134,13 +134,13 @@
           "symbol": "pub fn create_node_array",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+            "sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
           }
         }
       ],
       "absences": [],
       "note": null,
-      "capability_fingerprint_sha256": "b495293132b5102db7b260d6a462485af658fa72f20de6fdc5b2fc9268cb1766"
+      "capability_fingerprint_sha256": "c247d68c6f80383dd434a01604ce14da0dc1f83dd3ce5cc3397ad5837917ba1c"
     },
     {
       "index": 3,
@@ -160,7 +160,7 @@
           "symbol": "pub fn propagate_child_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+            "sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
           }
         },
         {
@@ -168,7 +168,7 @@
           "symbol": "fn classify_created_node_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+            "sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
           }
         },
         {
@@ -176,7 +176,7 @@
           "symbol": "fn classify_created_token_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+            "sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
           }
         },
         {
@@ -190,7 +190,7 @@
       ],
       "absences": [],
       "note": "B-1 landed the EA-GAP-FLAGS postorder classifier: per-created-kind facet tables ported from the owner-called creators, aggregated through propagate_child_flags; the eight TransformFlags facets of the nine-facet qualification surface carry table contracts (the ninth is the resolver-side NodeCheckFlags fact)",
-      "capability_fingerprint_sha256": "425e829c3f9f08b0f23ba5954a214f915305bf39c54539a4ee2fc25749df226b"
+      "capability_fingerprint_sha256": "72c6219a977c3279ea39d4573ed3743c73c861c46362d78dcccf621c61f42c2f"
     },
     {
       "index": 4,
@@ -482,7 +482,7 @@
           "symbol": "fn is_arguments_local_binding",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+            "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
           }
         },
         {
@@ -490,7 +490,7 @@
           "symbol": "fn get_referenced_value_declaration",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+            "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
           }
         },
         {
@@ -498,7 +498,7 @@
           "symbol": "fn has_node_check_flag",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+            "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
           }
         },
         {
@@ -506,7 +506,7 @@
           "symbol": "fn get_referenced_declaration_with_colliding_name",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+            "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
           }
         },
         {
@@ -514,7 +514,7 @@
           "symbol": "fn is_declaration_with_colliding_name",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+            "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
           }
         },
         {
@@ -522,7 +522,7 @@
           "symbol": "fn is_binding_captured_by_node",
           "file": {
             "path": "crates/emitter/src/resolver.rs",
-            "sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+            "sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
           }
         },
         {
@@ -538,7 +538,7 @@
           "symbol": "fn is_binding_captured_by_node",
           "file": {
             "path": "crates/checker/src/emit.rs",
-            "sha256": "c351f25c41f1a5d150a4e8bd5d84895fb21e756762aee1edbdd3fa8cbb660987"
+            "sha256": "d4962ef8a316c9e5a4d2367e5db41dc5da15880c11d4e83301e9792b38c7ee38"
           }
         },
         {
@@ -552,7 +552,7 @@
       ],
       "absences": [],
       "note": "B-1 landed the collision/capture trio as typed fail-closed trait defaults with production implementations at the checker bridge (CheckerSession in emit.rs delegating to the modules.rs ports; checkNestedBlockScopedBinding's capturedBlockScopeBindings list materialized for isBindingCapturedByNode); all 43 resolver queries recorded by the foundation's three checker+resolver direct controls replay equal through the production bridge",
-      "capability_fingerprint_sha256": "721be2770cecd983d6b0875a59af3fabfe375c13cc28229be99577867da4e5ea"
+      "capability_fingerprint_sha256": "d6da7464a2a471782be9025154e0e7795f88c32c541f8904b0ed6a5328a3c8a7"
     },
     {
       "index": 9,
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "a708be6633d4220502e89ceabb23e4c0ff1ff8d85d7bc6ec2ecefde6e9041bbb"
+  "gap_matrix_fingerprint_sha256": "483233e86ae4bf8013b9f45a8f4a6ee1cb09635a84556057e8f107c7950d1787"
 }

@@ -39,11 +39,11 @@
       "crates/*/Cargo.toml",
       "crates/*/src/**/*.rs"
     ],
-    "file_count": 249,
-    "rust_source_files": 234,
+    "file_count": 259,
+    "rust_source_files": 244,
     "cargo_manifests": 15,
-    "bytes": 19006727,
-    "tree_sha256": "ed773058fcce2fd2556f8dfaeabac16e340b365886d4ddf5bb09d27d520372b9"
+    "bytes": 19376790,
+    "tree_sha256": "a52677faae2d04f22b63c96f4a2dcb3cee528c11b2448cdeaece0de46f38d446"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -420,20 +420,20 @@
       {
         "id": "emitter-transform-arena",
         "path": "crates/emitter/src/factory.rs",
-        "line": 170,
+        "line": 171,
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+        "file_sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
       },
       {
         "id": "emitter-node-factory",
         "path": "crates/emitter/src/factory.rs",
-        "line": 1547,
+        "line": 1548,
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "614a101cee52b5769d87816e12c85d5e023584a4bb9a602a01c4cfc54852177c"
+        "file_sha256": "f84d5122245431d0898adbd2bde8156617a3bb798fc0df141c8d2cb888adaf6a"
       },
       {
         "id": "emitter-transform-flags",
@@ -510,11 +510,11 @@
       {
         "id": "emitter-resolver-protocol",
         "path": "crates/emitter/src/resolver.rs",
-        "line": 658,
+        "line": 675,
         "column": 1,
         "text": "pub trait EmitResolver {",
         "text_sha256": "ae109ea619b5241506500e367bb7aae9e5f56333941a673b9fbaf5c412e8f0fd",
-        "file_sha256": "c86f194800c528c27a58e94eb97c4b18121353fe9e30ccf21e354f0ec493008a"
+        "file_sha256": "2c6931e255b90c119882296cda7d3d4cd763c41517df71a350b833d1978025cb"
       },
       {
         "id": "emitter-script-transformer-selection",
@@ -568,7 +568,7 @@
         "column": 1,
         "text": "pub struct CheckerSession<'program> {",
         "text_sha256": "c116253f653dd9a956605df77c212d4cdf2f1de1f490f223842fce7f005920ca",
-        "file_sha256": "c351f25c41f1a5d150a4e8bd5d84895fb21e756762aee1edbdd3fa8cbb660987"
+        "file_sha256": "d4962ef8a316c9e5a4d2367e5db41dc5da15880c11d4e83301e9792b38c7ee38"
       },
       {
         "id": "checker-emit-resolver-adapter",
@@ -577,7 +577,7 @@
         "column": 1,
         "text": "impl EmitResolver for CheckerSession<'_> {",
         "text_sha256": "a3574a190846d6bbe3db3311fedd3678739660afbe2f1b146111edcceccbb1cd",
-        "file_sha256": "c351f25c41f1a5d150a4e8bd5d84895fb21e756762aee1edbdd3fa8cbb660987"
+        "file_sha256": "d4962ef8a316c9e5a4d2367e5db41dc5da15880c11d4e83301e9792b38c7ee38"
       },
       {
         "id": "checker-value-alias-producer",
@@ -658,7 +658,7 @@
         "column": 1,
         "text": "pub trait EmitHost {",
         "text_sha256": "24e57ba5fe1431ce68abf94caa9f328d352d90bfd61e0481b2642335d433eafc",
-        "file_sha256": "2711421284a2a80b345cdc21dccd897b6c3c3908035f7bb9d080976a5af029a7"
+        "file_sha256": "2d543ecfd68757a76c97d30a4d77618e445a9500a34f7f42f4fc0d8339b64e1e"
       },
       {
         "id": "emitter-output-preflight",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "27e45c131614b15a20e31fb40040804a8074f47d594734e6984834af22f6ddd9"
+  "inventory_fingerprint_sha256": "1c96714c1c3ad29a2d4c7106857c16ad45907b899c3df5ebc925a4e8d6ca7d12"
 }

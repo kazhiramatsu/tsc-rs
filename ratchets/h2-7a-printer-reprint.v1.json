@@ -29,11 +29,11 @@
     },
     "parent_packet": {
       "path": "docs/design/greenfield/slices/h2-7a.md",
-      "sha256": "ceadfb541c57617845b9945af48221550bfc2d7930535cbafbb7cc591f3701e9"
+      "sha256": "56191ae31e1c0c14f468b34630bc4637004d4eb42bd6f06647078103f1ebe5d7"
     },
     "witnesses": {
       "path": "ratchets/h2-7a-witnesses.v1.json",
-      "sha256": "dbbe7688461f3e438db3d5e6339e9be922541c356554428688022e6786c2a454",
+      "sha256": "d71aa1699795974e7a97e6b4abb3aa4a99ca81b133c96f801686021500547024",
       "case_manifest_fingerprint": "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1",
       "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad"
     },
@@ -31428,5 +31428,5 @@
     "typescript_oracle_runs": 2700
   },
   "reprint_content_roll_sha256": "364e4e3b38a0d67685274731acd660d208f37318036dc64b0d7a62e6bd310bca",
-  "printer_reprint_fingerprint_sha256": "e456ce7930138073eba2cf911982c347ade8e7e93d5246535206f5e6c6eddb18"
+  "printer_reprint_fingerprint_sha256": "fd455be9a6ba9cc91bc0ea500646b189eecc56ef62585078a72f3ce02e38e634"
 }
