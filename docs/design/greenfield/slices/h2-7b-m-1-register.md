@@ -16,3 +16,37 @@ First-cut census (settings + matrix, pre virtual-config merge): compiler deferre
 - owner_arms amendment: h2-transition outputs regenerated (`owner_roots` 50 / `owner_arms` 4): yes; the H2.7a inventory span pin :448-467 byte-identical + line numbers verified: yes (`25632b51bf9ea161a1b472e97f66b8d46f8b9e92b980e4effd4c0b1472d6cdd`); h2-7a-close re-minted pin-only: no, `--check` refused `h2-7a-close: close input pins changed`; 6c pass count in the walk: `0` in this lane (walk stopped on stale pin surface)
 
 ## Walk / gate / PR — recorded in the PR body at the final head
+
+## Operator review (train `h2/7b-m1`, 2026-09-04)
+
+- Lane: codex luna max on SPEC-M1 (82 min; STATUS archived at
+  `target/session-notes/7b/lanes/STATUS-m1-lane.md`); commit 12730fa0.
+- Operator battery (independent re-run, demoted): `node --check` ×2;
+  `h2-transition.mjs --check` fresh (owners 50 / arms 4; dispositions `cases`
+  roll `ed0036eb…` unchanged); `qualification.mjs check` 22 contracts;
+  `qualification.test.mjs` 38/38; pin-index clean (64 consumers / 255 sites);
+  walk-preflight = exactly the walk-owned harness row (`h2_1a_profile`) stale;
+  planner coverage + topology 71/71; `--preflight` census reproduced
+  (896/25, 475/1, 196/0; floor 1567/1567; negative facts 0); the frozen
+  :448-467 span sha `25632b51…` byte-identical and the three pre-448 edits
+  line-count-neutral (verified per hunk); `git diff --check` clean.
+- Receipt ordering verified in code: both observation paths mint the receipt
+  before the stored-artifact byte comparison (sharded and single-process);
+  the receipt-hit path compares without minting (no mint is needed there).
+- Independent receipt proof (the lane receipt moved away, canonical-equivalent
+  4-shard `--check`, then `--check` again): check 1 (receipt absent) = the full 4-shard pass, observations 1567/1567, `check_receipt=minted`, 557 s wall demoted (the background band runs on efficiency cores; the lane measured 89 s at normal priority); check 2 = `receipt: hit; adopted 1567 stored observations` in 8 s; the artifact byte-identical (sha256 `d4a979e3…`, `git status` clean).
+- Accepted deviations (operator judgment, packet §3/§3.6):
+  1. `GLOBAL_DISPOSITIONS_CASES_SHA256` is a frozen 64-hex literal in the
+     machine, classified `unmatched` in the pin-index — the packet's
+     registration bullet said "grammar-D pin; no frozen literal". Accepted:
+     the same era-frozen roll is a literal in `h2-7a-close.mjs:26`, the
+     H2.7a close artifact asserts it, and a fail-closed assertion at every
+     build is the §2 contract ("asserted at preflight and every build").
+  2. The receipt's `census_disposition_roll_sha256` is the census-authority
+     `cases` roll (the dispositions input), not a roll over the 1,593 census
+     records' dispositions. Sound: the census is a pure function of the
+     generator hash (in the key) and the projected inputs (in the key); the
+     dropped whole-file dispositions hash is replaced by this roll, so a
+     cases change misses and a pin-only change hits — the §3.6 intent.
+  3. The lane ran every node/python command under `nice -n 15` (the sandbox
+     denies `setpriority`); the operator battery ran demoted.
