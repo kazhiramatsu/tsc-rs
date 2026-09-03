@@ -18,7 +18,7 @@
     "only_acceptance_tests": true,
     "rust_source_sha256": {
       "crates/xtask/src/bounded_pipeline.rs": "0c28a1734791196646b869db5d22b9c6f34da617a250bfc99e23997bd3c0e3db",
-      "crates/xtask/src/main.rs": "209e82c9ac74284c9f68d34cfa81d13343b4724b498e18dabc7aeb394ef70a55",
+      "crates/xtask/src/main.rs": "a89dfa5d447ae3b5fda580f7e45aa51b12bea746db5e81699efe383df559deae",
       "crates/xtask/src/h1_emit_acceptance.rs": "cbae2669320c23532d517c20957731327e46969fc668057b2514501face379a8",
       "crates/xtask/src/h2_1a_acceptance.rs": "f3897a488fd058eb1abf0303ad62df593bc696308a4f11bd5200a9d29f332546",
       "crates/xtask/src/h2_1b_acceptance.rs": "a6ea8943cb7ecafc63b58ebffae6ec32a6bc707a300a0935fccc67daf3cdbb3e",

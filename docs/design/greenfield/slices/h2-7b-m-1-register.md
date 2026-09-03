@@ -50,3 +50,8 @@ First-cut census (settings + matrix, pre virtual-config merge): compiler deferre
      cases change misses and a pin-only change hits — the §3.6 intent.
   3. The lane ran every node/python command under `nice -n 15` (the sandbox
      denies `setpriority`); the operator battery ran demoted.
+- Mid-train fence amendment (packet §9.6): the `h2-7b-oracle` local-CI
+  phase in `crates/xtask/src/main.rs` + the hosted policy pin re-record —
+  the repair guard's mechanical consequence; the walk restarted from the
+  amended tree (the first walk, run 20260904-011132-75241, was stopped by
+  the operator at h2-1a-qualification).

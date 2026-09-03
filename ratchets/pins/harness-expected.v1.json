@@ -575,7 +575,7 @@
   {
    "test_file": "h2_1a_profile",
    "check_id": "ratchets/h2-profile-transition.v1.json",
-   "sha256": "f1b82aae7439921b110d61728c0cd4fb6b00ad74325cb2fd3f50c5a659649c68"
+   "sha256": "b6b75aaa824f142b6d6cd21d4b8a8b403482033c993b3374926eec4d2ff8e598"
   },
   {
    "test_file": "h2_1a_profile",
