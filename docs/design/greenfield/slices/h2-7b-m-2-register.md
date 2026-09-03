@@ -24,3 +24,7 @@
 - resources: local sweep wall `__` (STOP 15 min), per-worker RSS `__` (4 GB), aggregate `__` (8 GB); the first hosted `run_h2_7b` step wall `__`
 
 ## Walk / gate / PR — recorded in the PR body at the final head
+
+## Implementation-time amendments
+- 2026-09-04 lane B STOP 1: `h1_emit_qualification_contract.rs` (:449-465 the declaration-control write truncation; :488 the H2.6c activity mapping) is a LIFTED control missed by the G11 survey — packet §5.11 addendum; the lift = both frozen writes exact incl. the `.d.ts` bytes + the H2.7b member observation.
+- 2026-09-04 lane A STOP 1: the harness project loader `crates/harness/src/upstream_suites/execution/project.rs` joins the opening-commit file roster (the emitted-files listing must be enabled for project rows through `load_project_emit`; packet §4.6 unchanged in substance).
