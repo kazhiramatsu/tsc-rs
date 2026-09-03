@@ -2,7 +2,7 @@
 
 ## Design gate
 - Packet rev 3 RATIFIED 2026-09-03 (sol r1 REVISE 13+1 → r2 REVISE 5 partial → r3 AGREE). Authority file: `docs/design/greenfield/slices/h2-7b-m-1.md`.
-- Frozen order: the 6c repair train (`fix/h2-6c-acceptance-wiring`) → this rung → m-2. Trusted base for the train: the repair-train merge sha `__REPAIR_MERGE__`.
+- Frozen order: the 6c repair train (`fix/h2-6c-acceptance-wiring`) → this rung → m-2. Trusted base for the train: the repair-train merge sha `a67fdd37`.
 - Registration base at the train cut: 21 contracts (19 + the two 6c pairs); this rung → 22.
 
 ## The band (measured at authoring 2026-09-03; asserted at every build)
