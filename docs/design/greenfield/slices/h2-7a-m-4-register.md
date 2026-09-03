@@ -60,3 +60,9 @@ Trajectory (sol lane, `target/session-notes/m4/lanes/p4-lane.log`): divergences 
 
 ## P4b/P4c record (2026-09-03)
 P4b: the ModuleBlock naming scope landed (`S2/expando-4` `_b` → `_a` resolved: mismatches 8 → 6); deleting the chains.rs early return alone FAILED the m-3 replay's error-name lane (event 418: expected `"/.src/a"`, actual `"a"`) — isolation proved the regression belongs to the deletion, because the m-3.5 symbolToString adapter routes through the deleted guard by forcing `uses_basic_module_resolver_host = false` (serialize.rs:90-93). Fence amendment #2 (packet §9) authorizes the upstream-shaped host model; P4c implements it and converges.
+
+## P5 anchors (2026-09-03)
+`M4_ANCHORS` filled from the `tsc-port:` headers of `crates/emitter/src/declarations/*.rs` (generator `target/session-notes/m4/m4-anchors-gen.py`; 68/68 rows found, none ambiguous — the two nested `cleanup` functions resolve by their upstream start line); inventory re-minted: `summary.m4_anchors` = { rows 68, anchored 68, header_verified 68 }, `summary.audit` 308/0/0 and `summary.partition` 7/12 unchanged, exactly the 68 m-4 rows changed (each gains `rust_anchor`), fingerprint 5805eda9… → 6bf35994…; `--check` exit 0 twice.
+
+## P4 convergence — final (2026-09-03)
+L1 `divergences = 0` and L2 `mismatches = 0` in two consecutive fresh-session runs (lane P4c) and once more in the operator's independent battery; the m-3 replay green with the expando exclusion closed (createTypeOfDeclaration 320/0/0); `h2_7a_` contracts 6/6; checker 1,700; emitter 459/443/18; ledger 3,772/0/0; clippy/fmt clean.
