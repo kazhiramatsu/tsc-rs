@@ -183,3 +183,63 @@ fn test_capture_directory_is_unique_scoped_and_removed_on_drop() {
     assert!(!path.exists());
     fs::remove_dir_all(workspace).unwrap();
 }
+
+#[test]
+fn hosted_acceptance_and_oracle_phases_cover_h2_2c_rungs() {
+    let workspace = find_workspace_root().expect("workspace");
+    let h2_2c = fs::read_to_string(workspace.join("crates/xtask/src/h2_2c_acceptance.rs"))
+        .expect("h2_2c_acceptance.rs");
+    let main = fs::read_to_string(workspace.join("crates/xtask/src/main.rs")).expect("main.rs");
+    let acceptance = extract_balanced_after(&main, "fn acceptance(", '{', '}')
+        .expect("acceptance function body");
+
+    let hosted_rungs = h2_2c
+        .lines()
+        .filter_map(|line| line.trim_start().strip_prefix("pub fn run_h2_"))
+        .filter_map(|rest| {
+            rest.split_once('(')
+                .map(|(name, _)| format!("run_h2_{name}"))
+        })
+        .filter(|name| {
+            *name != "run_h2_5g_inventory"
+                && *name != "run_h2_5g_probe"
+                && !name.ends_with("_owner_controls")
+        })
+        .collect::<Vec<_>>();
+    assert!(
+        !hosted_rungs.is_empty(),
+        "h2_2c acceptance rungs are discoverable"
+    );
+    for rung in hosted_rungs {
+        let call = format!("h2_2c_acceptance::{rung}(&workspace)");
+        assert!(
+            acceptance.contains(&call),
+            "{call} must be inside fn acceptance"
+        );
+    }
+
+    for entry in fs::read_dir(workspace.join("crates/oracle")).expect("oracle directory") {
+        let entry = entry.expect("oracle directory entry");
+        let file_name = entry.file_name();
+        let Some(file_name) = file_name.to_str() else {
+            continue;
+        };
+        let Some(rung) = file_name
+            .strip_prefix("h2-")
+            .and_then(|name| name.strip_suffix("-qualification.mjs"))
+        else {
+            continue;
+        };
+        let mut chars = rung.chars();
+        let Some(major) = chars.next().and_then(|value| value.to_digit(10)) else {
+            continue;
+        };
+        let Some(minor) = chars.next() else {
+            continue;
+        };
+        if major > 5 || (major == 5 && minor >= 'g') {
+            let phase = format!("\"h2-{rung}-oracle\"");
+            assert!(main.contains(&phase), "main.rs must register {phase}");
+        }
+    }
+}

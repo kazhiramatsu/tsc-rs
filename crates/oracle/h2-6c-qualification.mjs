@@ -60,6 +60,7 @@ const DEFAULT_CHECK_SHARDS = 4;
 const MAX_CHECK_SHARDS = 8;
 const INTERNAL_CHECK_SHARD_MODE = "--internal-check-shard";
 const CHECK_RECEIPT_RELATIVE_PATH = "target/h2-6c/check-receipt.v1.json";
+const RECEIPT_DEBUG = process.env.TSRS_H2_6C_RECEIPT_DEBUG === "1";
 
 const MAP_OPTION_NAMES = Object.freeze([
   "sourceMap",
@@ -2198,16 +2199,39 @@ function libraryInventoryRecord() {
   };
 }
 
-function globalRecordsSha(context, contract, owners) {
-  return sha256(Buffer.from(canonical({
+// `owner_inventory` and `global_candidate_dispositions` are pin-carrying
+// ratchet artifacts: a pin-only rebind changes their file bytes without
+// changing anything an observation can see. Compare their observation-
+// relevant projections instead; owner closure and every per-case identity
+// remain explicit receipt guards below.
+function observationInputs(inputs) {
+  const {
+    owner_inventory: _ownerInventory,
+    global_candidate_dispositions: _globalDispositions,
+    ...rest
+  } = inputs;
+  return rest;
+}
+
+function globalRecordsSha(context, contract, owners, phase) {
+  const terms = {
     typescript: context.input.typescript,
-    inputs: context.input.inputs,
+    observation_inputs: observationInputs(context.input.inputs),
     execution_contract: contract,
     owner_closure: owners,
     census_fingerprint_sha256: context.census.census_fingerprint_sha256,
     project_mount_fingerprint_sha256: context.projectState?.mountInventory.mount_fingerprint_sha256 ?? null,
     library_inventory: libraryInventoryRecord(),
-  }), "utf8"));
+  };
+  if (RECEIPT_DEBUG) {
+    process.stderr.write(
+      `H2.6c receipt debug (${phase}): ${JSON.stringify({
+        ...terms,
+        inputs: context.input.inputs,
+      })}\n`,
+    );
+  }
+  return sha256(Buffer.from(canonical(terms), "utf8"));
 }
 
 function loadCheckReceipt(context, contract, owners) {
@@ -2217,6 +2241,7 @@ function loadCheckReceipt(context, contract, owners) {
   } catch {
     throw new CheckReceiptMiss("absent-or-invalid");
   }
+  const globalRecords = globalRecordsSha(context, contract, owners, "check");
   if (
     receipt === null ||
     typeof receipt !== "object" ||
@@ -2226,7 +2251,7 @@ function loadCheckReceipt(context, contract, owners) {
     receipt.workspace !== fs.realpathSync(WORKSPACE) ||
     receipt.node !== process.version ||
     receipt.generator_sha256 !== pathHash(GENERATOR_RELATIVE_PATH).sha256 ||
-    receipt.global_records_sha256 !== globalRecordsSha(context, contract, owners)
+    receipt.global_records_sha256 !== globalRecords
   ) throw new CheckReceiptMiss("stale");
   return receipt;
 }
@@ -2269,7 +2294,8 @@ function reusableStoredCases(context, contract, owners) {
     stored.phase !== "H2.6c-map-observation" ||
     !hasValidFingerprint(stored, "qualification_fingerprint_sha256") ||
     canonical(stored.typescript) !== canonical(context.input.typescript) ||
-    canonical(stored.inputs) !== canonical(context.input.inputs) ||
+    canonical(observationInputs(stored.inputs)) !==
+      canonical(observationInputs(context.input.inputs)) ||
     canonical(stored.execution_contract) !== canonical(contract) ||
     canonical(stored.owner_closure) !== canonical(owners) ||
     stored.selection_contract?.census_file_sha256 !== CENSUS_SHA256 ||
@@ -2495,7 +2521,7 @@ function mintCheckReceipt(artifact) {
     workspace: fs.realpathSync(WORKSPACE),
     node: process.version,
     generator_sha256: artifact.generator.sha256,
-    global_records_sha256: globalRecordsSha(context, contract, owners),
+    global_records_sha256: globalRecordsSha(context, contract, owners, "mint"),
     cases_observation_sha256: casesObservationSha(artifact.cases.map((entry) => entry.case_fingerprint_sha256)),
   }, "receipt_fingerprint_sha256");
   const absolute = path.join(WORKSPACE, CHECK_RECEIPT_RELATIVE_PATH);

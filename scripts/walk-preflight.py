@@ -19,6 +19,8 @@ Surfaces:
   5. fuzz manifest source references      (ratchets/fuzz-preflight.v1.json,
                                            ratchets/fuzz-domain.v1.toml,
                                            ratchets/fuzz-oracle-deviations.v1.json)
+  6. post-5g ORDER/schema registry surface (scripts/chain-walk.sh,
+                                            .github/ci/qualification.mjs)
 
 Exit: 0 clean, 1 stale surfaces (ALL reported, never fail-first).
 """
@@ -37,6 +39,9 @@ POLICY = ".github/ci/qualification-policy.v2.json"
 FUZZ_PREFLIGHT = "ratchets/fuzz-preflight.v1.json"
 FUZZ_DOMAIN = "ratchets/fuzz-domain.v1.toml"
 FUZZ_ORACLE = "ratchets/fuzz-oracle-deviations.v1.json"
+CHAIN_WALK = "scripts/chain-walk.sh"
+QUALIFICATION = ".github/ci/qualification.mjs"
+ORDER_START = "h2-5g-qualification"
 
 
 def disk_sha256(relative):
@@ -103,6 +108,51 @@ def pair_surface(problems, label, pairs):
             )
 
 
+def chain_order():
+    source = (ROOT / CHAIN_WALK).read_text(encoding="utf-8")
+    match = re.search(r"^ORDER=\(\n(.*?)^\)\n", source, re.MULTILINE | re.DOTALL)
+    if not match:
+        raise ValueError(f"ORDER block not found in {CHAIN_WALK}")
+    return re.findall(r"[a-z0-9-]+", match.group(1))
+
+
+def registered_schema_rungs():
+    source = (ROOT / QUALIFICATION).read_text(encoding="utf-8")
+    match = re.search(
+        r"^export const ARTIFACT_SCHEMA_CONTRACTS = Object\.freeze\(\[\n(.*?)^\]\);",
+        source,
+        re.MULTILINE | re.DOTALL,
+    )
+    if not match:
+        raise ValueError(f"ARTIFACT_SCHEMA_CONTRACTS registry not found in {QUALIFICATION}")
+    return set(
+        re.findall(
+            r'\bschema:\s*"\.github/ci/contracts/([a-z0-9-]+)\.schema\.json"',
+            match.group(1),
+        )
+    )
+
+
+def registry_surface(problems):
+    try:
+        order = chain_order()
+        registered = registered_schema_rungs()
+    except (OSError, ValueError) as error:
+        problems.append(f"[registry] {error}")
+        return
+    try:
+        start = order.index(ORDER_START)
+    except ValueError:
+        problems.append(f"[registry] {ORDER_START} is absent from {CHAIN_WALK}")
+        return
+    for rung in order[start:]:
+        schema = f".github/ci/contracts/{rung}.schema.json"
+        if not (ROOT / schema).is_file():
+            problems.append(f"[registry] missing schema {schema}")
+        if rung not in registered:
+            problems.append(f"[registry] {schema} is absent from {QUALIFICATION}")
+
+
 def main():
     problems = []
     subprocess_surface(problems, "harness-pins", ["python3", "scripts/pin-audit.py"])
@@ -148,13 +198,14 @@ def main():
     oracle_pairs = []
     embedded_pairs(json.load(open(ROOT / FUZZ_ORACLE)), oracle_pairs)
     pair_surface(problems, f"fuzz-manifest:{FUZZ_ORACLE}", oracle_pairs)
+    registry_surface(problems)
 
     if problems:
         print(f"walk-preflight: {len(problems)} stale pin surface(s) — fix ALL, then walk ONCE:")
         for problem in problems:
             print(f"  {problem}")
         return 1
-    print("walk-preflight: all pin surfaces clean (harness, harness-manifest, pin-index, policy, schema-consts, fuzz-manifests)")
+    print("walk-preflight: all pin surfaces clean (harness, harness-manifest, pin-index, policy, schema-consts, fuzz-manifests, registry)")
     return 0
 
 
