@@ -312,6 +312,7 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/compiler/tests/integration/source_map_band_probe.rs",
   "crates/compiler/tests/integration/h2_7a_m35_controls.rs",
   "crates/compiler/tests/integration/h2_7a_m4_controls.rs",
+  "crates/compiler/tests/integration/h2_7a_ca_controls.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit
   // runtime (emit acceptance routes through the harness emit drivers,
