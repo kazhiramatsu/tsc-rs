@@ -51,6 +51,22 @@ path); every other oracle script already owns a distinct receipt path
 walk (round 2 census AND qualification receipt hits in seconds) and the
 `h2-6c-oracle` phase of the gate at the final head.
 
+## Residual (recorded, not repaired here)
+
+After the path separation the steady state hits (consecutive `--check`s
+adopt 643 stored observations in ~3 s; `--write` leaves the artifact and
+the receipt intact). One residual remains inside a chain walk that
+RE-MINTS the 6c qualification (its generator or pins moved): the `--check`
+flow compares the stored artifact BEFORE minting the receipt
+(h2-6c-qualification.mjs `runShardedCheck` and the single-process path
+:2655-2668), so a stale artifact throws before the mint, the walk's
+`--write` re-mints the artifact, and round 2 re-observes once more (walk 2
+of this train: round 1 116 s + write 3 s, round 2 91 s; census hit in 9 s).
+Fix (follow-up, not this train): mint the receipt before the byte
+comparison — the receipt attests the observations, the artifact linkage is
+guarded separately by the reuse terms. The H2.7b m-1 clone MUST mint before
+comparing (SPEC-M1 §A.6).
+
 ## Evidence
 
 Before the repair, the direct 6c qualification check completed the full
