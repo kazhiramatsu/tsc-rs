@@ -1648,6 +1648,17 @@
         }
       ]
     },
+    "crates/oracle/h2-7b-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [],
+      "semantic": [],
+      "unmatched": [
+        {
+          "literal": "ed0036eb9d22227c3fba7980d852509a6aba42566c9a39329c761d1b4c61a79b",
+          "note": "GLOBAL_DISPOSITIONS_CASES_SHA256: frozen global H2 candidate-dispositions cases roll used as the H2.7b census authority"
+        }
+      ]
+    },
     "crates/oracle/h2-transition.mjs": {
       "family": "oracle-script",
       "pins": [

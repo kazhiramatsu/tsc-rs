@@ -298,6 +298,10 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
         ".github/ci/contracts/h2-7a-close.schema.json",
         "ratchets/h2-7a-close.v1.json",
       ],
+      [
+        ".github/ci/contracts/h2-7b-qualification.schema.json",
+        "ratchets/h2-7b-qualification.v1.json",
+      ],
     ],
   );
 });
