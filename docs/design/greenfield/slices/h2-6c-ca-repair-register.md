@@ -50,13 +50,15 @@ qualification).
 
 ## Verification record
 
-The runnable verification record is maintained in the lane's root
-`STATUS.md`, including command result tails, the pre-step deviation, and the
-operator-only walk/full-gate exclusions.
+The lane's full command tails are archived at
+`target/session-notes/repair/STATUS-6c-lane.md` (session notes, untracked);
+the train's walk cert, gate summary, and hosted result are recorded in the
+PR #502 body at the final head.
 
 ## Deviations and open questions
 
 - The §0 standalone pre-step and the chain walk/full gate remain operator
   responsibilities and were not run in this linked worktree.
-- No repair commit was created, as required for this linked worktree; the
-  implementation is the working-tree diff from `46e3e487`.
+- The lane could not commit in its linked worktree; the operator committed
+  its diff on `lane/6c-repair` (60c48b64) after the battery above and merged
+  it into the train `fix/h2-6c-acceptance-wiring` (e429a19d).
