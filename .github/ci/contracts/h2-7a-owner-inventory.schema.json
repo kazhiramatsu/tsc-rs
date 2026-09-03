@@ -428,11 +428,21 @@
           }
         },
         "rust_anchor": {
-          "type": [
-            "string",
-            "null"
-          ],
-          "pattern": "^crates/[A-Za-z0-9_./-]+:[1-9][0-9]*$"
+          "oneOf": [
+            {
+              "type": [
+                "string",
+                "null"
+              ],
+              "pattern": "^crates/[A-Za-z0-9_./-]+:[1-9][0-9]*$"
+            },
+            {
+              "$ref": "#/$defs/rust_anchor"
+            },
+            {
+              "$ref": "#/$defs/rust_anchor_placeholder"
+            }
+          ]
         },
         "disposition": {
           "$ref": "#/$defs/disposition"
@@ -474,6 +484,32 @@
                 "enum": [
                   "printer-subgraph",
                   "factory-parenthesizer"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "target_rung": {
+                "const": "H2.7b"
+              }
+            },
+            "required": [
+              "target_rung"
+            ]
+          },
+          "then": {
+            "properties": {
+              "rust_anchor": {
+                "oneOf": [
+                  {
+                    "$ref": "#/$defs/rust_anchor"
+                  },
+                  {
+                    "$ref": "#/$defs/rust_anchor_placeholder"
+                  }
                 ]
               }
             }
@@ -563,7 +599,8 @@
         "reached_by_surface",
         "option_rows",
         "unresolved_candidates",
-        "m4_anchors"
+        "m4_anchors",
+        "h2_7b_anchored_rows"
       ],
       "properties": {
         "total_rows": {
@@ -836,6 +873,11 @@
         "unresolved_candidates": {
           "const": 0
         },
+        "h2_7b_anchored_rows": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 7
+        },
         "m4_anchors": {
           "type": "object",
           "additionalProperties": false,
@@ -859,6 +901,46 @@
               "maximum": 68
             }
           }
+        }
+      }
+    },
+    "rust_anchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "name",
+        "line",
+        "span_sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "pattern": "^crates/[A-Za-z0-9_./-]+$"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "span_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "rust_anchor_placeholder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "todo"
+      ],
+      "properties": {
+        "todo": {
+          "type": "string",
+          "pattern": "^TO-FILL: .+$"
         }
       }
     }
