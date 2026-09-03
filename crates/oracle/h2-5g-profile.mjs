@@ -628,12 +628,11 @@ function buildArtifact() {
       },
       transition: {
         completed_slice: "H2.5g",
-        // The H2.6c ca landing (h2-6c-ca.md §5): the map-observation era
-        // closes with the 451-row standing manifest handed to its named
-        // later owners; H2.7a is dormant-foundation-only, so the next
-        // RUNTIME activation is H2.7b's non-bundle declaration output.
-        next_slice: "H2.7a",
-        next_slice_scope: "declaration-owner-inventory-and-dormant-foundation",
+        // The H2.7a ca landing (h2-7a-ca.md §5): the dormant declaration
+        // foundation closed with zero admissions; next_slice and the runtime
+        // activation slice re-converge on H2.7b's non-bundle declaration output.
+        next_slice: "H2.7b",
+        next_slice_scope: "non-bundle-declaration-output",
         next_runtime_activation_slice: "H2.7b",
         active_runtime_slices: [
           "H2.1a", "H2.1b", "H2.1c", "H2.1d", "H2.1e", "H2.2a",

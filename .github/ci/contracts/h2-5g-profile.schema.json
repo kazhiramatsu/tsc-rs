@@ -225,8 +225,8 @@
     "transition": {
       "const": {
         "completed_slice": "H2.5g",
-        "next_slice": "H2.7a",
-        "next_slice_scope": "declaration-owner-inventory-and-dormant-foundation",
+        "next_slice": "H2.7b",
+        "next_slice_scope": "non-bundle-declaration-output",
         "next_runtime_activation_slice": "H2.7b",
         "active_runtime_slices": [
           "H2.1a",
