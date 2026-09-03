@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "2629445bc734427a756fbd55333adff3492b06a4c4d05dcbdf918684b36f2b23"
+    "sha256": "ed22bd473990d32b65e237b0b2772da2577bed5e10f62b24bcaf29b4e978e4f4"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "7f1d817fba6d2734b9ae09fa9456d5b0b124dcf1357f3571c1a520a275a9c711"
+    "sha256": "c0da5b6b98a319c38f8c24f030cf6df4c65f5881275640e4411f8120604322dd"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -788,7 +788,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "8ce8c0c1c74c12ef9508e7e1ee18a696274c46a291f4be62331890570bc7e05e"
+      "sha256": "d8b555a6d390702a025ba6343e9ecd73286833de808dae77a8cc2eb8e9338c54"
     },
     {
       "path": "crates/compiler/tests/integration/es2015_generators_witness_contract.rs",
@@ -1180,8 +1180,8 @@
   },
   "transition": {
     "completed_slice": "H2.5g",
-    "next_slice": "H2.7a",
-    "next_slice_scope": "declaration-owner-inventory-and-dormant-foundation",
+    "next_slice": "H2.7b",
+    "next_slice_scope": "non-bundle-declaration-output",
     "next_runtime_activation_slice": "H2.7b",
     "active_runtime_slices": [
       "H2.1a",
@@ -1314,5 +1314,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "a2b89d3a439835c78116d8f777f40c744f0c03b2558501cd783b8edc125c4e80"
+  "profile_fingerprint_sha256": "b7b812c40d36f16280f674e4b5dab6adbefa6f2dfe52740929b38ad7eb5c207a"
 }
