@@ -59,7 +59,12 @@ const CHECK_SHARDS_ENV = "TSRS_H2_6C_CHECK_SHARDS";
 const DEFAULT_CHECK_SHARDS = 4;
 const MAX_CHECK_SHARDS = 8;
 const INTERNAL_CHECK_SHARD_MODE = "--internal-check-shard";
-const CHECK_RECEIPT_RELATIVE_PATH = "target/h2-6c/check-receipt.v1.json";
+// The census machine (crates/oracle/h2-6c-census.mjs) mints ITS receipt at
+// target/h2-6c/check-receipt.v1.json; this machine must not share that path
+// (kind h2-6c-census-check-receipt vs h2-6c-qualification-check-receipt: the
+// two overwrote each other and every ordered census -> qualification check
+// missed as "stale" — the fix/h2-6c repair train, 2026-09-03).
+const CHECK_RECEIPT_RELATIVE_PATH = "target/h2-6c/qualification-check-receipt.v1.json";
 const RECEIPT_DEBUG = process.env.TSRS_H2_6C_RECEIPT_DEBUG === "1";
 
 const MAP_OPTION_NAMES = Object.freeze([

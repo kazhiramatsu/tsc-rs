@@ -31,6 +31,26 @@ H2.5g/H2.6a/H2.6b receipt machines. The receipt key now hashes
 owner closure, census/project-mount fingerprints, execution contract,
 library inventory, and every per-case identity remain guarded.
 
+## Receipt-miss root cause (completed on the train, 2026-09-03)
+
+The lane's `inputs` projection is a valid consistency repair (the key now
+matches the 5g/6a/6b idiom), but the PERMANENT miss had a second, decisive
+cause found by the train's walk and gate: `h2-6c-census.mjs:148` and
+`h2-6c-qualification.mjs:62` minted their receipts (kinds
+`h2-6c-census-check-receipt` / `h2-6c-qualification-check-receipt`) into the
+SAME file `target/h2-6c/check-receipt.v1.json`, overwriting each other.
+Every ordered `census --check` → `qualification --check` (the chain-walk
+ORDER and the `h2-6c-oracle` phase) therefore found the other machine's
+receipt, failed the `kind` guard as `stale`, and re-observed — a ping-pong
+that also re-censused on the next census check. Consecutive qualification
+checks with nothing in between hit (the four post-walk manual runs), which
+is what exposed the collision. Fix: the qualification receipt moves to
+`target/h2-6c/qualification-check-receipt.v1.json` (the census keeps its
+path); every other oracle script already owns a distinct receipt path
+(verified by grep over `crates/oracle/*.mjs`). Proof: the train's second
+walk (round 2 census AND qualification receipt hits in seconds) and the
+`h2-6c-oracle` phase of the gate at the final head.
+
 ## Evidence
 
 Before the repair, the direct 6c qualification check completed the full
