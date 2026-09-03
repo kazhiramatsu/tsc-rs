@@ -1,0 +1,252 @@
+{
+  "schema": 1,
+  "kind": "h2-7a-close",
+  "status": "qualified-typescript-oracle",
+  "phase": "H2.7a-close",
+  "typescript": {
+    "version": "6.0.3",
+    "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+    "bundle": {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    "implementation": {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    }
+  },
+  "generator": {
+    "path": "crates/oracle/h2-7a-close.mjs",
+    "sha256": "98513cda8a8b2c8f574761960b49b4e77e840ff654d36277259bb0c1eb86bac7"
+  },
+  "contract": {
+    "path": ".github/ci/contracts/h2-7a-close.schema.json",
+    "sha256": "42a7b5e1e0bac3a47c5943c031fab0fc78db2899c377f81e9579b7b63d99121f"
+  },
+  "inputs": {
+    "owner_inventory": {
+      "path": "ratchets/h2-7a-owner-inventory.v1.json",
+      "sha256": "803f6ae5b33d9bfba68cbb5cb28632c10a45611279a219de7c903156d0853365",
+      "inventory_fingerprint_sha256": "0a39b0e0149929b51c265617cd55bbfb5d15b9798c06aaa7831ca131f0f28a0e"
+    },
+    "witnesses": {
+      "path": "ratchets/h2-7a-witnesses.v1.json",
+      "sha256": "d71aa1699795974e7a97e6b4abb3aa4a99ca81b133c96f801686021500547024",
+      "witnesses_fingerprint_sha256": "4088dd1190682ce698a77a47d9df1628e2ef626d1003aef184fbb2292139bc0c",
+      "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
+      "case_manifest_fingerprint": "81d5b13a639f5cc8e74bc82dea62aef8c2b54c70419cd1c575225a0ec24f3ab1"
+    },
+    "probe_traces": {
+      "path": "ratchets/h2-7a-probe-traces.v1.json",
+      "sha256": "a07fc42429f6338bd9bc62196e3099f3633129418675e0bd5b7d1908279bcb5c",
+      "probe_traces_fingerprint_sha256": "d1fbac0a70761bac4620b2a076ce38f65f2d408fa4e16d4b100e50d7db657c96"
+    },
+    "printer_reprint": {
+      "path": "ratchets/h2-7a-printer-reprint.v1.json",
+      "sha256": "254e85ffbd088a88b0cc98fd5a0f0b683ff3c9310cf775dc13184a39893c7dc3",
+      "printer_reprint_fingerprint_sha256": "fd455be9a6ba9cc91bc0ea500646b189eecc56ef62585078a72f3ce02e38e634"
+    },
+    "candidate_dispositions": {
+      "path": "ratchets/h2-candidate-dispositions.v1.json",
+      "sha256": "b7482ff69dce3b511397aeafa31bd8100008540a9bc06256604df1b091d36db8"
+    }
+  },
+  "runtime_contract": {
+    "foundation_slice_id": "H2.7a",
+    "runtime_activation_slice_id": "H2.7b",
+    "production_state": "dormant",
+    "transformer_registration": "not-registered",
+    "active_runtime_slices": [
+      "H2.1a",
+      "H2.1b",
+      "H2.1c",
+      "H2.1d",
+      "H2.1e",
+      "H2.2a",
+      "H2.2b",
+      "H2.2c",
+      "H2.2d",
+      "H2.3a",
+      "H2.3b",
+      "H2.3c",
+      "H2.3d",
+      "H2.4a",
+      "H2.4b",
+      "H2.5a",
+      "H2.5b",
+      "H2.5c",
+      "H2.5d",
+      "H2.5e",
+      "H2.5f",
+      "H2.5g",
+      "H2.5h",
+      "H2.6a",
+      "H2.6b",
+      "H2.6c"
+    ],
+    "h2_7a_runtime_active": false,
+    "h2_7a_activity": 0,
+    "candidate_execution_state": "not-run",
+    "candidate_typescript_runs": 0,
+    "rust_runs": 0,
+    "parent_completed_runtime_slices": 25,
+    "runtime_admissions_before": 9196,
+    "runtime_admissions_after": 9196,
+    "runtime_admissions_delta": 0,
+    "executed_candidates_before": 9715,
+    "executed_candidates_after": 9715,
+    "executed_candidates_delta": 0
+  },
+  "candidate_band": {
+    "h2_7a_first_blocker_rows": 0,
+    "h2_7a_chain_rows": 0,
+    "cases_roll_sha256": "ed0036eb9d22227c3fba7980d852509a6aba42566c9a39329c761d1b4c61a79b",
+    "h2_6c_close_cases_roll_sha256": "ed0036eb9d22227c3fba7980d852509a6aba42566c9a39329c761d1b4c61a79b",
+    "roll_matches_h2_6c_close": true,
+    "next_slice_forecast": {
+      "slice": "H2.7b",
+      "first_blocker_rows": 1,
+      "chain_rows": 2456
+    }
+  },
+  "owner_closure": {
+    "unresolved_candidates": 0,
+    "total_rows": 1039,
+    "surface_rows": {
+      "declarations_module": 184,
+      "selection_seam": 2,
+      "node_builder": 334,
+      "syntactic_builder": 139,
+      "resolver_declaration_subset": 54,
+      "printer_subgraph": 184,
+      "factory_parenthesizer": 124,
+      "option_owner_closure": 18
+    },
+    "declarations_module": {
+      "function_rows": 68,
+      "owner_rows": 1,
+      "nested_function_rows": 60,
+      "sibling_function_rows": 7
+    },
+    "node_builder_function_rows": 149,
+    "syntactic_builder_function_rows": 54,
+    "resolver": {
+      "consumed_members": 19,
+      "member_rows": 20,
+      "declarations_module_call_sites": 28,
+      "orchestration_use_sites": 6
+    },
+    "printer": {
+      "function_rows": 370,
+      "seed_workers": 58,
+      "type_dispatch_workers": 24,
+      "subgraph_rows": 184
+    },
+    "factory_parenthesizer": {
+      "factory_members": 112,
+      "factory_calls": 477,
+      "parenthesizer_members": 12,
+      "parenthesizer_calls": 14
+    },
+    "audit": {
+      "already_exact": 308,
+      "foundation_needed": 0,
+      "pending": 0
+    },
+    "m4_anchors": {
+      "rows": 68,
+      "anchored": 68,
+      "header_verified": 68
+    },
+    "partition": {
+      "m_3_head": 7,
+      "m_2": 12
+    },
+    "reached_rows": 386
+  },
+  "evidence": {
+    "witnesses": {
+      "cases": 120,
+      "typescript_oracle_runs": 240,
+      "rust_runs": 0,
+      "declaration_writes": 202,
+      "deterministic_cases": 120,
+      "frozen_families": 14,
+      "emit_diagnostics": 13
+    },
+    "probe_traces": {
+      "cases": 120,
+      "events": 16925
+    },
+    "printer_reprint": {
+      "gating_rows": 1350
+    },
+    "eligible_domain": {
+      "excluded_case_ids": [
+        "h2-7a/F6/references-first",
+        "h2-7a/S2/entityname-1",
+        "h2-7a/S3/typeofexpr-1",
+        "h2-7a/S2/latebound-1"
+      ],
+      "eligible_cases": 116,
+      "transform_seeds": 202,
+      "decl_blocked": 202,
+      "transform_top_level_declaration_changed": 742,
+      "visit_declaration_subtree_changed": 496,
+      "track_symbol": 533,
+      "report_inference_fallback": 362,
+      "report_inaccessible_unique_symbol_error": 1,
+      "report_likely_unsafe_import_required_error": 1
+    }
+  },
+  "refusal_surfaces": [
+    {
+      "path": "crates/emitter/src/plan.rs",
+      "sha256_now": "ac36b2be2a480b0fce8b25a3983a9ec4e0c63661f138b45fcf31db1124c4fa3e",
+      "sha256_at_h2_6c_close": "ac36b2be2a480b0fce8b25a3983a9ec4e0c63661f138b45fcf31db1124c4fa3e",
+      "retained": true
+    },
+    {
+      "path": "crates/emitter/src/execute.rs",
+      "sha256_now": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae",
+      "sha256_at_h2_6c_close": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae",
+      "retained": true
+    },
+    {
+      "path": "crates/emitter/src/activity.rs",
+      "sha256_now": "3542317425e47a3fa90d657d419008feb9eb32864144c7356c00b54fd35a09b3",
+      "sha256_at_h2_6c_close": "3542317425e47a3fa90d657d419008feb9eb32864144c7356c00b54fd35a09b3",
+      "retained": true
+    },
+    {
+      "path": "crates/emitter/src/printer.rs",
+      "refusal_span": "PrintRequest::Declaration",
+      "present": true,
+      "retained": true
+    }
+  ],
+  "transition_landing": {
+    "next_slice": "H2.7b",
+    "next_slice_scope": "non-bundle-declaration-output",
+    "next_runtime_activation_slice": "H2.7b",
+    "completed_slice": "H2.5g",
+    "inactive_runtime_slice_count": 11,
+    "completed_runtime_slices": 25,
+    "next_slice_runtime_slice_delta": 0,
+    "runtime_admissions": 9196,
+    "executed_candidates": 9715,
+    "unexecuted_candidates": 0,
+    "undispositioned_candidates": 0
+  },
+  "summary": {
+    "h2_7a_activity": 0,
+    "rust_runs": 0,
+    "runtime_admissions_delta": 0,
+    "executed_candidates_delta": 0,
+    "unresolved_owners": 0,
+    "refusal_surfaces_retained": 4,
+    "eligible_cases": 116,
+    "h2_7a_first_blocker_rows": 0
+  },
+  "close_fingerprint_sha256": "152b5954e283d07849cb4965a51b88140838724bdb3f9679d4c6f851d5105562"
+}
