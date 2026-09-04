@@ -392,6 +392,17 @@ impl BasicModuleSpecifierHost {
             let normalized = CheckerState::normalize_program_path(path, &current_directory);
             files.entry(normalized).or_insert(None);
         }
+        // Prepared package manifests are checker host-only inputs. Their
+        // parsed values deliberately override an equal-path Program JSON
+        // source for host reads, while the binder and authoritative token
+        // table continue to own the Program source itself.
+        let mut host_package_json_values =
+            checker.host_package_json_values.iter().collect::<Vec<_>>();
+        host_package_json_values.sort_unstable_by_key(|(path, _)| *path);
+        for (path, value) in host_package_json_values {
+            let normalized = CheckerState::normalize_program_path(path, &current_directory);
+            files.insert(normalized, Some(value.to_string()));
+        }
         Self {
             current_directory,
             files,
@@ -673,7 +684,7 @@ pub(super) fn lookup_symbol_chain_worker(
 }
 
 /// tsc-port: getAlternativeContainingModules @6.0.3
-/// tsc-hash: f9a342ae3eb7a58dc5f3460393504f68147192648328858f9982a9009dcec890
+/// tsc-hash: 2993e3c865bd02307b93e7eb47d2eaea892fd2e3b321ba2bb78612cb66c60724
 /// tsc-span: _tsc.js:49949-49988
 ///
 /// The shared display slice deliberately omits the enclosing-file import
