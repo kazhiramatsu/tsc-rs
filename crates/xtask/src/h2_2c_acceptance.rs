@@ -4995,6 +4995,7 @@ fn execute_h2_6c_case(
                 | H2RuntimeSlice::H2_6a
                 | H2RuntimeSlice::H2_6b
                 | H2RuntimeSlice::H2_6c
+                | H2RuntimeSlice::H2_7b
         ) && activity.runtime_slice(slice) != 0
         {
             return Err(failure(format!(
@@ -5003,9 +5004,12 @@ fn execute_h2_6c_case(
             )));
         }
     }
-    // packet §6.4(b): the per-case H2.7b member assertion lands with the flip
-    // commit; the opening commit records the expectation without asserting it.
-    let _ = expected_h2_7b_members;
+    let observed_h2_7b_members = activity.runtime_slice(H2RuntimeSlice::H2_7b);
+    if observed_h2_7b_members != expected_h2_7b_members {
+        return Err(failure(format!(
+            "{case_id}: H2.6c route observed H2.7b activity {observed_h2_7b_members}, expected {expected_h2_7b_members}"
+        )));
+    }
     let divergence = vectorize_successful_observation(
         H2MismatchProfile::H2_6c,
         expected,
@@ -5418,6 +5422,21 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
         execute_h2_6c_case(workspace, case, &inputs)
             .map_err(|error| format!("H2.6c case index {index}: {error}"))
     })?;
+    let observed_h2_7b_activity =
+        results
+            .iter()
+            .try_fold(0u64, |total, result| -> Result<u64, Box<dyn Error>> {
+                let outcome = result.as_ref().map_err(|error| failure(error.to_owned()))?;
+                Ok(total + outcome.h2_7b_activity)
+            })?;
+    if observed_h2_7b_activity != 293 {
+        return Err(failure(format!(
+            "H2.6c aggregate H2.7b activity differs: expected 293, observed {observed_h2_7b_activity}"
+        )));
+    }
+    println!(
+        "H2.6c H2.7b activity: admitted_join_rows=133 declaration_members={observed_h2_7b_activity} other_executed_rows=0"
+    );
     let refused_option_totals = h2_6c_refused_option_totals(&results)?;
     println!("H2.6c refused_option totals: {refused_option_totals:?}");
     let (exact, deferred, mut diverging) =
