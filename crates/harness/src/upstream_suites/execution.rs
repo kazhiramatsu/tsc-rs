@@ -190,14 +190,29 @@ pub fn load_qualified_compiler_emit_with_option_floor(
             "failed to build qualified compiler fixture host: {host_error}"
         ))
     })?;
-    let virtual_config_paths = files
-        .iter()
-        .filter_map(|(path, _)| {
-            path.to_str()
-                .filter(|path| is_config_file_name(path))
-                .map(str::to_owned)
-        })
-        .collect::<Vec<_>>();
+    // h2-7b-m-2 fence amendment #3 (and its E14 correction): only the
+    // declaration-family runner applies a virtual tsconfig found among the
+    // case's files — the H2.7b census machine parses it
+    // (`h2-7b-qualification.mjs`: parseJsonText + parseJsonSourceFileConfigFileContent
+    // from the config's directory) so its config-driven rows observe the
+    // config's options, whereas the H2.5g / 5h / 6a / 6b / 6c machines splice
+    // the config unit out of the program and record it for identity only
+    // (`h2-5g-qualification.mjs` virtualConfig). Applying the config on the
+    // other floors resolved `types`/`typeRoots` that those observations never
+    // requested (hosted 5g: conformance/references/library-reference-13 lost
+    // its frozen TS2592).
+    let virtual_config_paths = if floor == EmitOptionFloor::DeclarationFamily {
+        files
+            .iter()
+            .filter_map(|(path, _)| {
+                path.to_str()
+                    .filter(|path| is_config_file_name(path))
+                    .map(str::to_owned)
+            })
+            .collect::<Vec<_>>()
+    } else {
+        Vec::new()
+    };
     if virtual_config_paths.len() > 1 {
         return Err(error(format!(
             "qualified compiler input has multiple virtual config files: {virtual_config_paths:?}"
