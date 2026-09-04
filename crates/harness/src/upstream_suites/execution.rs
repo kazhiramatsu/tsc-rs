@@ -319,8 +319,10 @@ fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitO
     }
 
     options.no_emit_helpers = None;
-    options.declaration_map = None;
-    options.out_file = None;
+    if floor != EmitOptionFloor::MapFamily {
+        options.declaration_map = None;
+        options.out_file = None;
+    }
     options.out_dir = None;
     options.declaration_dir = None;
     options.incremental = None;
@@ -1031,8 +1033,17 @@ fn apply_compiler_setting(
                 compiler_options.emit_declaration_only = Some(boolean()?);
             }
         }
+        "declarationmap" => {
+            if floor == EmitOptionFloor::MapFamily {
+                compiler_options.declaration_map = Some(boolean()?);
+            }
+        }
+        "outfile" => {
+            if floor == EmitOptionFloor::MapFamily {
+                compiler_options.out_file = Some(value.to_owned());
+            }
+        }
         "noemithelpers"
-        | "declarationmap"
         | "outdir"
         | "declarationdir"
         | "incremental"
@@ -1040,7 +1051,6 @@ fn apply_compiler_setting(
         | "stripinternal"
         | "disablesizelimit"
         | "out"
-        | "outfile"
         | "rootdir"
         | "tsbuildinfofile"
         | "pretty"
