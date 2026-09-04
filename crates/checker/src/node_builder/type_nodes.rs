@@ -2959,6 +2959,40 @@ fn visit_and_transform_type(
             .unwrap_or(0);
         (symbol, old)
     });
+    // links.serializedTypes (51823-51841): the enclosing declaration's
+    // cache of already-built nodes, off while expanding (maxExpansionDepth
+    // >= 0). A hit replays the tracked symbols, the truncation state, and
+    // the added length, then clones the node into this arena.
+    let cache_key = (context.max_expansion_depth < 0)
+        .then_some(context.enclosing_declaration)
+        .flatten()
+        .map(|enclosing| (enclosing, r#type, context.flags.0, context.internal_flags.0));
+    if let Some(key) = cache_key {
+        if let Some(cached) = checker
+            .links
+            .serialized_type_node(&key, arena.id())
+            .cloned()
+        {
+            if let Some(tracked) = cached.tracked_symbols {
+                for (symbol, enclosing, meaning) in tracked {
+                    super::chains::track_symbol_in_context_at(
+                        checker,
+                        Some(arena),
+                        Some(target),
+                        context,
+                        symbol,
+                        enclosing,
+                        meaning,
+                    )?;
+                }
+            }
+            if cached.truncating {
+                context.truncating = true;
+            }
+            context.approximate_length += cached.added_length;
+            return deep_clone_or_reuse_node(arena, cached.node).map(Some);
+        }
+    }
     if depth.is_some_and(|(_, old)| old > 10) {
         return create_elided_information_placeholder(arena, target, context).map(Some);
     }
@@ -2974,6 +3008,7 @@ fn visit_and_transform_type(
         .expect("initialized above")
         .insert(r#type);
     let old_tracked = context.tracked_symbols.take();
+    let start_length = context.approximate_length;
     let result = match transform {
         TypeTransform::Identity => {
             type_to_type_node_helper(checker, arena, target, r#type, context)
@@ -2988,6 +3023,22 @@ fn visit_and_transform_type(
             create_type_node_from_object_type(checker, arena, target, r#type, context).map(Some)
         }
     };
+    // 51846-51853: cache the built node with its side effects unless the
+    // build reported a diagnostic or encountered an error.
+    if let (Some(key), Ok(Some(node))) = (cache_key, &result) {
+        if !context.reported_diagnostic && !context.encountered_error {
+            checker.links.set_serialized_type_node(
+                key,
+                crate::links::SerializedTypeNodeEntry {
+                    arena_id: arena.id(),
+                    node: *node,
+                    truncating: context.truncating,
+                    added_length: context.approximate_length - start_length,
+                    tracked_symbols: context.tracked_symbols.clone(),
+                },
+            );
+        }
+    }
     context
         .visited_types
         .as_mut()
@@ -3007,7 +3058,6 @@ fn visit_and_transform_type(
 /// tsc-port: deepCloneOrReuseNode @6.0.3
 /// tsc-hash: b6ecd18580cc61281a9d25bc83c371362dec6a1184ddeab9382e2046710fbb89
 /// tsc-span: _tsc.js:51870-51882
-#[allow(dead_code)]
 fn deep_clone_or_reuse_node(
     arena: &mut TransformArena,
     node: TransformNode,

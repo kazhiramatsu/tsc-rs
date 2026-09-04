@@ -670,11 +670,57 @@ pub struct LinksTables {
     /// 57417 seed + getTypeAliasInstantiation 60271), keyed by
     /// getTypeListId + getAliasId — a monotone cache like tsc's map.
     alias_instantiations: HashMap<(SymbolId, String), TypeId>,
+    /// tsc NodeLinks.serializedTypes (visitAndTransformType 51811): the
+    /// per-enclosing-declaration reuse of already-built type nodes, keyed
+    /// by `typeId|flags|internalFlags`. Node handles are arena-bound, so
+    /// each entry records its TransformArena identity and misses for any
+    /// other arena.
+    serialized_type_nodes: HashMap<SerializedTypeNodeKey, SerializedTypeNodeEntry>,
     /// tsc ConditionalRoot.instantiations, keyed by the shared root
     /// object plus getTypeListId/getAliasId. Writes happen only after
     /// a complete result; a re-entrant outer evaluation may replace
     /// the inner complete result, matching Map.set.
     conditional_instantiations: HashMap<(ConditionalRootId, String), TypeId>,
+}
+
+/// tsc NodeLinks.serializedTypes key: (enclosing declaration, type,
+/// NodeBuilderFlags bits, InternalNodeBuilderFlags bits).
+pub type SerializedTypeNodeKey = (NodeId, TypeId, u32, u32);
+
+/// tsc NodeLinks.serializedTypes entry (visitAndTransformType 51811):
+/// the built node plus the side effects a cache hit must replay.
+#[derive(Clone, Debug)]
+pub struct SerializedTypeNodeEntry {
+    pub arena_id: u64,
+    pub node: tsc_emitter::TransformNode,
+    pub truncating: bool,
+    pub added_length: u32,
+    pub tracked_symbols: Option<Vec<(SymbolId, Option<NodeId>, tsc_emitter::EmitSymbolMeaning)>>,
+}
+
+impl LinksTables {
+    /// tsrs-native: the `links.serializedTypes` reuse cache accessor behind visitAndTransformType (@6.0.3; the serializedTypes map on NodeLinks).
+    /// tsc links.serializedTypes read (visitAndTransformType 51811): an
+    /// entry from another arena never hits.
+    pub fn serialized_type_node(
+        &self,
+        key: &SerializedTypeNodeKey,
+        arena_id: u64,
+    ) -> Option<&SerializedTypeNodeEntry> {
+        self.serialized_type_nodes
+            .get(key)
+            .filter(|entry| entry.arena_id == arena_id)
+    }
+
+    /// tsrs-native: the `links.serializedTypes` reuse cache accessor behind visitAndTransformType (@6.0.3; the serializedTypes map on NodeLinks).
+    /// tsc links.serializedTypes write (visitAndTransformType 51811).
+    pub fn set_serialized_type_node(
+        &mut self,
+        key: SerializedTypeNodeKey,
+        entry: SerializedTypeNodeEntry,
+    ) {
+        self.serialized_type_nodes.insert(key, entry);
+    }
 }
 
 impl LinksTables {

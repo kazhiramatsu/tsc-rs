@@ -31,6 +31,7 @@ const RUST_PRINTER_SOURCE = "crates/emitter/src/printer.rs";
 const RUST_WRITER_SOURCE = "crates/emitter/src/writer.rs";
 const RUST_FACTORY_SOURCE = "crates/emitter/src/factory.rs";
 const RUST_RESOLVER_SOURCE = "crates/emitter/src/resolver.rs";
+const rustAnchorLineCache = new Map();
 
 const EXPECTED_TYPESCRIPT_SHA256 =
   "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3";
@@ -251,6 +252,50 @@ const M4_ANCHORS = Object.freeze({
   "isProcessedComponent@115850": m4Anchor("crates/emitter/src/declarations/subtree.rs:935", "isProcessedComponent"),
   "getDeclarationTransformers@115950": m4Anchor("crates/emitter/src/declarations/selection.rs:9", "getDeclarationTransformers"),
 });
+
+// H2.7b m-2 §5.13: the seven rows activated by this rung are anchored to the
+// Rust item which owns their behavior.  The lane-B items are not present in
+// this worktree yet, so their entries are deliberately typed TO-FILL
+// placeholders.  A placeholder is data, not an invented path/line/hash, and
+// --check rejects it until the integration operator fills the table.
+const H2_7B_ANCHORS = Object.freeze({
+  "getOutputPathsFor@116373": Object.freeze({
+    path: "crates/emitter/src/plan.rs",
+    name: "get_output_paths_for",
+    line: 332,
+  }),
+  "product:declaration@448": Object.freeze({
+    path: "crates/emitter/src/declarations/orchestration.rs",
+    name: "emit_declaration_unit",
+    line: 79,
+  }),
+  "rejected-option:declaration@454": Object.freeze({
+    path: "crates/emitter/src/plan.rs",
+    name: "validate_bootstrap_shape",
+    line: 206,
+  }),
+  "rejected-option:emitDeclarationOnly@457": Object.freeze({
+    path: "crates/emitter/src/execute.rs",
+    name: "validate_bootstrap_emit_options",
+    line: 72,
+  }),
+  "hasGlobalName@116688": Object.freeze({
+    path: "crates/emitter/src/builtins/target_bindings.rs",
+    name: "file_level_unique_name",
+    line: 750,
+  }),
+  "collectLinkedAliases@116719": Object.freeze({
+    path: "crates/emitter/src/declarations/orchestration.rs",
+    name: "collect_linked_aliases_for_declaration",
+    line: 203,
+  }),
+  "collectLinkedAliases@116727": Object.freeze({
+    path: "crates/emitter/src/declarations/orchestration.rs",
+    name: "collect_linked_aliases_for_declaration",
+    line: 203,
+  }),
+});
+
 function m4Anchor(rustAnchor, header = null) {
   return Object.freeze({ rust_anchor: rustAnchor, header });
 }
@@ -278,8 +323,8 @@ const AUDIT_ROWS = Object.freeze({
   emitExpression: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
   // Rust has no preserveSourceNewlines control, so the paired per-node save
   // and restore workers are not declaration-ready.
-  beforeEmitNode: auditAlreadyExact("crates/emitter/src/printer.rs:1854", "beforeEmitNode"),
-  afterEmitNode: auditAlreadyExact("crates/emitter/src/printer.rs:1864", "afterEmitNode"),
+  beforeEmitNode: auditAlreadyExact("crates/emitter/src/printer.rs:1884", "beforeEmitNode"),
+  afterEmitNode: auditAlreadyExact("crates/emitter/src/printer.rs:1894", "afterEmitNode"),
   pipelineEmit: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
   shouldEmitComments: auditAlreadyExact("crates/emitter/src/printer.rs:10355"),
   shouldEmitSourceMaps: auditAlreadyExact("crates/emitter/src/printer.rs:1508"),
@@ -289,7 +334,7 @@ const AUDIT_ROWS = Object.freeze({
   pipelineEmitWithHint: auditAlreadyExact("crates/emitter/src/printer.rs:9197"),
   // The Rust dispatch owns the JS arms, but not the declaration/TypeNode arms
   // selected by this audit's independently seeded TypeNode switch closure.
-  pipelineEmitWithHintWorker: auditAlreadyExact("crates/emitter/src/printer.rs:1869", "pipelineEmitWithHintWorker"),
+  pipelineEmitWithHintWorker: auditAlreadyExact("crates/emitter/src/printer.rs:1899", "pipelineEmitWithHintWorker"),
   pipelineEmitWithSubstitution: auditAlreadyExact("crates/emitter/src/printer.rs:9218"),
   emitHelpers: auditAlreadyExact("crates/emitter/src/printer.rs:6152"),
   getSortedEmitHelpers: auditAlreadyExact("crates/emitter/src/printer.rs:1225"),
@@ -297,60 +342,60 @@ const AUDIT_ROWS = Object.freeze({
   // Declaration and TypeNode workers. Existing JS declaration-shaped arms
   // are foundation-needed when they erase or omit declaration fields (types,
   // optional markers, type parameters, or the bodyless-signature semicolon).
-  emitTypeParameter: auditAlreadyExact("crates/emitter/src/printer.rs:8431", "emitTypeParameter"),
-  emitParameter: auditAlreadyExact("crates/emitter/src/printer.rs:1872", "emitParameter"),
+  emitTypeParameter: auditAlreadyExact("crates/emitter/src/printer.rs:8461", "emitTypeParameter"),
+  emitParameter: auditAlreadyExact("crates/emitter/src/printer.rs:1902", "emitParameter"),
   emitDecorator: auditAlreadyExact("crates/emitter/src/printer.rs:1636"),
-  emitPropertySignature: auditAlreadyExact("crates/emitter/src/printer.rs:8488", "emitPropertySignature"),
-  emitPropertyDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:1875", "emitPropertyDeclaration"),
-  emitMethodSignature: auditAlreadyExact("crates/emitter/src/printer.rs:8555", "emitMethodSignature"),
-  emitMethodDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:1878", "emitMethodDeclaration"),
-  emitConstructor: auditAlreadyExact("crates/emitter/src/printer.rs:1881", "emitConstructor"),
-  emitAccessorDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:1884", "emitAccessorDeclaration"),
-  emitCallSignature: auditAlreadyExact("crates/emitter/src/printer.rs:8605", "emitCallSignature"),
-  emitConstructSignature: auditAlreadyExact("crates/emitter/src/printer.rs:8630", "emitConstructSignature"),
-  emitIndexSignature: auditAlreadyExact("crates/emitter/src/printer.rs:8657", "emitIndexSignature"),
-  emitTemplateTypeSpan: auditAlreadyExact("crates/emitter/src/printer.rs:9572", "emitTemplateTypeSpan"),
-  emitTypePredicate: auditAlreadyExact("crates/emitter/src/printer.rs:8698", "emitTypePredicate"),
-  emitTypeReference: auditAlreadyExact("crates/emitter/src/printer.rs:8744", "emitTypeReference"),
-  emitFunctionType: auditAlreadyExact("crates/emitter/src/printer.rs:8774", "emitFunctionType"),
-  emitFunctionTypeHead: auditAlreadyExact("crates/emitter/src/printer.rs:8803", "emitFunctionTypeHead"),
-  emitFunctionTypeBody: auditAlreadyExact("crates/emitter/src/printer.rs:8834", "emitFunctionTypeBody"),
-  emitJSDocFunctionType: auditAlreadyExact("crates/emitter/src/printer.rs:8857", "emitJSDocFunctionType"),
+  emitPropertySignature: auditAlreadyExact("crates/emitter/src/printer.rs:8518", "emitPropertySignature"),
+  emitPropertyDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:1905", "emitPropertyDeclaration"),
+  emitMethodSignature: auditAlreadyExact("crates/emitter/src/printer.rs:8585", "emitMethodSignature"),
+  emitMethodDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:1908", "emitMethodDeclaration"),
+  emitConstructor: auditAlreadyExact("crates/emitter/src/printer.rs:1911", "emitConstructor"),
+  emitAccessorDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:1914", "emitAccessorDeclaration"),
+  emitCallSignature: auditAlreadyExact("crates/emitter/src/printer.rs:8635", "emitCallSignature"),
+  emitConstructSignature: auditAlreadyExact("crates/emitter/src/printer.rs:8660", "emitConstructSignature"),
+  emitIndexSignature: auditAlreadyExact("crates/emitter/src/printer.rs:8687", "emitIndexSignature"),
+  emitTemplateTypeSpan: auditAlreadyExact("crates/emitter/src/printer.rs:9602", "emitTemplateTypeSpan"),
+  emitTypePredicate: auditAlreadyExact("crates/emitter/src/printer.rs:8728", "emitTypePredicate"),
+  emitTypeReference: auditAlreadyExact("crates/emitter/src/printer.rs:8774", "emitTypeReference"),
+  emitFunctionType: auditAlreadyExact("crates/emitter/src/printer.rs:8804", "emitFunctionType"),
+  emitFunctionTypeHead: auditAlreadyExact("crates/emitter/src/printer.rs:8833", "emitFunctionTypeHead"),
+  emitFunctionTypeBody: auditAlreadyExact("crates/emitter/src/printer.rs:8864", "emitFunctionTypeBody"),
+  emitJSDocFunctionType: auditAlreadyExact("crates/emitter/src/printer.rs:8887", "emitJSDocFunctionType"),
   emitJSDocNullableType: auditAlreadyExact("crates/emitter/src/printer.rs:3590"),
   emitJSDocNonNullableType: auditAlreadyExact("crates/emitter/src/printer.rs:3602"),
   emitJSDocOptionalType: auditAlreadyExact("crates/emitter/src/printer.rs:3614"),
-  emitConstructorType: auditAlreadyExact("crates/emitter/src/printer.rs:8890", "emitConstructorType"),
-  emitTypeQuery: auditAlreadyExact("crates/emitter/src/printer.rs:8930", "emitTypeQuery"),
-  emitTypeLiteral: auditAlreadyExact("crates/emitter/src/printer.rs:8962", "emitTypeLiteral"),
-  emitArrayType: auditAlreadyExact("crates/emitter/src/printer.rs:8987", "emitArrayType"),
+  emitConstructorType: auditAlreadyExact("crates/emitter/src/printer.rs:8920", "emitConstructorType"),
+  emitTypeQuery: auditAlreadyExact("crates/emitter/src/printer.rs:8960", "emitTypeQuery"),
+  emitTypeLiteral: auditAlreadyExact("crates/emitter/src/printer.rs:8992", "emitTypeLiteral"),
+  emitArrayType: auditAlreadyExact("crates/emitter/src/printer.rs:9017", "emitArrayType"),
   // Rust owns the JSDocVariadicType arm, but not the RestType half of this
   // shared upstream worker; the row is therefore conservatively foundation.
-  emitRestOrJSDocVariadicType: auditAlreadyExact("crates/emitter/src/printer.rs:9012", "emitRestOrJSDocVariadicType"),
-  emitTupleType: auditAlreadyExact("crates/emitter/src/printer.rs:9036", "emitTupleType"),
-  emitNamedTupleMember: auditAlreadyExact("crates/emitter/src/printer.rs:9074", "emitNamedTupleMember"),
-  emitOptionalType: auditAlreadyExact("crates/emitter/src/printer.rs:9122", "emitOptionalType"),
-  emitUnionType: auditAlreadyExact("crates/emitter/src/printer.rs:9147", "emitUnionType"),
-  emitIntersectionType: auditAlreadyExact("crates/emitter/src/printer.rs:9169", "emitIntersectionType"),
-  emitConditionalType: auditAlreadyExact("crates/emitter/src/printer.rs:9191", "emitConditionalType"),
-  emitInferType: auditAlreadyExact("crates/emitter/src/printer.rs:9251", "emitInferType"),
-  emitParenthesizedType: auditAlreadyExact("crates/emitter/src/printer.rs:9276", "emitParenthesizedType"),
-  emitThisType: auditAlreadyExact("crates/emitter/src/printer.rs:8345", "emitThisType"),
-  emitTypeOperator: auditAlreadyExact("crates/emitter/src/printer.rs:9302", "emitTypeOperator"),
-  emitIndexedAccessType: auditAlreadyExact("crates/emitter/src/printer.rs:9333", "emitIndexedAccessType"),
-  emitMappedType: auditAlreadyExact("crates/emitter/src/printer.rs:9368", "emitMappedType"),
-  emitLiteralType: auditAlreadyExact("crates/emitter/src/printer.rs:9518", "emitLiteralType"),
-  emitTemplateType: auditAlreadyExact("crates/emitter/src/printer.rs:9541", "emitTemplateType"),
-  emitImportTypeNode: auditAlreadyExact("crates/emitter/src/printer.rs:9604", "emitImportTypeNode"),
+  emitRestOrJSDocVariadicType: auditAlreadyExact("crates/emitter/src/printer.rs:9042", "emitRestOrJSDocVariadicType"),
+  emitTupleType: auditAlreadyExact("crates/emitter/src/printer.rs:9066", "emitTupleType"),
+  emitNamedTupleMember: auditAlreadyExact("crates/emitter/src/printer.rs:9104", "emitNamedTupleMember"),
+  emitOptionalType: auditAlreadyExact("crates/emitter/src/printer.rs:9152", "emitOptionalType"),
+  emitUnionType: auditAlreadyExact("crates/emitter/src/printer.rs:9177", "emitUnionType"),
+  emitIntersectionType: auditAlreadyExact("crates/emitter/src/printer.rs:9199", "emitIntersectionType"),
+  emitConditionalType: auditAlreadyExact("crates/emitter/src/printer.rs:9221", "emitConditionalType"),
+  emitInferType: auditAlreadyExact("crates/emitter/src/printer.rs:9281", "emitInferType"),
+  emitParenthesizedType: auditAlreadyExact("crates/emitter/src/printer.rs:9306", "emitParenthesizedType"),
+  emitThisType: auditAlreadyExact("crates/emitter/src/printer.rs:8375", "emitThisType"),
+  emitTypeOperator: auditAlreadyExact("crates/emitter/src/printer.rs:9332", "emitTypeOperator"),
+  emitIndexedAccessType: auditAlreadyExact("crates/emitter/src/printer.rs:9363", "emitIndexedAccessType"),
+  emitMappedType: auditAlreadyExact("crates/emitter/src/printer.rs:9398", "emitMappedType"),
+  emitLiteralType: auditAlreadyExact("crates/emitter/src/printer.rs:9548", "emitLiteralType"),
+  emitTemplateType: auditAlreadyExact("crates/emitter/src/printer.rs:9571", "emitTemplateType"),
+  emitImportTypeNode: auditAlreadyExact("crates/emitter/src/printer.rs:9634", "emitImportTypeNode"),
   emitExpressionWithTypeArguments: auditAlreadyExact("crates/emitter/src/printer.rs:3547"),
 
   emitBlockStatements: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
   // The token/comment arm exists, but omitBraceSourceMapPositions does not.
-  emitTokenWithComment: auditAlreadyExact("crates/emitter/src/printer.rs:14392", "emitTokenWithComment"),
-  emitFunctionDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:1887", "emitFunctionDeclaration"),
-  emitFunctionDeclarationOrExpression: auditAlreadyExact("crates/emitter/src/printer.rs:1890", "emitFunctionDeclarationOrExpression"),
-  emitSignatureAndBody: auditAlreadyExact("crates/emitter/src/printer.rs:1893", "emitSignatureAndBody"),
-  emitFunctionBody: auditAlreadyExact("crates/emitter/src/printer.rs:1896", "emitFunctionBody"),
-  emitEmptyFunctionBody: auditAlreadyExact("crates/emitter/src/printer.rs:1899", "emitEmptyFunctionBody"),
+  emitTokenWithComment: auditAlreadyExact("crates/emitter/src/printer.rs:14422", "emitTokenWithComment"),
+  emitFunctionDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:1917", "emitFunctionDeclaration"),
+  emitFunctionDeclarationOrExpression: auditAlreadyExact("crates/emitter/src/printer.rs:1920", "emitFunctionDeclarationOrExpression"),
+  emitSignatureAndBody: auditAlreadyExact("crates/emitter/src/printer.rs:1923", "emitSignatureAndBody"),
+  emitFunctionBody: auditAlreadyExact("crates/emitter/src/printer.rs:1926", "emitFunctionBody"),
+  emitEmptyFunctionBody: auditAlreadyExact("crates/emitter/src/printer.rs:1929", "emitEmptyFunctionBody"),
   emitSignatureHead: auditAlreadyExact("crates/emitter/src/printer.rs:7546"),
   shouldEmitBlockFunctionBodyOnSingleLine: auditAlreadyExact(
     "crates/emitter/src/printer.rs:5801",
@@ -358,38 +403,38 @@ const AUDIT_ROWS = Object.freeze({
   emitBlockFunctionBody: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
   emitBlockFunctionBodyOnSingleLine: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
   emitBlockFunctionBodyWorker: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
-  emitClassDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:8081", "emitClassDeclaration"),
-  emitClassDeclarationOrExpression: auditAlreadyExact("crates/emitter/src/printer.rs:8084", "emitClassDeclarationOrExpression"),
-  emitInterfaceDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:9705", "emitInterfaceDeclaration"),
-  emitTypeAliasDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:9766", "emitTypeAliasDeclaration"),
-  emitEnumDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:9819", "emitEnumDeclaration"),
-  emitModuleDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:9898", "emitModuleDeclaration"),
-  emitModuleBlock: auditAlreadyExact("crates/emitter/src/printer.rs:9976", "emitModuleBlock"),
+  emitClassDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:8111", "emitClassDeclaration"),
+  emitClassDeclarationOrExpression: auditAlreadyExact("crates/emitter/src/printer.rs:8114", "emitClassDeclarationOrExpression"),
+  emitInterfaceDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:9735", "emitInterfaceDeclaration"),
+  emitTypeAliasDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:9796", "emitTypeAliasDeclaration"),
+  emitEnumDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:9849", "emitEnumDeclaration"),
+  emitModuleDeclaration: auditAlreadyExact("crates/emitter/src/printer.rs:9928", "emitModuleDeclaration"),
+  emitModuleBlock: auditAlreadyExact("crates/emitter/src/printer.rs:10006", "emitModuleBlock"),
   emitHeritageClause: auditAlreadyExact("crates/emitter/src/printer.rs:3520"),
   emitPrologueDirectives: auditAlreadyExact("crates/emitter/src/printer.rs:1256"),
   emitNodeWithWriter: auditAlreadyExact("crates/emitter/src/printer.rs:9177"),
   // emit_modifiers has no allowDecorators lane, which is observable on the
   // declaration forms that deliberately suppress decorators.
-  emitDecoratorsAndModifiers: auditAlreadyExact("crates/emitter/src/printer.rs:11340", "emitDecoratorsAndModifiers"),
+  emitDecoratorsAndModifiers: auditAlreadyExact("crates/emitter/src/printer.rs:11370", "emitDecoratorsAndModifiers"),
   emitModifierList: auditAlreadyExact("crates/emitter/src/printer.rs:8349"),
   emitTypeAnnotation: auditAlreadyExact("crates/emitter/src/printer.rs:7546"),
   emitInitializer: auditAlreadyExact("crates/emitter/src/printer.rs:2910"),
   emitDecoratorList: auditAlreadyExact("crates/emitter/src/printer.rs:8349"),
   // The delimiters exist, but the TypeArgument parenthesizer callback and the
   // TypeParameter arrow/trailing-comma face do not.
-  emitTypeArguments: auditAlreadyExact("crates/emitter/src/printer.rs:10504", "emitTypeArguments"),
-  emitTypeParameters: auditAlreadyExact("crates/emitter/src/printer.rs:10178", "emitTypeParameters"),
+  emitTypeArguments: auditAlreadyExact("crates/emitter/src/printer.rs:10534", "emitTypeArguments"),
+  emitTypeParameters: auditAlreadyExact("crates/emitter/src/printer.rs:10208", "emitTypeParameters"),
   emitParameters: auditAlreadyExact("crates/emitter/src/printer.rs:7589"),
   canEmitSimpleArrowHead: auditAlreadyExact("crates/emitter/src/printer.rs:7789"),
   emitParametersForArrow: auditAlreadyExact("crates/emitter/src/printer.rs:7614"),
-  emitParametersForIndexSignature: auditAlreadyExact("crates/emitter/src/printer.rs:10577", "emitParametersForIndexSignature"),
+  emitParametersForIndexSignature: auditAlreadyExact("crates/emitter/src/printer.rs:10607", "emitParametersForIndexSignature"),
   // Rust's live lists are specialized per JS construct. The generic
   // delimiter/list-format surface needed by type and declaration lists is not
   // equivalent to emit_node_array's separator-only helper.
-  writeDelimiter: auditAlreadyExact("crates/emitter/src/printer.rs:10221", "writeDelimiter"),
-  emitList: auditAlreadyExact("crates/emitter/src/printer.rs:10224", "emitList"),
-  emitNodeList: auditAlreadyExact("crates/emitter/src/printer.rs:10429", "emitNodeList"),
-  emitNodeListItems: auditAlreadyExact("crates/emitter/src/printer.rs:7757", "emitNodeListItems"),
+  writeDelimiter: auditAlreadyExact("crates/emitter/src/printer.rs:10251", "writeDelimiter"),
+  emitList: auditAlreadyExact("crates/emitter/src/printer.rs:10254", "emitList"),
+  emitNodeList: auditAlreadyExact("crates/emitter/src/printer.rs:10459", "emitNodeList"),
+  emitNodeListItems: auditAlreadyExact("crates/emitter/src/printer.rs:7787", "emitNodeListItems"),
 
   writePunctuation: auditAlreadyExact("crates/emitter/src/writer.rs:307"),
   writeTrailingSemicolon: auditAlreadyExact("crates/emitter/src/writer.rs:323"),
@@ -407,10 +452,10 @@ const AUDIT_ROWS = Object.freeze({
   // The current Rust helper intentionally implements only the collapsed 0/1
   // ordinary-emit face; preserveSourceNewlines and its effective-line scans
   // remain declaration foundation work.
-  getLeadingLineTerminatorCount: auditAlreadyExact("crates/emitter/src/printer.rs:10435", "getLeadingLineTerminatorCount"),
-  getSeparatingLineTerminatorCount: auditAlreadyExact("crates/emitter/src/printer.rs:10438", "getSeparatingLineTerminatorCount"),
-  getClosingLineTerminatorCount: auditAlreadyExact("crates/emitter/src/printer.rs:10441", "getClosingLineTerminatorCount"),
-  getEffectiveLines: auditAlreadyExact("crates/emitter/src/printer.rs:10444", "getEffectiveLines"),
+  getLeadingLineTerminatorCount: auditAlreadyExact("crates/emitter/src/printer.rs:10465", "getLeadingLineTerminatorCount"),
+  getSeparatingLineTerminatorCount: auditAlreadyExact("crates/emitter/src/printer.rs:10468", "getSeparatingLineTerminatorCount"),
+  getClosingLineTerminatorCount: auditAlreadyExact("crates/emitter/src/printer.rs:10471", "getClosingLineTerminatorCount"),
+  getEffectiveLines: auditAlreadyExact("crates/emitter/src/printer.rs:10474", "getEffectiveLines"),
   synthesizedNodeStartsOnNewLine: auditAlreadyExact("crates/emitter/src/printer.rs:6676"),
   isEmptyBlock: auditAlreadyExact("crates/emitter/src/printer.rs:5801"),
   getTextOfNode2: auditAlreadyExact("crates/emitter/src/printer.rs:9705"),
@@ -487,14 +532,14 @@ const AUDIT_ROWS = Object.freeze({
   // Declaration-file leading comments need the non-triple-slash branch, and
   // the three direct source-comment writers need onlyPrintJsDocStyle/pinned
   // filtering. The surrounding comment topology remains already exact.
-  emitLeadingComments: auditAlreadyExact("crates/emitter/src/printer.rs:16366", "emitLeadingComments"),
+  emitLeadingComments: auditAlreadyExact("crates/emitter/src/printer.rs:16396", "emitLeadingComments"),
   emitTripleSlashLeadingComment: auditAlreadyExact("crates/emitter/src/printer.rs:13274"),
-  emitNonTripleSlashLeadingComment: auditAlreadyExact("crates/emitter/src/printer.rs:16369", "emitNonTripleSlashLeadingComment"),
-  shouldWriteComment: auditAlreadyExact("crates/emitter/src/printer.rs:16222", "shouldWriteComment"),
-  emitLeadingComment: auditAlreadyExact("crates/emitter/src/printer.rs:15808", "emitLeadingComment"),
+  emitNonTripleSlashLeadingComment: auditAlreadyExact("crates/emitter/src/printer.rs:16399", "emitNonTripleSlashLeadingComment"),
+  shouldWriteComment: auditAlreadyExact("crates/emitter/src/printer.rs:16252", "shouldWriteComment"),
+  emitLeadingComment: auditAlreadyExact("crates/emitter/src/printer.rs:15838", "emitLeadingComment"),
   emitLeadingCommentsOfPosition: auditAlreadyExact("crates/emitter/src/printer.rs:12780"),
   emitTrailingComments: auditAlreadyExact("crates/emitter/src/printer.rs:12807"),
-  emitTrailingComment: auditAlreadyExact("crates/emitter/src/printer.rs:16002", "emitTrailingComment"),
+  emitTrailingComment: auditAlreadyExact("crates/emitter/src/printer.rs:16032", "emitTrailingComment"),
   emitTrailingCommentsOfPosition: auditAlreadyExact("crates/emitter/src/printer.rs:12807"),
   emitTrailingCommentOfPositionNoNewline: auditAlreadyExact(
     "crates/emitter/src/printer.rs:12967",
@@ -509,7 +554,7 @@ const AUDIT_ROWS = Object.freeze({
   emitDetachedCommentsAndUpdateCommentsInfo: auditAlreadyExact(
     "crates/emitter/src/printer.rs:10617",
   ),
-  emitComment: auditAlreadyExact("crates/emitter/src/printer.rs:16495", "emitComment"),
+  emitComment: auditAlreadyExact("crates/emitter/src/printer.rs:16525", "emitComment"),
   isTripleSlashComment: auditAlreadyExact("crates/emitter/src/printer.rs:13216"),
 
   pipelineEmitWithSourceMaps: auditAlreadyExact("crates/emitter/src/printer.rs:1508"),
@@ -527,135 +572,135 @@ const AUDIT_ROWS = Object.freeze({
   // generic create_node/update_node entry points do not substitute for the
   // NodeBuilder/declaration-transformer member surface.
   "factory.cloneNode": auditAlreadyExact("crates/emitter/src/factory.rs:1361"),
-  "factory.createComputedPropertyName": auditAlreadyExact("crates/emitter/src/factory.rs:2051", "createComputedPropertyName"),
-  "factory.updateClassDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3892", "updateClassDeclaration"),
-  "factory.replaceModifiers": auditAlreadyExact("crates/emitter/src/factory.rs:4560", "replaceModifiers"),
-  "factory.createKeywordTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2092", "createKeywordTypeNode"),
-  "factory.createTypeReferenceNode": auditAlreadyExact("crates/emitter/src/factory.rs:2155", "createTypeReferenceNode"),
-  "factory.createIndexedAccessTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2680", "createIndexedAccessTypeNode"),
-  "factory.createLiteralTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2752", "createLiteralTypeNode"),
-  "factory.createStringLiteral": auditAlreadyExact("crates/emitter/src/factory.rs:1837", "createStringLiteral"),
-  "factory.createTypeQueryNode": auditAlreadyExact("crates/emitter/src/factory.rs:2246", "createTypeQueryNode"),
-  "factory.createNumericLiteral": auditAlreadyExact("crates/emitter/src/factory.rs:1793", "createNumericLiteral"),
-  "factory.createPrefixUnaryExpression": auditAlreadyExact("crates/emitter/src/factory.rs:3574", "createPrefixUnaryExpression"),
-  "factory.createBigIntLiteral": auditAlreadyExact("crates/emitter/src/factory.rs:1822", "createBigIntLiteral"),
-  "factory.createFalse": auditAlreadyExact("crates/emitter/src/factory.rs:1951", "createFalse"),
-  "factory.createTrue": auditAlreadyExact("crates/emitter/src/factory.rs:1941", "createTrue"),
-  "factory.createTypeOperatorNode": auditAlreadyExact("crates/emitter/src/factory.rs:2634", "createTypeOperatorNode"),
-  "factory.createNull": auditAlreadyExact("crates/emitter/src/factory.rs:1931", "createNull"),
-  "factory.createThisTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2620", "createThisTypeNode"),
-  "factory.createIdentifier": auditAlreadyExact("crates/emitter/src/factory.rs:690", "createIdentifier"),
-  "factory.createArrayTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2308", "createArrayTypeNode"),
-  "factory.createInferTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2501", "createInferTypeNode"),
-  "factory.createIntersectionTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2421", "createIntersectionTypeNode"),
-  "factory.createUnionTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2403", "createUnionTypeNode"),
-  "factory.createTemplateHead": auditAlreadyExact("crates/emitter/src/factory.rs:1912", "createTemplateHead"),
+  "factory.createComputedPropertyName": auditAlreadyExact("crates/emitter/src/factory.rs:2094", "createComputedPropertyName"),
+  "factory.updateClassDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3935", "updateClassDeclaration"),
+  "factory.replaceModifiers": auditAlreadyExact("crates/emitter/src/factory.rs:4603", "replaceModifiers"),
+  "factory.createKeywordTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2135", "createKeywordTypeNode"),
+  "factory.createTypeReferenceNode": auditAlreadyExact("crates/emitter/src/factory.rs:2198", "createTypeReferenceNode"),
+  "factory.createIndexedAccessTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2723", "createIndexedAccessTypeNode"),
+  "factory.createLiteralTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2795", "createLiteralTypeNode"),
+  "factory.createStringLiteral": auditAlreadyExact("crates/emitter/src/factory.rs:1880", "createStringLiteral"),
+  "factory.createTypeQueryNode": auditAlreadyExact("crates/emitter/src/factory.rs:2289", "createTypeQueryNode"),
+  "factory.createNumericLiteral": auditAlreadyExact("crates/emitter/src/factory.rs:1836", "createNumericLiteral"),
+  "factory.createPrefixUnaryExpression": auditAlreadyExact("crates/emitter/src/factory.rs:3617", "createPrefixUnaryExpression"),
+  "factory.createBigIntLiteral": auditAlreadyExact("crates/emitter/src/factory.rs:1865", "createBigIntLiteral"),
+  "factory.createFalse": auditAlreadyExact("crates/emitter/src/factory.rs:1994", "createFalse"),
+  "factory.createTrue": auditAlreadyExact("crates/emitter/src/factory.rs:1984", "createTrue"),
+  "factory.createTypeOperatorNode": auditAlreadyExact("crates/emitter/src/factory.rs:2677", "createTypeOperatorNode"),
+  "factory.createNull": auditAlreadyExact("crates/emitter/src/factory.rs:1974", "createNull"),
+  "factory.createThisTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2663", "createThisTypeNode"),
+  "factory.createIdentifier": auditAlreadyExact("crates/emitter/src/factory.rs:733", "createIdentifier"),
+  "factory.createArrayTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2351", "createArrayTypeNode"),
+  "factory.createInferTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2544", "createInferTypeNode"),
+  "factory.createIntersectionTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2464", "createIntersectionTypeNode"),
+  "factory.createUnionTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2446", "createUnionTypeNode"),
+  "factory.createTemplateHead": auditAlreadyExact("crates/emitter/src/factory.rs:1955", "createTemplateHead"),
   "factory.createNodeArray": auditAlreadyExact("crates/emitter/src/factory.rs:1271"),
-  "factory.createTemplateLiteralTypeSpan": auditAlreadyExact("crates/emitter/src/factory.rs:2769", "createTemplateLiteralTypeSpan"),
-  "factory.createTemplateLiteralType": auditAlreadyExact("crates/emitter/src/factory.rs:2518", "createTemplateLiteralType"),
-  "factory.createConditionalTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2440", "createConditionalTypeNode"),
-  "factory.createTypeParameterDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:2812", "createTypeParameterDeclaration"),
+  "factory.createTemplateLiteralTypeSpan": auditAlreadyExact("crates/emitter/src/factory.rs:2812", "createTemplateLiteralTypeSpan"),
+  "factory.createTemplateLiteralType": auditAlreadyExact("crates/emitter/src/factory.rs:2561", "createTemplateLiteralType"),
+  "factory.createConditionalTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2483", "createConditionalTypeNode"),
+  "factory.createTypeParameterDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:2855", "createTypeParameterDeclaration"),
   "factory.createToken": auditAlreadyExact("crates/emitter/src/factory.rs:1250"),
-  "factory.createMappedTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2724", "createMappedTypeNode"),
-  "factory.createTypeLiteralNode": auditAlreadyExact("crates/emitter/src/factory.rs:2291", "createTypeLiteralNode"),
-  "factory.createNamedTupleMember": auditAlreadyExact("crates/emitter/src/factory.rs:2345", "createNamedTupleMember"),
-  "factory.createOptionalTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2368", "createOptionalTypeNode"),
-  "factory.createRestTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2386", "createRestTypeNode"),
-  "factory.createTupleTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2327", "createTupleTypeNode"),
-  "factory.updateQualifiedName": auditAlreadyExact("crates/emitter/src/factory.rs:2029", "updateQualifiedName"),
-  "factory.createQualifiedName": auditAlreadyExact("crates/emitter/src/factory.rs:2009", "createQualifiedName"),
-  "factory.updateImportTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2565", "updateImportTypeNode"),
-  "factory.updateTypeReferenceNode": auditAlreadyExact("crates/emitter/src/factory.rs:2176", "updateTypeReferenceNode"),
-  "factory.createPropertySignature": auditAlreadyExact("crates/emitter/src/factory.rs:2963", "createPropertySignature"),
-  "factory.createModifier": auditAlreadyExact("crates/emitter/src/factory.rs:1961", "createModifier"),
-  "factory.createNotEmittedTypeElement": auditAlreadyExact("crates/emitter/src/factory.rs:4988", "createNotEmittedTypeElement"),
-  "factory.createParameterDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:726", "createParameterDeclaration"),
-  "factory.createIndexSignature": auditAlreadyExact("crates/emitter/src/factory.rs:3316", "createIndexSignature"),
-  "factory.createModifiersFromModifierFlags": auditAlreadyExact("crates/emitter/src/factory.rs:1972", "createModifiersFromModifierFlags"),
-  "factory.createCallSignature": auditAlreadyExact("crates/emitter/src/factory.rs:3274", "createCallSignature"),
-  "factory.createConstructSignature": auditAlreadyExact("crates/emitter/src/factory.rs:3295", "createConstructSignature"),
-  "factory.createMethodDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:720", "createMethodDeclaration"),
-  "factory.createMethodSignature": auditAlreadyExact("crates/emitter/src/factory.rs:3040", "createMethodSignature"),
-  "factory.createConstructorDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:723", "createConstructorDeclaration"),
-  "factory.createGetAccessorDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3199", "createGetAccessorDeclaration"),
-  "factory.createSetAccessorDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3240", "createSetAccessorDeclaration"),
-  "factory.createConstructorTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2223", "createConstructorTypeNode"),
-  "factory.createFunctionDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3338", "createFunctionDeclaration"),
-  "factory.createFunctionTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2201", "createFunctionTypeNode"),
-  "factory.createJSDocFunctionType": auditAlreadyExact("crates/emitter/src/factory.rs:3510", "createJSDocFunctionType"),
-  "factory.createFunctionExpression": auditAlreadyExact("crates/emitter/src/factory.rs:699", "createFunctionExpression"),
-  "factory.createBlock": auditAlreadyExact("crates/emitter/src/factory.rs:3535", "createBlock"),
-  "factory.createArrowFunction": auditAlreadyExact("crates/emitter/src/factory.rs:702", "createArrowFunction"),
-  "factory.createTypePredicateNode": auditAlreadyExact("crates/emitter/src/factory.rs:2103", "createTypePredicateNode"),
-  "factory.updateBindingElement": auditAlreadyExact("crates/emitter/src/factory.rs:3689", "updateBindingElement"),
-  "factory.createImportAttributes": auditAlreadyExact("crates/emitter/src/factory.rs:4217", "createImportAttributes"),
-  "factory.createImportAttribute": auditAlreadyExact("crates/emitter/src/factory.rs:4238", "createImportAttribute"),
-  "factory.createImportTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2537", "createImportTypeNode"),
-  "factory.createParenthesizedType": auditAlreadyExact("crates/emitter/src/factory.rs:2603", "createParenthesizedType"),
-  "factory.createPropertyAccessExpression": auditAlreadyExact("crates/emitter/src/factory.rs:3631", "createPropertyAccessExpression"),
-  "factory.createElementAccessExpression": auditAlreadyExact("crates/emitter/src/factory.rs:3663", "createElementAccessExpression"),
-  "factory.updateModuleDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4043", "updateModuleDeclaration"),
-  "factory.updateModuleBlock": auditAlreadyExact("crates/emitter/src/factory.rs:4094", "updateModuleBlock"),
-  "factory.createExportDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4360", "createExportDeclaration"),
-  "factory.createExportSpecifier": auditAlreadyExact("crates/emitter/src/factory.rs:4466", "createExportSpecifier"),
-  "factory.createNamedExports": auditAlreadyExact("crates/emitter/src/factory.rs:4426", "createNamedExports"),
-  "factory.updateExportDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4389", "updateExportDeclaration"),
-  "factory.updateNamedExports": auditAlreadyExact("crates/emitter/src/factory.rs:4445", "updateNamedExports"),
-  "factory.createVariableStatement": auditAlreadyExact("crates/emitter/src/factory.rs:3789", "createVariableStatement"),
-  "factory.createVariableDeclarationList": auditAlreadyExact("crates/emitter/src/factory.rs:696", "createVariableDeclarationList"),
-  "factory.createVariableDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3734", "createVariableDeclaration"),
-  "factory.createExportAssignment": auditAlreadyExact("crates/emitter/src/factory.rs:4337", "createExportAssignment"),
-  "factory.createTypeAliasDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3954", "createTypeAliasDeclaration"),
-  "factory.createHeritageClause": auditAlreadyExact("crates/emitter/src/factory.rs:4508", "createHeritageClause"),
-  "factory.createInterfaceDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3929", "createInterfaceDeclaration"),
-  "factory.createPropertyDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:2987", "createPropertyDeclaration"),
-  "factory.createModuleBlock": auditAlreadyExact("crates/emitter/src/factory.rs:4076", "createModuleBlock"),
-  "factory.createModuleDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4003", "createModuleDeclaration"),
-  "factory.createEnumMember": auditAlreadyExact("crates/emitter/src/factory.rs:4538", "createEnumMember"),
-  "factory.createEnumDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3977", "createEnumDeclaration"),
-  "factory.createEmptyStatement": auditAlreadyExact("crates/emitter/src/factory.rs:3816", "createEmptyStatement"),
-  "factory.createExpressionStatement": auditAlreadyExact("crates/emitter/src/factory.rs:3830", "createExpressionStatement"),
-  "factory.createExpressionWithTypeArguments": auditAlreadyExact("crates/emitter/src/factory.rs:2788", "createExpressionWithTypeArguments"),
-  "factory.createPrivateIdentifier": auditAlreadyExact("crates/emitter/src/factory.rs:1737", "createPrivateIdentifier"),
-  "factory.createClassDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3848", "createClassDeclaration"),
-  "factory.createImportDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4164", "createImportDeclaration"),
-  "factory.createImportClause": auditAlreadyExact("crates/emitter/src/factory.rs:4190", "createImportClause"),
-  "factory.createImportSpecifier": auditAlreadyExact("crates/emitter/src/factory.rs:4314", "createImportSpecifier"),
-  "factory.createNamedImports": auditAlreadyExact("crates/emitter/src/factory.rs:4295", "createNamedImports"),
-  "factory.createUniqueName": auditAlreadyExact("crates/emitter/src/factory.rs:1760", "createUniqueName"),
-  "factory.createImportEqualsDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4134", "createImportEqualsDeclaration"),
-  "factory.createExternalModuleReference": auditAlreadyExact("crates/emitter/src/factory.rs:4489", "createExternalModuleReference"),
-  "factory.createNamespaceExportDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4115", "createNamespaceExportDeclaration"),
-  "factory.createNamespaceImport": auditAlreadyExact("crates/emitter/src/factory.rs:4257", "createNamespaceImport"),
-  "factory.createNamespaceExport": auditAlreadyExact("crates/emitter/src/factory.rs:4276", "createNamespaceExport"),
+  "factory.createMappedTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2767", "createMappedTypeNode"),
+  "factory.createTypeLiteralNode": auditAlreadyExact("crates/emitter/src/factory.rs:2334", "createTypeLiteralNode"),
+  "factory.createNamedTupleMember": auditAlreadyExact("crates/emitter/src/factory.rs:2388", "createNamedTupleMember"),
+  "factory.createOptionalTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2411", "createOptionalTypeNode"),
+  "factory.createRestTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2429", "createRestTypeNode"),
+  "factory.createTupleTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2370", "createTupleTypeNode"),
+  "factory.updateQualifiedName": auditAlreadyExact("crates/emitter/src/factory.rs:2072", "updateQualifiedName"),
+  "factory.createQualifiedName": auditAlreadyExact("crates/emitter/src/factory.rs:2052", "createQualifiedName"),
+  "factory.updateImportTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2608", "updateImportTypeNode"),
+  "factory.updateTypeReferenceNode": auditAlreadyExact("crates/emitter/src/factory.rs:2219", "updateTypeReferenceNode"),
+  "factory.createPropertySignature": auditAlreadyExact("crates/emitter/src/factory.rs:3006", "createPropertySignature"),
+  "factory.createModifier": auditAlreadyExact("crates/emitter/src/factory.rs:2004", "createModifier"),
+  "factory.createNotEmittedTypeElement": auditAlreadyExact("crates/emitter/src/factory.rs:5031", "createNotEmittedTypeElement"),
+  "factory.createParameterDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:769", "createParameterDeclaration"),
+  "factory.createIndexSignature": auditAlreadyExact("crates/emitter/src/factory.rs:3359", "createIndexSignature"),
+  "factory.createModifiersFromModifierFlags": auditAlreadyExact("crates/emitter/src/factory.rs:2015", "createModifiersFromModifierFlags"),
+  "factory.createCallSignature": auditAlreadyExact("crates/emitter/src/factory.rs:3317", "createCallSignature"),
+  "factory.createConstructSignature": auditAlreadyExact("crates/emitter/src/factory.rs:3338", "createConstructSignature"),
+  "factory.createMethodDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:763", "createMethodDeclaration"),
+  "factory.createMethodSignature": auditAlreadyExact("crates/emitter/src/factory.rs:3083", "createMethodSignature"),
+  "factory.createConstructorDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:766", "createConstructorDeclaration"),
+  "factory.createGetAccessorDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3242", "createGetAccessorDeclaration"),
+  "factory.createSetAccessorDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3283", "createSetAccessorDeclaration"),
+  "factory.createConstructorTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2266", "createConstructorTypeNode"),
+  "factory.createFunctionDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3381", "createFunctionDeclaration"),
+  "factory.createFunctionTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2244", "createFunctionTypeNode"),
+  "factory.createJSDocFunctionType": auditAlreadyExact("crates/emitter/src/factory.rs:3553", "createJSDocFunctionType"),
+  "factory.createFunctionExpression": auditAlreadyExact("crates/emitter/src/factory.rs:742", "createFunctionExpression"),
+  "factory.createBlock": auditAlreadyExact("crates/emitter/src/factory.rs:3578", "createBlock"),
+  "factory.createArrowFunction": auditAlreadyExact("crates/emitter/src/factory.rs:745", "createArrowFunction"),
+  "factory.createTypePredicateNode": auditAlreadyExact("crates/emitter/src/factory.rs:2146", "createTypePredicateNode"),
+  "factory.updateBindingElement": auditAlreadyExact("crates/emitter/src/factory.rs:3732", "updateBindingElement"),
+  "factory.createImportAttributes": auditAlreadyExact("crates/emitter/src/factory.rs:4260", "createImportAttributes"),
+  "factory.createImportAttribute": auditAlreadyExact("crates/emitter/src/factory.rs:4281", "createImportAttribute"),
+  "factory.createImportTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2580", "createImportTypeNode"),
+  "factory.createParenthesizedType": auditAlreadyExact("crates/emitter/src/factory.rs:2646", "createParenthesizedType"),
+  "factory.createPropertyAccessExpression": auditAlreadyExact("crates/emitter/src/factory.rs:3674", "createPropertyAccessExpression"),
+  "factory.createElementAccessExpression": auditAlreadyExact("crates/emitter/src/factory.rs:3706", "createElementAccessExpression"),
+  "factory.updateModuleDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4086", "updateModuleDeclaration"),
+  "factory.updateModuleBlock": auditAlreadyExact("crates/emitter/src/factory.rs:4137", "updateModuleBlock"),
+  "factory.createExportDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4403", "createExportDeclaration"),
+  "factory.createExportSpecifier": auditAlreadyExact("crates/emitter/src/factory.rs:4509", "createExportSpecifier"),
+  "factory.createNamedExports": auditAlreadyExact("crates/emitter/src/factory.rs:4469", "createNamedExports"),
+  "factory.updateExportDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4432", "updateExportDeclaration"),
+  "factory.updateNamedExports": auditAlreadyExact("crates/emitter/src/factory.rs:4488", "updateNamedExports"),
+  "factory.createVariableStatement": auditAlreadyExact("crates/emitter/src/factory.rs:3832", "createVariableStatement"),
+  "factory.createVariableDeclarationList": auditAlreadyExact("crates/emitter/src/factory.rs:739", "createVariableDeclarationList"),
+  "factory.createVariableDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3777", "createVariableDeclaration"),
+  "factory.createExportAssignment": auditAlreadyExact("crates/emitter/src/factory.rs:4380", "createExportAssignment"),
+  "factory.createTypeAliasDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3997", "createTypeAliasDeclaration"),
+  "factory.createHeritageClause": auditAlreadyExact("crates/emitter/src/factory.rs:4551", "createHeritageClause"),
+  "factory.createInterfaceDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3972", "createInterfaceDeclaration"),
+  "factory.createPropertyDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3030", "createPropertyDeclaration"),
+  "factory.createModuleBlock": auditAlreadyExact("crates/emitter/src/factory.rs:4119", "createModuleBlock"),
+  "factory.createModuleDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4046", "createModuleDeclaration"),
+  "factory.createEnumMember": auditAlreadyExact("crates/emitter/src/factory.rs:4581", "createEnumMember"),
+  "factory.createEnumDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4020", "createEnumDeclaration"),
+  "factory.createEmptyStatement": auditAlreadyExact("crates/emitter/src/factory.rs:3859", "createEmptyStatement"),
+  "factory.createExpressionStatement": auditAlreadyExact("crates/emitter/src/factory.rs:3873", "createExpressionStatement"),
+  "factory.createExpressionWithTypeArguments": auditAlreadyExact("crates/emitter/src/factory.rs:2831", "createExpressionWithTypeArguments"),
+  "factory.createPrivateIdentifier": auditAlreadyExact("crates/emitter/src/factory.rs:1780", "createPrivateIdentifier"),
+  "factory.createClassDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:3891", "createClassDeclaration"),
+  "factory.createImportDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4207", "createImportDeclaration"),
+  "factory.createImportClause": auditAlreadyExact("crates/emitter/src/factory.rs:4233", "createImportClause"),
+  "factory.createImportSpecifier": auditAlreadyExact("crates/emitter/src/factory.rs:4357", "createImportSpecifier"),
+  "factory.createNamedImports": auditAlreadyExact("crates/emitter/src/factory.rs:4338", "createNamedImports"),
+  "factory.createUniqueName": auditAlreadyExact("crates/emitter/src/factory.rs:1803", "createUniqueName"),
+  "factory.createImportEqualsDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4177", "createImportEqualsDeclaration"),
+  "factory.createExternalModuleReference": auditAlreadyExact("crates/emitter/src/factory.rs:4532", "createExternalModuleReference"),
+  "factory.createNamespaceExportDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:4158", "createNamespaceExportDeclaration"),
+  "factory.createNamespaceImport": auditAlreadyExact("crates/emitter/src/factory.rs:4300", "createNamespaceImport"),
+  "factory.createNamespaceExport": auditAlreadyExact("crates/emitter/src/factory.rs:4319", "createNamespaceExport"),
 
   // Expression-level parenthesization exists in the current Rust emitter;
   // all type-level parenthesizer members remain declaration foundation.
-  "parenthesizer.parenthesizeLeadingTypeArgument": auditAlreadyExact("crates/emitter/src/factory.rs:1436", "parenthesizeLeadingTypeArgument"),
+  "parenthesizer.parenthesizeLeadingTypeArgument": auditAlreadyExact("crates/emitter/src/factory.rs:1479", "parenthesizeLeadingTypeArgument"),
   "parenthesizer.parenthesizeExpressionForDisallowedComma": auditAlreadyExact(
     "crates/emitter/src/factory.rs:1870",
   ),
   "parenthesizer.parenthesizeLeftSideOfAccess": auditAlreadyExact(
     "crates/emitter/src/printer.rs:7932",
   ),
-  "parenthesizer.parenthesizeNonArrayTypeOfPostfixType": auditAlreadyExact("crates/emitter/src/factory.rs:1356", "parenthesizeNonArrayTypeOfPostfixType"),
-  "parenthesizer.parenthesizeElementTypeOfTupleType": auditAlreadyExact("crates/emitter/src/factory.rs:1408", "parenthesizeElementTypeOfTupleType"),
-  "parenthesizer.parenthesizeTypeOfOptionalType": auditAlreadyExact("crates/emitter/src/factory.rs:1422", "parenthesizeTypeOfOptionalType"),
-  "parenthesizer.parenthesizeConstituentTypeOfUnionType": auditAlreadyExact("crates/emitter/src/factory.rs:1294", "parenthesizeConstituentTypeOfUnionType"),
-  "parenthesizer.parenthesizeConstituentTypeOfIntersectionType": auditAlreadyExact("crates/emitter/src/factory.rs:1311", "parenthesizeConstituentTypeOfIntersectionType"),
-  "parenthesizer.parenthesizeCheckTypeOfConditionalType": auditAlreadyExact("crates/emitter/src/factory.rs:1263", "parenthesizeCheckTypeOfConditionalType"),
-  "parenthesizer.parenthesizeExtendsTypeOfConditionalType": auditAlreadyExact("crates/emitter/src/factory.rs:1280", "parenthesizeExtendsTypeOfConditionalType"),
-  "parenthesizer.parenthesizeOperandOfReadonlyTypeOperator": auditAlreadyExact("crates/emitter/src/factory.rs:1342", "parenthesizeOperandOfReadonlyTypeOperator"),
-  "parenthesizer.parenthesizeOperandOfTypeOperator": auditAlreadyExact("crates/emitter/src/factory.rs:1328", "parenthesizeOperandOfTypeOperator"),
+  "parenthesizer.parenthesizeNonArrayTypeOfPostfixType": auditAlreadyExact("crates/emitter/src/factory.rs:1399", "parenthesizeNonArrayTypeOfPostfixType"),
+  "parenthesizer.parenthesizeElementTypeOfTupleType": auditAlreadyExact("crates/emitter/src/factory.rs:1451", "parenthesizeElementTypeOfTupleType"),
+  "parenthesizer.parenthesizeTypeOfOptionalType": auditAlreadyExact("crates/emitter/src/factory.rs:1465", "parenthesizeTypeOfOptionalType"),
+  "parenthesizer.parenthesizeConstituentTypeOfUnionType": auditAlreadyExact("crates/emitter/src/factory.rs:1337", "parenthesizeConstituentTypeOfUnionType"),
+  "parenthesizer.parenthesizeConstituentTypeOfIntersectionType": auditAlreadyExact("crates/emitter/src/factory.rs:1354", "parenthesizeConstituentTypeOfIntersectionType"),
+  "parenthesizer.parenthesizeCheckTypeOfConditionalType": auditAlreadyExact("crates/emitter/src/factory.rs:1306", "parenthesizeCheckTypeOfConditionalType"),
+  "parenthesizer.parenthesizeExtendsTypeOfConditionalType": auditAlreadyExact("crates/emitter/src/factory.rs:1323", "parenthesizeExtendsTypeOfConditionalType"),
+  "parenthesizer.parenthesizeOperandOfReadonlyTypeOperator": auditAlreadyExact("crates/emitter/src/factory.rs:1385", "parenthesizeOperandOfReadonlyTypeOperator"),
+  "parenthesizer.parenthesizeOperandOfTypeOperator": auditAlreadyExact("crates/emitter/src/factory.rs:1371", "parenthesizeOperandOfTypeOperator"),
 
-  "factory.updateIndexedAccessTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2701", "updateIndexedAccessTypeNode"),
-  "factory.updateTypeOperatorNode": auditAlreadyExact("crates/emitter/src/factory.rs:2658", "updateTypeOperatorNode"),
-  "factory.updateTypeQueryNode": auditAlreadyExact("crates/emitter/src/factory.rs:2267", "updateTypeQueryNode"),
-  "factory.updateTypeParameterDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:2836", "updateTypeParameterDeclaration"),
-  "factory.updateComputedPropertyName": auditAlreadyExact("crates/emitter/src/factory.rs:2071", "updateComputedPropertyName"),
-  "factory.updateTypePredicateNode": auditAlreadyExact("crates/emitter/src/factory.rs:2124", "updateTypePredicateNode"),
-  "factory.updateConditionalTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2467", "updateConditionalTypeNode"),
-  "factory.updateParameterDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:2922", "updateParameterDeclaration"),
+  "factory.updateIndexedAccessTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2744", "updateIndexedAccessTypeNode"),
+  "factory.updateTypeOperatorNode": auditAlreadyExact("crates/emitter/src/factory.rs:2701", "updateTypeOperatorNode"),
+  "factory.updateTypeQueryNode": auditAlreadyExact("crates/emitter/src/factory.rs:2310", "updateTypeQueryNode"),
+  "factory.updateTypeParameterDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:2879", "updateTypeParameterDeclaration"),
+  "factory.updateComputedPropertyName": auditAlreadyExact("crates/emitter/src/factory.rs:2114", "updateComputedPropertyName"),
+  "factory.updateTypePredicateNode": auditAlreadyExact("crates/emitter/src/factory.rs:2167", "updateTypePredicateNode"),
+  "factory.updateConditionalTypeNode": auditAlreadyExact("crates/emitter/src/factory.rs:2510", "updateConditionalTypeNode"),
+  "factory.updateParameterDeclaration": auditAlreadyExact("crates/emitter/src/factory.rs:2965", "updateParameterDeclaration"),
   "factory.updateGetAccessorDeclaration": auditAlreadyExact(
     "crates/emitter/src/factory.rs:1501",
   ),
@@ -877,6 +922,106 @@ function spanSha256(lines, span) {
   return sha256(Buffer.from(lineSpanText(lines, span.start_line, span.end_line), "utf8"));
 }
 
+function rustItemSpan(lines, startLine) {
+  requireCondition(
+    Number.isInteger(startLine) && startLine >= 1 && startLine <= lines.length,
+    `invalid Rust item start line ${startLine}`,
+  );
+  let braceDepth = 0;
+  let sawOpeningBrace = false;
+  let blockCommentDepth = 0;
+  let quote = null;
+  let escaped = false;
+  for (let lineIndex = startLine - 1; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index];
+      const next = line[index + 1];
+      if (blockCommentDepth > 0) {
+        if (character === "/" && next === "*") {
+          blockCommentDepth += 1;
+          index += 1;
+        } else if (character === "*" && next === "/") {
+          blockCommentDepth -= 1;
+          index += 1;
+        }
+        continue;
+      }
+      if (quote !== null) {
+        if (escaped) {
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === quote) {
+          quote = null;
+        }
+        continue;
+      }
+      if (character === "/" && next === "/") break;
+      if (character === "/" && next === "*") {
+        blockCommentDepth = 1;
+        index += 1;
+        continue;
+      }
+      // A Rust lifetime such as `<'_>` contains a single quote but does not
+      // open a quoted string.  The retained items do not use brace-bearing
+      // character literals, so only double-quoted strings need shielding.
+      if (character === '"') {
+        quote = character;
+        escaped = false;
+        continue;
+      }
+      if (character === "{") {
+        braceDepth += 1;
+        sawOpeningBrace = true;
+      } else if (character === "}") {
+        braceDepth -= 1;
+        requireCondition(braceDepth >= 0, `Rust item at line ${startLine} has an unmatched brace`);
+        if (sawOpeningBrace && braceDepth === 0) {
+          return { start_line: startLine, end_line: lineIndex + 1 };
+        }
+      }
+    }
+  }
+  fail(`Rust item at line ${startLine} has no closed body`);
+}
+
+function rustItemHeaderMatches(line, name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return new RegExp(
+    `^(?:(?:pub(?:\\([^)]*\\))?|const|async)\\s+)*(?:fn|enum|struct|trait)\\s+${escapedName}\\b`,
+    "u",
+  ).test(line.trimStart());
+}
+
+function isH2_7bAnchorPlaceholder(anchor) {
+  return (
+    anchor !== null &&
+    typeof anchor === "object" &&
+    !Array.isArray(anchor) &&
+    typeof anchor.todo === "string" &&
+    anchor.todo.startsWith("TO-FILL: ")
+  );
+}
+
+function resolveH2_7bAnchor(anchorKey) {
+  const spec = H2_7B_ANCHORS[anchorKey];
+  requireCondition(spec !== undefined, `missing H2.7b anchor spec for ${anchorKey}`);
+  if (spec.todo !== undefined) return { todo: spec.todo };
+  const lines = rustAnchorLines(spec.path);
+  requireCondition(
+    rustItemHeaderMatches(lines[spec.line - 1], spec.name),
+    `H2.7b Rust anchor ${anchorKey} header changed at ${spec.path}:${spec.line}`,
+  );
+  const span = rustItemSpan(lines, spec.line);
+  return {
+    path: spec.path,
+    name: spec.name,
+    line: spec.line,
+    span_sha256: spanSha256(lines, span),
+  };
+}
+
 function functionName(node) {
   return node.name && ts.isIdentifier(node.name) ? node.name.text : null;
 }
@@ -935,8 +1080,13 @@ function rowForNode({
   targetRung = null,
   partition = null,
   callCount,
+  anchorKey = null,
 }) {
   const span = nodeSpan(node);
+  const resolvedRustAnchor =
+    targetRung === "H2.7b"
+      ? resolveH2_7bAnchor(anchorKey ?? `${name}@${span.start_line}`)
+      : rustAnchor;
   const row = {
     surface,
     name,
@@ -946,7 +1096,7 @@ function rowForNode({
     nesting_parent: nearestFunctionName(node),
     reachability,
     consumers: [...new Set(consumers)].sort(),
-    rust_anchor: rustAnchor,
+    rust_anchor: resolvedRustAnchor,
     disposition,
     target_rung: targetRung,
     partition,
@@ -1209,8 +1359,8 @@ requireCondition(
 const orchestrationUseSpecs = Object.freeze([
   ["collectLinkedAliases", 116719, "declaration-orchestration", "H2.7b", ["H2.7b", "H2.8c", "H2.8d"]],
   ["collectLinkedAliases", 116727, "declaration-orchestration", "H2.7b", ["H2.7b", "H2.8c", "H2.8d"]],
-  ["markLinkedReferences", 116741, "declaration-orchestration", "H2.7b", ["H2.7b"]],
-  ["markLinkedReferences", 116597, "script-orchestration", null, ["H2.7a"]],
+  ["markLinkedReferences", 116741, "script-orchestration", "H2.8c", ["H2.8c"]],
+  ["markLinkedReferences", 116597, "script-orchestration", "H2.8c", ["H2.8c"]],
   ["hasGlobalName", 116624, "shared/printer-hook", null, ["API1"]],
   ["hasGlobalName", 116688, "shared/printer-hook", "H2.7b", ["H2.7b", "API1"]],
 ]);
@@ -1239,6 +1389,7 @@ for (const [name, line, disposition, targetRung, consumers] of orchestrationUseS
       consumers,
       disposition,
       targetRung,
+      anchorKey: targetRung === "H2.7b" ? `${name}@${line}` : null,
     }),
   );
 }
@@ -1474,7 +1625,6 @@ const measuredAuditNames = [
 const measuredAuditNameSet = new Set(measuredAuditNames);
 const curatedAuditNames = Object.keys(AUDIT_ROWS);
 const rustAnchorLineCounts = new Map();
-const rustAnchorLineCache = new Map();
 let headerVerifiedAuditRows = 0;
 function rustAnchorLines(relativePath) {
   if (!rustAnchorLineCache.has(relativePath)) {
@@ -1669,11 +1819,48 @@ for (const entry of optionEntries) {
     nesting_parent: "classifyBlocker",
     reachability: "context",
     consumers: [entry.slice],
-    rust_anchor: null,
+    rust_anchor:
+      entry.slice === "H2.7b"
+        ? resolveH2_7bAnchor(`${entry.name}@${entry.line}`)
+        : null,
     disposition: "option-owner",
     target_rung: entry.slice,
     partition: null,
   });
+}
+
+const h2_7bTargetedRows = rows.filter((row) => row.target_rung === "H2.7b");
+requireCondition(
+  h2_7bTargetedRows.length === 7,
+  `H2.7b anchor denominator must contain seven rows, got ${h2_7bTargetedRows.length}`,
+);
+requireCondition(
+  h2_7bTargetedRows.every(
+    (row) =>
+      row.rust_anchor !== null &&
+      typeof row.rust_anchor === "object" &&
+      !Array.isArray(row.rust_anchor),
+  ),
+  "every H2.7b-targeted row must carry an explicit anchor or TO-FILL placeholder",
+);
+const h2_7bAnchoredRows = h2_7bTargetedRows.filter(
+  (row) => !isH2_7bAnchorPlaceholder(row.rust_anchor),
+).length;
+
+function h2_7bAnchorRowName(row) {
+  return row.kind === "use_site"
+    ? `${row.name}@${row.span.start_line}`
+    : row.name;
+}
+
+function assertH2_7bAnchorsFilled() {
+  const unanchored = h2_7bTargetedRows
+    .filter((row) => isH2_7bAnchorPlaceholder(row.rust_anchor))
+    .map(h2_7bAnchorRowName);
+  requireCondition(
+    unanchored.length === 0,
+    `H2.7b owner inventory has TO-FILL anchors: ${unanchored.join(", ")}`,
+  );
 }
 
 rows.sort(
@@ -1768,6 +1955,7 @@ const summary = {
   },
   option_rows: optionEntries.length,
   unresolved_candidates: UNRESOLVED_CANDIDATES.length,
+  h2_7b_anchored_rows: h2_7bAnchoredRows,
 };
 
 const artifact = withFingerprint(
@@ -1818,12 +2006,14 @@ const summaryLine =
   `resolver=${summary.resolver.consumed_members}/${summary.resolver.declarations_module_call_sites} ` +
   `partition=${summary.partition.m_3_head}/${summary.partition.m_2} ` +
   `reached=${summary.reached_rows} options=${summary.option_rows} ` +
-  `audit=${summary.audit.already_exact}/${summary.audit.foundation_needed}/${summary.audit.pending}`;
+  `audit=${summary.audit.already_exact}/${summary.audit.foundation_needed}/${summary.audit.pending} ` +
+  `h2_7b_anchors=${summary.h2_7b_anchored_rows}/${h2_7bTargetedRows.length}`;
 
 if (MODE === "--write") {
   fs.writeFileSync(targetPath, rendered);
   process.stdout.write(`wrote ${TARGET_RELATIVE_PATH}: ${summaryLine}\n`);
 } else if (MODE === "--check") {
+  assertH2_7bAnchorsFilled();
   requireCondition(
     fs.existsSync(targetPath) && fs.readFileSync(targetPath, "utf8") === rendered,
     `stale ${TARGET_RELATIVE_PATH}; run --write and review`,

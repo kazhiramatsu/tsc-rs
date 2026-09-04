@@ -6,10 +6,11 @@ use std::rc::Rc;
 
 use serde_json::Value;
 use tsc_emitter::{
-    create_printer, transform_nodes, JavaScriptString, NewLineKind, PrintRequest, PrinterOptions,
-    SourceFileTextMode, StandaloneWriter, TextWriter, TransformArena, TransformError,
-    TransformFlags, TransformNode, TransformRoot, TransformationContext, TransformationResult,
-    Transformer,
+    create_printer, transform_nodes, DeclarationPrintHandlers, EmitResolverError,
+    EmitResolverMethod, GeneratedIdentifierFlags, GlobalNameOracle, JavaScriptString, NewLineKind,
+    PrintRequest, PrinterError, PrinterOptions, SourceFileTextMode, StandaloneWriter, TextWriter,
+    TransformArena, TransformError, TransformFlags, TransformNode, TransformRoot,
+    TransformSourceId, TransformationContext, TransformationResult, Transformer,
 };
 use tsc_syntax::{
     for_each_child,
@@ -19,7 +20,7 @@ use tsc_syntax::{
     },
     parse_source_file, LanguageVariant, NodeData, ParseOptions, SyntaxKind,
 };
-use tsc_types::ScriptTarget;
+use tsc_types::{NodeFlags, ScriptTarget};
 
 const REPRINT: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -343,19 +344,158 @@ fn declaration_requests_and_ungated_type_roots_fail_closed() {
     .expect("identity transformation");
     let options = PrinterOptions::new(NewLineKind::LineFeed)
         .with_source_file_text_mode(SourceFileTextMode::Canonical);
-    let mut printer = create_printer(options);
-    assert!(
-        printer
+    let mut declaration_printer = create_printer(options.with_declaration_syntax(true));
+    assert_eq!(
+        declaration_printer
             .print(&mut result, PrintRequest::Declaration(source), None)
-            .is_err(),
-        "Declaration stays unsupported"
+            .expect("activated declaration request")
+            .text(),
+        "type Alias = string;\n"
     );
+    let mut printer = create_printer(options);
     assert!(
         printer
             .print(&mut result, PrintRequest::SourceFile(source), None)
             .is_err(),
         "declaration syntax stays dormant by default"
     );
+}
+
+fn generated_file_level_declaration() -> (TransformationResult<'static>, TransformSourceId) {
+    let parsed = parse_source_file("generated.d.ts", "", ParseOptions::default(), None);
+    let referenced_files = parsed.referenced_files.clone();
+    let type_reference_directives = parsed.type_reference_directives.clone();
+    let lib_reference_directives = parsed.lib_reference_directives.clone();
+    let mut arena = TransformArena::new();
+    let source = arena.add_source(&parsed, None);
+    let root = arena.root(source).expect("source root");
+    let updated = {
+        let mut factory = arena.factory();
+        let name = factory
+            .create_unique_name(
+                source,
+                "global",
+                GeneratedIdentifierFlags::OPTIMISTIC | GeneratedIdentifierFlags::FILE_LEVEL,
+            )
+            .expect("generated file-level name");
+        let declaration = factory
+            .create_variable_declaration(source, name, None, None, None)
+            .expect("generated declaration");
+        let declarations = factory
+            .create_node_array(source, vec![declaration])
+            .expect("declaration list array");
+        let declaration_list = factory
+            .create_variable_declaration_list(source, declarations, NodeFlags::NONE)
+            .expect("declaration list");
+        let statement = factory
+            .create_variable_statement(source, None, declaration_list)
+            .expect("variable statement");
+        let statements = factory
+            .create_node_array(source, vec![statement])
+            .expect("source statements");
+        factory
+            .update_source_file(
+                root,
+                statements,
+                true,
+                referenced_files,
+                type_reference_directives,
+                false,
+                lib_reference_directives,
+            )
+            .expect("updated source root")
+    };
+    arena
+        .replace_root(source, updated)
+        .expect("install generated source root");
+    let result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(source)],
+        Vec::new(),
+        true,
+    )
+    .expect("identity generated-name transform");
+    (result, source)
+}
+
+struct RecordingGlobalNameOracle {
+    queries: RefCell<Vec<String>>,
+    fail: bool,
+}
+
+impl RecordingGlobalNameOracle {
+    fn collision() -> Self {
+        Self {
+            queries: RefCell::new(Vec::new()),
+            fail: false,
+        }
+    }
+
+    fn unavailable() -> Self {
+        Self {
+            queries: RefCell::new(Vec::new()),
+            fail: true,
+        }
+    }
+}
+
+impl GlobalNameOracle for RecordingGlobalNameOracle {
+    fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError> {
+        self.queries.borrow_mut().push(name.to_owned());
+        if self.fail {
+            return Err(EmitResolverError::UnavailableForName {
+                method: EmitResolverMethod::HasGlobalName,
+                name: name.into(),
+            });
+        }
+        Ok(name == "global")
+    }
+}
+
+#[test]
+fn declaration_print_consults_the_fallible_file_level_name_oracle() {
+    let options = PrinterOptions::new(NewLineKind::LineFeed)
+        .with_declaration_syntax(true)
+        .with_source_file_text_mode(SourceFileTextMode::Canonical);
+    let (mut declaration_result, declaration_source) = generated_file_level_declaration();
+    let oracle = RecordingGlobalNameOracle::collision();
+    let printed = create_printer(options)
+        .print_declaration(
+            &mut declaration_result,
+            declaration_source,
+            DeclarationPrintHandlers::new(&oracle),
+        )
+        .expect("declaration print with available oracle");
+    assert_eq!(oracle.queries.borrow().as_slice(), ["global", "global_1"]);
+    assert!(printed.text().contains("global_1"));
+
+    let (mut javascript_result, javascript_source) = generated_file_level_declaration();
+    let javascript = create_printer(options)
+        .print(
+            &mut javascript_result,
+            PrintRequest::SourceFile(javascript_source),
+            None,
+        )
+        .expect("JavaScript lane retains its no-oracle decision");
+    assert!(javascript.text().contains("global"));
+    assert!(!javascript.text().contains("global_1"));
+
+    let (mut failed_result, failed_source) = generated_file_level_declaration();
+    let unavailable = RecordingGlobalNameOracle::unavailable();
+    assert!(matches!(
+        create_printer(options).print_declaration(
+            &mut failed_result,
+            failed_source,
+            DeclarationPrintHandlers::new(&unavailable),
+        ),
+        Err(PrinterError::Transform(TransformError::Resolver(
+            EmitResolverError::UnavailableForName {
+                method: EmitResolverMethod::HasGlobalName,
+                ..
+            }
+        )))
+    ));
+    assert_eq!(unavailable.queries.borrow().as_slice(), ["global"]);
 }
 
 #[test]

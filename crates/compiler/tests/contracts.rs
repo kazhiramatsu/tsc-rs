@@ -32,6 +32,8 @@ mod h2_7a_m35_controls;
 mod h2_7a_m4_controls;
 #[path = "integration/h2_7a_partition_projection.rs"]
 mod h2_7a_partition_projection;
+#[path = "integration/h2_7b_m2_controls.rs"]
+mod h2_7b_m2_controls;
 #[path = "integration/library_loader_session_contract.rs"]
 mod library_loader_session_contract;
 #[path = "integration/no_resolve_session_contract.rs"]

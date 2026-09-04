@@ -28,7 +28,10 @@ const INVENTORY: &[u8] = include_bytes!(concat!(
 /// `with_declaration_syntax(true)` (packet §6 L5). Both sites are dormant:
 /// the worker has no production caller before m-4/H2.7b, and the replay
 /// printer runs only when the harness arms the replay observer.
-const DECLARATION_SYNTAX_ALLOWLIST: &[&str] = &["crates/checker/src/declaration_emit.rs"];
+const DECLARATION_SYNTAX_ALLOWLIST: &[&str] = &[
+    "crates/checker/src/declaration_emit.rs",
+    "crates/emitter/src/declarations/orchestration.rs",
+];
 
 fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))

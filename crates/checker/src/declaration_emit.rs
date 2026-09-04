@@ -1483,6 +1483,14 @@ impl CheckerState<'_> {
         ))
     }
 
+    /// tsc-port: hasGlobalName @6.0.3
+    /// tsc-hash: 53c9de85b0c10c5de2b868bc13acdbf715186648a451e034c1d6395b5096c7d9
+    /// tsc-span: _tsc.js:88396-88398
+    pub(crate) fn emit_has_global_name(&self, name: &str) -> bool {
+        self.globals
+            .contains_key(&tsc_binder::escape_leading_underscores(name))
+    }
+
     /// tsc-port: collectLinkedAliases @6.0.3
     /// tsc-hash: 8fe011e257a2763196e5bd485d330cf0df070bbdf96d1d78fd9edf54c0f391c5
     /// tsc-span: _tsc.js:55675-55727
@@ -4763,7 +4771,12 @@ impl<'a> CheckerState<'a> {
         use tsc_types::{LiteralValue, TypeData, TypeFlags};
         let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
         let flags = self.tables.flags_of(literal_type);
-        if flags.contains(TypeFlags::ENUM_LIKE) {
+        // `type.flags & EnumLike` (88492): EnumLike = Enum | EnumLiteral, so
+        // EITHER bit selects the symbol-expression arm — `contains` demanded
+        // both and left the arm dead (h2-7b-m-2 fence amendment #4d: a
+        // computed enum member's fresh Enum type aborted as "not a literal",
+        // and constant members printed their values instead of `E.A`).
+        if flags.intersects(TypeFlags::ENUM_LIKE) {
             let symbol = self.tables.type_of(literal_type).symbol.ok_or(
                 tsc_emitter::EmitResolverError::CheckerAborted {
                     method,

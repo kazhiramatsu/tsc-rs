@@ -5,6 +5,7 @@
 mod diagnostics;
 mod ensure;
 mod orchestration;
+mod paths;
 pub(crate) mod root;
 mod selection;
 mod state;
@@ -23,10 +24,12 @@ use crate::{
     TransformationContext, Transformer,
 };
 
+pub(crate) use self::orchestration::emit_declaration_unit;
 pub use self::orchestration::{
     transform_declaration_unit_for_harness, transform_declaration_unit_with_observer_for_harness,
     DeclBlockedInputs, DeclarationTransformOutcome,
 };
+pub use self::paths::PlanDeclarationPaths;
 pub(crate) use self::selection::{
     get_declaration_transformers, get_declaration_transformers_with_observer,
 };

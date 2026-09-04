@@ -98,7 +98,7 @@ impl SyntacticTypeNodeBuilder {
         );
         if !session
             .resolver
-            .can_reuse_type_node(session.context, existing)?
+            .can_reuse_type_node(session.arena, session.context, existing)?
         {
             return Ok(None);
         }
@@ -563,7 +563,29 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &mut self,
         existing: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let boundary = self.resolver.create_recovery_boundary(self.context)?;
+        // h2-7b-m-2 fence amendment #4e: TypeScript reuses an existing
+        // annotation from ANY file of its single node pool (the reused nodes
+        // are cloned, and setTextRange copies no positions from another file).
+        // The Rust arena keys child handles by source, so an annotation
+        // living in another source is first cloned into the emitted target
+        // (`clone_node_to_source`: synthesized, position-free, original-chain
+        // kept) and the walk rebuilds the clone; same source = identity.
+        // `approximateLength += existing.end - existing.pos` reads the parse
+        // positions: a clone into the target is position-free, so follow the
+        // original chain back to the positioned node first.
+        let reused_span = {
+            let positioned = self.arena.get_original_node(existing);
+            let record = self.node(positioned)?;
+            if record.pos == u32::MAX || record.end == u32::MAX {
+                0
+            } else {
+                record.end.saturating_sub(record.pos)
+            }
+        };
+        let existing = self.node_in_source(self.target, existing)?;
+        let boundary = self
+            .resolver
+            .create_recovery_boundary(self.arena, self.context)?;
         self.recovery_boundaries.push(boundary);
         let transformed = self.visit_existing_node_tree_symbols(existing);
         let Some(boundary) = self.recovery_boundaries.pop() else {
@@ -574,11 +596,8 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         if !finalized {
             return Ok(None);
         }
-        let record = self.node(existing)?;
-        self.context.approximate_length = self
-            .context
-            .approximate_length
-            .saturating_add(record.end.saturating_sub(record.pos));
+        self.context.approximate_length =
+            self.context.approximate_length.saturating_add(reused_span);
         Ok(transformed)
     }
 
@@ -774,7 +793,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &mut self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        if !self.resolver.can_reuse_type_node(self.context, node)? {
+        if !self
+            .resolver
+            .can_reuse_type_node(self.arena, self.context, node)?
+        {
             return Ok(None);
         }
         let NodeData::TypeReference(mut data) = self.node(node)?.data.clone() else {
@@ -1009,7 +1031,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         }
 
         if self.kind(node)? == SyntaxKind::ThisType {
-            if self.resolver.can_reuse_type_node(self.context, node)? {
+            if self
+                .resolver
+                .can_reuse_type_node(self.arena, self.context, node)?
+            {
                 return Ok(Some(node));
             }
             self.mark_recovery_error();
@@ -1063,7 +1088,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                         self.mark_recovery_error();
                         return Ok(Some(node));
                     }
-                    if !self.resolver.can_reuse_type_node(self.context, node)? {
+                    if !self
+                        .resolver
+                        .can_reuse_type_node(self.arena, self.context, node)?
+                    {
                         return self.resolver.serialize_existing_type_node(
                             self.arena,
                             self.target,
@@ -1094,14 +1122,14 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
 
         if let Some(name) = self.name_of(node)? {
             if self.kind(name)? == SyntaxKind::ComputedPropertyName
-                && !self.resolver.has_late_bindable_name(node)?
+                && !self.resolver.has_late_bindable_name(self.arena, node)?
             {
                 if !self.has_dynamic_name(node)? {
                     return self.visit_each_child_2(node);
                 }
                 if self
                     .resolver
-                    .should_remove_declaration(self.context, node)?
+                    .should_remove_declaration(self.arena, self.context, node)?
                 {
                     return Ok(None);
                 }
@@ -1155,8 +1183,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                         None => None,
                     };
                     if literal.is_none() {
-                        let evaluated =
-                            self.resolver.evaluate_entity_name_expression(expression)?;
+                        let evaluated = self
+                            .resolver
+                            .evaluate_entity_name_expression(self.arena, expression)?;
                         literal = match evaluated.value {
                             Some(EvalValue::Str(value)) => {
                                 Some(self.create_string_literal(source, value)?)
@@ -1171,8 +1200,11 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                                 Some(r#type) => self.kind(r#type)? == SyntaxKind::ImportType,
                                 None => false,
                             } {
-                                self.resolver
-                                    .track_computed_name(self.context, expression)?;
+                                self.resolver.track_computed_name(
+                                    self.arena,
+                                    self.context,
+                                    expression,
+                                )?;
                             }
                             return Ok(Some(node));
                         }
@@ -1292,7 +1324,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                     .child(source, operator.r#type)
                     .is_some_and(|inner| self.kind(inner).ok() == Some(SyntaxKind::SymbolKeyword))
             {
-                if !self.resolver.can_reuse_type_node(self.context, node)? {
+                if !self
+                    .resolver
+                    .can_reuse_type_node(self.arena, self.context, node)?
+                {
                     self.mark_recovery_error();
                     return Ok(Some(node));
                 }
@@ -1423,9 +1458,12 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         parent: TransformNode,
         literal: TransformNode,
     ) -> Result<TransformNode, EmitResolverError> {
-        let Some(name) =
-            self.resolver
-                .get_module_specifier_override(self.context, parent, literal)?
+        let Some(name) = self.resolver.get_module_specifier_override(
+            self.arena,
+            self.context,
+            parent,
+            literal,
+        )?
         else {
             return Ok(literal);
         };
@@ -1448,7 +1486,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             return Ok(None);
         };
         if (!add_undefined || self.can_add_undefined(type_node)?)
-            && self.resolver.can_reuse_type_node(self.context, type_node)?
+            && self
+                .resolver
+                .can_reuse_type_node(self.arena, self.context, type_node)?
         {
             if let Some(result) = self.try_reuse_existing_type_node(type_node)? {
                 return self
@@ -1474,6 +1514,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         };
         let use_fallback = requires_adding_undefined.is_some();
         if !self.resolver.can_reuse_type_node_annotation(
+            self.arena,
             self.context,
             node,
             declared_type,
@@ -1481,6 +1522,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             requires_adding_undefined,
         )? && (requires_adding_undefined != Some(true)
             || !self.resolver.can_reuse_type_node_annotation(
+                self.arena,
                 self.context,
                 node,
                 declared_type,
@@ -1557,7 +1599,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         if let Some(result) = self.type_from_accessor(accessor, symbol)? {
             return Ok(result);
         }
-        let accessors = self.resolver.get_all_accessor_declarations(accessor)?;
+        let accessors = self
+            .resolver
+            .get_all_accessor_declarations(self.arena, accessor)?;
         self.infer_accessor_type(accessor, accessors, symbol, true)
     }
 
@@ -1627,6 +1671,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let mut result = None;
         if let Some(type_annotation) = type_annotation {
             if self.resolver.can_reuse_type_node_annotation(
+                self.arena,
                 self.context,
                 node,
                 type_annotation,
@@ -1657,6 +1702,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 if let Some(assertion) = assertion {
                     if !self.is_const_type_reference(assertion)?
                         && self.resolver.can_reuse_type_node_annotation(
+                            self.arena,
                             self.context,
                             node,
                             assertion,
@@ -1762,7 +1808,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         node: TransformNode,
         symbol: Option<SyntacticSymbol>,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let accessors = self.resolver.get_all_accessor_declarations(node)?;
+        let accessors = self
+            .resolver
+            .get_all_accessor_declarations(self.arena, node)?;
         let accessor_type =
             self.get_type_annotation_from_all_accessor_declarations(node, accessors)?;
         if let Some(accessor_type) = accessor_type {
@@ -1815,6 +1863,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
             if sole_variable
                 && !SyntacticBuilderResolver::is_expando_function_declaration(
                     &mut *self.resolver,
+                    self.arena,
                     node,
                 )?
                 && !self.is_contextually_typed(node)?
@@ -1849,6 +1898,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let declared_type = self.effective_type_annotation_node(node)?;
         let add_undefined = SyntacticBuilderResolver::requires_adding_implicit_undefined(
             &mut *self.resolver,
+            self.arena,
             node,
             symbol,
             self.context.enclosing_declaration,
@@ -1912,6 +1962,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         let declared_type = self.effective_type_annotation_node(node)?;
         let add_undefined = SyntacticBuilderResolver::requires_adding_implicit_undefined(
             &mut *self.resolver,
+            self.arena,
             node,
             symbol,
             self.context.enclosing_declaration,
@@ -2109,6 +2160,25 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         requires_adding_undefined: bool,
         preserve_literals: bool,
     ) -> Result<SyntacticResult, EmitResolverError> {
+        // #4e: an initializer living in another source is cloned into the
+        // emitted target before the syntactic inference walks it.
+        let node = self.node_in_source(self.target, node)?;
+        self.type_from_expression_in_source(
+            node,
+            is_const_context,
+            requires_adding_undefined,
+            preserve_literals,
+        )
+    }
+
+    /// tsrs-native: `typeFromExpression`'s body on the target-source node (#4e).
+    fn type_from_expression_in_source(
+        &mut self,
+        node: TransformNode,
+        is_const_context: bool,
+        requires_adding_undefined: bool,
+        preserve_literals: bool,
+    ) -> Result<SyntacticResult, EmitResolverError> {
         let source = node.source();
         match self.node(node)?.data.clone() {
             NodeData::ParenthesizedExpression(data) => {
@@ -2132,7 +2202,10 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 );
             }
             NodeData::Identifier(_) => {
-                if self.resolver.is_undefined_identifier_expression(node)? {
+                if self
+                    .resolver
+                    .is_undefined_identifier_expression(self.arena, node)?
+                {
                     return self
                         .create_undefined_type_node(source)
                         .map(|r#type| SyntacticResult::syntactic(Some(r#type)));
@@ -2259,6 +2332,15 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
     /// tsc-hash: dac44bf3aeff2abba5cf1cd413b0b89f809afbfd664442505b8c5b9209b41cf3
     /// tsc-span: _tsc.js:134083-134099
     fn type_from_function_like_expression(
+        &mut self,
+        node: TransformNode,
+    ) -> Result<SyntacticResult, EmitResolverError> {
+        let node = self.node_in_source(self.target, node)?;
+        self.type_from_function_like_expression_in_source(node)
+    }
+
+    /// tsrs-native: `typeFromFunctionLikeExpression`'s body on the target-source node (#4e).
+    fn type_from_function_like_expression_in_source(
         &mut self,
         node: TransformNode,
     ) -> Result<SyntacticResult, EmitResolverError> {
@@ -2400,7 +2482,7 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 if !self.is_primitive_literal_value(expression, false)?
                     && !self
                         .resolver
-                        .is_definitely_reference_to_global_symbol_object(expression)?
+                        .is_definitely_reference_to_global_symbol_object(self.arena, expression)?
                 {
                     self.report_inference_fallback(name)?;
                     result = false;
@@ -2545,19 +2627,22 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 .serialize_name_of_parameter(self.arena, self.target, self.context, parameter)?
                 .node(),
         );
-        data.question_token =
-            if SyntacticBuilderResolver::is_optional_parameter(&mut *self.resolver, parameter)? {
-                Some(
-                    self.create_token(
-                        parameter.source(),
-                        SyntaxKind::QuestionToken,
-                        TransformFlags::NONE,
-                    )?
-                    .node(),
-                )
-            } else {
-                None
-            };
+        data.question_token = if SyntacticBuilderResolver::is_optional_parameter(
+            &mut *self.resolver,
+            self.arena,
+            parameter,
+        )? {
+            Some(
+                self.create_token(
+                    parameter.source(),
+                    SyntaxKind::QuestionToken,
+                    TransformFlags::NONE,
+                )?
+                .node(),
+            )
+        } else {
+            None
+        };
         data.r#type = self
             .type_from_parameter(parameter, None)?
             .map(TransformNode::node);
@@ -2715,7 +2800,9 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         accessor: TransformNode,
         name: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        let accessors = self.resolver.get_all_accessor_declarations(accessor)?;
+        let accessors = self
+            .resolver
+            .get_all_accessor_declarations(self.arena, accessor)?;
         let get_type = self.get_type_annotation_from_accessor(accessors.get_accessor)?;
         let set_type = self.get_type_annotation_from_accessor(accessors.set_accessor)?;
         if let (Some(get_type), Some(_set_type)) = (get_type, set_type) {
@@ -4123,9 +4210,10 @@ impl NodeDataChildVisitor for SyntacticBuildSession<'_, '_> {
         let Some(node) = self.arena.node_ref(source, id) else {
             return Ok(None);
         };
-        Ok(self
-            .visit_existing_node_tree_symbols(node)?
-            .map(TransformNode::node))
+        Ok(match self.visit_existing_node_tree_symbols(node)? {
+            Some(visited) => Some(self.node_in_source(source, visited)?.node()),
+            None => None,
+        })
     }
 
     fn visit_nodes(&mut self, id: NodeArrayId) -> Result<Option<NodeArrayId>, Self::Error> {

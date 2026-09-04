@@ -10056,13 +10056,17 @@ impl<'a> CheckerState<'a> {
         if self.tables.is_error_type(annotation_type) {
             return self.reusable_annotation_node_text_slice(annotation);
         }
-        let compared_annotation_type = if requires_adding_undefined {
-            // addOptionality(annotationType, !isParameter) — the
-            // strictNullChecks gate held upstream.
-            self.get_optional_type(annotation_type, /*is_property*/ !is_parameter)?
-        } else {
-            annotation_type
-        };
+        let compared_annotation_type =
+            if requires_adding_undefined && self.tables.strict_null_checks {
+                // addOptionality(annotationType, !isParameter) @6.0.3
+                // (_tsc.js:56029-56031): the strictNullChecks gate lives inside
+                // addOptionality — a mapped-type optional property can require
+                // undefined under `strictNullChecks: false` and then compares
+                // its annotation as-is (h2-7b-m-2 fence amendment #4).
+                self.get_optional_type(annotation_type, /*is_property*/ !is_parameter)?
+            } else {
+                annotation_type
+            };
         let equivalent = compared_annotation_type == symbol_type
             || (question_equivalence && {
                 let without_undefined =

@@ -434,6 +434,9 @@ pub enum EmitResolverMethod {
     IsExternalOrCommonJsModule,
     IsInstantiatedModule,
     IsUniqueLocalName,
+    HasGlobalName,
+    CollectLinkedAliases,
+    CanIncludeBindAndCheckDiagnostics,
     IsReferencedAliasDeclaration,
     IsTopLevelValueImportEqualsWithEntityName,
     IsValueAliasDeclaration,
@@ -506,6 +509,9 @@ impl EmitResolverMethod {
             Self::IsExternalOrCommonJsModule => "isExternalOrCommonJsModule",
             Self::IsInstantiatedModule => "isInstantiatedModule",
             Self::IsUniqueLocalName => "isUniqueLocalName",
+            Self::HasGlobalName => "hasGlobalName",
+            Self::CollectLinkedAliases => "collectLinkedAliases",
+            Self::CanIncludeBindAndCheckDiagnostics => "canIncludeBindAndCheckDiagnostics",
             Self::IsReferencedAliasDeclaration => "isReferencedAliasDeclaration",
             Self::IsTopLevelValueImportEqualsWithEntityName => {
                 "isTopLevelValueImportEqualsWithEntityName"
@@ -578,6 +584,16 @@ pub enum EmitResolverError {
     UnavailableForSymbol {
         method: EmitResolverMethod,
         symbol: EmitResolverSymbol,
+    },
+    /// Fail-closed default for a name-scoped member (`hasGlobalName`).
+    UnavailableForName {
+        method: EmitResolverMethod,
+        name: Box<str>,
+    },
+    /// Fail-closed default for a source-scoped member with no node argument.
+    UnavailableForSource {
+        method: EmitResolverMethod,
+        source: SourceFileId,
     },
     /// A factory or arena operation inside a serialization member failed.
     /// Boxed: `TransformError::Resolver` already wraps this type, so the
@@ -657,6 +673,18 @@ impl fmt::Display for EmitResolverError {
                 symbol.symbol_index,
                 symbol.session_token
             ),
+            Self::UnavailableForName { method, name } => write!(
+                formatter,
+                "emit resolver method {} is unavailable for name {}",
+                method.name(),
+                name
+            ),
+            Self::UnavailableForSource { method, source } => write!(
+                formatter,
+                "emit resolver method {} is unavailable for source {}",
+                method.name(),
+                source.raw()
+            ),
             Self::Factory { method, error } => write!(
                 formatter,
                 "emit resolver method {} factory operation failed: {}",
@@ -673,6 +701,41 @@ impl Error for EmitResolverError {}
 /// by the three H1 script transformers. Defaults fail closed so an expanded
 /// syntax profile cannot silently fabricate a semantic answer.
 pub trait EmitResolver {
+    /// tsc-port: hasGlobalName @6.0.3
+    /// tsc-hash: 53c9de85b0c10c5de2b868bc13acdbf715186648a451e034c1d6395b5096c7d9
+    /// tsc-span: _tsc.js:88396-88398
+    fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError> {
+        Err(EmitResolverError::UnavailableForName {
+            method: EmitResolverMethod::HasGlobalName,
+            name: name.into(),
+        })
+    }
+
+    /// tsc-port: collectLinkedAliases @6.0.3
+    /// tsc-hash: 8fe011e257a2763196e5bd485d330cf0df070bbdf96d1d78fd9edf54c0f391c5
+    /// tsc-span: _tsc.js:55675-55727
+    fn collect_linked_aliases(
+        &self,
+        node: EmitResolverNode,
+        set_visibility: bool,
+    ) -> Result<Option<Vec<EmitResolverNode>>, EmitResolverError> {
+        let _ = set_visibility;
+        Err(unavailable(EmitResolverMethod::CollectLinkedAliases, node))
+    }
+
+    /// tsc-port: canIncludeBindAndCheckDiagnostics @6.0.3
+    /// tsc-hash: e833101f7d0b7e59d1247180868406c7e65ac869387a07face9965d430e98204
+    /// tsc-span: _tsc.js:18898-18905
+    fn can_include_bind_and_check_diagnostics(
+        &self,
+        source: SourceFileId,
+    ) -> Result<bool, EmitResolverError> {
+        Err(EmitResolverError::UnavailableForSource {
+            method: EmitResolverMethod::CanIncludeBindAndCheckDiagnostics,
+            source,
+        })
+    }
+
     fn get_constant_value(
         &self,
         node: EmitResolverNode,

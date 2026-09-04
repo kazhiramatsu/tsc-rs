@@ -26,6 +26,8 @@
 #   PRE_SUITE="<cmd>"     red-suite-first: run this suite before any re-mint;
 #                         nonzero exit refuses the walk (gate-tax 5-E)
 #   WALK_PLAN=0           skip the prospective-plan report (default: run it)
+#   WALK_PREFLIGHT_RECEIPT=0  force fmt/clippy/PRE_SUITE even when the receipt
+#                         says these crate bytes were validated (gate-tax 9-C)
 #   WALK_EXPECT_OBS=0|1   5g enforcement override: 0 = strict (any
 #                         observation red), 1 = disabled (deliberate
 #                         re-anchor; RECORDED in the run summary)
@@ -127,51 +129,6 @@ else
   fi
 fi
 
-if [ "${SKIP_PREFLIGHT:-0}" != "1" ]; then
-  echo "preflight: cargo fmt --all -- --check"
-  if ! taskpolicy -b nice -n 15 cargo fmt --all -- --check >/tmp/chain-walk-fmt.log 2>&1; then
-    echo "REFUSING TO WALK: rustfmt is red (see /tmp/chain-walk-fmt.log)."
-    echo "Run 'cargo fmt --all', land the bytes, THEN walk. A post-walk fmt"
-    echo "change re-stales the profile ladder and repeats the whole converge."
-    exit 2
-  fi
-  # Test-module layout (gt6 lesson, 2026-08-28): the workspace-audit that
-  # rejects inline test-module bodies in src runs only in the FULL GATE —
-  # i.e. after a walk — so a violating file converges a walk and then the
-  # layout fix re-stales the whole ladder. The scanner mirrors the audit
-  # (ALL hits, not fail-fast) and covers its compound-cfg and src-resident
-  # declaration gaps; scripts/inline-tests-scan.py --self-test documents it.
-  echo "preflight: test-module layout scan (crates/*/src)"
-  if ! python3 scripts/inline-tests-scan.py >/tmp/chain-walk-inline-tests.log 2>&1; then
-    echo "REFUSING TO WALK: test-module layout violations (see /tmp/chain-walk-inline-tests.log)."
-    echo "Move bodies to crates/<crate>/tests/unit/<module>/tests.rs and keep"
-    echo "only '#[cfg(test)] #[path = ...] mod tests;' in src (workspace-audit rule)."
-    exit 2
-  fi
-  echo "preflight: cargo clippy --workspace --all-targets -- -D warnings"
-  if ! taskpolicy -b nice -n 15 cargo clippy --workspace --all-targets -- -D warnings >/tmp/chain-walk-clippy.log 2>&1; then
-    echo "REFUSING TO WALK: clippy is red (see /tmp/chain-walk-clippy.log)."
-    echo "Fix clippy to final bytes first; clippy-driven edits after the walk"
-    echo "re-stale the ladder exactly like fmt."
-    exit 2
-  fi
-  echo "preflight: clean"
-fi
-
-# Red-suite-first (gate-tax 5-E): never converge unvalidated bytes. When a
-# Rust fix answers a red suite, PRE_SUITE runs that suite on the fixed
-# binary before any re-mint.
-if [ "${WALK_DRY:-0}" != "1" ] && [ -n "${PRE_SUITE:-}" ]; then
-  summary "pre-suite (gate-tax 5-E): $PRE_SUITE"
-  if ! taskpolicy -b nice -n 15 bash -c "$PRE_SUITE" >"$RUN_DIR/pre-suite.log" 2>&1; then
-    echo "REFUSING TO WALK: PRE_SUITE failed (see $RUN_DIR/pre-suite.log)."
-    echo "Fix the suite red first — converging unvalidated bytes repeats the"
-    echo "whole converge when the fix changes crates/*.rs."
-    exit 2
-  fi
-  summary "pre-suite: green"
-fi
-
 # Lineage order (qualification BEFORE profile; h2-5h-a witnesses BEFORE the
 # owner graph that pins them — gate-tax 5-D, audited mechanically below).
 # Extend this list in the slice that adds a new oracle script.
@@ -271,14 +228,98 @@ python3 scripts/walk-preflight.py || {
   exit 2
 }
 
+# gate-tax 9-A (2026-09-04): static generator preconditions BEFORE the
+# minute-scale preflight. Two pure-function failures cost 35-40 min of
+# minting each on the h2-7b m-2 train before their rung was reached: the
+# H2.5g profile runtime-input closure (a new crates/** file not registered
+# in h2-5g-profile.mjs) and moved h2-7a curated anchors after an emitter
+# edit. The generators' own --check mode answers both in seconds.
+python3 scripts/walk-static-checks.py || {
+  echo "REFUSING TO WALK: static generator preconditions above — fix them, then walk once."
+  exit 2
+}
+
+
+# gate-tax 9-C: preflight receipt. fmt / the layout scan / clippy are pure
+# functions of the Rust tree, and PRE_SUITE validates exactly these crate
+# bytes (gate-tax 5-E: never converge UNVALIDATED bytes — the same bytes
+# validated once stay validated). A relaunch after a refusal or a minting
+# failure with an unchanged Rust tree therefore skips the ~15-min preflight;
+# the skip is RECORDED in the run summary. WALK_PREFLIGHT_RECEIPT=0 disables.
+crate_tree_sha() {
+  find crates -name '*.rs' -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -d' ' -f1
+}
+preflight_tree_sha() {
+  { crate_tree_sha; find crates -name Cargo.toml -type f -print0 | sort -z | xargs -0 shasum -a 256; shasum -a 256 Cargo.toml Cargo.lock; rustc --version; printf 'PRE_SUITE=%s\n' "${PRE_SUITE:-}"; } | shasum -a 256 | cut -d' ' -f1
+}
+PREFLIGHT_RECEIPT="target/chain-walk/preflight-receipt"
+preflight_receipt_hit() {
+  [ "${WALK_PREFLIGHT_RECEIPT:-1}" = "1" ] || return 1
+  [ -f "$PREFLIGHT_RECEIPT" ] || return 1
+  [ "$(cut -d' ' -f1 "$PREFLIGHT_RECEIPT")" = "$(preflight_tree_sha)" ]
+}
+preflight_receipt_used=0
+if preflight_receipt_hit; then
+  preflight_receipt_used=1
+  summary "preflight: RECEIPT HIT $(cut -c1-12 "$PREFLIGHT_RECEIPT")… — fmt / layout scan / clippy / PRE_SUITE were green for these crate bytes ($(cut -d' ' -f2- "$PREFLIGHT_RECEIPT")); skipping (WALK_PREFLIGHT_RECEIPT=0 forces them)"
+fi
+
+if [ "${SKIP_PREFLIGHT:-0}" != "1" ] && [ $preflight_receipt_used -eq 0 ]; then
+  echo "preflight: cargo fmt --all -- --check"
+  if ! taskpolicy -b nice -n 15 cargo fmt --all -- --check >/tmp/chain-walk-fmt.log 2>&1; then
+    echo "REFUSING TO WALK: rustfmt is red (see /tmp/chain-walk-fmt.log)."
+    echo "Run 'cargo fmt --all', land the bytes, THEN walk. A post-walk fmt"
+    echo "change re-stales the profile ladder and repeats the whole converge."
+    exit 2
+  fi
+  # Test-module layout (gt6 lesson, 2026-08-28): the workspace-audit that
+  # rejects inline test-module bodies in src runs only in the FULL GATE —
+  # i.e. after a walk — so a violating file converges a walk and then the
+  # layout fix re-stales the whole ladder. The scanner mirrors the audit
+  # (ALL hits, not fail-fast) and covers its compound-cfg and src-resident
+  # declaration gaps; scripts/inline-tests-scan.py --self-test documents it.
+  echo "preflight: test-module layout scan (crates/*/src)"
+  if ! python3 scripts/inline-tests-scan.py >/tmp/chain-walk-inline-tests.log 2>&1; then
+    echo "REFUSING TO WALK: test-module layout violations (see /tmp/chain-walk-inline-tests.log)."
+    echo "Move bodies to crates/<crate>/tests/unit/<module>/tests.rs and keep"
+    echo "only '#[cfg(test)] #[path = ...] mod tests;' in src (workspace-audit rule)."
+    exit 2
+  fi
+  echo "preflight: cargo clippy --workspace --all-targets -- -D warnings"
+  if ! taskpolicy -b nice -n 15 cargo clippy --workspace --all-targets -- -D warnings >/tmp/chain-walk-clippy.log 2>&1; then
+    echo "REFUSING TO WALK: clippy is red (see /tmp/chain-walk-clippy.log)."
+    echo "Fix clippy to final bytes first; clippy-driven edits after the walk"
+    echo "re-stale the ladder exactly like fmt."
+    exit 2
+  fi
+  echo "preflight: clean"
+fi
+
+# Red-suite-first (gate-tax 5-E): never converge unvalidated bytes. When a
+# Rust fix answers a red suite, PRE_SUITE runs that suite on the fixed
+# binary before any re-mint.
+if [ "${WALK_DRY:-0}" != "1" ] && [ -n "${PRE_SUITE:-}" ] && [ $preflight_receipt_used -eq 0 ]; then
+  summary "pre-suite (gate-tax 5-E): $PRE_SUITE"
+  if ! taskpolicy -b nice -n 15 bash -c "$PRE_SUITE" >"$RUN_DIR/pre-suite.log" 2>&1; then
+    echo "REFUSING TO WALK: PRE_SUITE failed (see $RUN_DIR/pre-suite.log)."
+    echo "Fix the suite red first — converging unvalidated bytes repeats the"
+    echo "whole converge when the fix changes crates/*.rs."
+    exit 2
+  fi
+  summary "pre-suite: green"
+fi
+if [ "${WALK_DRY:-0}" != "1" ] && [ "${SKIP_PREFLIGHT:-0}" != "1" ] && [ $preflight_receipt_used -eq 0 ]; then
+  mkdir -p target/chain-walk
+  printf '%s validated %s run %s\n' "$(preflight_tree_sha)" "$(date +%Y-%m-%dT%H:%M:%S)" "$RUN_ID" > "$PREFLIGHT_RECEIPT"
+  summary "preflight: receipt written ($(cut -c1-12 "$PREFLIGHT_RECEIPT")…)"
+fi
+
+
 # The ladder is only proven for the crate bytes it was converged at. The
 # green tail below records that tree hash; here (and in the gate's
 # structural-preflight via WALK_DRY) a drifted tree refuses in seconds
 # instead of failing the gate's oracle phase minutes in. Paid 2026-08-26:
 # a 5-line post-walk xtask fix red-ended the gate on stale h1-rust-omissions.
-crate_tree_sha() {
-  find crates -name '*.rs' -type f -print0 | sort -z | xargs -0 shasum -a 256 | shasum -a 256 | cut -d' ' -f1
-}
 CONVERGED_RECORD="target/chain-walk/converged-crates.sha256"
 if [ "${WALK_DRY:-0}" = "1" ]; then
   if [ -f "$CONVERGED_RECORD" ]; then

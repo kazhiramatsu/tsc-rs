@@ -9,8 +9,8 @@ use base64::Engine;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tsc_compiler::{
-    DriverError, EmitArtifact, EmitFailure, EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink,
-    OutputSink, ProgramSession,
+    DriverError, EmitArtifact, EmitArtifactKind, EmitFailure, EmitIoError, EmitIoOperation,
+    EmitWriteDisposition, H2RuntimeSlice, MemoryOutputSink, OutputSink, ProgramSession,
 };
 use tsc_emitter::{TransformError, UnsupportedTransformFeature};
 use tsc_harness::upstream_suites::execution::{
@@ -31,6 +31,18 @@ const CALLBACK_ORACLE_BYTES: &[u8] = include_bytes!(concat!(
     "/../../ratchets/h1-emit-oracle.v1.json"
 ));
 const CASE_ID: &str = "typescript-6.0.3/compiler/esmNoSynthesizedDefault.ts#module%3Dpreserve";
+const MINIMAL_GLOBALS: &str = r#"
+interface IArguments { length: number; callee: Function; }
+interface Array<T> { length: number; [index: number]: T; }
+interface Object {}
+interface Function {}
+interface CallableFunction extends Function {}
+interface NewableFunction extends Function {}
+interface String {}
+interface Number {}
+interface Boolean {}
+interface RegExp {}
+"#;
 
 static NEXT_TEMP_TREE: AtomicU64 = AtomicU64::new(0);
 
@@ -45,6 +57,32 @@ impl OutputSink for CountingSink {
         _artifact: EmitArtifact,
     ) -> Result<EmitWriteDisposition, tsc_compiler::EmitIoError> {
         self.writes += 1;
+        Ok(EmitWriteDisposition::Written)
+    }
+}
+
+#[derive(Default)]
+struct DeclarationDispositionSink {
+    paths: Vec<PathBuf>,
+    skip_declaration: bool,
+    fail_declaration: bool,
+}
+
+impl OutputSink for DeclarationDispositionSink {
+    fn write(&mut self, artifact: EmitArtifact) -> Result<EmitWriteDisposition, EmitIoError> {
+        self.paths.push(artifact.path().to_path_buf());
+        if artifact.kind() == EmitArtifactKind::Declaration {
+            if self.fail_declaration {
+                return Err(EmitIoError::new(
+                    EmitIoOperation::WriteFile,
+                    artifact.path(),
+                    "injected declaration failure",
+                ));
+            }
+            if self.skip_declaration {
+                return Ok(EmitWriteDisposition::SkippedUnchanged);
+            }
+        }
         Ok(EmitWriteDisposition::Written)
     }
 }
@@ -174,6 +212,43 @@ fn prepared_control(case: &Value, library: &Value) -> PreparedProgram {
         .add_root_file(source)
         .expect("add oracle library root");
     builder.build().expect("build adjacent control program")
+}
+
+fn prepared_declaration_collision() -> PreparedProgram {
+    let mut builder = PreparedProgram::emitting_builder(
+        PathContext::new(path("/project"), true),
+        CompilerOptions {
+            target: Some(99),
+            module: Some(200),
+            declaration: Some(true),
+            list_emitted_files: Some(true),
+            new_line: Some(1),
+            ..CompilerOptions::default()
+        },
+    );
+    let library = builder
+        .add_source_file(PreparedSourceFile::new(path("/lib.d.ts"), MINIMAL_GLOBALS))
+        .expect("add collision-control library");
+    builder
+        .add_library_file(library)
+        .expect("register collision-control library");
+    for (file_name, text) in [
+        ("/project/value.ts", "export const value = 1;\n"),
+        (
+            "/project/value.d.ts",
+            "export declare const existing: number;\n",
+        ),
+    ] {
+        let source = builder
+            .add_source_file(PreparedSourceFile::new(path(file_name), text))
+            .expect("add declaration collision source");
+        builder
+            .add_root_file(source)
+            .expect("add declaration collision root");
+    }
+    builder
+        .build()
+        .expect("build declaration collision program")
 }
 
 fn assert_control_failure(id: &str, expected: &Value, error: DriverError) {
@@ -442,23 +517,21 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
             .expect("later H2 slices promote the frozen adjacent control");
             // The frozen oracle observation is the complete write
             // expectation: one write for the pre-map promotions, the
-            // map-then-js pair for source-map-control (h2-6a-m-3).
+            // map-then-js pair for source-map-control (h2-6a-m-3), and
+            // the JavaScript-then-declaration pair for declaration-control.
             let expected_writes = case["observation"]["writes"]
                 .as_array()
                 .expect("expected writes");
-            let expected_writes = if id == "declaration-control" {
+            if id == "declaration-control" {
                 assert_eq!(
                     expected_writes[0]["kind"], "javascript",
                     "declaration admission emits the frozen JavaScript member"
                 );
                 assert_eq!(
                     expected_writes[1]["kind"], "declaration",
-                    "the omitted frozen member remains the H2.7 declaration artifact"
+                    "declaration admission emits the frozen H2.7 declaration member"
                 );
-                &expected_writes[..1]
-            } else {
-                expected_writes.as_slice()
-            };
+            }
             assert_eq!(
                 sink.writes().len(),
                 expected_writes.len(),
@@ -493,6 +566,13 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
                 1,
                 "{id}: later H2 slice owns the promotion",
             );
+            if id == "declaration-control" {
+                assert_eq!(
+                    outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_7b),
+                    1,
+                    "{id}: H2.7b owns the declaration member",
+                );
+            }
             continue;
         }
         let mut sink = CountingSink::default();
@@ -506,6 +586,95 @@ fn frozen_adjacent_controls_remain_rejected_or_are_exactly_promoted() {
         assert_eq!(sink.writes, 0, "{id}: no partial output");
         assert_eq!(control["expected_rust_sink_writes"], 0);
     }
+}
+
+#[test]
+fn declaration_sink_skip_and_failure_keep_listing_semantics_exact() {
+    let oracle = callback_oracle();
+    let case = oracle["cases"]
+        .as_array()
+        .expect("callback oracle cases")
+        .iter()
+        .find(|case| case["input"]["id"] == "declaration-control")
+        .expect("declaration control");
+    let library = &oracle["oracle_environment"]["library"];
+    let expected_paths = [
+        PathBuf::from("/project/src/declaration.js"),
+        PathBuf::from("/project/src/declaration.d.ts"),
+    ];
+
+    let mut skipping = DeclarationDispositionSink {
+        skip_declaration: true,
+        ..DeclarationDispositionSink::default()
+    };
+    let skipped = ProgramSession::new(prepared_control(case, library))
+        .emit(&mut skipping)
+        .expect("declaration skip control emits");
+    assert_eq!(skipping.paths, expected_paths);
+    assert!(skipped.diagnostics().is_empty());
+    assert_eq!(
+        skipped.emitted_files(),
+        Some([PathBuf::from("/project/src/declaration.js")].as_slice())
+    );
+
+    let mut failing = DeclarationDispositionSink {
+        fail_declaration: true,
+        ..DeclarationDispositionSink::default()
+    };
+    let failed = ProgramSession::new(prepared_control(case, library))
+        .emit(&mut failing)
+        .expect("declaration sink failure is reported, not returned");
+    assert_eq!(failing.paths, expected_paths);
+    assert_eq!(
+        failed
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5033]
+    );
+    assert!(failed.diagnostics()[0]
+        .message_text()
+        .contains("/project/src/declaration.d.ts"));
+    assert!(failed.diagnostics()[0]
+        .message_text()
+        .contains("injected declaration failure"));
+    assert_eq!(failed.emitted_files(), Some(expected_paths.as_slice()));
+}
+
+#[test]
+fn declaration_collision_blocks_only_the_declaration_member() {
+    let mut sink = MemoryOutputSink::new();
+    let (outcome, reported) = ProgramSession::new(prepared_declaration_collision())
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("collision control emits its independent JavaScript member");
+    assert_eq!(
+        reported
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5055]
+    );
+    assert!(outcome.emit_skipped());
+    assert!(outcome.diagnostics().is_empty());
+    assert_eq!(
+        sink.writes()
+            .iter()
+            .map(|artifact| (artifact.kind(), artifact.path().to_path_buf()))
+            .collect::<Vec<_>>(),
+        [(
+            EmitArtifactKind::JavaScript,
+            PathBuf::from("/project/value.js")
+        )]
+    );
+    assert_eq!(
+        outcome.emitted_files(),
+        Some([PathBuf::from("/project/value.js")].as_slice())
+    );
+    assert_eq!(
+        outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_7b),
+        1
+    );
 }
 
 #[test]

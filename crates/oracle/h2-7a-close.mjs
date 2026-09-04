@@ -34,8 +34,63 @@ const ACTIVITY_RELATIVE_PATH = "crates/emitter/src/activity.rs";
 const EXPECTED_ACTIVITY_SHA256 =
   "3542317425e47a3fa90d657d419008feb9eb32864144c7356c00b54fd35a09b3";
 const PRINTER_RELATIVE_PATH = "crates/emitter/src/printer.rs";
-const PRINTER_REFUSAL_SPAN =
-  "PrintRequest::Declaration(_) => Err(PrinterError::Unsupported(\n                UnsupportedEmitFeature::Declaration,\n            ))";
+const H2_7B_PROFILE_ADMISSION_MARKER = "H2RuntimeSlice::H2_7b.index()";
+
+// H2.7b m-2 §5.14: lifted surfaces retain only the exact refusal arms.  The
+// line numbers are for the current tree; the integration operator re-points
+// lane-B entries when those Rust items land.  `marker` identifies one live
+// arm occurrence inside the named item, while the emitted hash covers the
+// complete enclosing item span.
+const RETAINED_SURFACE_SPECS = Object.freeze([
+  Object.freeze({
+    path: PLAN_RELATIVE_PATH,
+    historicalSha256: EXPECTED_PLAN_SHA256,
+    item: Object.freeze({ name: "validate_bootstrap_shape", line: 206 }),
+    arms: Object.freeze([
+      Object.freeze({ name: "DeclarationOnly", line: 218, marker: "EmitMode::DeclarationOnly" }),
+      Object.freeze({ name: "BuilderSignature", line: 223, marker: "EmitMode::BuilderSignature" }),
+      Object.freeze({ name: "DeclarationMap", line: 238, marker: "UnsupportedEmitFeature::DeclarationMap" }),
+      Object.freeze({ name: "BuildInfo", line: 242, marker: "UnsupportedEmitFeature::BuildInfo));" }),
+      Object.freeze({
+        name: "ScriptOutputMissingJavaScriptPath",
+        line: 248,
+        marker: "EmitContractViolation::ScriptOutputMissingJavaScriptPath",
+      }),
+    ]),
+  }),
+  Object.freeze({
+    path: EXECUTE_RELATIVE_PATH,
+    historicalSha256: EXPECTED_EXECUTE_SHA256,
+    item: Object.freeze({ name: "validate_bootstrap_emit_options", line: 72 }),
+    arms: Object.freeze([
+      Object.freeze({ name: "declarationMap", line: 112, marker: "options.declaration_map == Some(true)" }),
+      Object.freeze({ name: "emitDeclarationOnly", line: 114, marker: "options.emit_declaration_only == Some(true)" }),
+      Object.freeze({ name: "stripInternal", line: 122, marker: "options.strip_internal == Some(true)" }),
+      Object.freeze({ name: "composite", line: 124, marker: "(options.composite == Some(true), \"composite\")" }),
+      Object.freeze({ name: "declarationDir", line: 143, marker: "options.declaration_dir.is_some()" }),
+    ]),
+  }),
+  Object.freeze({
+    path: ACTIVITY_RELATIVE_PATH,
+    historicalSha256: EXPECTED_ACTIVITY_SHA256,
+    item: Object.freeze({ name: "H2RuntimeSlice", line: 10 }),
+    arms: Object.freeze([
+      Object.freeze({ name: "H2RuntimeSlice", line: 10, marker: "H2RuntimeSlice" }),
+      Object.freeze({
+        name: "h2_7b_profile",
+        line: 488,
+        marker: H2_7B_PROFILE_ADMISSION_MARKER,
+      }),
+    ]),
+  }),
+  Object.freeze({
+    path: PRINTER_RELATIVE_PATH,
+    item: Object.freeze({ name: "print", line: 1041 }),
+    arms: Object.freeze([
+      Object.freeze({ name: "Bundle", line: 1057, marker: "PrintRequest::Bundle" }),
+    ]),
+  }),
+]);
 
 const SOURCE_COMMIT = "050880ce59e30b356b686bd3144efe24f875ebc8";
 const EXPECTED_TYPESCRIPT = "6.0.3";
@@ -271,6 +326,162 @@ function readBytes(relativePath) {
 
 function readText(relativePath) {
   return readBytes(relativePath).toString("utf8");
+}
+
+function splitLines(text) {
+  requireCondition(!text.includes("\r"), "Rust inputs must use LF newlines");
+  return text.match(/[^\n]*\n|[^\n]+$/gu) ?? [];
+}
+
+function lineSpanText(lines, startLine, endLine) {
+  requireCondition(
+    Number.isInteger(startLine) &&
+      Number.isInteger(endLine) &&
+      startLine >= 1 &&
+      endLine >= startLine &&
+      endLine <= lines.length,
+    `invalid Rust line span ${startLine}-${endLine}`,
+  );
+  return lines.slice(startLine - 1, endLine).join("");
+}
+
+function rustItemSpan(lines, startLine) {
+  requireCondition(
+    Number.isInteger(startLine) && startLine >= 1 && startLine <= lines.length,
+    `invalid Rust item start line ${startLine}`,
+  );
+  let braceDepth = 0;
+  let sawOpeningBrace = false;
+  let blockCommentDepth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let lineIndex = startLine - 1; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index];
+      const next = line[index + 1];
+      if (blockCommentDepth > 0) {
+        if (character === "/" && next === "*") {
+          blockCommentDepth += 1;
+          index += 1;
+        } else if (character === "*" && next === "/") {
+          blockCommentDepth -= 1;
+          index += 1;
+        }
+        continue;
+      }
+      if (inString) {
+        if (escaped) {
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === '"') {
+          inString = false;
+        }
+        continue;
+      }
+      if (character === "/" && next === "/") break;
+      if (character === "/" && next === "*") {
+        blockCommentDepth = 1;
+        index += 1;
+        continue;
+      }
+      if (character === '"') {
+        inString = true;
+        escaped = false;
+        continue;
+      }
+      if (character === "{") {
+        braceDepth += 1;
+        sawOpeningBrace = true;
+      } else if (character === "}") {
+        braceDepth -= 1;
+        requireCondition(braceDepth >= 0, `Rust item at line ${startLine} has an unmatched brace`);
+        if (sawOpeningBrace && braceDepth === 0) {
+          return { start_line: startLine, end_line: lineIndex + 1 };
+        }
+      }
+    }
+  }
+  fail(`Rust item at line ${startLine} has no closed body`);
+}
+
+function rustItemHeaderMatches(line, name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return new RegExp(
+    `^(?:(?:pub(?:\\([^)]*\\))?|const|async)\\s+)*(?:fn|enum|struct|trait)\\s+${escapedName}\\b`,
+    "u",
+  ).test(line.trimStart());
+}
+
+function countOccurrences(text, needle) {
+  let count = 0;
+  let offset = 0;
+  while (true) {
+    const found = text.indexOf(needle, offset);
+    if (found === -1) return count;
+    count += 1;
+    offset = found + needle.length;
+  }
+}
+
+function retainedArmsFor(spec) {
+  const lines = splitLines(readText(spec.path));
+  return spec.arms.map((arm) => {
+    if (arm.todo !== undefined) return { todo: arm.todo };
+    // `h2_7b_profile` is a separate function in activity.rs; the other
+    // retained arms belong to the surface's named item.
+    const item =
+      arm.name === "h2_7b_profile"
+        ? { name: arm.name, line: arm.line }
+        : spec.item;
+    const itemLine = lines[item.line - 1];
+    requireCondition(
+      itemLine !== undefined && rustItemHeaderMatches(itemLine, item.name),
+      `${spec.path}:${item.line} does not start ${item.name}`,
+    );
+    const itemSpan = rustItemSpan(lines, item.line);
+    const itemText = lineSpanText(lines, itemSpan.start_line, itemSpan.end_line);
+    const marker = arm.marker ??
+      (arm.name === "h2_7b_profile" ? H2_7B_PROFILE_ADMISSION_MARKER : undefined);
+    requireCondition(marker !== undefined, `${spec.path}: retained arm ${arm.name} has no marker`);
+    const armLine = lines[arm.line - 1];
+    // `h2_7b_profile` is anchored at its function header (the marker is the
+    // single live admission inside the function span, counted below); every
+    // other retained arm is anchored at the line carrying its marker.
+    requireCondition(
+      armLine !== undefined &&
+        (arm.name === "h2_7b_profile"
+          ? rustItemHeaderMatches(armLine, arm.name)
+          : armLine.includes(marker)),
+      `${spec.path}:${arm.line} no longer names retained arm ${arm.name}`,
+    );
+    requireCondition(
+      arm.line >= itemSpan.start_line && arm.line <= itemSpan.end_line,
+      `${spec.path}:${arm.line} is outside ${spec.item.name}`,
+    );
+    requireCondition(
+      countOccurrences(itemText, marker) === 1,
+      `${spec.path}: retained arm ${arm.name} must have one live occurrence inside ${item.name}`,
+    );
+    return {
+      name: arm.name,
+      line: arm.line,
+      span_sha256: sha256(Buffer.from(itemText, "utf8")),
+    };
+  });
+}
+
+function assertRetainedArmsFilled(refusalSurfaces) {
+  const placeholders = refusalSurfaces.flatMap((surface) =>
+    surface.retained_arms
+      .filter((arm) => arm.todo !== undefined)
+      .map((arm) => arm.todo),
+  );
+  requireCondition(
+    placeholders.length === 0,
+    `retained arm TO-FILL placeholders remain: ${placeholders.join(", ")}`,
+  );
 }
 
 function readJson(relativePath) {
@@ -637,30 +848,18 @@ function eligibleDomainFrom(probeTraces) {
 }
 
 function refusalSurfaces() {
-  const sources = [
-    [PLAN_RELATIVE_PATH, EXPECTED_PLAN_SHA256],
-    [EXECUTE_RELATIVE_PATH, EXPECTED_EXECUTE_SHA256],
-    [ACTIVITY_RELATIVE_PATH, EXPECTED_ACTIVITY_SHA256],
-  ];
-  const result = sources.map(([relativePath, expected]) => {
-    const current = sha256(readBytes(relativePath));
-    requireCondition(current === expected, relativePath + " left the H2.6c-close baseline");
-    return {
-      path: relativePath,
-      sha256_now: current,
-      sha256_at_h2_6c_close: expected,
-      retained: true,
+  return RETAINED_SURFACE_SPECS.map((spec) => {
+    const retainedArms = retainedArmsFor(spec);
+    const surface = {
+      path: spec.path,
+      disposition: "lifted-at-H2.7b",
+      retained_arms: retainedArms,
     };
+    if (spec.historicalSha256 !== undefined) {
+      surface.sha256_at_h2_6c_close = spec.historicalSha256;
+    }
+    return surface;
   });
-  const printerPresent = readText(PRINTER_RELATIVE_PATH).includes(PRINTER_REFUSAL_SPAN);
-  requireCondition(printerPresent, "printer declaration refusal span is absent");
-  result.push({
-    path: PRINTER_RELATIVE_PATH,
-    refusal_span: "PrintRequest::Declaration",
-    present: printerPresent,
-    retained: true,
-  });
-  return result;
 }
 
 function transitionLandingRecord() {
@@ -703,7 +902,8 @@ function summaryFrom(candidateBand, eligibleDomain) {
     runtime_admissions_delta: 0,
     executed_candidates_delta: 0,
     unresolved_owners: 0,
-    refusal_surfaces_retained: 4,
+    refusal_surfaces_retained: 0,
+    refusal_surfaces_lifted: 4,
     eligible_cases: eligibleDomain.eligible_cases,
     h2_7a_first_blocker_rows: candidateBand.h2_7a_first_blocker_rows,
   };
@@ -715,7 +915,8 @@ function summaryFrom(candidateBand, eligibleDomain) {
         runtime_admissions_delta: 0,
         executed_candidates_delta: 0,
         unresolved_owners: 0,
-        refusal_surfaces_retained: 4,
+        refusal_surfaces_retained: 0,
+        refusal_surfaces_lifted: 4,
         eligible_cases: 116,
         h2_7a_first_blocker_rows: 0,
       }),
@@ -906,20 +1107,22 @@ function printSelftest(context) {
       context.candidateBand.h2_7a_chain_rows,
     "  next_slice_forecast=" + JSON.stringify(context.candidateBand.next_slice_forecast),
     "eligible_domain=" + JSON.stringify(context.eligibleDomain),
-    "source_baselines:",
+    "refusal_surfaces:",
     ...context.refusalSurfaces.slice(0, 3).map(
       (surface) =>
         "  " +
         surface.path +
-        " now=" +
-        surface.sha256_now +
-        " expected=" +
+        " disposition=" +
+        surface.disposition +
+        " historical=" +
         surface.sha256_at_h2_6c_close +
-        " equal=" +
-        (surface.sha256_now === surface.sha256_at_h2_6c_close),
+        " retained_arms=" +
+        JSON.stringify(surface.retained_arms),
     ),
-    "printer_refusal_span=PrintRequest::Declaration present=" +
-      context.refusalSurfaces[3].present,
+    "printer_retained_arms=" +
+      JSON.stringify(context.refusalSurfaces[3].retained_arms) +
+      " disposition=" +
+      context.refusalSurfaces[3].disposition,
     "owner_closure=" + JSON.stringify(context.ownerClosure),
     "parent_transition=" +
       JSON.stringify({
@@ -971,6 +1174,7 @@ function runWrite() {
 
 function runCheck() {
   const context = buildContext();
+  assertRetainedArmsFilled(context.refusalSurfaces);
   const targetPath = path.join(WORKSPACE, TARGET_RELATIVE_PATH);
   requireCondition(
     fs.existsSync(targetPath),

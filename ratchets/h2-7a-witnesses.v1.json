@@ -22,11 +22,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-witnesses.mjs",
-    "sha256": "8e3c07c9d3c87a8a3be8085b81d029b81baa2b64d18960466de3cb15cd3673d9"
+    "sha256": "859ffafc585a3b21f883c55cf75e57121f8e00423d49db82d5f3eada3a493dd2"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-witnesses.schema.json",
-    "sha256": "e0bfe0e80da15a02ad82a2dc6bee5a337494c2c034cbf5685a0e332ea864adc4"
+    "sha256": "1ce10ad49030642c12d039d5dc9846ff912c1ee27fc67a175f866c10d0e07079"
   },
   "inputs": {
     "packet": {
@@ -67,11 +67,11 @@
     },
     "h2_6c_qualification": {
       "path": "ratchets/h2-6c-qualification.v1.json",
-      "sha256": "0723cba97fe7a7347a6b52198f1347b95a394b78b8f98d2cb2969233f89e6c24"
+      "sha256": "840ed67cb829cff3c3a7a74792ffa9a6848183e83c73b966da30ceda1544a770"
     },
-    "h2_6c_divergences": {
-      "path": "ratchets/h2-6c-known-divergences.v1.json",
-      "sha256": "135a3e638e37c22db2e9f5ac865aefe1e2b684ac7bad97f2aa4198892e8b911a"
+    "w5_stratum_pool": {
+      "path": "ratchets/h2-7a-w5-stratum-pool.v1.json",
+      "sha256": "d8014a9509231cb992e753b75d3f69c3885ad8129dba916d7038a926a41548ef"
     },
     "vfs_directory_overlay": {
       "path": "crates/oracle/vfs-directory-overlay.mjs",
@@ -16788,5 +16788,5 @@
     "rust_runs": 0
   },
   "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
-  "witnesses_fingerprint_sha256": "3f72dc690e68f15115ccb5e685ded356ada7183b8f346830aa03da4e08c4ae8b"
+  "witnesses_fingerprint_sha256": "6f221333863879dc7629f497cef55bd6957fc1e8f97ca7315d7e0495aa81e1e2"
 }

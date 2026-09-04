@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+use std::rc::Rc;
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
     EmitFunctionProperty, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitResolverError,
@@ -511,16 +513,18 @@ fn syntactic_type_of_declaration(
     };
     let symbol = syntactic_symbol(checker, symbol);
     let builder = SyntacticTypeNodeBuilder::new(checker.options);
-    let snapshot = arena.clone();
-    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, snapshot, METHOD);
-    builder.serialize_type_of_declaration(
-        &mut resolver,
-        arena,
-        target,
-        context,
-        declaration,
-        Some(symbol),
-    )
+    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
+    {
+        let result = builder.serialize_type_of_declaration(
+            &mut resolver,
+            arena,
+            target,
+            context,
+            declaration,
+            Some(symbol),
+        )?;
+        into_target(arena, target, result)
+    }
 }
 
 fn syntactic_type_of_accessor(
@@ -536,16 +540,18 @@ fn syntactic_type_of_accessor(
     };
     let symbol = syntactic_symbol(checker, symbol);
     let builder = SyntacticTypeNodeBuilder::new(checker.options);
-    let snapshot = arena.clone();
-    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, snapshot, METHOD);
-    builder.serialize_type_of_accessor(
-        &mut resolver,
-        arena,
-        target,
-        context,
-        declaration,
-        Some(symbol),
-    )
+    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
+    {
+        let result = builder.serialize_type_of_accessor(
+            &mut resolver,
+            arena,
+            target,
+            context,
+            declaration,
+            Some(symbol),
+        )?;
+        into_target(arena, target, result)
+    }
 }
 
 /// tsc-port: serializeTypeForDeclaration @6.0.3
@@ -709,20 +715,21 @@ fn syntactic_return_type_for_signature(
     };
     let symbol = syntactic_symbol(checker, symbol);
     let builder = SyntacticTypeNodeBuilder::new(checker.options);
-    let snapshot = arena.clone();
     let mut resolver = ProductionSyntacticBuilderResolver::new(
         checker,
-        snapshot,
         EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
     );
-    builder.serialize_return_type_for_signature(
-        &mut resolver,
-        arena,
-        target,
-        context,
-        declaration,
-        Some(symbol),
-    )
+    {
+        let result = builder.serialize_return_type_for_signature(
+            &mut resolver,
+            arena,
+            target,
+            context,
+            declaration,
+            Some(symbol),
+        )?;
+        into_target(arena, target, result)
+    }
 }
 
 /// tsc-port: serializeReturnTypeForSignature @6.0.3
@@ -794,6 +801,28 @@ fn serialize_return_type_for_signature_in_context(
     result
 }
 
+/// tsrs-native: the syntactic routing seams hand the finished subtree to the
+/// emitted target source (h2-7b-m-2 #4e — a reused annotation from another
+/// file is rebuilt in its own source, then cloned here; same source = identity).
+fn into_target(
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    result: Option<TransformNode>,
+) -> BuildResult<Option<TransformNode>> {
+    result
+        .map(|node| {
+            if node.source() == target {
+                Ok(node)
+            } else {
+                arena
+                    .factory()
+                    .clone_node_to_source(node, target)
+                    .map_err(factory_error)
+            }
+        })
+        .transpose()
+}
+
 /// tsrs-native: checker-side routing seam behind the syntactic resolver member.
 pub(crate) fn serialize_type_for_declaration_seam(
     checker: &mut CheckerState<'_>,
@@ -863,9 +892,17 @@ pub(crate) fn syntactic_try_reuse_existing_type_node(
         return Ok(None);
     };
     let builder = SyntacticTypeNodeBuilder::new(checker.options);
-    let snapshot = arena.clone();
-    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, snapshot, METHOD);
-    builder.try_reuse_existing_type_node(&mut resolver, arena, target, context, type_node)
+    let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
+    {
+        let result = builder.try_reuse_existing_type_node(
+            &mut resolver,
+            arena,
+            target,
+            context,
+            type_node,
+        )?;
+        into_target(arena, target, result)
+    }
 }
 
 /// tsrs-native: checker-side routing seam behind the syntactic resolver member.
@@ -970,16 +1007,18 @@ pub(crate) fn serialize_type_for_declaration(
         };
         let symbol = syntactic_symbol(checker, symbol);
         let builder = SyntacticTypeNodeBuilder::new(checker.options);
-        let snapshot = arena.clone();
-        let mut resolver = ProductionSyntacticBuilderResolver::new(checker, snapshot, METHOD);
-        builder.serialize_type_of_declaration(
-            &mut resolver,
-            arena,
-            target,
-            context,
-            declaration,
-            Some(symbol),
-        )
+        let mut resolver = ProductionSyntacticBuilderResolver::new(checker, METHOD);
+        {
+            let result = builder.serialize_type_of_declaration(
+                &mut resolver,
+                arena,
+                target,
+                context,
+                declaration,
+                Some(symbol),
+            )?;
+            into_target(arena, target, result)
+        }
     };
     match synthetic_module_scope {
         Some(scope) => with_context_in_synthetic_module_scope(
@@ -1048,20 +1087,21 @@ pub(crate) fn serialize_return_type_for_signature(
             };
             let symbol = syntactic_symbol(checker, symbol);
             let builder = SyntacticTypeNodeBuilder::new(checker.options);
-            let snapshot = arena.clone();
             let mut resolver = ProductionSyntacticBuilderResolver::new(
                 checker,
-                snapshot,
                 EmitResolverMethod::CreateReturnTypeOfSignatureDeclaration,
             );
-            builder.serialize_return_type_for_signature(
-                &mut resolver,
-                arena,
-                target,
-                context,
-                signature_declaration,
-                Some(symbol),
-            )
+            {
+                let result = builder.serialize_return_type_for_signature(
+                    &mut resolver,
+                    arena,
+                    target,
+                    context,
+                    signature_declaration,
+                    Some(symbol),
+                )?;
+                into_target(arena, target, result)
+            }
         },
         None,
     )
@@ -1097,13 +1137,20 @@ pub(crate) fn serialize_type_for_expression(
                 return Ok(None);
             };
             let builder = SyntacticTypeNodeBuilder::new(checker.options);
-            let snapshot = arena.clone();
             let mut resolver = ProductionSyntacticBuilderResolver::new(
                 checker,
-                snapshot,
                 EmitResolverMethod::CreateTypeOfExpression,
             );
-            builder.serialize_type_of_expression(&mut resolver, arena, target, context, expression)
+            {
+                let result = builder.serialize_type_of_expression(
+                    &mut resolver,
+                    arena,
+                    target,
+                    context,
+                    expression,
+                )?;
+                into_target(arena, target, result)
+            }
         },
         None,
     )
@@ -1145,25 +1192,23 @@ pub(crate) fn index_info_to_index_signature_declaration(
 
 struct ProductionSyntacticBuilderResolver<'state, 'program> {
     checker: &'state mut CheckerState<'program>,
-    arena_snapshot: TransformArena,
     method: EmitResolverMethod,
+    /// Display-node scratch for the tracker-access accessibility path (no
+    /// builder arena is in scope there); mounted lazily, reused per resolver.
+    scratch_arena: Option<TransformArena>,
 }
 
 impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
-    fn new(
-        checker: &'state mut CheckerState<'program>,
-        arena_snapshot: TransformArena,
-        method: EmitResolverMethod,
-    ) -> Self {
+    fn new(checker: &'state mut CheckerState<'program>, method: EmitResolverMethod) -> Self {
         Self {
             checker,
-            arena_snapshot,
             method,
+            scratch_arena: None,
         }
     }
 
-    fn parse_node(&self, node: TransformNode) -> BuildResult<NodeId> {
-        self.arena_snapshot
+    fn parse_node(&self, arena: &TransformArena, node: TransformNode) -> BuildResult<NodeId> {
+        arena
             .require_parse_tree_resolver_node(node)
             .map(|node| node.node())
             .map_err(factory_error)
@@ -1206,7 +1251,11 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
         }
     }
 
-    fn project_parse_node(&mut self, node: NodeId) -> BuildResult<Option<TransformNode>> {
+    fn project_parse_node(
+        &mut self,
+        arena: &mut TransformArena,
+        node: NodeId,
+    ) -> BuildResult<Option<TransformNode>> {
         let file_index = self.checker.binder.file_index_of_node(node);
         let resolver = EmitResolverNode::new(
             SourceFileId::from_raw(
@@ -1214,20 +1263,19 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
             ),
             node,
         );
-        if self
-            .arena_snapshot
+        if arena
             .parse_tree_transform_node(resolver)
             .map_err(factory_error)?
             .is_none()
         {
-            self.arena_snapshot.add_source(
+            arena.add_source(
                 self.checker.binder.source(file_index),
                 Some(SourceFileId::from_raw(
                     u32::try_from(file_index).expect("checker source index exceeds u32"),
                 )),
             );
         }
-        self.arena_snapshot
+        arena
             .parse_tree_transform_node(resolver)
             .map_err(factory_error)
     }
@@ -1236,18 +1284,19 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
     /// through the public NodeBuilder `symbolToNode` front door upstream.
     fn build_accessibility_error_name(
         &mut self,
+        arena: &mut TransformArena,
         symbol: SymbolId,
         enclosing: NodeId,
         enclosing_is_synthetic: bool,
         meaning: EmitSymbolMeaning,
     ) -> BuildResult<TransformNode> {
         let target = self
-            .project_parse_node(enclosing)?
+            .project_parse_node(arena, enclosing)?
             .ok_or_else(|| self.invalid_token_error(Some(enclosing)))?
             .source();
         build_symbol_display_node(
             self.checker,
-            &mut self.arena_snapshot,
+            arena,
             target,
             symbol,
             (!enclosing_is_synthetic).then_some(enclosing),
@@ -1288,6 +1337,7 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
 
     fn is_symbol_accessible_with_error_names(
         &mut self,
+        arena: &mut TransformArena,
         symbol: SymbolId,
         enclosing: NodeId,
         enclosing_is_synthetic: bool,
@@ -1332,6 +1382,7 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
             })?;
         if result.error_symbol_name.is_some() {
             self.build_accessibility_error_name(
+                arena,
                 symbol,
                 enclosing,
                 enclosing_is_synthetic,
@@ -1349,6 +1400,7 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
                         EmitSymbolMeaning(0)
                     };
                 self.build_accessibility_error_name(
+                    arena,
                     module_symbol,
                     enclosing,
                     enclosing_is_synthetic,
@@ -1398,13 +1450,17 @@ impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
                 should_compute_aliases,
             ));
         }
-        self.is_symbol_accessible_with_error_names(
+        let mut scratch = self.scratch_arena.take().unwrap_or_default();
+        let result = self.is_symbol_accessible_with_error_names(
+            &mut scratch,
             symbol,
             enclosing,
             enclosing_is_synthetic,
             meaning,
             should_compute_aliases,
-        )
+        );
+        self.scratch_arena = Some(scratch);
+        result
     }
 
     fn is_expando_function_declaration(
@@ -1627,6 +1683,238 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
         Ok(())
     }
 
+    /// tsrs-native: `trackExistingEntityName`'s body; the trait member places
+    /// its result in the requested source (#4e).
+    fn track_existing_entity_name_in_source(
+        &mut self,
+        arena: &mut TransformArena,
+        context: &mut NodeBuilderContext<'_>,
+        node: TransformNode,
+    ) -> Result<SyntacticTrackedEntityName, EmitResolverError> {
+        let parse = arena
+            .require_parse_tree_resolver_node(node)
+            .map_err(factory_error)?
+            .node();
+        let leftmost = self.checker.first_identifier(parse);
+        if self.checker.is_in_js_file(parse) && is_js_exports_entity_name(self.checker, leftmost) {
+            return Ok(SyntacticTrackedEntityName {
+                node,
+                introduces_error: true,
+            });
+        }
+        let meaning = self.checker.get_meaning_of_entity_name_reference(parse);
+        if self.checker.is_this_identifier(leftmost) {
+            let container = node_util::get_this_container(
+                self.checker.binder.source_of_node(leftmost),
+                leftmost,
+                false,
+            );
+            let symbol = match container {
+                Some(container) => Some(
+                    self.checker
+                        .get_symbol_of_declaration(container)
+                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?,
+                ),
+                None => None,
+            };
+            let inaccessible = match symbol {
+                Some(symbol) => {
+                    self.is_symbol_accessible_with_error_names(
+                        arena, symbol, leftmost, false, meaning, false,
+                    )?
+                    .accessibility
+                        != EmitSymbolAccessibility::Accessible
+                }
+                None => false,
+            };
+            if inaccessible {
+                context
+                    .tracker
+                    .report_inaccessible_this_error(&mut context.reported_diagnostic);
+            }
+            let node = self.attach_symbol_to_entity_name(arena, context, node, leftmost, symbol)?;
+            return Ok(SyntacticTrackedEntityName {
+                node,
+                introduces_error: inaccessible,
+            });
+        }
+
+        let flags = entity_meaning_flags(meaning);
+        let mut symbol = self
+            .checker
+            .resolve_entity_name_ex(leftmost, flags, true, None, true)
+            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
+        if context.enclosing_declaration.is_some()
+            && !symbol.is_some_and(|symbol| {
+                self.checker
+                    .symbol_flags(symbol)
+                    .intersects(SymbolFlags::TYPE_PARAMETER)
+            })
+        {
+            symbol = symbol.map(|symbol| {
+                self.checker
+                    .get_export_symbol_of_value_symbol_if_exported(symbol)
+            });
+            let fake_scope_symbol = context
+                .enclosing_declaration_is_synthetic
+                .then(|| match self.checker.data_of(leftmost) {
+                    NodeData::Identifier(data) => context
+                        .synthetic_scope_locals
+                        .as_ref()
+                        .and_then(|locals| locals.get(&data.escaped_text).copied()),
+                    _ => None,
+                })
+                .flatten();
+            // Parameter locals in a synthesized signature scope are not in
+            // scope for their own JSDoc type annotations. The parse-site
+            // resolver can conservatively return that parameter in Rust;
+            // recover the outer symbol that upstream resolved before it
+            // installed the fake scope so the reference-mismatch arm fires.
+            if let (Some(original), Some(fake), Some(enclosing)) =
+                (symbol, fake_scope_symbol, context.enclosing_declaration)
+            {
+                if original == fake
+                    && self
+                        .checker
+                        .symbol_flags(fake)
+                        .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
+                    && self
+                        .checker
+                        .binder
+                        .symbol(fake)
+                        .value_declaration
+                        .is_some_and(|declaration| {
+                            node_util::is_part_of_parameter_declaration(
+                                self.checker.binder.source_of_node(declaration),
+                                declaration,
+                            )
+                        })
+                {
+                    let outer = self
+                        .checker
+                        .resolve_entity_name_ex(leftmost, flags, true, Some(enclosing), true)
+                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
+                    if outer != Some(fake) {
+                        symbol = outer.map(|symbol| {
+                            self.checker
+                                .get_export_symbol_of_value_symbol_if_exported(symbol)
+                        });
+                    }
+                }
+            }
+            let at_location = match (
+                context.enclosing_declaration_is_synthetic,
+                fake_scope_symbol,
+            ) {
+                (_, Some(symbol)) => Some(symbol),
+                (true, None) => match context.enclosing_declaration.and_then(|enclosing| {
+                    matches!(
+                        self.checker.kind_of(enclosing),
+                        SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
+                    )
+                    .then_some(enclosing)
+                    .or_else(|| self.checker.parent_of(enclosing))
+                }) {
+                    Some(parent) => self
+                        .checker
+                        .resolve_entity_name_ex(leftmost, flags, true, Some(parent), true)
+                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?,
+                    None => None,
+                },
+                (false, None) => self
+                    .checker
+                    .resolve_entity_name_ex(
+                        leftmost,
+                        flags,
+                        true,
+                        context.enclosing_declaration,
+                        true,
+                    )
+                    .map_err(|abort| checker_abort_error(self.checker, context, abort))?,
+            };
+            let mismatched = at_location == Some(self.checker.unknown_symbol)
+                || at_location.is_none() && symbol.is_some()
+                || match (at_location, symbol) {
+                    (Some(at_location), Some(original)) => {
+                        let at_location = self
+                            .checker
+                            .get_export_symbol_of_value_symbol_if_exported(at_location);
+                        self.checker
+                            .get_symbol_if_same_reference(at_location, original)
+                            .map_err(|abort| checker_abort_error(self.checker, context, abort))?
+                            .is_none()
+                    }
+                    _ => false,
+                };
+            if mismatched {
+                if at_location != Some(self.checker.unknown_symbol) {
+                    self.report_inference_fallback(context, parse)?;
+                }
+                return Ok(SyntacticTrackedEntityName {
+                    node,
+                    introduces_error: true,
+                });
+            }
+            // Rust keeps local and export symbols distinct where upstream's
+            // symbol identity is projected through `exportSymbol`. Preserve
+            // the remapped-symbol suppression used by the statement tracker
+            // after resolving in the synthesized scope.
+            symbol = at_location.map(|symbol| {
+                self.checker
+                    .get_export_symbol_of_value_symbol_if_exported(symbol)
+            });
+        }
+
+        let mut introduces_error = false;
+        if let Some(symbol) = symbol {
+            let data = self.checker.binder.symbol(symbol);
+            let parameter_symbol = data.flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
+                && data.value_declaration.is_some_and(|declaration| {
+                    node_util::is_part_of_parameter_declaration(
+                        self.checker.binder.source_of_node(declaration),
+                        declaration,
+                    ) || self.checker.kind_of(declaration) == SyntaxKind::JSDocParameterTag
+                });
+            if !parameter_symbol {
+                let inaccessible = !self
+                    .checker
+                    .symbol_flags(symbol)
+                    .intersects(SymbolFlags::TYPE_PARAMETER)
+                    && !is_declaration_name(self.checker, parse)
+                    && match context.enclosing_declaration {
+                        Some(enclosing) => {
+                            self.is_symbol_accessible_with_error_names(
+                                arena,
+                                symbol,
+                                enclosing,
+                                context.enclosing_declaration_is_synthetic,
+                                meaning,
+                                false,
+                            )?
+                            .accessibility
+                                != EmitSymbolAccessibility::Accessible
+                        }
+                        None => false,
+                    };
+                if inaccessible {
+                    self.report_inference_fallback(context, parse)?;
+                    introduces_error = true;
+                } else {
+                    self.track_symbol(context, symbol, meaning)?;
+                }
+            }
+            let node =
+                self.attach_symbol_to_entity_name(arena, context, node, leftmost, Some(symbol))?;
+            return Ok(SyntacticTrackedEntityName {
+                node,
+                introduces_error,
+            });
+        }
+        Ok(SyntacticTrackedEntityName {
+            node,
+            introduces_error,
+        })
+    }
     /// tsc-port: trackExistingEntityName.attachSymbolToLeftmostIdentifier @6.0.3
     /// tsc-hash: a6a0748d03d57db3841aec3cc92e8e26e7fb3de1e2f1a14370d4d9cf69f9caed
     /// tsc-span: _tsc.js:53640-53654
@@ -1663,7 +1951,7 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
             arena
                 .metadata_mut(cloned)
                 .add_flags(tsc_emitter::EmitFlags::NO_ASCII_ESCAPING);
-        } else if let Some(leftmost) = self.project_parse_node(leftmost)? {
+        } else if let Some(leftmost) = self.project_parse_node(arena, leftmost)? {
             arena
                 .metadata_mut(leftmost)
                 .add_flags(tsc_emitter::EmitFlags::NO_ASCII_ESCAPING);
@@ -1787,9 +2075,10 @@ impl ProductionSyntacticBuilderResolver<'_, '_> {
 impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
     fn evaluate_entity_name_expression(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         expression: TransformNode,
     ) -> Result<crate::evaluate::EvaluatorResult, EmitResolverError> {
-        let expression = self.parse_node(expression)?;
+        let expression = self.parse_node(arena, expression)?;
         self.checker.evaluate(expression, None).map_err(|abort| {
             callback_abort_error(self.checker, self.method, Some(expression), abort)
         })
@@ -1797,16 +2086,21 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
 
     fn is_expando_function_declaration(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
-        let node = self.parse_node(node)?;
+        let node = self.parse_node(arena, node)?;
         self.checker
             .emit_is_expando_function_declaration(node)
             .map_err(|abort| callback_abort_error(self.checker, self.method, Some(node), abort))
     }
 
-    fn has_late_bindable_name(&mut self, node: TransformNode) -> Result<bool, EmitResolverError> {
-        let node = self.parse_node(node)?;
+    fn has_late_bindable_name(
+        &mut self,
+        arena: &mut tsc_emitter::TransformArena,
+        node: TransformNode,
+    ) -> Result<bool, EmitResolverError> {
+        let node = self.parse_node(arena, node)?;
         self.checker
             .has_late_bindable_name(node)
             .map_err(|abort| callback_abort_error(self.checker, self.method, Some(node), abort))
@@ -1814,13 +2108,14 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
 
     fn should_remove_declaration(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
         if context.internal_flags.0 & ALLOW_UNRESOLVED_NAMES == 0 {
             return Ok(true);
         }
-        let node = self.parse_node(node)?;
+        let node = self.parse_node(arena, node)?;
         let Some(name) =
             node_util::get_name_of_declaration(self.checker.binder.source_of_node(node), node)
         else {
@@ -1849,6 +2144,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
 
     fn create_recovery_boundary(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
     ) -> Result<SyntacticRecoveryBoundary, EmitResolverError> {
         Ok(SyntacticRecoveryBoundary::new(context))
@@ -1856,9 +2152,10 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
 
     fn is_definitely_reference_to_global_symbol_object(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
-        let node = self.parse_node(node)?;
+        let node = self.parse_node(arena, node)?;
         self.checker
             .emit_is_definitely_reference_to_global_symbol_object(node)
             .map_err(|abort| callback_abort_error(self.checker, self.method, Some(node), abort))
@@ -1869,9 +2166,10 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
     /// tsc-span: _tsc.js:88367-88381
     fn get_all_accessor_declarations(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         accessor: TransformNode,
     ) -> Result<SyntacticAccessorDeclarations, EmitResolverError> {
-        let accessor_node = self.parse_node(accessor)?;
+        let accessor_node = self.parse_node(arena, accessor)?;
         let symbol = self
             .checker
             .get_symbol_of_declaration(accessor_node)
@@ -1892,7 +2190,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             .copied()
             .find(|&declaration| self.checker.kind_of(declaration) == other_kind);
         let other = other_node
-            .map(|other| self.project_parse_node(other))
+            .map(|other| self.project_parse_node(arena, other))
             .transpose()?
             .flatten();
         let other_precedes = other_node.is_some_and(|other| {
@@ -1931,11 +2229,12 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
 
     fn requires_adding_implicit_undefined(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         declaration: TransformNode,
         symbol: Option<SyntacticSymbol>,
         enclosing_declaration: Option<NodeId>,
     ) -> Result<bool, EmitResolverError> {
-        let declaration = self.parse_node(declaration)?;
+        let declaration = self.parse_node(arena, declaration)?;
         match self.checker.kind_of(declaration) {
             SyntaxKind::PropertyDeclaration
             | SyntaxKind::PropertySignature
@@ -1977,9 +2276,10 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
 
     fn is_optional_parameter(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         parameter: TransformNode,
     ) -> Result<bool, EmitResolverError> {
-        let parameter = self.parse_node(parameter)?;
+        let parameter = self.parse_node(arena, parameter)?;
         self.checker
             .emit_is_optional_parameter(parameter)
             .map_err(|abort| {
@@ -1989,9 +2289,10 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
 
     fn is_undefined_identifier_expression(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
-        let node = self.parse_node(node)?;
+        let node = self.parse_node(arena, node)?;
         self.checker
             .get_resolved_symbol(node)
             .map(|symbol| symbol == Some(self.checker.undefined_symbol))
@@ -2000,11 +2301,12 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
 
     fn is_entity_name_visible(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         entity_name: TransformNode,
         should_compute_aliases_to_make_visible: bool,
     ) -> Result<EmitSymbolAccessibilityResult, EmitResolverError> {
-        let entity_name = self.parse_node(entity_name)?;
+        let entity_name = self.parse_node(arena, entity_name)?;
         let Some(enclosing) = context.enclosing_declaration else {
             return Ok(EmitSymbolAccessibilityResult {
                 accessibility: EmitSymbolAccessibility::Accessible,
@@ -2049,9 +2351,11 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             && self.can_reuse_type_node_parse(context, type_node_parse)?
         {
             let builder = SyntacticTypeNodeBuilder::new(self.checker.options);
-            if let Some(clone) =
-                builder.try_reuse_existing_type_node(self, arena, target, context, type_node)?
-            {
+            if let Some(clone) = {
+                let result = builder
+                    .try_reuse_existing_type_node(self, arena, target, context, type_node)?;
+                into_target(arena, target, result)
+            }? {
                 let undefined = create_token(arena, target, SyntaxKind::UndefinedKeyword)?;
                 let types = create_node_array(arena, target, vec![clone, undefined])?;
                 return create_node(
@@ -2257,6 +2561,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         };
         if let Some(enclosing) = context.enclosing_declaration {
             let accessibility = self.is_symbol_accessible_with_error_names(
+                arena,
                 symbol,
                 enclosing,
                 context.enclosing_declaration_is_synthetic,
@@ -2313,6 +2618,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         };
         if let Some(enclosing) = context.enclosing_declaration {
             let accessible = self.is_symbol_accessible_with_error_names(
+                arena,
                 symbol,
                 enclosing,
                 context.enclosing_declaration_is_synthetic,
@@ -2426,7 +2732,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         context: &mut NodeBuilderContext<'_>,
         node: TransformNode,
     ) -> Result<SyntacticScopeCleanup, EmitResolverError> {
-        let node = self.parse_node(node)?;
+        let node = self.parse_node(arena, node)?;
         let mut cleanup = SyntacticScopeCleanup::capture(context);
         if node_util::is_function_like_kind(self.checker.kind_of(node))
             || self.checker.kind_of(node) == SyntaxKind::JSDocSignature
@@ -2561,258 +2867,55 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
     fn track_existing_entity_name(
         &mut self,
         arena: &mut TransformArena,
-        _target: TransformSourceId,
+        target: TransformSourceId,
         context: &mut NodeBuilderContext<'_>,
         node: TransformNode,
     ) -> Result<SyntacticTrackedEntityName, EmitResolverError> {
-        let parse = arena
-            .require_parse_tree_resolver_node(node)
-            .map_err(factory_error)?
-            .node();
-        let leftmost = self.checker.first_identifier(parse);
-        if self.checker.is_in_js_file(parse) && is_js_exports_entity_name(self.checker, leftmost) {
-            return Ok(SyntacticTrackedEntityName {
-                node,
-                introduces_error: true,
-            });
-        }
-        let meaning = self.checker.get_meaning_of_entity_name_reference(parse);
-        if self.checker.is_this_identifier(leftmost) {
-            let container = node_util::get_this_container(
-                self.checker.binder.source_of_node(leftmost),
-                leftmost,
-                false,
-            );
-            let symbol = match container {
-                Some(container) => Some(
-                    self.checker
-                        .get_symbol_of_declaration(container)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?,
-                ),
-                None => None,
-            };
-            let inaccessible = match symbol {
-                Some(symbol) => {
-                    self.is_symbol_accessible_with_error_names(
-                        symbol, leftmost, false, meaning, false,
-                    )?
-                    .accessibility
-                        != EmitSymbolAccessibility::Accessible
-                }
-                None => false,
-            };
-            if inaccessible {
-                context
-                    .tracker
-                    .report_inaccessible_this_error(&mut context.reported_diagnostic);
-            }
-            let node = self.attach_symbol_to_entity_name(arena, context, node, leftmost, symbol)?;
-            return Ok(SyntacticTrackedEntityName {
-                node,
-                introduces_error: inaccessible,
-            });
-        }
-
-        let flags = entity_meaning_flags(meaning);
-        let mut symbol = self
-            .checker
-            .resolve_entity_name_ex(leftmost, flags, true, None, true)
-            .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-        if context.enclosing_declaration.is_some()
-            && !symbol.is_some_and(|symbol| {
-                self.checker
-                    .symbol_flags(symbol)
-                    .intersects(SymbolFlags::TYPE_PARAMETER)
-            })
-        {
-            symbol = symbol.map(|symbol| {
-                self.checker
-                    .get_export_symbol_of_value_symbol_if_exported(symbol)
-            });
-            let fake_scope_symbol = context
-                .enclosing_declaration_is_synthetic
-                .then(|| match self.checker.data_of(leftmost) {
-                    NodeData::Identifier(data) => context
-                        .synthetic_scope_locals
-                        .as_ref()
-                        .and_then(|locals| locals.get(&data.escaped_text).copied()),
-                    _ => None,
-                })
-                .flatten();
-            // Parameter locals in a synthesized signature scope are not in
-            // scope for their own JSDoc type annotations. The parse-site
-            // resolver can conservatively return that parameter in Rust;
-            // recover the outer symbol that upstream resolved before it
-            // installed the fake scope so the reference-mismatch arm fires.
-            if let (Some(original), Some(fake), Some(enclosing)) =
-                (symbol, fake_scope_symbol, context.enclosing_declaration)
-            {
-                if original == fake
-                    && self
-                        .checker
-                        .symbol_flags(fake)
-                        .intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
-                    && self
-                        .checker
-                        .binder
-                        .symbol(fake)
-                        .value_declaration
-                        .is_some_and(|declaration| {
-                            node_util::is_part_of_parameter_declaration(
-                                self.checker.binder.source_of_node(declaration),
-                                declaration,
-                            )
-                        })
-                {
-                    let outer = self
-                        .checker
-                        .resolve_entity_name_ex(leftmost, flags, true, Some(enclosing), true)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?;
-                    if outer != Some(fake) {
-                        symbol = outer.map(|symbol| {
-                            self.checker
-                                .get_export_symbol_of_value_symbol_if_exported(symbol)
-                        });
-                    }
-                }
-            }
-            let at_location = match (
-                context.enclosing_declaration_is_synthetic,
-                fake_scope_symbol,
-            ) {
-                (_, Some(symbol)) => Some(symbol),
-                (true, None) => match context.enclosing_declaration.and_then(|enclosing| {
-                    matches!(
-                        self.checker.kind_of(enclosing),
-                        SyntaxKind::SourceFile | SyntaxKind::ModuleBlock
-                    )
-                    .then_some(enclosing)
-                    .or_else(|| self.checker.parent_of(enclosing))
-                }) {
-                    Some(parent) => self
-                        .checker
-                        .resolve_entity_name_ex(leftmost, flags, true, Some(parent), true)
-                        .map_err(|abort| checker_abort_error(self.checker, context, abort))?,
-                    None => None,
-                },
-                (false, None) => self
-                    .checker
-                    .resolve_entity_name_ex(
-                        leftmost,
-                        flags,
-                        true,
-                        context.enclosing_declaration,
-                        true,
-                    )
-                    .map_err(|abort| checker_abort_error(self.checker, context, abort))?,
-            };
-            let mismatched = at_location == Some(self.checker.unknown_symbol)
-                || at_location.is_none() && symbol.is_some()
-                || match (at_location, symbol) {
-                    (Some(at_location), Some(original)) => {
-                        let at_location = self
-                            .checker
-                            .get_export_symbol_of_value_symbol_if_exported(at_location);
-                        self.checker
-                            .get_symbol_if_same_reference(at_location, original)
-                            .map_err(|abort| checker_abort_error(self.checker, context, abort))?
-                            .is_none()
-                    }
-                    _ => false,
-                };
-            if mismatched {
-                if at_location != Some(self.checker.unknown_symbol) {
-                    self.report_inference_fallback(context, parse)?;
-                }
-                return Ok(SyntacticTrackedEntityName {
-                    node,
-                    introduces_error: true,
-                });
-            }
-            // Rust keeps local and export symbols distinct where upstream's
-            // symbol identity is projected through `exportSymbol`. Preserve
-            // the remapped-symbol suppression used by the statement tracker
-            // after resolving in the synthesized scope.
-            symbol = at_location.map(|symbol| {
-                self.checker
-                    .get_export_symbol_of_value_symbol_if_exported(symbol)
-            });
-        }
-
-        let mut introduces_error = false;
-        if let Some(symbol) = symbol {
-            let data = self.checker.binder.symbol(symbol);
-            let parameter_symbol = data.flags.intersects(SymbolFlags::FUNCTION_SCOPED_VARIABLE)
-                && data.value_declaration.is_some_and(|declaration| {
-                    node_util::is_part_of_parameter_declaration(
-                        self.checker.binder.source_of_node(declaration),
-                        declaration,
-                    ) || self.checker.kind_of(declaration) == SyntaxKind::JSDocParameterTag
-                });
-            if !parameter_symbol {
-                let inaccessible = !self
-                    .checker
-                    .symbol_flags(symbol)
-                    .intersects(SymbolFlags::TYPE_PARAMETER)
-                    && !is_declaration_name(self.checker, parse)
-                    && match context.enclosing_declaration {
-                        Some(enclosing) => {
-                            self.is_symbol_accessible_with_error_names(
-                                symbol,
-                                enclosing,
-                                context.enclosing_declaration_is_synthetic,
-                                meaning,
-                                false,
-                            )?
-                            .accessibility
-                                != EmitSymbolAccessibility::Accessible
-                        }
-                        None => false,
-                    };
-                if inaccessible {
-                    self.report_inference_fallback(context, parse)?;
-                    introduces_error = true;
-                } else {
-                    self.track_symbol(context, symbol, meaning)?;
-                }
-            }
-            let node =
-                self.attach_symbol_to_entity_name(arena, context, node, leftmost, Some(symbol))?;
-            return Ok(SyntacticTrackedEntityName {
-                node,
-                introduces_error,
-            });
-        }
+        // h2-7b-m-2 #4e: the tracked name is handed back in the source the
+        // builder is rebuilding (a reused annotation from another file keeps
+        // its children in one arena table; same source = identity).
+        let tracked = self.track_existing_entity_name_in_source(arena, context, node)?;
+        let node = if tracked.node.source() == target {
+            tracked.node
+        } else {
+            arena
+                .factory()
+                .clone_node_to_source(tracked.node, target)
+                .map_err(factory_error)?
+        };
         Ok(SyntacticTrackedEntityName {
             node,
-            introduces_error,
+            introduces_error: tracked.introduces_error,
         })
     }
 
     fn track_computed_name(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         access_expression: TransformNode,
     ) -> Result<(), EmitResolverError> {
-        let access_expression = self.parse_node(access_expression)?;
+        let access_expression = self.parse_node(arena, access_expression)?;
         track_computed_name(self.checker, access_expression, context)
     }
 
     fn get_module_specifier_override(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         parent: TransformNode,
         literal: TransformNode,
     ) -> Result<Option<String>, EmitResolverError> {
-        get_module_specifier_override(self.checker, &self.arena_snapshot, context, parent, literal)
+        get_module_specifier_override(self.checker, arena, context, parent, literal)
     }
 
     fn can_reuse_type_node(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         type_node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
-        let type_node = self.parse_node(type_node)?;
+        let type_node = self.parse_node(arena, type_node)?;
         self.can_reuse_type_node_parse(context, type_node)
     }
 
@@ -2821,6 +2924,7 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
     /// tsc-span: _tsc.js:50932-50955
     fn can_reuse_type_node_annotation(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         node: TransformNode,
         existing: TransformNode,
@@ -2832,8 +2936,8 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         if context.enclosing_declaration.is_none() {
             return Ok(false);
         }
-        let node = self.parse_node(node)?;
-        let existing = self.parse_node(existing)?;
+        let node = self.parse_node(arena, node)?;
+        let existing = self.parse_node(arena, existing)?;
         let symbol = self.parse_symbol(node, symbol, context)?;
         let r#type = match context.enclosing_symbol_types.get(&symbol).copied() {
             Some(r#type) => r#type,
@@ -2871,7 +2975,14 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         if self.checker.tables.is_error_type(annotation_type) {
             return Ok(true);
         }
-        if requires_adding_undefined == Some(true) {
+        // addOptionality(annotationType, !isParameter(node)) @6.0.3
+        // (_tsc.js:56029-56031): `strictNullChecks && isOptional ?
+        // getOptionalType(type, isProperty) : type` — the strictNullChecks
+        // gate lives INSIDE addOptionality, so a mapped-type optional
+        // property that requires undefined under `strictNullChecks: false`
+        // compares its annotation as-is (getOptionalType asserts
+        // strictNullChecks; h2-7b-m-2 fence amendment #4).
+        if requires_adding_undefined == Some(true) && self.checker.tables.strict_null_checks {
             annotation_type = self
                 .checker
                 .get_optional_type(

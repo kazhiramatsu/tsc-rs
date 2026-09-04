@@ -187,6 +187,15 @@ fn declaration_family_options_remain_typed_refusals() {
         },
         "emitDeclarationOnly",
     );
+    let combined = control_host(CompilerOptions {
+        declaration: Some(true),
+        emit_declaration_only: Some(true),
+        ..CompilerOptions::default()
+    });
+    assert_eq!(
+        tsc_emitter::validate_bootstrap_emit_request(&combined),
+        Ok(())
+    );
     assert_unsupported_option(
         CompilerOptions {
             strip_internal: Some(true),
@@ -214,4 +223,43 @@ fn declaration_family_options_remain_typed_refusals() {
         ..CompilerOptions::default()
     });
     assert_eq!(tsc_emitter::validate_bootstrap_emit_request(&host), Ok(()));
+}
+
+#[test]
+fn h2_7b_has_one_profile_admission_and_five_production_constructors() {
+    let workspace = workspace();
+    let activity = fs::read_to_string(workspace.join("crates/emitter/src/activity.rs"))
+        .expect("read activity source");
+    assert_eq!(
+        activity.matches("H2RuntimeSlice::H2_7b.index()").count(),
+        1,
+        "H2.7b must be admitted in exactly one profile function"
+    );
+    assert!(activity.contains(
+        "pub const fn h2_7b_profile() -> Self {\n        let mut profile = Self::h2_6c_profile();"
+    ));
+
+    let expected = BTreeSet::from([
+        "crates/compiler/src/lib.rs:1".to_owned(),
+        "crates/emitter/src/builtins.rs:2".to_owned(),
+        "crates/emitter/src/execute.rs:2".to_owned(),
+    ]);
+    let mut actual = BTreeSet::new();
+    for relative in [
+        "crates/compiler/src/lib.rs",
+        "crates/emitter/src/builtins.rs",
+        "crates/emitter/src/execute.rs",
+    ] {
+        let source = fs::read_to_string(workspace.join(relative)).expect("read production source");
+        let count = source
+            .lines()
+            .filter(|line| line.contains("H2ActivityCanary::h2_7b_profile()"))
+            .count();
+        actual.insert(format!("{relative}:{count}"));
+        assert!(
+            !source.contains("H2ActivityCanary::h2_6c_profile()"),
+            "legacy production profile call remains in {relative}"
+        );
+    }
+    assert_eq!(actual, expected);
 }

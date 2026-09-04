@@ -123,19 +123,19 @@ const CANDIDATE_BAND_H2_7B_ROWS = 1593;
 const FROZEN_NEXT_SLICE_H2_7B_ROWS = 1;
 const TRANSPILE_BAND_ROWS = 0;
 // Frozen from the first successful --preflight census print.
-const ADMITTED_H2_7B_ROWS = 1567;
-const DEFERRED_H2_7B_ROWS = 26;
+const ADMITTED_H2_7B_ROWS = 1557;
+const DEFERRED_H2_7B_ROWS = 36;
 const ADMITTED_BAND_COUNTS = Object.freeze({
-  total: 1567,
-  compiler: 896,
-  conformance: 475,
+  total: 1557,
+  compiler: 893,
+  conformance: 468,
   project: 196,
   transpile: 0,
 });
 const DEFERRED_BAND_COUNTS = Object.freeze({
-  total: 26,
-  compiler: 25,
-  conformance: 1,
+  total: 36,
+  compiler: 28,
+  conformance: 8,
   project: 0,
   transpile: 0,
 });
@@ -751,13 +751,16 @@ function effectiveOptionEntries(options) {
   return entries;
 }
 
-function classifyEffectiveOptions(options) {
+function classifyEffectiveOptions(options, sourceFacts = emptySourceFacts()) {
   const entries = effectiveOptionEntries(options);
   const byName = new Map(entries);
   const rules = [];
   const addRule = (owner, optionNames, reason) => {
     const names = optionNames.filter((name) => byName.has(name));
     if (names.length > 0) rules.push({ owner, option_names: names, reason });
+  };
+  const addSourceRule = (reason) => {
+    rules.push({ owner: "H2.9", option_names: [], reason });
   };
   if (ts.getEmitDeclarations(options) !== true) {
     addRule(
@@ -796,7 +799,25 @@ function classifyEffectiveOptions(options) {
   if (options.noCheck === true) {
     addRule("H2.8c", ["noCheck"], "noCheck is owned by H2.8c");
   }
-  const matchedOwners = [...new Map(rules.map((rule) => [rule.owner, rule])).values()]
+  for (const entry of sourceFacts.parse_diagnostic_units) {
+    addSourceRule(
+      `parse diagnostics [${entry.codes.join(", ")}] on ${entry.path}`,
+    );
+  }
+  for (const entry of sourceFacts.ast_depth_units) {
+    addSourceRule(
+      `AST depth ${entry.depth} exceeds MAX_TRANSFORM_DEPTH ${MAX_TRANSFORM_DEPTH} on ${entry.path}`,
+    );
+  }
+  const matchedOwners = [...new Set(rules.map((rule) => rule.owner))]
+    .map((owner) => {
+      const ownerRules = rules.filter((rule) => rule.owner === owner);
+      return {
+        owner,
+        option_names: [...new Set(ownerRules.flatMap((rule) => rule.option_names))],
+        reason: [...new Set(ownerRules.map((rule) => rule.reason))].join("; "),
+      };
+    })
     .sort((left, right) => SLICE_RANK.get(left.owner) - SLICE_RANK.get(right.owner));
   const deferredOptionNames = new Set(rules.flatMap((rule) => rule.option_names));
   const facets = entries.map(([name, value]) => {
@@ -824,6 +845,7 @@ function classifyEffectiveOptions(options) {
           .map((rule) => `${rule.owner}: ${rule.reason}`)
           .join("; "),
     deferred_option_names: [...deferredOptionNames].sort(),
+    source_facts: sourceFacts,
   };
 }
 
@@ -1442,7 +1464,8 @@ function resolveProjectRow(row, input, projectState) {
     if (name !== undefined) setFacet(facets, name, typedMapValue(name, raw), "descriptor", raw);
   }
   assertFacetAgreement(row, facets, options);
-  const census = classifyEffectiveOptions(options);
+  const sourceFacts = censusSourceFacts(projectState.tree, options, cwd);
+  const census = classifyEffectiveOptions(options, sourceFacts);
   if (census.disposition === "admitted-for-execution") delete options.noEmit;
   const rootPaths = selection.state === "explicit-inputs"
     ? selection.roots.map((root) => root.path)
@@ -1576,6 +1599,54 @@ function maximumAstDepth(root) {
     ts.forEachChild(node, (child) => stack.push([child, depth + 1]));
   }
   return maximum;
+}
+
+function emptySourceFacts() {
+  return {
+    parse_diagnostic_units: [],
+    ast_depth_units: [],
+  };
+}
+
+function censusSourceFacts(units, options, cwd) {
+  const sourceFacts = emptySourceFacts();
+  const target = ts.getEmitScriptTarget(options);
+  const emitHost = {
+    getCompilerOptions: () => options,
+    getCurrentDirectory: () => cwd,
+    getCanonicalFileName: (fileName) => fileName,
+    useCaseSensitiveFileNames: () => true,
+    isSourceFileFromExternalLibrary: () => false,
+    isSourceOfProjectReferenceRedirect: () => false,
+    getRedirectFromSourceFile: () => undefined,
+  };
+  for (const unit of units) {
+    const name = unit.name ?? unit.virtual_path;
+    requireCondition(typeof name === "string", "source-fact unit has no path");
+    requireCondition(typeof unit.text === "string", `source-fact unit ${name} has no text`);
+    const normalized = ts.getNormalizedAbsolutePath(name, cwd);
+    const sourceFile = ts.createSourceFile(
+      normalized,
+      unit.text,
+      target,
+      true,
+      ts.getScriptKindFromFileName(normalized),
+    );
+    if (
+      sourceFile.isDeclarationFile ||
+      ts.isJsonSourceFile(sourceFile) ||
+      !ts.sourceFileMayBeEmitted(sourceFile, emitHost, false)
+    ) continue;
+    const codes = [
+      ...new Set(sourceFile.parseDiagnostics.map((diagnostic) => diagnostic.code)),
+    ].sort((left, right) => left - right);
+    if (codes.length !== 0) sourceFacts.parse_diagnostic_units.push({ path: normalized, codes });
+    const depth = maximumAstDepth(sourceFile);
+    if (depth > MAX_TRANSFORM_DEPTH) sourceFacts.ast_depth_units.push({ path: normalized, depth });
+  }
+  sourceFacts.parse_diagnostic_units.sort((left, right) => left.path.localeCompare(right.path));
+  sourceFacts.ast_depth_units.sort((left, right) => left.path.localeCompare(right.path));
+  return sourceFacts;
 }
 
 function hasImportAttributes(root) {
@@ -1852,6 +1923,10 @@ function analyzeProgram(resolved) {
     (left, right) => SLICE_RANK.get(left) - SLICE_RANK.get(right),
   );
   const remainingSlices = orderedSlices.filter((slice) => !CLOSED_SLICES.has(slice));
+  requireCondition(
+    remainingSlices.every((slice) => resolved.census.required_slices.includes(slice)),
+    `${resolved.row.case_id} per-file remainingSlices ${canonical(remainingSlices)} are not covered by census.required_slices ${canonical(resolved.census.required_slices)}`,
+  );
   const first = observationFor(resolved);
   const second = observationFor(resolved);
   requireCondition(
@@ -2173,7 +2248,10 @@ function resolveDirectiveRow(row, input, configPlanBySource, cache) {
     { base: "virtual-config", fixture: "fixture", matrix: "matrix" },
   );
   assertFacetAgreement(row, facets, options);
-  const census = classifyEffectiveOptions(options);
+  const census = classifyEffectiveOptions(
+    options,
+    censusSourceFacts(loaded.allUnits, options, currentDirectory(settings)),
+  );
   const selection = loaded.configContext?.selection ?? explicitRootSelection(loaded, settings, options);
   const identity = sha256(Buffer.from(canonical({
     case_id: row.case_id,
@@ -2457,6 +2535,7 @@ function makeCaseRecord(resolved) {
     explicit_false_options: resolved.row.explicit_false_options,
     effective_declaration_options: resolved.census.effective_declaration_options,
     facets: resolved.census.facets,
+    source_facts: resolved.census.source_facts,
     disposition: resolved.census.disposition,
     emit_eligibility: null,
     first_owner: resolved.census.first_owner,
@@ -2658,7 +2737,7 @@ function buildSummary(cases, prepared) {
 }
 
 function admissionContract() {
-  return "the dispositions rows selected by the frozen H2.7b selector form the 1,593-row candidate band (921 compiler, 476 conformance, 196 project, 0 transpile); the effective-option census is total and fail-closed, every admitted row satisfies getEmitDeclarations(options) === true with no later-owned option, deferred rows are count-only with their first owner and required slices, no applicability is re-derived for selection, each row's effective sourceMap/inlineSourceMap/inlineSources/sourceRoot/mapRoot facet vector is captured, admitted compiler/conformance/project rows capture exact TypeScript declaration writes, callback data, source-map records, emitted files, diagnostics, emitSkipped/emit_refused, and order, and project rows use the hermetic whole-tree mount with deferred_project_mount empty";
+  return "the dispositions rows selected by the frozen H2.7b selector form the 1,593-row candidate band (921 compiler, 476 conformance, 196 project, 0 transpile); the effective-option and source-fact census is total and fail-closed, every emit-eligible non-declaration non-JSON source with parse diagnostics or AST depth above MAX_TRANSFORM_DEPTH is deferred to H2.9 before sharding, every admitted row satisfies getEmitDeclarations(options) === true with no later-owned option, deferred rows are count-only with their first owner and required slices, no applicability is re-derived for selection, each row's effective sourceMap/inlineSourceMap/inlineSources/sourceRoot/mapRoot facet vector is captured, admitted compiler/conformance/project rows capture exact TypeScript declaration writes, callback data, source-map records, emitted files, diagnostics, emitSkipped/emit_refused, and order, and project rows use the hermetic whole-tree mount with deferred_project_mount empty";
 }
 
 function executionContract() {
@@ -2771,6 +2850,14 @@ function admittedObservationSha(cases) {
   );
 }
 
+function storedSourceFactsReusable(stored, resolved) {
+  if (stored.source_facts === undefined) {
+    return resolved.census.source_facts.parse_diagnostic_units.length === 0 &&
+      resolved.census.source_facts.ast_depth_units.length === 0;
+  }
+  return canonical(stored.source_facts) === canonical(resolved.census.source_facts);
+}
+
 function storedCaseReusable(stored, resolved) {
   return (
     stored !== null &&
@@ -2784,7 +2871,16 @@ function storedCaseReusable(stored, resolved) {
     stored.disposition === resolved.census.disposition &&
     stored.first_owner === resolved.census.first_owner &&
     canonical(stored.required_slices) === canonical(resolved.census.required_slices) &&
+    storedSourceFactsReusable(stored, resolved) &&
     hasValidFingerprint(stored, "case_fingerprint_sha256")
+  );
+}
+
+function materializeStoredCase(stored, resolved) {
+  if (stored.source_facts !== undefined) return stored;
+  return withFingerprint(
+    { ...stored, source_facts: resolved.census.source_facts },
+    "case_fingerprint_sha256",
   );
 }
 
@@ -2895,7 +2991,9 @@ function loadWriteCheckpoint(prepared, contract, owners) {
   const adopted = new Map();
   for (const [caseId, record] of Object.entries(checkpoint.records)) {
     const resolved = current.get(caseId);
-    if (resolved !== undefined && storedCaseReusable(record, resolved)) adopted.set(caseId, record);
+    if (resolved !== undefined && storedCaseReusable(record, resolved)) {
+      adopted.set(caseId, materializeStoredCase(record, resolved));
+    }
   }
   return adopted;
 }
@@ -2923,7 +3021,7 @@ function buildCaseRecords(prepared, contract, owners) {
     const stored = checkpointByCaseId?.get(row.case_id) ?? reuseByCaseId?.get(row.case_id);
     if (stored !== undefined && storedCaseReusable(stored, resolved)) {
       reusedObservations += 1;
-      records.push(stored);
+      records.push(materializeStoredCase(stored, resolved));
       reportObservationProgress(row.case_id);
       continue;
     }
@@ -3233,11 +3331,27 @@ function printBandPreflight(prepared) {
   requireCondition(prepared.agreement === prepared.candidateRows.length, "not every candidate row was resolved");
 }
 
+function printSourceFactPreflight(prepared) {
+  const rows = prepared.resolved.filter(
+    (entry) => entry.census.source_facts.parse_diagnostic_units.length !== 0 ||
+      entry.census.source_facts.ast_depth_units.length !== 0,
+  );
+  process.stdout.write(
+    `H2.7b source-fact census: parse_diagnostic_rows=${rows.filter((entry) => entry.census.source_facts.parse_diagnostic_units.length !== 0).length} ast_depth_rows=${rows.filter((entry) => entry.census.source_facts.ast_depth_units.length !== 0).length}\n`,
+  );
+  for (const entry of rows) {
+    process.stdout.write(
+      `H2.7b source-fact row: case=${entry.row.case_id} first_owner=${entry.census.first_owner} required_slices=${canonical(entry.census.required_slices)} parse_diagnostic_units=${canonical(entry.census.source_facts.parse_diagnostic_units)} ast_depth_units=${canonical(entry.census.source_facts.ast_depth_units)}\n`,
+    );
+  }
+}
+
 function runPreflight() {
   const prepared = prepareRows(null);
   printBandPreflight(prepared);
   runProbe("project", 3);
   runProbe("compiler", 3);
+  printSourceFactPreflight(prepared);
   process.stdout.write("H2.7b qualification fixture/config/project/effective-option preflight passed\n");
 }
 
