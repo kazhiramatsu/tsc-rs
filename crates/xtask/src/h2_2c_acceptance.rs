@@ -4249,7 +4249,7 @@ const H2_7B_GENERATOR_SHA256: &str =
 const H2_7B_CONTRACT_SHA256: &str =
     "21148a53cfd964026f76c275f38cb466c7aca2f8d986eabf2b6d19226b980f7f";
 const H2_7B_QUALIFICATION_FINGERPRINT_SHA256: &str =
-    "6ff65e52c9650e436998267ad6a3d02d5b96df8268fdb9674b3ea0076c13c085";
+    "d8a5c6ed8aeb54646c6cec2843d4e338049a4a1dcac5d3ffe1eb4e0c2d8b4a80";
 
 fn validate_h2_7b_qualification(artifact: &Value) -> Result<&[Value], Box<dyn Error>> {
     let expected_selection = json!({
@@ -4367,7 +4367,7 @@ fn validate_h2_7b_qualification(artifact: &Value) -> Result<&[Value], Box<dyn Er
         || artifact["origin"]["global_dispositions"]["path"]
             != H2_CANDIDATE_DISPOSITIONS_RELATIVE_PATH
         || artifact["origin"]["global_dispositions"]["sha256"]
-            != "ee8dfc2fdeffb36c0543ac9896c262d0bec2cfff475c1b5e49f42964827d50a7"
+            != "bf0ec41c181c2b1012cef24bc27d417bf618296c394fafc9d5c6755ddb80202f"
         || artifact["origin"]["global_dispositions"]["cases_sha256"]
             != "ed0036eb9d22227c3fba7980d852509a6aba42566c9a39329c761d1b4c61a79b"
         || artifact["origin"]["project_mount_decision"] != "mounted-all-project-rows"
