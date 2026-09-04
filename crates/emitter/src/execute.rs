@@ -2,6 +2,7 @@ use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticLi
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::get_script_transformers_with_activity;
+use crate::declarations::{emit_declaration_unit, PlanDeclarationPaths};
 use crate::{
     create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
     EmitOutcome, EmitPreflight, EmitResolver, EmitRoot, EmitSelection, EmitTextMetadata,
@@ -110,7 +111,8 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
         ),
         (options.declaration_map == Some(true), "declarationMap"),
         (
-            options.emit_declaration_only == Some(true),
+            options.emit_declaration_only == Some(true)
+                && !(options.declaration == Some(true) || options.composite == Some(true)),
             "emitDeclarationOnly",
         ),
         (
@@ -261,7 +263,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_6c_profile();
+    let mut activity = H2ActivityCanary::h2_7b_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -306,7 +308,7 @@ pub fn print_script_units_with_recording_for_harness(
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
-    let mut activity = H2ActivityCanary::h2_6c_profile();
+    let mut activity = H2ActivityCanary::h2_7b_profile();
     let mut printed_units = Vec::new();
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -624,15 +626,7 @@ pub fn emit_files_with_activity(
     validate_bootstrap_emit_request(host)?;
     observe_source_routing(host, activity);
     let options = host.compiler_options();
-    match preflight.plan().validate_bootstrap_shape() {
-        Ok(()) => {}
-        // H2.6c admits the JavaScript/map members of a declaration-bearing
-        // unit. The planned declaration member stays dormant until H2.7;
-        // every adjacent dormant member remains fail-closed.
-        Err(EmitFailure::Unsupported(crate::UnsupportedEmitFeature::Declaration))
-            if options.declaration == Some(true) => {}
-        Err(error) => return Err(error),
-    }
+    preflight.plan().validate_bootstrap_shape()?;
     if preflight.plan().selection() != selection {
         return Err(EmitFailure::Unsupported(
             crate::UnsupportedEmitFeature::TargetedSelection,
@@ -668,199 +662,210 @@ pub fn emit_files_with_activity(
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
 
-    let mut artifacts = Vec::with_capacity(preflight.plan().units().len());
-    // emittedFiles lists js THEN map per unit (116633-116638) while the
-    // sink writes map THEN js (116784-116801): the list order is
-    // plan-owned, never derived from the write order.
-    let mut unit_listing: Vec<(std::path::PathBuf, Option<std::path::PathBuf>)> = Vec::new();
+    let declaration_paths = PlanDeclarationPaths::new(host, &preflight);
+    let mut artifacts = Vec::with_capacity(preflight.plan().units().len() * 3);
+    // emittedFiles lists js THEN map THEN declaration per unit while the sink
+    // writes map THEN js THEN declaration. The list order is plan-owned,
+    // never derived from the write order.
+    let mut unit_listing: Vec<(
+        Option<std::path::PathBuf>,
+        Option<std::path::PathBuf>,
+        Option<std::path::PathBuf>,
+    )> = Vec::new();
     // sourceMapDataList is allocated iff a map option is on (116532):
     // `sourceMap || inlineSourceMap` since the h2-6b-m-2 flip.
     let mut source_map_observations: Vec<SourceMapObservation> = Vec::new();
     let map_options_enabled =
         options.source_map == Some(true) || options.inline_source_map == Some(true);
     let mut emit_skipped = false;
+    let mut diagnostics: DiagnosticList = Vec::new();
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
             return Err(EmitFailure::Unsupported(
                 crate::UnsupportedEmitFeature::BundleRoot,
             ));
         };
-        let javascript_path = unit.paths().javascript_path().ok_or(EmitFailure::Contract(
-            EmitContractViolation::ScriptOutputMissingJavaScriptPath,
-        ))?;
-        if preflight.is_emit_blocked(host, javascript_path) {
-            emit_skipped = true;
-            continue;
-        }
         let source = host.source_file(*source_id).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(*source_id),
         ))?;
-        let syntax = source.syntax().ok_or(EmitFailure::Contract(
-            EmitContractViolation::CheckedSyntaxUnavailable(*source_id),
-        ))?;
-
-        let mut arena = TransformArena::new();
-        let transform_source = arena.add_source(syntax, Some(*source_id));
-        let transformers =
-            get_script_transformers_with_activity(options, resolver, host, *source_id, activity)?;
-        activity.construct_transform_context();
-        let mut transformation = transform_nodes(
-            arena,
-            vec![TransformRoot::SourceFile(transform_source)],
-            transformers,
-            false,
-        )?;
-        let transform_diagnostics = transformation.diagnostics().to_vec();
-        // tsc-port: shouldEmitSourceMaps @6.0.3
-        // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
-        // tsc-span: _tsc.js:116805-116807
-        //
-        // h2-6b-m-2: `(sourceMap || inlineSourceMap)` and not a `.json`
-        // source. The plan's map path carries the EXTERNAL arm only
-        // (`sourceMap && !inlineSourceMap && !json`, plan.rs:328); the
-        // inline lane records with no planned map path.
-        let json_source = source.path().to_string_lossy().ends_with(".json");
-        let recording_enabled = map_options_enabled && !json_source;
+        let javascript_path = unit
+            .paths()
+            .javascript_path()
+            .map(std::path::Path::to_path_buf);
         let javascript_map_path = unit
             .paths()
             .javascript_map_path()
             .map(std::path::Path::to_path_buf);
-        if recording_enabled && options.inline_source_map != Some(true) {
-            // the planner's invariant for the external arm
-            if javascript_map_path.is_none() {
-                return Err(EmitFailure::Contract(
-                    EmitContractViolation::SourceMapRecordingUnavailable,
-                ));
-            }
-        }
-        let recording_inputs = recording_enabled.then(|| {
-            source_map_recording_inputs_for(
-                &map_lane_inputs(host),
-                options,
-                javascript_path,
-                source.path(),
-            )
-        });
-        if recording_inputs.is_some() {
-            // The slice that ADMITTED the shape: declaration-bearing map
-            // emission is H2.6c; otherwise any 6b option on a mapped unit
-            // is H2.6b and plain external `sourceMap` stays H2.6a.
-            let six_b_option = options.inline_source_map == Some(true)
-                || options.inline_sources == Some(true)
-                || options.source_root.is_some()
-                || options.map_root.is_some();
-            activity.observe_runtime_slice(if options.declaration == Some(true) {
-                H2RuntimeSlice::H2_6c
-            } else if six_b_option {
-                H2RuntimeSlice::H2_6b
+        let declaration_path = unit
+            .paths()
+            .declaration_path()
+            .map(std::path::Path::to_path_buf);
+
+        if let Some(javascript_path) = javascript_path.as_deref() {
+            if preflight.is_emit_blocked(host, javascript_path) {
+                emit_skipped = true;
             } else {
-                H2RuntimeSlice::H2_6a
-            });
-        } else if options.declaration == Some(true) {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
-        }
-        let (printed, fallback_source_map) = match printer.print(
-            &mut transformation,
-            PrintRequest::SourceFile(transform_source),
-            recording_inputs.clone(),
-        ) {
-            Ok(printed) => (printed, None),
-            // ES5/System sources with scoped helpers finish JavaScript
-            // printing by splicing helpers ahead of the recorded text, so
-            // the existing map lane rejects the now-invalid positions. A
-            // declaration-bearing unit was unreachable here before H2.6c.
-            // Preserve its admitted artifact shape with a deterministic
-            // source registration and empty mappings; Wave F records the
-            // map facet until the source-map closure wave owns rebasing.
-            Err(crate::PrinterError::Unsupported(crate::UnsupportedEmitFeature::JavaScriptMap))
-                if options.declaration == Some(true) && recording_inputs.is_some() =>
-            {
-                let printed = printer.print(
+                let syntax = source.syntax().ok_or(EmitFailure::Contract(
+                    EmitContractViolation::CheckedSyntaxUnavailable(*source_id),
+                ))?;
+                let mut arena = TransformArena::new();
+                let transform_source = arena.add_source(syntax, Some(*source_id));
+                let transformers = get_script_transformers_with_activity(
+                    options, resolver, host, *source_id, activity,
+                )?;
+                activity.construct_transform_context();
+                let mut transformation = transform_nodes(
+                    arena,
+                    vec![TransformRoot::SourceFile(transform_source)],
+                    transformers,
+                    false,
+                )?;
+                let transform_diagnostics = transformation.diagnostics().to_vec();
+                // tsc-port: shouldEmitSourceMaps @6.0.3
+                // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
+                // tsc-span: _tsc.js:116805-116807
+                let json_source = source.path().to_string_lossy().ends_with(".json");
+                let recording_enabled = map_options_enabled && !json_source;
+                if recording_enabled
+                    && options.inline_source_map != Some(true)
+                    && javascript_map_path.is_none()
+                {
+                    return Err(EmitFailure::Contract(
+                        EmitContractViolation::SourceMapRecordingUnavailable,
+                    ));
+                }
+                let recording_inputs = recording_enabled.then(|| {
+                    source_map_recording_inputs_for(
+                        &map_lane_inputs(host),
+                        options,
+                        javascript_path,
+                        source.path(),
+                    )
+                });
+                if recording_inputs.is_some() {
+                    let six_b_option = options.inline_source_map == Some(true)
+                        || options.inline_sources == Some(true)
+                        || options.source_root.is_some()
+                        || options.map_root.is_some();
+                    activity.observe_runtime_slice(if options.declaration == Some(true) {
+                        H2RuntimeSlice::H2_6c
+                    } else if six_b_option {
+                        H2RuntimeSlice::H2_6b
+                    } else {
+                        H2RuntimeSlice::H2_6a
+                    });
+                } else if options.declaration == Some(true) {
+                    activity.observe_runtime_slice(H2RuntimeSlice::H2_6c);
+                }
+                let (printed, fallback_source_map) = match printer.print(
                     &mut transformation,
                     PrintRequest::SourceFile(transform_source),
-                    None,
-                )?;
-                let mut recording = crate::source_map::SourceMapRecording::new(
-                    recording_inputs.expect("recording input matched above"),
-                );
-                recording.set_current_source(transform_source, &syntax.file_name, syntax.text());
-                (printed, Some(recording.into_generator()))
+                    recording_inputs.clone(),
+                ) {
+                    Ok(printed) => (printed, None),
+                    Err(crate::PrinterError::Unsupported(
+                        crate::UnsupportedEmitFeature::JavaScriptMap,
+                    )) if options.declaration == Some(true) && recording_inputs.is_some() => {
+                        let printed = printer.print(
+                            &mut transformation,
+                            PrintRequest::SourceFile(transform_source),
+                            None,
+                        )?;
+                        let mut recording = crate::source_map::SourceMapRecording::new(
+                            recording_inputs.expect("recording input matched above"),
+                        );
+                        recording.set_current_source(
+                            transform_source,
+                            &syntax.file_name,
+                            syntax.text(),
+                        );
+                        (printed, Some(recording.into_generator()))
+                    }
+                    Err(error) => return Err(error.into()),
+                };
+                if recording_enabled {
+                    let map_path = javascript_map_path.as_ref();
+                    let mut generator = fallback_source_map
+                        .or_else(|| printed.source_map().cloned())
+                        .ok_or(EmitFailure::Contract(
+                            EmitContractViolation::SourceMapRecordingUnavailable,
+                        ))?;
+                    let map_json = generator.to_json_string();
+                    source_map_observations.push(SourceMapObservation::new(
+                        generator
+                            .raw_sources()
+                            .iter()
+                            .map(|name| std::path::PathBuf::from(name.as_ref()))
+                            .collect(),
+                        map_json.clone().into_boxed_str(),
+                    ));
+                    let url = source_mapping_url(
+                        &map_lane_inputs(host),
+                        options,
+                        &map_json,
+                        javascript_path,
+                        map_path.map(std::path::PathBuf::as_path),
+                        source.path(),
+                    )?;
+                    let mut javascript_text = printed.text().to_owned();
+                    let mut url_position = printed.end().position();
+                    if printed.end().column() != 0 {
+                        javascript_text.push_str(new_line.text());
+                        url_position = url_position
+                            .checked_add(new_line.text().len() as u32)
+                            .ok_or(EmitFailure::Contract(
+                                EmitContractViolation::SourceMapRecordingUnavailable,
+                            ))?;
+                    }
+                    javascript_text.push_str("//# sourceMappingURL=");
+                    javascript_text.push_str(&url);
+                    if let Some(map_path) = map_path {
+                        artifacts.push(EmitArtifact::javascript_map(
+                            map_path.clone(),
+                            map_json,
+                            Some(vec![source.path().to_path_buf()]),
+                        ));
+                    }
+                    activity.create_javascript_artifact();
+                    artifacts.push(EmitArtifact::javascript(
+                        javascript_path,
+                        javascript_text,
+                        options.emit_bom == Some(true),
+                        Some(vec![source.path().to_path_buf()]),
+                        EmitTextMetadata::new(transform_diagnostics, Some(url_position)),
+                    ));
+                } else {
+                    activity.create_javascript_artifact();
+                    artifacts.push(EmitArtifact::javascript(
+                        javascript_path,
+                        printed.text(),
+                        options.emit_bom == Some(true),
+                        Some(vec![source.path().to_path_buf()]),
+                        EmitTextMetadata::new(transform_diagnostics, None),
+                    ));
+                }
             }
-            Err(error) => return Err(error.into()),
-        };
-        if recording_enabled {
-            let map_path = javascript_map_path.as_ref();
-            let mut generator = fallback_source_map
-                .or_else(|| printed.source_map().cloned())
-                .ok_or(EmitFailure::Contract(
-                    EmitContractViolation::SourceMapRecordingUnavailable,
-                ))?;
-            let map_json = generator.to_json_string();
-            source_map_observations.push(SourceMapObservation::new(
-                generator
-                    .raw_sources()
-                    .iter()
-                    .map(|name| std::path::PathBuf::from(name.as_ref()))
-                    .collect(),
-                map_json.clone().into_boxed_str(),
-            ));
-            // getSourceMappingURL + the append (116779-116783): one
-            // newLine if the writer is mid-line, `sourceMapUrlPos` at the
-            // UTF-16 offset where `//#` begins, NO trailing newline. The
-            // URL string comes from the h2-6b-m-1 four-way selection; at
-            // this floor only the basename default lane is reachable.
-            let url = source_mapping_url(
-                &map_lane_inputs(host),
-                options,
-                &map_json,
-                javascript_path,
-                map_path.map(std::path::PathBuf::as_path),
-                source.path(),
-            )?;
-            let mut javascript_text = printed.text().to_owned();
-            let mut url_position = printed.end().position();
-            if printed.end().column() != 0 {
-                javascript_text.push_str(new_line.text());
-                url_position = url_position
-                    .checked_add(new_line.text().len() as u32)
-                    .ok_or(EmitFailure::Contract(
-                        EmitContractViolation::SourceMapRecordingUnavailable,
-                    ))?;
-            }
-            javascript_text.push_str("//# sourceMappingURL=");
-            javascript_text.push_str(&url);
-            // Map artifact BEFORE js (116784-116795), EXTERNAL lane only:
-            // the inline lane writes no map artifact (116784 gates on
-            // sourceMapFilePath; h2-6b.md §4.4). No BOM, no data.
-            if let Some(map_path) = map_path {
-                artifacts.push(EmitArtifact::javascript_map(
-                    map_path.clone(),
-                    map_json,
-                    Some(vec![source.path().to_path_buf()]),
-                ));
-            }
-            activity.create_javascript_artifact();
-            artifacts.push(EmitArtifact::javascript(
-                javascript_path,
-                javascript_text,
-                options.emit_bom == Some(true),
-                Some(vec![source.path().to_path_buf()]),
-                EmitTextMetadata::new(transform_diagnostics, Some(url_position)),
-            ));
-        } else {
-            activity.create_javascript_artifact();
-            artifacts.push(EmitArtifact::javascript(
-                javascript_path,
-                printed.text(),
-                options.emit_bom == Some(true),
-                Some(vec![source.path().to_path_buf()]),
-                EmitTextMetadata::new(transform_diagnostics, None),
-            ));
         }
-        unit_listing.push((javascript_path.to_path_buf(), javascript_map_path));
+
+        if let Some(declaration_path) = declaration_path.as_deref() {
+            let declaration = emit_declaration_unit(
+                resolver,
+                host,
+                &preflight,
+                &declaration_paths,
+                *source_id,
+                declaration_path,
+                activity,
+            )?;
+            emit_skipped |= declaration.decl_blocked;
+            diagnostics.extend(declaration.diagnostics);
+            if let Some(artifact) = declaration.artifact {
+                artifacts.push(artifact);
+            }
+        }
+        unit_listing.push((javascript_path, javascript_map_path, declaration_path));
     }
 
-    let mut diagnostics: DiagnosticList = Vec::new();
     let mut written_paths: std::collections::BTreeSet<std::path::PathBuf> =
         std::collections::BTreeSet::new();
     for artifact in artifacts {
@@ -872,9 +877,6 @@ pub fn emit_files_with_activity(
             Err(error) => {
                 activity.observe_output_sink_failure();
                 diagnostics.push(write_diagnostic(&path, error.message()));
-                // TypeScript records the attempted output after the host's
-                // error callback returns; a callback error is not an
-                // unchanged-write suppression.
                 true
             }
         };
@@ -884,13 +886,20 @@ pub fn emit_files_with_activity(
     }
     let emitted_files = emitted_files_enabled.then(|| {
         let mut listing = Vec::new();
-        for (javascript_path, map_path) in unit_listing {
-            if written_paths.contains(&javascript_path) {
-                listing.push(javascript_path);
+        for (javascript_path, map_path, declaration_path) in unit_listing {
+            if let Some(javascript_path) = javascript_path {
+                if written_paths.contains(&javascript_path) {
+                    listing.push(javascript_path);
+                }
             }
             if let Some(map_path) = map_path {
                 if written_paths.contains(&map_path) {
                     listing.push(map_path);
+                }
+            }
+            if let Some(declaration_path) = declaration_path {
+                if written_paths.contains(&declaration_path) {
+                    listing.push(declaration_path);
                 }
             }
         }

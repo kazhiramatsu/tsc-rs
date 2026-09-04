@@ -1483,6 +1483,14 @@ impl CheckerState<'_> {
         ))
     }
 
+    /// tsc-port: hasGlobalName @6.0.3
+    /// tsc-hash: 53c9de85b0c10c5de2b868bc13acdbf715186648a451e034c1d6395b5096c7d9
+    /// tsc-span: _tsc.js:88396-88398
+    pub(crate) fn emit_has_global_name(&self, name: &str) -> bool {
+        self.globals
+            .contains_key(&tsc_binder::escape_leading_underscores(name))
+    }
+
     /// tsc-port: collectLinkedAliases @6.0.3
     /// tsc-hash: 8fe011e257a2763196e5bd485d330cf0df070bbdf96d1d78fd9edf54c0f391c5
     /// tsc-span: _tsc.js:55675-55727

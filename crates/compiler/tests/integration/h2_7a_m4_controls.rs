@@ -181,19 +181,12 @@ fn declaration_plan_execute_and_printer_refusals_are_retained() {
         EmitOutputPaths::javascript("/control/out.js").with_declaration("/control/out.d.ts"),
         EmitMode::Script,
     )]);
-    assert_eq!(
-        declaration.validate_bootstrap_shape(),
-        Err(EmitFailure::Unsupported(
-            UnsupportedEmitFeature::Declaration
-        ))
-    );
+    assert_eq!(declaration.validate_bootstrap_shape(), Ok(()));
 
     let printer = include_str!("../../../emitter/src/printer.rs");
     assert!(
-        printer.contains(
-            "PrintRequest::Declaration(_) => Err(PrinterError::Unsupported(\n                UnsupportedEmitFeature::Declaration,\n            ))"
-        ),
-        "PrintRequest::Declaration must remain a typed refusal"
+        printer.contains("PrintRequest::Declaration(source) => self.print_declaration("),
+        "PrintRequest::Declaration must route through the activated declaration entry"
     );
     let execute = include_str!("../../../emitter/src/execute.rs");
     assert!(
@@ -206,4 +199,14 @@ fn declaration_plan_execute_and_printer_refusals_are_retained() {
         !execute.contains("transform_declaration_unit_for_harness"),
         "the dormant declaration seam must not be activated from execute"
     );
+}
+
+#[test]
+fn production_declaration_transform_requires_exactly_one_source_root() {
+    let orchestration = include_str!("../../../emitter/src/declarations/orchestration.rs");
+    assert!(orchestration.contains("if result.roots().len() != 1 {"));
+    assert!(
+        orchestration.contains("detail: \"declaration transform must produce exactly one root\"")
+    );
+    assert!(orchestration.contains("detail: \"declaration transform root must be a source file\""));
 }

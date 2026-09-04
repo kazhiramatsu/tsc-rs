@@ -482,6 +482,15 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Construct the current production admission profile. H2.7b activates
+    /// one non-bundle declaration member for every planned declaration path.
+    #[doc(hidden)]
+    pub const fn h2_7b_profile() -> Self {
+        let mut profile = Self::h2_6c_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_7b.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

@@ -39,7 +39,7 @@ pub use builtins::{
 pub use declarations::{
     transform_declaration_unit_for_harness, transform_declaration_unit_with_observer_for_harness,
     BoundaryEvent, DeclBlockedInputs, DeclarationCustomTransformers, DeclarationPathResolver,
-    DeclarationTransformOutcome, DeclarationTransformer,
+    DeclarationTransformOutcome, DeclarationTransformer, PlanDeclarationPaths,
 };
 pub use error::{
     EmitContractViolation, EmitFailure, EmitIoError, EmitIoOperation, EmitStage,
@@ -66,7 +66,7 @@ pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{
     for_each_emitted_file, get_output_paths_for, get_source_files_to_emit, preflight_emit,
     source_file_may_be_emitted, EmitBundle, EmitMode, EmitOutputPaths, EmitOutputPlan,
-    EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection,
+    EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection, JavascriptOmission,
 };
 pub use position::{
     GeneratedUtf16Location, GeneratedUtf16Position, PositionDomain, SourceBytePosition,
@@ -88,9 +88,10 @@ pub use resolver::{
 pub use sink::{EmitFileSystem, EmitWriteDisposition, FsOutputSink, MemoryOutputSink, OutputSink};
 pub use source_map::{SourceMapGenerator, SourceMapRecordingInputs, SourceMappingFields};
 pub use transform::{
-    transform_nodes, EmitHelper, EmitHint, LexicalEnvironment, LexicalEnvironmentFlags,
-    TransformBundle, TransformError, TransformFlags, TransformRoot, TransformationContext,
-    TransformationResult, TransformationState, Transformer, UnsupportedTransformFeature,
+    transform_nodes, DeclarationPrintHandlers, EmitHelper, EmitHint, GlobalNameOracle,
+    LexicalEnvironment, LexicalEnvironmentFlags, TransformBundle, TransformError, TransformFlags,
+    TransformRoot, TransformationContext, TransformationResult, TransformationState, Transformer,
+    UnsupportedTransformFeature,
 };
 pub use tsc_program::SourceFileId;
 pub use writer::{create_text_writer, NewLineKind, TextWriter};
