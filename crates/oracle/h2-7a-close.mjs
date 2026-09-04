@@ -45,15 +45,15 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: PLAN_RELATIVE_PATH,
     historicalSha256: EXPECTED_PLAN_SHA256,
-    item: Object.freeze({ name: "validate_bootstrap_shape", line: 178 }),
+    item: Object.freeze({ name: "validate_bootstrap_shape", line: 206 }),
     arms: Object.freeze([
-      Object.freeze({ name: "DeclarationOnly", line: 190, marker: "EmitMode::DeclarationOnly" }),
-      Object.freeze({ name: "BuilderSignature", line: 195, marker: "EmitMode::BuilderSignature" }),
-      Object.freeze({ name: "DeclarationMap", line: 215, marker: "UnsupportedEmitFeature::DeclarationMap" }),
-      Object.freeze({ name: "BuildInfo", line: 219, marker: "UnsupportedEmitFeature::BuildInfo));" }),
+      Object.freeze({ name: "DeclarationOnly", line: 218, marker: "EmitMode::DeclarationOnly" }),
+      Object.freeze({ name: "BuilderSignature", line: 223, marker: "EmitMode::BuilderSignature" }),
+      Object.freeze({ name: "DeclarationMap", line: 238, marker: "UnsupportedEmitFeature::DeclarationMap" }),
+      Object.freeze({ name: "BuildInfo", line: 242, marker: "UnsupportedEmitFeature::BuildInfo));" }),
       Object.freeze({
         name: "ScriptOutputMissingJavaScriptPath",
-        line: 223,
+        line: 248,
         marker: "EmitContractViolation::ScriptOutputMissingJavaScriptPath",
       }),
     ]),
@@ -61,13 +61,13 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: EXECUTE_RELATIVE_PATH,
     historicalSha256: EXPECTED_EXECUTE_SHA256,
-    item: Object.freeze({ name: "validate_bootstrap_emit_options", line: 71 }),
+    item: Object.freeze({ name: "validate_bootstrap_emit_options", line: 72 }),
     arms: Object.freeze([
-      Object.freeze({ name: "declarationMap", line: 111, marker: "options.declaration_map == Some(true)" }),
-      Object.freeze({ name: "emitDeclarationOnly", line: 113, marker: "options.emit_declaration_only == Some(true)" }),
-      Object.freeze({ name: "stripInternal", line: 120, marker: "options.strip_internal == Some(true)" }),
-      Object.freeze({ name: "composite", line: 122, marker: "options.composite == Some(true)" }),
-      Object.freeze({ name: "declarationDir", line: 141, marker: "options.declaration_dir.is_some()" }),
+      Object.freeze({ name: "declarationMap", line: 112, marker: "options.declaration_map == Some(true)" }),
+      Object.freeze({ name: "emitDeclarationOnly", line: 114, marker: "options.emit_declaration_only == Some(true)" }),
+      Object.freeze({ name: "stripInternal", line: 122, marker: "options.strip_internal == Some(true)" }),
+      Object.freeze({ name: "composite", line: 124, marker: "(options.composite == Some(true), \"composite\")" }),
+      Object.freeze({ name: "declarationDir", line: 143, marker: "options.declaration_dir.is_some()" }),
     ]),
   }),
   Object.freeze({
@@ -78,16 +78,16 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
       Object.freeze({ name: "H2RuntimeSlice", line: 10, marker: "H2RuntimeSlice" }),
       Object.freeze({
         name: "h2_7b_profile",
-        todo: "TO-FILL: h2_7b_profile",
+        line: 488,
         marker: H2_7B_PROFILE_ADMISSION_MARKER,
       }),
     ]),
   }),
   Object.freeze({
     path: PRINTER_RELATIVE_PATH,
-    item: Object.freeze({ name: "print", line: 1029 }),
+    item: Object.freeze({ name: "print", line: 1041 }),
     arms: Object.freeze([
-      Object.freeze({ name: "Bundle", line: 1045, marker: "PrintRequest::Bundle" }),
+      Object.freeze({ name: "Bundle", line: 1057, marker: "PrintRequest::Bundle" }),
     ]),
   }),
 ]);
@@ -446,8 +446,14 @@ function retainedArmsFor(spec) {
       (arm.name === "h2_7b_profile" ? H2_7B_PROFILE_ADMISSION_MARKER : undefined);
     requireCondition(marker !== undefined, `${spec.path}: retained arm ${arm.name} has no marker`);
     const armLine = lines[arm.line - 1];
+    // `h2_7b_profile` is anchored at its function header (the marker is the
+    // single live admission inside the function span, counted below); every
+    // other retained arm is anchored at the line carrying its marker.
     requireCondition(
-      armLine !== undefined && armLine.includes(marker),
+      armLine !== undefined &&
+        (arm.name === "h2_7b_profile"
+          ? rustItemHeaderMatches(armLine, arm.name)
+          : armLine.includes(marker)),
       `${spec.path}:${arm.line} no longer names retained arm ${arm.name}`,
     );
     requireCondition(
