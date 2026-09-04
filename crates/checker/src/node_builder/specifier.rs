@@ -3702,7 +3702,10 @@ fn module_specifier_index(
         .and_then(|index| u32::try_from(index).ok())
 }
 
-fn module_name_literals(state: &CheckerState<'_>, file_index: usize) -> (Vec<NodeId>, Vec<NodeId>) {
+pub(super) fn module_name_literals(
+    state: &CheckerState<'_>,
+    file_index: usize,
+) -> (Vec<NodeId>, Vec<NodeId>) {
     let source = state.binder.source(file_index);
     let mut static_imports = Vec::<NodeId>::new();
     let mut dynamic_imports = Vec::<NodeId>::new();

@@ -99,7 +99,7 @@ fn prepared_band_row(case: &Value) -> tsc_program::PreparedProgram {
     .expect("the frozen band row loads through the declaration-family floor")
 }
 
-fn assert_frozen_exports_blockage(case_id: &str) {
+fn assert_frozen_observation(case_id: &str, expect_ts_2883: bool) {
     let case = frozen_case(case_id);
     assert_eq!(case["disposition"], "admitted-for-execution", "{case_id}");
     let prepared = prepared_band_row(&case);
@@ -126,12 +126,14 @@ fn assert_frozen_exports_blockage(case_id: &str) {
             )
         })
         .collect::<Vec<_>>();
-    assert!(
-        expected_diagnostics
-            .iter()
-            .any(|diagnostic| diagnostic.0 == 2883),
-        "{case_id}: the frozen row carries TS2883"
-    );
+    if expect_ts_2883 {
+        assert!(
+            expected_diagnostics
+                .iter()
+                .any(|diagnostic| diagnostic.0 == 2883),
+            "{case_id}: the frozen row carries TS2883"
+        );
+    }
     let actual_diagnostics = reported
         .iter()
         .map(|diagnostic| {
@@ -148,7 +150,48 @@ fn assert_frozen_exports_blockage(case_id: &str) {
         actual_diagnostics, expected_diagnostics,
         "{case_id}: exact reported diagnostics"
     );
-    assert!(outcome.emit_skipped(), "{case_id}: emitSkipped");
+    let expected_emit_diagnostics = case["typescript_observation"]["emit_result"]["diagnostics"]
+        .as_array()
+        .expect("frozen emit diagnostics")
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic["code"].as_u64().expect("diagnostic code") as u32,
+                diagnostic["message"]
+                    .as_str()
+                    .expect("diagnostic message")
+                    .to_owned(),
+                diagnostic["file"].as_str().map(str::to_owned),
+                diagnostic["start"].as_u64().map(|value| value as u32),
+                diagnostic["length"].as_u64().map(|value| value as u32),
+            )
+        })
+        .collect::<Vec<_>>();
+    let actual_emit_diagnostics = outcome
+        .diagnostics()
+        .iter()
+        .map(|diagnostic| {
+            (
+                diagnostic.code(),
+                diagnostic.message_text().to_owned(),
+                diagnostic.file_name.clone(),
+                diagnostic.start,
+                diagnostic.length,
+            )
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        actual_emit_diagnostics, expected_emit_diagnostics,
+        "{case_id}: exact emit diagnostics"
+    );
+    let expected_emit_skipped = case["typescript_observation"]["emit_result"]["emit_skipped"]
+        .as_bool()
+        .expect("frozen emitSkipped");
+    assert_eq!(
+        outcome.emit_skipped(),
+        expected_emit_skipped,
+        "{case_id}: emitSkipped"
+    );
 
     let expected_writes = case["typescript_observation"]["writes"]
         .as_array()
@@ -196,7 +239,16 @@ macro_rules! frozen_exports_control {
     ($name:ident, $case_id:literal) => {
         #[test]
         fn $name() {
-            assert_frozen_exports_blockage(concat!("typescript-6.0.3/", $case_id));
+            assert_frozen_observation(concat!("typescript-6.0.3/", $case_id), true);
+        }
+    };
+}
+
+macro_rules! frozen_observation_control {
+    ($name:ident, $case_id:literal) => {
+        #[test]
+        fn $name() {
+            assert_frozen_observation(concat!("typescript-6.0.3/", $case_id), false);
         }
     };
 }
@@ -244,4 +296,16 @@ frozen_exports_control!(
 frozen_exports_control!(
     declaration_emit_using_type_alias_1,
     "compiler/declarationEmitUsingTypeAlias1.ts#default"
+);
+frozen_observation_control!(
+    declaration_emit_using_alternative_containing_modules_1,
+    "compiler/declarationEmitUsingAlternativeContainingModules1.ts#default"
+);
+frozen_observation_control!(
+    declaration_emit_using_alternative_containing_modules_2,
+    "compiler/declarationEmitUsingAlternativeContainingModules2.ts#default"
+);
+frozen_observation_control!(
+    declaration_emit_using_type_alias_2,
+    "compiler/declarationEmitUsingTypeAlias2.ts#default"
 );

@@ -26,7 +26,7 @@ use crate::modules::ModuleResolutionMode;
 use crate::state::{CheckAbort, CheckerState};
 
 use super::signatures::type_parameter_to_declaration;
-use super::specifier::get_specifier_for_module_symbol;
+use super::specifier::{get_specifier_for_module_symbol, module_name_literals};
 use super::type_nodes::{
     add_approximate_length, checker_abort_error, create_identifier, create_node, create_node_array,
     factory_error, set_no_ascii_escaping, type_to_type_node_helper, BuildResult,
@@ -655,7 +655,7 @@ pub(super) fn lookup_symbol_chain_worker(
         && (context.enclosing_declaration.is_some() || has_flag(context, USE_FULLY_QUALIFIED_TYPE))
         && context.internal_flags.0 & DO_NOT_INCLUDE_SYMBOL_CHAIN == 0
     {
-        return checker
+        let chain = checker
             .symbol_chain_slice(
                 symbol,
                 symbol_flags_for_meaning(meaning),
@@ -664,9 +664,193 @@ pub(super) fn lookup_symbol_chain_worker(
                 context.enclosing_declaration,
             )
             .map(|chain| chain.expect("endOfChain always yields a symbol chain"))
-            .map_err(|abort| checker_abort_error(checker, context, abort));
+            .map_err(|abort| checker_abort_error(checker, context, abort))?;
+        return prefer_alternative_containing_module_chain(
+            checker, context, symbol, meaning, chain,
+        );
     }
     Ok(vec![symbol])
+}
+
+/// tsc-port: getAlternativeContainingModules @6.0.3
+/// tsc-hash: f9a342ae3eb7a58dc5f3460393504f68147192648328858f9982a9009dcec890
+/// tsc-span: _tsc.js:49949-49988
+///
+/// The shared display slice deliberately omits the enclosing-file import
+/// candidates because its non-emitting callers do not have the declaration
+/// tracker's module-specifier host. The NodeBuilder caller does: reconstruct
+/// `SourceFile.imports`, resolve each module, and retain the modules whose
+/// export table contains the symbol by reference.
+fn alternative_containing_module_chains(
+    checker: &mut CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    symbol: SymbolId,
+) -> BuildResult<Vec<Vec<SymbolId>>> {
+    let Some(enclosing) = context.enclosing_declaration else {
+        return Ok(Vec::new());
+    };
+    let file_index = checker.binder.file_index_of_node(enclosing);
+    let (imports, _) = module_name_literals(checker, file_index);
+    let mut results = Vec::new();
+    for import_ref in imports {
+        let Some(module) = checker
+            .resolve_external_module_name(enclosing, import_ref, true)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+        else {
+            continue;
+        };
+        let alias = alias_for_symbol_in_module(checker, context, module, symbol)?;
+        let Some(alias) = alias else {
+            continue;
+        };
+        let mut chain = vec![module];
+        if alias != module {
+            chain.push(alias);
+        }
+        results.push(chain);
+    }
+    if !results.is_empty() {
+        return Ok(results);
+    }
+
+    // Once the per-containing-file import cache misses, upstream computes
+    // the symbol-wide fallback by scanning every external source file.
+    let modules = (0..checker.binder.file_count())
+        .filter_map(|index| {
+            let root = checker.binder.source(index).root;
+            checker
+                .binder
+                .is_external_module_of_node(root)
+                .then(|| checker.binder.node_symbol(root))
+                .flatten()
+        })
+        .map(|module| checker.get_merged_symbol(module))
+        .collect::<Vec<_>>();
+    for module in modules {
+        let Some(alias) = alias_for_symbol_in_module(checker, context, module, symbol)? else {
+            continue;
+        };
+        let mut chain = vec![module];
+        if alias != module {
+            chain.push(alias);
+        }
+        results.push(chain);
+    }
+    Ok(results)
+}
+
+/// tsc-port: getAliasForSymbolInContainer @6.0.3
+/// tsc-hash: 33333377bf20d625fbd2b1ed3577e8e1ff93b9385d89c1fd0818cf487e348c63
+/// tsc-span: _tsc.js:50065-50083
+fn alias_for_symbol_in_module(
+    checker: &mut CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    module: SymbolId,
+    symbol: SymbolId,
+) -> BuildResult<Option<SymbolId>> {
+    if checker.get_parent_of_symbol(symbol) == Some(module) {
+        return Ok(Some(symbol));
+    }
+    let export_equals = checker
+        .binder
+        .symbol(module)
+        .exports
+        .get(tsc_types::InternalSymbolName::EXPORT_EQUALS)
+        .copied();
+    if let Some(export_equals) = export_equals {
+        if checker
+            .get_symbol_if_same_reference(export_equals, symbol)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+            .is_some()
+        {
+            return Ok(Some(module));
+        }
+    }
+    let exports = checker
+        .get_exports_of_symbol(module)
+        .map_err(|abort| checker_abort_error(checker, context, abort))?;
+    let escaped_name = checker.binder.symbol(symbol).escaped_name.clone();
+    if let Some(candidate) = exports.get(&escaped_name).copied() {
+        if checker
+            .get_symbol_if_same_reference(candidate, symbol)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+            .is_some()
+        {
+            return Ok(Some(candidate));
+        }
+    }
+    let candidates = exports.values().copied().collect::<Vec<_>>();
+    for candidate in candidates {
+        if checker
+            .get_symbol_if_same_reference(candidate, symbol)
+            .map_err(|abort| checker_abort_error(checker, context, abort))?
+            .is_some()
+        {
+            return Ok(Some(candidate));
+        }
+    }
+    Ok(None)
+}
+
+fn module_specifier_is_relative(specifier: &str) -> bool {
+    specifier == "."
+        || specifier == ".."
+        || specifier.starts_with("./")
+        || specifier.starts_with("../")
+}
+
+/// Apply getSymbolChain's `sortByBestName` to the ordinary container chain
+/// and the enclosing file's re-export containers. A bare package candidate
+/// therefore wins over a relative `/node_modules/` spelling, while equal
+/// shapes preserve discovery order.
+fn prefer_alternative_containing_module_chain(
+    checker: &mut CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    symbol: SymbolId,
+    _meaning: EmitSymbolMeaning,
+    chain: Vec<SymbolId>,
+) -> BuildResult<Vec<SymbolId>> {
+    if !chain
+        .first()
+        .is_some_and(|&root| checker.symbol_has_external_module_declaration(root))
+    {
+        return Ok(chain);
+    }
+    let alternatives = alternative_containing_module_chains(checker, context, symbol)?;
+    if alternatives.is_empty() {
+        return Ok(chain);
+    }
+    let mut candidates = Vec::with_capacity(alternatives.len() + 1);
+    candidates.push(chain);
+    candidates.extend(alternatives);
+    let mut ranked = Vec::with_capacity(candidates.len());
+    for candidate in candidates {
+        let specifier = specifier_for_module_symbol(checker, context, candidate[0], None)?;
+        ranked.push((candidate, specifier));
+    }
+    ranked.sort_by(|(_, specifier_a), (_, specifier_b)| {
+        let relative_a = module_specifier_is_relative(specifier_a);
+        let relative_b = module_specifier_is_relative(specifier_b);
+        if relative_a == relative_b {
+            let components = |specifier: &str| {
+                specifier
+                    .as_bytes()
+                    .iter()
+                    .filter(|&&byte| byte == b'/')
+                    .count()
+            };
+            components(specifier_a).cmp(&components(specifier_b))
+        } else if relative_b {
+            std::cmp::Ordering::Less
+        } else {
+            std::cmp::Ordering::Greater
+        }
+    });
+    Ok(ranked
+        .into_iter()
+        .next()
+        .expect("ordinary module container is always ranked")
+        .0)
 }
 
 /// tsc-port: typeParametersToTypeParameterDeclarations @6.0.3
