@@ -66,16 +66,16 @@
       "items": {
         "oneOf": [
           {
-            "$ref": "#/$defs/plan_refusal_surface"
+            "$ref": "#/$defs/lifted_plan_refusal_surface"
           },
           {
-            "$ref": "#/$defs/execute_refusal_surface"
+            "$ref": "#/$defs/lifted_execute_refusal_surface"
           },
           {
-            "$ref": "#/$defs/activity_refusal_surface"
+            "$ref": "#/$defs/lifted_activity_refusal_surface"
           },
           {
-            "$ref": "#/$defs/printer_refusal_surface"
+            "$ref": "#/$defs/lifted_printer_refusal_surface"
           }
         ]
       }
@@ -84,7 +84,7 @@
       "$ref": "#/$defs/transition_landing"
     },
     "summary": {
-      "$ref": "#/$defs/summary"
+      "$ref": "#/$defs/lifted_summary"
     },
     "close_fingerprint_sha256": {
       "$ref": "#/$defs/sha256"
@@ -806,99 +806,156 @@
         }
       }
     },
-    "plan_refusal_surface": {
+    "retained_arm": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/retained_arm_value"
+        },
+        {
+          "$ref": "#/$defs/retained_arm_placeholder"
+        }
+      ]
+    },
+    "retained_arm_value": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "line",
+        "span_sha256"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "span_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "retained_arm_placeholder": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "todo"
+      ],
+      "properties": {
+        "todo": {
+          "type": "string",
+          "pattern": "^TO-FILL: .+$"
+        }
+      }
+    },
+    "lifted_plan_refusal_surface": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "path",
-        "sha256_now",
+        "disposition",
         "sha256_at_h2_6c_close",
-        "retained"
+        "retained_arms"
       ],
       "properties": {
         "path": {
           "const": "crates/emitter/src/plan.rs"
         },
-        "sha256_now": {
-          "$ref": "#/$defs/sha256"
+        "disposition": {
+          "const": "lifted-at-H2.7b"
         },
         "sha256_at_h2_6c_close": {
           "$ref": "#/$defs/sha256"
         },
-        "retained": {
-          "const": true
+        "retained_arms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/retained_arm"
+          }
         }
       }
     },
-    "execute_refusal_surface": {
+    "lifted_execute_refusal_surface": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "path",
-        "sha256_now",
+        "disposition",
         "sha256_at_h2_6c_close",
-        "retained"
+        "retained_arms"
       ],
       "properties": {
         "path": {
           "const": "crates/emitter/src/execute.rs"
         },
-        "sha256_now": {
-          "$ref": "#/$defs/sha256"
+        "disposition": {
+          "const": "lifted-at-H2.7b"
         },
         "sha256_at_h2_6c_close": {
           "$ref": "#/$defs/sha256"
         },
-        "retained": {
-          "const": true
+        "retained_arms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/retained_arm"
+          }
         }
       }
     },
-    "activity_refusal_surface": {
+    "lifted_activity_refusal_surface": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "path",
-        "sha256_now",
+        "disposition",
         "sha256_at_h2_6c_close",
-        "retained"
+        "retained_arms"
       ],
       "properties": {
         "path": {
           "const": "crates/emitter/src/activity.rs"
         },
-        "sha256_now": {
-          "$ref": "#/$defs/sha256"
+        "disposition": {
+          "const": "lifted-at-H2.7b"
         },
         "sha256_at_h2_6c_close": {
           "$ref": "#/$defs/sha256"
         },
-        "retained": {
-          "const": true
+        "retained_arms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/retained_arm"
+          }
         }
       }
     },
-    "printer_refusal_surface": {
+    "lifted_printer_refusal_surface": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "path",
-        "refusal_span",
-        "present",
-        "retained"
+        "disposition",
+        "retained_arms"
       ],
       "properties": {
         "path": {
           "const": "crates/emitter/src/printer.rs"
         },
-        "refusal_span": {
-          "const": "PrintRequest::Declaration"
+        "disposition": {
+          "const": "lifted-at-H2.7b"
         },
-        "present": {
-          "const": true
-        },
-        "retained": {
-          "const": true
+        "retained_arms": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/retained_arm"
+          }
         }
       }
     },
@@ -954,7 +1011,7 @@
         }
       }
     },
-    "summary": {
+    "lifted_summary": {
       "type": "object",
       "additionalProperties": false,
       "required": [
@@ -964,6 +1021,7 @@
         "executed_candidates_delta",
         "unresolved_owners",
         "refusal_surfaces_retained",
+        "refusal_surfaces_lifted",
         "eligible_cases",
         "h2_7a_first_blocker_rows"
       ],
@@ -984,6 +1042,9 @@
           "const": 0
         },
         "refusal_surfaces_retained": {
+          "const": 0
+        },
+        "refusal_surfaces_lifted": {
           "const": 4
         },
         "eligible_cases": {

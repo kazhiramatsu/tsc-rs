@@ -31,6 +31,7 @@ const RUST_PRINTER_SOURCE = "crates/emitter/src/printer.rs";
 const RUST_WRITER_SOURCE = "crates/emitter/src/writer.rs";
 const RUST_FACTORY_SOURCE = "crates/emitter/src/factory.rs";
 const RUST_RESOLVER_SOURCE = "crates/emitter/src/resolver.rs";
+const rustAnchorLineCache = new Map();
 
 const EXPECTED_TYPESCRIPT_SHA256 =
   "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3";
@@ -251,6 +252,42 @@ const M4_ANCHORS = Object.freeze({
   "isProcessedComponent@115850": m4Anchor("crates/emitter/src/declarations/subtree.rs:935", "isProcessedComponent"),
   "getDeclarationTransformers@115950": m4Anchor("crates/emitter/src/declarations/selection.rs:9", "getDeclarationTransformers"),
 });
+
+// H2.7b m-2 §5.13: the seven rows activated by this rung are anchored to the
+// Rust item which owns their behavior.  The lane-B items are not present in
+// this worktree yet, so their entries are deliberately typed TO-FILL
+// placeholders.  A placeholder is data, not an invented path/line/hash, and
+// --check rejects it until the integration operator fills the table.
+const H2_7B_ANCHORS = Object.freeze({
+  "getOutputPathsFor@116373": Object.freeze({
+    path: "crates/emitter/src/plan.rs",
+    name: "get_output_paths_for",
+    line: 307,
+  }),
+  "product:declaration@448": Object.freeze({
+    todo: "TO-FILL: product:declaration",
+  }),
+  "rejected-option:declaration@454": Object.freeze({
+    path: "crates/emitter/src/plan.rs",
+    name: "validate_bootstrap_shape",
+    line: 178,
+  }),
+  "rejected-option:emitDeclarationOnly@457": Object.freeze({
+    path: "crates/emitter/src/execute.rs",
+    name: "validate_bootstrap_emit_options",
+    line: 71,
+  }),
+  "hasGlobalName@116688": Object.freeze({
+    todo: "TO-FILL: hasGlobalName@116688",
+  }),
+  "collectLinkedAliases@116719": Object.freeze({
+    todo: "TO-FILL: collectLinkedAliases@116719",
+  }),
+  "collectLinkedAliases@116727": Object.freeze({
+    todo: "TO-FILL: collectLinkedAliases@116727",
+  }),
+});
+
 function m4Anchor(rustAnchor, header = null) {
   return Object.freeze({ rust_anchor: rustAnchor, header });
 }
@@ -877,6 +914,106 @@ function spanSha256(lines, span) {
   return sha256(Buffer.from(lineSpanText(lines, span.start_line, span.end_line), "utf8"));
 }
 
+function rustItemSpan(lines, startLine) {
+  requireCondition(
+    Number.isInteger(startLine) && startLine >= 1 && startLine <= lines.length,
+    `invalid Rust item start line ${startLine}`,
+  );
+  let braceDepth = 0;
+  let sawOpeningBrace = false;
+  let blockCommentDepth = 0;
+  let quote = null;
+  let escaped = false;
+  for (let lineIndex = startLine - 1; lineIndex < lines.length; lineIndex += 1) {
+    const line = lines[lineIndex];
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index];
+      const next = line[index + 1];
+      if (blockCommentDepth > 0) {
+        if (character === "/" && next === "*") {
+          blockCommentDepth += 1;
+          index += 1;
+        } else if (character === "*" && next === "/") {
+          blockCommentDepth -= 1;
+          index += 1;
+        }
+        continue;
+      }
+      if (quote !== null) {
+        if (escaped) {
+          escaped = false;
+        } else if (character === "\\") {
+          escaped = true;
+        } else if (character === quote) {
+          quote = null;
+        }
+        continue;
+      }
+      if (character === "/" && next === "/") break;
+      if (character === "/" && next === "*") {
+        blockCommentDepth = 1;
+        index += 1;
+        continue;
+      }
+      // A Rust lifetime such as `<'_>` contains a single quote but does not
+      // open a quoted string.  The retained items do not use brace-bearing
+      // character literals, so only double-quoted strings need shielding.
+      if (character === '"') {
+        quote = character;
+        escaped = false;
+        continue;
+      }
+      if (character === "{") {
+        braceDepth += 1;
+        sawOpeningBrace = true;
+      } else if (character === "}") {
+        braceDepth -= 1;
+        requireCondition(braceDepth >= 0, `Rust item at line ${startLine} has an unmatched brace`);
+        if (sawOpeningBrace && braceDepth === 0) {
+          return { start_line: startLine, end_line: lineIndex + 1 };
+        }
+      }
+    }
+  }
+  fail(`Rust item at line ${startLine} has no closed body`);
+}
+
+function rustItemHeaderMatches(line, name) {
+  const escapedName = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+  return new RegExp(
+    `^(?:(?:pub(?:\\([^)]*\\))?|const|async)\\s+)*(?:fn|enum|struct|trait)\\s+${escapedName}\\b`,
+    "u",
+  ).test(line.trimStart());
+}
+
+function isH2_7bAnchorPlaceholder(anchor) {
+  return (
+    anchor !== null &&
+    typeof anchor === "object" &&
+    !Array.isArray(anchor) &&
+    typeof anchor.todo === "string" &&
+    anchor.todo.startsWith("TO-FILL: ")
+  );
+}
+
+function resolveH2_7bAnchor(anchorKey) {
+  const spec = H2_7B_ANCHORS[anchorKey];
+  requireCondition(spec !== undefined, `missing H2.7b anchor spec for ${anchorKey}`);
+  if (spec.todo !== undefined) return { todo: spec.todo };
+  const lines = rustAnchorLines(spec.path);
+  requireCondition(
+    rustItemHeaderMatches(lines[spec.line - 1], spec.name),
+    `H2.7b Rust anchor ${anchorKey} header changed at ${spec.path}:${spec.line}`,
+  );
+  const span = rustItemSpan(lines, spec.line);
+  return {
+    path: spec.path,
+    name: spec.name,
+    line: spec.line,
+    span_sha256: spanSha256(lines, span),
+  };
+}
+
 function functionName(node) {
   return node.name && ts.isIdentifier(node.name) ? node.name.text : null;
 }
@@ -935,8 +1072,13 @@ function rowForNode({
   targetRung = null,
   partition = null,
   callCount,
+  anchorKey = null,
 }) {
   const span = nodeSpan(node);
+  const resolvedRustAnchor =
+    targetRung === "H2.7b"
+      ? resolveH2_7bAnchor(anchorKey ?? `${name}@${span.start_line}`)
+      : rustAnchor;
   const row = {
     surface,
     name,
@@ -946,7 +1088,7 @@ function rowForNode({
     nesting_parent: nearestFunctionName(node),
     reachability,
     consumers: [...new Set(consumers)].sort(),
-    rust_anchor: rustAnchor,
+    rust_anchor: resolvedRustAnchor,
     disposition,
     target_rung: targetRung,
     partition,
@@ -1209,8 +1351,8 @@ requireCondition(
 const orchestrationUseSpecs = Object.freeze([
   ["collectLinkedAliases", 116719, "declaration-orchestration", "H2.7b", ["H2.7b", "H2.8c", "H2.8d"]],
   ["collectLinkedAliases", 116727, "declaration-orchestration", "H2.7b", ["H2.7b", "H2.8c", "H2.8d"]],
-  ["markLinkedReferences", 116741, "declaration-orchestration", "H2.7b", ["H2.7b"]],
-  ["markLinkedReferences", 116597, "script-orchestration", null, ["H2.7a"]],
+  ["markLinkedReferences", 116741, "script-orchestration", "H2.8c", ["H2.8c"]],
+  ["markLinkedReferences", 116597, "script-orchestration", "H2.8c", ["H2.8c"]],
   ["hasGlobalName", 116624, "shared/printer-hook", null, ["API1"]],
   ["hasGlobalName", 116688, "shared/printer-hook", "H2.7b", ["H2.7b", "API1"]],
 ]);
@@ -1239,6 +1381,7 @@ for (const [name, line, disposition, targetRung, consumers] of orchestrationUseS
       consumers,
       disposition,
       targetRung,
+      anchorKey: targetRung === "H2.7b" ? `${name}@${line}` : null,
     }),
   );
 }
@@ -1474,7 +1617,6 @@ const measuredAuditNames = [
 const measuredAuditNameSet = new Set(measuredAuditNames);
 const curatedAuditNames = Object.keys(AUDIT_ROWS);
 const rustAnchorLineCounts = new Map();
-const rustAnchorLineCache = new Map();
 let headerVerifiedAuditRows = 0;
 function rustAnchorLines(relativePath) {
   if (!rustAnchorLineCache.has(relativePath)) {
@@ -1669,11 +1811,48 @@ for (const entry of optionEntries) {
     nesting_parent: "classifyBlocker",
     reachability: "context",
     consumers: [entry.slice],
-    rust_anchor: null,
+    rust_anchor:
+      entry.slice === "H2.7b"
+        ? resolveH2_7bAnchor(`${entry.name}@${entry.line}`)
+        : null,
     disposition: "option-owner",
     target_rung: entry.slice,
     partition: null,
   });
+}
+
+const h2_7bTargetedRows = rows.filter((row) => row.target_rung === "H2.7b");
+requireCondition(
+  h2_7bTargetedRows.length === 7,
+  `H2.7b anchor denominator must contain seven rows, got ${h2_7bTargetedRows.length}`,
+);
+requireCondition(
+  h2_7bTargetedRows.every(
+    (row) =>
+      row.rust_anchor !== null &&
+      typeof row.rust_anchor === "object" &&
+      !Array.isArray(row.rust_anchor),
+  ),
+  "every H2.7b-targeted row must carry an explicit anchor or TO-FILL placeholder",
+);
+const h2_7bAnchoredRows = h2_7bTargetedRows.filter(
+  (row) => !isH2_7bAnchorPlaceholder(row.rust_anchor),
+).length;
+
+function h2_7bAnchorRowName(row) {
+  return row.kind === "use_site"
+    ? `${row.name}@${row.span.start_line}`
+    : row.name;
+}
+
+function assertH2_7bAnchorsFilled() {
+  const unanchored = h2_7bTargetedRows
+    .filter((row) => isH2_7bAnchorPlaceholder(row.rust_anchor))
+    .map(h2_7bAnchorRowName);
+  requireCondition(
+    unanchored.length === 0,
+    `H2.7b owner inventory has TO-FILL anchors: ${unanchored.join(", ")}`,
+  );
 }
 
 rows.sort(
@@ -1768,6 +1947,7 @@ const summary = {
   },
   option_rows: optionEntries.length,
   unresolved_candidates: UNRESOLVED_CANDIDATES.length,
+  h2_7b_anchored_rows: h2_7bAnchoredRows,
 };
 
 const artifact = withFingerprint(
@@ -1818,12 +1998,14 @@ const summaryLine =
   `resolver=${summary.resolver.consumed_members}/${summary.resolver.declarations_module_call_sites} ` +
   `partition=${summary.partition.m_3_head}/${summary.partition.m_2} ` +
   `reached=${summary.reached_rows} options=${summary.option_rows} ` +
-  `audit=${summary.audit.already_exact}/${summary.audit.foundation_needed}/${summary.audit.pending}`;
+  `audit=${summary.audit.already_exact}/${summary.audit.foundation_needed}/${summary.audit.pending} ` +
+  `h2_7b_anchors=${summary.h2_7b_anchored_rows}/${h2_7bTargetedRows.length}`;
 
 if (MODE === "--write") {
   fs.writeFileSync(targetPath, rendered);
   process.stdout.write(`wrote ${TARGET_RELATIVE_PATH}: ${summaryLine}\n`);
 } else if (MODE === "--check") {
+  assertH2_7bAnchorsFilled();
   requireCondition(
     fs.existsSync(targetPath) && fs.readFileSync(targetPath, "utf8") === rendered,
     `stale ${TARGET_RELATIVE_PATH}; run --write and review`,
