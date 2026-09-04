@@ -76,6 +76,7 @@ pub use tsc_types::CompilerOptions;
 pub struct InputFile {
     pub name: String,
     snapshot: Arc<TextSnapshot>,
+    host_only: bool,
 }
 
 impl InputFile {
@@ -85,6 +86,7 @@ impl InputFile {
         Self {
             name: name.into(),
             snapshot: TextSnapshot::new(text.into(), DocumentVersion::default()),
+            host_only: false,
         }
     }
 
@@ -94,6 +96,19 @@ impl InputFile {
         Self {
             name: name.into(),
             snapshot,
+            host_only: false,
+        }
+    }
+
+    /// tsrs-native: retain a host-readable input that is not a source in the
+    /// checker Program. Prepared package manifests use this path so package
+    /// metadata remains available to module-specifier generation without
+    /// shadowing an imported JSON SourceFile at the same path.
+    pub fn host_only_from_snapshot(name: impl Into<String>, snapshot: Arc<TextSnapshot>) -> Self {
+        Self {
+            name: name.into(),
+            snapshot,
+            host_only: true,
         }
     }
 
@@ -1053,8 +1068,11 @@ pub fn prepare_authoritative_harness_lib_bundle(
     if std::env::var_os("TSRS_LIB_BUNDLE_CACHE").is_some_and(|value| value == "0") {
         return None;
     }
-    let fixture_names: std::collections::HashSet<&str> =
-        files.iter().map(|file| file.name.as_str()).collect();
+    let fixture_names: std::collections::HashSet<&str> = files
+        .iter()
+        .filter(|file| !file.host_only)
+        .map(|file| file.name.as_str())
+        .collect();
     let effective_libs = libs
         .iter()
         .filter(|lib| !fixture_names.contains(lib.name.as_str()))
@@ -1147,8 +1165,11 @@ fn check_program_with_libs_at_observed_cache_mode_prepared(
 ) -> CheckResult {
     observe_phase(CheckPhase::Parse);
 
-    let fixture_names: std::collections::HashSet<&str> =
-        files.iter().map(|file| file.name.as_str()).collect();
+    let fixture_names: std::collections::HashSet<&str> = files
+        .iter()
+        .filter(|file| !file.host_only)
+        .map(|file| file.name.as_str())
+        .collect();
     let effective_libs: Vec<&InputFile> = libs
         .iter()
         .filter(|lib| !fixture_names.contains(lib.name.as_str()))
@@ -1220,8 +1241,11 @@ pub fn check_program_with_owned_libs_at(
     options: &CompilerOptions,
     current_directory: &str,
 ) -> CheckResult {
-    let fixture_names: std::collections::HashSet<&str> =
-        files.iter().map(|file| file.name.as_str()).collect();
+    let fixture_names: std::collections::HashSet<&str> = files
+        .iter()
+        .filter(|file| !file.host_only)
+        .map(|file| file.name.as_str())
+        .collect();
     let effective_libs: Vec<&InputFile> = libs
         .iter()
         .filter(|lib| !fixture_names.contains(lib.name.as_str()))
@@ -1440,8 +1464,11 @@ fn check_program_with_authoritative_modules_at_cache_mode(
         }
     }
 
-    let fixture_names: std::collections::HashSet<&str> =
-        files.iter().map(|file| file.name.as_str()).collect();
+    let fixture_names: std::collections::HashSet<&str> = files
+        .iter()
+        .filter(|file| !file.host_only)
+        .map(|file| file.name.as_str())
+        .collect();
     let mut effective_libs = Vec::new();
     let mut effective_lib_metadata = Vec::new();
     for (lib, metadata) in libs.iter().zip(lib_metadata) {
@@ -1529,16 +1556,18 @@ fn validate_authoritative_metadata(
     metadata: &[AuthoritativeSourceMetadata],
     kind: &str,
 ) -> Result<(), AuthoritativeModuleFailure> {
-    if inputs.len() != metadata.len() {
+    let source_inputs = inputs.iter().filter(|input| !input.host_only);
+    let source_input_count = source_inputs.clone().count();
+    if source_input_count != metadata.len() {
         return Err(AuthoritativeModuleFailure::InvalidMetadata {
             detail: format!(
                 "authoritative {kind} metadata has {} rows for {} inputs",
                 metadata.len(),
-                inputs.len()
+                source_input_count
             ),
         });
     }
-    for (index, (input, source)) in inputs.iter().zip(metadata).enumerate() {
+    for (index, (input, source)) in source_inputs.zip(metadata).enumerate() {
         if input.name != source.file_name {
             return Err(AuthoritativeModuleFailure::InvalidMetadata {
                 detail: format!(
@@ -1612,6 +1641,9 @@ fn check_program_with_prebound_libs_at_observed(
     // later file with the same name shadows an earlier one entirely.
     let mut last_index_by_name = std::collections::BTreeMap::new();
     for (index, file) in files.iter().enumerate() {
+        if file.host_only {
+            continue;
+        }
         last_index_by_name.insert(file.name.as_str(), index);
     }
 
@@ -1621,7 +1653,16 @@ fn check_program_with_prebound_libs_at_observed(
     // module's default/export= property.
     let mut program_sources: Vec<Arc<tsc_syntax::SourceFile>> = Vec::new();
     let mut authoritative_program_metadata = Vec::new();
+    let mut authoritative_file_index = 0;
     for (index, file) in files.iter().enumerate() {
+        if file.host_only {
+            continue;
+        }
+        let authoritative_metadata = authoritative_run.and_then(|run| {
+            let metadata = run.file_metadata.get(authoritative_file_index);
+            authoritative_file_index += 1;
+            metadata
+        });
         if last_index_by_name.get(file.name.as_str()) != Some(&index) {
             continue;
         }
@@ -1631,11 +1672,10 @@ fn check_program_with_prebound_libs_at_observed(
         if !is_supported_source_file_name(&file.name, options.allow_js) {
             continue;
         }
-        let authoritative_implied_node_format = authoritative_run
-            .and_then(|run| run.file_metadata.get(index))
-            .and_then(|source| source.implied_node_format);
-        if let Some(run) = authoritative_run {
-            authoritative_program_metadata.push(run.file_metadata[index].clone());
+        let authoritative_implied_node_format =
+            authoritative_metadata.and_then(|source| source.implied_node_format);
+        if let Some(metadata) = authoritative_metadata {
+            authoritative_program_metadata.push(metadata.clone());
         }
         // tsc ensureScriptKind: .json programs parse as JSON values.
         if file.name.ends_with(".json") {

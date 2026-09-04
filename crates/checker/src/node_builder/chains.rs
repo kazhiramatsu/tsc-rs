@@ -392,6 +392,17 @@ impl BasicModuleSpecifierHost {
             let normalized = CheckerState::normalize_program_path(path, &current_directory);
             files.entry(normalized).or_insert(None);
         }
+        // Prepared package manifests are checker host-only inputs. Their
+        // parsed values deliberately override an equal-path Program JSON
+        // source for host reads, while the binder and authoritative token
+        // table continue to own the Program source itself.
+        let mut host_package_json_values =
+            checker.host_package_json_values.iter().collect::<Vec<_>>();
+        host_package_json_values.sort_unstable_by_key(|(path, _)| *path);
+        for (path, value) in host_package_json_values {
+            let normalized = CheckerState::normalize_program_path(path, &current_directory);
+            files.insert(normalized, Some(value.to_string()));
+        }
         Self {
             current_directory,
             files,
