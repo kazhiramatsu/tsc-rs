@@ -49,6 +49,16 @@ pub enum EmitMode {
     BuildInfoOnly,
 }
 
+/// Typed provenance for an intentionally absent JavaScript member.
+///
+/// The output-shape validator cannot reconstruct compiler options, so the
+/// planner records the one currently admitted reason at the point where
+/// `getOutputPathsFor` omits the JavaScript path.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum JavascriptOmission {
+    EmitDeclarationOnly,
+}
+
 /// Full `getOutputPathsFor` plus build-info slot shape.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EmitOutputPaths {
@@ -124,11 +134,25 @@ pub struct EmitOutputUnit {
     root: EmitRoot,
     paths: EmitOutputPaths,
     mode: EmitMode,
+    javascript_omitted: Option<JavascriptOmission>,
 }
 
 impl EmitOutputUnit {
     pub fn new(root: EmitRoot, paths: EmitOutputPaths, mode: EmitMode) -> Self {
-        Self { root, paths, mode }
+        Self {
+            root,
+            paths,
+            mode,
+            javascript_omitted: None,
+        }
+    }
+
+    /// tsc-port: getOutputPathsFor @6.0.3
+    /// tsc-hash: f3ef9e378ec2b224d2f434b49f6ffd2a9597e7cc102f504653c9027a49c5ebd2
+    /// tsc-span: _tsc.js:116373-116387
+    pub fn with_javascript_omitted(mut self, omission: JavascriptOmission) -> Self {
+        self.javascript_omitted = Some(omission);
+        self
     }
 
     pub const fn root(&self) -> &EmitRoot {
@@ -141,6 +165,10 @@ impl EmitOutputUnit {
 
     pub const fn mode(&self) -> EmitMode {
         self.mode
+    }
+
+    pub const fn javascript_omitted(&self) -> Option<JavascriptOmission> {
+        self.javascript_omitted
     }
 }
 
@@ -203,13 +231,8 @@ impl EmitOutputPlan {
                     ));
                 }
             }
-            // h2-6a-m-3 G8: a planned `.js.map` is a supported unit
-            // member (the sourceMap flip); declaration lanes stay refused.
-            if unit.paths.declaration.is_some() {
-                return Err(EmitFailure::Unsupported(
-                    UnsupportedEmitFeature::Declaration,
-                ));
-            }
+            // h2-6a-m-3 G8: a planned `.js.map` is a supported unit member.
+            // H2.7b additionally admits the non-bundle declaration member.
             if unit.paths.declaration_map.is_some() {
                 return Err(EmitFailure::Unsupported(
                     UnsupportedEmitFeature::DeclarationMap,
@@ -218,7 +241,9 @@ impl EmitOutputPlan {
             if unit.paths.build_info.is_some() {
                 return Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BuildInfo));
             }
-            if unit.paths.javascript.is_none() {
+            if unit.paths.javascript.is_none()
+                && unit.javascript_omitted != Some(JavascriptOmission::EmitDeclarationOnly)
+            {
                 return Err(EmitFailure::Contract(
                     EmitContractViolation::ScriptOutputMissingJavaScriptPath,
                 ));
@@ -248,7 +273,7 @@ impl EmitPreflight {
 
     pub fn is_emit_blocked(&self, host: &dyn EmitHost, path: &Path) -> bool {
         self.blocked_outputs
-            .contains(&host.canonical_output_path(path))
+            .contains(&canonical_case_key(host, path))
     }
 }
 
@@ -403,12 +428,13 @@ pub fn preflight_emit(
     selection: EmitSelection,
 ) -> Result<EmitPreflight, EmitFailure> {
     let mut units = Vec::new();
+    let emit_declaration_only = host.compiler_options().emit_declaration_only == Some(true);
     for_each_emitted_file(host, selection, |paths, root| {
-        units.push(EmitOutputUnit::new(
-            root.clone(),
-            paths.clone(),
-            EmitMode::Script,
-        ));
+        let mut unit = EmitOutputUnit::new(root.clone(), paths.clone(), EmitMode::Script);
+        if emit_declaration_only && paths.javascript_path().is_none() {
+            unit = unit.with_javascript_omitted(JavascriptOmission::EmitDeclarationOnly);
+        }
+        units.push(unit);
     })?;
     let plan = match selection {
         EmitSelection::WholeProgram => EmitOutputPlan::whole_program(units),
@@ -419,7 +445,7 @@ pub fn preflight_emit(
         .source_file_ids()
         .iter()
         .filter_map(|id| host.source_file(*id))
-        .map(|source| source.canonical_path().to_path_buf())
+        .map(|source| canonical_case_key(host, source.canonical_path()))
         .collect::<BTreeSet<_>>();
     let mut emitted_paths = BTreeSet::new();
     let mut blocked_outputs = BTreeSet::new();
@@ -436,25 +462,33 @@ pub fn preflight_emit(
             ));
         }
     }
-    for unit in plan.units() {
-        for path in [
-            unit.paths().javascript_path(),
-            unit.paths().declaration_path(),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            let canonical = host.canonical_output_path(path);
-            if input_paths.contains(&canonical) {
-                diagnostics.push(overwrite_input_diagnostic(host, path));
-                blocked_outputs.insert(canonical.clone());
+    // `suppressOutputPathCheck` is intentionally absent from the typed option
+    // surface. Its upstream gate therefore reduces to `!noEmit` here.
+    if options.no_emit != Some(true) {
+        for unit in plan.units() {
+            if options.emit_declaration_only != Some(true) {
+                if let Some(path) = unit.paths().javascript_path() {
+                    verify_emit_file_path(
+                        host,
+                        path,
+                        &input_paths,
+                        &mut emitted_paths,
+                        &mut blocked_outputs,
+                        &mut diagnostics,
+                    );
+                }
             }
-            if !emitted_paths.insert(canonical.clone()) {
-                diagnostics.push(compiler_diagnostic(
-                    &gen::Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files,
-                    path,
-                ));
-                blocked_outputs.insert(canonical);
+            if options.declaration == Some(true) || options.composite == Some(true) {
+                if let Some(path) = unit.paths().declaration_path() {
+                    verify_emit_file_path(
+                        host,
+                        path,
+                        &input_paths,
+                        &mut emitted_paths,
+                        &mut blocked_outputs,
+                        &mut diagnostics,
+                    );
+                }
             }
         }
     }
@@ -509,6 +543,9 @@ fn get_output_extension(path: &Path, jsx: Option<i32>) -> Result<&'static str, E
     }
 }
 
+/// tsc-port: getDeclarationEmitOutputFilePath @6.0.3
+/// tsc-hash: 151a4fa19404c1a458b703798d1ed757d717f8c180604136d049b7d4ad38d464
+/// tsc-span: _tsc.js:16580-16591
 fn declaration_output_path(source_file: &Path, host: &dyn EmitHost) -> PathBuf {
     let options = host.compiler_options();
     let relocated = options
@@ -528,6 +565,40 @@ fn declaration_output_path(source_file: &Path, host: &dyn EmitHost) -> PathBuf {
         "d.ts"
     };
     relocated.with_extension(extension)
+}
+
+/// tsc-port: verifyEmitFilePath @6.0.3
+/// tsc-hash: 89b85e5f8bf04e3625f8bddd1b2a226caa8cd308eb76180bc55db8ac597fdb50
+/// tsc-span: _tsc.js:125018-125045
+fn verify_emit_file_path(
+    host: &dyn EmitHost,
+    path: &Path,
+    input_paths: &BTreeSet<PathBuf>,
+    emitted_paths: &mut BTreeSet<PathBuf>,
+    blocked_outputs: &mut BTreeSet<PathBuf>,
+    diagnostics: &mut DiagnosticList,
+) {
+    let canonical = canonical_case_key(host, path);
+    if input_paths.contains(&canonical) {
+        diagnostics.push(overwrite_input_diagnostic(host, path));
+        blocked_outputs.insert(canonical.clone());
+    }
+    if !emitted_paths.insert(canonical.clone()) {
+        diagnostics.push(compiler_diagnostic(
+            &gen::Cannot_write_file_0_because_it_would_be_overwritten_by_multiple_input_files,
+            path,
+        ));
+        blocked_outputs.insert(canonical);
+    }
+}
+
+fn canonical_case_key(host: &dyn EmitHost, path: &Path) -> PathBuf {
+    let canonical = host.canonical_output_path(path);
+    if host.use_case_sensitive_file_names() {
+        canonical
+    } else {
+        PathBuf::from(canonical.to_string_lossy().to_lowercase())
+    }
 }
 
 fn source_file_path_in_new_dir(

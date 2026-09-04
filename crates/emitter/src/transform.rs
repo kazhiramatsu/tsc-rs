@@ -6,9 +6,33 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    EmitFlags, EmitResolverError, NodeFactory, SourcePositionError, TransformArena, TransformNode,
-    TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
+    EmitFlags, EmitResolver, EmitResolverError, NodeFactory, SourcePositionError, TransformArena,
+    TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
 };
+
+/// Fallible declaration-printer projection of the checker's global-name
+/// table. A declaration name may never be accepted after a failed lookup.
+pub trait GlobalNameOracle {
+    fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError>;
+}
+
+impl<T: EmitResolver + ?Sized> GlobalNameOracle for T {
+    fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError> {
+        EmitResolver::has_global_name(self, name)
+    }
+}
+
+/// Resolver hooks installed for exactly one declaration print.
+#[derive(Clone, Copy)]
+pub struct DeclarationPrintHandlers<'oracle> {
+    pub has_global_name: &'oracle dyn GlobalNameOracle,
+}
+
+impl<'oracle> DeclarationPrintHandlers<'oracle> {
+    pub const fn new(has_global_name: &'oracle dyn GlobalNameOracle) -> Self {
+        Self { has_global_name }
+    }
+}
 
 /// Session-unique identity for a generated lexical binding. Target passes use
 /// the identity while building syntax and assign its printable text only when
@@ -881,9 +905,10 @@ impl TransformationResult<'_> {
     pub(crate) fn finalize_generated_names_for_print(
         &mut self,
         root: TransformNode,
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
     ) -> Result<(), TransformError> {
         self.context
-            .finalize_generated_binding_names_for_print(root)
+            .finalize_generated_binding_names_for_print(root, global_name_oracle)
     }
 
     pub fn roots(&self) -> &[TransformRoot] {

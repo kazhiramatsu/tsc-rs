@@ -558,7 +558,10 @@ fn check_directive(text: &str) -> Option<CheckDirective> {
     directive
 }
 
-fn can_include_bind_and_check_diagnostics(
+/// tsc-port: canIncludeBindAndCheckDiagnostics @6.0.3
+/// tsc-hash: e833101f7d0b7e59d1247180868406c7e65ac869387a07face9965d430e98204
+/// tsc-span: _tsc.js:18898-18905
+pub(crate) fn can_include_bind_and_check_diagnostics(
     javascript_file: bool,
     directive: Option<CheckDirective>,
     options: &CompilerOptions,

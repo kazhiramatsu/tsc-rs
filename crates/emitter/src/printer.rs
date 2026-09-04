@@ -17,11 +17,12 @@ use crate::token_cursor::{
     TokenWriteKind,
 };
 use crate::{
-    create_text_writer, CommentRange, EmitFlags, EmitHelper, EmitHint, GeneratedUtf16Location,
-    NewLineKind, SourceBytePosition, SourceByteRange, SourceMapRange, SourcePositionError,
-    SourceRange, SourceUtf16Location, SyntheticComment, SyntheticCommentKind, TextWriter,
-    TransformBundle, TransformError, TransformNode, TransformNodeArray, TransformSourceId,
-    TransformationResult, UnsupportedEmitFeature,
+    create_text_writer, CommentRange, DeclarationPrintHandlers, EmitFlags, EmitHelper, EmitHint,
+    EmitResolverError, EmitResolverMethod, GeneratedUtf16Location, GlobalNameOracle, NewLineKind,
+    SourceBytePosition, SourceByteRange, SourceMapRange, SourcePositionError, SourceRange,
+    SourceUtf16Location, SyntheticComment, SyntheticCommentKind, TextWriter, TransformBundle,
+    TransformError, TransformNode, TransformNodeArray, TransformSourceId, TransformationResult,
+    UnsupportedEmitFeature,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -920,6 +921,17 @@ pub fn create_printer(options: PrinterOptions) -> Printer {
     }
 }
 
+struct UnavailableDeclarationGlobalNameOracle;
+
+impl GlobalNameOracle for UnavailableDeclarationGlobalNameOracle {
+    fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError> {
+        Err(EmitResolverError::UnavailableForName {
+            method: EmitResolverMethod::HasGlobalName,
+            name: name.into(),
+        })
+    }
+}
+
 impl Printer {
     pub const fn options(&self) -> PrinterOptions {
         self.options
@@ -1034,7 +1046,7 @@ impl Printer {
     ) -> Result<PrintedText, PrinterError> {
         match request {
             PrintRequest::SourceFile(source) => {
-                self.print_source_file(transformation, source, recording)
+                self.print_source_file(transformation, source, recording, None)
             }
             PrintRequest::StandaloneNode { node, writer } => {
                 self.print_standalone_node(transformation, node, writer, recording)
@@ -1048,10 +1060,27 @@ impl Printer {
             PrintRequest::JavaScriptMap(_) => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::JavaScriptMap,
             )),
-            PrintRequest::Declaration(_) => Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::Declaration,
-            )),
+            PrintRequest::Declaration(source) => self.print_declaration(
+                transformation,
+                source,
+                DeclarationPrintHandlers::new(&UnavailableDeclarationGlobalNameOracle),
+            ),
         }
+    }
+
+    /// Print one transformed declaration root with the checker-owned global
+    /// name oracle installed for generated file-level uniqueness decisions.
+    ///
+    /// tsc-port: emitDeclarationFileOrBundle @6.0.3
+    /// tsc-hash: 87ce4e38a80e9e4576a4687aae5a19cd286aa1cdfcde406d8ed52b4e538fd9d8
+    /// tsc-span: _tsc.js:116671-116693
+    pub fn print_declaration(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        source: TransformSourceId,
+        handlers: DeclarationPrintHandlers<'_>,
+    ) -> Result<PrintedText, PrinterError> {
+        self.print_source_file(transformation, source, None, Some(handlers.has_global_name))
     }
 
     /// tsc-port: writeNode @6.0.3
@@ -1070,7 +1099,7 @@ impl Printer {
             ));
         }
         transformation.arena().node(node)?;
-        transformation.finalize_generated_names_for_print(node)?;
+        transformation.finalize_generated_names_for_print(node, None)?;
         self.prepare_emission_plan(transformation, node)?;
         let mut writer = match writer_kind {
             StandaloneWriter::MultiLine => create_text_writer(self.options.new_line),
@@ -1097,6 +1126,7 @@ impl Printer {
         transformation: &mut TransformationResult<'_>,
         source_id: TransformSourceId,
         recording: Option<crate::source_map::SourceMapRecordingInputs>,
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
     ) -> Result<PrintedText, PrinterError> {
         if !transformation.roots().iter().any(
             |root| matches!(root, crate::TransformRoot::SourceFile(source) if *source == source_id),
@@ -1105,7 +1135,7 @@ impl Printer {
         }
 
         let root = transformation.arena().root(source_id)?;
-        transformation.finalize_generated_names_for_print(root)?;
+        transformation.finalize_generated_names_for_print(root, global_name_oracle)?;
         self.prepare_emission_plan(transformation, root)?;
         if transformation
             .arena()

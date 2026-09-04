@@ -131,6 +131,51 @@ impl<'program> CheckerSession<'program> {
 /// declaration-visibility and predicate workers while later consumer-owned
 /// methods retain the trait's typed unavailable default.
 impl EmitResolver for CheckerSession<'_> {
+    fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError> {
+        Ok(self.state.borrow().emit_has_global_name(name))
+    }
+
+    fn collect_linked_aliases(
+        &self,
+        node: EmitResolverNode,
+        set_visibility: bool,
+    ) -> Result<Option<Vec<EmitResolverNode>>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::CollectLinkedAliases,
+            node,
+            |state, node| {
+                state
+                    .collect_linked_aliases(node, set_visibility)
+                    .map(|nodes| {
+                        nodes.map(|nodes| {
+                            nodes
+                                .into_iter()
+                                .map(|node| project_resolver_node(state, node))
+                                .collect()
+                        })
+                    })
+            },
+        )
+    }
+
+    fn can_include_bind_and_check_diagnostics(
+        &self,
+        source: tsc_program::SourceFileId,
+    ) -> Result<bool, EmitResolverError> {
+        let state = self.state.borrow();
+        let source_index = resolver_source_index(
+            &state,
+            EmitResolverMethod::CanIncludeBindAndCheckDiagnostics,
+            source,
+        )?;
+        let source = state.binder.source(source_index);
+        Ok(crate::can_include_bind_and_check_diagnostics(
+            crate::is_js_file_name(&source.file_name),
+            crate::check_directive(source.text()),
+            state.options,
+        ))
+    }
+
     fn get_constant_value(
         &self,
         node: EmitResolverNode,
@@ -935,6 +980,24 @@ fn validate_resolver_node(
         });
     }
     Ok(())
+}
+
+fn resolver_source_index(
+    state: &CheckerState<'_>,
+    method: EmitResolverMethod,
+    source: tsc_program::SourceFileId,
+) -> Result<usize, EmitResolverError> {
+    if state.authoritative_source_index_by_token.is_empty() {
+        let index = source.index();
+        return (index < state.binder.file_count())
+            .then_some(index)
+            .ok_or(EmitResolverError::UnavailableForSource { method, source });
+    }
+    state
+        .authoritative_source_index_by_token
+        .get(&AuthoritativeSourceToken(source.raw()))
+        .copied()
+        .ok_or(EmitResolverError::UnavailableForSource { method, source })
 }
 
 fn validate_resolver_symbol(

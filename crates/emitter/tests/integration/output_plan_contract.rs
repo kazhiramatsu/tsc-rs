@@ -1,11 +1,13 @@
 use std::path::{Path, PathBuf};
 
 use tsc_emitter::{
-    emit_files, get_source_files_to_emit, preflight_emit, validate_bootstrap_emit_options,
-    EmitBundle, EmitContractViolation, EmitDiagnosticGate, EmitFailure, EmitHost, EmitIoError,
-    EmitIoOperation, EmitMode, EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitRoot,
-    EmitSelection, EmitSource, EmitWriteDisposition, MemoryOutputSink, OutputSink,
-    UnavailableEmitResolver, UnsupportedEmitFeature,
+    emit_files, emit_files_with_activity, get_source_files_to_emit, preflight_emit,
+    validate_bootstrap_emit_options, DeclarationPathResolver, EmitBundle, EmitContractViolation,
+    EmitDiagnosticGate, EmitFailure, EmitHost, EmitIoError, EmitIoOperation, EmitMode,
+    EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitResolver, EmitResolverError,
+    EmitResolverMethod, EmitResolverNode, EmitRoot, EmitSelection, EmitSource,
+    EmitWriteDisposition, H2ActivityCanary, JavascriptOmission, MemoryOutputSink, OutputSink,
+    PlanDeclarationPaths, UnavailableEmitResolver, UnsupportedEmitFeature,
 };
 use tsc_program::SourceFileId;
 use tsc_syntax::{parse_source_file, SourceFile};
@@ -145,11 +147,13 @@ fn every_dormant_axis_is_typed_and_rejected() {
         );
     }
 
+    let declaration = EmitOutputPlan::whole_program(vec![script_unit(
+        1,
+        javascript().with_declaration("/project/out.d.ts"),
+    )]);
+    assert_eq!(declaration.validate_bootstrap_shape(), Ok(()));
+
     for (paths, feature) in [
-        (
-            javascript().with_declaration("/project/out.d.ts"),
-            UnsupportedEmitFeature::Declaration,
-        ),
         (
             javascript().with_declaration_map("/project/out.d.ts.map"),
             UnsupportedEmitFeature::DeclarationMap,
@@ -187,6 +191,56 @@ fn malformed_active_slot_is_a_contract_failure() {
             EmitContractViolation::ScriptOutputMissingJavaScriptPath
         ))
     );
+}
+
+#[test]
+fn declaration_only_javascript_absence_requires_typed_plan_provenance() {
+    let paths = EmitOutputPaths::empty().with_declaration("/project/out.d.ts");
+    let unproven = EmitOutputPlan::whole_program(vec![script_unit(1, paths.clone())]);
+    assert_eq!(
+        unproven.validate_bootstrap_shape(),
+        Err(EmitFailure::Contract(
+            EmitContractViolation::ScriptOutputMissingJavaScriptPath
+        ))
+    );
+
+    let proven = EmitOutputPlan::whole_program(vec![
+        script_unit(1, paths).with_javascript_omitted(JavascriptOmission::EmitDeclarationOnly)
+    ]);
+    assert_eq!(proven.validate_bootstrap_shape(), Ok(()));
+    assert_eq!(
+        proven.units()[0].javascript_omitted(),
+        Some(JavascriptOmission::EmitDeclarationOnly)
+    );
+}
+
+#[test]
+fn new_declaration_resolver_members_fail_closed_when_unavailable() {
+    let resolver = UnavailableEmitResolver;
+    assert!(matches!(
+        resolver.has_global_name("GlobalName"),
+        Err(EmitResolverError::UnavailableForName {
+            method: EmitResolverMethod::HasGlobalName,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.collect_linked_aliases(
+            EmitResolverNode::new(source(7), tsc_syntax::NodeId(3)),
+            true,
+        ),
+        Err(EmitResolverError::Unavailable {
+            method: EmitResolverMethod::CollectLinkedAliases,
+            ..
+        })
+    ));
+    assert!(matches!(
+        resolver.can_include_bind_and_check_diagnostics(source(7)),
+        Err(EmitResolverError::UnavailableForSource {
+            method: EmitResolverMethod::CanIncludeBindAndCheckDiagnostics,
+            ..
+        })
+    ));
 }
 
 struct HostSource {
@@ -400,6 +454,181 @@ fn h2_3a_javascript_families_keep_their_runtime_extensions_when_relocated() {
         ]
     );
     assert!(preflight.diagnostics().is_empty());
+}
+
+#[test]
+fn plan_declaration_paths_prefers_declaration_then_javascript_then_source() {
+    let host = TestEmitHost::new(
+        CompilerOptions {
+            declaration: Some(true),
+            out_dir: Some("/project/dist".to_owned()),
+            ..CompilerOptions::default()
+        },
+        "/project/src",
+        true,
+        &[
+            ("/project/src/code.ts", true),
+            ("/project/src/data.json", true),
+            ("/project/src/not-emitted.ts", false),
+        ],
+    );
+    let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
+    let paths = PlanDeclarationPaths::new(&host, &preflight);
+
+    assert_eq!(
+        paths.declaration_file_path(source(0)),
+        Some(PathBuf::from("/project/dist/code.d.ts"))
+    );
+    assert_eq!(
+        paths.reference_target_path(source(0)),
+        Some(PathBuf::from("/project/dist/code.d.ts"))
+    );
+    assert_eq!(
+        paths.reference_target_path(source(1)),
+        Some(PathBuf::from("/project/dist/data.json"))
+    );
+    assert_eq!(
+        paths.reference_target_path(source(2)),
+        Some(PathBuf::from("/project/src/not-emitted.ts"))
+    );
+}
+
+#[test]
+fn declaration_collision_preflight_covers_overwrite_duplicate_case_and_js_suppression() {
+    let overwrite = TestEmitHost::new(
+        CompilerOptions {
+            declaration: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/project",
+        true,
+        &[("/project/value.ts", true), ("/project/value.d.ts", false)],
+    );
+    let preflight = preflight_emit(&overwrite, EmitSelection::WholeProgram).unwrap();
+    assert_eq!(
+        preflight
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5055]
+    );
+    assert!(!preflight.is_emit_blocked(&overwrite, Path::new("/project/value.js")));
+    assert!(preflight.is_emit_blocked(&overwrite, Path::new("/project/value.d.ts")));
+
+    let canonical_case = TestEmitHost::new(
+        CompilerOptions {
+            declaration: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/project",
+        false,
+        &[("/project/value.ts", true), ("/PROJECT/VALUE.D.TS", false)],
+    );
+    let preflight = preflight_emit(&canonical_case, EmitSelection::WholeProgram).unwrap();
+    assert_eq!(preflight.diagnostics()[0].code(), 5055);
+    assert!(preflight.is_emit_blocked(&canonical_case, Path::new("/PROJECT/Value.D.TS")));
+
+    let duplicate = TestEmitHost::new(
+        CompilerOptions {
+            allow_js: true,
+            declaration: Some(true),
+            emit_declaration_only: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/project",
+        false,
+        &[("/project/Value.ts", true), ("/project/value.ts", true)],
+    );
+    let preflight = preflight_emit(&duplicate, EmitSelection::WholeProgram).unwrap();
+    assert_eq!(
+        preflight
+            .diagnostics()
+            .iter()
+            .map(|diagnostic| diagnostic.code())
+            .collect::<Vec<_>>(),
+        [5056]
+    );
+    assert!(preflight.is_emit_blocked(&duplicate, Path::new("/project/value.d.ts")));
+
+    let declaration_only = TestEmitHost::new(
+        CompilerOptions {
+            declaration: Some(true),
+            emit_declaration_only: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/project",
+        true,
+        &[("/project/value.ts", true), ("/project/value.js", false)],
+    );
+    let preflight = preflight_emit(&declaration_only, EmitSelection::WholeProgram).unwrap();
+    assert!(preflight.diagnostics().is_empty());
+    assert_eq!(
+        preflight.plan().units()[0].javascript_omitted(),
+        Some(JavascriptOmission::EmitDeclarationOnly)
+    );
+    assert_eq!(preflight.plan().validate_bootstrap_shape(), Ok(()));
+
+    let no_emit = TestEmitHost::new(
+        CompilerOptions {
+            declaration: Some(true),
+            no_emit: Some(true),
+            ..CompilerOptions::default()
+        },
+        "/project",
+        true,
+        &[("/project/value.ts", true), ("/project/value.d.ts", false)],
+    );
+    assert!(preflight_emit(&no_emit, EmitSelection::WholeProgram)
+        .unwrap()
+        .diagnostics()
+        .is_empty());
+}
+
+#[test]
+fn refused_option_sets_leave_every_activity_counter_and_sink_write_at_zero() {
+    for (options, expected) in [
+        (
+            CompilerOptions {
+                declaration_map: Some(true),
+                ..CompilerOptions::default()
+            },
+            "declarationMap",
+        ),
+        (
+            CompilerOptions {
+                out_file: Some("/project/bundle.js".to_owned()),
+                ..CompilerOptions::default()
+            },
+            "outFile",
+        ),
+        (
+            CompilerOptions {
+                emit_declaration_only: Some(true),
+                ..CompilerOptions::default()
+            },
+            "emitDeclarationOnly",
+        ),
+    ] {
+        let host = TestEmitHost::new(options, "/project", true, &[("/project/value.ts", true)]);
+        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
+        let mut activity = H2ActivityCanary::h2_7b_profile();
+        let mut sink = MemoryOutputSink::new();
+        assert_eq!(
+            emit_files_with_activity(
+                &UnavailableEmitResolver,
+                &host,
+                preflight,
+                EmitSelection::WholeProgram,
+                &EmitDiagnosticGate::default(),
+                &mut sink,
+                &mut activity,
+            ),
+            Err(EmitFailure::UnsupportedCompilerOption { option: expected })
+        );
+        assert!(activity.counters().all_zero(), "{expected}: activity");
+        assert!(sink.writes().is_empty(), "{expected}: sink writes");
+    }
 }
 
 #[test]

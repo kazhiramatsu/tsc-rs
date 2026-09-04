@@ -18,18 +18,21 @@ use tsc_checker::{
     AuthoritativeModuleResolution, AuthoritativeModuleResolutionDiagnostic,
     AuthoritativeNotFoundModule, AuthoritativePackageId, AuthoritativeResolutionDiagnosticModule,
     AuthoritativeResolutionMode, AuthoritativeResolvedModule, AuthoritativeSourceMetadata,
-    AuthoritativeSourceToken, AuthoritativeUntypedModule, ProgramSnapshot,
+    AuthoritativeSourceToken, AuthoritativeUntypedModule, InputFile, ProgramSnapshot,
     UnsupportedAuthoritativeResolution,
 };
 use tsc_diagnostics::{Diagnostic, DiagnosticCategory};
 use tsc_emitter::{
-    create_printer, preflight_emit, transform_declaration_unit_with_observer_for_harness,
-    BoundaryEvent, DeclarationPathResolver, EmitEnumMemberValue, EmitFunctionProperty, EmitHost,
-    EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, EmitOutputPaths, EmitPreflight,
-    EmitResolver, EmitResolverError, EmitResolverNode, EmitResolverSymbol,
-    EmitSymbolAccessibilityResult, EmitSymbolMeaning, EmitSymbolTracker, NewLineKind, PrintRequest,
-    PrinterOptions, SourceFileId, SourceFileTextMode, TransformArena, TransformNode, TransformRoot,
-    TransformSourceId, TransformationResult,
+    create_printer, emit_files_with_activity, preflight_emit,
+    transform_declaration_unit_with_observer_for_harness, BoundaryEvent, EmitArtifactKind,
+    EmitConstantValue, EmitDiagnosticGate, EmitEnumMemberValue, EmitExportContainerMode,
+    EmitFunctionProperty, EmitHost, EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags,
+    EmitPreflight, EmitResolver, EmitResolverError, EmitResolverMethod, EmitResolverNode,
+    EmitResolverSymbol, EmitSymbolAccessibilityResult, EmitSymbolExpansionOut, EmitSymbolMeaning,
+    EmitSymbolTracker, EmitTypeReferenceSerializationKind, GeneratedIdentifierFlags,
+    H2ActivityCanary, H2RuntimeSlice, MemoryOutputSink, NewLineKind, PlanDeclarationPaths,
+    PrintRequest, PrinterOptions, SourceFileId, SourceFileTextMode, TransformArena, TransformNode,
+    TransformRoot, TransformSourceId, TransformationResult,
 };
 use tsc_harness::upstream_suites::execution::{
     load_recorded_execution_plans, UpstreamExecutionCorpus,
@@ -79,6 +82,149 @@ const EXPECTED_TRACKER_SITES: &[(&str, u64)] = &[
     ("tracker.reportNonlocalAugmentation", 0),
     ("tracker.reportNonSerializableProperty", 0),
 ];
+
+struct NoModuleRequests;
+
+impl AuthoritativeModuleProvider for NoModuleRequests {
+    fn resolve_module(
+        &self,
+        _request: AuthoritativeModuleRequest<'_>,
+    ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure> {
+        Err(AuthoritativeModuleLookupFailure::Missing)
+    }
+}
+
+fn with_focused_emit_resolver(
+    files: &[(&str, &str)],
+    options: &tsc_checker::CompilerOptions,
+    mut operation: impl FnMut(&ProgramSnapshot, &CheckerSession<'_>),
+) {
+    let inputs = files
+        .iter()
+        .map(|(name, text)| InputFile::new(*name, *text))
+        .collect::<Vec<_>>();
+    let metadata = files
+        .iter()
+        .enumerate()
+        .map(|(index, (name, _))| AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(index as u32),
+            file_name: (*name).to_owned(),
+            may_be_emitted: true,
+            implied_node_format: None,
+            implied_node_format_for_emit: None,
+        })
+        .collect::<Vec<_>>();
+    check_program_with_authoritative_modules_at_for_emit(
+        &[],
+        &inputs,
+        &[],
+        &metadata,
+        options,
+        "/project",
+        &NoModuleRequests,
+        |snapshot, resolver, checked| {
+            assert!(checked.partial_checks.is_empty());
+            operation(snapshot, resolver);
+        },
+    )
+    .expect("focused checker session");
+}
+
+#[test]
+fn declaration_emit_resolver_members_forward_values_and_source_ownership() {
+    let files = [
+        ("/project/global.ts", "var GlobalName: number;\n"),
+        (
+            "/project/aliases.ts",
+            concat!(
+                "namespace N { export class Value {} }\n",
+                "import Alias = N.Value;\n",
+                "export = Alias;\n",
+            ),
+        ),
+        ("/project/plain.js", "module.exports = 1;\n"),
+        ("/project/nocheck.ts", "// @ts-nocheck\nlet value = 1;\n"),
+        ("/project/nocheck.js", "// @ts-nocheck\nlet value = 1;\n"),
+    ];
+    with_focused_emit_resolver(
+        &files,
+        &tsc_checker::CompilerOptions {
+            allow_js: true,
+            ..tsc_checker::CompilerOptions::default()
+        },
+        |snapshot, resolver| {
+            assert!(resolver.has_global_name("GlobalName").unwrap());
+            assert!(!resolver.has_global_name("MissingGlobal").unwrap());
+
+            assert!(resolver
+                .can_include_bind_and_check_diagnostics(SourceFileId::from_raw(0))
+                .unwrap());
+            assert!(resolver
+                .can_include_bind_and_check_diagnostics(SourceFileId::from_raw(2))
+                .unwrap());
+            assert!(!resolver
+                .can_include_bind_and_check_diagnostics(SourceFileId::from_raw(3))
+                .unwrap());
+            assert!(!resolver
+                .can_include_bind_and_check_diagnostics(SourceFileId::from_raw(4))
+                .unwrap());
+
+            let alias_source = SourceFileId::from_raw(1);
+            let (export_name, linked) = snapshot.documents()[1]
+                .source()
+                .arena
+                .node_ids()
+                .find_map(|node| {
+                    resolver
+                        .collect_linked_aliases(EmitResolverNode::new(alias_source, node), false)
+                        .unwrap()
+                        .filter(|linked| !linked.is_empty())
+                        .map(|linked| (node, linked))
+                })
+                .expect("export assignment links its internal alias");
+            assert!(linked.iter().all(|node| node.source() == alias_source));
+            assert_eq!(
+                resolver
+                    .collect_linked_aliases(EmitResolverNode::new(alias_source, export_name), true,)
+                    .unwrap(),
+                None,
+            );
+        },
+    );
+
+    with_focused_emit_resolver(
+        &[("/project/check-js.js", "let value = 1;\n")],
+        &tsc_checker::CompilerOptions {
+            allow_js: true,
+            check_js: Some(true),
+            ..tsc_checker::CompilerOptions::default()
+        },
+        |_, resolver| {
+            assert!(resolver
+                .can_include_bind_and_check_diagnostics(SourceFileId::from_raw(0))
+                .unwrap());
+        },
+    );
+    with_focused_emit_resolver(
+        &[
+            ("/project/no-check-js.js", "let value = 1;\n"),
+            ("/project/ts-check.js", "// @ts-check\nlet value = 1;\n"),
+        ],
+        &tsc_checker::CompilerOptions {
+            allow_js: true,
+            check_js: Some(false),
+            ..tsc_checker::CompilerOptions::default()
+        },
+        |_, resolver| {
+            assert!(!resolver
+                .can_include_bind_and_check_diagnostics(SourceFileId::from_raw(0))
+                .unwrap());
+            assert!(resolver
+                .can_include_bind_and_check_diagnostics(SourceFileId::from_raw(1))
+                .unwrap());
+        },
+    );
+}
 
 #[derive(Debug, Deserialize)]
 struct WitnessObservations {
@@ -139,9 +285,14 @@ struct PassReport {
     actual_roots: u64,
     actual_unblocked: u64,
     actual_blocked: u64,
+    production_writes: u64,
+    production_diagnostics: u64,
+    production_global_name_queries: u64,
+    production_oracle_fault_proofs: u64,
     site_counts: BTreeMap<String, SiteCounts>,
     divergences: Vec<String>,
     mismatches: Vec<String>,
+    production_mismatches: Vec<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -155,9 +306,14 @@ struct DeterministicCounts {
     actual_roots: u64,
     actual_unblocked: u64,
     actual_blocked: u64,
+    production_writes: u64,
+    production_diagnostics: u64,
+    production_global_name_queries: u64,
+    production_oracle_fault_proofs: u64,
     site_counts: BTreeMap<String, SiteCounts>,
     divergences: usize,
     mismatches: usize,
+    production_mismatches: usize,
 }
 
 impl PassReport {
@@ -172,9 +328,14 @@ impl PassReport {
             actual_roots: self.actual_roots,
             actual_unblocked: self.actual_unblocked,
             actual_blocked: self.actual_blocked,
+            production_writes: self.production_writes,
+            production_diagnostics: self.production_diagnostics,
+            production_global_name_queries: self.production_global_name_queries,
+            production_oracle_fault_proofs: self.production_oracle_fault_proofs,
             site_counts: self.site_counts.clone(),
             divergences: self.divergences.len(),
             mismatches: self.mismatches.len(),
+            production_mismatches: self.production_mismatches.len(),
         }
     }
 
@@ -267,6 +428,21 @@ fn declaration_transformer_replay_decision_equal() {
             .collect::<Vec<_>>()
             .join("\n")
     );
+    println!(
+        "declaration production replay summary: writes={} diagnostics={} global_name_queries={} oracle_fault_proofs={} mismatches={} first_10:\n{}",
+        first.production_writes,
+        first.production_diagnostics,
+        first.production_global_name_queries,
+        first.production_oracle_fault_proofs,
+        first.production_mismatches.len(),
+        first
+            .production_mismatches
+            .iter()
+            .take(10)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
 
     assert_eq!(first.cases, 116, "eligible case denominator");
     assert_eq!(first.windows, 202, "transform window denominator");
@@ -274,6 +450,18 @@ fn declaration_transformer_replay_decision_equal() {
     assert_eq!(first.blocked, 3, "blocked window denominator");
     assert_eq!(first.writes, 199, "declaration write denominator");
     assert_eq!(first.diagnostics, 3, "emit diagnostic denominator");
+    assert_eq!(
+        first.production_writes, 199,
+        "production declaration write denominator"
+    );
+    assert_eq!(
+        first.production_diagnostics, 3,
+        "production declaration diagnostic denominator"
+    );
+    assert!(
+        first.production_oracle_fault_proofs > 0,
+        "an unavailable global-name oracle must fail before any declaration write"
+    );
     assert_site_denominator(
         &first.site_counts,
         "declarations.transformTopLevelDeclaration.changed",
@@ -308,6 +496,18 @@ fn declaration_transformer_replay_decision_equal() {
         first.mismatches.len(),
         first
             .mismatches
+            .iter()
+            .take(10)
+            .cloned()
+            .collect::<Vec<_>>()
+            .join("\n")
+    );
+    assert!(
+        first.production_mismatches.is_empty(),
+        "production declaration lane has {} mismatches; first rows:\n{}",
+        first.production_mismatches.len(),
+        first
+            .production_mismatches
             .iter()
             .take(10)
             .cloned()
@@ -675,6 +875,9 @@ fn run_transform_case(
                 host: &host,
                 file_tags: &file_tags,
                 recorded: Rc::clone(&recorded),
+                global_name_queries: Rc::new(RefCell::new(Vec::new())),
+                reject_global_names: false,
+                inject_file_level_type: false,
             };
 
             for ((source, declaration_path), window) in units.into_iter().zip(windows) {
@@ -762,6 +965,21 @@ fn run_transform_case(
                     }
                 }
             }
+
+            let production = run_production_path(
+                case_id,
+                &resolver,
+                &host,
+                windows,
+                witness,
+                &projected.current_directory,
+                pass.production_oracle_fault_proofs == 0,
+            );
+            pass.production_writes += production.writes;
+            pass.production_diagnostics += production.diagnostics;
+            pass.production_global_name_queries += production.global_name_queries;
+            pass.production_oracle_fault_proofs += production.oracle_fault_proofs;
+            pass.production_mismatches.extend(production.mismatches);
         },
     )
     .unwrap_or_else(|error| panic!("{case_id}: authoritative check failed: {error}"));
@@ -819,6 +1037,259 @@ fn declaration_units(preflight: &EmitPreflight) -> Vec<(SourceFileId, PathBuf)> 
             Some((*source, path))
         })
         .collect()
+}
+
+#[derive(Default)]
+struct ProductionReplayReport {
+    writes: u64,
+    diagnostics: u64,
+    global_name_queries: u64,
+    oracle_fault_proofs: u64,
+    mismatches: Vec<String>,
+}
+
+fn run_production_path(
+    case_id: &str,
+    resolver: &RecordingResolver<'_, '_, '_, '_, '_>,
+    host: &HarnessEmitHost<'_, '_, '_>,
+    windows: &[TransformWindow<'_>],
+    witness: &WitnessObservation,
+    current_directory: &str,
+    attempt_oracle_fault: bool,
+) -> ProductionReplayReport {
+    let mut report = ProductionReplayReport::default();
+    resolver.global_name_queries.borrow_mut().clear();
+    // The recorded harness retains tsconfig-relative path spellings. The
+    // production compiler resolves path-valued options before constructing
+    // its EmitHost, so mirror that normalization for this direct production
+    // entry replay.
+    let mut production_options = host.options.clone();
+    if let Some(out_dir) = production_options.out_dir.as_deref() {
+        let out_dir = Path::new(out_dir);
+        if !out_dir.is_absolute() {
+            production_options.out_dir = Some(
+                host.current_directory()
+                    .join(out_dir)
+                    .to_string_lossy()
+                    .into_owned(),
+            );
+        }
+    }
+    let production_host = HarnessEmitHost::new(host.prepared, host.snapshot, &production_options)
+        .unwrap_or_else(|detail| panic!("{case_id}: production host failed: {detail}"));
+    let preflight = match preflight_emit(&production_host, tsc_emitter::EmitSelection::WholeProgram)
+    {
+        Ok(preflight) => preflight,
+        Err(error) => {
+            report
+                .mismatches
+                .push(format!("{case_id}: production preflight failed: {error}"));
+            return report;
+        }
+    };
+    let planned_members = declaration_units(&preflight).len();
+    let mut activity = H2ActivityCanary::h2_7b_profile();
+    let mut sink = MemoryOutputSink::new();
+    let outcome = match emit_files_with_activity(
+        resolver,
+        &production_host,
+        preflight,
+        tsc_emitter::EmitSelection::WholeProgram,
+        &EmitDiagnosticGate::default(),
+        &mut sink,
+        &mut activity,
+    ) {
+        Ok(outcome) => outcome,
+        Err(error) => {
+            report
+                .mismatches
+                .push(format!("{case_id}: production emit failed: {error}"));
+            return report;
+        }
+    };
+    report.global_name_queries = resolver.global_name_queries.borrow().len() as u64;
+
+    let creates_inferred_type = windows.iter().any(|window| {
+        window.events.iter().any(|event| {
+            event["site_id"].as_str() == Some("resolver.createTypeOfDeclaration.entry")
+        })
+    });
+    if attempt_oracle_fault && windows.len() == 1 && creates_inferred_type {
+        let fault_queries = Rc::new(RefCell::new(Vec::new()));
+        let fault_resolver = RecordingResolver {
+            inner: resolver.inner,
+            host: resolver.host,
+            file_tags: resolver.file_tags,
+            recorded: Rc::clone(&resolver.recorded),
+            global_name_queries: Rc::clone(&fault_queries),
+            reject_global_names: true,
+            inject_file_level_type: true,
+        };
+        let fault_preflight =
+            preflight_emit(&production_host, tsc_emitter::EmitSelection::WholeProgram)
+                .unwrap_or_else(|error| {
+                    panic!("{case_id}: oracle-fault preflight failed: {error}")
+                });
+        let mut fault_activity = H2ActivityCanary::h2_7b_profile();
+        let mut fault_sink = MemoryOutputSink::new();
+        let fault_outcome = emit_files_with_activity(
+            &fault_resolver,
+            &production_host,
+            fault_preflight,
+            tsc_emitter::EmitSelection::WholeProgram,
+            &EmitDiagnosticGate::default(),
+            &mut fault_sink,
+            &mut fault_activity,
+        );
+        let typed_oracle_failure = matches!(
+            &fault_outcome,
+            Err(tsc_emitter::EmitFailure::Printer(error))
+                if matches!(
+                    error.as_ref(),
+                    tsc_emitter::PrinterError::Transform(
+                        tsc_emitter::TransformError::Resolver(
+                            EmitResolverError::UnavailableForName {
+                                method: EmitResolverMethod::HasGlobalName,
+                                ..
+                            }
+                        )
+                    )
+                )
+        );
+        if typed_oracle_failure
+            && !fault_queries.borrow().is_empty()
+            && fault_sink
+                .writes()
+                .iter()
+                .all(|artifact| artifact.kind() != EmitArtifactKind::Declaration)
+        {
+            report.oracle_fault_proofs = 1;
+        }
+    }
+
+    let actual_activity = outcome.h2_activity().runtime_slice(H2RuntimeSlice::H2_7b);
+    if actual_activity != planned_members as u64 {
+        report.mismatches.push(format!(
+            "{case_id}: production H2.7b activity expected {planned_members}, actual {actual_activity}"
+        ));
+    }
+    let expected_emit_skipped = windows.iter().any(expected_decl_blocked);
+    if outcome.emit_skipped() != expected_emit_skipped {
+        report.mismatches.push(format!(
+            "{case_id}: production emitSkipped expected {expected_emit_skipped}, actual {}",
+            outcome.emit_skipped()
+        ));
+    }
+
+    let mut expected_writes = witness
+        .writes
+        .iter()
+        .filter(|write| write.kind == "declaration")
+        .map(|write| {
+            let key = OutputKey {
+                path: normalize_output_path(&write.path, current_directory),
+                source_files: write
+                    .source_files
+                    .iter()
+                    .map(|path| normalize_path(path))
+                    .collect(),
+            };
+            (key, write)
+        })
+        .collect::<BTreeMap<_, _>>();
+    for artifact in sink
+        .writes()
+        .iter()
+        .filter(|artifact| artifact.kind() == EmitArtifactKind::Declaration)
+    {
+        report.writes += 1;
+        let Some(source_files) = artifact.source_files() else {
+            report.mismatches.push(format!(
+                "{case_id}: production declaration {} omitted sourceFiles",
+                artifact.path().display()
+            ));
+            continue;
+        };
+        let key = OutputKey {
+            path: normalize_output_path(&artifact.path().to_string_lossy(), current_directory),
+            source_files: source_files
+                .iter()
+                .map(|path| normalize_path(&path.to_string_lossy()))
+                .collect(),
+        };
+        let Some(expected) = expected_writes.remove(&key) else {
+            report.mismatches.push(format!(
+                "{case_id}: unexpected production declaration write {} {:?}",
+                key.path, key.source_files
+            ));
+            continue;
+        };
+        let expected_callback = expected
+            .declaration_callback_base64
+            .as_deref()
+            .map(decode_base64)
+            .unwrap_or_else(|| panic!("{case_id}: declaration write lacks callback bytes"));
+        if artifact.callback_bytes() != expected_callback {
+            report.mismatches.push(format!(
+                "{case_id}: production declaration callback bytes differ for {}\n{}",
+                expected.path,
+                unified_diff(
+                    "expected",
+                    "production",
+                    &String::from_utf8_lossy(&expected_callback),
+                    artifact.callback_text(),
+                )
+            ));
+        }
+        if artifact.write_byte_order_mark() != expected.write_byte_order_mark {
+            report.mismatches.push(format!(
+                "{case_id}: production BOM expected {}, actual {} for {}",
+                expected.write_byte_order_mark,
+                artifact.write_byte_order_mark(),
+                expected.path
+            ));
+        }
+        let expected_materialized = expected
+            .declaration_materialized_base64
+            .as_deref()
+            .map(decode_base64)
+            .unwrap_or_else(|| panic!("{case_id}: declaration write lacks materialized bytes"));
+        if artifact.materialized_bytes().as_ref() != expected_materialized {
+            report.mismatches.push(format!(
+                "{case_id}: production materialized declaration bytes differ for {}",
+                expected.path
+            ));
+        }
+    }
+    for (key, _) in expected_writes {
+        report.mismatches.push(format!(
+            "{case_id}: production declaration write missing for {} {:?}",
+            key.path, key.source_files
+        ));
+    }
+
+    let actual_diagnostics = outcome
+        .diagnostics()
+        .iter()
+        .map(normalize_diagnostic)
+        .collect::<Vec<_>>();
+    report.diagnostics = actual_diagnostics.len() as u64;
+    if actual_diagnostics != witness.emit_result.diagnostics {
+        let expected = serde_json::to_string_pretty(&witness.emit_result.diagnostics)
+            .expect("expected diagnostics serialize");
+        let actual = serde_json::to_string_pretty(&actual_diagnostics)
+            .expect("actual diagnostics serialize");
+        report.mismatches.push(format!(
+            "{case_id}: production emit diagnostics differ\n{}",
+            unified_diff(
+                "expected diagnostics",
+                "production diagnostics",
+                &expected,
+                &actual,
+            )
+        ));
+    }
+    report
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1327,6 +1798,9 @@ struct RecordingResolver<'resolver, 'program, 'prepared, 'snapshot, 'options> {
     host: &'resolver HarnessEmitHost<'prepared, 'snapshot, 'options>,
     file_tags: &'resolver BTreeMap<SourceFileId, u64>,
     recorded: Rc<RefCell<Vec<ActualEvent>>>,
+    global_name_queries: Rc<RefCell<Vec<String>>>,
+    reject_global_names: bool,
+    inject_file_level_type: bool,
 }
 
 impl RecordingResolver<'_, '_, '_, '_, '_> {
@@ -1425,6 +1899,181 @@ impl RecordingResolver<'_, '_, '_, '_, '_> {
 }
 
 impl EmitResolver for RecordingResolver<'_, '_, '_, '_, '_> {
+    fn has_global_name(&self, name: &str) -> Result<bool, EmitResolverError> {
+        self.global_name_queries.borrow_mut().push(name.to_owned());
+        if self.reject_global_names {
+            return Err(EmitResolverError::UnavailableForName {
+                method: EmitResolverMethod::HasGlobalName,
+                name: name.into(),
+            });
+        }
+        self.inner.has_global_name(name)
+    }
+
+    fn collect_linked_aliases(
+        &self,
+        node: EmitResolverNode,
+        set_visibility: bool,
+    ) -> Result<Option<Vec<EmitResolverNode>>, EmitResolverError> {
+        self.inner.collect_linked_aliases(node, set_visibility)
+    }
+
+    fn can_include_bind_and_check_diagnostics(
+        &self,
+        source: SourceFileId,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.can_include_bind_and_check_diagnostics(source)
+    }
+
+    fn get_constant_value(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitConstantValue>, EmitResolverError> {
+        self.inner.get_constant_value(node)
+    }
+
+    fn get_referenced_export_container(
+        &self,
+        node: EmitResolverNode,
+        mode: EmitExportContainerMode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.inner.get_referenced_export_container(node, mode)
+    }
+
+    fn get_referenced_import_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.inner.get_referenced_import_declaration(node)
+    }
+
+    fn get_referenced_import_declaration_at_location(
+        &self,
+        node: EmitResolverNode,
+        location: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.inner
+            .get_referenced_import_declaration_at_location(node, location)
+    }
+
+    fn get_jsx_factory_import_declaration(
+        &self,
+        node: EmitResolverNode,
+        name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.inner.get_jsx_factory_import_declaration(node, name)
+    }
+
+    fn get_jsx_factory_export_container(
+        &self,
+        node: EmitResolverNode,
+        name: &str,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.inner.get_jsx_factory_export_container(node, name)
+    }
+
+    fn get_referenced_value_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.inner.get_referenced_value_declaration(node)
+    }
+
+    fn get_referenced_declaration_with_colliding_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.inner
+            .get_referenced_declaration_with_colliding_name(node)
+    }
+
+    fn is_declaration_with_colliding_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.is_declaration_with_colliding_name(node)
+    }
+
+    fn is_binding_captured_by_node(
+        &self,
+        node: EmitResolverNode,
+        declaration: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.is_binding_captured_by_node(node, declaration)
+    }
+
+    fn get_referenced_value_declarations(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Vec<EmitResolverNode>, EmitResolverError> {
+        self.inner.get_referenced_value_declarations(node)
+    }
+
+    fn get_type_reference_serialization_kind(
+        &self,
+        node: EmitResolverNode,
+        location: EmitResolverNode,
+    ) -> Result<EmitTypeReferenceSerializationKind, EmitResolverError> {
+        self.inner
+            .get_type_reference_serialization_kind(node, location)
+    }
+
+    fn has_node_check_flag(
+        &self,
+        node: EmitResolverNode,
+        flag: u32,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.has_node_check_flag(node, flag)
+    }
+
+    fn is_arguments_local_binding(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.is_arguments_local_binding(node)
+    }
+
+    fn is_external_or_common_js_module(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.is_external_or_common_js_module(node)
+    }
+
+    fn is_instantiated_module(&self, node: EmitResolverNode) -> Result<bool, EmitResolverError> {
+        self.inner.is_instantiated_module(node)
+    }
+
+    fn is_unique_local_name(
+        &self,
+        node: EmitResolverNode,
+        name: &str,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.is_unique_local_name(node, name)
+    }
+
+    fn is_referenced_alias_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.is_referenced_alias_declaration(node)
+    }
+
+    fn is_top_level_value_import_equals_with_entity_name(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner
+            .is_top_level_value_import_equals_with_entity_name(node)
+    }
+
+    fn is_value_alias_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<bool, EmitResolverError> {
+        self.inner.is_value_alias_declaration(node)
+    }
+
     fn get_enum_member_value(
         &self,
         node: EmitResolverNode,
@@ -1596,6 +2245,24 @@ impl EmitResolver for RecordingResolver<'_, '_, '_, '_, '_> {
             declaration,
             enclosing_declaration,
         );
+        if self.inject_file_level_type {
+            let factory_error = |error| EmitResolverError::Factory {
+                method: EmitResolverMethod::CreateTypeOfDeclaration,
+                error: Box::new(error),
+            };
+            let mut factory = arena.factory();
+            let name = factory
+                .create_unique_name(
+                    target,
+                    "oracle_fault_global",
+                    GeneratedIdentifierFlags::OPTIMISTIC | GeneratedIdentifierFlags::FILE_LEVEL,
+                )
+                .map_err(factory_error)?;
+            let r#type = factory
+                .create_type_query_node(target, name, None)
+                .map_err(factory_error)?;
+            return Ok(Some(r#type));
+        }
         self.inner.create_type_of_declaration(
             arena,
             target,
@@ -1777,6 +2444,30 @@ impl EmitResolver for RecordingResolver<'_, '_, '_, '_, '_> {
             tracker,
         )
     }
+
+    #[allow(clippy::too_many_arguments)]
+    fn symbol_to_declarations(
+        &self,
+        arena: &mut TransformArena,
+        target: TransformSourceId,
+        symbol: EmitResolverSymbol,
+        meaning: EmitSymbolMeaning,
+        flags: EmitNodeBuilderFlags,
+        maximum_length: Option<u32>,
+        verbosity_level: Option<i32>,
+        out: Option<&mut EmitSymbolExpansionOut>,
+    ) -> Result<Vec<TransformNode>, EmitResolverError> {
+        self.inner.symbol_to_declarations(
+            arena,
+            target,
+            symbol,
+            meaning,
+            flags,
+            maximum_length,
+            verbosity_level,
+            out,
+        )
+    }
 }
 
 struct HarnessEmitHost<'prepared, 'snapshot, 'options> {
@@ -1913,56 +2604,6 @@ fn path_starts_with(path: &Path, prefix: &Path, case_sensitive: bool) -> bool {
         path.to_string_lossy()
             .to_lowercase()
             .starts_with(&prefix.to_string_lossy().to_lowercase())
-    }
-}
-
-struct PlanDeclarationPaths {
-    paths: BTreeMap<SourceFileId, EmitOutputPaths>,
-    source_paths: BTreeMap<SourceFileId, PathBuf>,
-}
-
-impl PlanDeclarationPaths {
-    fn new(host: &dyn EmitHost, preflight: &EmitPreflight) -> Self {
-        let paths = preflight
-            .plan()
-            .units()
-            .iter()
-            .filter_map(|unit| {
-                let tsc_emitter::EmitRoot::SourceFile(source) = unit.root() else {
-                    return None;
-                };
-                Some((*source, unit.paths().clone()))
-            })
-            .collect();
-        let source_paths = host
-            .source_file_ids()
-            .iter()
-            .filter_map(|&source| {
-                host.source_file(source)
-                    .map(|emit_source| (source, emit_source.path().to_path_buf()))
-            })
-            .collect();
-        Self {
-            paths,
-            source_paths,
-        }
-    }
-}
-
-impl DeclarationPathResolver for PlanDeclarationPaths {
-    fn declaration_file_path(&self, source: SourceFileId) -> Option<PathBuf> {
-        self.paths
-            .get(&source)
-            .and_then(EmitOutputPaths::declaration_path)
-            .map(Path::to_path_buf)
-    }
-
-    fn reference_target_path(&self, source: SourceFileId) -> Option<PathBuf> {
-        self.paths
-            .get(&source)
-            .and_then(|paths| paths.declaration_path().or_else(|| paths.javascript_path()))
-            .map(Path::to_path_buf)
-            .or_else(|| self.source_paths.get(&source).cloned())
     }
 }
 

@@ -695,9 +695,10 @@ fn recording_absent_uses_the_same_pipeline_and_dormant_roots_fail_typed() {
         ))
     );
     assert_eq!(
-        printer.print(&mut result, PrintRequest::Declaration(source), None),
-        Err(PrinterError::Unsupported(
-            UnsupportedEmitFeature::Declaration
-        ))
+        printer
+            .print(&mut result, PrintRequest::Declaration(source), None)
+            .unwrap()
+            .text(),
+        text
     );
 }
