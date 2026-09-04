@@ -1432,6 +1432,30 @@ fn project_checker_inputs(
         file_metadata.push(metadata);
     }
 
+    for (index, package) in prepared.packages().enumerate() {
+        let display_path = package.package_json().display();
+        let name = display_path
+            .to_str()
+            .ok_or_else(|| DriverError::NonUnicodeDisplayPath {
+                source_file: None,
+                path: display_path.to_path_buf(),
+            })?
+            .to_owned();
+        files.push(InputFile::from_snapshot(
+            name.clone(),
+            Arc::clone(package.snapshot()),
+        ));
+        file_metadata.push(AuthoritativeSourceMetadata {
+            token: AuthoritativeSourceToken(
+                u32::try_from(sources.len() + index).expect("prepared input count fits u32"),
+            ),
+            file_name: name,
+            may_be_emitted: false,
+            implied_node_format: None,
+            implied_node_format_for_emit: None,
+        });
+    }
+
     let current_directory_path = prepared.current_directory().display();
     let current_directory = current_directory_path
         .to_str()

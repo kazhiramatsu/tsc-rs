@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use tsc_binder::{node_util, SymbolId};
 use tsc_emitter::{
-    EmitFunctionProperty, EmitInternalNodeBuilderFlags, EmitModuleSpecifierHost,
-    EmitNodeBuilderFlags, EmitResolutionMode, EmitResolverError, EmitResolverMethod,
-    EmitResolverNode, EmitSymbolAccessibility, EmitSymbolAccessibilityResult, EmitSymbolMeaning,
-    EmitTrackerAccess, EmitTrackerNode, EmitTrackerNodeDescription, EmitTrackerSymbol,
-    EmitTrackerSymbolDescription, SourceFileId, SourceRange, TransformArena, TransformNode,
-    TransformSourceId,
+    EmitFunctionProperty, EmitImportIncludeReason, EmitInternalNodeBuilderFlags,
+    EmitModuleSpecifierHost, EmitNodeBuilderFlags, EmitResolutionMode, EmitResolverError,
+    EmitResolverMethod, EmitResolverNode, EmitSymbolAccessibility, EmitSymbolAccessibilityResult,
+    EmitSymbolMeaning, EmitTrackerAccess, EmitTrackerNode, EmitTrackerNodeDescription,
+    EmitTrackerSymbol, EmitTrackerSymbolDescription, SourceFileId, SourceRange, TransformArena,
+    TransformNode, TransformSourceId,
 };
 use tsc_syntax::nodes::{
     ComputedPropertyNameData, ElementAccessExpressionData, ImportAttributeData,
@@ -447,6 +447,90 @@ impl EmitModuleSpecifierHost for BasicModuleSpecifierHost {
     }
 }
 
+/// Preserve every caller-host capability while extending its file view with
+/// the checker's complete input set. Prepared package manifests are host
+/// files, not emit sources, so the declaration tracker's syntax-only adapter
+/// deliberately needs this checker-owned fallback for `fileExists` and
+/// `readFile`.
+struct ModuleSpecifierHostWithFallback<'a> {
+    primary: &'a dyn EmitModuleSpecifierHost,
+    fallback: &'a dyn EmitModuleSpecifierHost,
+}
+
+impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
+    fn get_current_directory(&self) -> String {
+        self.primary.get_current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.primary.use_case_sensitive_file_names()
+    }
+
+    fn file_exists(&self, file_name: &str) -> bool {
+        self.primary.file_exists(file_name) || self.fallback.file_exists(file_name)
+    }
+
+    fn read_file(&self, file_name: &str) -> Option<String> {
+        self.primary
+            .read_file(file_name)
+            .or_else(|| self.fallback.read_file(file_name))
+    }
+
+    fn get_common_source_directory(&self) -> String {
+        self.primary.get_common_source_directory()
+    }
+
+    fn get_default_resolution_mode_for_file(&self, file: EmitResolverNode) -> EmitResolutionMode {
+        self.primary.get_default_resolution_mode_for_file(file)
+    }
+
+    fn get_mode_for_resolution_at_index(
+        &self,
+        file: EmitResolverNode,
+        index: u32,
+    ) -> EmitResolutionMode {
+        self.primary.get_mode_for_resolution_at_index(file, index)
+    }
+
+    fn symlinked_directories(&self) -> Vec<(String, String)> {
+        self.primary.symlinked_directories()
+    }
+
+    fn symlinked_files(&self) -> Vec<(String, String)> {
+        self.primary.symlinked_files()
+    }
+
+    fn get_nearest_ancestor_directory_with_package_json(&self, file_name: &str) -> Option<String> {
+        self.primary
+            .get_nearest_ancestor_directory_with_package_json(file_name)
+    }
+
+    fn get_global_typings_cache_location(&self) -> Option<String> {
+        self.primary.get_global_typings_cache_location()
+    }
+
+    fn redirect_targets(&self, file_path: &str) -> Vec<String> {
+        self.primary.redirect_targets(file_path)
+    }
+
+    fn get_redirect_from_source_file(&self, file_name: &str) -> Option<String> {
+        self.primary.get_redirect_from_source_file(file_name)
+    }
+
+    fn is_source_of_project_reference_redirect(&self, file_name: &str) -> bool {
+        self.primary
+            .is_source_of_project_reference_redirect(file_name)
+    }
+
+    fn import_include_reasons(&self, imported_path: &str) -> Vec<EmitImportIncludeReason> {
+        self.primary.import_include_reasons(imported_path)
+    }
+
+    fn module_resolution_cache_available(&self) -> bool {
+        self.primary.module_resolution_cache_available()
+    }
+}
+
 /// tsc-port: lookupSymbolChain @6.0.3
 /// tsc-hash: 5c2dedc6ecdf455ed0945fd4d0da73e87a6ad323f14a02e80433c988609c9826
 /// tsc-span: _tsc.js:52939-52942
@@ -755,11 +839,16 @@ pub(crate) fn specifier_for_module_symbol(
         )
         .map_err(|abort| checker_abort_error(checker, context, abort));
     }
-    if let Some(host) = context.tracker.caller_module_resolver_host() {
+    let fallback = BasicModuleSpecifierHost::new(checker);
+    if let Some(primary) = context.tracker.caller_module_resolver_host() {
+        let host = ModuleSpecifierHostWithFallback {
+            primary,
+            fallback: &fallback,
+        };
         return get_specifier_for_module_symbol(
             checker,
             symbol,
-            Some(host),
+            Some(&host),
             enclosing_file,
             enclosing_declaration,
             bundled,
@@ -767,11 +856,10 @@ pub(crate) fn specifier_for_module_symbol(
         )
         .map_err(|abort| checker_abort_error(checker, context, abort));
     }
-    let host = BasicModuleSpecifierHost::new(checker);
     get_specifier_for_module_symbol(
         checker,
         symbol,
-        Some(&host),
+        Some(&fallback),
         enclosing_file,
         enclosing_declaration,
         bundled,

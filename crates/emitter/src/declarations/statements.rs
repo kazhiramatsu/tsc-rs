@@ -106,7 +106,12 @@ pub(crate) fn visit_declaration_statement(
                 context.arena(),
                 super::diagnostics::DiagnosticContext::DefaultExport(input),
             )?;
+            let saved_error_fallback = transformer
+                .tracker
+                .error_fallback_node
+                .replace(super::tracker::TrackerAnchor::Transform(input));
             let type_node = transformer.ensure_type(context, input, false);
+            transformer.tracker.error_fallback_node = saved_error_fallback;
             transformer
                 .tracker
                 .restore_diagnostic_context(saved_diagnostic);
