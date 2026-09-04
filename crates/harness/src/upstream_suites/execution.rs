@@ -25,8 +25,8 @@ use tsc_host::{
     to_file_name_lower_case, CompilerHost, FsCompilerHost, HostError, MemoryCompilerHost,
 };
 use tsc_program::{
-    load_emitting_program, load_program, parse_config_root_plan, CompilerOptionNumber,
-    CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
+    load_emitting_program, load_program, parse_config_root_plan, CompilerConfigHost,
+    CompilerOptionNumber, CompilerOptions, ConfigFilePattern, ConfigHostError, ConfigHostOperation,
     ConfigOptionValueState, ConfigParseHost, ConfigRootPlan, ConfigRootPlanRequest, LibraryCatalog,
     ModuleSuffix, PreparedProgram, ProgramLoadLimits, ProgramOptions, ProgramPath,
 };
@@ -46,8 +46,8 @@ use crate::HarnessResult;
 mod project;
 
 pub use project::{
-    load_node_modules_search_project, load_project_emit, load_project_no_emit,
-    ProjectConfigProgram, ProjectNoEmitProgram,
+    load_node_modules_search_project, load_project_emit, load_project_emit_with_option_floor,
+    load_project_no_emit, ProjectConfigProgram, ProjectNoEmitProgram,
 };
 
 /// Build the same bounded no-emit [`PreparedProgram`] that the compiler
@@ -90,6 +90,7 @@ pub enum EmitOptionFloor {
     Established,
     SourceMap,
     MapFamily,
+    DeclarationFamily,
 }
 
 pub fn load_compiler_emit(
@@ -189,16 +190,76 @@ pub fn load_qualified_compiler_emit_with_option_floor(
             "failed to build qualified compiler fixture host: {host_error}"
         ))
     })?;
+    let virtual_config_paths = files
+        .iter()
+        .filter_map(|(path, _)| {
+            path.to_str()
+                .filter(|path| is_config_file_name(path))
+                .map(str::to_owned)
+        })
+        .collect::<Vec<_>>();
+    if virtual_config_paths.len() > 1 {
+        return Err(error(format!(
+            "qualified compiler input has multiple virtual config files: {virtual_config_paths:?}"
+        )));
+    }
+    let config_root_plan = virtual_config_paths
+        .first()
+        .map(|config_path| {
+            let config_host = CompilerConfigHost::new(&fixture_host);
+            let text = config_host
+                .read_file(config_path)
+                .map_err(|parse_error| {
+                    error(format!(
+                        "failed to read qualified compiler virtual config {config_path:?}: {parse_error}"
+                    ))
+                })?
+                .ok_or_else(|| {
+                    error(format!(
+                        "qualified compiler virtual config is absent from the VFS: {config_path:?}"
+                    ))
+                })?;
+            parse_config_root_plan(
+                &config_host,
+                ConfigRootPlanRequest {
+                    file_name: config_path.clone(),
+                    text,
+                    base_path: current_directory.to_owned(),
+                },
+            )
+            .map_err(|parse_error| {
+                error(format!(
+                    "failed to parse qualified compiler virtual config {config_path:?}: {parse_error}"
+                ))
+            })
+        })
+        .transpose()?;
     let library_directory = workspace.join("vendor/typescript-6.0.3/lib");
     let host = CompilerSuiteHost::new(workspace, fixture_host, library_directory.clone(), true)?;
 
-    let mut compiler_options = CompilerOptions {
-        // H2's qualification host starts from this harness default before
-        // applying fixture settings. An explicit false must still win.
-        skip_default_lib_check: Some(true),
-        ..CompilerOptions::default()
-    };
-    let mut program_options = ProgramOptions::default();
+    let config_has_explicit_allow_js = config_root_plan.as_ref().is_some_and(|config| {
+        matches!(
+            config.options().typed_value_state("allowJs"),
+            ConfigOptionValueState::Value(value) if value.is_boolean()
+        )
+    });
+    let (mut compiler_options, mut program_options) = config_root_plan
+        .as_ref()
+        .map(|config| {
+            let mut compiler_options = config.compiler_options().clone();
+            apply_emit_option_floor_to_config(&mut compiler_options, floor);
+            (
+                compiler_options,
+                config
+                    .program_options()
+                    .clone()
+                    .with_program_owned_config_option_diagnostics(),
+            )
+        })
+        .unwrap_or_else(|| (CompilerOptions::default(), ProgramOptions::default()));
+    // H2's qualification host starts from this harness default before
+    // applying fixture settings. An explicit config or directive value wins.
+    compiler_options.skip_default_lib_check.get_or_insert(true);
     apply_compiler_settings(
         &mut compiler_options,
         &mut program_options,
@@ -206,9 +267,12 @@ pub fn load_qualified_compiler_emit_with_option_floor(
         settings
             .iter()
             .map(|(name, value)| (name.as_str(), value.as_str())),
-        false,
+        config_has_explicit_allow_js,
         floor,
     )?;
+    if floor == EmitOptionFloor::DeclarationFamily {
+        compiler_options.list_emitted_files = Some(true);
+    }
     compiler_options.new_line.get_or_insert(0);
     compiler_options.no_error_truncation = Some(true);
     let catalog = LibraryCatalog::typescript_6_0_3(library_directory);
@@ -225,6 +289,48 @@ pub fn load_qualified_compiler_emit_with_option_floor(
             "failed to load qualified compiler fixture: {load_error}"
         ))
     })
+}
+
+/// Apply the same admission floor to options originating in a virtual config
+/// that [`apply_compiler_setting`] applies to compiler-runner directives.
+/// Config parsing remains responsible for typed conversion and path rebasing;
+/// this projection only removes options that the selected floor still drops.
+fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitOptionFloor) {
+    if !matches!(
+        floor,
+        EmitOptionFloor::SourceMap
+            | EmitOptionFloor::MapFamily
+            | EmitOptionFloor::DeclarationFamily
+    ) {
+        options.source_map = None;
+    }
+    if !matches!(
+        floor,
+        EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+    ) {
+        options.inline_source_map = None;
+        options.inline_sources = None;
+        options.source_root = None;
+        options.map_root = None;
+        options.emit_bom = None;
+    }
+    if floor != EmitOptionFloor::DeclarationFamily {
+        options.emit_declaration_only = None;
+    }
+
+    options.no_emit_helpers = None;
+    options.declaration_map = None;
+    options.out_file = None;
+    options.out_dir = None;
+    options.declaration_dir = None;
+    options.incremental = None;
+    options.assume_changes_only_affect_direct_dependencies = None;
+    options.strip_internal = None;
+    options.out = None;
+    options.root_dir = None;
+    options.ts_build_info_file = None;
+    options.stable_type_ordering = None;
+    options.no_check = None;
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -571,6 +677,9 @@ fn project_compiler_options(
         config_has_explicit_allow_js,
         floor,
     )?;
+    if floor == EmitOptionFloor::DeclarationFamily {
+        compiler_options.list_emitted_files = Some(true);
+    }
     Ok((compiler_options, program_options))
 }
 
@@ -866,28 +975,42 @@ fn apply_compiler_setting(
         "sourcemap" => {
             if matches!(
                 floor,
-                EmitOptionFloor::SourceMap | EmitOptionFloor::MapFamily
+                EmitOptionFloor::SourceMap
+                    | EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::DeclarationFamily
             ) {
                 compiler_options.source_map = Some(boolean()?);
             }
         }
         "inlinesourcemap" => {
-            if floor == EmitOptionFloor::MapFamily {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+            ) {
                 compiler_options.inline_source_map = Some(boolean()?);
             }
         }
         "inlinesources" => {
-            if floor == EmitOptionFloor::MapFamily {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+            ) {
                 compiler_options.inline_sources = Some(boolean()?);
             }
         }
         "sourceroot" => {
-            if floor == EmitOptionFloor::MapFamily {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+            ) {
                 compiler_options.source_root = Some(value.to_owned());
             }
         }
         "maproot" => {
-            if floor == EmitOptionFloor::MapFamily {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+            ) {
                 compiler_options.map_root = Some(value.to_owned());
             }
         }
@@ -896,13 +1019,20 @@ fn apply_compiler_setting(
         // projects it so the observation's BOM facet is comparable; the
         // 5g/5h/6a floors keep the historical drop.
         "emitbom" => {
-            if floor == EmitOptionFloor::MapFamily {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+            ) {
                 compiler_options.emit_bom = Some(boolean()?);
+            }
+        }
+        "emitdeclarationonly" => {
+            if floor == EmitOptionFloor::DeclarationFamily {
+                compiler_options.emit_declaration_only = Some(boolean()?);
             }
         }
         "noemithelpers"
         | "declarationmap"
-        | "emitdeclarationonly"
         | "outdir"
         | "declarationdir"
         | "incremental"
