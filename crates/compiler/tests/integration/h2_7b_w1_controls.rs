@@ -309,3 +309,15 @@ frozen_observation_control!(
     declaration_emit_using_type_alias_2,
     "compiler/declarationEmitUsingTypeAlias2.ts#default"
 );
+
+/// h2-7b-w1 (integrator): the emit diagnostics of a multi-file declaration
+/// emit come back in TypeScript's DiagnosticCollection order (file-less
+/// first, files by name, each in diagnostic order, duplicates dropped) — the
+/// mixin row's TS4094 pairs interleave `another.ts` and `first.ts`.
+#[test]
+fn declaration_emit_mixin_private_protected_matches_the_frozen_emit_diagnostic_order() {
+    assert_frozen_observation(
+        "typescript-6.0.3/compiler/declarationEmitMixinPrivateProtected.ts#default",
+        false,
+    );
+}

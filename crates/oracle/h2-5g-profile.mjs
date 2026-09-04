@@ -318,6 +318,10 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   // h2-7b-m-2: the frozen controls of the flip train and the runner's unit tests.
   "crates/compiler/tests/integration/h2_7b_m2_controls.rs",
   "crates/xtask/tests/unit/h2_7b_acceptance/tests.rs",
+  // h2-7b-w1: the closure wave's frozen controls and the evidence lane's
+  // ignored diff-census instrument (test-only; no runtime input).
+  "crates/compiler/tests/integration/h2_7b_w1_controls.rs",
+  "crates/compiler/tests/integration/h2_7b_w1_diff_census.rs",
   "crates/compiler/tests/integration/h2_7a_ca_controls.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit

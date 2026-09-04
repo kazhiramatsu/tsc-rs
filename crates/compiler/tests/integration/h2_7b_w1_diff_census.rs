@@ -97,7 +97,7 @@ fn prepared_band_row(root: &Path, case: &Value) -> tsc_program::PreparedProgram 
     .unwrap_or_else(|error| panic!("{}: row loads: {error}", case["case_id"]))
 }
 
-fn writes_only_rows<'artifact>(artifact: &'artifact Value) -> Vec<&'artifact Value> {
+fn writes_only_rows(artifact: &Value) -> Vec<&Value> {
     artifact["cases"]
         .as_array()
         .expect("manifest cases")
@@ -124,7 +124,7 @@ fn callback_text(write: &Value) -> String {
         .expect("frozen declaration callback is UTF-8")
 }
 
-fn declaration_writes<'write>(writes: &'write [Value]) -> Vec<&'write Value> {
+fn declaration_writes(writes: &[Value]) -> Vec<&Value> {
     writes
         .iter()
         .filter(|write| {
@@ -136,9 +136,7 @@ fn declaration_writes<'write>(writes: &'write [Value]) -> Vec<&'write Value> {
         .collect()
 }
 
-fn actual_declaration_writes<'write>(
-    sink: &'write MemoryOutputSink,
-) -> Vec<&'write tsc_emitter::EmitArtifact> {
+fn actual_declaration_writes(sink: &MemoryOutputSink) -> Vec<&tsc_emitter::EmitArtifact> {
     sink.writes()
         .iter()
         .filter(|write| is_declaration_path(&write.path().to_string_lossy()))
@@ -310,7 +308,7 @@ fn first_unified_hunk(
 }
 
 fn safe_case_file(case_id: &str) -> String {
-    case_id.replace('/', "__").replace('#', "__") + ".diff"
+    case_id.replace(['/', '#'], "__") + ".diff"
 }
 
 fn output_write_path(write: &tsc_emitter::EmitArtifact) -> String {
