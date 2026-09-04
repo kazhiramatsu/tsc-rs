@@ -129,20 +129,25 @@ fn h2_7b_manifest_contract_covers_absent_scratch_and_empty_target() {
 
 #[test]
 fn h2_6c_refused_option_map_has_the_two_frozen_totals() {
+    // The manifest is the POST-flip regeneration (h2-7b-m-2 §6.4(c2)): the
+    // 33 registered transitions have replaced their vectors by the typed
+    // refusal, so its `refused_option` map is the post-flip total; the
+    // pre-flip (c1) total is that map minus the transitions.
     let workspace = workspace();
     let manifest = read_json(&workspace.join(super::H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH));
-    let mut pre_flip = BTreeMap::<String, u64>::new();
+    let mut post_flip = BTreeMap::<String, u64>::new();
     for case in manifest["cases"].as_array().expect("manifest cases") {
         if let Some(option) = case["refused_option"].as_str() {
-            *pre_flip.entry(option.to_owned()).or_default() += 1;
+            *post_flip.entry(option.to_owned()).or_default() += 1;
         }
     }
     assert_eq!(
-        pre_flip,
+        post_flip,
         BTreeMap::from([
+            ("declarationMap".to_owned(), 6),
             ("isolatedModules".to_owned(), 1),
             ("outDir".to_owned(), 130),
-            ("outFile".to_owned(), 144),
+            ("outFile".to_owned(), 171),
             ("rootDir".to_owned(), 4),
         ])
     );
@@ -185,16 +190,22 @@ fn h2_6c_refused_option_map_has_the_two_frozen_totals() {
         BTreeMap::from([("declarationMap".to_owned(), 6), ("outFile".to_owned(), 27),])
     );
     assert_eq!(transition_ids.len(), 33);
+    let mut pre_flip = post_flip;
     for (option, count) in transitions {
-        *pre_flip.entry(option).or_default() += count;
+        let total = pre_flip
+            .get_mut(&option)
+            .expect("transition option in the manifest map");
+        *total -= count;
+        if *total == 0 {
+            pre_flip.remove(&option);
+        }
     }
     assert_eq!(
         pre_flip,
         BTreeMap::from([
-            ("declarationMap".to_owned(), 6),
             ("isolatedModules".to_owned(), 1),
             ("outDir".to_owned(), 130),
-            ("outFile".to_owned(), 171),
+            ("outFile".to_owned(), 144),
             ("rootDir".to_owned(), 4),
         ])
     );

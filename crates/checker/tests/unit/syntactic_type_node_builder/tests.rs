@@ -143,6 +143,7 @@ impl EmitTrackerAccess for TestResolver {
 impl SyntacticBuilderResolver for TestResolver {
     fn evaluate_entity_name_expression(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _expression: TransformNode,
     ) -> Result<EvaluatorResult, EmitResolverError> {
         Ok(evaluator_result(None, false, false, false))
@@ -150,17 +151,23 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn is_expando_function_declaration(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
         Ok(false)
     }
 
-    fn has_late_bindable_name(&mut self, _node: TransformNode) -> Result<bool, EmitResolverError> {
+    fn has_late_bindable_name(
+        &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
+        _node: TransformNode,
+    ) -> Result<bool, EmitResolverError> {
         Ok(false)
     }
 
     fn should_remove_declaration(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _context: &mut NodeBuilderContext<'_>,
         _node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
@@ -169,6 +176,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn create_recovery_boundary(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
     ) -> Result<SyntacticRecoveryBoundary, EmitResolverError> {
         Ok(SyntacticRecoveryBoundary::new(context))
@@ -176,6 +184,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn is_definitely_reference_to_global_symbol_object(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
         Ok(false)
@@ -183,6 +192,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn get_all_accessor_declarations(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         node: TransformNode,
     ) -> Result<SyntacticAccessorDeclarations, EmitResolverError> {
         Ok(self.accessors.unwrap_or(SyntacticAccessorDeclarations {
@@ -197,6 +207,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn requires_adding_implicit_undefined(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _declaration: TransformNode,
         _symbol: Option<SyntacticSymbol>,
         _enclosing_declaration: Option<NodeId>,
@@ -206,6 +217,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn is_optional_parameter(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _parameter: TransformNode,
     ) -> Result<bool, EmitResolverError> {
         Ok(false)
@@ -213,6 +225,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn is_undefined_identifier_expression(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
         Ok(false)
@@ -220,6 +233,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn is_entity_name_visible(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _context: &mut NodeBuilderContext<'_>,
         _entity_name: TransformNode,
         _should_compute_aliases_to_make_visible: bool,
@@ -433,6 +447,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn track_computed_name(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _context: &mut NodeBuilderContext<'_>,
         _access_expression: TransformNode,
     ) -> Result<(), EmitResolverError> {
@@ -442,6 +457,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn get_module_specifier_override(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _context: &mut NodeBuilderContext<'_>,
         _parent: TransformNode,
         _literal: TransformNode,
@@ -451,6 +467,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn can_reuse_type_node(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _context: &mut NodeBuilderContext<'_>,
         type_node: TransformNode,
     ) -> Result<bool, EmitResolverError> {
@@ -461,6 +478,7 @@ impl SyntacticBuilderResolver for TestResolver {
 
     fn can_reuse_type_node_annotation(
         &mut self,
+        _arena: &mut tsc_emitter::TransformArena,
         _context: &mut NodeBuilderContext<'_>,
         _node: TransformNode,
         _existing: TransformNode,

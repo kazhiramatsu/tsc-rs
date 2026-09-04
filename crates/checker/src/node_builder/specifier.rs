@@ -2213,7 +2213,15 @@ pub(crate) fn try_get_module_name_as_node_module(
                 break;
             }
             module_file_name.get_or_insert(result.module_file_to_try);
-            let Some(next_slash) = module_path.path[package_root_index + 1..].find('/') else {
+            // `path.indexOf(directorySeparator, packageRootIndex + 1)` returns -1
+            // when the start index is at or beyond the end of the string — a
+            // file directly under node_modules (`/node_modules/umd.d.ts`) ends
+            // at its package-root index (h2-7b-m-2 fence amendment #4b).
+            let Some(next_slash) = module_path
+                .path
+                .get(package_root_index + 1..)
+                .and_then(|rest| rest.find('/'))
+            else {
                 module_specifier = process_ending(
                     module_file_name.as_deref().unwrap_or(&module_path.path),
                     &allowed_endings,

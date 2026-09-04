@@ -3395,15 +3395,12 @@ fn vectorize_successful_observation(
         Value::from(actual_exit_code),
     );
     if profile == H2MismatchProfile::H2_7b {
-        compare_vector_value(
-            &mut vector,
-            profile,
-            "refusal",
-            0,
-            "variant",
-            &expected["emit_refused"],
-            Value::Bool(false),
-        );
+        // The oracle's `emit_refused` is its `emitSkipped` alias
+        // (h2-7b-qualification.mjs: `const emitRefused = emitResult.emitSkipped`),
+        // never a typed option refusal — compare it with the Rust
+        // `emitSkipped` (the 28 transform-blocked + 5 collision rows are
+        // exact here, packet §9.3); typed refusals fail the run before the
+        // join (§4.2) and never reach a successful-outcome vector.
         compare_vector_value(
             &mut vector,
             profile,
@@ -3411,7 +3408,7 @@ fn vectorize_successful_observation(
             0,
             "emit_refused",
             &expected["emit_result"]["emit_refused"],
-            Value::Bool(false),
+            Value::Bool(outcome.emit_skipped()),
         );
     }
     let mut divergence = H2VectorDivergence {
@@ -5729,6 +5726,9 @@ fn execute_h2_7b_case(
             )))
         }
     }
+    if std::env::var_os("TSRS_H2_7B_TRACE").is_some() {
+        eprintln!("H2.7b trace: executing {case_id}");
+    }
     let expected = compact_typescript_observation(case)?;
     let expected_members = expected_declaration_members(case)?;
     let first_program = prepare_h2_7b_case(workspace, case, inputs)?;
@@ -6064,10 +6064,25 @@ fn run_h2_7b_mode(workspace: &Path, pre_flip: bool) -> Result<(), Box<dyn Error>
         execute_h2_7b_case(workspace, case, &inputs, pre_flip)
             .map_err(|error| format!("H2.7b case index {index}: {error}"))
     })?;
-    let outcomes = results
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(failure)?;
+    // Every row error is printed before the run fails so one sweep names the
+    // whole error class (the ordered join above reports only the first).
+    let mut row_errors = Vec::new();
+    let mut outcomes = Vec::with_capacity(results.len());
+    for result in results {
+        match result {
+            Ok(outcome) => outcomes.push(outcome),
+            Err(error) => row_errors.push(error),
+        }
+    }
+    if !row_errors.is_empty() {
+        for error in &row_errors {
+            println!("H2.7b row error: {error}");
+        }
+        return Err(failure(format!(
+            "H2.7b: {} row(s) returned errors (listed above)",
+            row_errors.len()
+        )));
+    }
     let observed_h2_7b_activity = outcomes
         .iter()
         .map(|outcome| outcome.h2_7b_activity)

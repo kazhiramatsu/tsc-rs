@@ -1,0 +1,2833 @@
+{
+  "schema": 1,
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/accessorInAmbientContextES5.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=2b02264f70bee53f2cfd249288bcc45a099ba34eff4a444260bf796b2ca1c5c9",
+        "H2_7b:write:0:materialized_bytes=2b02264f70bee53f2cfd249288bcc45a099ba34eff4a444260bf796b2ca1c5c9"
+      ],
+      "facet_fingerprint_sha256": "efedef4b562b57a596cd39b434b4995426521270adecd51c8b439c01ff5e1af8"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/aliasInaccessibleModule2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=62fe1248273cbee36cf3ac46e4d554bbc19baf3e917c4787d6d9c6c349f94382",
+        "H2_7b:write:1:materialized_bytes=62fe1248273cbee36cf3ac46e4d554bbc19baf3e917c4787d6d9c6c349f94382"
+      ],
+      "facet_fingerprint_sha256": "523038de508137701ca36e9e8ca48d9e5fbf2d49120bba83b815d5fe65e98bda"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/arrayFlatNoCrashInferenceDeclarations.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=97e5f0df9ac45e9954b41bc8d2bc904b0f3f107526beb26a19807cb3f1196698",
+        "H2_7b:write:1:materialized_bytes=97e5f0df9ac45e9954b41bc8d2bc904b0f3f107526beb26a19807cb3f1196698"
+      ],
+      "facet_fingerprint_sha256": "e854d4a09e8ec528300257e10febddd84f2a1674790f464f17900c3e1000417c"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/bigintWithLib.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:reported_diagnostic:1:message=0f791f3ab80cf0ead37a950e345dcf2387c6c18a2211dec6acfc1853e3a16607",
+        "H2_7b:reported_diagnostic:2:message=0f791f3ab80cf0ead37a950e345dcf2387c6c18a2211dec6acfc1853e3a16607",
+        "H2_7b:reported_diagnostic:3:message=0f791f3ab80cf0ead37a950e345dcf2387c6c18a2211dec6acfc1853e3a16607",
+        "H2_7b:reported_diagnostic:5:message=0f791f3ab80cf0ead37a950e345dcf2387c6c18a2211dec6acfc1853e3a16607",
+        "H2_7b:reported_diagnostic:6:message=0f791f3ab80cf0ead37a950e345dcf2387c6c18a2211dec6acfc1853e3a16607",
+        "H2_7b:reported_diagnostic:7:message=0f791f3ab80cf0ead37a950e345dcf2387c6c18a2211dec6acfc1853e3a16607"
+      ],
+      "facet_fingerprint_sha256": "08ec4e63d60adc250d77f8b350be1210967fce38db0515ecadf6bdbeb392b8e4"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/checkingObjectWithThisInNamePositionNoCrash.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:reported_diagnostic:1:message=722da9c03ef4ae6e73b9c9cd698511f24346fae70951a0ccd434435b41d84afc"
+      ],
+      "facet_fingerprint_sha256": "900dd7da289f6f934f79ffaaba1f92ef1d90920dd6fcb389eb1de0d34b24db61"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/classReferencedInContextualParameterWithinItsOwnBaseExpression.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=250d1c4f34095dd9bc11e49371c7d045144d849b82196cd22575524e6167497e",
+        "H2_7b:write:0:materialized_bytes=250d1c4f34095dd9bc11e49371c7d045144d849b82196cd22575524e6167497e"
+      ],
+      "facet_fingerprint_sha256": "29401ce0f7bc23876b2690287a1703c07b7a147cb17298a86014460f87dff630"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsClass.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=6c74c5c35e1f57ea61f750d44afa5b793ac40f7eca1b8b2f8c7db8b4ee977222",
+        "H2_7b:write:0:materialized_bytes=6c74c5c35e1f57ea61f750d44afa5b793ac40f7eca1b8b2f8c7db8b4ee977222"
+      ],
+      "facet_fingerprint_sha256": "2d0cfb6103e3c49d64abec720e459dc218b9401def5eb792bf094ba0dbc815da"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsClassMembers.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=6cc6b570f92b9cf777f26921abf011c530b684f846fd7f3b8731af45b601decb",
+        "H2_7b:write:0:materialized_bytes=6cc6b570f92b9cf777f26921abf011c530b684f846fd7f3b8731af45b601decb"
+      ],
+      "facet_fingerprint_sha256": "3ac2698872114ee279efe66beb56013e5ebaafd11876c9e1642cdfc039426ab5"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsCommentParsing.ts#target%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=ab4cb6835163b0362714296ba85793db2569b5562343d4650e8bc73bf1c4af5e",
+        "H2_7b:write:1:materialized_bytes=ab4cb6835163b0362714296ba85793db2569b5562343d4650e8bc73bf1c4af5e"
+      ],
+      "facet_fingerprint_sha256": "1c396a9cfc618570947a3cb7a5c63837475e9a43c7440b68f77b6df6dd7a9b8e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsCommentParsing.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=ab4cb6835163b0362714296ba85793db2569b5562343d4650e8bc73bf1c4af5e",
+        "H2_7b:write:1:materialized_bytes=ab4cb6835163b0362714296ba85793db2569b5562343d4650e8bc73bf1c4af5e"
+      ],
+      "facet_fingerprint_sha256": "1c396a9cfc618570947a3cb7a5c63837475e9a43c7440b68f77b6df6dd7a9b8e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsFunction.ts#target%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=68a6cf764239a4331593800ab02cac9473a61f1e07c7b3125bcb22fee111b10c",
+        "H2_7b:write:1:materialized_bytes=68a6cf764239a4331593800ab02cac9473a61f1e07c7b3125bcb22fee111b10c"
+      ],
+      "facet_fingerprint_sha256": "be98af600255ea54a3cb1201bb57b1b1ce4673b3e60a6127fa5fdca8ce894f64"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsFunction.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=85b53c297a0eadfcb171fa49c5a3d7a27f0b0a0290973f8120ac448f005d1bfa",
+        "H2_7b:write:0:materialized_bytes=85b53c297a0eadfcb171fa49c5a3d7a27f0b0a0290973f8120ac448f005d1bfa",
+        "H2_7b:write:1:callback_bytes=68a6cf764239a4331593800ab02cac9473a61f1e07c7b3125bcb22fee111b10c",
+        "H2_7b:write:1:materialized_bytes=68a6cf764239a4331593800ab02cac9473a61f1e07c7b3125bcb22fee111b10c"
+      ],
+      "facet_fingerprint_sha256": "5ef2c7aeaf9596475d0cf307332f1e6bb1b0b2ee49606874e08d42bd83e9da9e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsInterface.ts#target%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=6e53581157b8469cf53999390d5b4cf96c31b123bbe230412e34f67de91dda4c",
+        "H2_7b:write:1:materialized_bytes=6e53581157b8469cf53999390d5b4cf96c31b123bbe230412e34f67de91dda4c"
+      ],
+      "facet_fingerprint_sha256": "87614f8a235a2450a6fa4e4ca1a394e54e932cabbce9e202c379a7a2d8623339"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsInterface.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=6e53581157b8469cf53999390d5b4cf96c31b123bbe230412e34f67de91dda4c",
+        "H2_7b:write:1:materialized_bytes=6e53581157b8469cf53999390d5b4cf96c31b123bbe230412e34f67de91dda4c"
+      ],
+      "facet_fingerprint_sha256": "87614f8a235a2450a6fa4e4ca1a394e54e932cabbce9e202c379a7a2d8623339"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsModules.ts#target%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=036aa0a3b5baa5cf35f7f0250116cdb167996e5ee6d025d606d6c672de9e0cb2",
+        "H2_7b:write:0:materialized_bytes=036aa0a3b5baa5cf35f7f0250116cdb167996e5ee6d025d606d6c672de9e0cb2"
+      ],
+      "facet_fingerprint_sha256": "2285ad777877df10cfb1b8a5eb749416935d82c4d00556ca6b2d7831327be755"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/commentsModules.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=f6821b27bf1d1399f27bf38ba1d6905215f5da9d3cea49656f869fc7e96f8ee5",
+        "H2_7b:write:0:materialized_bytes=f6821b27bf1d1399f27bf38ba1d6905215f5da9d3cea49656f869fc7e96f8ee5"
+      ],
+      "facet_fingerprint_sha256": "74db4ddaddb300259923f394f3930f2c78313569063987c71d2215e1c18f79de"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/contextuallyTypedSymbolNamedProperties.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=86f18de03970dc50c08b006cba515e0473ab790d21a593f7d704397d7d34824d",
+        "H2_7b:reported_diagnostic:1:presence=2b7cf9bd2a16aab2b909ef4ca326acafa32da40d183e084dd32c9fcb9bfa52f6",
+        "H2_7b:reported_diagnostic:2:presence=06ca5be094f7d7fae9ecf26781eed3375522986d092b5567ba5ee17adbfe5676",
+        "H2_7b:reported_diagnostic:3:presence=ebb9a1266ffdb6e2844f17cc197a4330be7f668542e84fd4491a9e28659a7687"
+      ],
+      "facet_fingerprint_sha256": "b817042fc0f81d8cb84267eab854ffe55bbcfa1ad4a534be0258f40c0b0f87bf"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitAmdModuleNameDirective.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=7a965af9a96f55ad28e737c8dd71f712c8a3c24cf8e7853d3d406200bd356c33",
+        "H2_7b:write:2:materialized_bytes=7a965af9a96f55ad28e737c8dd71f712c8a3c24cf8e7853d3d406200bd356c33"
+      ],
+      "facet_fingerprint_sha256": "e2b958dd4c8334a1a615bee5797bdefa56b07665d3bafa2fc2fcfbce15ac4af5"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitBindingPatternWithReservedWord.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=da8b266065223e2100c44ae94a1f4d10823857182c4318db72109558c58dbc22",
+        "H2_7b:write:1:materialized_bytes=da8b266065223e2100c44ae94a1f4d10823857182c4318db72109558c58dbc22"
+      ],
+      "facet_fingerprint_sha256": "7448959bf211c18999ebc07d34a7d4106423b3ea52180215ef40b5b861d52c41"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitCastReusesTypeNode2.ts#strictnullchecks%3Dfalse",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=7e3f26b4a4c5b67976c3708f8b47437970330766e02f93c40a769d53766d6d7d",
+        "H2_7b:write:0:materialized_bytes=7e3f26b4a4c5b67976c3708f8b47437970330766e02f93c40a769d53766d6d7d"
+      ],
+      "facet_fingerprint_sha256": "0788beaa0efbff0cabdbb7d37e4a12b4fae13034b12ab0adf234726d6cb6ae9e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitCastReusesTypeNode2.ts#strictnullchecks%3Dtrue",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=552a25b143052791b050fffd909fdce976876ea900b28f9d09d6ca418c48060a",
+        "H2_7b:write:0:materialized_bytes=552a25b143052791b050fffd909fdce976876ea900b28f9d09d6ca418c48060a"
+      ],
+      "facet_fingerprint_sha256": "9a674dc906a0134364c7dbf97b2ff6b8b1db7cc5f6dd77fc059c772f65096834"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitCastReusesTypeNode4.ts#strictnullchecks%3Dfalse",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=019546dcd8def6eb02539a8f6df892f399067a7110d936c5275e9d0666c75a71",
+        "H2_7b:write:0:materialized_bytes=019546dcd8def6eb02539a8f6df892f399067a7110d936c5275e9d0666c75a71"
+      ],
+      "facet_fingerprint_sha256": "1612ce1320d014a033c60519755ecb1d6d1dca6aa161bd9bac93b305978d82ff"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitCastReusesTypeNode4.ts#strictnullchecks%3Dtrue",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=10d506ecd148c30eaafd80934d335bcb2338869d96dc854f72884fa0eea78298",
+        "H2_7b:write:0:materialized_bytes=10d506ecd148c30eaafd80934d335bcb2338869d96dc854f72884fa0eea78298"
+      ],
+      "facet_fingerprint_sha256": "67e370a63adeac00c5bd1f3943fa9b3f7e22ad2b6a5b1225eac41028287bcd2e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitClassInherritsAny.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=b3e396c37a1c0971cd3303cf0ba2783de683c025c8bafd16ea2e6f513a55eaa6",
+        "H2_7b:write:1:materialized_bytes=b3e396c37a1c0971cd3303cf0ba2783de683c025c8bafd16ea2e6f513a55eaa6"
+      ],
+      "facet_fingerprint_sha256": "60490f8ac6609229e797fa2de6c1e9fb4a9314124d99a493b19ea24fc923d6bb"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitClassMemberNameConflict.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=7da03f5b950e092e63ef6504e416df1e46aab14ea2f7002f851aad228c7338d2",
+        "H2_7b:write:0:materialized_bytes=7da03f5b950e092e63ef6504e416df1e46aab14ea2f7002f851aad228c7338d2"
+      ],
+      "facet_fingerprint_sha256": "b48a274c2e7d865914b6fc86ef28f30cf5c68ce0b281c8745e3d2abe9301f9c1"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitClassMemberWithComputedPropertyName.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=11cee729e5b05e58f526a5e98a096b90289c21155f47590d5774d06fa1634cc9",
+        "H2_7b:write:0:materialized_bytes=11cee729e5b05e58f526a5e98a096b90289c21155f47590d5774d06fa1634cc9"
+      ],
+      "facet_fingerprint_sha256": "fe9c161d66e57fb4645dee4fa1b072cee97e5686b198b31e9f2ed2c264ef6a6d"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitClassSetAccessorParamNameInJs2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=b5823873afac8d8eff64dadc5e02fd824500081b2289fa978b8aad509e6ae86b",
+        "H2_7b:write:0:materialized_bytes=b5823873afac8d8eff64dadc5e02fd824500081b2289fa978b8aad509e6ae86b"
+      ],
+      "facet_fingerprint_sha256": "c3b24f895b8c3d298ba1078ad19c4f723e3c4ddc18550e2e0ed7332aebb22cea"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitClassSetAccessorParamNameInJs3.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=a8d86c42f8c0f53565268cafa1d9fda5af64fdc9126c689daa0b387572f24824",
+        "H2_7b:write:0:materialized_bytes=a8d86c42f8c0f53565268cafa1d9fda5af64fdc9126c689daa0b387572f24824"
+      ],
+      "facet_fingerprint_sha256": "88bbddfa1d4b70c3ef7fc800439d4a0a3502b21cfa769abe1ae9079114ccbb87"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitComputedPropertyName1.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=f0d1ec4b9aee7e764b1685139dfbe4d08843f8f4c708c87019493dcfe4e3dffe",
+        "H2_7b:write:0:materialized_bytes=f0d1ec4b9aee7e764b1685139dfbe4d08843f8f4c708c87019493dcfe4e3dffe"
+      ],
+      "facet_fingerprint_sha256": "fd8ab361a45c08d19af05e8c06d0c76097f1e4427b7570558a690396649602b2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitDefaultExportWithStaticAssignment.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 4,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:3:callback_bytes=ac9e50be9d674e64ff60c74b14c0d8ae1d1a75b4046602b757af3c14acc2e797",
+        "H2_7b:write:3:materialized_bytes=ac9e50be9d674e64ff60c74b14c0d8ae1d1a75b4046602b757af3c14acc2e797",
+        "H2_7b:write:5:callback_bytes=c3d70dafb90ef6190dc7a70515fe372255f9e311dd677ded4f16dd5da9f17ad5",
+        "H2_7b:write:5:materialized_bytes=c3d70dafb90ef6190dc7a70515fe372255f9e311dd677ded4f16dd5da9f17ad5",
+        "H2_7b:write:7:callback_bytes=495ce5b0b2503e4d744b2020fddb1d6988e30f2f177b24b4e47f54c8b6389f55",
+        "H2_7b:write:7:materialized_bytes=495ce5b0b2503e4d744b2020fddb1d6988e30f2f177b24b4e47f54c8b6389f55",
+        "H2_7b:write:9:callback_bytes=6533bd1633435898bfea848905861fd1146d13b1d970902151b8f37e687db309",
+        "H2_7b:write:9:materialized_bytes=6533bd1633435898bfea848905861fd1146d13b1d970902151b8f37e687db309"
+      ],
+      "facet_fingerprint_sha256": "b1482c07ebf0c1beb1ca5c159f2a9eddddec11e1394b2cd1e50e1d2d2997bd70"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitDoesNotUseReexportedNamespaceAsLocal.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:3:callback_bytes=815aa59fe285d926f8bdd802dbf48267f65312dd058609b37935bf8d6012deff",
+        "H2_7b:write:3:materialized_bytes=815aa59fe285d926f8bdd802dbf48267f65312dd058609b37935bf8d6012deff"
+      ],
+      "facet_fingerprint_sha256": "6a5a6d1cc87600a4f3d884f7546f91c2c63e52a3d0cb79b0160f89ef417a45ec"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitEnumReferenceViaImportEquals.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:3:callback_bytes=cfa681c42677156dba3966ad44d8d7ee70d4b9d09b1b42eb9215ede0f502474d",
+        "H2_7b:write:3:materialized_bytes=cfa681c42677156dba3966ad44d8d7ee70d4b9d09b1b42eb9215ede0f502474d"
+      ],
+      "facet_fingerprint_sha256": "c8dce61d948466977474b8c20b853481187d6e0203e8049d93c2aeb2a7d61185"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitExportAssignedNamespaceNoTripleSlashTypesReference.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:3:callback_bytes=5446c0e55fbeff98fb8b688f2918d177dd16dacb00edabd6df1b55a6feb886a8",
+        "H2_7b:write:3:materialized_bytes=5446c0e55fbeff98fb8b688f2918d177dd16dacb00edabd6df1b55a6feb886a8"
+      ],
+      "facet_fingerprint_sha256": "c6489026a6077c3cc24debb3ba0bf52e4f4ffdd892eb4c4aaf7870787122a34b"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitExpressionInExtends4.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=801b10398f590a5053ed951f16647a38a6bc1ea3ef82c5a1cc1b60b37053ef88",
+        "H2_7b:write:1:materialized_bytes=801b10398f590a5053ed951f16647a38a6bc1ea3ef82c5a1cc1b60b37053ef88"
+      ],
+      "facet_fingerprint_sha256": "c949e07c7be28ddfc4b65f6eb507e16238ed88e5df836b4044823440e8eb62a7"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitExpressionInExtends6.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:3:callback_bytes=84d40736fb57203ff278fbd5907fb9346ccd5b931ffede650e687b27a8e7f369",
+        "H2_7b:write:3:materialized_bytes=84d40736fb57203ff278fbd5907fb9346ccd5b931ffede650e687b27a8e7f369"
+      ],
+      "facet_fingerprint_sha256": "b940f9af711bb10c41cff7c80dbcfcfb7f67117b15f249fe8c2e647c5e4a3e5d"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitExpressionInExtends7.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=0406e92ceb9bfc8c7e0ec4f23ef8c0faa79a30d8d8ee6e64c8f43a1d44bdb9ea",
+        "H2_7b:write:1:materialized_bytes=0406e92ceb9bfc8c7e0ec4f23ef8c0faa79a30d8d8ee6e64c8f43a1d44bdb9ea"
+      ],
+      "facet_fingerprint_sha256": "bed43fda91d3fd6f361f415f92dc2f1511400ef4a677cf0e066a2360b92a3200"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitFirstTypeArgumentGenericFunctionType.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=854cd64b80604ca2d18808b4afb2007e13b10763bc8fe800e27d748eaaf5a78c",
+        "H2_7b:write:1:materialized_bytes=854cd64b80604ca2d18808b4afb2007e13b10763bc8fe800e27d748eaaf5a78c"
+      ],
+      "facet_fingerprint_sha256": "189e36ef146591f8c7cf3bcd065dd42387246603fd1fd6897821e4d58ae9b211"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitForDefaultExportClassExtendingExpression01.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=ebea06fdb4638fb311ed534dc44e8f323f6cae67a06ff9c3238a7cc0ff7b3507",
+        "H2_7b:write:1:materialized_bytes=ebea06fdb4638fb311ed534dc44e8f323f6cae67a06ff9c3238a7cc0ff7b3507"
+      ],
+      "facet_fingerprint_sha256": "b43d89ed07c366c5e90c3b8ff94ac77e3b26b4c93896ccbf110a1f26a42cdd7e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitForGlobalishSpecifierSymlink.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=c70d7cc301794eba26fa0f975a0fc8c3771b278c815eb8e36a5d17f55d853523",
+        "H2_7b:write:1:callback_bytes=b043d60fcefc2e334b73eeb4ec7afaad98d2e8d973b471c70a9053a924beda78",
+        "H2_7b:write:1:materialized_bytes=b043d60fcefc2e334b73eeb4ec7afaad98d2e8d973b471c70a9053a924beda78"
+      ],
+      "facet_fingerprint_sha256": "3cb225faea417dc3eb0a65f74aeba703893a63bdbd2798a69883f51ecbdb7c4a"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitForGlobalishSpecifierSymlink2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=c70d7cc301794eba26fa0f975a0fc8c3771b278c815eb8e36a5d17f55d853523",
+        "H2_7b:reported_diagnostic:1:presence=a459f2453ea07ef0dc6bfb096345939c2a2bec92aea325e14799683754791283",
+        "H2_7b:reported_diagnostic:2:presence=a4764ba539daafa21289b95210cdb206f0e41692a0069ad73524aa2ed063c6a0",
+        "H2_7b:write:1:callback_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1",
+        "H2_7b:write:1:materialized_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1"
+      ],
+      "facet_fingerprint_sha256": "cbdc65e311474be2bed4655525319356795d4eca0ce78cf1e94b6d5c705103e4"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitGlobalThisPreserved.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=f700a6b506245ec711965626b0430874c3b8da6c1f19f0d9aa7311b966042049",
+        "H2_7b:write:0:materialized_bytes=f700a6b506245ec711965626b0430874c3b8da6c1f19f0d9aa7311b966042049"
+      ],
+      "facet_fingerprint_sha256": "e6cfc71efcd89baba1e6fbb75a7e800ddf980d15d87e29d9a5181f4ab9eb40bd"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitInvalidReference.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=a97e88264bdfb446184fd526f8b213f999c0b74da76769a9c8d3df3665786521"
+      ],
+      "facet_fingerprint_sha256": "ecbfdc4947b4dc371c056fbc3cf7cf34750fb846bbd7c60819abbc3b6e51d426"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitLateBoundAssignments2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=57532e34860c3c5968421420c2ccfc626f26e28e04afaa1fbcd39e0f12464eb2",
+        "H2_7b:write:1:materialized_bytes=57532e34860c3c5968421420c2ccfc626f26e28e04afaa1fbcd39e0f12464eb2"
+      ],
+      "facet_fingerprint_sha256": "36be6ffcf8a769942339afa5615c4aa7adc1e75d8483327c154b6da854e0526f"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitMappedTypeDistributivityPreservesConstraints.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=2ec2e8889a2f70467c5309edf547bab6cfa538109702aa8c5e362588241fb59c",
+        "H2_7b:write:1:materialized_bytes=2ec2e8889a2f70467c5309edf547bab6cfa538109702aa8c5e362588241fb59c"
+      ],
+      "facet_fingerprint_sha256": "25a6edfd3940e6f35c49096588a47d12ad81f32c328cf5f09765f9d7f27ed72c"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitMappedTypePreservesTypeParameterConstraint.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=109d4368f488c907f5ed3a26d41c96e7a9e63af940662227bfb3f69563331df9",
+        "H2_7b:write:1:materialized_bytes=109d4368f488c907f5ed3a26d41c96e7a9e63af940662227bfb3f69563331df9"
+      ],
+      "facet_fingerprint_sha256": "856d8a963da340d57777b5994ad442601e50f40bc74a19eafcdae0ecb62553fa"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitMappedTypeTemplateTypeofSymbol.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:message=22370b21f3ef303c19ba2423542d9474ea09f0bb8a968af74837f6cd46301213",
+        "H2_7b:emit_diagnostic:1:message=22370b21f3ef303c19ba2423542d9474ea09f0bb8a968af74837f6cd46301213",
+        "H2_7b:reported_diagnostic:0:message=22370b21f3ef303c19ba2423542d9474ea09f0bb8a968af74837f6cd46301213",
+        "H2_7b:reported_diagnostic:1:message=22370b21f3ef303c19ba2423542d9474ea09f0bb8a968af74837f6cd46301213"
+      ],
+      "facet_fingerprint_sha256": "4bb97e6b77a4f83d21e27c843e87de675a10e3212f5fa21bcef35799b2765a06"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitMixinPrivateProtected.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:file=e3a54d1cdb0fee5b4d2cf5e47768710f77085e9635ea70d5b8efd0ddb94f37e2",
+        "H2_7b:emit_diagnostic:0:length=7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451",
+        "H2_7b:emit_diagnostic:0:message=ebc52ca3bbb30e05ea9cec1b79293acb082fc0d3b1845ca14e89f96bd7874dae",
+        "H2_7b:emit_diagnostic:0:start=71a1c003a2b855d85582c8f6c7648c49d3fe836408a7e1b5d9b222448acb3c1b",
+        "H2_7b:emit_diagnostic:1:file=e3a54d1cdb0fee5b4d2cf5e47768710f77085e9635ea70d5b8efd0ddb94f37e2",
+        "H2_7b:emit_diagnostic:1:length=7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451",
+        "H2_7b:emit_diagnostic:1:message=bd93b0462393b6d6907adfe2def1a2d3bcab154db9fc8279c92a5869cf07d978",
+        "H2_7b:emit_diagnostic:1:start=71a1c003a2b855d85582c8f6c7648c49d3fe836408a7e1b5d9b222448acb3c1b",
+        "H2_7b:emit_diagnostic:2:file=0bade4efef37694bb37a5c500fe2d6fd5ff02167802eff7f07b5c9993ed96dcd",
+        "H2_7b:emit_diagnostic:2:length=e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683",
+        "H2_7b:emit_diagnostic:2:message=ebc52ca3bbb30e05ea9cec1b79293acb082fc0d3b1845ca14e89f96bd7874dae",
+        "H2_7b:emit_diagnostic:2:start=eb3be230bbd2844b1f5d8f2e4fab9ffba8ab22cfeeb69c4c1361993ba4f377b9",
+        "H2_7b:emit_diagnostic:3:file=0bade4efef37694bb37a5c500fe2d6fd5ff02167802eff7f07b5c9993ed96dcd",
+        "H2_7b:emit_diagnostic:3:length=e7f6c011776e8db7cd330b54174fd76f7d0216b612387a5ffcfb81e6f0919683",
+        "H2_7b:emit_diagnostic:3:message=bd93b0462393b6d6907adfe2def1a2d3bcab154db9fc8279c92a5869cf07d978",
+        "H2_7b:emit_diagnostic:3:start=eb3be230bbd2844b1f5d8f2e4fab9ffba8ab22cfeeb69c4c1361993ba4f377b9",
+        "H2_7b:emit_diagnostic:4:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_diagnostic:5:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:2:length=7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451",
+        "H2_7b:reported_diagnostic:2:start=71a1c003a2b855d85582c8f6c7648c49d3fe836408a7e1b5d9b222448acb3c1b",
+        "H2_7b:reported_diagnostic:3:length=7902699be42c8a8e46fbbb4501726517e86b22c56a189f7625a6da49081b2451",
+        "H2_7b:reported_diagnostic:3:start=71a1c003a2b855d85582c8f6c7648c49d3fe836408a7e1b5d9b222448acb3c1b",
+        "H2_7b:reported_diagnostic:4:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:5:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "cc38e525823510f159f53f9e583a4beb82d78dcb6c980d82cd159dd500822932"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitNestedBindingPattern.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=68ded9424922809ae41674e14690cbbc6a4c131311fb83962c382c37382c2dce",
+        "H2_7b:write:0:materialized_bytes=68ded9424922809ae41674e14690cbbc6a4c131311fb83962c382c37382c2dce"
+      ],
+      "facet_fingerprint_sha256": "08ab6e2547830732c6006129bec5c27110a5992eeb960417ed0b7cb0811dd018"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitObjectAssignedDefaultExport.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=ac689c0a1c49bc078bba284ce98c6d9fe13e0c9fdc38543495127feb35005793",
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:1:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "17535d54e8ce22468aa0e037214df0850646559c9932731cf0f5a0511982a2c3"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitResolveTypesIfNotReusable.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=bd116069a8879f83756bd8b6bebe6172a4d7be7c2e9a720d92775d5c71b124c8",
+        "H2_7b:write:1:materialized_bytes=bd116069a8879f83756bd8b6bebe6172a4d7be7c2e9a720d92775d5c71b124c8"
+      ],
+      "facet_fingerprint_sha256": "cd282c5ada71ce788c3362114300ce3aa953d775653e21ee5d93830b104ea20f"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitRetainsJsdocyComments.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=22e5e927deb1f765371b0edc24f75cbc9abc33c0b83a71891183062d245dde07",
+        "H2_7b:write:0:materialized_bytes=22e5e927deb1f765371b0edc24f75cbc9abc33c0b83a71891183062d245dde07",
+        "H2_7b:write:1:callback_bytes=b2b84483e396bb7d236b4f8012e2b65374fbb614677555950075a7046ee691f1",
+        "H2_7b:write:1:materialized_bytes=b2b84483e396bb7d236b4f8012e2b65374fbb614677555950075a7046ee691f1"
+      ],
+      "facet_fingerprint_sha256": "08ff7bd0aae00cb6627349970b2fcf37ce87bb2f2744836419f9b1facae7402e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitTypeParameterNameInOuterScope.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=cb306e61552f1d1ed40bb2d0f2efc2d53fa199802ec6b28614b93538d51be221",
+        "H2_7b:write:1:materialized_bytes=cb306e61552f1d1ed40bb2d0f2efc2d53fa199802ec6b28614b93538d51be221"
+      ],
+      "facet_fingerprint_sha256": "454e56354fb6b53c4049213d5712cd2bd8eeaa7fef1df082a3e41a3a0f8c1ed1"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitTypeofThisInClass.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=afbd92ee16661c90fd2de0da47c7cd6dd9ddadabaec1d19781e4858c4d41d35d",
+        "H2_7b:write:1:materialized_bytes=afbd92ee16661c90fd2de0da47c7cd6dd9ddadabaec1d19781e4858c4d41d35d"
+      ],
+      "facet_fingerprint_sha256": "eb4cc37bc32d7300125ef52e604585866f6eaf3c24cc77af7733220939314cb1"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitUsingAlternativeContainingModules1.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=6170c965948d824b67fc71e3cdb08e49c15af62a870b688f61ad3823cb9a872d",
+        "H2_7b:write:1:materialized_bytes=6170c965948d824b67fc71e3cdb08e49c15af62a870b688f61ad3823cb9a872d"
+      ],
+      "facet_fingerprint_sha256": "e3de7d98fe6044afb772ac2a454394511c0b75c0dd62470b2be38cb7328bd20a"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitUsingAlternativeContainingModules2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=712291a08af9e69212a89df5870eb7652a6e304cebb7ebe3947da9e2548be04d",
+        "H2_7b:write:1:materialized_bytes=712291a08af9e69212a89df5870eb7652a6e304cebb7ebe3947da9e2548be04d"
+      ],
+      "facet_fingerprint_sha256": "0ee4fccee3c90dc32f24de25e3be5902671d6a61b82faba60283c5911a061c06"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitUsingTypeAlias1.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=080724d3cf2550d8a335c7c5454557536767e57c8f13f466e324a73f67da1ec5",
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:1:presence=e63ccbd8b84587c2cc64139a0383569be252dfa2a1d4d01144a8aa7048fad898"
+      ],
+      "facet_fingerprint_sha256": "d33888bc03ce0a38540b8834e483e76519908c059525efbe1a1ece60db836e94"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitUsingTypeAlias2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=355073df43a47db86befa8f61b0ac989e3fe5972a26018549d0ab3c0426969d2",
+        "H2_7b:write:1:materialized_bytes=355073df43a47db86befa8f61b0ac989e3fe5972a26018549d0ab3c0426969d2"
+      ],
+      "facet_fingerprint_sha256": "05170283e3b144909fada0452d26aa15478b1db15d3a54fc6bf4864664970651"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationEmitWithInvalidPackageJsonTypings.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=b8cc00c8a779da701c0256bf0488bd355d229ea1c5832e70d867dc61f926e82d",
+        "H2_7b:write:1:materialized_bytes=b8cc00c8a779da701c0256bf0488bd355d229ea1c5832e70d867dc61f926e82d"
+      ],
+      "facet_fingerprint_sha256": "f08f7b3c147d8328fb734019dae67e71897b5cf3e387f1071c4d1530109b5807"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationsIndirectGeneratedAliasReference.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=e16c6cbfcd99a56f318a96ec6b46ff592b8813d2170a93113b7d447c0adc30ff",
+        "H2_7b:write:1:materialized_bytes=e16c6cbfcd99a56f318a96ec6b46ff592b8813d2170a93113b7d447c0adc30ff"
+      ],
+      "facet_fingerprint_sha256": "508dc265ef2cfe38bbd69ada30187f407dbc7239ff9cb9d2e0407a6aeca2aba1"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/defaultDeclarationEmitShadowedNamedCorrectly.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=3bd4c204dea24fe7d53725e33a5992c088777b31d1a369ede9c5a75c960bf5f5",
+        "H2_7b:write:0:materialized_bytes=3bd4c204dea24fe7d53725e33a5992c088777b31d1a369ede9c5a75c960bf5f5"
+      ],
+      "facet_fingerprint_sha256": "539b37443de4fc6c81de65929335e9ea5554a318289bc151cd872f3f6f4c5ed5"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/es5ExportEqualsDts.ts#target%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=7fb0e504c0673d0d5cf9fbda6c775f08c0773eb9581836411b7ac902a3ea87c6",
+        "H2_7b:write:1:materialized_bytes=7fb0e504c0673d0d5cf9fbda6c775f08c0773eb9581836411b7ac902a3ea87c6"
+      ],
+      "facet_fingerprint_sha256": "eb6df667014a251f507940713e5699552bfaa9042d7307afcbccbddcffa5e8dc"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/es5ExportEqualsDts.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=7fb0e504c0673d0d5cf9fbda6c775f08c0773eb9581836411b7ac902a3ea87c6",
+        "H2_7b:write:1:materialized_bytes=7fb0e504c0673d0d5cf9fbda6c775f08c0773eb9581836411b7ac902a3ea87c6"
+      ],
+      "facet_fingerprint_sha256": "eb6df667014a251f507940713e5699552bfaa9042d7307afcbccbddcffa5e8dc"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/expandoFunctionNestedAssigments.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:1:callback_bytes=889957bc9136edb97bc9ceb4e83ba47c5428198933a39ff71eefde9585263e73",
+        "H2_7b:write:1:materialized_bytes=889957bc9136edb97bc9ceb4e83ba47c5428198933a39ff71eefde9585263e73"
+      ],
+      "facet_fingerprint_sha256": "fdab19bba06dff7690a5bc902920d7c94c47406d8e8b8247525a7e4a4e697f38"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/expandoFunctionSymbolProperty.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=6c1b88dc65ec3282e2a4b850885ccc44be0b48963ad27a41a3e9a3f570f65c8c",
+        "H2_7b:write:1:materialized_bytes=6c1b88dc65ec3282e2a4b850885ccc44be0b48963ad27a41a3e9a3f570f65c8c"
+      ],
+      "facet_fingerprint_sha256": "f86c6f831821236fd3636415e56c581b82577ee31e2af1e2c805d28906d845c2"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/indexSignatureAndMappedType.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:reported_diagnostic:1:message=7b7a1ee96fa7d632a266a599f55488430bb295ad8299b1d62635cfc9431ff8e1",
+        "H2_7b:reported_diagnostic:1:start=cbf2f7864f1c988391a9ab199627a29bd60987da067748c2812b75785d7ec151",
+        "H2_7b:reported_diagnostic:2:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "380ebb26142d32908747404a6d8a8ad577d41fddabbcd62e7e8512a38397d2fa"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/inferTypePredicates.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=0a52fe873c970332390eb90237582d4dae110e5ee611ca09ab6a37cafa30e81a",
+        "H2_7b:write:1:materialized_bytes=0a52fe873c970332390eb90237582d4dae110e5ee611ca09ab6a37cafa30e81a"
+      ],
+      "facet_fingerprint_sha256": "0af5c3ba3eac3c56cb82cd02c8cd940586d889a6355f0d3b45fe4e7e0ea61c80"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/initializerWithThisPropertyAccess.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=71900c0893a3dbf7b2710f7891904a1dfc048e4dfbd75dc8bb08dd0a3b6633ef",
+        "H2_7b:write:1:materialized_bytes=71900c0893a3dbf7b2710f7891904a1dfc048e4dfbd75dc8bb08dd0a3b6633ef"
+      ],
+      "facet_fingerprint_sha256": "b650a1a42a35f0e9abfca4d4ddbe179dcbe4aac7b4cdf9843591754f05e17e10"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationEmitDoesNotRenameImport.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=490e915a3af7ba280244719dc6f20d8d7995dc85c6858c1ed2b9e9882822397e",
+        "H2_7b:write:2:materialized_bytes=490e915a3af7ba280244719dc6f20d8d7995dc85c6858c1ed2b9e9882822397e"
+      ],
+      "facet_fingerprint_sha256": "5736b4c4ebde103224437e92ba8a8def22857d522e51fe12e2de88a04b3e52c0"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationEmitExportAssignedArray.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "H2_7b:write:0:materialized_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126"
+      ],
+      "facet_fingerprint_sha256": "f9b3a4e92b2639db54af35ed03ce000987eb92235a8bc965146dace2f3e53de0"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationsGlobalFileConstFunction.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=e7aa70e036fd28a7dc014982a98003ed1f14c2a335040ab029c0ae6b95159a45",
+        "H2_7b:emit_result:0:emitSkipped=b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+        "H2_7b:emit_result:0:emit_refused=b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+        "H2_7b:emitted_files:0:ordered_paths=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "H2_7b:exit_code:0:value=6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "H2_7b:reported_diagnostic:0:presence=e7aa70e036fd28a7dc014982a98003ed1f14c2a335040ab029c0ae6b95159a45",
+        "H2_7b:write:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "6a6c6be6104db9f7f1f634ac916ae088c2ef08e3251d413b23d8b4643d32f5c3"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsDeclarationsGlobalFileConstFunctionNamed.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=bb63e32f7de775b0190b066bb47568aa87452e8957d22afd8b52c5a2f4e1f6db",
+        "H2_7b:emit_diagnostic:1:presence=bb63e32f7de775b0190b066bb47568aa87452e8957d22afd8b52c5a2f4e1f6db",
+        "H2_7b:emit_result:0:emitSkipped=b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+        "H2_7b:emit_result:0:emit_refused=b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+        "H2_7b:emitted_files:0:ordered_paths=4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "H2_7b:exit_code:0:value=6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "H2_7b:reported_diagnostic:0:presence=bb63e32f7de775b0190b066bb47568aa87452e8957d22afd8b52c5a2f4e1f6db",
+        "H2_7b:write:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "75a662b4b269c0e86cbbcead21d18fc3b301d4b7d1ad6a7f8027b27f996e35dd"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsExportAssignmentNonMutableLocation.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=f1d4dd8a07838eec1edada76669a45839cb10c85836fac7ba29f4d98068cfcc8",
+        "H2_7b:write:0:materialized_bytes=f1d4dd8a07838eec1edada76669a45839cb10c85836fac7ba29f4d98068cfcc8"
+      ],
+      "facet_fingerprint_sha256": "27e82d6bf7a26e2d442dff9afa5b3af147c83c9453eb1f6d66e8569559afaae8"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileMethodOverloads4.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=e0774655d5052f9c86a9905313cac66b970aa429383e29954cbdcffc3658ce55",
+        "H2_7b:write:0:materialized_bytes=e0774655d5052f9c86a9905313cac66b970aa429383e29954cbdcffc3658ce55"
+      ],
+      "facet_fingerprint_sha256": "3fee516c1893174574ac83556f11d2ed0541c73d3e1570c0c3867509c154032f"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/jsFileMethodOverloads5.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=d7e2c6597081825068556a91c2f0d7bd650c5a365b8d8d88b618c9e32a670e6b",
+        "H2_7b:write:0:materialized_bytes=d7e2c6597081825068556a91c2f0d7bd650c5a365b8d8d88b618c9e32a670e6b"
+      ],
+      "facet_fingerprint_sha256": "fd32f6e963e033e2ce6ad6f5e980eb99c9b4d5f233b526fc3596e072d690bec5"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/mappedTypeGenericIndexedAccess.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=8606f98aea0362e73411950277a9e534b636a1473f7f248b9a0b463e20f75207",
+        "H2_7b:write:1:materialized_bytes=8606f98aea0362e73411950277a9e534b636a1473f7f248b9a0b463e20f75207"
+      ],
+      "facet_fingerprint_sha256": "6cfdbe70a9de1bf80d228c420981fcf9b7d294d53a30eec2a9c170734327385e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/moduleAugmentationImportsAndExports2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:3:callback_bytes=e4ae590d5f89711ff74beae9232bddde6b40ecd6d73bdd99a61d3dd74f9fcb4c",
+        "H2_7b:write:3:materialized_bytes=e4ae590d5f89711ff74beae9232bddde6b40ecd6d73bdd99a61d3dd74f9fcb4c"
+      ],
+      "facet_fingerprint_sha256": "c31e7599a3bd61776b6c534066566e935f057fd74f64ad5591865f4ca071c5b3"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/moduleAugmentationImportsAndExports3.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:3:callback_bytes=e4ae590d5f89711ff74beae9232bddde6b40ecd6d73bdd99a61d3dd74f9fcb4c",
+        "H2_7b:write:3:materialized_bytes=e4ae590d5f89711ff74beae9232bddde6b40ecd6d73bdd99a61d3dd74f9fcb4c"
+      ],
+      "facet_fingerprint_sha256": "c31e7599a3bd61776b6c534066566e935f057fd74f64ad5591865f4ca071c5b3"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/privacyTopLevelInternalReferenceImportWithoutExport.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=082be063d66a82e3f363faea5a6edcff5e576fadf3d96d68a0eb9f61fc7b46cd",
+        "H2_7b:write:1:materialized_bytes=082be063d66a82e3f363faea5a6edcff5e576fadf3d96d68a0eb9f61fc7b46cd"
+      ],
+      "facet_fingerprint_sha256": "fc866d99f6d0668614359033357b7e4c1a5dc7ee7f5c0970b98ef7f6e917180f"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/privateFieldsInClassExpressionDeclaration.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=0485459409ca2d7ad7dd32772f2c7e3f1a472cb4b4f096f7e000f9c37463d271",
+        "H2_7b:write:0:materialized_bytes=0485459409ca2d7ad7dd32772f2c7e3f1a472cb4b4f096f7e000f9c37463d271"
+      ],
+      "facet_fingerprint_sha256": "db27b92018657904b76964f19071a512f1cc0622385e07ffbaaf208467a5d9e8"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/reactTransitiveImportHasValidDeclaration.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=436c0aa5ffdf2fbe144499e1508ca25493507c54a89bf58ea7b78eb9ebcb3815",
+        "H2_7b:write:1:materialized_bytes=436c0aa5ffdf2fbe144499e1508ca25493507c54a89bf58ea7b78eb9ebcb3815"
+      ],
+      "facet_fingerprint_sha256": "55ebd431aad5bd45a4c724e01514aef5e9ab2a40d3d5ae898b8c093a7f1c3220"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/recursiveConditionalTypes.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:reported_diagnostic:10:presence=ce64e93d11ae3eea54ad594e799478be9be3b873a0a2ddb845d6892796db200a",
+        "H2_7b:reported_diagnostic:8:code=66c3230e5b7d13febf253c3e6560d82d367bace8c8b69d5a62ee8935aeb138e8",
+        "H2_7b:reported_diagnostic:8:length=ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
+        "H2_7b:reported_diagnostic:8:message=3471aced226f1478d8de26d58ddc6a784cd06943192295a0e5b9af43c7911070",
+        "H2_7b:reported_diagnostic:8:start=6b0f184f14930ed2aab00d963792fac1cf7c8439503cb58ac06dde647c456940",
+        "H2_7b:reported_diagnostic:9:code=38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b",
+        "H2_7b:reported_diagnostic:9:length=6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "H2_7b:reported_diagnostic:9:message=aaaf2b73ee5d8ed71f6593cadfc8772c9bd179c80875cf7d687601aadf7eceb3",
+        "H2_7b:reported_diagnostic:9:start=d9b22972eaaeb7016c4795d53abbdb02fdb09cb09ba9a818fc00962042c23f73"
+      ],
+      "facet_fingerprint_sha256": "d4019af6784c450b0613de35d17f1d36a497270e3d95ba4a0a916f46953acced"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/renamingDestructuredPropertyInFunctionType.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=9735e3d94a3f512329071b723439a2bc4af752f7a2bd26bf7dfa60103e8c88c6",
+        "H2_7b:write:1:materialized_bytes=9735e3d94a3f512329071b723439a2bc4af752f7a2bd26bf7dfa60103e8c88c6"
+      ],
+      "facet_fingerprint_sha256": "23050677101bf27dba334261abe1acde637890fa0a3455f430f73a5e684fbcf9"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/reuseTypeAnnotationImportTypeInGlobalThisTypeArgument.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=3ced770e081c8da42a726b0e708641fdb3a144e49ab07d154b1066e6cfc9f460",
+        "H2_7b:write:0:materialized_bytes=3ced770e081c8da42a726b0e708641fdb3a144e49ab07d154b1066e6cfc9f460"
+      ],
+      "facet_fingerprint_sha256": "ab959dc4c47b77a28821b46cecc26fd606cd899c11ae54df4b6b2aa20d607193"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/shorthandOfExportedEntity02_targetES5_CommonJS.ts#target%3Des5",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=8030f0a5c599c18a8e942ec94e7f21693ffc506ac641d2c5514c05a35eadad87",
+        "H2_7b:write:0:materialized_bytes=8030f0a5c599c18a8e942ec94e7f21693ffc506ac641d2c5514c05a35eadad87"
+      ],
+      "facet_fingerprint_sha256": "8b57ed4d77b2c15df6f37cdd20d0456676ca0a8cdac4d9f36ac34793f0758653"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/symbolLinkDeclarationEmitModuleNames.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 10,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emitted_files:0:ordered_paths=024a5d8d15039a735f45956db0415dbd0617a37b3e8fadaf2b15294ecf098284",
+        "H2_7b:reported_diagnostic:0:code=07aa2015d482734372d4a9a1c07c8290198526b9ce1fd2e2dcff4d05f6792a29",
+        "H2_7b:reported_diagnostic:0:length=9400f1b21cb527d7fa3d3eabba93557a18ebe7a2ca4e471cfe5e4c5b4ca7f767",
+        "H2_7b:reported_diagnostic:0:message=8f4b1740bee3e2a9365bc07af1febe02da5322f227671d067ab437cae0f29e5d",
+        "H2_7b:reported_diagnostic:0:start=59e19706d51d39f66711c2653cd7eb1291c94d9b55eb14bda74ce4dc636d015a",
+        "H2_7b:reported_diagnostic:1:presence=0ae968caeb8e2999285283d8fec07b3ee83605ad633c572688795b7238dc337d",
+        "H2_7b:reported_diagnostic:2:presence=a9e98f373c30eae4f42c4a23cbfa775d7effd86575820b09f04a1ea5157a72da",
+        "H2_7b:reported_diagnostic:3:presence=7026facbcc3e10fae6eb855ae72ca3fe7d5676d8622dea4813a07700af0400b9",
+        "H2_7b:write:0:path=cd15e70305a0b2482cda0c8f5516ea8dab39c45bc0d415662274cf20d11f9fab",
+        "H2_7b:write:0:sourceFiles=0689374e72953fa0e4464886d2f05dab345fd75b4ca3184d94b158acaea1e6d5",
+        "H2_7b:write:1:callback_bytes=2a911e070a00acfaadfc27754ab1d60660d9a2c6ee425fceb1dc77dea63969cf",
+        "H2_7b:write:1:materialized_bytes=2a911e070a00acfaadfc27754ab1d60660d9a2c6ee425fceb1dc77dea63969cf",
+        "H2_7b:write:1:path=1e863bfd37208b3ea0a5c852f67377706a1c408699c3ff54c8c0197bb9df17f3",
+        "H2_7b:write:1:sourceFiles=0689374e72953fa0e4464886d2f05dab345fd75b4ca3184d94b158acaea1e6d5",
+        "H2_7b:write:2:callback_bytes=4c144a1fd91a2e55be5d5e1ebbd33da74a1be7a473207c386520e19e67c292f7",
+        "H2_7b:write:2:materialized_bytes=4c144a1fd91a2e55be5d5e1ebbd33da74a1be7a473207c386520e19e67c292f7",
+        "H2_7b:write:2:path=e6ab47e8471e919cf7dc1fd97e74d1b4e3a8d1dc9423da0cae3d599265356497",
+        "H2_7b:write:2:sourceFiles=1a796a60f6ebf7a383202e86c1fead2a8863cd643bb793217de335b9d7d29426",
+        "H2_7b:write:3:callback_bytes=e276d4b157afa1f99728a94564a88e9b2e07677e2752a45b7d7eee2e2ba5a37c",
+        "H2_7b:write:3:materialized_bytes=e276d4b157afa1f99728a94564a88e9b2e07677e2752a45b7d7eee2e2ba5a37c",
+        "H2_7b:write:3:path=0639d1b9b94a0a157201578853f49968972aa70cfdee1868af1912099e8a7e73",
+        "H2_7b:write:3:sourceFiles=1a796a60f6ebf7a383202e86c1fead2a8863cd643bb793217de335b9d7d29426",
+        "H2_7b:write:4:callback_bytes=7fdb23ffe82ed2089a9132a32bbec51730fe209d606cffa4a9157b9a21d4e511",
+        "H2_7b:write:4:materialized_bytes=7fdb23ffe82ed2089a9132a32bbec51730fe209d606cffa4a9157b9a21d4e511",
+        "H2_7b:write:4:path=921a3998b6d3558bc468a8794f4476215b72ab11e010fe0bf2941b8502fc873e",
+        "H2_7b:write:4:sourceFiles=e1fcae978bc67c9b9cc9c78d47a58162a50baeb78fdc8dc54db672f8f3054764",
+        "H2_7b:write:5:callback_bytes=72c66801d55ecf215393cd8651cc9aef493202e24cd45fada0f8191e3d6d049d",
+        "H2_7b:write:5:materialized_bytes=72c66801d55ecf215393cd8651cc9aef493202e24cd45fada0f8191e3d6d049d",
+        "H2_7b:write:5:path=7697b84b51fe3cfca16ca744e5651650a16a9d1f1a4b733e9954a306027b2fcb",
+        "H2_7b:write:5:sourceFiles=e1fcae978bc67c9b9cc9c78d47a58162a50baeb78fdc8dc54db672f8f3054764",
+        "H2_7b:write:6:callback_bytes=0470634e76e280332e8d7a7a5bc12f62c491433b17427b5c60873df2d35a7561",
+        "H2_7b:write:6:materialized_bytes=0470634e76e280332e8d7a7a5bc12f62c491433b17427b5c60873df2d35a7561",
+        "H2_7b:write:6:path=f2ff99a6dfd5a298e691b74f2845b9940473c5a0eeffca15d95440c962096468",
+        "H2_7b:write:6:sourceFiles=0b7c93e1967a6921b3ec44b699d882f87f267d22842328920b1d15eb748f8ab1",
+        "H2_7b:write:7:callback_bytes=433318d1a2d5d0b25ee4d5bbf18b800f6fde72ff79010ee69c3b718e7498d4e8",
+        "H2_7b:write:7:materialized_bytes=433318d1a2d5d0b25ee4d5bbf18b800f6fde72ff79010ee69c3b718e7498d4e8",
+        "H2_7b:write:7:path=95ee32892edbd9c9de7861530dce6fae51b1e689fa24346e00a371a28c8671fc",
+        "H2_7b:write:7:sourceFiles=0b7c93e1967a6921b3ec44b699d882f87f267d22842328920b1d15eb748f8ab1",
+        "H2_7b:write:8:callback_bytes=0c27e4bca6ad80a68cd8ca752a24d7e9bbe4ef8f68024f0cf5430707c5ea117d",
+        "H2_7b:write:8:materialized_bytes=0c27e4bca6ad80a68cd8ca752a24d7e9bbe4ef8f68024f0cf5430707c5ea117d",
+        "H2_7b:write:8:path=6178afc736242012b3832bfdfb2bf175a3c27b84a41a3b70f3f765dbea2117a0",
+        "H2_7b:write:8:sourceFiles=2f43edf98d886a0868baa98255061cd7bbb75159854d3ed5f73aca87780047dd",
+        "H2_7b:write:9:callback_bytes=3b716decc0ec72c527b5f729df510e4d436e51a4ccf2c5a0e56a77bab424964b",
+        "H2_7b:write:9:materialized_bytes=3b716decc0ec72c527b5f729df510e4d436e51a4ccf2c5a0e56a77bab424964b",
+        "H2_7b:write:9:path=352032d06bcbcc31628c63bad9372a3e38d0a17e56f81fda8fd85ed66f52a452",
+        "H2_7b:write:9:sourceFiles=2f43edf98d886a0868baa98255061cd7bbb75159854d3ed5f73aca87780047dd"
+      ],
+      "facet_fingerprint_sha256": "0667ccdfb722a1cae0ef7b0824b6fb8e2b68754dfd9e889e319ac8b1be12b655"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/symbolLinkDeclarationEmitModuleNamesImportRef.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=ce1e652b5c5fe5a02344d6d7d951363d279576a33d8272cf7edf6888d73bbf88",
+        "H2_7b:write:1:callback_bytes=205591440dabf78ba2ef29ff99eb7cfef9c9205c35023a4b46b6d3df6d408dad",
+        "H2_7b:write:1:materialized_bytes=205591440dabf78ba2ef29ff99eb7cfef9c9205c35023a4b46b6d3df6d408dad"
+      ],
+      "facet_fingerprint_sha256": "279765e9ab4b034645c89708b8726f95da1143023219b01f462d5e10e99ad1a4"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesDeepNonrelativeName.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=318c149a97b1046780590e0d87365b6083005dde6f96d8682ec16878dd57ec6a",
+        "H2_7b:reported_diagnostic:1:presence=c1037f5961fa034667b9146d937cb90628e7c74439a471b638ae36a2276cf48f",
+        "H2_7b:write:1:callback_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1",
+        "H2_7b:write:1:materialized_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1"
+      ],
+      "facet_fingerprint_sha256": "41fd2f787e25a1b7b9c322419a7df95a4bd1ad770afdac804b92c827b0d9bc4e"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/symlinkedWorkspaceDependenciesNoDirectLinkGeneratesNonrelativeName.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=702d3620ac556a07af9e6b3d968eab4d8eec426d1b2720e47791bd9a4957a553",
+        "H2_7b:reported_diagnostic:1:presence=c1037f5961fa034667b9146d937cb90628e7c74439a471b638ae36a2276cf48f",
+        "H2_7b:write:1:callback_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1",
+        "H2_7b:write:1:materialized_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1"
+      ],
+      "facet_fingerprint_sha256": "5b1962953b6aec48adcd1ba31c880096311ae816de65aa35fbe45a0e3fefd041"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/symlinkedWorkspaceDependenciesNoDirectLinkOptionalGeneratesNonrelativeName.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=702d3620ac556a07af9e6b3d968eab4d8eec426d1b2720e47791bd9a4957a553",
+        "H2_7b:reported_diagnostic:1:presence=c1037f5961fa034667b9146d937cb90628e7c74439a471b638ae36a2276cf48f",
+        "H2_7b:write:1:callback_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1",
+        "H2_7b:write:1:materialized_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1"
+      ],
+      "facet_fingerprint_sha256": "5b1962953b6aec48adcd1ba31c880096311ae816de65aa35fbe45a0e3fefd041"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/symlinkedWorkspaceDependenciesNoDirectLinkPeerGeneratesNonrelativeName.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:0:presence=702d3620ac556a07af9e6b3d968eab4d8eec426d1b2720e47791bd9a4957a553",
+        "H2_7b:reported_diagnostic:1:presence=c1037f5961fa034667b9146d937cb90628e7c74439a471b638ae36a2276cf48f",
+        "H2_7b:write:1:callback_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1",
+        "H2_7b:write:1:materialized_bytes=46358329f7738eb23dc4a1ba865ea3c0b65da509e273dac627f16edc1694e1d1"
+      ],
+      "facet_fingerprint_sha256": "5b1962953b6aec48adcd1ba31c880096311ae816de65aa35fbe45a0e3fefd041"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/uniqueSymbolPropertyDeclarationEmit.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=637924b061e2428b2558db8cc4eb47ec0009dc06969e36b2bf931211f58596b4",
+        "H2_7b:emit_diagnostic:1:presence=244d77f5e63ffaf9009425525aa447a669e400640c2756170161fbbf86bdfd13",
+        "H2_7b:emit_result:0:emitSkipped=b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+        "H2_7b:emit_result:0:emit_refused=b5bea41b6c623f7c09f1bf24dcae58ebab3c0cdd90ad966bc43a45b44867e12b",
+        "H2_7b:emitted_files:0:ordered_paths=31983c7000926539f0cb2f1d152ca10f241448d1c863b5404a2c560e11d06386",
+        "H2_7b:exit_code:0:value=6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
+        "H2_7b:reported_diagnostic:0:presence=637924b061e2428b2558db8cc4eb47ec0009dc06969e36b2bf931211f58596b4",
+        "H2_7b:reported_diagnostic:1:presence=244d77f5e63ffaf9009425525aa447a669e400640c2756170161fbbf86bdfd13",
+        "H2_7b:write:3:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "90e438b864b313ebcc15fc8a7258385a3ed6b22486ac9313c671b442f5300b5b"
+    },
+    {
+      "case_id": "typescript-6.0.3/compiler/verbatim-declarations-parameters.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=81b423cd8e2e4da74109b93c059ce6b88a421bf3f1cdcb00951891cefadcb56f",
+        "H2_7b:write:1:materialized_bytes=81b423cd8e2e4da74109b93c059ce6b88a421bf3f1cdcb00951891cefadcb56f"
+      ],
+      "facet_fingerprint_sha256": "0fdd948be25d23f49cde540617beee45ad9aa96940816e767825440adf824135"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/strictPropertyInitialization.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=4574dc9776fc282b08de106e7fd8a4554d78d7e7967bd40d7c003c900dad0e7d",
+        "H2_7b:write:1:materialized_bytes=4574dc9776fc282b08de106e7fd8a4554d78d7e7967bd40d7c003c900dad0e7d"
+      ],
+      "facet_fingerprint_sha256": "e06bfcd14a65f330977dbebd1cf974f68215cfcca2aac8d3669ee10f25444d16"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/controlFlow/definiteAssignmentAssertions.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=80d9808360c740699519e25995bac7065e7dbcb9835d30ecd065dfbdaa48d1db",
+        "H2_7b:write:1:materialized_bytes=80d9808360c740699519e25995bac7065e7dbcb9835d30ecd065dfbdaa48d1db"
+      ],
+      "facet_fingerprint_sha256": "87559b514011e8014168fa73b33e70a6292b8d76be73855f7ecba365391e5215"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/declarationEmit/exportDefaultExpressionComments.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=bffbd2a0f8a3083becac2facbd14ba436e83fecfcb26d346e027f53867901696",
+        "H2_7b:write:1:materialized_bytes=bffbd2a0f8a3083becac2facbd14ba436e83fecfcb26d346e027f53867901696"
+      ],
+      "facet_fingerprint_sha256": "ea1c9dd214030a7e27f473a1d5bcd8729b8e15bdd5c21782519b0cce7b449c0f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/declarationEmit/exportDefaultNamespace.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=e40a35fc023cd1bd02104ec4d03700da895967ebd24292ac1755c98baaffc941",
+        "H2_7b:write:1:materialized_bytes=e40a35fc023cd1bd02104ec4d03700da895967ebd24292ac1755c98baaffc941"
+      ],
+      "facet_fingerprint_sha256": "197ef47167d8a28d55ad2bf520b258816293e670525c6bcb4d8a708ddfedda9b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/declarationEmit/nullPropertyName.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=8d814366d61cdf17625e44aa59aaa645e6fe9946a9830b0ad20233082ba6ee65",
+        "H2_7b:write:1:materialized_bytes=8d814366d61cdf17625e44aa59aaa645e6fe9946a9830b0ad20233082ba6ee65"
+      ],
+      "facet_fingerprint_sha256": "a8cccf0f5950f1ed2f2c709c0b1d2cf9cca27f0f9ba458f358ef124b38c50b9d"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/declarationEmit/typesVersionsDeclarationEmit.multiFile.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=8d6e0ad3b59c7de3561fb2b9102b7f795b66611ce26da30307d98d5c35215952",
+        "H2_7b:write:1:materialized_bytes=8d6e0ad3b59c7de3561fb2b9102b7f795b66611ce26da30307d98d5c35215952"
+      ],
+      "facet_fingerprint_sha256": "611d7908558cccbca35cf910c720a254b487a2a43aa042f41e981194ec1e8c53"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/declarationEmit/typesVersionsDeclarationEmit.multiFileBackReferenceToUnmapped.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=b5c305746d90d735cae748acaf65d6aeb2346c33a330f449a527506c305cccbb",
+        "H2_7b:write:1:materialized_bytes=b5c305746d90d735cae748acaf65d6aeb2346c33a330f449a527506c305cccbb"
+      ],
+      "facet_fingerprint_sha256": "aa4140e1fb24451d3153cd31fbd6c40bbd13970590cde639860f70b0a4786291"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace1.ts#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=e51cb24fa6d26059f1b0439fdb6d6b5a45752f88d56f5e3ba47305592d7333e7",
+        "H2_7b:write:2:materialized_bytes=e51cb24fa6d26059f1b0439fdb6d6b5a45752f88d56f5e3ba47305592d7333e7"
+      ],
+      "facet_fingerprint_sha256": "f3db0472efa8bfc3ded184a0d3b9d4a0010d7aa321be64153399327bd403897c"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace1.ts#module%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=df1461a64dab534930a87cfd54ee64d5f4237240232eebcc1e315236cc36d532",
+        "H2_7b:write:2:materialized_bytes=df1461a64dab534930a87cfd54ee64d5f4237240232eebcc1e315236cc36d532"
+      ],
+      "facet_fingerprint_sha256": "76e6880faddbd078f7c31883c3d4812fe59e7dd39101ff3eef5274078d829e66"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace1.ts#module%3Dsystem",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=092a107a8212373e9403cdbd265e427b406501053b6563b6c42de0bbf9a7a123",
+        "H2_7b:write:2:materialized_bytes=092a107a8212373e9403cdbd265e427b406501053b6563b6c42de0bbf9a7a123"
+      ],
+      "facet_fingerprint_sha256": "2916df3faea92c669568eb6c3df06b48aad1efc22a0117a3f15a9e4b90fc4c87"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace2.ts#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=e51cb24fa6d26059f1b0439fdb6d6b5a45752f88d56f5e3ba47305592d7333e7",
+        "H2_7b:write:2:materialized_bytes=e51cb24fa6d26059f1b0439fdb6d6b5a45752f88d56f5e3ba47305592d7333e7"
+      ],
+      "facet_fingerprint_sha256": "f3db0472efa8bfc3ded184a0d3b9d4a0010d7aa321be64153399327bd403897c"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace2.ts#module%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=df1461a64dab534930a87cfd54ee64d5f4237240232eebcc1e315236cc36d532",
+        "H2_7b:write:2:materialized_bytes=df1461a64dab534930a87cfd54ee64d5f4237240232eebcc1e315236cc36d532"
+      ],
+      "facet_fingerprint_sha256": "76e6880faddbd078f7c31883c3d4812fe59e7dd39101ff3eef5274078d829e66"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace2.ts#module%3Dsystem",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=092a107a8212373e9403cdbd265e427b406501053b6563b6c42de0bbf9a7a123",
+        "H2_7b:write:2:materialized_bytes=092a107a8212373e9403cdbd265e427b406501053b6563b6c42de0bbf9a7a123"
+      ],
+      "facet_fingerprint_sha256": "2916df3faea92c669568eb6c3df06b48aad1efc22a0117a3f15a9e4b90fc4c87"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace3.ts#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=be303cb73120727fbe20db6c693f75df42f7ac9abaa3f8486c47b119bca8e606",
+        "H2_7b:write:2:materialized_bytes=be303cb73120727fbe20db6c693f75df42f7ac9abaa3f8486c47b119bca8e606"
+      ],
+      "facet_fingerprint_sha256": "0bdbd378b77d817af1d94cf468883c970b21c22668c2970847c02425f98bfedc"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace3.ts#module%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=6664d198f6b5e05fc50c78d8d95723bf4ead389645b4847eda64bfca89be4c12",
+        "H2_7b:write:2:materialized_bytes=6664d198f6b5e05fc50c78d8d95723bf4ead389645b4847eda64bfca89be4c12"
+      ],
+      "facet_fingerprint_sha256": "093360f6157c8bf63e23fcc0a0a2941693810f922bc544e71abe3fceb25d9b42"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace3.ts#module%3Dsystem",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=96f327a680e0650aea5bc0a5b8757b3a33e6c9f7a95f47c5f72f3858f5007838",
+        "H2_7b:write:2:materialized_bytes=96f327a680e0650aea5bc0a5b8757b3a33e6c9f7a95f47c5f72f3858f5007838"
+      ],
+      "facet_fingerprint_sha256": "cb08cb911f6ba7c4f4e94354bf1a32ba2d4ace562c75f923d4ea9db41b0e7268"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace4.ts#module%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=22685edb4b0b52e7fb223d3df38ff3689acdafdbc848789482ff914bc1a164c9",
+        "H2_7b:write:2:materialized_bytes=22685edb4b0b52e7fb223d3df38ff3689acdafdbc848789482ff914bc1a164c9"
+      ],
+      "facet_fingerprint_sha256": "7eacd466ddfdd753572b6ced7084698b761c1e7e336e8ce33fe8ee26eb7c7c27"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2020/modules/exportAsNamespace4.ts#module%3Dsystem",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=154f53312b9a6f066d42273ef636fdd50a075ee4d1242bbabe145569b07a2c27",
+        "H2_7b:write:2:materialized_bytes=154f53312b9a6f066d42273ef636fdd50a075ee4d1242bbabe145569b07a2c27"
+      ],
+      "facet_fingerprint_sha256": "acd77d701efc272f0f1d86af966d2a5108ee2853a6b05ca53f7aae1265a0e7ec"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=c344488b1db487c5ed398b3695ba04085e9fbc0e542ab2da091623f28933d27a",
+        "H2_7b:write:0:materialized_bytes=c344488b1db487c5ed398b3695ba04085e9fbc0e542ab2da091623f28933d27a"
+      ],
+      "facet_fingerprint_sha256": "c48f4f4f9c421ea6e2f8d0df3b4102dcafe56d3c60e43de34da75177031e3369"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989",
+        "H2_7b:write:0:materialized_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989"
+      ],
+      "facet_fingerprint_sha256": "44a18e91237fc6a57476d3af8c8355090b4952dce7fadff4aaa7ba613415042f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Des6",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=803e2b76500c39a679af7618a820fa4c75b017e8180b4643c958c40d3d3a4f25",
+        "H2_7b:write:0:materialized_bytes=803e2b76500c39a679af7618a820fa4c75b017e8180b4643c958c40d3d3a4f25"
+      ],
+      "facet_fingerprint_sha256": "61b47528793c8044a18ec16158b6080ac971cc11c7cab758a476204b784e2373"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Dnode16",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989",
+        "H2_7b:write:0:materialized_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989"
+      ],
+      "facet_fingerprint_sha256": "44a18e91237fc6a57476d3af8c8355090b4952dce7fadff4aaa7ba613415042f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Dnode18",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989",
+        "H2_7b:write:0:materialized_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989"
+      ],
+      "facet_fingerprint_sha256": "44a18e91237fc6a57476d3af8c8355090b4952dce7fadff4aaa7ba613415042f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Dnode20",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989",
+        "H2_7b:write:0:materialized_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989"
+      ],
+      "facet_fingerprint_sha256": "44a18e91237fc6a57476d3af8c8355090b4952dce7fadff4aaa7ba613415042f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Dnodenext",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989",
+        "H2_7b:write:0:materialized_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989"
+      ],
+      "facet_fingerprint_sha256": "44a18e91237fc6a57476d3af8c8355090b4952dce7fadff4aaa7ba613415042f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Dnone",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989",
+        "H2_7b:write:0:materialized_bytes=0ccd47036f406c7a38af6e6677a97ac8946aca56b8e8a58643c8f882502ea989"
+      ],
+      "facet_fingerprint_sha256": "44a18e91237fc6a57476d3af8c8355090b4952dce7fadff4aaa7ba613415042f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Dsystem",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=29d4de2fdfc45084f2a9c2089665cb00f6bb98cbb187cbd89623ad8f66dc307d",
+        "H2_7b:write:0:materialized_bytes=29d4de2fdfc45084f2a9c2089665cb00f6bb98cbb187cbd89623ad8f66dc307d"
+      ],
+      "facet_fingerprint_sha256": "17c0f8e21e05a7af6f77e0a7702a928260448a7fbfd171132c68beb7b50cf48d"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.ts#module%3Dumd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=aa8deb2e3815c0359ed6758e462d561713f57e22bf58090c4026d4976b5da434",
+        "H2_7b:write:0:materialized_bytes=aa8deb2e3815c0359ed6758e462d561713f57e22bf58090c4026d4976b5da434"
+      ],
+      "facet_fingerprint_sha256": "931474fcee89aa80070a12225d06c4b361b4f15926c4c0d895ae97ee5cef454f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/externalModules/typeOnly/importEqualsDeclaration.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=5aa5265bf2c675bc8f0947b6dd01ac020cf62039f0a42fb9ba4e40df89952aac",
+        "H2_7b:write:1:materialized_bytes=5aa5265bf2c675bc8f0947b6dd01ac020cf62039f0a42fb9ba4e40df89952aac"
+      ],
+      "facet_fingerprint_sha256": "9b005193cc57125c18e96a155685d81fa5e2557a69fd7f408a84226550392a7b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/importAssertion/importAssertion1.ts#module%3Desnext",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:7:callback_bytes=2219efcb0a038c27f2d8f606b77990fa17762348265162f4dff947672c64beb5",
+        "H2_7b:write:7:materialized_bytes=2219efcb0a038c27f2d8f606b77990fa17762348265162f4dff947672c64beb5"
+      ],
+      "facet_fingerprint_sha256": "12b3b8ab7ce708fec19acf83e5a6a623ba3714e4fea6b8bc9108bbef3a268755"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/importAssertion/importAssertion2.ts#module%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=4ba99076ac6ce1ff22006d194162136e0ac3753c1b026885f00f6eac9cff6aaf",
+        "H2_7b:write:2:materialized_bytes=4ba99076ac6ce1ff22006d194162136e0ac3753c1b026885f00f6eac9cff6aaf"
+      ],
+      "facet_fingerprint_sha256": "af369ab895ad505d408527c6d674d61fd37c362f95e309aa8217310fee3bbe7a"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/importAttributes/importAttributes1.ts#module%3Desnext",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:7:callback_bytes=2219efcb0a038c27f2d8f606b77990fa17762348265162f4dff947672c64beb5",
+        "H2_7b:write:7:materialized_bytes=2219efcb0a038c27f2d8f606b77990fa17762348265162f4dff947672c64beb5"
+      ],
+      "facet_fingerprint_sha256": "12b3b8ab7ce708fec19acf83e5a6a623ba3714e4fea6b8bc9108bbef3a268755"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/importAttributes/importAttributes2.ts#module%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=4ba99076ac6ce1ff22006d194162136e0ac3753c1b026885f00f6eac9cff6aaf",
+        "H2_7b:write:2:materialized_bytes=4ba99076ac6ce1ff22006d194162136e0ac3753c1b026885f00f6eac9cff6aaf"
+      ],
+      "facet_fingerprint_sha256": "af369ab895ad505d408527c6d674d61fd37c362f95e309aa8217310fee3bbe7a"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/callbackTagNestedParameter.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=285590fafe429a82efc3346e3ce6332cc9119fcdfae4b659b01b54f8035b157b",
+        "H2_7b:write:0:materialized_bytes=285590fafe429a82efc3346e3ce6332cc9119fcdfae4b659b01b54f8035b157b"
+      ],
+      "facet_fingerprint_sha256": "54bf841495f58c462b10c23116535736634a7183921c5f0a1d62d304593ae7b7"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsCommonjsRelativePath.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=38890d0f6da19f2ceda6bba61b771a394bf16cf03a72796874e204cf16c3c24b",
+        "H2_7b:write:1:materialized_bytes=38890d0f6da19f2ceda6bba61b771a394bf16cf03a72796874e204cf16c3c24b"
+      ],
+      "facet_fingerprint_sha256": "db3267c5bee36fb5f5bf0aed9f204aeb6c489b3dfba09eb4797add812ccebb20"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsImportAliasExposedWithinNamespace.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=8f7498a41621e2eb4d6c53fb6e13e3bbe4b701740cd7263cbef01b6e047e2cfc",
+        "H2_7b:write:0:materialized_bytes=8f7498a41621e2eb4d6c53fb6e13e3bbe4b701740cd7263cbef01b6e047e2cfc",
+        "H2_7b:write:1:callback_bytes=2dd01be2042a21f0b6559aef342cf44c62f743aa4e17ce8f5dcfdc91a6c6ce70",
+        "H2_7b:write:1:materialized_bytes=2dd01be2042a21f0b6559aef342cf44c62f743aa4e17ce8f5dcfdc91a6c6ce70"
+      ],
+      "facet_fingerprint_sha256": "ec49a00c12e4481682773a8aff8d1fe1cae4aa43772be4bc28da41a4a308675f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsImportAliasExposedWithinNamespaceCjs.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=9de62a952f8c526bd1be44d9301c6892d4628cfa4b2d155f8acf5aa3400aade8",
+        "H2_7b:write:0:materialized_bytes=9de62a952f8c526bd1be44d9301c6892d4628cfa4b2d155f8acf5aa3400aade8"
+      ],
+      "facet_fingerprint_sha256": "679cc2be98485087812754b97fe018b7298ebe1bc040c3ab38d21740d2c4462a"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsImportNamespacedType.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "H2_7b:write:1:materialized_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126"
+      ],
+      "facet_fingerprint_sha256": "3849ebce186916834be74fbc530ab73f74c80d576e9beea7fa0e95f52552495d"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsReferenceToClassInstanceCrossFile.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:2:callback_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "H2_7b:write:2:materialized_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126"
+      ],
+      "facet_fingerprint_sha256": "c1b8253612a0df3e01eb331de839c377db1364f627580d65ddcd6d8ad1edcc06"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsUniqueSymbolUsage.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 2,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=4e453078c4328f218209df4594965231fba2df4132556f6caf147c6c9d833563",
+        "H2_7b:write:0:materialized_bytes=4e453078c4328f218209df4594965231fba2df4132556f6caf147c6c9d833563",
+        "H2_7b:write:1:callback_bytes=6ec11b0de3aaa988db0fd762701488eabef7091202914ff815c4730a9b2d299c",
+        "H2_7b:write:1:materialized_bytes=6ec11b0de3aaa988db0fd762701488eabef7091202914ff815c4730a9b2d299c"
+      ],
+      "facet_fingerprint_sha256": "3976b8b008b5ed60e43ed6368905e39d1332c7a7f4441149239f0df491db5cef"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/importTag15.ts#module%3Des2015",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=0272b48bc6e09134a9b622b630cd71497eccc457ecc4d2670403d78deada441f",
+        "H2_7b:write:1:materialized_bytes=0272b48bc6e09134a9b622b630cd71497eccc457ecc4d2670403d78deada441f"
+      ],
+      "facet_fingerprint_sha256": "61ff46353c33db04bf5c098ddaf1d7aab359e87c19aee4dd3feb4b7b334d59bc"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/importTag15.ts#module%3Desnext",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=0a7378a066b70d8f15fecca930cd031f75990f25ca5a99cbe18bde50b9519d0d",
+        "H2_7b:write:1:materialized_bytes=0a7378a066b70d8f15fecca930cd031f75990f25ca5a99cbe18bde50b9519d0d"
+      ],
+      "facet_fingerprint_sha256": "4ca6fa123206f725a480ea70c9b59618ee22eb659c13ca5ea0e3cd72746b0780"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/importTag16.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=6f7c81be333f0257ff30b53c99803a37c7dbbb6d2055e63c460d3010ab275750",
+        "H2_7b:write:1:materialized_bytes=6f7c81be333f0257ff30b53c99803a37c7dbbb6d2055e63c460d3010ab275750"
+      ],
+      "facet_fingerprint_sha256": "a5aea6d4fbfe7cd8fda039710d8e16124415672d032871457211fad81ae9feec"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/importTag18.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=8019e24ac235b26e865ff716cb89cceb3437cbc061663c6e37d835a9dd905a16",
+        "H2_7b:write:1:materialized_bytes=8019e24ac235b26e865ff716cb89cceb3437cbc061663c6e37d835a9dd905a16"
+      ],
+      "facet_fingerprint_sha256": "f5674d1af1c8c9018469777fa26e936361453a6c34d64f229acbf51caae7c667"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/importTag19.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=2f79b6e666ce6b1637262476d59d5649fe32b52f42035cb565a3638ac033597d",
+        "H2_7b:write:1:materialized_bytes=2f79b6e666ce6b1637262476d59d5649fe32b52f42035cb565a3638ac033597d"
+      ],
+      "facet_fingerprint_sha256": "4c41cac7dd62a90d388adb6afc4c2521e37897b318ee6e2a0276c89899f1ae6f"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/importTag20.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=34370cb69b225270cc2201c86046edf394a2040198762c75d4d00aa99014cfcb",
+        "H2_7b:write:1:materialized_bytes=34370cb69b225270cc2201c86046edf394a2040198762c75d4d00aa99014cfcb"
+      ],
+      "facet_fingerprint_sha256": "17ab2fba9bdb4fcc4ed72c2699af4012713fbcd756732269f61c05cb3030bc7e"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/importTag5.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=0e40ed022df78976795ce2faf9ba7383925884daf313de74078f6c8de158f712",
+        "H2_7b:write:1:materialized_bytes=0e40ed022df78976795ce2faf9ba7383925884daf313de74078f6c8de158f712"
+      ],
+      "facet_fingerprint_sha256": "219c5b4a0e94a6f7ca964a488cf97f62d7822d5af6f9117bfd3a07c5e569e8b0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/jsdoc/moduleExportsElementAccessAssignment.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "H2_7b:write:1:materialized_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126"
+      ],
+      "facet_fingerprint_sha256": "3849ebce186916834be74fbc530ab73f74c80d576e9beea7fa0e95f52552495d"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/legacyNodeModulesExportsSpecifierGenerationConditions.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=ac689c0a1c49bc078bba284ce98c6d9fe13e0c9fdc38543495127feb35005793",
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:1:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "17535d54e8ce22468aa0e037214df0850646559c9932731cf0f5a0511982a2c3"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts#module%3Dnode18",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:11:callback_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:11:materialized_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:13:callback_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:13:materialized_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:15:callback_bytes=90d13ccbed0488b8bde291f8acaecd05b6671b4210fb38ba26c0b2e00c7d6031",
+        "H2_7b:write:15:materialized_bytes=90d13ccbed0488b8bde291f8acaecd05b6671b4210fb38ba26c0b2e00c7d6031",
+        "H2_7b:write:17:callback_bytes=88476efdaed2f8666c9e0fbcac4f1c7a64ded507a5938625094900582f21f181",
+        "H2_7b:write:17:materialized_bytes=88476efdaed2f8666c9e0fbcac4f1c7a64ded507a5938625094900582f21f181",
+        "H2_7b:write:7:callback_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:7:materialized_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:9:callback_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:9:materialized_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df"
+      ],
+      "facet_fingerprint_sha256": "cde04ef4b12f8a3fbf4c0c6c79f7168320d3adb43cb69419b8bdddff085f076b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts#module%3Dnode20",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:11:callback_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:11:materialized_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:13:callback_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:13:materialized_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:15:callback_bytes=90d13ccbed0488b8bde291f8acaecd05b6671b4210fb38ba26c0b2e00c7d6031",
+        "H2_7b:write:15:materialized_bytes=90d13ccbed0488b8bde291f8acaecd05b6671b4210fb38ba26c0b2e00c7d6031",
+        "H2_7b:write:17:callback_bytes=88476efdaed2f8666c9e0fbcac4f1c7a64ded507a5938625094900582f21f181",
+        "H2_7b:write:17:materialized_bytes=88476efdaed2f8666c9e0fbcac4f1c7a64ded507a5938625094900582f21f181",
+        "H2_7b:write:7:callback_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:7:materialized_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:9:callback_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:9:materialized_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df"
+      ],
+      "facet_fingerprint_sha256": "cde04ef4b12f8a3fbf4c0c6c79f7168320d3adb43cb69419b8bdddff085f076b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesDeclarationEmitDynamicImportWithPackageExports.ts#module%3Dnodenext",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 6,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:11:callback_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:11:materialized_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:13:callback_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:13:materialized_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:15:callback_bytes=90d13ccbed0488b8bde291f8acaecd05b6671b4210fb38ba26c0b2e00c7d6031",
+        "H2_7b:write:15:materialized_bytes=90d13ccbed0488b8bde291f8acaecd05b6671b4210fb38ba26c0b2e00c7d6031",
+        "H2_7b:write:17:callback_bytes=88476efdaed2f8666c9e0fbcac4f1c7a64ded507a5938625094900582f21f181",
+        "H2_7b:write:17:materialized_bytes=88476efdaed2f8666c9e0fbcac4f1c7a64ded507a5938625094900582f21f181",
+        "H2_7b:write:7:callback_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:7:materialized_bytes=efc6f36ce99927fd46e1bec19033d9c6ad3593c0e5f5df2437c21d9fe3deacd9",
+        "H2_7b:write:9:callback_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df",
+        "H2_7b:write:9:materialized_bytes=c4193c1d5693ab9e96cba93265f9fd30ae924a4ab2d4d2637c6c205b1fb8e4df"
+      ],
+      "facet_fingerprint_sha256": "cde04ef4b12f8a3fbf4c0c6c79f7168320d3adb43cb69419b8bdddff085f076b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts#module%3Dnode16",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=ac689c0a1c49bc078bba284ce98c6d9fe13e0c9fdc38543495127feb35005793",
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:1:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "0e31f5a383ea084d5cdc2d95dc826031c85d9701063a9c592b24a4b161386d3b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts#module%3Dnode18",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=ac689c0a1c49bc078bba284ce98c6d9fe13e0c9fdc38543495127feb35005793",
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:1:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "0e31f5a383ea084d5cdc2d95dc826031c85d9701063a9c592b24a4b161386d3b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts#module%3Dnode20",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=ac689c0a1c49bc078bba284ce98c6d9fe13e0c9fdc38543495127feb35005793",
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:1:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "0e31f5a383ea084d5cdc2d95dc826031c85d9701063a9c592b24a4b161386d3b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsBlocksSpecifierResolution.ts#module%3Dnodenext",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=ac689c0a1c49bc078bba284ce98c6d9fe13e0c9fdc38543495127feb35005793",
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:1:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "0e31f5a383ea084d5cdc2d95dc826031c85d9701063a9c592b24a4b161386d3b"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsSourceTs.ts#module%3Dnode16",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=44f22443ee77d5d1d81a4e7243a928a952e246cec455fd74949451ec38ccd222",
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:5:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "149707c4e6d1d51688200c9b1e2a893ab0ca45e21c39f34fae3601a985657ed1"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsSourceTs.ts#module%3Dnode18",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=44f22443ee77d5d1d81a4e7243a928a952e246cec455fd74949451ec38ccd222",
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:5:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "149707c4e6d1d51688200c9b1e2a893ab0ca45e21c39f34fae3601a985657ed1"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsSourceTs.ts#module%3Dnode20",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=44f22443ee77d5d1d81a4e7243a928a952e246cec455fd74949451ec38ccd222",
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:5:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "149707c4e6d1d51688200c9b1e2a893ab0ca45e21c39f34fae3601a985657ed1"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsSourceTs.ts#module%3Dnodenext",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:emit_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:emit_result:0:emitSkipped=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emit_result:0:emit_refused=fcbcf165908dd18a9e49f7ff27810176db8e9f63b4352213741664245224f8aa",
+        "H2_7b:emitted_files:0:ordered_paths=44f22443ee77d5d1d81a4e7243a928a952e246cec455fd74949451ec38ccd222",
+        "H2_7b:exit_code:0:value=d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:write:5:presence=2d81d0d0053ae1f8e86eb87ec81c089e7cd6d18c0de78fbaa74d52e1f85867c9"
+      ],
+      "facet_fingerprint_sha256": "149707c4e6d1d51688200c9b1e2a893ab0ca45e21c39f34fae3601a985657ed1"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsSpecifierGenerationConditions.ts#module%3Dnode16",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=db07d4c48cf94588cd01a83a6645cec208039a580b9a6ae35e77da306104ae10",
+        "H2_7b:write:1:materialized_bytes=db07d4c48cf94588cd01a83a6645cec208039a580b9a6ae35e77da306104ae10"
+      ],
+      "facet_fingerprint_sha256": "ebd1e65781910b4c9411ca41737bdfdda51aa71750b1dc85a61916a305583a58"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsSpecifierGenerationConditions.ts#module%3Dnode18",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=db07d4c48cf94588cd01a83a6645cec208039a580b9a6ae35e77da306104ae10",
+        "H2_7b:write:1:materialized_bytes=db07d4c48cf94588cd01a83a6645cec208039a580b9a6ae35e77da306104ae10"
+      ],
+      "facet_fingerprint_sha256": "ebd1e65781910b4c9411ca41737bdfdda51aa71750b1dc85a61916a305583a58"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsSpecifierGenerationConditions.ts#module%3Dnode20",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=db07d4c48cf94588cd01a83a6645cec208039a580b9a6ae35e77da306104ae10",
+        "H2_7b:write:1:materialized_bytes=db07d4c48cf94588cd01a83a6645cec208039a580b9a6ae35e77da306104ae10"
+      ],
+      "facet_fingerprint_sha256": "ebd1e65781910b4c9411ca41737bdfdda51aa71750b1dc85a61916a305583a58"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/node/nodeModulesExportsSpecifierGenerationConditions.ts#module%3Dnodenext",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=db07d4c48cf94588cd01a83a6645cec208039a580b9a6ae35e77da306104ae10",
+        "H2_7b:write:1:materialized_bytes=db07d4c48cf94588cd01a83a6645cec208039a580b9a6ae35e77da306104ae10"
+      ],
+      "facet_fingerprint_sha256": "ebd1e65781910b4c9411ca41737bdfdda51aa71750b1dc85a61916a305583a58"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/salsa/expandoOnAlias.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126",
+        "H2_7b:write:1:materialized_bytes=12ae32cb1ec02d01eda3581b127c1fee3b0dc53572ed6baf239721a03d82e126"
+      ],
+      "facet_fingerprint_sha256": "3849ebce186916834be74fbc530ab73f74c80d576e9beea7fa0e95f52552495d"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsDeclarationEmit.1.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=adb6554f23aae742dfee284844203e93199ab28ab16474c18b4b86d22b80c56a",
+        "H2_7b:write:1:materialized_bytes=adb6554f23aae742dfee284844203e93199ab28ab16474c18b4b86d22b80c56a"
+      ],
+      "facet_fingerprint_sha256": "635ebcfe3acd3508b40f184aa04a1bdc4d509b10d935ef194aad0b0ac39e3066"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/statements/VariableStatements/usingDeclarations/usingDeclarationsDeclarationEmit.2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=6f2868db9cac3dd3b08a07b0dcb378b4d31c7fa8bf350c6fd352bdfde9df4e50",
+        "H2_7b:write:1:materialized_bytes=6f2868db9cac3dd3b08a07b0dcb378b4d31c7fa8bf350c6fd352bdfde9df4e50"
+      ],
+      "facet_fingerprint_sha256": "cfc1f830d432ea6bf7b7735f5019c6c6ad33663c41f01e4b5204f074a722739e"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/mapped/recursiveMappedTypes.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=e068f02923bfa4c3cc53ba31332a3a81d10b104ea229aba30b381558b8e64fe3",
+        "H2_7b:write:1:materialized_bytes=e068f02923bfa4c3cc53ba31332a3a81d10b104ea229aba30b381558b8e64fe3"
+      ],
+      "facet_fingerprint_sha256": "d3e603b6772924169e7419f9b161ef34d750e8ca65b1dc6fba4045f31b439ac4"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/tuple/readonlyArraysAndTuples2.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=d9b34f45e9e9e641d4b8e586a9f9c7fc0e6c8ef9d0be59db35e5d46530d2192d",
+        "H2_7b:write:1:materialized_bytes=d9b34f45e9e9e641d4b8e586a9f9c7fc0e6c8ef9d0be59db35e5d46530d2192d"
+      ],
+      "facet_fingerprint_sha256": "9f0784795960405fc9000a23edfe21b30fdc34d37443384db260fcbc5b02dde0"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/tuple/variadicTuples1.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:1:callback_bytes=d96809f5d3a6c41a312416a9bb8aa61cdfb34a9d24de87ea60f9bdf8031e4ae0",
+        "H2_7b:write:1:materialized_bytes=d96809f5d3a6c41a312416a9bb8aa61cdfb34a9d24de87ea60f9bdf8031e4ae0"
+      ],
+      "facet_fingerprint_sha256": "a4b64eaec88d43f4704eef34e044aa1c60a613886a632c85ae02b32bc20d49d7"
+    },
+    {
+      "case_id": "typescript-6.0.3/conformance/types/typeParameters/typeArgumentLists/instantiationExpressions.ts#default",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 1,
+      "diagnostics_diverging": false,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:write:0:callback_bytes=00690df50ad140f07eb974a564cce423ff950d21075ab45e7c6aac5017bb73cf",
+        "H2_7b:write:0:materialized_bytes=00690df50ad140f07eb974a564cce423ff950d21075ab45e7c6aac5017bb73cf"
+      ],
+      "facet_fingerprint_sha256": "3e6124375a038be7d9e3b490947165ff6b50dfbfd9cdb23cc13d7bbc5d5a0034"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/defaultExcludeOnlyNodeModules.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:2:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "644d733cc866db5926475dc0801e0972a4a89c5ffc800ce5b7c24ea6d4f05128"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/defaultExcludeOnlyNodeModules.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameDTsSpecified.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameDTsSpecified.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameDTsSpecifiedWithAllowJs.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameDTsSpecifiedWithAllowJs.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameDtsNotSpecified.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameDtsNotSpecified.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameDtsNotSpecifiedWithAllowJs.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:reported_diagnostic:0:message=818fe892817c6e7db2fd7eba1383d258125b0c230257caf3b80e3af55e4a4b2b",
+        "H2_7b:reported_diagnostic:1:message=edaeacbff67a1bf37135ac8f14e1444b71744f312fa9d4e6f81a719733c516de",
+        "H2_7b:reported_diagnostic:2:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:3:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "f6e4bdd7066567be1906f50f61a046d859d429024acfb751c449ff6141fc6826"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameDtsNotSpecifiedWithAllowJs.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": false,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:reported_diagnostic:0:message=818fe892817c6e7db2fd7eba1383d258125b0c230257caf3b80e3af55e4a4b2b",
+        "H2_7b:reported_diagnostic:1:message=edaeacbff67a1bf37135ac8f14e1444b71744f312fa9d4e6f81a719733c516de",
+        "H2_7b:reported_diagnostic:2:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "f0598db3472a37b0fbfc2e71e4c9665fb68854441c9f81e80003945751cbee80"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameFilesNotSpecified.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameFilesNotSpecified.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameFilesNotSpecifiedWithAllowJs.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameFilesNotSpecifiedWithAllowJs.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameFilesSpecified.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameFilesSpecified.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameFilesSpecifiedWithAllowJs.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/jsFileCompilationSameNameFilesSpecifiedWithAllowJs.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/noProjectOptionAndInputFiles.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/noProjectOptionAndInputFiles.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/projectOptionTest.json#module%3Damd",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b",
+        "H2_7b:reported_diagnostic:1:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "2e267263174debd94eae33c29adaca3817850c025d939a338036d746a962bd1f"
+    },
+    {
+      "case_id": "typescript-6.0.3/project/projectOptionTest.json#module%3Dcommonjs",
+      "owner": "h2-7b-m-2-divergence-closure",
+      "writes_diverging": 0,
+      "diagnostics_diverging": true,
+      "emit_result_diverging": true,
+      "emit_refused": false,
+      "refused_option": null,
+      "mismatch_vector": [
+        "H2_7b:exit_code:0:value=5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+        "H2_7b:reported_diagnostic:0:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+      ],
+      "facet_fingerprint_sha256": "a3bcb67e90a58753cb503e640208a6118beb7146cf6a2dfc399ef89bcfdb5159"
+    }
+  ]
+}

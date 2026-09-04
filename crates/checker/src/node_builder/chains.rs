@@ -480,6 +480,23 @@ pub(super) fn track_symbol_in_context(
     symbol: SymbolId,
     meaning: EmitSymbolMeaning,
 ) -> BuildResult<()> {
+    let enclosing = context.enclosing_declaration;
+    track_symbol_in_context_at(checker, arena, target, context, symbol, enclosing, meaning)
+}
+
+/// `context.tracker.trackSymbol(symbol, enclosingDeclaration, meaning)` with
+/// an explicit enclosing declaration — the cache-hit replay of
+/// visitAndTransformType (51811) re-tracks the symbols recorded when the
+/// node was first built, under the enclosing declaration recorded then.
+pub(super) fn track_symbol_in_context_at(
+    checker: &mut CheckerState<'_>,
+    arena: Option<&mut TransformArena>,
+    target: Option<TransformSourceId>,
+    context: &mut NodeBuilderContext<'_>,
+    symbol: SymbolId,
+    enclosing_declaration_override: Option<NodeId>,
+    meaning: EmitSymbolMeaning,
+) -> BuildResult<()> {
     let symbol_flags = checker.symbol_flags(symbol);
     let statement_tracking = context.tracker.is_statement_tracking();
     let symbol_is_remapped = super::is_statement_symbol_remapped(checker, context, symbol);
@@ -499,6 +516,7 @@ pub(super) fn track_symbol_in_context(
             enclosing_declaration_is_synthetic,
             ..
         } = context;
+        let _ = enclosing_declaration;
         tracker.track_symbol(
             reported_diagnostic,
             tracked_symbols,
@@ -506,7 +524,7 @@ pub(super) fn track_symbol_in_context(
             &mut access,
             symbol,
             symbol_flags,
-            *enclosing_declaration,
+            enclosing_declaration_override,
             *enclosing_declaration_is_synthetic,
             meaning,
             symbol_is_remapped,

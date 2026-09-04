@@ -167,8 +167,12 @@ impl TransformSource {
 
 /// Emit-only mutable syntax copies plus sparse transform/emit side tables.
 /// Parsed `SourceFile` values and their identity leases are never mutated.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default)]
 pub struct TransformArena {
+    /// Process-unique arena identity: node handles are only meaningful
+    /// inside the arena that allocated them, so any checker-side cache of
+    /// built nodes (the NodeBuilder's `serializedTypes` reuse) keys on it.
+    id: u64,
     sources: Vec<TransformSource>,
     node_transform_flags: BTreeMap<TransformNode, TransformFlags>,
     array_transform_flags: BTreeMap<TransformNodeArray, TransformFlags>,
@@ -176,9 +180,12 @@ pub struct TransformArena {
     next_generated_binding_id: u64,
 }
 
+static NEXT_TRANSFORM_ARENA_ID: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 impl TransformArena {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
+            id: NEXT_TRANSFORM_ARENA_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             sources: Vec::new(),
             node_transform_flags: BTreeMap::new(),
             array_transform_flags: BTreeMap::new(),
@@ -187,6 +194,41 @@ impl TransformArena {
         }
     }
 
+    /// The process-unique identity of this arena (see the `id` field).
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+}
+
+/// A clone is a DISTINCT arena: node handles built inside it are not valid in
+/// the original, so it takes a fresh identity (the checker's serialized-node
+/// cache keys on it).
+impl Clone for TransformArena {
+    fn clone(&self) -> Self {
+        Self {
+            id: NEXT_TRANSFORM_ARENA_ID.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
+            sources: self.sources.clone(),
+            node_transform_flags: self.node_transform_flags.clone(),
+            array_transform_flags: self.array_transform_flags.clone(),
+            metadata: self.metadata.clone(),
+            next_generated_binding_id: self.next_generated_binding_id,
+        }
+    }
+}
+
+/// Structural equality ignores the identity (two arenas with the same contents
+/// compare equal, as the derived instance did before identities existed).
+impl PartialEq for TransformArena {
+    fn eq(&self, other: &Self) -> bool {
+        self.sources == other.sources
+            && self.node_transform_flags == other.node_transform_flags
+            && self.array_transform_flags == other.array_transform_flags
+            && self.metadata == other.metadata
+            && self.next_generated_binding_id == other.next_generated_binding_id
+    }
+}
+
+impl TransformArena {
     /// Allocate an emit-session generated-binding identity independently of
     /// transformation-context lifecycle. Checker-built arenas use the same
     /// identity channel as transformer-built arenas.

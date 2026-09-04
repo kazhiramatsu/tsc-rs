@@ -9476,15 +9476,18 @@ impl Printer {
         }
         writer.write_punctuation(":");
         writer.write_space(" ");
-        self.emit_required_node_with_context(
-            transformation,
-            node.source(),
-            data.r#type,
-            SyntaxKind::MappedType,
-            "type",
-            expression_context.for_child(ExpressionSyntaxContext::NORMAL),
-            writer,
-        )?;
+        // `emit(node.type)` (117739): a mapped type without a type clause
+        // (`{ [K in keyof T] }`) prints `: ;` — the emit of `undefined` is a
+        // no-op, never a refusal (h2-7b-m-2 fence amendment #4e).
+        if let Some(r#type) = data.r#type {
+            self.emit_node_id_with_context(
+                transformation,
+                node.source(),
+                r#type,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
+                writer,
+            )?;
+        }
         writer.write_trailing_semicolon(";");
         if single_line {
             writer.write_space(" ");

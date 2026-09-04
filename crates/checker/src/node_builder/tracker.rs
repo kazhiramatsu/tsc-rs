@@ -29,9 +29,125 @@ pub(crate) struct NodeBuilderTracker<'tracker> {
     /// dependencies and forwards only inaccessible symbols. The serializer
     /// drains this queue while its private-context stack is live.
     statement_symbols: Option<Vec<(SymbolId, EmitSymbolMeaning)>>,
+    /// Open `createRecoveryBoundary` frames: while a syntactic reuse walk is
+    /// inside a boundary, the six error reports upstream wraps with
+    /// `markError` are deferred here (replayed by `finalizeBoundary`,
+    /// truncated by a recovery scope) instead of reaching the inner tracker.
+    recovery_frames: Vec<RecoveryFrame>,
+}
+
+/// One deferred tracker error report inside a recovery boundary (upstream's
+/// `unreportedErrors` closures, `createRecoveryBoundary` @6.0.3).
+#[derive(Debug)]
+enum DeferredTrackerReport {
+    CyclicStructure,
+    InaccessibleThis,
+    InaccessibleUniqueSymbol,
+    LikelyUnsafeImportRequired {
+        specifier: String,
+        symbol_name: Option<String>,
+    },
+    NonSerializableProperty(String),
+    PrivateInBaseOfClassExpression(String),
+}
+
+/// One open `createRecoveryBoundary` frame (`hadError` + `unreportedErrors`).
+#[derive(Debug, Default)]
+struct RecoveryFrame {
+    had_error: bool,
+    deferred: Vec<DeferredTrackerReport>,
 }
 
 impl<'tracker> NodeBuilderTracker<'tracker> {
+    /// tsrs-native: the wrapped tracker of upstream `createRecoveryBoundary`
+    /// (@6.0.3) as a frame — open one so the six wrapped error reports defer
+    /// instead of reporting.
+    pub(crate) fn push_recovery_frame(&mut self) {
+        self.recovery_frames.push(RecoveryFrame::default());
+    }
+
+    /// tsrs-native: the open recovery frame's `hadError`.
+    /// The open frame's `hadError` (false outside a boundary).
+    pub(crate) fn recovery_had_error(&self) -> bool {
+        self.recovery_frames
+            .last()
+            .is_some_and(|frame| frame.had_error)
+    }
+
+    /// tsrs-native: `startRecoveryScope` snapshot of the open frame.
+    /// `startRecoveryScope` snapshot of the open frame: (`hadError`, deferred
+    /// report count).
+    pub(crate) fn recovery_scope_top(&self) -> (bool, usize) {
+        self.recovery_frames
+            .last()
+            .map_or((false, 0), |frame| (frame.had_error, frame.deferred.len()))
+    }
+
+    /// tsrs-native: the recovery-scope rollback of deferred reports.
+    /// The recovery-scope rollback: drop the reports deferred since the
+    /// snapshot (they belong to the subtree the checker re-serializes).
+    pub(crate) fn recover_recovery_scope(&mut self, had_error: bool, deferred_top: usize) {
+        if let Some(frame) = self.recovery_frames.last_mut() {
+            frame.had_error = had_error;
+            frame.deferred.truncate(deferred_top);
+        }
+    }
+
+    /// tsrs-native: `finalizeBoundary` for the deferred reports.
+    /// `finalizeBoundary`: close the frame, replay every still-deferred report
+    /// through the restored tracker, and return the frame's `hadError`.
+    pub(crate) fn pop_recovery_frame(&mut self, reported_diagnostic: &mut bool) -> bool {
+        let Some(frame) = self.recovery_frames.pop() else {
+            return false;
+        };
+        for report in frame.deferred {
+            match report {
+                DeferredTrackerReport::CyclicStructure => {
+                    self.report_cyclic_structure_error(reported_diagnostic);
+                }
+                DeferredTrackerReport::InaccessibleThis => {
+                    self.report_inaccessible_this_error(reported_diagnostic);
+                }
+                DeferredTrackerReport::InaccessibleUniqueSymbol => {
+                    self.report_inaccessible_unique_symbol_error(reported_diagnostic);
+                }
+                DeferredTrackerReport::LikelyUnsafeImportRequired {
+                    specifier,
+                    symbol_name,
+                } => {
+                    self.report_likely_unsafe_import_required_error(
+                        reported_diagnostic,
+                        &specifier,
+                        symbol_name.as_deref(),
+                    );
+                }
+                DeferredTrackerReport::NonSerializableProperty(name) => {
+                    self.report_non_serializable_property(reported_diagnostic, &name);
+                }
+                DeferredTrackerReport::PrivateInBaseOfClassExpression(name) => {
+                    self.report_private_in_base_of_class_expression(reported_diagnostic, &name);
+                }
+            }
+        }
+        frame.had_error
+    }
+
+    /// tsrs-native: `markError` for a wrapped report.
+    /// `markError`: inside a boundary the outer `SymbolTrackerImpl` still
+    /// runs `onDiagnosticReported`, then the report is deferred.
+    fn defer_report(
+        &mut self,
+        reported_diagnostic: &mut bool,
+        report: DeferredTrackerReport,
+    ) -> bool {
+        let Some(frame) = self.recovery_frames.last_mut() else {
+            return false;
+        };
+        Self::on_diagnostic_reported(reported_diagnostic);
+        frame.had_error = true;
+        frame.deferred.push(report);
+        true
+    }
     /// tsc-port: SymbolTrackerImpl.constructor @6.0.3
     /// tsc-hash: 86a621c38feaa2ac30f30b3b2ac4e60669d06ecd8b94f923976af07f5b44e53d
     /// tsc-span: _tsc.js:90970-90982
@@ -44,6 +160,7 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
             .and_then(EmitSymbolTracker::module_specifier_host)
             .is_none();
         Self {
+            recovery_frames: Vec::new(),
             inner,
             disable_track_symbol: false,
             can_track_symbol,
@@ -184,6 +301,9 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-hash: 3342767095907d12b63b016d1f4d19d0437033c9882b108ee01c55afe184085c
     /// tsc-span: _tsc.js:90994-91000
     pub(crate) fn report_inaccessible_this_error(&mut self, reported_diagnostic: &mut bool) {
+        if self.defer_report(reported_diagnostic, DeferredTrackerReport::InaccessibleThis) {
+            return;
+        }
         if let Some(inner) = self.inner.as_deref_mut() {
             Self::on_diagnostic_reported(reported_diagnostic);
             inner.report_inaccessible_this_error();
@@ -198,6 +318,12 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         reported_diagnostic: &mut bool,
         property_name: &str,
     ) {
+        if self.defer_report(
+            reported_diagnostic,
+            DeferredTrackerReport::PrivateInBaseOfClassExpression(property_name.to_owned()),
+        ) {
+            return;
+        }
         if let Some(inner) = self.inner.as_deref_mut() {
             Self::on_diagnostic_reported(reported_diagnostic);
             inner.report_private_in_base_of_class_expression(property_name);
@@ -211,6 +337,12 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         &mut self,
         reported_diagnostic: &mut bool,
     ) {
+        if self.defer_report(
+            reported_diagnostic,
+            DeferredTrackerReport::InaccessibleUniqueSymbol,
+        ) {
+            return;
+        }
         if let Some(inner) = self.inner.as_deref_mut() {
             Self::on_diagnostic_reported(reported_diagnostic);
             inner.report_inaccessible_unique_symbol_error();
@@ -221,6 +353,9 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
     /// tsc-hash: c10bbc9a18d082f3ee7a2a148869e59743b71ea4227ebd8ef9c711d56b85f4af
     /// tsc-span: _tsc.js:91015-91021
     pub(crate) fn report_cyclic_structure_error(&mut self, reported_diagnostic: &mut bool) {
+        if self.defer_report(reported_diagnostic, DeferredTrackerReport::CyclicStructure) {
+            return;
+        }
         if let Some(inner) = self.inner.as_deref_mut() {
             Self::on_diagnostic_reported(reported_diagnostic);
             inner.report_cyclic_structure_error();
@@ -236,6 +371,15 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         specifier: &str,
         symbol_name: Option<&str>,
     ) {
+        if self.defer_report(
+            reported_diagnostic,
+            DeferredTrackerReport::LikelyUnsafeImportRequired {
+                specifier: specifier.to_owned(),
+                symbol_name: symbol_name.map(str::to_owned),
+            },
+        ) {
+            return;
+        }
         if let Some(inner) = self.inner.as_deref_mut() {
             Self::on_diagnostic_reported(reported_diagnostic);
             inner.report_likely_unsafe_import_required_error(specifier, symbol_name);
@@ -275,6 +419,12 @@ impl<'tracker> NodeBuilderTracker<'tracker> {
         reported_diagnostic: &mut bool,
         property_name: &str,
     ) {
+        if self.defer_report(
+            reported_diagnostic,
+            DeferredTrackerReport::NonSerializableProperty(property_name.to_owned()),
+        ) {
+            return;
+        }
         if let Some(inner) = self.inner.as_deref_mut() {
             Self::on_diagnostic_reported(reported_diagnostic);
             inner.report_non_serializable_property(property_name);

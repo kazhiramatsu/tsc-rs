@@ -298,6 +298,8 @@ impl SyntacticScopeCleanup {
 pub(crate) struct SyntacticRecoveryScope {
     had_error: bool,
     tracked_symbols_top: usize,
+    tracker_had_error: bool,
+    deferred_reports_top: usize,
 }
 
 /// Object-safe Rust spelling of the four closures returned by upstream's
@@ -320,6 +322,7 @@ impl SyntacticRecoveryBoundary {
         context.recovery_boundary_had_error = false;
         context.recovery_boundary_depth = previous_depth.saturating_add(1);
         context.recovery_tracked_symbols = Some(Vec::new());
+        context.tracker.push_recovery_frame();
         Self {
             previous_had_error,
             previous_depth,
@@ -330,7 +333,7 @@ impl SyntacticRecoveryBoundary {
 
     /// tsrs-native: recovery-boundary error probe (upstream closure capture).
     pub(crate) fn had_error(&self, context: &NodeBuilderContext<'_>) -> bool {
-        context.recovery_boundary_had_error
+        context.recovery_boundary_had_error || context.tracker.recovery_had_error()
     }
 
     /// tsrs-native: recovery-boundary error latch (upstream closure capture).
@@ -343,12 +346,15 @@ impl SyntacticRecoveryBoundary {
         &self,
         context: &NodeBuilderContext<'_>,
     ) -> SyntacticRecoveryScope {
+        let (tracker_had_error, deferred_reports_top) = context.tracker.recovery_scope_top();
         SyntacticRecoveryScope {
             had_error: context.recovery_boundary_had_error,
             tracked_symbols_top: context
                 .recovery_tracked_symbols
                 .as_ref()
                 .map_or(0, Vec::len),
+            tracker_had_error,
+            deferred_reports_top,
         }
     }
 
@@ -362,6 +368,9 @@ impl SyntacticRecoveryBoundary {
         if let Some(tracked) = context.recovery_tracked_symbols.as_mut() {
             tracked.truncate(scope.tracked_symbols_top);
         }
+        context
+            .tracker
+            .recover_recovery_scope(scope.tracker_had_error, scope.deferred_reports_top);
     }
 
     /// tsrs-native: recovery-boundary completion (upstream closure return).
@@ -370,7 +379,10 @@ impl SyntacticRecoveryBoundary {
         context: &mut NodeBuilderContext<'_>,
         access: &mut dyn tsc_emitter::EmitTrackerAccess,
     ) -> Result<bool, tsc_emitter::EmitResolverError> {
-        let succeeded = !context.recovery_boundary_had_error;
+        let tracker_had_error = context
+            .tracker
+            .pop_recovery_frame(&mut context.reported_diagnostic);
+        let succeeded = !context.recovery_boundary_had_error && !tracker_had_error;
         let buffered = context.recovery_tracked_symbols.take().unwrap_or_default();
         context.recovery_tracked_symbols = self.previous_recovery_tracked_symbols;
         context.tracked_symbols = self.previous_tracked_symbols;
@@ -407,42 +419,50 @@ impl SyntacticRecoveryBoundary {
 pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
     fn evaluate_entity_name_expression(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         expression: tsc_emitter::TransformNode,
     ) -> Result<crate::evaluate::EvaluatorResult, tsc_emitter::EmitResolverError>;
 
     fn is_expando_function_declaration(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         node: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
     fn has_late_bindable_name(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         node: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
     fn should_remove_declaration(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         node: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
     fn create_recovery_boundary(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
     ) -> Result<SyntacticRecoveryBoundary, tsc_emitter::EmitResolverError>;
 
     fn is_definitely_reference_to_global_symbol_object(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         node: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
     fn get_all_accessor_declarations(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         node: tsc_emitter::TransformNode,
     ) -> Result<SyntacticAccessorDeclarations, tsc_emitter::EmitResolverError>;
 
     fn requires_adding_implicit_undefined(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         declaration: tsc_emitter::TransformNode,
         symbol: Option<SyntacticSymbol>,
         enclosing_declaration: Option<tsc_syntax::NodeId>,
@@ -450,16 +470,19 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
 
     fn is_optional_parameter(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         parameter: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
     fn is_undefined_identifier_expression(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         node: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
     fn is_entity_name_visible(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         entity_name: tsc_emitter::TransformNode,
         should_compute_aliases_to_make_visible: bool,
@@ -561,12 +584,14 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
 
     fn track_computed_name(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         access_expression: tsc_emitter::TransformNode,
     ) -> Result<(), tsc_emitter::EmitResolverError>;
 
     fn get_module_specifier_override(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         parent: tsc_emitter::TransformNode,
         literal: tsc_emitter::TransformNode,
@@ -574,12 +599,14 @@ pub(crate) trait SyntacticBuilderResolver: tsc_emitter::EmitTrackerAccess {
 
     fn can_reuse_type_node(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         type_node: tsc_emitter::TransformNode,
     ) -> Result<bool, tsc_emitter::EmitResolverError>;
 
     fn can_reuse_type_node_annotation(
         &mut self,
+        arena: &mut tsc_emitter::TransformArena,
         context: &mut NodeBuilderContext<'_>,
         node: tsc_emitter::TransformNode,
         existing: tsc_emitter::TransformNode,

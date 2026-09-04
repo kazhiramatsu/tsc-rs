@@ -4771,7 +4771,12 @@ impl<'a> CheckerState<'a> {
         use tsc_types::{LiteralValue, TypeData, TypeFlags};
         let method = tsc_emitter::EmitResolverMethod::CreateLiteralConstValue;
         let flags = self.tables.flags_of(literal_type);
-        if flags.contains(TypeFlags::ENUM_LIKE) {
+        // `type.flags & EnumLike` (88492): EnumLike = Enum | EnumLiteral, so
+        // EITHER bit selects the symbol-expression arm — `contains` demanded
+        // both and left the arm dead (h2-7b-m-2 fence amendment #4d: a
+        // computed enum member's fresh Enum type aborted as "not a literal",
+        // and constant members printed their values instead of `E.A`).
+        if flags.intersects(TypeFlags::ENUM_LIKE) {
             let symbol = self.tables.type_of(literal_type).symbol.ok_or(
                 tsc_emitter::EmitResolverError::CheckerAborted {
                     method,
