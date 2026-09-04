@@ -54,7 +54,7 @@
         "candidate_cases_sha256": { "$ref": "#/$defs/sha256" },
         "global_candidate_denominator": { "const": 2456 },
         "observed_candidate_denominator": { "const": 1593 },
-        "observed_admitted_denominator": { "const": 1567 },
+        "observed_admitted_denominator": { "const": 1557 },
         "suite_counts": { "$ref": "#/$defs/suite_counts_global" },
         "candidate_suite_counts": { "$ref": "#/$defs/suite_counts_candidate" },
         "admitted_suite_counts": { "$ref": "#/$defs/suite_counts_admitted" },
@@ -240,6 +240,37 @@
         "text_sha256": { "$ref": "#/$defs/sha256" }
       }
     },
+    "source_facts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["parse_diagnostic_units", "ast_depth_units"],
+      "properties": {
+        "parse_diagnostic_units": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "codes"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "codes": { "type": "array", "uniqueItems": true, "items": { "type": "integer", "minimum": 0 } }
+            }
+          }
+        },
+        "ast_depth_units": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "depth"],
+            "properties": {
+              "path": { "type": "string", "minLength": 1 },
+              "depth": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
     "inline_payload": {
       "oneOf": [
         { "type": "null" },
@@ -404,7 +435,7 @@
     "case": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["suite", "case_id", "fixture_id", "matrix_key", "selection_origin", "execution_route", "expansion_case", "configuration_index", "source", "option_facets", "positive_options", "explicit_false_options", "effective_declaration_options", "facets", "disposition", "emit_eligibility", "first_owner", "required_slices", "reason", "target_state", "module_state", "observation_input_sha256", "owner_reachability", "diagnostic_disposition", "rust_expectation", "case_fingerprint_sha256"],
+      "required": ["suite", "case_id", "fixture_id", "matrix_key", "selection_origin", "execution_route", "expansion_case", "configuration_index", "source", "option_facets", "positive_options", "explicit_false_options", "effective_declaration_options", "facets", "source_facts", "disposition", "emit_eligibility", "first_owner", "required_slices", "reason", "target_state", "module_state", "observation_input_sha256", "owner_reachability", "diagnostic_disposition", "rust_expectation", "case_fingerprint_sha256"],
       "properties": {
         "suite": { "enum": ["compiler", "conformance", "project", "transpile"] },
         "case_id": { "type": "string", "minLength": 1 },
@@ -420,6 +451,7 @@
         "explicit_false_options": { "type": "array", "uniqueItems": true, "items": { "type": "string", "minLength": 1 } },
         "effective_declaration_options": { "type": "object", "additionalProperties": true },
         "facets": { "type": "array", "items": { "$ref": "#/$defs/rich_facet" } },
+        "source_facts": { "$ref": "#/$defs/source_facts" },
         "disposition": { "enum": ["admitted-for-execution", "deferred-to-slices"] },
         "emit_eligibility": { "type": ["string", "null"], "enum": ["emit-eligible", "no-emit-eligible-source", null] },
         "first_owner": { "type": ["string", "null"], "minLength": 1 },
@@ -466,11 +498,11 @@
     },
     "suite_counts_admitted": {
       "type": "object", "additionalProperties": false, "required": ["compiler", "conformance", "project", "transpile"],
-      "properties": { "compiler": { "const": 896 }, "conformance": { "const": 475 }, "project": { "const": 196 }, "transpile": { "const": 0 } }
+      "properties": { "compiler": { "const": 893 }, "conformance": { "const": 468 }, "project": { "const": 196 }, "transpile": { "const": 0 } }
     },
     "suite_counts_deferred": {
       "type": "object", "additionalProperties": false, "required": ["compiler", "conformance", "project", "transpile"],
-      "properties": { "compiler": { "const": 25 }, "conformance": { "const": 1 }, "project": { "const": 0 }, "transpile": { "const": 0 } }
+      "properties": { "compiler": { "const": 28 }, "conformance": { "const": 8 }, "project": { "const": 0 }, "transpile": { "const": 0 } }
     },
     "execution_contract": {
       "type": "object", "additionalProperties": false,
@@ -512,10 +544,10 @@
         "census_cases": { "const": 15642 }, "literal_cases": { "const": 15642 }, "positive_cases": { "const": 2456 }, "negative_cases": { "const": 13186 },
         "candidates": { "const": 1593 }, "observed_candidates": { "const": 1593 }, "compiler_candidates": { "const": 921 }, "conformance_candidates": { "const": 476 }, "project_candidates": { "const": 196 }, "transpile_candidates": { "const": 0 }, "deferred_project_mount": { "const": 0 }, "project_mount_cases": { "const": 196 }, "recorded_compiler_plan_cases": { "const": 921 }, "qualified_vfs_cases": { "const": 476 }, "transpile_api_cases": { "const": 0 },
         "virtual_config_cases": { "const": 7 }, "vfs_symlink_cases": { "const": 8 }, "vfs_symlink_paths": { "const": 19 },
-        "admitted_cases": { "const": 1567 }, "deferred_cases": { "const": 26 }, "no_emit_control_cases": { "const": 6 },
-        "compiler_admitted_cases": { "const": 896 }, "compiler_deferred_cases": { "const": 25 }, "conformance_admitted_cases": { "const": 475 }, "conformance_deferred_cases": { "const": 1 }, "project_admitted_cases": { "const": 196 }, "project_deferred_cases": { "const": 0 }, "transpile_admitted_cases": { "const": 0 }, "transpile_deferred_cases": { "const": 0 },
-        "target_states": { "const": [{ "value": "ES2015(2)", "cases": 1084 }, { "value": "absent", "cases": 196 }, { "value": "ES5(1)", "cases": 134 }, { "value": "ES2022(9)", "cases": 101 }, { "value": "ESNext(99)", "cases": 69 }, { "value": "ES2020(7)", "cases": 7 }, { "value": "ES2017(4)", "cases": 1 }, { "value": "ES2024(11)", "cases": 1 }] }, "module_states": { "const": [{ "value": "absent", "cases": 749 }, { "value": "CommonJS(1)", "cases": 527 }, { "value": "AMD(2)", "cases": 158 }, { "value": "NodeNext(199)", "cases": 33 }, { "value": "Node16(100)", "cases": 23 }, { "value": "ESNext(99)", "cases": 22 }, { "value": "Node18(101)", "cases": 22 }, { "value": "Node20(102)", "cases": 22 }, { "value": "ES2015(5)", "cases": 15 }, { "value": "System(4)", "cases": 6 }, { "value": "UMD(3)", "cases": 6 }, { "value": "ES2022(7)", "cases": 4 }, { "value": "ES2020(6)", "cases": 3 }, { "value": "Preserve(200)", "cases": 2 }, { "value": "None(0)", "cases": 1 }] }, "dispositions": { "const": [{ "value": "admitted-for-execution", "cases": 1567 }, { "value": "deferred-to-slices", "cases": 26 }] }, "first_deferred_slices": { "const": [{ "value": "H2.7c", "cases": 26 }] },
-        "typescript_runs": { "const": 3134 }, "deterministic_typescript_cases": { "const": 1567 }, "emit_refused_cases": { "const": 34 }, "typescript_writes": { "const": 5000 }, "typescript_reported_diagnostics": { "const": 3271 }, "typescript_emit_diagnostics": { "const": 47 }, "source_map_result_entries": { "const": 293 }, "declaration_writes": { "const": 2410 }, "emit_declaration_only_cases": { "const": 112 }, "explicit_false_declaration_map_cases": { "const": 10 }, "no_emit_eligible_source_cases": { "const": 6 }, "transpile_band_rows": { "const": 0 }, "out_file_rows": { "const": 0 }, "out_dir_rows": { "const": 0 }, "root_dir_rows": { "const": 0 }, "no_emit_rows": { "const": 0 }, "no_check_rows": { "const": 0 }, "composite_rows": { "const": 0 }, "facet_agreement_cases": { "const": 1593 }, "unexecuted_candidates": { "const": 0 }, "undispositioned_candidates": { "const": 0 }
+        "admitted_cases": { "const": 1557 }, "deferred_cases": { "const": 36 }, "no_emit_control_cases": { "const": 6 },
+        "compiler_admitted_cases": { "const": 893 }, "compiler_deferred_cases": { "const": 28 }, "conformance_admitted_cases": { "const": 468 }, "conformance_deferred_cases": { "const": 8 }, "project_admitted_cases": { "const": 196 }, "project_deferred_cases": { "const": 0 }, "transpile_admitted_cases": { "const": 0 }, "transpile_deferred_cases": { "const": 0 },
+        "target_states": { "const": [{ "value": "ES2015(2)", "cases": 1084 }, { "value": "absent", "cases": 196 }, { "value": "ES5(1)", "cases": 134 }, { "value": "ES2022(9)", "cases": 101 }, { "value": "ESNext(99)", "cases": 69 }, { "value": "ES2020(7)", "cases": 7 }, { "value": "ES2017(4)", "cases": 1 }, { "value": "ES2024(11)", "cases": 1 }] }, "module_states": { "const": [{ "value": "absent", "cases": 749 }, { "value": "CommonJS(1)", "cases": 527 }, { "value": "AMD(2)", "cases": 158 }, { "value": "NodeNext(199)", "cases": 33 }, { "value": "Node16(100)", "cases": 23 }, { "value": "ESNext(99)", "cases": 22 }, { "value": "Node18(101)", "cases": 22 }, { "value": "Node20(102)", "cases": 22 }, { "value": "ES2015(5)", "cases": 15 }, { "value": "System(4)", "cases": 6 }, { "value": "UMD(3)", "cases": 6 }, { "value": "ES2022(7)", "cases": 4 }, { "value": "ES2020(6)", "cases": 3 }, { "value": "Preserve(200)", "cases": 2 }, { "value": "None(0)", "cases": 1 }] }, "dispositions": { "const": [{ "value": "admitted-for-execution", "cases": 1557 }, { "value": "deferred-to-slices", "cases": 36 }] }, "first_deferred_slices": { "const": [{ "value": "H2.7c", "cases": 26 }, { "value": "H2.9", "cases": 10 }] },
+        "typescript_runs": { "const": 3114 }, "deterministic_typescript_cases": { "const": 1557 }, "emit_refused_cases": { "const": 33 }, "typescript_writes": { "const": 4939 }, "typescript_reported_diagnostics": { "const": 3241 }, "typescript_emit_diagnostics": { "const": 46 }, "source_map_result_entries": { "const": 293 }, "declaration_writes": { "const": 2380 }, "emit_declaration_only_cases": { "const": 112 }, "explicit_false_declaration_map_cases": { "const": 10 }, "no_emit_eligible_source_cases": { "const": 6 }, "transpile_band_rows": { "const": 0 }, "out_file_rows": { "const": 0 }, "out_dir_rows": { "const": 0 }, "root_dir_rows": { "const": 0 }, "no_emit_rows": { "const": 0 }, "no_check_rows": { "const": 0 }, "composite_rows": { "const": 0 }, "facet_agreement_cases": { "const": 1593 }, "unexecuted_candidates": { "const": 0 }, "undispositioned_candidates": { "const": 0 }
       }
     }
   }
