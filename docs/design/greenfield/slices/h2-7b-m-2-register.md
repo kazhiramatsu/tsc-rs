@@ -6,7 +6,7 @@
 - Parent restatement landed with the packet (h2-7b.md §6.2 / §6.4 / §8: the hosted boundary grows by exactly one call at m-2).
 
 ## Opening commit (pre-flip) — TO-FILL
-- `--pre-flip` census: typed refusals `__` (expect 111) / executed `__` (expect 1,450) / zero-member controls `__` (expect 6) / deferred 26; activity 0 on every successful outcome; the structural canary test: `__`
+- `--pre-flip` census: typed refusals `__` (expect 111) / executed `__` (expect 1,440 after A1; 1,450 at rev 10) / zero-member controls `__` (expect 6) / deferred 36 (A1; 26 at rev 10); activity 0 on every successful outcome; the structural canary test: `__`
 - the 6c pre-flip population (§6.4c1): 451 rows, coarse facets byte-identical `__`; `refused_option` map totals outFile 171 / declarationMap 6 / outDir 130 / rootDir 4 / isolatedModules 1: `__`
 - guard test `hosted_acceptance_and_oracle_phases_cover_h2_2c_rungs` green with `run_h2_7b` inside `fn acceptance`: `__`; policy pins (main.rs, h2_2c_acceptance.rs): `__`
 
@@ -17,7 +17,7 @@
 - the four printer-field dispositions (`module`, `moduleResolution`, `inlineSourceMap`, `extendedDiagnostics`) with grep evidence: `__`
 
 ## First sweep / cross-slice — TO-FILL
-- exact `__` / diverging `__` (manifest rows `__`; owner `h2-7b-m-2-divergence-closure`); refusals 0: `__`; the 29 transform-blocked + 5 collision rows exact: `__`; activity 2,445 per repetition: `__`
+- exact `__` / diverging `__` (manifest rows `__`; owner `h2-7b-m-2-divergence-closure`); refusals 0: `__`; the 28 (A1; 29 at rev 10) transform-blocked + 5 collision rows exact: `__`; activity 2,414 (A1; 2,445 at rev 10) per repetition: `__`
 - 6c regeneration: in-band shrink `__` (≤ 133), the 133-row activation refinement `__`, the 33 registered refusal transitions (`case_id` list): `__`; totals 639 / 4 / 643: `__`; 293 / 0 activity: `__`
 - 5h / 6a / 6b shrink-only: `__`; corpus ratchet T0 100% FP=0: `__`
 - inventory re-mint (seven anchored H2.7b rows; the two `markLinkedReferences` rows → H2.8c): `__`; close artifact `lifted-at-H2.7b` ×4 with `retained_arms`: `__`
@@ -28,3 +28,4 @@
 ## Implementation-time amendments
 - 2026-09-04 lane B STOP 1: `h1_emit_qualification_contract.rs` (:449-465 the declaration-control write truncation; :488 the H2.6c activity mapping) is a LIFTED control missed by the G11 survey — packet §5.11 addendum; the lift = both frozen writes exact incl. the `.d.ts` bytes + the H2.7b member observation.
 - 2026-09-04 lane A STOP 1: the harness project loader `crates/harness/src/upstream_suites/execution/project.rs` joins the opening-commit file roster (the emitted-files listing must be enabled for project rows through `load_project_emit`; packet §4.6 unchanged in substance).
+- 2026-09-04 lane A STOP 2 → amendment A1 (packet §2.0; h2-7b-m-1.md §2 A1 / §9.7 + its register): the m-1 census was option-only and admitted 10 parse-diagnostic rows the emitter refuses to H2.9 before any outcome (`declarationEmitInvalidExport.ts#default`, ordered case 239). Lane D repaired the machine + schema and re-minted the artifact on this train (admitted 1,557 / deferred 36; generator `c9cf469d…`, fingerprint `6ff65e52…`); every frozen count of this rung reads through the §2.0 table (opening census 111 / 1,440 / 6 / 36; planned members 2,414; `declaration_writes` 2,380; transform-blocked 28). Lane A resumes from the re-minted artifact (its validator/consts re-derived); lanes B and C are unaffected (the 7a witness/probe and the inventory/close pins do not read the 7b counts).
