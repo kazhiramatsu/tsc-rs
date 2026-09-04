@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "b69942c54e0cdf11dc13a890042b11bb241ef66d96d564ab8b3bdc3cc431e7a7"
+      "sha256": "a8be024226a8f60ac94ca3b3ad774045155f427b608ae5bd2940e50cf38d34e3"
     },
-    "owner_graph_fingerprint_sha256": "16455628d5451c7e3fd98a62d895b759b24df1d80ffbdc9f0b679f7095fb9d71",
+    "owner_graph_fingerprint_sha256": "04e5a248bb54a56d71bc64723c6e47bd3e87e064b4fb43502b9d9d5b9b28e171",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "91c8ae93bfba442ff95b000031062f4876244400a0494da10b200a4552f792a9"
+  "gap_matrix_fingerprint_sha256": "64cae1b90038f058fa9ab530990be537afd4e60be4ec03b8a2250ff35148c7f6"
 }

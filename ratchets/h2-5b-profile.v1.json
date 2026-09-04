@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5b-profile.mjs",
-    "sha256": "83b04d8df48a9a3d149d9fa63deed09ef38ac9745737cd3f4151913289874b66"
+    "sha256": "581d15896355a8c904d94deaf47dde55d258dc03266bcbe94ae27ec06fdce277"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5b-profile.schema.json",
@@ -28,11 +28,11 @@
     "historical": {
       "profile": {
         "path": "ratchets/h2-5a-profile.v1.json",
-        "sha256": "cbc18383087da259eb40a72ce56196f7ac119e65d8d1a48c228ab7f19ed7a32e"
+        "sha256": "7e96f229ef0d738eac41a854026a18e8acf703f3176c8dc0182a0865e7859ed8"
       },
       "qualification": {
         "path": "ratchets/h2-5a-qualification.v1.json",
-        "sha256": "54acc5f2d0477260a9fb40caaf792fd53521a23de760fac6843afd30e80798f9"
+        "sha256": "aba6eaa21af6241ac29473c5c945a31cf75ab8ab361f3573031b8e71792145e5"
       },
       "owner_controls": {
         "path": "ratchets/h2-5a-owner-controls.v1.json",
@@ -40,11 +40,11 @@
       },
       "profile_generator": {
         "path": "crates/oracle/h2-5a-profile.mjs",
-        "sha256": "5b51d10db3d9fb3afee1c557b4e9ba20d61b5d917b29c0f18268b4cfc3b86e12"
+        "sha256": "543680a698e71021f0b51ffd111f2decf0fbf42f5625ac9587f3cdd9a075bc04"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-5a-qualification.mjs",
-        "sha256": "4fe352bd883328fb0c02718ec05081dca7a902ab360d3fa82232d2f660cc6e36"
+        "sha256": "8b8960eaca3cb6c73b73d8525e69118f26d453f6dbbba490e4bce6c5f8352ba6"
       },
       "owner_controls_generator": {
         "path": "crates/oracle/h2-5a-owner-controls.mjs",
@@ -67,7 +67,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-5b-qualification.v1.json",
-    "sha256": "a6470b8c727ecc115d20beb965853744a0ee4699080b3e7b3b3bf2956fcd6948"
+    "sha256": "d7345c98bb3efc72c83e11dab9c43e73439a60d49c759cd2c091d1cb22ec16b3"
   },
   "runtime_inputs": [
     {
@@ -248,7 +248,7 @@
     },
     {
       "path": "crates/xtask/src/h2_2c_acceptance.rs",
-      "sha256": "33ffaf2623d82becdf9e7655c9dab056180bf83155ec4a1c93f07e5ae243fa6a"
+      "sha256": "a4ff51fca73af258cfed08031ad90cfae295affb9e37238ed8a1cf66e5a7581f"
     },
     {
       "path": "crates/xtask/src/h2_2d_acceptance.rs",
@@ -522,7 +522,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "898b91c09f0ac529ac7fb1e6acbd40343595c9fde693182c78a6ad8da254007e"
+      "sha256": "c178e4880c9e9153c69b4911cb871e4fc630f8801ef4ee874416d2345c66ca67"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -530,7 +530,7 @@
     },
     "historical_h2_5a_profile": {
       "path": "ratchets/h2-5a-profile.v1.json",
-      "sha256": "cbc18383087da259eb40a72ce56196f7ac119e65d8d1a48c228ab7f19ed7a32e"
+      "sha256": "7e96f229ef0d738eac41a854026a18e8acf703f3176c8dc0182a0865e7859ed8"
     },
     "local_full_gate": "cargo xtask ci --baseline 1676080a3efa759464a17fe91c96bbc807f38fc5",
     "hosted_gate": "cargo xtask acceptance",
@@ -547,5 +547,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "6e60ace68eb07baba581a040ed9a6041d1a308b62745ee3faa3eac520131fd8a"
+  "profile_fingerprint_sha256": "12d458e7c581a93ee27e60501cc9527a8061f33fd5d0511e0971b142c6eed51e"
 }
