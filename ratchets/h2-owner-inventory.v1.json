@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-transition.mjs",
-    "sha256": "f73d46e545cb56ef47441d2cf85f522f3c8fb303a60cea1004053ddfdb53d830"
+    "sha256": "257a0a6ad094c571c1c6264b75a256f98f2a93e9e26e2d1c97c680b6b2603869"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-owner-inventory.schema.json",
@@ -29,7 +29,7 @@
     },
     "h1_rust_omissions": {
       "path": "ratchets/h1-rust-omissions.v1.json",
-      "sha256": "645721745dfdca4c3a4403154f201d96d426f27525026c7b3552368c75f08de6"
+      "sha256": "499b85022a0774cadd555517d13065909b9308ccc77a25039b2216818eba66ae"
     }
   },
   "closure_model": "complete H2 one-shot compiler owner-root universe plus exact source-symbol references between roots; each runtime slice regenerates the transitive helper closure and may suffix-split independent SCCs before admission",
@@ -2269,7 +2269,7 @@
         "path": "crates/emitter/src/execute.rs",
         "line": 258,
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "08fe8589bbfd2490fd10e12097c0e7a00e2986032adb78bdaba96d7af35a1cc5"
+        "file_sha256": "c387c307ce32641ebc045a792a2aacdd518b96739f663028e1906456bcc0e010"
       },
       "upstream_owners": [
         "emit-files",
@@ -2283,7 +2283,7 @@
         "path": "crates/compiler/src/lib.rs",
         "line": 717,
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "4b317a8fc972dc1e0e6d4c7ca32654cf391aa266470b160038f3d069f34cb382"
+        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
       },
       "upstream_owners": [
         "program-emit"
@@ -2831,5 +2831,5 @@
     "unmapped_rust_converse_rows": 0,
     "owner_arms": 4
   },
-  "inventory_fingerprint_sha256": "082e9d5993166f56ff6d62c8865aa200441daa01f993b7e0a6d94b0ed3bc1220"
+  "inventory_fingerprint_sha256": "d5a753ee1ab2f0387b58ef089fe9c8fff54975fbc5073e90e76172e140252157"
 }

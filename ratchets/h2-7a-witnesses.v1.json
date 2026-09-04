@@ -67,7 +67,7 @@
     },
     "h2_6c_qualification": {
       "path": "ratchets/h2-6c-qualification.v1.json",
-      "sha256": "840ed67cb829cff3c3a7a74792ffa9a6848183e83c73b966da30ceda1544a770"
+      "sha256": "e26467f049ace1085958b02a6bd3276839eaa1e585ea1a5847c6c5e0bff42d77"
     },
     "w5_stratum_pool": {
       "path": "ratchets/h2-7a-w5-stratum-pool.v1.json",
@@ -16788,5 +16788,5 @@
     "rust_runs": 0
   },
   "observation_content_roll_sha256": "4d2e6f6dc52cf5e43356d3e8fd707bf4926638057d60ae98c49581cfb6a42cad",
-  "witnesses_fingerprint_sha256": "6f221333863879dc7629f497cef55bd6957fc1e8f97ca7315d7e0495aa81e1e2"
+  "witnesses_fingerprint_sha256": "bf8e595e418b588fb1ed5c9b7cdb15f43206faeda832b65d3dc1ca1a2f321132"
 }

@@ -16,7 +16,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-qualification.mjs",
-    "sha256": "75f025c368aeb23253968e196d6cdb0180651f7ec81e5b50dfae58c61630a0cf"
+    "sha256": "d82e2cbdafcd994ea0d851289e85dbcffbeb6dc15a73e7ed9a97d0b8a95acbae"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-qualification.schema.json",
@@ -26,7 +26,7 @@
     "h2_2a_merge": "c402252a0d9df4ca0f5332c7f64084087fe55886",
     "h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "3a357f55e36432194242578891956b2e4960a5557c097429342f9f7c17ab3180"
+      "sha256": "1d6068d9bf447a9d18bfbc6afd468f447fadf62deea2224502d5f6e35ba0c9f3"
     }
   },
   "inputs": {
@@ -48,19 +48,19 @@
     },
     "owner_inventory": {
       "path": "ratchets/h2-owner-inventory.v1.json",
-      "sha256": "3aeebd2bad8f4c962ac09ada674093559631a5277e9c9856aff947e11ec77626"
+      "sha256": "fa6f1f8db3a58accdf629839847911f45dd3bdfcba7ff1b9474cbeaf8069132c"
     },
     "h2_1a_qualification": {
       "path": "ratchets/h2-1a-qualification.v1.json",
-      "sha256": "86925b1a8287ff8aaa52bd4c6a3bf2e6488160d757ef0dbe7dd13613f412f1af"
+      "sha256": "557c4b6a83c4cd2fa452d4139c0b92707d422b87230ec723528d743f4c0da12a"
     },
     "h2_1b_qualification": {
       "path": "ratchets/h2-1b-qualification.v1.json",
-      "sha256": "c7d338ac4a059c23e04426c280fdd57c3f4a303b07dbe081cfadb3cd74d104b3"
+      "sha256": "2b93b68dac75ed037458717bdf02fa0dcfe0a88f120cf92aa019562862384ec2"
     },
     "h2_2a_qualification": {
       "path": "ratchets/h2-2a-qualification.v1.json",
-      "sha256": "309437da2d98ccf3a6513fa56346bb2470875a47d7c52acfc770e130902d6d36"
+      "sha256": "2b47c1aca56071b3e41cad842c77b3e193ccb275faeedcbcf4b8b145f4f9d462"
     }
   },
   "execution_contract": {
@@ -7217,5 +7217,5 @@
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
-  "qualification_fingerprint_sha256": "b92961514929c5deeba2df7eb376b6a040ade3bf24a390a5f2e51bf16b799c43"
+  "qualification_fingerprint_sha256": "50064a70994421615432a6163bf9e028f2d0017c93bbc5c7ba16666df1c3eb38"
 }

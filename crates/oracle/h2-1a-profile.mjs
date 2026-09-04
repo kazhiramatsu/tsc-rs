@@ -13,9 +13,9 @@ const QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const TRUSTED_BASE = "b22491e86da731e4657fb8ec2c31c19291099b4c";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile_transition", "ratchets/h2-profile-transition.v1.json", "a0145b13bdf677f0840bb511f6fa140fb3cd2ac36f3d8a14a56cdd1ab7a5c313"],
+  ["profile_transition", "ratchets/h2-profile-transition.v1.json", "55e57cecfb4bbddb11913a0cd95ccd2ec94d3d43575b20cfef122d2de2cb35de"],
   ["runtime_baseline", "ratchets/h2-runtime-baseline.v1.json", "634492148d44c374c922ed6bd0545c43cdcabe913c78dbffd9d2f940c4ac7cd9"],
-  ["transition_generator", "crates/oracle/h2-transition.mjs", "f73d46e545cb56ef47441d2cf85f522f3c8fb303a60cea1004053ddfdb53d830"],
+  ["transition_generator", "crates/oracle/h2-transition.mjs", "257a0a6ad094c571c1c6264b75a256f98f2a93e9e26e2d1c97c680b6b2603869"],
   ["baseline_generator", "crates/oracle/h2-baseline.mjs", "dd282acbf207980db2fcd540206957f980c4e05a1b41b68e1bc347d6b5487197"],
   ["transition_contract", ".github/ci/contracts/h2-profile-transition.schema.json", "fb899f795a4b07b38da88748117347b3f662d85e4be194b2334b48c05e519b23"],
   ["baseline_contract", ".github/ci/contracts/h2-runtime-baseline.schema.json", "a37cbec40a1773d3b4199739764f34882457aaebe0661280ede262246b769fae"],
