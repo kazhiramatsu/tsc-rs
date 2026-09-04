@@ -325,6 +325,12 @@ fn declaration_emit_mixin_private_protected_matches_the_frozen_emit_diagnostic_o
         "typescript-6.0.3/compiler/declarationEmitMixinPrivateProtected.ts#default",
         false,
     );
+}
+
+/// h2-7b-w1 lane A rev 5: a prepared package.json projection is a host-only
+/// checker input — the H2.1e JSON-module import of ./package.json resolves to
+/// the Program source, while the same manifest stays readable for package /
+/// module-specifier host lookups.
 #[test]
 fn json_module_import_prefers_program_source_over_package_host_input() {
     const CASE_ID: &str = "typescript-6.0.3/compiler/importAssertionsDeprecated.ts#default";
