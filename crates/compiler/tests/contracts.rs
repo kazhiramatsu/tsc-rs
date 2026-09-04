@@ -36,6 +36,8 @@ mod h2_7a_partition_projection;
 mod h2_7b_m2_controls;
 #[path = "integration/h2_7b_w1_controls.rs"]
 mod h2_7b_w1_controls;
+#[path = "integration/h2_7b_w1_diff_census.rs"]
+mod h2_7b_w1_diff_census;
 #[path = "integration/library_loader_session_contract.rs"]
 mod library_loader_session_contract;
 #[path = "integration/no_resolve_session_contract.rs"]
