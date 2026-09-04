@@ -4244,14 +4244,88 @@ const H2_7B_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-7b-qualification.v1
 const H2_7B_KNOWN_DIVERGENCES_RELATIVE_PATH: &str = "ratchets/h2-7b-known-divergences.v1.json";
 const H2_7B_WRITE_DIVERGENCES_ENV: &str = "TSRS_H2_7B_WRITE_DIVERGENCES";
 const H2_7B_DIVERGENCE_OWNER: &str = "h2-7b-m-2-divergence-closure";
-const H2_7B_GENERATOR_SHA256: &str =
-    "c9cf469d9483c71a6a14f93a194b0e0cee862b969ea63dc1a94cf324200cacb5";
-const H2_7B_CONTRACT_SHA256: &str =
-    "21148a53cfd964026f76c275f38cb466c7aca2f8d986eabf2b6d19226b980f7f";
-const H2_7B_QUALIFICATION_FINGERPRINT_SHA256: &str =
-    "d8a5c6ed8aeb54646c6cec2843d4e338049a4a1dcac5d3ffe1eb4e0c2d8b4a80";
+const H2_7B_GENERATOR_RELATIVE_PATH: &str = "crates/oracle/h2-7b-qualification.mjs";
+const H2_7B_CONTRACT_RELATIVE_PATH: &str = ".github/ci/contracts/h2-7b-qualification.schema.json";
+/// The frozen H2.7b census identity: the census machine's `canonical` sha256
+/// over the artifact's `cases` (h2-7b-m-2 fence amendment #6). The census rows
+/// are the identity the m-2 wiring freezes; the artifact's provenance shas
+/// (its generator, its contract, the dispositions file, and the whole-payload
+/// fingerprint that covers them) move whenever an upstream walk rung is
+/// re-minted — even when no row changed — and pinning them as Rust literals
+/// closes a cycle (runner bytes → h1 Rust inventories → h2 transition →
+/// dispositions → 7b fingerprint → runner literal). Provenance is therefore
+/// verified LIVE against the files on disk below, and the fingerprint by its
+/// own self-verification.
+const H2_7B_CASES_CANONICAL_SHA256: &str =
+    "bcfa167c8157f21b13c7eb1101f9c3d6e33a668b0acad282ee6eaf498bc64827";
 
-fn validate_h2_7b_qualification(artifact: &Value) -> Result<&[Value], Box<dyn Error>> {
+/// The census machines' `canonical(value)`: arrays as `[a,b]`, objects with
+/// keys sorted and `JSON.stringify`-encoded, scalars as `JSON.stringify`.
+fn census_canonical_json(value: &Value, out: &mut String) {
+    match value {
+        Value::Array(items) => {
+            out.push('[');
+            for (index, item) in items.iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                census_canonical_json(item, out);
+            }
+            out.push(']');
+        }
+        Value::Object(map) => {
+            out.push('{');
+            let mut keys = map.keys().collect::<Vec<_>>();
+            keys.sort();
+            for (index, key) in keys.into_iter().enumerate() {
+                if index > 0 {
+                    out.push(',');
+                }
+                out.push_str(&serde_json::to_string(key).expect("a JSON string key encodes"));
+                out.push(':');
+                census_canonical_json(&map[key], out);
+            }
+            out.push('}');
+        }
+        scalar => out.push_str(&serde_json::to_string(scalar).expect("a JSON scalar encodes")),
+    }
+}
+
+fn census_canonical_sha256(value: &Value) -> String {
+    let mut text = String::new();
+    census_canonical_json(value, &mut text);
+    format!("{:x}", Sha256::digest(text.as_bytes()))
+}
+
+/// `hasValidFingerprint(value, field)`: the stored fingerprint equals the
+/// canonical sha256 of the payload without that field.
+fn census_fingerprint_verifies(artifact: &Value, field: &str) -> bool {
+    let Some(expected) = artifact[field].as_str() else {
+        return false;
+    };
+    let Some(map) = artifact.as_object() else {
+        return false;
+    };
+    let mut payload = map.clone();
+    payload.remove(field);
+    census_canonical_sha256(&Value::Object(payload)) == expected
+}
+
+fn workspace_file_sha256(workspace: &Path, relative: &str) -> Result<String, Box<dyn Error>> {
+    let bytes = fs::read(workspace.join(relative)).map_err(|error| {
+        format!("cannot read {relative} for the H2.7b provenance check: {error}")
+    })?;
+    Ok(format!("{:x}", Sha256::digest(&bytes)))
+}
+
+fn validate_h2_7b_qualification<'a>(
+    workspace: &Path,
+    artifact: &'a Value,
+) -> Result<&'a [Value], Box<dyn Error>> {
+    let generator_sha256 = workspace_file_sha256(workspace, H2_7B_GENERATOR_RELATIVE_PATH)?;
+    let contract_sha256 = workspace_file_sha256(workspace, H2_7B_CONTRACT_RELATIVE_PATH)?;
+    let dispositions_sha256 =
+        workspace_file_sha256(workspace, H2_CANDIDATE_DISPOSITIONS_RELATIVE_PATH)?;
     let expected_selection = json!({
         "candidate_definition": "the dispositions rows selected by the frozen H2.7b selector, split by the effective-option census; no applicability is re-derived by the acceptance runner",
         "global_h2_7b_rows": 2456,
@@ -4361,19 +4435,19 @@ fn validate_h2_7b_qualification(artifact: &Value) -> Result<&[Value], Box<dyn Er
         || artifact["phase"] != "H2.7b-declaration-observation"
         || artifact["typescript"]["version"] != "6.0.3"
         || artifact["generator"]["path"] != "crates/oracle/h2-7b-qualification.mjs"
-        || artifact["generator"]["sha256"] != H2_7B_GENERATOR_SHA256
-        || artifact["contract"]["path"] != ".github/ci/contracts/h2-7b-qualification.schema.json"
-        || artifact["contract"]["sha256"] != H2_7B_CONTRACT_SHA256
+        || artifact["generator"]["sha256"] != generator_sha256.as_str()
+        || artifact["contract"]["path"] != H2_7B_CONTRACT_RELATIVE_PATH
+        || artifact["contract"]["sha256"] != contract_sha256.as_str()
         || artifact["origin"]["global_dispositions"]["path"]
             != H2_CANDIDATE_DISPOSITIONS_RELATIVE_PATH
-        || artifact["origin"]["global_dispositions"]["sha256"]
-            != "bf0ec41c181c2b1012cef24bc27d417bf618296c394fafc9d5c6755ddb80202f"
+        || artifact["origin"]["global_dispositions"]["sha256"] != dispositions_sha256.as_str()
         || artifact["origin"]["global_dispositions"]["cases_sha256"]
             != "ed0036eb9d22227c3fba7980d852509a6aba42566c9a39329c761d1b4c61a79b"
         || artifact["origin"]["project_mount_decision"] != "mounted-all-project-rows"
         || artifact["selection_contract"] != expected_selection
         || artifact["summary"] != expected_summary
-        || artifact["qualification_fingerprint_sha256"] != H2_7B_QUALIFICATION_FINGERPRINT_SHA256
+        || !census_fingerprint_verifies(artifact, "qualification_fingerprint_sha256")
+        || census_canonical_sha256(&artifact["cases"]) != H2_7B_CASES_CANONICAL_SHA256
     {
         return Err(failure(
             "H2.7b qualification artifact contract differs from the m-2 wiring",
@@ -4715,7 +4789,7 @@ impl H2_6cExecutionInputs {
         let h2_7b_artifact: Value = serde_json::from_slice(&fs::read(
             workspace.join(H2_7B_QUALIFICATION_RELATIVE_PATH),
         )?)?;
-        let h2_7b_expected_members = validate_h2_7b_qualification(&h2_7b_artifact)?
+        let h2_7b_expected_members = validate_h2_7b_qualification(workspace, &h2_7b_artifact)?
             .iter()
             .map(|case| {
                 Ok((
@@ -6021,7 +6095,7 @@ fn run_h2_7b_mode(workspace: &Path, pre_flip: bool) -> Result<(), Box<dyn Error>
     let artifact: Value = serde_json::from_slice(&fs::read(
         workspace.join(H2_7B_QUALIFICATION_RELATIVE_PATH),
     )?)?;
-    let cases = validate_h2_7b_qualification(&artifact)?;
+    let cases = validate_h2_7b_qualification(workspace, &artifact)?;
     let canonical_manifest = h2_7b_canonical_manifest_path(workspace);
     if pre_flip {
         if std::env::var_os(H2_7B_WRITE_DIVERGENCES_ENV).is_some() {

@@ -19,13 +19,39 @@ fn h2_7b_validator_accepts_only_the_frozen_artifact() {
     let workspace = workspace();
     let mut artifact = read_json(&workspace.join(super::H2_7B_QUALIFICATION_RELATIVE_PATH));
     assert_eq!(
-        super::validate_h2_7b_qualification(&artifact)
+        super::validate_h2_7b_qualification(&workspace, &artifact)
             .expect("frozen H2.7b artifact")
             .len(),
         1_593
     );
     artifact["qualification_fingerprint_sha256"] = serde_json::json!("0".repeat(64));
-    assert!(super::validate_h2_7b_qualification(&artifact).is_err());
+    assert!(super::validate_h2_7b_qualification(&workspace, &artifact).is_err());
+    // A provenance sha that does not match the file on disk is refused as well.
+    let mut drifted = read_json(&workspace.join(super::H2_7B_QUALIFICATION_RELATIVE_PATH));
+    drifted["origin"]["global_dispositions"]["sha256"] = serde_json::json!("1".repeat(64));
+    assert!(super::validate_h2_7b_qualification(&workspace, &drifted).is_err());
+}
+
+#[test]
+fn h2_7b_census_identity_and_fingerprint_verify_from_the_artifact_alone() {
+    let workspace = workspace();
+    let artifact = read_json(&workspace.join(super::H2_7B_QUALIFICATION_RELATIVE_PATH));
+    // The census machine's own `hasValidFingerprint` over the whole payload.
+    assert!(super::census_fingerprint_verifies(
+        &artifact,
+        "qualification_fingerprint_sha256"
+    ));
+    // The frozen identity is the canonical sha of the rows, stable under
+    // provenance-only re-mints (fence amendment #6).
+    assert_eq!(
+        super::census_canonical_sha256(&artifact["cases"]),
+        super::H2_7B_CASES_CANONICAL_SHA256
+    );
+    let sixc = read_json(&workspace.join(super::H2_6C_QUALIFICATION_RELATIVE_PATH));
+    assert!(super::census_fingerprint_verifies(
+        &sixc,
+        "qualification_fingerprint_sha256"
+    ));
 }
 
 #[test]
