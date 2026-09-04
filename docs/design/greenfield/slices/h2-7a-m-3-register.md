@@ -111,3 +111,5 @@ Per-member replayed/excluded counts and per-root decision-lane
 volumes are derived by the P5 harness from the FINAL artifacts and
 frozen as test constants (packet §6/§10); this register records the
 artifact-level volumes above as their upper envelope.
+
+- 2026-09-04 (h2-7b m-2, fence amendment #5): the W5 stratum pool — the 172 non-refused H2.6c divergence rows this roster was drawn from — is now frozen provenance in `ratchets/h2-7a-w5-stratum-pool.v1.json`; `h2-7a-witnesses.mjs` no longer reads the live 6c manifest (which the H2.7b activation flip regenerated to 318 rows). Witness identity reproduced byte-for-byte (see the h2-7b-m-2 register).

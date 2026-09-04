@@ -43,7 +43,11 @@ const TRANSPILE_INVENTORY =
   "vendor/typescript-6.0.3/transpile-suite-inventory.v1.json";
 const H2_6C_CENSUS = "ratchets/h2-6c-census.v1.json";
 const H2_6C_QUALIFICATION = "ratchets/h2-6c-qualification.v1.json";
-const H2_6C_DIVERGENCES = "ratchets/h2-6c-known-divergences.v1.json";
+// h2-7b-m-2 fence amendment #5: the W5 stratum pool is FROZEN provenance (the
+// 172 non-refused H2.6c divergence rows at the m-3 mint, main @440e6073) — the
+// activation flip regenerates the live 6c manifest (451 -> 318 rows), and the
+// m-3 witnesses must not follow it.
+const H2_7A_W5_STRATUM_POOL = "ratchets/h2-7a-w5-stratum-pool.v1.json";
 const VFS_DIRECTORY_OVERLAY = "crates/oracle/vfs-directory-overlay.mjs";
 
 const SOURCE_COMMIT = "050880ce59e30b356b686bd3144efe24f875ebc8";
@@ -1391,19 +1395,22 @@ function loadCuratedCase(family, selected, expansions, configurationIndex = 0) {
 }
 
 function readDivergencePool() {
-  const divergence = readJson(H2_6C_DIVERGENCES);
+  const pool = readJson(H2_7A_W5_STRATUM_POOL);
   requireCondition(
-    divergence.schema === 1 &&
-      Array.isArray(divergence.cases) &&
-      divergence.cases.length === 451,
-    "invalid H2.6c divergence pool",
+    pool.schema === 1 &&
+      pool.kind === "h2-7a-w5-stratum-pool" &&
+      pool.status === "frozen" &&
+      pool.provenance?.source_artifact === "ratchets/h2-6c-known-divergences.v1.json" &&
+      pool.provenance?.source_rows === 451 &&
+      Array.isArray(pool.non_refused_case_ids),
+    "invalid frozen W5 stratum pool",
   );
-  const nonRefused = divergence.cases
-    .filter((entry) => entry.emit_refused === false)
-    .map((entry) => entry.case_id);
+  const nonRefused = pool.non_refused_case_ids;
   requireCondition(
-    nonRefused.length === 172 && new Set(nonRefused).size === 172,
-    "H2.6c non-refused pool changed",
+    nonRefused.length === 172 &&
+      new Set(nonRefused).size === 172 &&
+      nonRefused.every((caseId) => typeof caseId === "string"),
+    "frozen W5 stratum pool changed",
   );
   return nonRefused;
 }
@@ -2214,7 +2221,7 @@ function prepareStaticContext() {
       transpile_inventory: pathHash(TRANSPILE_INVENTORY),
       h2_6c_census: pathHash(H2_6C_CENSUS),
       h2_6c_qualification: pathHash(H2_6C_QUALIFICATION),
-      h2_6c_divergences: pathHash(H2_6C_DIVERGENCES),
+      w5_stratum_pool: pathHash(H2_7A_W5_STRATUM_POOL),
       vfs_directory_overlay: pathHash(VFS_DIRECTORY_OVERLAY),
     },
   };

@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "f86eb2d2614b58eaebc3f9e3ee4cd68b631eec15a697126546b2aa4c6aadb901";
+  "013807c930f5cd261a3aa45de194cc2e19c09ba659fbf9fc51bb4508406eae09";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "5c4d8e0d18dbae5caea6162707f5844ad585c8d4aca18a50eec628fecfe79ada"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "9fd5b827846b57da46a913d80469bf39f8b762d95fee972f0149e56ef51be3cb"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "71a7143abadad53204155d19ddbf2f7f40d02c11b145a6241053e97319c062d6"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "48f44752ba4ed0fbc49efd38c36041c779175626d728c5543c2388323abc3cd6"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "27b48bab59d52bf066eff8f458225685abb3d12189a4a6235f33f45c37e631d2"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "e645afef009659de828db8f8b023122b0b08a00ae8e8b59f0958ff3172e3d89f"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "c6894eacf3e60cfb01485b0eea8bef5b06e51362d3b2ed7a6c57952a0c29239e"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "1dec149ad493f475997db008e9f0555e587486acfa42dc7b0e717243b4f370cb"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
@@ -254,6 +254,9 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/emitter/tests/unit/generators/tests.rs",
   "crates/emitter/tests/unit/es2015/tests.rs",
   "crates/emitter/tests/unit/tagged_template/tests.rs",
+  // h2-7b-m-2: the activation flip's declaration output-path planner
+  // (PlanDeclarationPaths, the collision requalification).
+  "crates/emitter/src/declarations/paths.rs",
 ]);
 
 // These files implement the non-authoritative acceptance impact/restart
@@ -312,6 +315,9 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/compiler/tests/integration/source_map_band_probe.rs",
   "crates/compiler/tests/integration/h2_7a_m35_controls.rs",
   "crates/compiler/tests/integration/h2_7a_m4_controls.rs",
+  // h2-7b-m-2: the frozen controls of the flip train and the runner's unit tests.
+  "crates/compiler/tests/integration/h2_7b_m2_controls.rs",
+  "crates/xtask/tests/unit/h2_7b_acceptance/tests.rs",
   "crates/compiler/tests/integration/h2_7a_ca_controls.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit
@@ -571,8 +577,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 241,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 241)`,
+    runtimeInputSet.size === 242,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 242)`,
   );
 
   return withFingerprint(

@@ -81,7 +81,7 @@
         "transpile_inventory",
         "h2_6c_census",
         "h2_6c_qualification",
-        "h2_6c_divergences",
+        "w5_stratum_pool",
         "vfs_directory_overlay"
       ],
       "properties": {
@@ -115,7 +115,7 @@
         "h2_6c_qualification": {
           "$ref": "#/$defs/path_hash"
         },
-        "h2_6c_divergences": {
+        "w5_stratum_pool": {
           "$ref": "#/$defs/path_hash"
         },
         "vfs_directory_overlay": {
