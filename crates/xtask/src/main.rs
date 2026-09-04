@@ -1,4 +1,5 @@
 #![deny(unsafe_code)]
+#![recursion_limit = "256"]
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::error::Error;
@@ -94,6 +95,7 @@ fn main() {
         Some("h2-6a-acceptance") => run_or_exit(h2_6a_acceptance(args)),
         Some("h2-6b-acceptance") => run_or_exit(h2_6b_acceptance(args)),
         Some("h2-6c-acceptance") => run_or_exit(h2_6c_acceptance(args)),
+        Some("h2-7b-acceptance") => run_or_exit(h2_7b_acceptance(args)),
         Some("h2-5g-probe") => run_or_exit(h2_5g_probe(args)),
         Some("h2-5g-inventory") => run_or_exit(h2_5g_inventory(args)),
         Some("h2-5g-owner-controls") => run_or_exit(h2_5g_owner_controls(args)),
@@ -4413,7 +4415,8 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_2c_acceptance::run_h2_5h(&workspace)?;
     h2_2c_acceptance::run_h2_6a(&workspace)?;
     h2_2c_acceptance::run_h2_6b(&workspace)?;
-    h2_2c_acceptance::run_h2_6c(&workspace)
+    h2_2c_acceptance::run_h2_6c(&workspace)?;
+    h2_2c_acceptance::run_h2_7b(&workspace)
 }
 
 fn h2_5a_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -4553,6 +4556,22 @@ fn h2_6c_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dy
     }
     let workspace = find_workspace_root()?;
     h2_2c_acceptance::run_h2_6c(&workspace)
+}
+
+fn h2_7b_acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    let mut pre_flip = false;
+    for argument in args.by_ref() {
+        match argument.as_str() {
+            "--pre-flip" if !pre_flip => pre_flip = true,
+            _ => return Err(format!("unexpected h2-7b-acceptance argument: {argument}").into()),
+        }
+    }
+    let workspace = find_workspace_root()?;
+    if pre_flip {
+        h2_2c_acceptance::run_h2_7b_pre_flip(&workspace)
+    } else {
+        h2_2c_acceptance::run_h2_7b(&workspace)
+    }
 }
 
 fn h2_5g_probe(args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {

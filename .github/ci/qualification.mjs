@@ -79,6 +79,7 @@ const HOSTED_ACCEPTANCE_QUALIFIED_CALLS = Object.freeze([
   "h2_2c_acceptance::run_h2_6a",
   "h2_2c_acceptance::run_h2_6b",
   "h2_2c_acceptance::run_h2_6c",
+  "h2_2c_acceptance::run_h2_7b",
 ]);
 
 const HOSTED_ACCEPTANCE_CANONICAL_BODY = [

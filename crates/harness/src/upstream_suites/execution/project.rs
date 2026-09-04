@@ -10,8 +10,8 @@ use tsc_program::{
 };
 
 use super::{
-    compare_utf16, error, join_config_path, normalize_virtual_path, ProjectExecutionPlan,
-    ProjectModule, ProjectMount, ProjectRootSelection,
+    compare_utf16, error, join_config_path, normalize_virtual_path, EmitOptionFloor,
+    ProjectExecutionPlan, ProjectModule, ProjectMount, ProjectRootSelection,
 };
 use crate::HarnessResult;
 
@@ -220,6 +220,18 @@ pub fn load_project_emit(
     plan: &ProjectExecutionPlan,
     limits: ProgramLoadLimits,
 ) -> HarnessResult<ProjectNoEmitProgram> {
+    load_project_emit_with_option_floor(workspace, plan, limits, EmitOptionFloor::Established)
+}
+
+/// [`load_project_emit`] with the acceptance runner's explicit option floor.
+/// Project descriptors still cannot request emitted-file listing themselves;
+/// the declaration-family route enables that observation internally.
+pub fn load_project_emit_with_option_floor(
+    workspace: &Path,
+    plan: &ProjectExecutionPlan,
+    limits: ProgramLoadLimits,
+    floor: EmitOptionFloor,
+) -> HarnessResult<ProjectNoEmitProgram> {
     let library_directory = normalize_existing_directory(
         &workspace.join("vendor/typescript-6.0.3/lib"),
         "pinned TypeScript library directory",
@@ -323,6 +335,9 @@ pub fn load_project_emit(
     };
 
     apply_project_emit_options(plan, &mut compiler_options)?;
+    if floor == EmitOptionFloor::DeclarationFamily {
+        compiler_options.list_emitted_files = Some(true);
+    }
 
     let library_catalog = LibraryCatalog::typescript_6_0_3(library_directory);
     let prepared_program = load_emitting_program(
