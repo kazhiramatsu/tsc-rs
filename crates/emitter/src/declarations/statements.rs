@@ -776,28 +776,33 @@ pub(crate) fn transform_and_replace_late_painted_statements(
     context: &mut TransformationContext,
     mut statements: Vec<TransformNode>,
 ) -> Result<Vec<TransformNode>, TransformError> {
-    let late = transformer
-        .tracker
-        .late_marked_statements
-        .take()
-        .unwrap_or_default();
-    for input in late {
-        if !is_late_visibility_painted_statement(context, input)? {
-            return Err(TransformError::MissingTransformHandoff {
-                producer: "late visibility paint",
-                consumer: "declaration transformer",
-                node: input,
-                handoff: "late-marked declaration statement",
-            });
+    loop {
+        let late = transformer
+            .tracker
+            .late_marked_statements
+            .take()
+            .unwrap_or_default();
+        if late.is_empty() {
+            break;
         }
-        let previous_needs_declare = transformer.state()?.needs_declare;
-        transformer.state_mut()?.needs_declare = is_source_file_parent(context, input)?;
-        let result = transform_top_level_declaration(transformer, context, input)?;
-        transformer.state_mut()?.needs_declare = previous_needs_declare;
-        transformer
-            .state_mut()?
-            .late_statement_replacement
-            .insert(context.arena().get_original_node(input).node(), result);
+        for input in late {
+            if !is_late_visibility_painted_statement(context, input)? {
+                return Err(TransformError::MissingTransformHandoff {
+                    producer: "late visibility paint",
+                    consumer: "declaration transformer",
+                    node: input,
+                    handoff: "late-marked declaration statement",
+                });
+            }
+            let previous_needs_declare = transformer.state()?.needs_declare;
+            transformer.state_mut()?.needs_declare = is_source_file_parent(context, input)?;
+            let result = transform_top_level_declaration(transformer, context, input)?;
+            transformer.state_mut()?.needs_declare = previous_needs_declare;
+            transformer
+                .state_mut()?
+                .late_statement_replacement
+                .insert(context.arena().get_original_node(input).node(), result);
+        }
     }
 
     let mut replaced = Vec::with_capacity(statements.len());
@@ -903,17 +908,45 @@ pub(crate) fn transform_variable_statement(
     let original_declarations = list_data
         .declarations
         .and_then(|array| context.arena().node_array_ref(input.source(), array));
-    let mut factory = context.factory()?;
-    let declarations = match original_declarations {
-        Some(original) => factory.update_node_array(original, declarations)?,
-        None => factory.create_node_array(input.source(), declarations)?,
+    let list_flags = NodeFlags::from_bits(context.arena().node(list)?.flags);
+    let using_list = list_flags.intersects(NodeFlags::USING);
+    let comment_range = if using_list {
+        super::diagnostics::comment_range(context.arena(), list)?
+    } else {
+        None
     };
-    let declaration_list = factory.update_variable_declaration_list(list, declarations)?;
-    Ok(VisitResult::Node(factory.update_variable_statement(
-        input,
-        modifiers,
-        declaration_list,
-    )?))
+    let declaration_list = {
+        let mut factory = context.factory()?;
+        let declarations = match original_declarations {
+            Some(original) => factory.update_node_array(original, declarations)?,
+            None => factory.create_node_array(input.source(), declarations)?,
+        };
+        if using_list {
+            let declaration_list = factory.create_variable_declaration_list(
+                input.source(),
+                declarations,
+                NodeFlags::CONST,
+            )?;
+            factory.set_text_range(declaration_list, list)?;
+            declaration_list
+        } else {
+            factory.update_variable_declaration_list(list, declarations)?
+        }
+    };
+    if using_list {
+        let arena = context.arena_mut()?;
+        arena.set_original_node(declaration_list, Some(list))?;
+        if let Some(comment_range) = comment_range {
+            arena
+                .metadata_mut(declaration_list)
+                .set_comment_range(comment_range);
+        }
+    }
+    let statement =
+        context
+            .factory()?
+            .update_variable_statement(input, modifiers, declaration_list)?;
+    Ok(VisitResult::Node(statement))
 }
 
 fn first_constructor_with_body(
@@ -1990,46 +2023,14 @@ fn expando_declaration_arm(
     Ok(vec![clean_function, namespace, export_default])
 }
 
+/// tsc-port: isStringANonContextualKeyword @6.0.3
+/// tsc-hash: ed25212208061e6fad43ebff853249e1cb47c8fc46b8e53007d275897b66f1fb
+/// tsc-span: _tsc.js:15787-15805
 fn is_non_contextual_keyword(name: &str) -> bool {
-    matches!(
-        name,
-        "break"
-            | "case"
-            | "catch"
-            | "class"
-            | "const"
-            | "continue"
-            | "debugger"
-            | "default"
-            | "delete"
-            | "do"
-            | "else"
-            | "enum"
-            | "export"
-            | "extends"
-            | "false"
-            | "finally"
-            | "for"
-            | "function"
-            | "if"
-            | "import"
-            | "in"
-            | "instanceof"
-            | "new"
-            | "null"
-            | "return"
-            | "super"
-            | "switch"
-            | "this"
-            | "throw"
-            | "true"
-            | "try"
-            | "typeof"
-            | "var"
-            | "void"
-            | "while"
-            | "with"
-    )
+    tsc_syntax::identifier_to_keyword_kind(name).is_some_and(|kind| {
+        kind.value() >= SyntaxKind::FirstKeyword.value()
+            && kind.value() < SyntaxKind::FirstContextualKeyword.value()
+    })
 }
 
 fn is_late_visibility_painted_statement(

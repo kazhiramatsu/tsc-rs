@@ -1306,16 +1306,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         };
         for export in exports {
             let target = self.create_identifier(&binding.generated_name)?;
-            let value = if let Some(property) = binding.property.as_deref() {
-                if is_identifier_export_name(property) {
-                    self.create_property_access(target, property)?
-                } else {
-                    let property = self.create_string_literal(property)?;
-                    self.create_element_access(target, property)?
-                }
-            } else {
-                target
-            };
+            let value =
+                super::create_import_binding_access(self.context, self.source, target, &binding)?;
             let call = self.create_export_call(&export, value)?;
             let statement = self.create_expression_statement(call)?;
             statements.push(statement);
@@ -2249,16 +2241,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             return Ok(original);
         };
         let target = self.create_identifier(&binding.generated_name)?;
-        let transformed = if let Some(property) = binding.property {
-            if is_identifier_export_name(&property) {
-                self.create_property_access(target, &property)?
-            } else {
-                let property = self.create_string_literal(&property)?;
-                self.create_element_access(target, property)?
-            }
-        } else {
-            target
-        };
+        let transformed =
+            super::create_import_binding_access(self.context, self.source, target, &binding)?;
         self.set_original_and_range(transformed, original)?;
         Ok(transformed)
     }
@@ -2539,6 +2523,17 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             });
                         break;
                     }
+                    NodeData::ExportDeclaration(data) => {
+                        side_effect_only = false;
+                        if let Some(name) = super::namespace_export_identifier_name(
+                            self.context.arena(),
+                            self.source,
+                            data.export_clause,
+                        )? {
+                            local_name = Some(name.into_string());
+                            break;
+                        }
+                    }
                     _ => side_effect_only = false,
                 }
             }
@@ -2602,21 +2597,62 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             .export_clause
                             .and_then(|id| self.context.arena().node_ref(self.source, id))
                         {
-                            if let NodeData::NamedExports(named) =
-                                self.context.arena().node(clause)?.data.clone()
-                            {
-                                let mut properties = Vec::new();
-                                for specifier in node_array_nodes(
-                                    self.context.arena(),
-                                    self.source,
-                                    named.elements,
-                                )? {
-                                    let NodeData::ExportSpecifier(specifier) =
-                                        self.context.arena().node(specifier)?.data.clone()
-                                    else {
-                                        continue;
-                                    };
-                                    let export = specifier
+                            match self.context.arena().node(clause)?.data.clone() {
+                                NodeData::NamedExports(named) => {
+                                    let mut properties = Vec::new();
+                                    for specifier in node_array_nodes(
+                                        self.context.arena(),
+                                        self.source,
+                                        named.elements,
+                                    )? {
+                                        let NodeData::ExportSpecifier(specifier) =
+                                            self.context.arena().node(specifier)?.data.clone()
+                                        else {
+                                            continue;
+                                        };
+                                        let export = specifier
+                                            .name
+                                            .and_then(|id| {
+                                                self.context.arena().node_ref(self.source, id)
+                                            })
+                                            .and_then(|name| {
+                                                identifier_or_literal_text(
+                                                    self.context.arena(),
+                                                    name,
+                                                )
+                                                .ok()
+                                            })
+                                            .unwrap_or_default();
+                                        let property = specifier
+                                            .property_name
+                                            .or(specifier.name)
+                                            .and_then(|id| {
+                                                self.context.arena().node_ref(self.source, id)
+                                            })
+                                            .and_then(|name| {
+                                                identifier_or_literal_text(
+                                                    self.context.arena(),
+                                                    name,
+                                                )
+                                                .ok()
+                                            })
+                                            .unwrap_or_default();
+                                        let name = self.create_string_literal(&export)?;
+                                        let parameter = self.create_identifier(&parameter_name)?;
+                                        let property = self.create_string_literal(&property)?;
+                                        let value =
+                                            self.create_element_access(parameter, property)?;
+                                        properties
+                                            .push(self.create_property_assignment(name, value)?);
+                                    }
+                                    let object = self.create_object_literal(properties, true)?;
+                                    let exports_function =
+                                        self.create_identifier(&self.exports_name.clone())?;
+                                    let call = self.create_call(exports_function, vec![object])?;
+                                    statements.push(self.create_expression_statement(call)?);
+                                }
+                                NodeData::NamespaceExport(namespace) => {
+                                    let export = namespace
                                         .name
                                         .and_then(|id| {
                                             self.context.arena().node_ref(self.source, id)
@@ -2625,29 +2661,15 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                                             identifier_or_literal_text(self.context.arena(), name)
                                                 .ok()
                                         })
-                                        .unwrap_or_default();
-                                    let property = specifier
-                                        .property_name
-                                        .or(specifier.name)
-                                        .and_then(|id| {
-                                            self.context.arena().node_ref(self.source, id)
-                                        })
-                                        .and_then(|name| {
-                                            identifier_or_literal_text(self.context.arena(), name)
-                                                .ok()
-                                        })
-                                        .unwrap_or_default();
-                                    let name = self.create_string_literal(&export)?;
-                                    let parameter = self.create_identifier(&parameter_name)?;
-                                    let property = self.create_string_literal(&property)?;
-                                    let value = self.create_element_access(parameter, property)?;
-                                    properties.push(self.create_property_assignment(name, value)?);
+                                        .ok_or(TransformError::RequiredChildRemoved {
+                                            parent: SyntaxKind::NamespaceExport,
+                                            field: "name",
+                                        })?;
+                                    let value = self.create_identifier(&parameter_name)?;
+                                    let call = self.create_export_call(&export, value)?;
+                                    statements.push(self.create_expression_statement(call)?);
                                 }
-                                let object = self.create_object_literal(properties, true)?;
-                                let exports_function =
-                                    self.create_identifier(&self.exports_name.clone())?;
-                                let call = self.create_call(exports_function, vec![object])?;
-                                statements.push(self.create_expression_statement(call)?);
+                                _ => {}
                             }
                         } else {
                             let helper = self.export_star_function_name();
