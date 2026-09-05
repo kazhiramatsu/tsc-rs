@@ -98,6 +98,7 @@ mod option_validation;
 mod path;
 mod prepared;
 mod resolution;
+mod symlinks;
 mod text;
 
 pub use config::{
@@ -155,5 +156,6 @@ pub use resolution::{
     ResolvedModule, ResolvedModuleTarget, ResolvedTypeReferenceDirective, TypeReferenceResolution,
     TypeReferenceResolutionKey, TypeReferenceResolutionOrigin, UnloadedModuleReason,
 };
+pub use symlinks::{discover_symlink_facts, SymlinkFacts};
 pub use text::{decode_host_text, HostTextDecodeError, HostTextEncoding};
 pub use tsc_types::{CompilerOptionNumber, CompilerOptions, ModuleSuffix};

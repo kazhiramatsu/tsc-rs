@@ -48,6 +48,8 @@ mod h2_7b_w2b_controls;
 mod h2_7b_w3a_controls;
 #[path = "integration/h2_7b_w3b_controls.rs"]
 mod h2_7b_w3b_controls;
+#[path = "integration/h2_7b_w4i_controls.rs"]
+mod h2_7b_w4i_controls;
 #[path = "integration/library_loader_session_contract.rs"]
 mod library_loader_session_contract;
 #[path = "integration/no_resolve_session_contract.rs"]

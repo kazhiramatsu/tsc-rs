@@ -153,6 +153,7 @@ struct PreparedEmitHost<'program> {
     prepared: &'program PreparedProgram,
     source_files: Vec<SourceFileId>,
     common_source_directory: PathBuf,
+    symlinks: tsc_program::SymlinkFacts,
 }
 
 impl<'program> PreparedEmitHost<'program> {
@@ -169,10 +170,12 @@ impl<'program> PreparedEmitHost<'program> {
             })
             .collect::<Result<Vec<_>, _>>()?;
         let common_source_directory = common_emit_source_directory(prepared, &source_files);
+        let symlinks = tsc_program::discover_symlink_facts(prepared);
         Ok(Self {
             prepared,
             source_files,
             common_source_directory,
+            symlinks,
         })
     }
 }
@@ -180,6 +183,14 @@ impl<'program> PreparedEmitHost<'program> {
 impl EmitHost for PreparedEmitHost<'_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn symlinked_files(&self) -> Vec<(String, String)> {
+        self.symlinks.files.clone()
+    }
+
+    fn symlinked_directories(&self) -> Vec<(String, String)> {
+        self.symlinks.directories.clone()
     }
 
     fn current_directory(&self) -> &Path {
@@ -226,6 +237,14 @@ struct CheckedEmitHost<'host, 'snapshot> {
 impl EmitHost for CheckedEmitHost<'_, '_> {
     fn compiler_options(&self) -> &CompilerOptions {
         self.prepared.compiler_options()
+    }
+
+    fn symlinked_files(&self) -> Vec<(String, String)> {
+        self.prepared.symlinked_files()
+    }
+
+    fn symlinked_directories(&self) -> Vec<(String, String)> {
+        self.prepared.symlinked_directories()
     }
 
     fn current_directory(&self) -> &Path {

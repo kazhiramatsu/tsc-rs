@@ -290,11 +290,20 @@ pub fn load_project_emit_with_option_floor(
                 .module_resolution_options()
                 .compiler_options()
                 .clone();
+            // The project runner parses its config through
+            // `parseJsonConfigFileContent` with the config's file name: the
+            // program keeps `configFilePath` (the TS5055 hint condition,
+            // `_tsc.js:125033-125040`) but has no config SOURCE FILE, so option
+            // diagnostics stay global (no tsconfig location).
             let program_options = config_root_plan
                 .module_resolution_options()
                 .program_options()
-                .clone()
-                .without_config_file_path()
+                .clone();
+            let program_options = match program_options.config_file_path().cloned() {
+                Some(path) => program_options.with_config_file_path(path),
+                None => program_options,
+            };
+            let program_options = program_options
                 .with_external_config_option_diagnostics()
                 .with_default_library_file_name(PROJECT_RUNNER_DEFAULT_LIBRARY);
             (
@@ -318,11 +327,20 @@ pub fn load_project_emit_with_option_floor(
                 .module_resolution_options()
                 .compiler_options()
                 .clone();
+            // The project runner parses its config through
+            // `parseJsonConfigFileContent` with the config's file name: the
+            // program keeps `configFilePath` (the TS5055 hint condition,
+            // `_tsc.js:125033-125040`) but has no config SOURCE FILE, so option
+            // diagnostics stay global (no tsconfig location).
             let program_options = config_root_plan
                 .module_resolution_options()
                 .program_options()
-                .clone()
-                .without_config_file_path()
+                .clone();
+            let program_options = match program_options.config_file_path().cloned() {
+                Some(path) => program_options.with_config_file_path(path),
+                None => program_options,
+            };
+            let program_options = program_options
                 .with_external_config_option_diagnostics()
                 .with_default_library_file_name(PROJECT_RUNNER_DEFAULT_LIBRARY);
             (
