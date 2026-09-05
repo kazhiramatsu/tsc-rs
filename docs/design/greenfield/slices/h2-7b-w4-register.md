@@ -3,13 +3,13 @@
 Packet: `h2-7b-w4.md` (rev 1 draft at E1; ratification after the sol review r2). Trusted base `main @399c62ba`. Train `h2/7b-w4`.
 
 ## E1 (2026-09-06 JST)
-- 06:53 `h2/7b-w4` cut from main 399c62ba; 06:54 the ahead lane W4-A0 merged (2b293d59; `lane/w4-a0` 9f8f6ff5, verified against its base c2075797; 11 rows incl. `exportDefaultNamespace`); 06:56 the integrator's S2 + P1 merged (9cd8f79c; `lane/w4-i` 203816a7 on d0cd9a0b; 10 rows; program 467+24 / harness 83+32 tests, clippy, fmt clean in the worktree); stubs `h2_7b_w4a_controls.rs` / `h2_7b_w4b_controls.rs` registered; launch scratch `target/session-notes/7b/lanes/w4/launch-scratch.json` (expected 34 live divergences of 55; closed 21) __SCRATCH__.
-- Launch SHA __LAUNCH_SHA__; lanes launched __T_LAUNCH__ (W4-A gpt-5.6-sol xhigh `tsc-rs-w4-a`; W4-B gpt-5.6-sol xhigh `tsc-rs-w4-b`); preflight __PREFLIGHT__.
+- 06:53 `h2/7b-w4` cut from main 399c62ba; 06:54 the ahead lane W4-A0 merged (2b293d59; `lane/w4-a0` 9f8f6ff5, verified against its base c2075797; 11 rows incl. `exportDefaultNamespace`); 06:56 the integrator's S2 + P1 merged (9cd8f79c; `lane/w4-i` 203816a7 on d0cd9a0b; 10 rows; program 467+24 / harness 83+32 tests, clippy, fmt clean in the worktree); stubs `h2_7b_w4a_controls.rs` / `h2_7b_w4b_controls.rs` registered; launch scratch `target/session-notes/7b/lanes/w4/launch-scratch.json` (expected 34 live divergences of 55; closed 21) → verdict OK: scratch 34 live / canonical 55, closed 21, equal 33, strict subsets 1 (the inherited jsDeclarationsUniqueSymbolUsage reduction), problems 0 (07:04).
+- Launch SHA c16f2d2e (E1c: the packet at rev 2 after the sol reviews r1/r2; E1b bc175dcd = stubs + packet + register; E1 2b293d59 / 9cd8f79c = the A0 and integrator merges); lanes launched 07:05 (W4-A gpt-5.6-sol xhigh `tsc-rs-w4-a`; W4-B gpt-5.6-sol xhigh `tsc-rs-w4-b`); preflight OK (SPEC-W4-A 11 allowed paths, SPEC-W4-B 9, disjoint; every file present at the launch SHA); the E1 train battery started 07:05 on the canonical checkout (jobs 2, 1 sweep worker).
 
 ## Lanes — TO-FILL at handoff (rows fixed / left / out of scope; battery tails; verify)
 
 ## Timeline (JST) — TO-FILL
-- lane launch __T_LAUNCH__ → handoff A __T_A__ / B __T_B__ → train battery → re-mint → walk → gate → merge __T_MERGE__ (wall __WALL__).
+- lane launch 07:05 → handoff A __T_A__ / B __T_B__ → train battery → re-mint → walk → gate → merge __T_MERGE__ (wall __WALL__).
 
 ## Walk / gate / PR — TO-FILL
 - walk cert __CERT__ (launches __LAUNCHES__); gate __GATE_LINE__; hosted __HOSTED__; PR __PR__.
