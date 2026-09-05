@@ -1531,7 +1531,7 @@ fn create_access_from_symbol_chain(
     } else {
         lookup_type_parameter_nodes(checker, arena, target, chain, index, context)?
     };
-    let symbol = chain[index];
+    let symbol = super::remapped_statement_symbol_reference(context, chain[index]);
     let parent = index.checked_sub(1).map(|index| chain[index]);
     let mut symbol_name = if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
@@ -2073,7 +2073,7 @@ fn create_entity_name_from_symbol_chain(
 ) -> BuildResult<TransformNode> {
     let _type_parameter_nodes =
         lookup_type_parameter_nodes(checker, arena, target, chain, index, context)?;
-    let symbol = chain[index];
+    let symbol = super::remapped_statement_symbol_reference(context, chain[index]);
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
     }
@@ -2162,7 +2162,7 @@ fn create_expression_from_symbol_chain(
 ) -> BuildResult<TransformNode> {
     let _type_parameter_nodes =
         lookup_type_parameter_nodes(checker, arena, target, chain, index, context)?;
-    let symbol = chain[index];
+    let symbol = super::remapped_statement_symbol_reference(context, chain[index]);
     if index == 0 {
         context.flags.0 |= IN_INITIAL_ENTITY_NAME;
     }

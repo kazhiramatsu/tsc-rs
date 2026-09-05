@@ -3339,6 +3339,7 @@ impl<'a> CheckerState<'a> {
                     .identifier_text(identifier_name)
                     .unwrap_or_default()
                     .to_owned();
+                let text = tsc_binder::unescape_leading_underscores(&text).to_owned();
                 return Ok(Some(TypePredicate {
                     kind: TypePredicateKind::Identifier,
                     parameter_name: Some(text),
