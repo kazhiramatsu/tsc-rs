@@ -860,7 +860,7 @@
     },
     {
       "path": "crates/emitter/tests/unit/builtins/tests.rs",
-      "sha256": "8e678f6c04a7af77b60d848c1eaa0e2ff1b94d940d1d92bc7e2b533286e3503b"
+      "sha256": "643dd586fc115b8b4f11ebc7467562ef116652de085a7cb4d12a2b3a0adc0368"
     },
     {
       "path": "crates/emitter/tests/unit/comment_scope_predicate/tests.rs",
@@ -1322,5 +1322,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "0d7ddf9c68751f070d80eac21294cb3454e374fee0cf6485dfffe8f3b9b823df"
+  "profile_fingerprint_sha256": "a5051695ae17cec88e51c231b5627fd8efad2908f9dd71b08dafbf3410e9e9f8"
 }
