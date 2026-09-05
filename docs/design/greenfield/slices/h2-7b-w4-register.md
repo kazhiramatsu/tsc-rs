@@ -24,4 +24,5 @@ Packet: `h2-7b-w4.md` (rev 1 draft at E1; ratification after the sol review r2).
 | 5 | ≥ 35 rows in ≤ 8 h 33 m | __C5__ | __P5__ |
 | 6 | zero lane conflicts / multi-writer pins | __C6__ | __P6__ |
 
-## Implementation-time amendments — TO-FILL
+## Implementation-time amendments
+- 07:39 the user reported high CPU load (the E1 train battery's compiler-contracts test at ~200% + the two lanes' cargo work): the integrator stopped the E1 train battery after its bands had all matched w3 (7b 1523/34, 6c 321/318/4, 5h 830/58/44, 6a 171/4/2, 6b 6/0/0, 5g 8511 exact) — its unit-test / clippy / fmt / ledger tail runs on the merged train — and demoted both lane process trees to `nice 20` (priority only; the foreground band stays — the E-core lesson). The kill of the canonical `xtask h2-7b-acceptance` may have caught a lane's in-flight scratch sweep (a relative `target/debug/xtask` command line is indistinguishable from the canonical one by path): if a lane STATUS reports one aborted sweep around 07:39, that is the integrator's interference, not a lane fault.
