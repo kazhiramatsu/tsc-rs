@@ -14,24 +14,24 @@
 - Integrator: E1 (packet draft, register skeleton, the two registered stubs, the 5g shadow registration) landed 2026-09-05 20:14 JST as b06c6575 on `h2/7b-w3` from `main @c0e21f32`; checkpoints __CHECKPOINTS__.
 
 ## Timeline (JST)
-- lane launch 20:15 (A and B from E1 b06c6575; time box: stop 23:45, full battery 23:50, STATUS 00:45) → handoff A 22:59 / B 23:40 → lanes merged 23:00 (A add3d3e0) / 23:41 (B 811ed229); no conflicts → train battery 23:59 → 00:43 (44 min in the foreground band at one sweep worker — the E-core lesson applied; green except the ledger/inventory pair caused by the integrator's own E1b header lacking its tsc-hash, fixed E1c e8ad221f; no lane-caused red) → re-mint 00:58 → walk __T_WALK_START__ … cert __WALK__ → gate __T_GATE_START__ … exit __T_GATE_END__ → merge __T_MERGE__ (wall lane launch → merge: __WALL__; w2 reference 11 h 04 m, the target ≤ 8 h 33 m).
+- lane launch 20:15 (A and B from E1 b06c6575; time box: stop 23:45, full battery 23:50, STATUS 00:45) → handoff A 22:59 / B 23:40 → lanes merged 23:00 (A add3d3e0) / 23:41 (B 811ed229); no conflicts → train battery 23:59 → 00:43 (44 min in the foreground band at one sweep worker — the E-core lesson applied; green except the ledger/inventory pair caused by the integrator's own E1b header lacking its tsc-hash, fixed E1c e8ad221f; no lane-caused red) → re-mint 00:58 → walk 00:59 … 03:36 (ONE launch: round 1 re-minted 63 rungs, round 2 CLEAN; 5g check receipt hit, zero re-observation) cert 20260906-005908-77633 → gate __T_GATE_START__ … exit __T_GATE_END__ → merge __T_MERGE__ (wall lane launch → merge: __WALL__; w2 reference 11 h 04 m, the target ≤ 8 h 33 m).
 
 ## First w3 sweep / re-mint — TO-FILL
 - merged-train scratch sweep (before the canonical re-mint): exact 1,502 / diverging 55 (rows 55; owner stays `h2-7b-m-2-divergence-closure`); closed 51 (W3-B 45 + W3-A 6; `lanes/w3/w3-closed-rows.txt`); the canonical re-mint (E2, 00:49-00:58, write + normal run + `audit.js`): exact 1,502 / diverging 55 (106 → 55); closed rows 51 (`lanes/w3/w3-closed-rows-final.txt`); byte-identical 55; strict subsets 0; added elements 0; new rows 0.
 - adjacent bands (merged train, 1 worker): 6c 639 / 4 / 643 (unchanged), 5h 830 / 58 / 44 (unchanged), 6a 171 / 4 / 2, 6b 6 / 0 / 0, full 5g 9,027 / 8,511 (unchanged); whole suites: compiler contracts 293 / 0 (the w3a 6 + w3b 45 controls), checker 1,700, xtask 270 / 0 after E1c, emitter contracts 449; clippy clean; fmt clean; ledger 3,801 / 0 / 0 after E1c (base 3,791).
 
 ## Walk / gate / PR — recorded in the PR body at the final head
-- walk cert __WALK__ (launches: __WALK_LAUNCHES__); gate __GATE_LINE__ (reruns: __GATE_RERUNS__); hosted __HOSTED__; PR __PR__.
+- walk cert 20260906-005908-77633 (launches: 1 — `target/chain-walk/runs/` between E1 and the merge holds exactly this run); gate __GATE_LINE__ (reruns: __GATE_RERUNS__); hosted __HOSTED__; PR __PR__.
 
 ## Success criteria (packet §7) — recorded at close
 | # | criterion | value | pass |
 |---|---|---|---|
-| 1 | one walk launch | __C1__ | __P1__ |
+| 1 | one walk launch | 1 (run 20260906-005908-77633) | PASS |
 | 2 | zero train-battery-first regressions | __C2__ | __P2__ |
-| 3 | zero allowed-path STOPs | __C3__ | __P3__ |
+| 3 | zero allowed-path STOPs | 0 (W3-A 7 and W3-B 0 OUT-OF-SCOPE notes with proven owners; no lane waited; the two stale test expectations were integrator maintenance) | PASS |
 | 4 | zero perf-contention reruns | __C4__ | __P4__ |
 | 5 | > 40 rows in ≤ 8 h 33 m | __C5__ | __P5__ |
-| 6 | zero lane conflicts / multi-writer pins | __C6__ | __P6__ |
+| 6 | zero lane conflicts / multi-writer pins | 0 (both lane merges applied cleanly; `preflight.py --verify` OK for A, B and the ahead lane; pin surfaces written only by the integrator and the walk) | PASS |
 
 ## Implementation-time amendments
 - 23:41–23:58 E1b (integrator, c2075797): the w2 boundary control for `declarationEmitRetainsJsdocyComments` promoted to a full control (B8 closed the row); W3-B's printer-level parenthesization of a leading generic function type argument REVERTED (it broke the h2-7a printer-reprint contract: `ts.createPrinter` keeps a parsed `Array<<T>() => T>`, the frozen declaration gets its parentheses from the factory when the reuse walk clones and updates the annotation) and replaced by routing the node builder's synthesized references through the factory; the T1 row reopened (lane B 46 → 45) and moved to the w4 ahead lane W4-A0 (launched 23:59 from c2075797 on the astra X2 map, due 03:59) with the corrected owner. PR #507 opened 00:0x at E1b so the hosted check overlaps the tail.

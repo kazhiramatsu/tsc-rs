@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-3a-profile.mjs",
-    "sha256": "b1f7985877a8adff14b1c1e8fffafb032bbb3d91621f33b13e6fb2a06ad6991e"
+    "sha256": "8a88cc0295b33feb4262e2580b96524f1c7a47984ce34b884d4aa524f10295b3"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-3a-profile.schema.json",
@@ -28,19 +28,19 @@
     "historical": {
       "profile": {
         "path": "ratchets/h2-2d-profile.v1.json",
-        "sha256": "89b3a8139307dc5868edeb58c6614f5e3e6c122d5412863a368dfa441aad8af3"
+        "sha256": "2f0361d792b5529e26da28cfafd658a427649056ea0efea6b6010c144c2f5f19"
       },
       "qualification": {
         "path": "ratchets/h2-2d-qualification.v1.json",
-        "sha256": "3598177f97133b3b7cff53dcc14b69ef2ebb6dad344845c7dcdfc9e203778a10"
+        "sha256": "dd564691419d54f46ce13bfeb0069bb6491bc0f9a823cdb6df157ebaedfcf8c3"
       },
       "profile_generator": {
         "path": "crates/oracle/h2-2d-profile.mjs",
-        "sha256": "9ee4205279f41fca0735ce34e430319105b2a4ceaf2a4f3fa6aa4a624c00d953"
+        "sha256": "4fad05b8f4fde0ce54f30d3eb0811d41314e1a915bad522a1bf54c20f2fcc905"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-2d-qualification.mjs",
-        "sha256": "8e4fccb468643f3ade7be04cd6b29a7c98b58dcf7660162eb7b7411850c89c6d"
+        "sha256": "99e287b0a2caebe982b4d6189233d4f3dfe1a393164b24d981c8ddfccca8fb20"
       },
       "profile_contract": {
         "path": ".github/ci/contracts/h2-2d-profile.schema.json",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-3a-qualification.v1.json",
-    "sha256": "50d59c0ba2419c4dca7d0c4fde670509494ee853ea68c7a37194f8395cde2d27"
+    "sha256": "fa554228b0609a5c8ca885305a0e9f4193412edf044610c617444a8cc353026e"
   },
   "runtime_inputs": [
     {
@@ -100,11 +100,11 @@
     },
     {
       "path": "crates/emitter/src/builtins.rs",
-      "sha256": "5136bedd247f5c2a67184f54d40e9035df47e0975b4053ef6998b2c55c9a5a02"
+      "sha256": "a7ae6b4e52baccf8d31fb44fc568c7a766a8af29c6ada90d11f0a885bdbc4f94"
     },
     {
       "path": "crates/emitter/src/builtins/system.rs",
-      "sha256": "8898185ecb9fc3a7cb8a4c7db557d487316a88b5645683dd26da75eaf50a44aa"
+      "sha256": "1ec6a929781b2cf9e48554c8d43f47e053b122caddb80dbbe0298684b98634e7"
     },
     {
       "path": "crates/emitter/src/execute.rs",
@@ -112,7 +112,7 @@
     },
     {
       "path": "crates/emitter/src/factory.rs",
-      "sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
+      "sha256": "c2574fbe3e595c9945c585d7ba23e517c06c5b576c3c05f7e39eee304b7cd81e"
     },
     {
       "path": "crates/emitter/src/host.rs",
@@ -132,7 +132,7 @@
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "2e8d68432c8545e85a9cdcdc620ff1c69eb443f4461098024f2c9779e6675269"
+      "sha256": "b4a9bf05a4bc8d908d68d5c5b4c04c182d0bfc1442523af6682a171bfdb3017f"
     },
     {
       "path": "crates/emitter/src/resolver.rs",
@@ -369,7 +369,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "7abad6f1c02bb958b53712196a07ce710c0e82a7aa7b9cfaaaaf2fc0fa1aac4a"
+      "sha256": "2b679916f4ffb46d33f66a2eb2b4e51db53578e1715642e63fdeda486dba211c"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -377,7 +377,7 @@
     },
     "historical_h2_2d_profile": {
       "path": "ratchets/h2-2d-profile.v1.json",
-      "sha256": "89b3a8139307dc5868edeb58c6614f5e3e6c122d5412863a368dfa441aad8af3"
+      "sha256": "2f0361d792b5529e26da28cfafd658a427649056ea0efea6b6010c144c2f5f19"
     },
     "local_full_gate": "cargo xtask ci --baseline 03bbbe9dde5df1e5491a8a0568998fa2865600b5",
     "hosted_gate": "cargo xtask acceptance",
@@ -393,5 +393,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "fb77d12dc0e266c0ab852892aa1026bc24390dae416d6b6f1f44253b500d39d0"
+  "profile_fingerprint_sha256": "ff96328d340373e2288c6e97246810cf3de0c344fc126e5fd4df12d4b3567cdf"
 }

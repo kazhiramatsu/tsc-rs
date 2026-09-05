@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-2b-profile.mjs",
-    "sha256": "4f4506d1527b00fb30953c169a1a620996b6ce0b71b5db87e16b7f801c606e6f"
+    "sha256": "6d0559fc36b3fc7f63bd525820274dbabdc8634aa5a4eae15dae268eaec77ec9"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-2b-profile.schema.json",
@@ -28,19 +28,19 @@
     "historical": {
       "profile": {
         "path": "ratchets/h2-2a-profile.v1.json",
-        "sha256": "b352d2891ba985d14288c02e0cd24c2f94ab18e38b007d52569ca45b396464de"
+        "sha256": "b50ddc7a18805e9a8dfa3d7e379dcd20b213b962a45157c5687ffb396c4a2641"
       },
       "qualification": {
         "path": "ratchets/h2-2a-qualification.v1.json",
-        "sha256": "355c36b0e57dcbca0e76b209e620977d0889bc6f9d147f90e03f4448ec51aa18"
+        "sha256": "a56cf8295469c5fe72bb610482c41ef961068ed64b6334b2b3b203d019aacc3a"
       },
       "profile_generator": {
         "path": "crates/oracle/h2-2a-profile.mjs",
-        "sha256": "4342bc483663f7bc0f9075e44885fe554c482dfa296a8c0b76a0387873f1b762"
+        "sha256": "d748cfe2e80343f7fde6973f35edfac4f77f3b19561e028a3892220814ac615a"
       },
       "qualification_generator": {
         "path": "crates/oracle/h2-2a-qualification.mjs",
-        "sha256": "2b74a972f3cf0c0c0c457cfdd185eda79ce13454f9148762a03d364a5f52e8ae"
+        "sha256": "76c84184f039e6457df37978c76482ea3be06f1e5e6ffe52fe7f8b5badf7e1f3"
       },
       "profile_contract": {
         "path": ".github/ci/contracts/h2-2a-profile.schema.json",
@@ -55,7 +55,7 @@
   },
   "qualification": {
     "path": "ratchets/h2-2b-qualification.v1.json",
-    "sha256": "6584a4b6b6a9de99f1b2a3f7dfae7795c9da9b15dbba228d75902d9881be8226"
+    "sha256": "ea9946ec38356cc68012a2cae00a2503d321d7f1af078c27e076b684a374f4d2"
   },
   "runtime_inputs": [
     {
@@ -96,11 +96,11 @@
     },
     {
       "path": "crates/emitter/src/builtins.rs",
-      "sha256": "5136bedd247f5c2a67184f54d40e9035df47e0975b4053ef6998b2c55c9a5a02"
+      "sha256": "a7ae6b4e52baccf8d31fb44fc568c7a766a8af29c6ada90d11f0a885bdbc4f94"
     },
     {
       "path": "crates/emitter/src/builtins/system.rs",
-      "sha256": "8898185ecb9fc3a7cb8a4c7db557d487316a88b5645683dd26da75eaf50a44aa"
+      "sha256": "1ec6a929781b2cf9e48554c8d43f47e053b122caddb80dbbe0298684b98634e7"
     },
     {
       "path": "crates/emitter/src/execute.rs",
@@ -108,7 +108,7 @@
     },
     {
       "path": "crates/emitter/src/factory.rs",
-      "sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
+      "sha256": "c2574fbe3e595c9945c585d7ba23e517c06c5b576c3c05f7e39eee304b7cd81e"
     },
     {
       "path": "crates/emitter/src/host.rs",
@@ -124,7 +124,7 @@
     },
     {
       "path": "crates/emitter/src/printer.rs",
-      "sha256": "2e8d68432c8545e85a9cdcdc620ff1c69eb443f4461098024f2c9779e6675269"
+      "sha256": "b4a9bf05a4bc8d908d68d5c5b4c04c182d0bfc1442523af6682a171bfdb3017f"
     },
     {
       "path": "crates/emitter/src/resolver.rs",
@@ -283,7 +283,7 @@
     },
     "h1_authority": {
       "path": "ratchets/h1-emit-qualification.v1.json",
-      "sha256": "7abad6f1c02bb958b53712196a07ce710c0e82a7aa7b9cfaaaaf2fc0fa1aac4a"
+      "sha256": "2b679916f4ffb46d33f66a2eb2b4e51db53578e1715642e63fdeda486dba211c"
     },
     "l1_authority": {
       "path": "ratchets/l1-incremental-parser-performance.v1.json",
@@ -291,7 +291,7 @@
     },
     "historical_h2_2a_profile": {
       "path": "ratchets/h2-2a-profile.v1.json",
-      "sha256": "b352d2891ba985d14288c02e0cd24c2f94ab18e38b007d52569ca45b396464de"
+      "sha256": "b50ddc7a18805e9a8dfa3d7e379dcd20b213b962a45157c5687ffb396c4a2641"
     },
     "local_full_gate": "cargo xtask ci --baseline c402252a0d9df4ca0f5332c7f64084087fe55886",
     "hosted_gate": "cargo xtask acceptance",
@@ -307,5 +307,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "f00ace37a74a15b77e9727ddd3b5624f4e25a3f263d6ede255226b9cdd384f13"
+  "profile_fingerprint_sha256": "c3f44ddff400473a9cb635f4b676de051560b99874ae988444252c18a0f007a5"
 }
