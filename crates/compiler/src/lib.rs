@@ -1432,6 +1432,21 @@ fn project_checker_inputs(
         file_metadata.push(metadata);
     }
 
+    for package in prepared.packages() {
+        let display_path = package.package_json().display();
+        let name = display_path
+            .to_str()
+            .ok_or_else(|| DriverError::NonUnicodeDisplayPath {
+                source_file: None,
+                path: display_path.to_path_buf(),
+            })?
+            .to_owned();
+        files.push(InputFile::host_only_from_snapshot(
+            name,
+            Arc::clone(package.snapshot()),
+        ));
+    }
+
     let current_directory_path = prepared.current_directory().display();
     let current_directory = current_directory_path
         .to_str()

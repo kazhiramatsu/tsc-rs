@@ -906,6 +906,14 @@ pub fn emit_files_with_activity(
         listing
     });
 
+    // tsc-port: emitFiles returns `emitterDiagnostics.getDiagnostics()` — a
+    // DiagnosticCollection (@6.0.3 _tsc.js:16199-16264 createDiagnosticCollection;
+    // :116534-116551 emitFiles): file-less diagnostics first, files in
+    // case-sensitive name order, each file's list in diagnostic order with equal
+    // entries dropped. The units append in plan order above, so sort and dedupe
+    // the aggregate here (h2-7b-w1: the declarationEmitMixinPrivateProtected
+    // row's frozen order interleaves two files).
+    sort_and_dedupe_diagnostics(&mut diagnostics);
     Ok(EmitOutcome::new(
         diagnostics,
         emit_skipped,

@@ -42,8 +42,8 @@
     "file_count": 260,
     "rust_source_files": 245,
     "cargo_manifests": 15,
-    "bytes": 19517872,
-    "tree_sha256": "311235990d67a575bb08dd6f3bb8934b5f4694c802b31f2b1c22cbb34edc8f9a"
+    "bytes": 19530794,
+    "tree_sha256": "f39bc3214cfa326ea3a7944ec4786bcfa69470e0b30531feee3fec0ef67c68a0"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -622,7 +622,7 @@
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "4b317a8fc972dc1e0e6d4c7ca32654cf391aa266470b160038f3d069f34cb382"
+        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
       },
       {
         "id": "program-session-run",
@@ -631,7 +631,7 @@
         "column": 5,
         "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(\n            false,\n            LibraryPrefixCompletion::Complete,\n            &mut no_emit_canary,\n        )\n    }",
         "text_sha256": "72843bad62a020e651352f5298e1238e0d3233a734dfd355d03efded33399b80",
-        "file_sha256": "4b317a8fc972dc1e0e6d4c7ca32654cf391aa266470b160038f3d069f34cb382"
+        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
       },
       {
         "id": "program-session-emit",
@@ -640,7 +640,7 @@
         "column": 5,
         "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "4b317a8fc972dc1e0e6d4c7ca32654cf391aa266470b160038f3d069f34cb382"
+        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
       },
       {
         "id": "program-session-memory-emit",
@@ -649,7 +649,7 @@
         "column": 9,
         "text": "h2_activity.construct_output_plan();\n        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
         "text_sha256": "3375e03b5f74bdc119bd01aab9a4a3c56c5222952feec228050212066b767898",
-        "file_sha256": "4b317a8fc972dc1e0e6d4c7ca32654cf391aa266470b160038f3d069f34cb382"
+        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
       },
       {
         "id": "emitter-host-protocol",
@@ -676,16 +676,16 @@
         "column": 1,
         "text": "pub fn emit_files(",
         "text_sha256": "06f4b40f5c04f28c09e441a13bd303ec30f299622d68d6270a7987525e7558e1",
-        "file_sha256": "08fe8589bbfd2490fd10e12097c0e7a00e2986032adb78bdaba96d7af35a1cc5"
+        "file_sha256": "c387c307ce32641ebc045a792a2aacdd518b96739f663028e1906456bcc0e010"
       },
       {
         "id": "checker-live-emit-callback",
         "path": "crates/checker/src/lib.rs",
-        "line": 1321,
+        "line": 1345,
         "column": 1,
         "text": "pub fn check_program_with_authoritative_modules_at_for_emit(",
         "text_sha256": "9a6778daa37b4dbd06c9aea5c03e49a2d7cf3cc17acd8bf568158f3f81e7a154",
-        "file_sha256": "1681f2da382170166b75cea2c2fe9edb5c1dc3ddd5f03cee6307cd5c6fd058c6"
+        "file_sha256": "deabe7b93564d984efc3d364628ac630ffb5d18d01474abc0193a9db690c2ebb"
       },
       {
         "id": "h1-no-emit-canary",
@@ -699,20 +699,20 @@
       {
         "id": "checker-session-local-state",
         "path": "crates/checker/src/lib.rs",
-        "line": 1835,
+        "line": 1875,
         "column": 9,
         "text": "let mut state = state::CheckerState::from_snapshot(&snapshot, options);",
         "text_sha256": "66431a38f7144074bc77255200f22293db4d3cec0c2a25e8f9803518da8f1b6a",
-        "file_sha256": "1681f2da382170166b75cea2c2fe9edb5c1dc3ddd5f03cee6307cd5c6fd058c6"
+        "file_sha256": "deabe7b93564d984efc3d364628ac630ffb5d18d01474abc0193a9db690c2ebb"
       },
       {
         "id": "checker-state-collapse",
         "path": "crates/checker/src/lib.rs",
-        "line": 2018,
+        "line": 2058,
         "column": 9,
         "text": "partial_checks = state.partial_check_records.clone();\n        authoritative_failure = state.take_authoritative_module_failure();",
         "text_sha256": "8c4b08d85fa65cffc07ed4b19a65542608d4991af99d50672f5fe53d65d75885",
-        "file_sha256": "1681f2da382170166b75cea2c2fe9edb5c1dc3ddd5f03cee6307cd5c6fd058c6"
+        "file_sha256": "deabe7b93564d984efc3d364628ac630ffb5d18d01474abc0193a9db690c2ebb"
       },
       {
         "id": "display-clone-not-emitter",
@@ -753,11 +753,11 @@
       {
         "id": "checker-authoritative-emit-facts",
         "path": "crates/checker/src/lib.rs",
-        "line": 137,
+        "line": 152,
         "column": 5,
         "text": "pub may_be_emitted: bool,\n    /// Raw `SourceFile.impliedNodeFormat`",
         "text_sha256": "3d4ae97d2c33a29370c93a0ac34ff42c614ac8cac2f3d8cf8a1291f4bfa10444",
-        "file_sha256": "1681f2da382170166b75cea2c2fe9edb5c1dc3ddd5f03cee6307cd5c6fd058c6"
+        "file_sha256": "deabe7b93564d984efc3d364628ac630ffb5d18d01474abc0193a9db690c2ebb"
       },
       {
         "id": "compiler-options-current-shape",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "7d7b15d6024a7fe6a4d3f9ee31a22f175c78ccaa3a4bafff51055bfc6baf3a60"
+  "inventory_fingerprint_sha256": "434737c529b44928f47b009d52411ffc7ab1d8cdc13c881ae5821ed62d2f4086"
 }
