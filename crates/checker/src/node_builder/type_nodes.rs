@@ -1263,6 +1263,16 @@ fn is_symbol_accessible_with_error_names(
         return Ok(true);
     };
     let symbol_flags = checker.symbol_flags(symbol);
+    if super::chains::symbol_is_shadowed_in_synthetic_scope(checker, context, symbol, meaning) {
+        // The fake namespace's first table owns the name. An exported symbol
+        // can still be named through its external-module parent; an unowned
+        // local cannot and must take the structural fallback.
+        return Ok(checker
+            .binder
+            .symbol(symbol)
+            .parent
+            .is_some_and(|parent| checker.symbol_has_external_module_declaration(parent)));
+    }
     if context.enclosing_declaration_is_synthetic
         && context.tracker.is_statement_tracking()
         && symbol_flags.intersects(SymbolFlags::ASSIGNMENT)

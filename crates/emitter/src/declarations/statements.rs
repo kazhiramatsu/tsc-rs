@@ -319,19 +319,23 @@ fn transform_top_level_declaration_worker(
                     type_node,
                     None,
                 )?;
-                let mut outputs = vec![updated];
                 let is_expando = transformer.resolver.is_expando_function_declaration(
                     transformer.required_resolver_node(context, input)?,
                 )?;
                 if is_expando && should_emit_function_properties(transformer, context, input)? {
-                    outputs.extend(expando_declaration_arm(
+                    // tsc-port: transformTopLevelDeclaration returns the complete
+                    // expando replacement; the helper already includes the cleaned
+                    // function when default-export lowering needs one
+                    // (_tsc.js:115387-115400).
+                    VisitResult::Nodes(expando_declaration_arm(
                         transformer,
                         context,
                         input,
                         updated,
-                    )?);
+                    )?)
+                } else {
+                    VisitResult::Node(updated)
                 }
-                VisitResult::Nodes(outputs)
             }
             SyntaxKind::ModuleDeclaration => {
                 let data = module_data(context, input)?;
@@ -1887,7 +1891,7 @@ fn expando_declaration_arm(
         }
     }
     if property_types.is_empty() {
-        return Ok(Vec::new());
+        return Ok(vec![function]);
     }
     let mut declarations = Vec::new();
     let mut export_mappings = Vec::new();
@@ -1992,7 +1996,7 @@ fn expando_declaration_arm(
             Some(body),
             NodeFlags::NAMESPACE,
         )?;
-        return Ok(vec![namespace]);
+        return Ok(vec![function, namespace]);
     }
 
     let clean_modifiers =

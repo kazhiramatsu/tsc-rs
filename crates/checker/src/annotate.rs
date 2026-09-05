@@ -3101,13 +3101,42 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.error);
             }
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
-            let new_alias_symbol = alias_symbol.filter(|&alias| {
+            let mut new_alias_symbol = alias_symbol.filter(|&alias| {
                 self.is_local_type_alias(symbol) || !self.is_local_type_alias(alias)
             });
-            let alias_type_arguments = self.get_type_arguments_for_alias_symbol(new_alias_symbol);
+            let mut alias_type_arguments =
+                self.get_type_arguments_for_alias_symbol(new_alias_symbol);
             let mut resolved_arguments: Vec<TypeId> = Vec::with_capacity(node_type_arguments.len());
-            for argument in node_type_arguments {
+            for &argument in &node_type_arguments {
                 resolved_arguments.push(self.get_type_from_type_node(argument)?);
+            }
+            // tsc-port: an imported alias that resolves to this type alias keeps
+            // its written arguments as display metadata, independently of the
+            // default-filled semantic instantiation (_tsc.js:60312-60332).
+            if new_alias_symbol.is_none()
+                && matches!(
+                    self.kind_of(node),
+                    SyntaxKind::TypeReference | SyntaxKind::ExpressionWithTypeArguments
+                )
+            {
+                let alias = self.resolve_type_reference_name(
+                    node,
+                    SymbolFlags::ALIAS,
+                    /*ignore_errors*/ true,
+                )?;
+                if alias != self.unknown_symbol {
+                    let resolved = self.resolve_alias(alias)?;
+                    if resolved != self.unknown_symbol
+                        && self
+                            .binder
+                            .symbol(resolved)
+                            .flags
+                            .intersects(SymbolFlags::TYPE_ALIAS)
+                    {
+                        new_alias_symbol = Some(resolved);
+                        alias_type_arguments = Some(resolved_arguments.clone());
+                    }
+                }
             }
             let type_arguments = (num_type_arguments > 0).then_some(resolved_arguments);
             return self.get_type_alias_instantiation(

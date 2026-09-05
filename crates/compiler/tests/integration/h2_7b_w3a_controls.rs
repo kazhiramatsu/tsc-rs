@@ -32,6 +32,35 @@ const DECLARATIONLESS_NAME_TYPE_CASES: &[&str] =
 const GENERIC_MAPPED_INDEX_CASES: &[&str] =
     &["typescript-6.0.3/compiler/indexSignatureAndMappedType.ts#default"];
 
+const W4_A0_JSDOC_ALIAS_REUSE_CASES: &[&str] = &[
+    "typescript-6.0.3/compiler/declarationEmitCastReusesTypeNode4.ts#strictnullchecks%3Dfalse",
+    "typescript-6.0.3/compiler/declarationEmitCastReusesTypeNode4.ts#strictnullchecks%3Dtrue",
+    "typescript-6.0.3/compiler/reuseTypeAnnotationImportTypeInGlobalThisTypeArgument.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsImportAliasExposedWithinNamespace.ts#default",
+    "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsImportAliasExposedWithinNamespaceCjs.ts#default",
+];
+
+const W4_A0_REUSED_TYPE_REFERENCE_CASES: &[&str] =
+    &["typescript-6.0.3/compiler/declarationEmitFirstTypeArgumentGenericFunctionType.ts#default"];
+
+const W4_A0_EXPANDO_SCOPE_CASES: &[&str] =
+    &["typescript-6.0.3/compiler/declarationEmitDefaultExportWithStaticAssignment.ts#default"];
+
+const W4_A0_IMPORTED_ALIAS_CASES: &[&str] = &[
+    "typescript-6.0.3/compiler/declarationEmitExportAssignedNamespaceNoTripleSlashTypesReference.ts#default",
+];
+
+const W4_A0_INVALID_PACKAGE_CASES: &[&str] =
+    &["typescript-6.0.3/compiler/declarationEmitWithInvalidPackageJsonTypings.ts#default"];
+
+const W4_A0_ACCESSIBLE_CONTAINER_CASES: &[&str] = &[
+    "typescript-6.0.3/compiler/es5ExportEqualsDts.ts#target%3Des2015",
+    "typescript-6.0.3/compiler/es5ExportEqualsDts.ts#target%3Des5",
+];
+
+const W4_A0_SYNTHETIC_SCOPE_REGRESSION_CASES: &[&str] =
+    &["typescript-6.0.3/compiler/declarationEmitGlobalThisPreserved.ts#default"];
+
 fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -346,6 +375,56 @@ fn declarationless_late_bound_properties_use_name_type_spelling() {
 #[test]
 fn generic_mapped_sources_relate_template_to_string_index_value() {
     for case_id in GENERIC_MAPPED_INDEX_CASES {
+        assert_frozen_observation(case_id);
+    }
+}
+
+#[test]
+fn w4_a0_jsdoc_alias_reuse_is_byte_exact() {
+    for case_id in W4_A0_JSDOC_ALIAS_REUSE_CASES {
+        assert_frozen_observation(case_id);
+    }
+}
+
+#[test]
+#[ignore = "W4-A0 trace proved the remaining owner is emitter/declarations/subtree.rs (out of scope)"]
+fn w4_a0_reused_type_references_apply_factory_parenthesization() {
+    for case_id in W4_A0_REUSED_TYPE_REFERENCE_CASES {
+        assert_frozen_observation(case_id);
+    }
+}
+
+#[test]
+fn w4_a0_expando_replacements_and_scope_are_byte_exact() {
+    for case_id in W4_A0_EXPANDO_SCOPE_CASES {
+        assert_frozen_observation(case_id);
+    }
+}
+
+#[test]
+fn w4_a0_imported_alias_display_arguments_are_byte_exact() {
+    for case_id in W4_A0_IMPORTED_ALIAS_CASES {
+        assert_frozen_observation(case_id);
+    }
+}
+
+#[test]
+fn w4_a0_invalid_package_existing_import_is_byte_exact() {
+    for case_id in W4_A0_INVALID_PACKAGE_CASES {
+        assert_frozen_observation(case_id);
+    }
+}
+
+#[test]
+fn w4_a0_directly_accessible_container_precedes_export_equals() {
+    for case_id in W4_A0_ACCESSIBLE_CONTAINER_CASES {
+        assert_frozen_observation(case_id);
+    }
+}
+
+#[test]
+fn w4_a0_expando_scope_does_not_escape_to_synthetic_signature_scopes() {
+    for case_id in W4_A0_SYNTHETIC_SCOPE_REGRESSION_CASES {
         assert_frozen_observation(case_id);
     }
 }
