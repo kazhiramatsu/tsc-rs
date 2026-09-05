@@ -26,8 +26,8 @@
   "inputs": {
     "owner_inventory": {
       "path": "ratchets/h2-7a-owner-inventory.v1.json",
-      "sha256": "ba349e3f3f7042b70257b051c742285fe7ee6de9dc2a270f6ce8f9b5842313cf",
-      "inventory_fingerprint_sha256": "820e02e4b3b299a2d0872a717d34e5c2ba6c11816db1db3873258264e008f389"
+      "sha256": "cbe2ac17a54618b02c6a194ec8c2ec881f6fc3b90d04e768df07db1373e74137",
+      "inventory_fingerprint_sha256": "858dffdf1cf9402c2ae0cad7178f49be654ee51df72e9510540366a6d9ee2171"
     },
     "witnesses": {
       "path": "ratchets/h2-7a-witnesses.v1.json",
@@ -317,5 +317,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "4b5073f414823a336e47cdb773cf5ea6fb9ac48f0d540b56591b467c2c1b471a"
+  "close_fingerprint_sha256": "42ff9b768d67e6eb13321c7ef5df754109d0cfc39cc5a65bcb09e98a461f9c7e"
 }
