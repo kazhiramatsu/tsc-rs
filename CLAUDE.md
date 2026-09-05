@@ -133,6 +133,51 @@ execute it — never idle on a wait. Rules:
    implementation lanes in worktrees, memory/docs updates, residue
    analysis for the following train.
 
+## Staffing / parallelization (standing directive, 2026-09-05)
+
+A slice runs as a small cell (3–4 roles), never as several implementers on
+one pod:
+
+1. **Integrator + core = the single writer** of `plan.rs` / `execute.rs`,
+   the profiles, the transition, ORDER, `ratchets/`, `crates/oracle/*.mjs`,
+   the runner (`h2_2c_acceptance.rs`), `scripts/chain-walk.sh`, every pin
+   surface, `contracts.rs`-style registration files and docs; also final
+   integration, the canonical mint, the walk and the gate. A lane never
+   touches these.
+2. **Independent implementer lanes** (1–2, Codex worktrees) own
+   census-separated cause classes with NON-overlapping file sets
+   (`docs/design/greenfield/post-h1-completion-slices.md:224`).
+3. **Evidence owner**: causal classification, upstream investigation,
+   fixtures, expected results, focused tests, the packet draft; no
+   production code.
+4. **Optional ahead lane**: the next slice's inventories/packets, never
+   inside the current implementation.
+
+Work tickets (one SPEC per assignee) fix: base SHA, target case ids,
+allowed paths, expected results, focused test, stop conditions, forbidden
+surfaces. Allowed paths are the census-derived concrete files, FIXED at
+launch and checked by a preflight (pairwise disjoint, no single-writer
+surface, every file present); each lane's changed files are re-verified
+against its ticket before integration. A row whose proven owner lies
+outside the set is recorded OUT-OF-SCOPE with evidence and skipped, never
+a STOP that waits for a widened ticket. Lane battery in two stages: light
+after every closed class; FULL (`cargo test -p tsc-rs-xtask`, the FULL
+5g, the cross-band runners, the whole compiler/checker/emitter suites)
+before handoff. No lane battery while the gate runs: the performance
+ceiling is measured on the same machine under the same unloaded
+conditions, and ahead lanes launch only after the gate exits. No
+per-worker PR/train — the integrator folds every lane into 1–2 thick
+trains.
+
+Serial regardless of headcount: canonical minting, the chain walk, the
+full gate at the final head, hosted acceptance, transition landing, edits
+to shared hotspots. A closure wave is judged on rows closed per train with
+the fixed walk+gate tail kept (w2 criteria: one walk launch, zero
+train-battery-first regressions, zero allowed-path STOPs, zero
+perf-contention reruns, more rows than the previous wave in no more wall
+time, zero lane conflicts / multi-writer pins). Precedents: PR #504 (m-2,
+lanes A–D), PR #505 (w1, the first application), the w2 train.
+
 ## Verification quick reference
 
 - **Merge cadence:** few-line changes ride closure trains — verify each

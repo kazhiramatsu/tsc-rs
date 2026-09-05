@@ -406,10 +406,9 @@ pub(crate) fn signature_to_signature_declaration_helper(
                     );
                 }
             } else {
-                locals.insert(
-                    checker.binder.symbol(parameter).escaped_name.clone(),
-                    parameter,
-                );
+                for (name, symbol) in parameter_scope_symbols(checker, parameter) {
+                    locals.insert(name, symbol);
+                }
             }
         }
     }
@@ -1084,8 +1083,11 @@ pub(crate) fn exit_new_scope(context: &mut NodeBuilderContext<'_>, restore: Scop
 /// tsc-port: enterNewScope.bindPattern @6.0.3
 /// tsc-hash: 0fadd6af58cd9157113e2eb994c804e682198a819d5a7808cda91cf16614caa9
 /// tsc-span: _tsc.js:52757-52768
-#[allow(dead_code)]
-fn bind_pattern(checker: &CheckerState<'_>, pattern: NodeId, names: &mut HashSet<String>) {
+fn collect_binding_pattern_symbols(
+    checker: &CheckerState<'_>,
+    pattern: NodeId,
+    locals: &mut Vec<(String, SymbolId)>,
+) {
     let elements = match checker.data_of(pattern) {
         NodeData::ArrayBindingPattern(data) => checker.nodes_of(data.elements),
         NodeData::ObjectBindingPattern(data) => checker.nodes_of(data.elements),
@@ -1093,7 +1095,7 @@ fn bind_pattern(checker: &CheckerState<'_>, pattern: NodeId, names: &mut HashSet
     };
     for element in elements {
         if checker.kind_of(element) == SyntaxKind::BindingElement {
-            bind_element(checker, element, names);
+            collect_binding_element_symbols(checker, element, locals);
         }
     }
 }
@@ -1101,7 +1103,11 @@ fn bind_pattern(checker: &CheckerState<'_>, pattern: NodeId, names: &mut HashSet
 /// tsc-port: enterNewScope.bindElement @6.0.3
 /// tsc-hash: aabfd6344cd4a7f4bb1cdf47047684d290e76171d66a44ab68910499a490013c
 /// tsc-span: _tsc.js:52769-52775
-fn bind_element(checker: &CheckerState<'_>, element: NodeId, names: &mut HashSet<String>) {
+fn collect_binding_element_symbols(
+    checker: &CheckerState<'_>,
+    element: NodeId,
+    locals: &mut Vec<(String, SymbolId)>,
+) {
     let NodeData::BindingElement(data) = checker.data_of(element) else {
         return;
     };
@@ -1109,13 +1115,49 @@ fn bind_element(checker: &CheckerState<'_>, element: NodeId, names: &mut HashSet
         return;
     };
     match checker.data_of(name) {
-        NodeData::Identifier(data) => {
-            names.insert(data.text.clone());
+        NodeData::Identifier(_) => {
+            if let Some(symbol) = checker.node_symbol(element).or(checker.node_symbol(name)) {
+                locals.push((checker.binder.symbol(symbol).escaped_name.clone(), symbol));
+            }
         }
         NodeData::ArrayBindingPattern(_) | NodeData::ObjectBindingPattern(_) => {
-            bind_pattern(checker, name, names);
+            collect_binding_pattern_symbols(checker, name, locals);
         }
         _ => {}
+    }
+}
+
+/// tsrs-native: immutable-binder projection of enterNewScope.bindPattern's
+/// synthesized Block locals.
+pub(super) fn parameter_scope_symbols(
+    checker: &CheckerState<'_>,
+    parameter: SymbolId,
+) -> Vec<(String, SymbolId)> {
+    let pattern = checker
+        .binder
+        .symbol(parameter)
+        .declarations
+        .iter()
+        .find_map(|&declaration| {
+            let NodeData::Parameter(data) = checker.data_of(declaration) else {
+                return None;
+            };
+            data.name.filter(|&name| {
+                matches!(
+                    checker.kind_of(name),
+                    SyntaxKind::ArrayBindingPattern | SyntaxKind::ObjectBindingPattern
+                )
+            })
+        });
+    if let Some(pattern) = pattern {
+        let mut locals = Vec::new();
+        collect_binding_pattern_symbols(checker, pattern, &mut locals);
+        locals
+    } else {
+        vec![(
+            checker.binder.symbol(parameter).escaped_name.clone(),
+            parameter,
+        )]
     }
 }
 
@@ -1328,7 +1370,7 @@ pub(crate) fn type_predicate_to_type_predicate_node_helper(
 /// tsc-port: getEffectiveParameterDeclaration @6.0.3
 /// tsc-hash: 2588afb7d3b8e6e07a54d982d06c2f7c2b2858fc29e3477e095fde223ae1dafe
 /// tsc-span: _tsc.js:52845-52853
-fn get_effective_parameter_declaration(
+pub(super) fn get_effective_parameter_declaration(
     checker: &CheckerState<'_>,
     parameter: SymbolId,
 ) -> Option<NodeId> {
@@ -1430,7 +1472,7 @@ pub(crate) fn symbol_to_parameter_declaration(
 /// tsc-port: parameterToParameterDeclarationName @6.0.3
 /// tsc-hash: f8c988288813b2b174b4e49718f6864d442cbfe82334ec499d89013ec3df06a4
 /// tsc-span: _tsc.js:52876-52909
-fn parameter_to_parameter_declaration_name(
+pub(super) fn parameter_to_parameter_declaration_name(
     checker: &mut CheckerState<'_>,
     arena: &mut TransformArena,
     target: TransformSourceId,
@@ -1497,6 +1539,33 @@ fn clone_binding_name(
     elide_initializer_and_set_emit_flags(checker, arena, target, node, context)
 }
 
+fn update_binding_pattern_elements(
+    checker: &CheckerState<'_>,
+    arena: &mut TransformArena,
+    target: TransformSourceId,
+    node: NodeId,
+    elements: Vec<TransformNode>,
+) -> BuildResult<Option<tsc_syntax::NodeArrayId>> {
+    let Some(original) = clone_parse_node_to_source(checker, arena, target, node)? else {
+        return node_array(arena, target, elements);
+    };
+    let original_elements = match &arena.node(original).map_err(factory_error)?.data {
+        NodeData::ArrayBindingPattern(data) => data.elements,
+        NodeData::ObjectBindingPattern(data) => data.elements,
+        _ => None,
+    };
+    let Some(original_elements) =
+        original_elements.and_then(|array| arena.node_array_ref(original.source(), array))
+    else {
+        return node_array(arena, target, elements);
+    };
+    arena
+        .factory()
+        .update_node_array(original_elements, elements)
+        .map(|array| Some(array.array()))
+        .map_err(factory_error)
+}
+
 /// tsc-port: parameterToParameterDeclarationName.elideInitializerAndSetEmitFlags @6.0.3
 /// tsc-hash: f8bdbba84cdea52719e327d0bb00c48532bd6d5d35b61b62620ccddfc12a6099
 /// tsc-span: _tsc.js:52880-52907
@@ -1522,7 +1591,7 @@ pub(super) fn elide_initializer_and_set_emit_flags(
                     )?);
                 }
             }
-            let elements = node_array(arena, target, elements)?;
+            let elements = update_binding_pattern_elements(checker, arena, target, node, elements)?;
             create_node(
                 arena,
                 target,
@@ -1536,7 +1605,7 @@ pub(super) fn elide_initializer_and_set_emit_flags(
                     checker, arena, target, element, context,
                 )?);
             }
-            let elements = node_array(arena, target, elements)?;
+            let elements = update_binding_pattern_elements(checker, arena, target, node, elements)?;
             create_node(
                 arena,
                 target,

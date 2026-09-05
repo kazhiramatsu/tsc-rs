@@ -14,7 +14,7 @@ const OWNER_CONTROLS_RELATIVE_PATH = "ratchets/h2-5g-owner-controls.v1.json";
 const PARENT_PROFILE_RELATIVE_PATH = "ratchets/h2-5f-profile.v1.json";
 const H2_1A_QUALIFICATION_RELATIVE_PATH = "ratchets/h2-1a-qualification.v1.json";
 const H2_1A_QUALIFICATION_SHA256 =
-  "557c4b6a83c4cd2fa452d4139c0b92707d422b87230ec723528d743f4c0da12a";
+  "257a602c1ce74f3d7399e0dd683281a3a5b10a7559b4b5f19a1e6162d2499605";
 const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
   Object.freeze({
     source_phase: "H2.1a",
@@ -77,11 +77,11 @@ const H2_1A_CURRENT_EXACT_PROMOTIONS = Object.freeze([
 const TRUSTED_BASE = "11f5d0abb93fed4b109bdb1dc552721ceb05e707";
 
 const HISTORICAL_AUTHORITIES = Object.freeze([
-  ["profile", "ratchets/h2-5f-profile.v1.json", "26c38183619bca12a1efa6cb083377720347c6c94e34a47b3596141268073f51"],
-  ["qualification", "ratchets/h2-5f-qualification.v1.json", "82380643016ff609b43abfb46b4f2483294abcd47e16dcb58f0b9a144fd43916"],
+  ["profile", "ratchets/h2-5f-profile.v1.json", "2035d477db4015e5e7050d208f81d35743e9c3a2eef40a0e1fec227f44c644b3"],
+  ["qualification", "ratchets/h2-5f-qualification.v1.json", "ce2b228bf9684e98cb79dfd2a082e030437bb01b06426709f5a2866cf05edbae"],
   ["owner_controls", "ratchets/h2-5f-owner-controls.v1.json", "a4d9f500be900a0e3f759ba3231a3db20f789f5dcf4b888137ca886686ce9469"],
-  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "afcdc63ef588fea4b89deab81f595d60c390101d91af3e2ab510d1e77b2f3eed"],
-  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "c80d86609625b726b2a9bffa6e744c0ed3cd11e9cf4e4d02094ad7b37a4e4bb3"],
+  ["profile_generator", "crates/oracle/h2-5f-profile.mjs", "facec1f2c94160d72b3bb46bb76223e0c3e9ea9a7134d553396ee25efdf3134e"],
+  ["qualification_generator", "crates/oracle/h2-5f-qualification.mjs", "90a21caeae83177e78773538922b3b976adeb5f817e792e68b995423102a7dc2"],
   ["owner_controls_generator", "crates/oracle/h2-5f-owner-controls.mjs", "8b922d23867a697345be2ef173815feb85bc4543a47f636d3db08eaaf6dfb80e"],
   ["profile_contract", ".github/ci/contracts/h2-5f-profile.schema.json", "5e57df22fab8c62dee892564090681afd48bfa2ec72d582356cf9ec1b99488ee"],
   ["qualification_contract", ".github/ci/contracts/h2-5f-qualification.schema.json", "562a98c418e649440fe3aaf7ed6ef52af185099fb09f27b41254cc9606b1f362"],
@@ -322,6 +322,11 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   // ignored diff-census instrument (test-only; no runtime input).
   "crates/compiler/tests/integration/h2_7b_w1_controls.rs",
   "crates/compiler/tests/integration/h2_7b_w1_diff_census.rs",
+  // h2-7b-w2: the two implementer lanes' frozen controls and the evidence
+  // lane's ignored write-census instrument (test-only; no runtime input).
+  "crates/compiler/tests/integration/h2_7b_w2a_controls.rs",
+  "crates/compiler/tests/integration/h2_7b_w2b_controls.rs",
+  "crates/compiler/tests/integration/h2_7b_w2_write_census.rs",
   "crates/compiler/tests/integration/h2_7a_ca_controls.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit
