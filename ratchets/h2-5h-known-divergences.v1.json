@@ -450,54 +450,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/project/emitDecoratorMetadataSystemJS.json#module%3Damd",
-      "owner": "h2-5h-project-r2",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/project/emitDecoratorMetadataSystemJS.json#module%3Dcommonjs",
-      "owner": "h2-5h-project-r2",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/project/nodeModulesImportHigher.json#module%3Damd",
-      "owner": "h2-5h-project-r2",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/project/nodeModulesImportHigher.json#module%3Dcommonjs",
-      "owner": "h2-5h-project-r2",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/project/nodeModulesMaxDepthIncreased.json#module%3Damd",
-      "owner": "h2-5h-project-r2",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/project/nodeModulesMaxDepthIncreased.json#module%3Dcommonjs",
-      "owner": "h2-5h-project-r2",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/project/rootDirectoryWithoutOutDir.json#module%3Damd",
       "owner": "h2-5h-project-r1",
       "writes_diverging": 0,
