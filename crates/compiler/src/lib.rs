@@ -1566,10 +1566,10 @@ fn emit_session_diagnostics(
     }
 }
 
-/// Produce the file-less option diagnostics created by `createProgram` when
-/// compiler options do not carry a parsed config source. Config-backed
-/// diagnostics remain owned by `ConfigRootPlan`, where their exact source
-/// locations are available.
+/// Produce the option diagnostics created by `createProgram`. Config-backed
+/// validation diagnostics remain owned by `ConfigRootPlan`, while removed
+/// and deprecated options are checked over the merged effective options and
+/// skip names which already have config syntax.
 ///
 /// tsc-port: verifyCompilerOptions @6.0.3 (lib/noLib block)
 /// tsc-hash: 6cc5d6e4258b1645ed0788fb31322db101b9e6b9ae34f203e749610f23e48fb3
@@ -1583,109 +1583,116 @@ fn emit_session_diagnostics(
 /// tsc-span: _tsc.js:125087-125250
 fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList {
     let options = prepared.compiler_options();
-    if prepared
+    let external_config_option_diagnostics = prepared
         .program_options()
-        .external_config_option_diagnostics()
-    {
+        .external_config_option_diagnostics();
+
+    // The no-emit project adapter returns its ConfigRootPlan alongside the
+    // PreparedProgram and keeps option-diagnostic ownership there. Emitting
+    // project adapters instead need this Program pass for their merged
+    // runner overlays, which are absent from the config syntax.
+    if external_config_option_diagnostics && options.no_emit == Some(true) {
         return Vec::new();
     }
 
     let mut diagnostics = Vec::new();
-    for violation in validate_compiler_options(options) {
-        push_programmatic_option_diagnostic(
-            prepared,
-            &mut diagnostics,
-            violation.option_names(),
-            match violation.location() {
-                CompilerOptionValidationLocation::Name => {
-                    ProgrammaticOptionDiagnosticLocation::Name
-                }
-                CompilerOptionValidationLocation::Value => {
-                    ProgrammaticOptionDiagnosticLocation::Value
-                }
-            },
-            true,
-            violation.message(),
-        );
-    }
-    if options.lib.is_some() && prepared.program_options().no_lib() == Some(true) {
-        push_programmatic_option_diagnostic(
-            prepared,
-            &mut diagnostics,
-            &["lib", "noLib"],
-            ProgrammaticOptionDiagnosticLocation::Name,
-            true,
-            MessageChain::new(
-                &gen::Option_0_cannot_be_specified_with_option_1,
-                &["lib".to_owned(), "noLib".to_owned()],
-            ),
-        );
-    }
-    let module_kind = options.emit_module_kind();
-    let module_resolution = options.emit_module_resolution_kind();
-    if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
-        push_programmatic_option_diagnostic(
-            prepared,
-            &mut diagnostics,
-            &["moduleResolution"],
-            ProgrammaticOptionDiagnosticLocation::Value,
-            false,
-            MessageChain::new(
-                &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
-                &["bundler".to_owned()],
-            ),
-        );
-    }
-    if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
-        let module_resolution_name = if module_resolution == 99 {
-            "NodeNext"
-        } else {
-            "Node16"
-        };
-        push_programmatic_option_diagnostic(
-            prepared,
-            &mut diagnostics,
-            &["module"],
-            ProgrammaticOptionDiagnosticLocation::Value,
-            false,
-            MessageChain::new(
-                &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
-                &[
-                    module_resolution_name.to_owned(),
-                    module_resolution_name.to_owned(),
-                ],
-            ),
-        );
-    } else if (100..=199).contains(&module_kind)
-        && options.module_resolution.is_some()
-        && !(3..=99).contains(&module_resolution)
-    {
-        let module_kind_name = match module_kind {
-            100 => "Node16",
-            101 => "Node18",
-            102 => "Node20",
-            199 => "NodeNext",
-            _ => "Node16",
-        };
-        let module_resolution_name = if module_kind == 199 {
-            "NodeNext"
-        } else {
-            "Node16"
-        };
-        push_programmatic_option_diagnostic(
-            prepared,
-            &mut diagnostics,
-            &["moduleResolution"],
-            ProgrammaticOptionDiagnosticLocation::Value,
-            false,
-            MessageChain::new(
-                &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
-                &[
-                    module_resolution_name.to_owned(),
-                    module_kind_name.to_owned(),
-                ],
-            ),
-        );
+    if !external_config_option_diagnostics {
+        for violation in validate_compiler_options(options) {
+            push_programmatic_option_diagnostic(
+                prepared,
+                &mut diagnostics,
+                violation.option_names(),
+                match violation.location() {
+                    CompilerOptionValidationLocation::Name => {
+                        ProgrammaticOptionDiagnosticLocation::Name
+                    }
+                    CompilerOptionValidationLocation::Value => {
+                        ProgrammaticOptionDiagnosticLocation::Value
+                    }
+                },
+                true,
+                violation.message(),
+            );
+        }
+        if options.lib.is_some() && prepared.program_options().no_lib() == Some(true) {
+            push_programmatic_option_diagnostic(
+                prepared,
+                &mut diagnostics,
+                &["lib", "noLib"],
+                ProgrammaticOptionDiagnosticLocation::Name,
+                true,
+                MessageChain::new(
+                    &gen::Option_0_cannot_be_specified_with_option_1,
+                    &["lib".to_owned(), "noLib".to_owned()],
+                ),
+            );
+        }
+        let module_kind = options.emit_module_kind();
+        let module_resolution = options.emit_module_resolution_kind();
+        if module_resolution == 100 && !matches!(module_kind, 1 | 5..=99 | 200) {
+            push_programmatic_option_diagnostic(
+                prepared,
+                &mut diagnostics,
+                &["moduleResolution"],
+                ProgrammaticOptionDiagnosticLocation::Value,
+                false,
+                MessageChain::new(
+                    &gen::Option_0_can_only_be_used_when_module_is_set_to_preserve_commonjs_or_es2015_or_later,
+                    &["bundler".to_owned()],
+                ),
+            );
+        }
+        if (3..=99).contains(&module_resolution) && !(100..=199).contains(&module_kind) {
+            let module_resolution_name = if module_resolution == 99 {
+                "NodeNext"
+            } else {
+                "Node16"
+            };
+            push_programmatic_option_diagnostic(
+                prepared,
+                &mut diagnostics,
+                &["module"],
+                ProgrammaticOptionDiagnosticLocation::Value,
+                false,
+                MessageChain::new(
+                    &gen::Option_module_must_be_set_to_0_when_option_moduleResolution_is_set_to_1,
+                    &[
+                        module_resolution_name.to_owned(),
+                        module_resolution_name.to_owned(),
+                    ],
+                ),
+            );
+        } else if (100..=199).contains(&module_kind)
+            && options.module_resolution.is_some()
+            && !(3..=99).contains(&module_resolution)
+        {
+            let module_kind_name = match module_kind {
+                100 => "Node16",
+                101 => "Node18",
+                102 => "Node20",
+                199 => "NodeNext",
+                _ => "Node16",
+            };
+            let module_resolution_name = if module_kind == 199 {
+                "NodeNext"
+            } else {
+                "Node16"
+            };
+            push_programmatic_option_diagnostic(
+                prepared,
+                &mut diagnostics,
+                &["moduleResolution"],
+                ProgrammaticOptionDiagnosticLocation::Value,
+                false,
+                MessageChain::new(
+                    &gen::Option_moduleResolution_must_be_set_to_0_or_left_unspecified_when_option_module_is_set_to_1,
+                    &[
+                        module_resolution_name.to_owned(),
+                        module_kind_name.to_owned(),
+                    ],
+                ),
+            );
+        }
     }
 
     if options.target == Some(0) {
@@ -1855,10 +1862,12 @@ fn programmatic_option_diagnostics(prepared: &PreparedProgram) -> DiagnosticList
             );
         }
     }
-    diagnostics.extend(validate_paths_option_diagnostics(
-        options,
-        prepared.program_options(),
-    ));
+    if !external_config_option_diagnostics {
+        diagnostics.extend(validate_paths_option_diagnostics(
+            options,
+            prepared.program_options(),
+        ));
+    }
     sort_and_dedupe_diagnostics(&mut diagnostics);
     diagnostics
 }
@@ -1869,6 +1878,9 @@ enum ProgrammaticOptionDiagnosticLocation {
     Value,
 }
 
+/// tsc-port: createDiagnosticForOption @6.0.3
+/// tsc-hash: 24da25470bdd02c4cde5520b78ea191837823bf1df686438144a8106edfd5f53
+/// tsc-span: _tsc.js:125368-125386
 fn push_programmatic_option_diagnostic(
     prepared: &PreparedProgram,
     diagnostics: &mut Vec<Diagnostic>,
@@ -1881,6 +1893,16 @@ fn push_programmatic_option_diagnostic(
         diagnostics.push(Diagnostic::new(None, None, None, message));
         return;
     };
+
+    if prepared
+        .program_options()
+        .external_config_option_diagnostics()
+        && names
+            .iter()
+            .any(|name| !config_file.compiler_option_name_locations(name).is_empty())
+    {
+        return;
+    }
 
     let mut locations = names
         .iter()

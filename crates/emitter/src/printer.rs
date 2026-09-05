@@ -3562,6 +3562,20 @@ impl Printer {
                         parent: SyntaxKind::VariableDeclaration,
                         field: "name",
                     })?;
+                let name_owner =
+                    self.expression_comment_phase_owner_for_node(transformation, name)?;
+                let container_owned = self.parent_comment_container_owned_prefix_for_owner(
+                    transformation,
+                    initializer_context.comments().container_pos(),
+                    name_owner,
+                )?;
+                self.emit_leading_comments_for_node_worker(
+                    transformation,
+                    name,
+                    LeadingCommentContext::Normal,
+                    container_owned,
+                    writer,
+                )?;
                 self.emit_required_identifier_name_with_context(
                     transformation,
                     node.source(),
@@ -10684,6 +10698,7 @@ impl Printer {
             self.emit_empty_node_array_comments(transformation, source, parameters, writer)?;
         } else {
             let count = ids.len();
+            let mut pending_delimited_comment = None;
             for (index, id) in ids.into_iter().enumerate() {
                 let parameter = transformation
                     .arena()
@@ -10701,9 +10716,16 @@ impl Printer {
                         writer,
                     )?;
                 } else if synthesized_array {
-                    self.emit_leading_comments_for_delimited_list_start(
+                    let resume = self.delimited_comment_resume_for_node(
                         transformation,
                         parameter,
+                        pending_delimited_comment.take(),
+                    )?;
+                    self.emit_leading_comments_for_node_worker(
+                        transformation,
+                        parameter,
+                        LeadingCommentContext::DelimitedListStart,
+                        resume,
                         writer,
                     )?;
                 } else {
@@ -10723,7 +10745,7 @@ impl Printer {
                 self.emit_list_element_end_comments(transformation, parameter, writer)?;
                 if index + 1 < count {
                     writer.write_punctuation(",");
-                    self.emit_delimited_trailing_comments_for_node(
+                    pending_delimited_comment = self.emit_delimited_trailing_comments_for_node(
                         transformation,
                         parameter,
                         writer,
@@ -13491,7 +13513,7 @@ impl Printer {
                     SourceTrivia::new(source.text(), trivia_start, code_start),
                     writer,
                     true,
-                    false,
+                    self.options.only_print_js_doc_style,
                 );
             }
         }
@@ -15437,7 +15459,7 @@ impl Printer {
             source.text(),
             position,
             &BTreeSet::new(),
-            false,
+            self.options.only_print_js_doc_style,
             writer,
         );
         Ok(())
@@ -15489,7 +15511,13 @@ impl Printer {
         if !ambient_scope.retains_end(CommentCursor::new(original.source(), range.end())) {
             emit_source_trailing_comments_of_position(source.text(), start, writer);
         }
-        emit_source_leading_comments_of_position(source.text(), start, &excluded, false, writer);
+        emit_source_leading_comments_of_position(
+            source.text(),
+            start,
+            &excluded,
+            self.options.only_print_js_doc_style,
+            writer,
+        );
         Ok(())
     }
 
