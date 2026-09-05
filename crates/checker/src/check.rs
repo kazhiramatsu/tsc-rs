@@ -5781,7 +5781,68 @@ impl<'a> CheckerState<'a> {
                 _ => {}
             }
         }
-        self.symbol_display_name(symbol)
+        self.symbol_name_from_name_type_slice(
+            symbol,
+            in_initial_entity_name,
+            use_alias_defined_outside_current_scope,
+            enclosing,
+        )
+        .unwrap_or_else(|| self.symbol_display_name(symbol))
+    }
+
+    /// getNameOfSymbolFromNameType (55523-55539): declarationless and
+    /// early-bound computed symbols retain the literal/unique-symbol name
+    /// that produced them instead of exposing their internal escaped key.
+    fn symbol_name_from_name_type_slice(
+        &self,
+        symbol: SymbolId,
+        in_initial_entity_name: bool,
+        use_alias_defined_outside_current_scope: bool,
+        enclosing: Option<NodeId>,
+    ) -> Option<String> {
+        let name_type = self.links.symbol(symbol).name_type?;
+        let flags = self.tables.flags_of(name_type);
+        if flags.intersects(TypeFlags::STRING_LITERAL | TypeFlags::NUMBER_LITERAL) {
+            let (name, quoted) = match &self.tables.type_of(name_type).data {
+                TypeData::Literal {
+                    value: tsc_types::LiteralValue::String(value),
+                } => {
+                    let Some(name) = value.to_utf8() else {
+                        return Some(format!("\"{}\"", string_literal_type_display_text(value)));
+                    };
+                    let quoted = format!("\"{}\"", string_literal_type_display_text(value));
+                    (name, quoted)
+                }
+                TypeData::Literal {
+                    value: tsc_types::LiteralValue::Number(value),
+                } => {
+                    let name = tsc_types::js_number_to_string(*value);
+                    let quoted = format!("\"{name}\"");
+                    (name, quoted)
+                }
+                _ => return None,
+            };
+            if !tsc_syntax::is_identifier_text_for_target(&name, self.options.emit_script_target())
+                && !crate::evaluate::is_numeric_literal_name(&name)
+            {
+                return Some(quoted);
+            }
+            if crate::evaluate::is_numeric_literal_name(&name) && name.starts_with('-') {
+                return Some(format!("[{name}]"));
+            }
+            return Some(name);
+        }
+        if flags.intersects(TypeFlags::UNIQUE_ES_SYMBOL) {
+            let name_symbol = self.tables.type_of(name_type).symbol?;
+            let name = self.entity_symbol_name_as_written_slice(
+                name_symbol,
+                in_initial_entity_name,
+                use_alias_defined_outside_current_scope,
+                enclosing,
+            );
+            return Some(format!("[{name}]"));
+        }
+        None
     }
 
     /// tsc isDefaultBindingContext + findAncestor: source files and
@@ -8115,7 +8176,8 @@ impl<'a> CheckerState<'a> {
     /// precedes both when a TYPE-only object container has an in-scope
     /// Value with the identical declared type. reexportContainers,
     /// the accessible-container early return, and
-    /// objectLiteralContainer remain outside this bounded face.
+    /// objectLiteralContainer follows the ordinary container, matching
+    /// upstream's object/type-literal owning-variable alternative.
     fn with_alternative_containers_slice(
         &mut self,
         container: SymbolId,
@@ -8165,13 +8227,49 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        let mut result = Vec::with_capacity(additional.len() + 2);
+        let object_literal_container =
+            self.variable_declaration_of_object_literal_slice(container, meaning)?;
+        let mut result = Vec::with_capacity(additional.len() + 3);
         if let Some(first_variable_match) = first_variable_match {
             result.push(first_variable_match);
         }
         result.extend(additional);
         result.push(container);
+        if let Some(object_literal_container) = object_literal_container {
+            result.push(object_literal_container);
+        }
         Ok(result)
+    }
+
+    /// tsc-port: getVariableDeclarationOfObjectLiteral @6.0.3
+    /// tsc-hash: e8b5b69e7074b6f72bab5f009118bd8c86c0f1f7a56eed3cd3c7981d7f621dbc
+    /// tsc-span: _tsc.js:50053-50059
+    fn variable_declaration_of_object_literal_slice(
+        &mut self,
+        symbol: SymbolId,
+        meaning: tsc_types::SymbolFlags,
+    ) -> CheckResult<Option<SymbolId>> {
+        if !meaning.intersects(tsc_types::SymbolFlags::VALUE) {
+            return Ok(None);
+        }
+        let Some(first_declaration) = self.binder.symbol(symbol).declarations.first().copied()
+        else {
+            return Ok(None);
+        };
+        let Some(parent) = self.parent_of(first_declaration) else {
+            return Ok(None);
+        };
+        let NodeData::VariableDeclaration(variable) = self.data_of(parent) else {
+            return Ok(None);
+        };
+        let owns_literal = (self.kind_of(first_declaration) == SyntaxKind::ObjectLiteralExpression
+            && variable.initializer == Some(first_declaration))
+            || (self.kind_of(first_declaration) == SyntaxKind::TypeLiteral
+                && variable.r#type == Some(first_declaration));
+        if !owns_literal {
+            return Ok(None);
+        }
+        self.get_symbol_of_declaration(parent).map(Some)
     }
 
     /// tsc-port: getFileSymbolIfFileSymbolExportEqualsContainer @6.0.3

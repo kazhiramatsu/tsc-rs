@@ -147,6 +147,13 @@ pub(crate) fn is_statement_symbol_remapped(
     context: &NodeBuilderContext<'_>,
     symbol: tsc_binder::SymbolId,
 ) -> bool {
+    if context
+        .remapped_symbol_references
+        .as_ref()
+        .is_some_and(|references| references.contains_key(&symbol))
+    {
+        return true;
+    }
     let normalized = checker.get_export_symbol_of_value_symbol_if_exported(symbol);
     context.remapped_symbol_names.as_ref().is_some_and(|names| {
         names.keys().copied().any(|candidate| {
@@ -154,6 +161,24 @@ pub(crate) fn is_statement_symbol_remapped(
                 || checker.get_export_symbol_of_value_symbol_if_exported(candidate) == normalized
         })
     })
+}
+
+/// `getNameOfSymbolAsWritten` consults the statement serializer's scoped
+/// public-symbol remap before choosing any written symbol name.
+///
+/// tsc-port: getNameOfSymbolAsWritten @6.0.3 (remappedSymbolReferences head)
+/// tsc-hash: 5c8f959b94d9df212e44a1d0f379ef0da9b1a4768d3c10fe42e3e4bba77289f7
+/// tsc-span: _tsc.js:55541-55545
+pub(crate) fn remapped_statement_symbol_reference(
+    context: &NodeBuilderContext<'_>,
+    symbol: tsc_binder::SymbolId,
+) -> tsc_binder::SymbolId {
+    context
+        .remapped_symbol_references
+        .as_ref()
+        .and_then(|references| references.get(&symbol))
+        .copied()
+        .unwrap_or(symbol)
 }
 
 /// Owned cleanup returned by the checker-side `enterNewScope` callback.

@@ -4187,10 +4187,12 @@ fn add_property_to_element_list(
                 }
             }
         } else {
-            context.tracker.report_non_serializable_property(
-                &mut context.reported_diagnostic,
-                &checker.symbol_display_name(property),
-            );
+            let property_name = checker
+                .emit_symbol_to_string_default(property)
+                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            context
+                .tracker
+                .report_non_serializable_property(&mut context.reported_diagnostic, &property_name);
         }
     }
     context.enclosing_declaration = checker

@@ -983,6 +983,22 @@ impl CheckerState<'_> {
         Ok(printed.text().to_owned())
     }
 
+    /// The default `symbolToString(propertySymbol)` face used by declaration
+    /// diagnostics: AllowAnyNodeKind, no requested meaning, and no computed-
+    /// property rewrite flag.
+    /// tsrs-native: typed adapter for declaration diagnostics.
+    pub(crate) fn emit_symbol_to_string_default(
+        &mut self,
+        symbol: SymbolId,
+    ) -> CheckResult<String> {
+        self.symbol_to_string_via_node_builder(
+            symbol,
+            None,
+            EmitSymbolMeaning(0),
+            SymbolFormatFlags::ALLOW_ANY_NODE_KIND,
+        )
+    }
+
     /// tsc-port: isAnySymbolAccessible @6.0.3
     /// tsc-hash: 196ddf5926730f5e6f16ff4f2a7d59e1abf506c39cfc64d9ff90bd1a065f6cb1
     /// tsc-span: _tsc.js:50450-50498
