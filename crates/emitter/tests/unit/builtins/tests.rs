@@ -3236,7 +3236,11 @@ fn typescript_transform_preserves_jsdoc_recovery_type_arguments() {
     .text()
     .to_owned();
 
-    assert!(output.contains("const ValidFoo = foo;"), "{output}");
+    // tsc 6.0.3 erases the valid instantiation expression's type arguments
+    // and prints the erased expression parenthesized (`const ValidFoo = (foo);`,
+    // the same shape as the frozen `instantiationExpressions.ts` JS write);
+    // only the JSDoc recovery wrappers below are retained verbatim.
+    assert!(output.contains("const ValidFoo = (foo);"), "{output}");
     for retained in [
         "const WhatFoo = foo<?>;",
         "const HuhFoo = foo<?string>;",
