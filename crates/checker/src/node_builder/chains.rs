@@ -23,7 +23,7 @@ use tsc_types::{
 
 use crate::check::can_use_property_access_slice;
 use crate::modules::ModuleResolutionMode;
-use crate::state::{CheckAbort, CheckerState};
+use crate::state::{CheckAbort, CheckerState, PackageJsonModuleType};
 
 use super::signatures::type_parameter_to_declaration;
 use super::specifier::{get_specifier_for_module_symbol, module_name_literals};
@@ -379,11 +379,7 @@ impl BasicModuleSpecifierHost {
             files.insert(normalized, Some(source.text().to_owned()));
             modes.insert(
                 program_source_id(checker, index).raw(),
-                match checker.implied_node_format_for_emit(source.root) {
-                    Some(ModuleResolutionMode::CommonJs) => EmitResolutionMode::CommonJs,
-                    Some(ModuleResolutionMode::EsNext) => EmitResolutionMode::EsNext,
-                    Some(ModuleResolutionMode::Unknown) | None => EmitResolutionMode::None,
-                },
+                default_resolution_mode_for_checker_file(checker, source.root),
             );
         }
         let mut host_file_paths = checker.host_file_paths.iter().collect::<Vec<_>>();
@@ -412,6 +408,84 @@ impl BasicModuleSpecifierHost {
 
     fn normalized(&self, path: &str) -> String {
         CheckerState::normalize_program_path(path, &self.current_directory)
+    }
+}
+
+/// tsc-port: getDefaultResolutionModeForFileWorker @6.0.3
+/// tsc-hash: d8d78ed1732a7ecd9966c4b77346fa7c5622e33dc59ccfe78780e9efd612f0f0
+/// tsc-span: _tsc.js:125510-125512
+fn default_resolution_mode_for_checker_file(
+    checker: &CheckerState<'_>,
+    file: NodeId,
+) -> EmitResolutionMode {
+    // `importSyntaxAffectsModuleResolution` (_tsc.js:17994-17997) gates the
+    // implied format. In particular, an ordinary `.ts` file compiled with
+    // `module=esnext` does not acquire an ESNext syntax-implied mode merely
+    // from the output module kind.
+    let module_resolution = checker.options.emit_module_resolution_kind();
+    let default_package_maps = matches!(module_resolution, 3 | 99 | 100);
+    let import_syntax_affects_resolution = (3..=99).contains(&module_resolution)
+        || checker
+            .options
+            .resolve_package_json_exports
+            .unwrap_or(default_package_maps)
+        || checker
+            .options
+            .resolve_package_json_imports
+            .unwrap_or(default_package_maps);
+    if !import_syntax_affects_resolution {
+        return EmitResolutionMode::None;
+    }
+
+    let source = checker.binder.source_of_node(file);
+    let implied = checker.implied_node_format_for_emit(file);
+    if (100..=199).contains(&checker.options.emit_module_kind()) {
+        return emit_resolution_mode(implied);
+    }
+
+    let file_name = &source.file_name;
+    let extension_implies_common_js = file_name.ends_with(".cts") || file_name.ends_with(".cjs");
+    let extension_implies_es_next = file_name.ends_with(".mts") || file_name.ends_with(".mjs");
+    let package_type = checker_package_scope_module_type(checker, file_name);
+    match implied {
+        Some(ModuleResolutionMode::CommonJs)
+            if extension_implies_common_js
+                || package_type == Some(PackageJsonModuleType::CommonJs) =>
+        {
+            EmitResolutionMode::CommonJs
+        }
+        Some(ModuleResolutionMode::EsNext)
+            if extension_implies_es_next || package_type == Some(PackageJsonModuleType::Module) =>
+        {
+            EmitResolutionMode::EsNext
+        }
+        Some(ModuleResolutionMode::CommonJs)
+        | Some(ModuleResolutionMode::EsNext)
+        | Some(ModuleResolutionMode::Unknown)
+        | None => EmitResolutionMode::None,
+    }
+}
+
+fn checker_package_scope_module_type(
+    checker: &CheckerState<'_>,
+    file_name: &str,
+) -> Option<PackageJsonModuleType> {
+    let normalized = CheckerState::normalize_program_path(file_name, "");
+    let mut directory = normalized
+        .rsplit_once('/')
+        .map(|(directory, _)| directory)
+        .unwrap_or("");
+    loop {
+        let package_json = if directory.is_empty() {
+            "/package.json".to_owned()
+        } else {
+            format!("{directory}/package.json")
+        };
+        if let Some(&module_type) = checker.host_package_json_module_types.get(&package_json) {
+            return Some(module_type);
+        }
+        let (parent, _) = directory.rsplit_once('/')?;
+        directory = parent;
     }
 }
 
@@ -492,7 +566,7 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostWithFallback<'_> {
     }
 
     fn get_default_resolution_mode_for_file(&self, file: EmitResolverNode) -> EmitResolutionMode {
-        self.primary.get_default_resolution_mode_for_file(file)
+        self.fallback.get_default_resolution_mode_for_file(file)
     }
 
     fn get_mode_for_resolution_at_index(
@@ -666,6 +740,47 @@ pub(super) fn lookup_symbol_chain_worker(
         && (context.enclosing_declaration.is_some() || has_flag(context, USE_FULLY_QUALIFIED_TYPE))
         && context.internal_flags.0 & DO_NOT_INCLUDE_SYMBOL_CHAIN == 0
     {
+        // Rust represents enterNewScope's synthesized Block as an overlay
+        // rather than a binder node. Give that overlay the same first-scope
+        // precedence as upstream before delegating the parse-tree walk.
+        let escaped_name = checker.binder.symbol(symbol).escaped_name.as_str();
+        let meaning_flags = symbol_flags_for_meaning(meaning);
+        let shadowed_by_synthetic_local = context
+            .synthetic_scope_locals
+            .as_ref()
+            .and_then(|locals| locals.get(escaped_name))
+            .copied()
+            .is_some_and(|local| {
+                checker.get_merged_symbol(local) != checker.get_merged_symbol(symbol)
+                    && checker.symbol_flags(local).intersects(meaning_flags)
+            });
+        let is_shadowed_global = shadowed_by_synthetic_local
+            && checker
+                .globals
+                .get(escaped_name)
+                .copied()
+                .is_some_and(|global| {
+                    checker.get_merged_symbol(global) == checker.get_merged_symbol(symbol)
+                });
+        let global_this_is_shadowed = context
+            .synthetic_scope_locals
+            .as_ref()
+            .and_then(|locals| locals.get("globalThis"))
+            .copied()
+            .is_some_and(|local| {
+                checker.get_merged_symbol(local)
+                    != checker.get_merged_symbol(checker.global_this_symbol)
+                    && checker.symbol_flags(local).intersects(
+                        if meaning_flags == SymbolFlags::VALUE {
+                            SymbolFlags::VALUE
+                        } else {
+                            SymbolFlags::NAMESPACE
+                        },
+                    )
+            });
+        if is_shadowed_global && !global_this_is_shadowed {
+            return Ok(vec![checker.global_this_symbol, symbol]);
+        }
         let chain = checker
             .symbol_chain_slice(
                 symbol,
@@ -821,9 +936,10 @@ fn prefer_alternative_containing_module_chain(
     _meaning: EmitSymbolMeaning,
     chain: Vec<SymbolId>,
 ) -> BuildResult<Vec<SymbolId>> {
-    if !chain
-        .first()
-        .is_some_and(|&root| checker.symbol_has_external_module_declaration(root))
+    if checker.symbol_has_external_module_declaration(symbol)
+        || !chain
+            .first()
+            .is_some_and(|&root| checker.symbol_has_external_module_declaration(root))
     {
         return Ok(chain);
     }

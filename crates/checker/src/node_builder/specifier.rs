@@ -951,7 +951,18 @@ pub(crate) fn compute_module_specifiers(
     options: &ModuleSpecifierOptions,
     for_auto_import: bool,
 ) -> CheckResult<ModuleSpecifiersWithCacheInfo> {
-    let info = get_info(&state.binder.source_of_node(importing_file).file_name, host);
+    let importing_index = if state.authoritative_source_index_by_token.is_empty() {
+        importing_node.source().index()
+    } else {
+        state
+            .authoritative_source_index_by_token
+            .get(&crate::AuthoritativeSourceToken(
+                importing_node.source().raw(),
+            ))
+            .copied()
+            .expect("module-specifier source token belongs to the checker program")
+    };
+    let info = get_info(&state.binder.source(importing_index).file_name, host);
     let preferences = get_module_specifier_preferences(
         state,
         user_preferences,
@@ -961,40 +972,117 @@ pub(crate) fn compute_module_specifiers(
         None,
     );
 
-    if state.kind_of(importing_file) == SyntaxKind::SourceFile {
-        for module_path in module_paths {
-            let imported_path = canonical_host_path(&module_path.path, host);
-            for reason in host.import_include_reasons(&imported_path) {
-                if reason.importing_file != importing_node.source() {
-                    continue;
-                }
-                let existing_mode =
-                    host.get_mode_for_resolution_at_index(importing_node, reason.index);
-                let target_mode = options
-                    .effective_override_import_mode()
-                    .unwrap_or_else(|| host.get_default_resolution_mode_for_file(importing_node));
-                if existing_mode != target_mode
-                    && existing_mode != EmitResolutionMode::None
-                    && target_mode != EmitResolutionMode::None
-                {
-                    continue;
-                }
-                let importing_index = state.binder.file_index_of_node(importing_file);
-                let Some(specifier) =
-                    get_module_name_string_literal_at(state, importing_index, reason.index)
-                        .filter(|specifier| !specifier.is_empty())
+    for module_path in module_paths {
+        let imported_path = canonical_host_path(&module_path.path, host);
+        for reason in host.import_include_reasons(&imported_path) {
+            if reason.importing_file != importing_node.source() {
+                continue;
+            }
+            let existing_mode = host.get_mode_for_resolution_at_index(importing_node, reason.index);
+            let target_mode = options
+                .effective_override_import_mode()
+                .unwrap_or_else(|| host.get_default_resolution_mode_for_file(importing_node));
+            if existing_mode != target_mode
+                && existing_mode != EmitResolutionMode::None
+                && target_mode != EmitResolutionMode::None
+            {
+                continue;
+            }
+            let Some(specifier) =
+                get_module_name_string_literal_at(state, importing_index, reason.index)
+                    .filter(|specifier| !specifier.is_empty())
+            else {
+                continue;
+            };
+            if preferences.relative_preference != RelativePreference::NonRelative
+                || !path_is_relative(&specifier)
+            {
+                return Ok(ModuleSpecifiersWithCacheInfo {
+                    kind: None,
+                    module_specifiers: vec![specifier],
+                    computed_without_cache: true,
+                });
+            }
+        }
+
+        // The upstream host obtains these facts from the module-
+        // resolution cache. The declaration host's optional cache face
+        // may be absent, while the checker still owns the same ordered
+        // module-name literals and their resolved module symbols.
+        for (specifier_index, literal) in module_name_literals(state, importing_index)
+            .0
+            .into_iter()
+            .enumerate()
+        {
+            let existing_mode = module_literal_resolution_mode(
+                state,
+                importing_index,
+                literal,
+                u32::try_from(specifier_index)
+                    .map(|index| host.get_mode_for_resolution_at_index(importing_node, index))
+                    .unwrap_or(EmitResolutionMode::None),
+            );
+            let resolved_module = if let Some(provider) = state.authoritative_module_provider {
+                let Some(specifier) = literal_text_in_source(state, importing_index, literal)
                 else {
                     continue;
                 };
-                if preferences.relative_preference != RelativePreference::NonRelative
-                    || !path_is_relative(&specifier)
-                {
-                    return Ok(ModuleSpecifiersWithCacheInfo {
-                        kind: None,
-                        module_specifiers: vec![specifier],
-                        computed_without_cache: true,
-                    });
+                let mode = match existing_mode {
+                    EmitResolutionMode::CommonJs => crate::AuthoritativeResolutionMode::CommonJs,
+                    EmitResolutionMode::EsNext => crate::AuthoritativeResolutionMode::EsNext,
+                    EmitResolutionMode::None => crate::AuthoritativeResolutionMode::Unspecified,
+                };
+                match provider.resolve_module(crate::AuthoritativeModuleRequest {
+                    source_token: crate::AuthoritativeSourceToken(importing_node.source().raw()),
+                    containing_file: &state.binder.source(importing_index).file_name,
+                    specifier,
+                    mode,
+                }) {
+                    Ok(crate::AuthoritativeModuleResolution::Resolved(resolved)) => state
+                        .authoritative_source_index_by_token
+                        .get(&resolved.target_token)
+                        .copied(),
+                    Ok(
+                        crate::AuthoritativeModuleResolution::Untyped(_)
+                        | crate::AuthoritativeModuleResolution::ResolutionDiagnostic(_)
+                        | crate::AuthoritativeModuleResolution::NotFound(_),
+                    )
+                    | Err(_) => None,
                 }
+            } else {
+                state
+                    .resolve_external_module_name(importing_file, literal, true)?
+                    .and_then(|module| source_file_index_of_module(state, module))
+            };
+            let Some(resolved_module) = resolved_module else {
+                continue;
+            };
+            let resolved_path =
+                canonical_host_path(&state.binder.source(resolved_module).file_name, host);
+            if resolved_path != imported_path {
+                continue;
+            }
+            let target_mode = options
+                .effective_override_import_mode()
+                .unwrap_or_else(|| host.get_default_resolution_mode_for_file(importing_node));
+            if existing_mode != target_mode
+                && existing_mode != EmitResolutionMode::None
+                && target_mode != EmitResolutionMode::None
+            {
+                continue;
+            }
+            let Some(specifier) = literal_text(state, literal).filter(|text| !text.is_empty())
+            else {
+                continue;
+            };
+            if preferences.relative_preference != RelativePreference::NonRelative
+                || !path_is_relative(specifier)
+            {
+                return Ok(ModuleSpecifiersWithCacheInfo {
+                    kind: None,
+                    module_specifiers: vec![specifier.to_owned()],
+                    computed_without_cache: true,
+                });
             }
         }
     }
@@ -1083,6 +1171,42 @@ pub(crate) fn compute_module_specifiers(
         module_specifiers,
         computed_without_cache: true,
     })
+}
+
+fn literal_text_in_source<'a>(
+    state: &'a CheckerState<'_>,
+    file_index: usize,
+    literal: NodeId,
+) -> Option<&'a str> {
+    match &state.binder.source(file_index).arena.node(literal).data {
+        NodeData::StringLiteral(data) => Some(&data.text),
+        NodeData::NoSubstitutionTemplateLiteral(data) => Some(&data.text),
+        _ => None,
+    }
+}
+
+fn module_literal_resolution_mode(
+    state: &CheckerState<'_>,
+    file_index: usize,
+    literal: NodeId,
+    host_mode: EmitResolutionMode,
+) -> EmitResolutionMode {
+    if host_mode != EmitResolutionMode::None {
+        return host_mode;
+    }
+    let source = state.binder.source(file_index);
+    let mut current = source.arena.node(literal).parent;
+    while let Some(node) = current {
+        if let NodeData::CallExpression(data) = &source.arena.node(node).data {
+            if data.expression.is_some_and(|expression| {
+                source.arena.node(expression).kind == SyntaxKind::ImportKeyword
+            }) {
+                return EmitResolutionMode::EsNext;
+            }
+        }
+        current = source.arena.node(node).parent;
+    }
+    EmitResolutionMode::None
 }
 
 /// tsc-port: getInfo @6.0.3

@@ -15,7 +15,9 @@ use tsc_types::{ObjectFlags, SymbolFlags, TypeData, TypeFacts, TypeFlags, TypeId
 use crate::narrow::TypePredicate;
 use crate::state::{CheckAbort, CheckerState, IndexInfo, SignatureId};
 
-use super::signatures::{elide_initializer_and_set_emit_flags, track_computed_name};
+use super::signatures::{
+    elide_initializer_and_set_emit_flags, parameter_scope_symbols, track_computed_name,
+};
 use super::type_nodes::{
     checker_abort_error, clone_parse_node_to_source, create_identifier, create_node,
     create_node_array, create_token, factory_error, project_parse_node, set_no_ascii_escaping,
@@ -2752,16 +2754,17 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             );
             if context.enclosing_declaration_is_synthetic {
                 for &parameter in &signature.parameters {
-                    let name = self.checker.binder.symbol(parameter).escaped_name.clone();
-                    let old_symbol = context
-                        .synthetic_scope_locals
-                        .as_ref()
-                        .and_then(|locals| locals.get(&name).copied());
-                    cleanup.record_parameter_local(&name, old_symbol);
-                    context
-                        .synthetic_scope_locals
-                        .get_or_insert_with(std::collections::HashMap::new)
-                        .insert(name, parameter);
+                    for (name, symbol) in parameter_scope_symbols(self.checker, parameter) {
+                        let old_symbol = context
+                            .synthetic_scope_locals
+                            .as_ref()
+                            .and_then(|locals| locals.get(&name).copied());
+                        cleanup.record_parameter_local(&name, old_symbol);
+                        context
+                            .synthetic_scope_locals
+                            .get_or_insert_with(std::collections::HashMap::new)
+                            .insert(name, symbol);
+                    }
                 }
             }
             if context
