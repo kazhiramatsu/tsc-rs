@@ -150,7 +150,7 @@ fn qualification_case<'artifact>(artifact: &'artifact Value, case_id: &str) -> &
         .unwrap_or_else(|| panic!("{case_id} is absent from the qualification artifact"))
 }
 
-fn selected_manifest_rows<'artifact>(artifact: &'artifact Value) -> Vec<&'artifact Value> {
+fn selected_manifest_rows(artifact: &Value) -> Vec<&Value> {
     let expected = DECLARATION_TEXT_EXACT_CASE_IDS
         .iter()
         .copied()
