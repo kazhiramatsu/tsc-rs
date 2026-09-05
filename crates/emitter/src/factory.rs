@@ -550,6 +550,17 @@ impl TransformArena {
         self.metadata.entry(node).or_default()
     }
 
+    /// tsc-port: removeAllComments @6.0.3
+    /// tsc-hash: 0c7777d935b2911fb5bcfe50ed0cc9ea772e2811f389bb598b86fbb40a95d8d2
+    /// tsc-span: _tsc.js:25311-25317
+    pub(crate) fn remove_all_comments(&mut self, node: TransformNode) -> TransformNode {
+        let metadata = self.metadata_mut(node);
+        metadata.add_flags(EmitFlags::NO_COMMENTS);
+        metadata.leading_comments.clear();
+        metadata.trailing_comments.clear();
+        node
+    }
+
     /// tsc-port: isCallToHelper @6.0.3
     /// tsc-hash: 65c471809533a93e4ad2d44931471cb8a169cf9c93c9b291bc7a7dbdeede8fef
     /// tsc-span: _tsc.js:26566-26568

@@ -1219,6 +1219,9 @@ fn update_signature(
     }
 }
 
+/// tsc-port: visitDeclarationSubtree @6.0.3
+/// tsc-hash: 4d9576b0e1b4933d0e331071f1b1cdce2c9b432b25d922a5440c8026f1aeb75a
+/// tsc-span: _tsc.js:115096-115125
 fn update_property(
     cx: &mut TransformationContext,
     original: TransformNode,
@@ -1233,15 +1236,14 @@ fn update_property(
                 .name
                 .and_then(|node| cx.arena().node_ref(original.source(), node))
                 .ok_or_else(|| DeclarationTransformer::contract("property has no name"))?;
-            let question_or_exclamation = data
+            let question = data
                 .question_token
-                .or(data.exclamation_token)
                 .and_then(|node| cx.arena().node_ref(original.source(), node));
             let updated = cx.factory()?.update_property_declaration(
                 original,
                 modifiers,
                 name,
-                question_or_exclamation,
+                question,
                 r#type,
                 initializer,
             )?;

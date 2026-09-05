@@ -116,29 +116,37 @@ pub(crate) fn visit_declaration_statement(
                 .tracker
                 .restore_diagnostic_context(saved_diagnostic);
             let type_node = type_node?;
-            let mut factory = context.factory()?;
-            let declaration = factory.create_variable_declaration(
-                input.source(),
-                new_id,
-                None,
-                type_node,
-                None,
-            )?;
-            let declarations = factory.create_node_array(input.source(), vec![declaration])?;
-            let declaration_list = factory.create_variable_declaration_list(
-                input.source(),
-                declarations,
-                NodeFlags::CONST,
-            )?;
-            let modifiers = if transformer.state()?.needs_declare {
-                factory
-                    .create_modifiers_from_modifier_flags(input.source(), ModifierFlags::AMBIENT)?
-            } else {
-                None
+            let statement = {
+                let mut factory = context.factory()?;
+                let declaration = factory.create_variable_declaration(
+                    input.source(),
+                    new_id,
+                    None,
+                    type_node,
+                    None,
+                )?;
+                let declarations = factory.create_node_array(input.source(), vec![declaration])?;
+                let declaration_list = factory.create_variable_declaration_list(
+                    input.source(),
+                    declarations,
+                    NodeFlags::CONST,
+                )?;
+                let modifiers = if transformer.state()?.needs_declare {
+                    factory.create_modifiers_from_modifier_flags(
+                        input.source(),
+                        ModifierFlags::AMBIENT,
+                    )?
+                } else {
+                    None
+                };
+                factory.create_variable_statement(input.source(), modifiers, declaration_list)?
             };
-            let statement =
-                factory.create_variable_statement(input.source(), modifiers, declaration_list)?;
-            let assignment = factory.update_export_assignment(input, original_modifiers, new_id)?;
+            let statement = super::subtree::preserve_js_doc(context, statement, input)?;
+            context.arena_mut()?.remove_all_comments(input);
+            let assignment =
+                context
+                    .factory()?
+                    .update_export_assignment(input, original_modifiers, new_id)?;
             Ok(VisitResult::Nodes(vec![statement, assignment]))
         }
         _ => {
