@@ -26,6 +26,9 @@ use tsc_types::{
 use crate::evaluate::EvalValue;
 use crate::state::{CheckerState, IndexInfo, SignatureId, SignatureKind};
 
+use super::signatures::{
+    get_effective_parameter_declaration, parameter_to_parameter_declaration_name,
+};
 use super::{
     add_approximate_length, chains_get_property_name_node_for_symbol,
     chains_symbol_to_entity_name_node, chains_symbol_to_expression,
@@ -344,6 +347,7 @@ fn create_import_declaration(
     named_binding: Option<TransformNode>,
     module_specifier: TransformNode,
     is_type_only: bool,
+    attributes: Option<TransformNode>,
 ) -> BuildResult<TransformNode> {
     let clause = create_node(
         arena,
@@ -362,7 +366,7 @@ fn create_import_declaration(
             modifiers: None,
             import_clause: Some(clause.node()),
             module_specifier: Some(module_specifier.node()),
-            attributes: None,
+            attributes: attributes.map(TransformNode::node),
         }),
     )
 }
@@ -3285,21 +3289,13 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         self.include_private_symbol(target);
 
         match self.checker.kind_of(declaration) {
-            SyntaxKind::BindingElement | SyntaxKind::ImportSpecifier => {
+            SyntaxKind::BindingElement => {
                 let module_symbol = target_data.parent.unwrap_or(target);
                 let generated =
                     specifier_for_module_symbol(self.checker, self.context, module_symbol, None)?;
-                let specifier = if self.checker.kind_of(declaration) == SyntaxKind::BindingElement
-                    || self.context.bundled
-                {
-                    generated
-                } else {
-                    self.alias_module_specifier(declaration)
-                        .unwrap_or(generated)
-                };
+                let specifier = generated;
                 let property_name = match self.checker.data_of(declaration) {
                     NodeData::BindingElement(data) => data.property_name,
-                    NodeData::ImportSpecifier(data) => data.property_name,
                     _ => None,
                 }
                 .and_then(|name| self.parse_name_text(name))
@@ -3336,6 +3332,7 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     Some(named),
                     module,
                     false,
+                    None,
                 )?;
                 self.add_result(import, ModifierFlags::NONE)?;
             }
@@ -3477,37 +3474,100 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                     },
                 )?;
             }
-            SyntaxKind::ImportClause | SyntaxKind::NamespaceImport => {
+            SyntaxKind::ImportClause => {
                 let module_symbol = target_data.parent.unwrap_or(target);
                 let generated =
                     specifier_for_module_symbol(self.checker, self.context, module_symbol, None)?;
-                let specifier = if self.context.bundled {
-                    generated
-                } else {
-                    self.alias_module_specifier(declaration)
-                        .unwrap_or(generated)
+                let host = self.alias_import_host(declaration);
+                let module = self.alias_import_module_specifier(host, &generated)?;
+                let attributes = match host {
+                    Some(host) if self.checker.kind_of(host) == SyntaxKind::ImportDeclaration => {
+                        self.alias_import_attributes(host)?
+                    }
+                    _ => None,
                 };
-                let module = create_string_literal(self.arena, self.target, specifier)?;
+                let is_type_only = host
+                    .is_some_and(|host| self.checker.kind_of(host) == SyntaxKind::JSDocImportTag);
                 let name = create_identifier(self.arena, self.target, local_name)?;
-                let namespace = if self.checker.kind_of(declaration) == SyntaxKind::NamespaceImport
-                {
-                    Some(create_node(
-                        self.arena,
-                        self.target,
-                        NodeData::NamespaceImport(NamespaceImportData {
-                            name: Some(name.node()),
-                        }),
-                    )?)
-                } else {
-                    None
-                };
                 let import = create_import_declaration(
                     self.arena,
                     self.target,
-                    (namespace.is_none()).then_some(name),
-                    namespace,
+                    Some(name),
+                    None,
                     module,
-                    false,
+                    is_type_only,
+                    attributes,
+                )?;
+                self.add_result(import, ModifierFlags::NONE)?;
+            }
+            SyntaxKind::NamespaceImport => {
+                let module_symbol = target_data.parent.unwrap_or(target);
+                let generated =
+                    specifier_for_module_symbol(self.checker, self.context, module_symbol, None)?;
+                let host = self.alias_import_host(declaration);
+                let module = self.alias_import_module_specifier(host, &generated)?;
+                let is_type_only = host
+                    .is_some_and(|host| self.checker.kind_of(host) == SyntaxKind::JSDocImportTag);
+                let name = create_identifier(self.arena, self.target, local_name)?;
+                let namespace = create_node(
+                    self.arena,
+                    self.target,
+                    NodeData::NamespaceImport(NamespaceImportData {
+                        name: Some(name.node()),
+                    }),
+                )?;
+                let import = create_import_declaration(
+                    self.arena,
+                    self.target,
+                    None,
+                    Some(namespace),
+                    module,
+                    is_type_only,
+                    None,
+                )?;
+                self.add_result(import, ModifierFlags::NONE)?;
+            }
+            SyntaxKind::ImportSpecifier => {
+                let module_symbol = target_data.parent.unwrap_or(target);
+                let generated =
+                    specifier_for_module_symbol(self.checker, self.context, module_symbol, None)?;
+                let host = self.alias_import_host(declaration);
+                let module = self.alias_import_module_specifier(host, &generated)?;
+                let attributes = match host {
+                    Some(host) => self.alias_import_attributes(host)?,
+                    None => None,
+                };
+                let is_type_only = host
+                    .is_some_and(|host| self.checker.kind_of(host) == SyntaxKind::JSDocImportTag);
+                let property_name = (local_name != verbatim_target_name)
+                    .then(|| create_identifier(self.arena, self.target, &verbatim_target_name))
+                    .transpose()?;
+                let name = create_identifier(self.arena, self.target, local_name)?;
+                let element = create_node(
+                    self.arena,
+                    self.target,
+                    NodeData::ImportSpecifier(ImportSpecifierData {
+                        name: Some(name.node()),
+                        property_name: property_name.map(TransformNode::node),
+                        is_type_only: false,
+                    }),
+                )?;
+                let elements = required_array(self.arena, self.target, vec![element])?;
+                let named = create_node(
+                    self.arena,
+                    self.target,
+                    NodeData::NamedImports(NamedImportsData {
+                        elements: Some(elements),
+                    }),
+                )?;
+                let import = create_import_declaration(
+                    self.arena,
+                    self.target,
+                    None,
+                    Some(named),
+                    module,
+                    is_type_only,
+                    attributes,
                 )?;
                 self.add_result(import, ModifierFlags::NONE)?;
             }
@@ -3655,6 +3715,71 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
             current = self.checker.parent_of(node);
         }
         None
+    }
+
+    fn alias_import_host(&self, declaration: NodeId) -> Option<NodeId> {
+        let mut current = self.checker.parent_of(declaration);
+        while let Some(node) = current {
+            if matches!(
+                self.checker.kind_of(node),
+                SyntaxKind::ImportDeclaration | SyntaxKind::JSDocImportTag
+            ) {
+                return Some(node);
+            }
+            current = self.checker.parent_of(node);
+        }
+        None
+    }
+
+    fn alias_import_module_specifier(
+        &mut self,
+        host: Option<NodeId>,
+        generated: &str,
+    ) -> BuildResult<TransformNode> {
+        if !self.context.bundled {
+            let module_specifier = host.and_then(|host| match self.checker.data_of(host) {
+                NodeData::ImportDeclaration(data) => data.module_specifier,
+                NodeData::JSDocImportTag(data) => data.module_specifier,
+                _ => None,
+            });
+            if let Some(module_specifier) = module_specifier {
+                if let Some(module_specifier) =
+                    self.reuse_alias_import_parse_node(module_specifier)?
+                {
+                    return Ok(module_specifier);
+                }
+            }
+        }
+        create_string_literal(self.arena, self.target, generated)
+    }
+
+    fn alias_import_attributes(&mut self, host: NodeId) -> BuildResult<Option<TransformNode>> {
+        let attributes = match self.checker.data_of(host) {
+            NodeData::ImportDeclaration(data) => data.attributes,
+            NodeData::JSDocImportTag(data) => data.attributes,
+            _ => None,
+        };
+        attributes
+            .map(|attributes| self.reuse_alias_import_parse_node(attributes))
+            .transpose()
+            .map(Option::flatten)
+    }
+
+    fn reuse_alias_import_parse_node(
+        &mut self,
+        node: NodeId,
+    ) -> BuildResult<Option<TransformNode>> {
+        let Some(original) = project_parse_node(self.checker, self.arena, node)? else {
+            return Ok(None);
+        };
+        if original.source() == self.target {
+            return Ok(Some(original));
+        }
+        self.arena
+            .factory()
+            .clone_node_to_source(original, self.target)
+            .map(Some)
+            .map_err(factory_error)
     }
 
     /// tsc-port: serializeExportSpecifier @6.0.3
@@ -4152,26 +4277,41 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         Some(property),
                     )?
                 };
-                let parameter_name = setter
-                    .and_then(|setter| match self.checker.data_of(setter) {
-                        NodeData::SetAccessor(data) => self
-                            .checker
-                            .nodes_of(data.parameters)
+                let parameter_symbol = setter
+                    .map(|setter| self.checker.get_signature_from_declaration(setter))
+                    .transpose()
+                    .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?
+                    .and_then(|signature| {
+                        self.checker
+                            .signature_of(signature)
+                            .parameters
                             .first()
                             .copied()
-                            .and_then(|parameter| declaration_name(self.checker, parameter))
-                            .and_then(|name| self.parse_name_text(name)),
-                        _ => None,
-                    })
-                    .unwrap_or_else(|| "value".to_owned());
+                    });
+                let parameter_name_length = parameter_symbol.map_or(5, |parameter| {
+                    self.checker
+                        .symbol_display_name(parameter)
+                        .encode_utf16()
+                        .count()
+                });
                 add_approximate_length(
                     self.context,
                     modifiers_length(flag)
                         + 7
-                        + parameter_name.encode_utf16().count()
+                        + parameter_name_length
                         + usize::from(!omit_type) * 2,
                 );
-                let parameter_name = create_identifier(self.arena, self.target, &parameter_name)?;
+                let parameter_name = match parameter_symbol {
+                    Some(parameter) => parameter_to_parameter_declaration_name(
+                        self.checker,
+                        self.arena,
+                        self.target,
+                        parameter,
+                        get_effective_parameter_declaration(self.checker, parameter),
+                        self.context,
+                    )?,
+                    None => create_identifier(self.arena, self.target, "value")?,
+                };
                 let parameter = create_node(
                     self.arena,
                     self.target,
