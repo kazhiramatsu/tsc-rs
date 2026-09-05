@@ -9,7 +9,7 @@
 
 ## Lanes (the staffing cell)
 - W3-A (gpt-5.6-sol xhigh): launched __LAUNCH_A__; STATUS __STATUS_A__ (rows fixed / left / out of scope: __ROWS_A__); full battery __FULL_A__.
-- W3-B (gpt-5.6-sol xhigh): launched __LAUNCH_B__; STATUS __STATUS_B__ (rows fixed / left / out of scope: __ROWS_B__); full battery __FULL_B__.
+- W3-B (gpt-5.6-sol xhigh): rev 1 launched 20:15 from E1 b06c6575; B1 (7 rows) and B2 (8 rows) exact with the light battery PASS at 21:00 (54 controls); the session was cut off at 21:05 by the provider ("Selected model is at capacity") mid-way through B3 — rev 2 (a continuation on the same tree, sol xhigh) launched 21:06 with the time box stop 00:36 / full 00:41 / STATUS 01:36; STATUS __STATUS_B__ (rows fixed / left / out of scope: __ROWS_B__); full battery __FULL_B__.
 - Analysis (gpt-6-astra xhigh, docs-only, when the integrator assigns it): __ASTRA__.
 - Integrator: E1 (packet draft, register skeleton, the two registered stubs, the 5g shadow registration) landed 2026-09-05 20:14 JST as b06c6575 on `h2/7b-w3` from `main @c0e21f32`; checkpoints __CHECKPOINTS__.
 
@@ -34,4 +34,4 @@
 | 6 | zero lane conflicts / multi-writer pins | __C6__ | __P6__ |
 
 ## Implementation-time amendments
-- (none yet)
+- 21:05 provider capacity cut-off of lane B rev 1 (not a STOP, not a lane decision); recovery = a continuation session on the same worktree (rev 2). If a second cut-off occurs, the lane moves to gpt-6-astra xhigh as the bounded implementation trial the user allowed.
