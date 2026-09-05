@@ -1289,6 +1289,9 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
                 NodeData::ImportEqualsDeclaration(data) => {
                     output.extend(self.transform_import_equals(statement, data)?);
                 }
+                NodeData::ExportDeclaration(data) => {
+                    output.extend(self.transform_export_declaration(statement, data)?);
+                }
                 NodeData::ExportAssignment(data) if data.is_export_equals == Some(true) => {
                     if self.module_kind == MODULE_PRESERVE {
                         output.push(self.transform_preserve_export_equals(statement, data)?);
@@ -1323,6 +1326,118 @@ impl<'context> EcmaScriptModuleEqualsVisitor<'context> {
         self.context
             .factory()?
             .update_node(root, NodeData::SourceFile(source_data), flags)
+    }
+
+    /// tsc-port: transformECMAScriptModule.visitExportDeclaration @6.0.3
+    /// tsc-hash: 9efb2553f5d9db81a7cd769227ff348f59c75b9d152aff91d59e71889e4aeca2
+    /// tsc-span: _tsc.js:113643-113687
+    fn transform_export_declaration(
+        &mut self,
+        original: TransformNode,
+        data: tsc_syntax::nodes::ExportDeclarationData,
+    ) -> Result<Vec<TransformNode>, TransformError> {
+        if self.module_kind > MODULE_ES2015 {
+            return Ok(vec![original]);
+        }
+        let Some(export_clause) = data
+            .export_clause
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        else {
+            return Ok(vec![original]);
+        };
+        let NodeData::NamespaceExport(namespace) =
+            self.context.arena().node(export_clause)?.data.clone()
+        else {
+            return Ok(vec![original]);
+        };
+        let Some(module_specifier) = data
+            .module_specifier
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+        else {
+            return Ok(vec![original]);
+        };
+        let old_identifier = namespace
+            .name
+            .and_then(|id| self.context.arena().node_ref(self.source, id))
+            .ok_or(TransformError::RequiredChildRemoved {
+                parent: SyntaxKind::NamespaceExport,
+                field: "name",
+            })?;
+        let is_default =
+            identifier_or_literal_text(self.context.arena(), old_identifier)? == "default";
+
+        let synth_name =
+            if self.context.arena().node(old_identifier)?.kind == SyntaxKind::Identifier {
+                self.context.factory()?.get_generated_name_for_node(
+                    old_identifier,
+                    crate::GeneratedIdentifierFlags::NONE,
+                    None,
+                    None,
+                )?
+            } else {
+                self.context
+                    .factory()?
+                    .get_generated_name_for_non_member_node(old_identifier)?
+            };
+        let namespace_import = self
+            .context
+            .factory()?
+            .create_namespace_import(self.source, synth_name)?;
+        let import_clause = self.context.factory()?.create_import_clause(
+            self.source,
+            None,
+            None,
+            Some(namespace_import),
+        )?;
+        let attributes = data
+            .attributes
+            .and_then(|id| self.context.arena().node_ref(self.source, id));
+        let import_declaration = self.context.factory()?.create_import_declaration(
+            self.source,
+            None,
+            Some(import_clause),
+            module_specifier,
+            attributes,
+        )?;
+        self.context
+            .arena_mut()?
+            .set_original_node(import_declaration, Some(export_clause))?;
+
+        let export_declaration = if is_default {
+            self.context.factory()?.create_export_assignment(
+                self.source,
+                None,
+                false,
+                synth_name,
+            )?
+        } else {
+            let specifier = self.context.factory()?.create_export_specifier(
+                self.source,
+                false,
+                Some(synth_name),
+                old_identifier,
+            )?;
+            let elements = self
+                .context
+                .factory()?
+                .create_node_array(self.source, vec![specifier])?;
+            let named_exports = self
+                .context
+                .factory()?
+                .create_named_exports(self.source, elements)?;
+            self.context.factory()?.create_export_declaration(
+                self.source,
+                None,
+                false,
+                Some(named_exports),
+                None,
+                None,
+            )?
+        };
+        self.context
+            .arena_mut()?
+            .set_original_node(export_declaration, Some(original))?;
+        Ok(vec![import_declaration, export_declaration])
     }
 
     /// tsc-port: visitImportEqualsDeclaration/appendExportsOfImportEqualsDeclaration @6.0.3
@@ -2414,6 +2529,72 @@ impl GeneratedModuleNameAllocator {
 struct ImportBinding {
     generated_name: Box<str>,
     property: Option<Box<str>>,
+    property_node: Option<TransformNode>,
+}
+
+/// Create the access selected by an import binding without reducing the
+/// imported name's syntax kind to text. A quoted name remains an element
+/// access even when its decoded text is a valid identifier.
+///
+/// tsc-port: transformModule.substituteExpressionIdentifier @6.0.3
+/// tsc-hash: 972830b79228dc51aaec4b3b13ebd2a12795701304627fef3bdc5ba8b7ab3a96
+/// tsc-span: _tsc.js:111946-111989
+fn create_import_binding_access(
+    context: &mut TransformationContext,
+    source: TransformSourceId,
+    target: TransformNode,
+    binding: &ImportBinding,
+) -> Result<TransformNode, TransformError> {
+    let Some(property) = binding.property.as_deref() else {
+        return Ok(target);
+    };
+    let name = if let Some(property_node) = binding.property_node {
+        context.factory()?.clone_node(property_node)?
+    } else {
+        context.factory()?.create_identifier(source, property)?
+    };
+    if binding.property_node.is_some_and(|property_node| {
+        context
+            .arena()
+            .node(property_node)
+            .is_ok_and(|record| record.kind == SyntaxKind::StringLiteral)
+    }) {
+        context
+            .factory()?
+            .create_element_access_expression(source, target, name)
+    } else {
+        context
+            .factory()?
+            .create_property_access_expression(source, target, name)
+    }
+}
+
+/// Return the source-written local selected for a namespace export. Default
+/// and string-literal namespace names deliberately fall back to generated
+/// identities at the caller.
+///
+/// tsc-port: getLocalNameForExternalImport @6.0.3
+/// tsc-hash: 50466eb807c5b844a6c46e9dce377be409f411f46fcd706c916f24be66a0fc4a
+/// tsc-span: _tsc.js:27696-27711
+fn namespace_export_identifier_name(
+    arena: &TransformArena,
+    source: TransformSourceId,
+    export_clause: Option<NodeId>,
+) -> Result<Option<Box<str>>, TransformError> {
+    let Some(clause) = export_clause.and_then(|id| arena.node_ref(source, id)) else {
+        return Ok(None);
+    };
+    let NodeData::NamespaceExport(namespace) = &arena.node(clause)?.data else {
+        return Ok(None);
+    };
+    let Some(name) = namespace.name.and_then(|id| arena.node_ref(source, id)) else {
+        return Ok(None);
+    };
+    if arena.node(name)?.kind != SyntaxKind::Identifier {
+        return Ok(None);
+    }
+    let text = identifier_or_literal_text(arena, name)?;
+    Ok((text != "default").then(|| text.into_boxed_str()))
 }
 
 #[derive(Clone, Debug)]
@@ -2796,6 +2977,7 @@ impl CommonJsModuleInfo {
                                     ImportBinding {
                                         generated_name: module_binding.clone(),
                                         property: Some("default".into()),
+                                        property_node: None,
                                     },
                                 );
                             }
@@ -2818,6 +3000,7 @@ impl CommonJsModuleInfo {
                                             ImportBinding {
                                                 generated_name: namespace_name,
                                                 property: None,
+                                                property_node: None,
                                             },
                                         );
                                     }
@@ -2830,10 +3013,11 @@ impl CommonJsModuleInfo {
                                             else {
                                                 continue;
                                             };
-                                            let property = specifier_data
+                                            let property_node = specifier_data
                                                 .property_name
                                                 .or(specifier_data.name)
-                                                .and_then(|id| arena.node_ref(source, id))
+                                                .and_then(|id| arena.node_ref(source, id));
+                                            let property = property_node
                                                 .and_then(|name| {
                                                     identifier_or_literal_text(arena, name).ok()
                                                 })
@@ -2843,6 +3027,7 @@ impl CommonJsModuleInfo {
                                                 ImportBinding {
                                                     generated_name: module_binding.clone(),
                                                     property: Some(property.into_boxed_str()),
+                                                    property_node,
                                                 },
                                             );
                                         }
@@ -2915,6 +3100,7 @@ impl CommonJsModuleInfo {
                         ImportBinding {
                             generated_name: name.into_boxed_str(),
                             property: None,
+                            property_node: None,
                         },
                     );
                     info.external_imports.push(key);
@@ -3093,8 +3279,18 @@ impl CommonJsModuleInfo {
                         .is_some_and(|clause| {
                             matches!(arena.node(clause), Ok(record) if matches!(record.data, NodeData::NamedExports(_)))
                         });
-                    let runtime_name = (module_kind == MODULE_AMD || has_named_exports)
-                        .then(|| info.generated_module_names.allocate(module_text));
+                    let namespace_identifier_name =
+                        namespace_export_identifier_name(arena, source, data.export_clause)?;
+                    let runtime_name =
+                        if module_kind == MODULE_AMD {
+                            Some(namespace_identifier_name.unwrap_or_else(|| {
+                                info.generated_module_names.allocate(module_text)
+                            }))
+                        } else if module_kind != MODULE_SYSTEM && has_named_exports {
+                            Some(info.generated_module_names.allocate(module_text))
+                        } else {
+                            None
+                        };
                     info.imports.insert(
                         key,
                         ImportPlan {
@@ -4993,11 +5189,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         plan: ImportReExportPlan,
     ) -> Result<TransformNode, TransformError> {
         let target = self.create_identifier(&plan.binding.generated_name)?;
-        let value = if let Some(property) = plan.binding.property.as_deref() {
-            self.create_property_access(target, property)?
-        } else {
-            target
-        };
+        let value = create_import_binding_access(self.context, self.source, target, &plan.binding)?;
         let statement = if plan.live_binding {
             self.create_live_export_statement(&plan.exported_name, value)?
         } else {
@@ -5168,6 +5360,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 re_export.binding = ImportBinding {
                     generated_name: "exports".into(),
                     property: Some(exported_name.clone()),
+                    property_node: None,
                 };
             }
         }
@@ -6277,6 +6470,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             NodeData::ShorthandPropertyAssignment(data) => {
                 self.visit_shorthand_property_assignment(original, data)?
             }
+            NodeData::PropertyAssignment(data) => self.visit_property_assignment(original, data)?,
             NodeData::BinaryExpression(data)
                 if self.module_destructuring_assignment_needs_flattening(&data)? =>
             {
@@ -6879,6 +7073,36 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(property)
     }
 
+    /// Visit a property assignment according to the syntactic role of each
+    /// child. A plain property name is never an expression substitution site;
+    /// only a computed name's expression and the initializer are value uses.
+    ///
+    /// tsc-port: substituteShorthandPropertyAssignment @6.0.3
+    /// tsc-hash: d0f18903fc6d0255162186d44f982445298fac5b4c48b62baf58ce7d2fb459a2
+    /// tsc-span: _tsc.js:111883-111893
+    fn visit_property_assignment(
+        &mut self,
+        original: TransformNode,
+        mut data: tsc_syntax::nodes::PropertyAssignmentData,
+    ) -> Result<TransformNode, TransformError> {
+        data.modifiers = self.visit_optional_nodes(data.modifiers)?;
+        data.name = data
+            .name
+            .map(|name| {
+                let name_node = self.node(name);
+                if self.context.arena().node(name_node)?.kind == SyntaxKind::ComputedPropertyName {
+                    self.visit(name).map(TransformNode::node)
+                } else {
+                    Ok(name)
+                }
+            })
+            .transpose()?;
+        data.question_token = self.visit_optional_node(data.question_token)?;
+        data.exclamation_token = self.visit_optional_node(data.exclamation_token)?;
+        data.initializer = self.visit_optional_node(data.initializer)?;
+        self.update_generic_without_visit(original, NodeData::PropertyAssignment(data))
+    }
+
     /// tsc-port: transformModule/substituteBinaryExpression @6.0.3
     /// tsc-hash: fc6c4ddb37ad5d8398d7a3dba5ee822c7dfdad5bf009e78213a47a04f6a0f4e0
     /// tsc-span: _tsc.js:111990-112028
@@ -7287,6 +7511,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     /// Declaration-form entry to the same leaf publication pipeline used by
     /// assignment expressions. The caller owns statement placement while this
     /// method owns initializer evaluation order and declaration identity.
+    ///
+    /// tsc-port: flattenDestructuringAssignment @6.0.3
+    /// tsc-hash: 8303d862131f74b895085ac8968b52d5d0267330e000e0e91546757aaf278ee0
+    /// tsc-span: _tsc.js:93251-93328
     fn flatten_module_destructuring_declaration(
         &mut self,
         pattern: TransformNode,
@@ -7299,9 +7527,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             })?;
         let mut expressions = Vec::new();
         self.flatten_module_destructuring_target(&mut expressions, pattern, value, Some(original))?;
-        let expression = self.inline_module_destructuring_expressions(expressions, value)?;
-        self.set_original_and_range(expression, original)?;
-        Ok(expression)
+        self.inline_module_destructuring_expressions(expressions, value)
     }
 
     fn flatten_module_destructuring_target(
@@ -8400,11 +8626,8 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             return Ok(original);
         };
         let target = self.create_identifier(&binding.generated_name)?;
-        let transformed = if let Some(property) = binding.property {
-            self.create_property_access(target, &property)?
-        } else {
-            target
-        };
+        let transformed =
+            create_import_binding_access(self.context, self.source, target, &binding)?;
         self.set_original_and_range(transformed, original)?;
         Ok(transformed)
     }
@@ -8474,7 +8697,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         declaration: TransformNode,
     ) -> Result<Option<ImportBinding>, TransformError> {
         let declaration = self.context.arena().get_original_node(declaration);
-        let property = match &self.context.arena().node(declaration)?.data {
+        let (property, property_node) = match &self.context.arena().node(declaration)?.data {
             NodeData::ImportSpecifier(specifier) => {
                 let Some(name) = specifier
                     .property_name
@@ -8483,10 +8706,15 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 else {
                     return Ok(None);
                 };
-                Some(identifier_or_literal_text(self.context.arena(), name)?.into_boxed_str())
+                (
+                    Some(identifier_or_literal_text(self.context.arena(), name)?.into_boxed_str()),
+                    Some(name),
+                )
             }
-            NodeData::ImportClause(clause) if clause.name.is_some() => Some("default".into()),
-            NodeData::NamespaceImport(_) => None,
+            NodeData::ImportClause(clause) if clause.name.is_some() => {
+                (Some("default".into()), None)
+            }
+            NodeData::NamespaceImport(_) => (None, None),
             _ => return Ok(None),
         };
 
@@ -8545,6 +8773,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(Some(ImportBinding {
             generated_name: runtime_name,
             property,
+            property_node,
         }))
     }
 
@@ -8568,6 +8797,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 return Ok(Some(ImportBinding {
                     generated_name: "exports".into(),
                     property: Some(export.into()),
+                    property_node: None,
                 }));
             }
             if let Some(binding) = self.info.import_bindings.get(&declaration.node()).cloned() {
@@ -8591,19 +8821,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             // specifier's generated container name. Preserve that declaration
             // identity and allocate the binding lazily, when a reachable
             // reference is actually visited.
-            let property = match &self.context.arena().node(declaration)?.data {
+            let (property, property_node) = match &self.context.arena().node(declaration)?.data {
                 NodeData::ImportSpecifier(specifier)
                     if self.context.arena().node(declaration)?.pos == u32::MAX =>
                 {
-                    specifier
+                    let property_node = specifier
                         .property_name
                         .or(specifier.name)
-                        .and_then(|id| self.context.arena().node_ref(self.source, id))
-                        .and_then(|name| {
-                            identifier_or_literal_text(self.context.arena(), name).ok()
-                        })
+                        .and_then(|id| self.context.arena().node_ref(self.source, id));
+                    let property = property_node.and_then(|name| {
+                        identifier_or_literal_text(self.context.arena(), name).ok()
+                    });
+                    (property, property_node)
                 }
-                _ => None,
+                _ => (None, None),
             };
             let Some(property) = property else {
                 return Ok(None);
@@ -8611,6 +8842,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             let binding = ImportBinding {
                 generated_name: self.next_generated_name().into_boxed_str(),
                 property: Some(property.into_boxed_str()),
+                property_node,
             };
             self.info
                 .import_bindings
@@ -8638,6 +8870,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 return Some(ImportBinding {
                     generated_name: "exports".into(),
                     property: Some(export.into()),
+                    property_node: None,
                 });
             }
             self.info.import_bindings.get(&declaration.node()).cloned()
@@ -10353,9 +10586,6 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             if let Some(assignment) = self.create_parameter_property_assignment(*parameter)? {
                 assignments.push(assignment);
             }
-        }
-        if assignments.is_empty() {
-            return Ok(body);
         }
         let body_node = self.node(body);
         let NodeData::Block(data) = self.context.arena().node(body_node)?.data.clone() else {

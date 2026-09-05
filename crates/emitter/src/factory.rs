@@ -5692,8 +5692,8 @@ impl<'arena> NodeFactory<'arena> {
     }
 
     /// tsc-port: parenthesizeExpressionForDisallowedComma @6.0.3
-    /// tsc-hash: 26883ad7ea9da9f2b7f019f26b3ce67bd9570c6563b2c9b01ae6dfc7488a527f
-    /// tsc-span: _tsc.js:24598-24607
+    /// tsc-hash: ef93a3d583b24fb32e4bd6e22e163b77513367b5ba3fa522ce8215911d347fbd
+    /// tsc-span: _tsc.js:20483-20487
     /// tsc-port: asInitializer @6.0.3
     /// tsc-hash: eb236c3157d20301d43793ee9e3d1e31f849ec18465aed587ade74b3cad220e2
     /// tsc-span: _tsc.js:29102-29104
@@ -5702,20 +5702,7 @@ impl<'arena> NodeFactory<'arena> {
         expression: TransformNode,
     ) -> Result<TransformNode, TransformError> {
         let emitted = self.skip_partially_emitted_expressions(expression)?;
-        // Rust keeps `ExpressionWithTypeArguments` as a recovery wrapper after
-        // erasing valid instantiation type arguments. For this particular
-        // comma check its emitted expression owns the precedence; other
-        // contexts still see the wrapper and can retain grammar parentheses
-        // around assignment targets.
-        let precedence = match &self.arena.node(emitted)?.data {
-            NodeData::ExpressionWithTypeArguments(data) => data
-                .expression
-                .and_then(|expression| self.arena.node_ref(emitted.source, expression))
-                .map(|expression| self.expression_precedence(expression))
-                .transpose()?
-                .unwrap_or(PRECEDENCE_INVALID),
-            _ => self.expression_precedence(emitted)?,
-        };
+        let precedence = self.expression_precedence(emitted)?;
         if precedence > PRECEDENCE_COMMA {
             return Ok(expression);
         }

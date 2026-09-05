@@ -34,9 +34,9 @@
   "lineage": {
     "foundation": {
       "path": "ratchets/h2-5h-a-foundation.v1.json",
-      "sha256": "a9d151bb535efb11558b76dc3a2b3ddf9d4724ef924472f4e917b48383d8de7a"
+      "sha256": "fb5132476ec7427e0f664bf816ac3782e9942857903d8fed2d53fa3d09d6be96"
     },
-    "foundation_fingerprint_sha256": "8ab95555239d81169b917bd91f1921759dff29827da7d7c7a9d372957531a1fa",
+    "foundation_fingerprint_sha256": "0431532e143b400bdddc46e8e48ec975a7fe2a014ff9fe9f624aed84f5586a06",
     "scope_study": {
       "path": "docs/design/greenfield/slices/h2-5h-a-comment-scope.md",
       "sha256": "70582706258f4235de5bd2233a8726516b1165e68fb40076184632b30c9b9609"
@@ -2605,5 +2605,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "witnesses_fingerprint_sha256": "913f3f74d6553a3720e58ae9afd107f36afb583c192940b58f95f875372efd9e"
+  "witnesses_fingerprint_sha256": "7ee96d5d1fa0b32c9be03ef6382c3d0f4278c9a80c01c33f0d6228d743732b1b"
 }

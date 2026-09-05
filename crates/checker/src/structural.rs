@@ -4305,8 +4305,16 @@ impl<'r, 'a> RelationChecker<'r, 'a> {
                     .intersects(TypeFlags::ANY)
             {
                 Ternary::TRUE
+            } else if self.st.is_generic_mapped_type_state(source)? && target_has_string_index {
+                let template = self.st.get_template_type_from_mapped_type(source)?;
+                self.is_related_to(
+                    template,
+                    target_info.value_type,
+                    RecursionFlags::BOTH,
+                    report_errors,
+                    IntersectionState::NONE,
+                )?
             } else {
-                // Generic mapped sources are M4.
                 self.type_related_to_index_info(
                     source,
                     target_info,

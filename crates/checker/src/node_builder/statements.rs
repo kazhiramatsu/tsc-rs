@@ -1659,7 +1659,48 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                         .map_err(|abort| checker_abort_error(self.checker, self.context, abort))?,
                 );
                 let local_name = self.get_internal_symbol_name(symbol, &symbol_name);
-                if !symbol_data.flags.intersects(SymbolFlags::FUNCTION)
+                let remapped_function_symbol =
+                    self.checker
+                        .tables
+                        .type_of(r#type)
+                        .symbol
+                        .filter(|&type_symbol| type_symbol != symbol)
+                        .filter(|&type_symbol| {
+                            let type_symbol_data = self.checker.binder.symbol(type_symbol);
+                            type_symbol_data.flags.intersects(SymbolFlags::FUNCTION)
+                                && type_symbol_data.declarations.iter().copied().any(
+                                    |declaration| {
+                                        self.checker
+                                            .is_function_expression_or_arrow_function(declaration)
+                                    },
+                                )
+                                && (!type_symbol_data.members.is_empty()
+                                    || !type_symbol_data.exports.is_empty())
+                        });
+                if let Some(type_symbol) = remapped_function_symbol {
+                    let previous = self
+                        .context
+                        .remapped_symbol_references
+                        .get_or_insert_with(HashMap::new)
+                        .insert(type_symbol, symbol);
+                    let serialized = self.serialize_symbol_worker(
+                        type_symbol,
+                        is_private,
+                        property_as_alias,
+                        Some(escaped_symbol_name.clone()),
+                    );
+                    let references = self
+                        .context
+                        .remapped_symbol_references
+                        .as_mut()
+                        .expect("remapped symbol reference map was installed");
+                    if let Some(previous) = previous {
+                        references.insert(type_symbol, previous);
+                    } else {
+                        references.remove(&type_symbol);
+                    }
+                    serialized?;
+                } else if !symbol_data.flags.intersects(SymbolFlags::FUNCTION)
                     && self.is_type_representable_as_function_namespace_merge(r#type, symbol)?
                 {
                     self.serialize_as_function_namespace_merge(

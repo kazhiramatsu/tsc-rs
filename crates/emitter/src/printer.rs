@@ -4246,19 +4246,13 @@ impl Printer {
                     DeferredSourceCommentExtent::LeadingAndTrailing,
                     writer,
                 )?;
-                if data.type_arguments.is_some() {
-                    writer.write_punctuation("<");
-                    self.emit_node_array(
-                        transformation,
-                        node.source(),
-                        data.type_arguments,
-                        ", ",
-                        expression_context,
-                        writer,
-                    )?;
-                    writer.write_punctuation(">");
-                }
-                Ok(())
+                self.emit_type_arguments(
+                    transformation,
+                    node.source(),
+                    data.type_arguments,
+                    expression_context,
+                    writer,
+                )
             }
             NodeData::JSDocAllType(_) => {
                 writer.write_punctuation("*");
@@ -6882,9 +6876,10 @@ impl Printer {
                             writer,
                         )?;
                         if !expression_context.nested_comments_suppressed() {
-                            self.emit_trailing_comments_for_node(
+                            self.emit_trailing_comments_for_node_in_container(
                                 transformation,
                                 statement,
+                                expression_context.comments(),
                                 writer,
                             )?;
                         }
@@ -10559,17 +10554,44 @@ impl Printer {
         expression_context: EmitContext,
         writer: &mut TextWriter,
     ) -> Result<(), PrinterError> {
-        if self.node_array_has_elements(transformation, source, type_arguments)? {
-            writer.write_punctuation("<");
-            self.emit_comma_list(
+        let Some(type_arguments) =
+            type_arguments.and_then(|array| transformation.arena().node_array_ref(source, array))
+        else {
+            return Ok(());
+        };
+        let ids = transformation
+            .arena()
+            .node_array(type_arguments)?
+            .nodes
+            .clone();
+        if ids.is_empty() {
+            return Ok(());
+        }
+        writer.write_punctuation("<");
+        for (index, id) in ids.iter().copied().enumerate() {
+            let child = transformation
+                .arena()
+                .node_ref(source, id)
+                .ok_or(PrinterError::UnknownStatement(id.0))?;
+            if index == 0 {
+                self.emit_leading_comments_for_delimited_list_start(transformation, child, writer)?;
+            } else {
+                writer.write(", ");
+                self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
+            }
+            // Upstream parenthesizes a leading generic function/constructor type argument
+            // in the FACTORY (`parenthesizeTypeArguments`, at node creation), never in the
+            // printer: a parsed `Array<<T>() => T>` reprints unchanged.
+            self.emit_node_id_with_context(
                 transformation,
                 source,
-                type_arguments,
-                expression_context,
+                id,
+                expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            writer.write_punctuation(">");
+            self.emit_list_element_end_comments(transformation, child, writer)?;
         }
+        writer.write_punctuation(">");
         Ok(())
     }
 
@@ -13762,6 +13784,29 @@ impl Printer {
             writer,
         );
         Ok(())
+    }
+
+    /// Emit a statement's trailing phase against the enclosing comment
+    /// container restored after the statement's own subtree. A boundary that
+    /// equals either active end remains owned by that container.
+    ///
+    /// tsc-port: forEachTrailingCommentToEmit @6.0.3
+    /// tsc-hash: 5e4e412fc11df1366e9835bd0adc8f9f62fccaf0eb66da00bc9310714deda1f6
+    /// tsc-span: _tsc.js:121219-121238
+    fn emit_trailing_comments_for_node_in_container(
+        &self,
+        transformation: &TransformationResult<'_>,
+        node: TransformNode,
+        active_scope: CommentEmissionScope,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let comment_range = self.comment_range_for_node(transformation, node)?;
+        if let SourceRange::Original(range) = comment_range.range() {
+            if active_scope.retains_end(CommentCursor::new(comment_range.source(), range.end())) {
+                return Ok(());
+            }
+        }
+        self.emit_trailing_comments_for_node(transformation, node, writer)
     }
 
     /// Emit a child's same-line trailing comments and carry their ownership
