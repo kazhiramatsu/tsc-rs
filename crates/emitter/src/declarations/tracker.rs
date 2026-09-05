@@ -527,6 +527,14 @@ impl EmitModuleSpecifierHost for ModuleSpecifierHostAdapter<'_> {
     ) -> EmitResolutionMode {
         EmitResolutionMode::None
     }
+
+    fn symlinked_directories(&self) -> Vec<(String, String)> {
+        self.host.symlinked_directories()
+    }
+
+    fn symlinked_files(&self) -> Vec<(String, String)> {
+        self.host.symlinked_files()
+    }
 }
 
 impl ModuleSpecifierHostAdapter<'_> {
