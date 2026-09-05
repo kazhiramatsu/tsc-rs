@@ -100,6 +100,8 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/checker/Cargo.toml",
   "crates/checker/src/access.rs",
   "crates/checker/src/check.rs",
+  // h2-7b-w3: W3-A's T2 port (the inferred predicate parameter is unescaped at construction).
+  "crates/checker/src/narrow.rs",
   "crates/checker/src/class.rs",
   "crates/checker/src/constraints.rs",
   "crates/checker/src/contextual.rs",
@@ -589,8 +591,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 242,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 242)`,
+    runtimeInputSet.size === 243,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 243)`,
   );
 
   return withFingerprint(
