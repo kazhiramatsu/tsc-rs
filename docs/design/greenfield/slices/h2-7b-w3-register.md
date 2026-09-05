@@ -34,4 +34,5 @@
 | 6 | zero lane conflicts / multi-writer pins | __C6__ | __P6__ |
 
 ## Implementation-time amendments
+- 23:41–23:58 E1b (integrator, c2075797): the w2 boundary control for `declarationEmitRetainsJsdocyComments` promoted to a full control (B8 closed the row); W3-B's printer-level parenthesization of a leading generic function type argument REVERTED (it broke the h2-7a printer-reprint contract: `ts.createPrinter` keeps a parsed `Array<<T>() => T>`, the frozen declaration gets its parentheses from the factory when the reuse walk clones and updates the annotation) and replaced by routing the node builder's synthesized references through the factory; the T1 row reopened (lane B 46 → 45) and moved to the w4 ahead lane W4-A0 (launched 23:59 from c2075797 on the astra X2 map, due 03:59) with the corrected owner. PR #507 opened 00:0x at E1b so the hosted check overlaps the tail.
 - 21:05 provider capacity cut-off of lane B rev 1 (not a STOP, not a lane decision); recovery = a continuation session on the same worktree (rev 2). If a second cut-off occurs, the lane moves to gpt-6-astra xhigh as the bounded implementation trial the user allowed.
