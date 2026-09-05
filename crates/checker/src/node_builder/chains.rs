@@ -666,6 +666,13 @@ pub(super) fn track_symbol_in_context_at(
     enclosing_declaration_override: Option<NodeId>,
     meaning: EmitSymbolMeaning,
 ) -> BuildResult<()> {
+    // tsc-port: a symbol shadowed by pushFakeScope's locals is not made
+    // visible through an import declaration in the parsed parent scope. Its
+    // eventual qualified `import()` spelling is self-contained
+    // (_tsc.js:50227-50240,50376-50396,115405-115425).
+    if symbol_is_shadowed_in_synthetic_scope(checker, context, symbol, meaning) {
+        return Ok(());
+    }
     let symbol_flags = checker.symbol_flags(symbol);
     let statement_tracking = context.tracker.is_statement_tracking();
     let symbol_is_remapped = super::is_statement_symbol_remapped(checker, context, symbol);
@@ -723,6 +730,13 @@ pub(super) fn lookup_symbol_chain_worker(
     meaning: EmitSymbolMeaning,
     yield_module_symbol: bool,
 ) -> BuildResult<Vec<SymbolId>> {
+    if symbol_is_shadowed_in_synthetic_scope(checker, context, symbol, meaning) {
+        if let Some(parent) = checker.binder.symbol(symbol).parent {
+            if checker.symbol_has_external_module_declaration(parent) {
+                return Ok(vec![parent, symbol]);
+            }
+        }
+    }
     if yield_module_symbol && value_meaning(meaning) && context.enclosing_declaration_is_synthetic {
         if let Some(parent) = checker.binder.symbol(symbol).parent {
             if checker
@@ -796,6 +810,30 @@ pub(super) fn lookup_symbol_chain_worker(
         );
     }
     Ok(vec![symbol])
+}
+
+pub(super) fn symbol_is_shadowed_in_synthetic_scope(
+    checker: &CheckerState<'_>,
+    context: &NodeBuilderContext<'_>,
+    symbol: SymbolId,
+    meaning: EmitSymbolMeaning,
+) -> bool {
+    if context.synthetic_scope_kind != Some(SyntaxKind::ModuleDeclaration) {
+        return false;
+    }
+    let escaped_name = checker.binder.symbol(symbol).escaped_name.as_str();
+    let shadowed = context
+        .synthetic_scope_locals
+        .as_ref()
+        .and_then(|locals| locals.get(escaped_name))
+        .copied()
+        .is_some_and(|local| {
+            checker.get_merged_symbol(local) != checker.get_merged_symbol(symbol)
+                && checker
+                    .symbol_flags(local)
+                    .intersects(symbol_flags_for_meaning(meaning))
+        });
+    shadowed
 }
 
 /// tsc-port: getAlternativeContainingModules @6.0.3

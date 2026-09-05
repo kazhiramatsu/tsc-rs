@@ -1127,6 +1127,7 @@ fn create_literal_type_node(
 }
 
 /// tsc-port: createTypeReferenceNode @6.0.3 (the node builder's synthesized references)
+/// tsc-hash: f2446c3e6857b4c9c1415f0e42fde5ce046d7799226aea45f62d086108c0c8a7
 /// tsc-span: _tsc.js:22144-22150
 ///
 /// Synthesized type references go through the factory so its parenthesizer rules
@@ -1262,6 +1263,16 @@ fn is_symbol_accessible_with_error_names(
         return Ok(true);
     };
     let symbol_flags = checker.symbol_flags(symbol);
+    if super::chains::symbol_is_shadowed_in_synthetic_scope(checker, context, symbol, meaning) {
+        // The fake namespace's first table owns the name. An exported symbol
+        // can still be named through its external-module parent; an unowned
+        // local cannot and must take the structural fallback.
+        return Ok(checker
+            .binder
+            .symbol(symbol)
+            .parent
+            .is_some_and(|parent| checker.symbol_has_external_module_declaration(parent)));
+    }
     if context.enclosing_declaration_is_synthetic
         && context.tracker.is_statement_tracking()
         && symbol_flags.intersects(SymbolFlags::ASSIGNMENT)

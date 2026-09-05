@@ -39,9 +39,9 @@ use super::{
     restore_cloned_node_builder_context, restore_flags, restore_synthetic_module_scope,
     save_restore_flags, serialize_type_for_declaration_seam, set_text_range2,
     signature_to_signature_declaration_helper, specifier_for_module_symbol,
-    tracker_node_description, type_parameter_to_declaration, type_to_type_node_helper,
-    with_context, with_synthetic_module_scope, BuildResult, NodeBuilderContext,
-    SignatureDeclarationOptions,
+    syntactic_try_reuse_existing_type_node, tracker_node_description,
+    type_parameter_to_declaration, type_to_type_node_helper, with_context,
+    with_synthetic_module_scope, BuildResult, NodeBuilderContext, SignatureDeclarationOptions,
 };
 
 const ALLOW_ANONYMOUS_IDENTIFIER: u32 = 131_072;
@@ -1982,7 +1982,16 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         if can_have_modifiers(&self.arena.node(node).map_err(factory_error)?.data) {
             let old = self.effective_modifier_flags(node)?;
             let mut new = ModifierFlags::NONE;
-            let enclosing = self.context.enclosing_declaration;
+            // tsc-port: addResult projects a temporary JSDoc type-alias
+            // enclosing declaration back to its source-file scope before
+            // export/ambient modifier decisions (_tsc.js:54194).
+            let enclosing = self.context.enclosing_declaration.map(|enclosing| {
+                if self.checker.is_jsdoc_type_alias(enclosing) {
+                    self.checker.binder.source_of_node(enclosing).root
+                } else {
+                    enclosing
+                }
+            });
             if additional_modifier_flags.intersects(ModifierFlags::EXPORT)
                 && enclosing.is_some_and(|enclosing| {
                     self.is_exporting_scope(enclosing)
@@ -2057,18 +2066,149 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 None,
             )?);
         }
+        // tsc-port: serializeTypeAlias selects only a real
+        // JSDocTypeExpression for syntactic reuse. JSDoc type literals keep
+        // the semantic path so property comments are preserved
+        // (_tsc.js:54216-54222).
+        let jsdoc_alias = self
+            .checker
+            .binder
+            .symbol(symbol)
+            .declarations
+            .iter()
+            .copied()
+            .find(|&declaration| self.checker.is_jsdoc_type_alias(declaration));
+        let (type_expression, alias_comment) =
+            jsdoc_alias.map_or((None, None), |alias| match self.checker.data_of(alias) {
+                NodeData::JSDocTypedefTag(data) => (data.type_expression, data.comment.clone()),
+                NodeData::JSDocCallbackTag(data) => (data.type_expression, data.comment.clone()),
+                NodeData::JSDocEnumTag(data) => (data.type_expression, data.comment.clone()),
+                _ => (None, None),
+            });
+        let comment = alias_comment.or_else(|| {
+            jsdoc_alias
+                .and_then(|alias| self.checker.parent_of(alias))
+                .and_then(|parent| match self.checker.data_of(parent) {
+                    NodeData::JSDoc(data) => data.comment.clone(),
+                    _ => None,
+                })
+        });
+        let comment_text = match comment.as_ref() {
+            Some(tsc_syntax::nodes::JSDocComment::Text(text)) => Some(text.clone()),
+            Some(tsc_syntax::nodes::JSDocComment::Nodes(nodes)) => {
+                let mut text = String::new();
+                for node in self.checker.nodes_of(Some(*nodes)) {
+                    match self.checker.data_of(node).clone() {
+                        NodeData::JSDocText(data) => text.push_str(&data.text),
+                        NodeData::JSDocLink(data) => {
+                            let name = data
+                                .name
+                                .map(|name| self.checker.entity_name_to_string(name))
+                                .transpose()
+                                .map_err(|abort| {
+                                    checker_abort_error(self.checker, self.context, abort)
+                                })?
+                                .unwrap_or_default();
+                            let space = if data.name.is_some()
+                                && (data.text.is_empty() || data.text.starts_with("://"))
+                            {
+                                ""
+                            } else {
+                                " "
+                            };
+                            text.push_str(&format!("{{@link {name}{space}{}}}", data.text));
+                        }
+                        NodeData::JSDocLinkCode(data) => {
+                            let name = data
+                                .name
+                                .map(|name| self.checker.entity_name_to_string(name))
+                                .transpose()
+                                .map_err(|abort| {
+                                    checker_abort_error(self.checker, self.context, abort)
+                                })?
+                                .unwrap_or_default();
+                            let space = if data.name.is_some()
+                                && (data.text.is_empty() || data.text.starts_with("://"))
+                            {
+                                ""
+                            } else {
+                                " "
+                            };
+                            text.push_str(&format!("{{@linkcode {name}{space}{}}}", data.text));
+                        }
+                        NodeData::JSDocLinkPlain(data) => {
+                            let name = data
+                                .name
+                                .map(|name| self.checker.entity_name_to_string(name))
+                                .transpose()
+                                .map_err(|abort| {
+                                    checker_abort_error(self.checker, self.context, abort)
+                                })?
+                                .unwrap_or_default();
+                            let space = if data.name.is_some()
+                                && (data.text.is_empty() || data.text.starts_with("://"))
+                            {
+                                ""
+                            } else {
+                                " "
+                            };
+                            text.push_str(&format!("{{@linkplain {name}{space}{}}}", data.text));
+                        }
+                        _ => {}
+                    }
+                }
+                Some(text)
+            }
+            None => None,
+        }
+        .filter(|text| !text.is_empty());
         let restore = save_restore_flags(self.context);
+        let old_enclosing = self.context.enclosing_declaration;
         self.context.flags.0 |= IN_TYPE_ALIAS;
-        let type_node = type_to_type_node_helper(
-            self.checker,
-            self.arena,
-            self.target,
-            alias_type,
-            self.context,
-        )?;
+        // Rust's declaration tracker requires the ordinary TypeScript alias
+        // to retain its enclosing source scope. The upstream temporary scope
+        // is observable here only for a JSDoc alias, where it drives the
+        // syntactic reuse path below.
+        if jsdoc_alias.is_some() {
+            self.context.enclosing_declaration = jsdoc_alias;
+        }
+        let type_node_result = (|| {
+            if let Some(expression) = type_expression.filter(|&expression| {
+                self.checker.kind_of(expression) == SyntaxKind::JSDocTypeExpression
+            }) {
+                if let NodeData::JSDocTypeExpression(data) = self.checker.data_of(expression) {
+                    if let Some(r#type) = data.r#type {
+                        if let Some(reused) = syntactic_try_reuse_existing_type_node(
+                            self.checker,
+                            self.arena,
+                            self.target,
+                            self.context,
+                            r#type,
+                        )? {
+                            return Ok(Some(reused));
+                        }
+                    }
+                }
+            }
+            type_to_type_node_helper(
+                self.checker,
+                self.arena,
+                self.target,
+                alias_type,
+                self.context,
+            )
+        })();
         restore_flags(self.context, restore);
+        self.context.enclosing_declaration = old_enclosing;
+        let type_node = type_node_result?;
         let internal_name = self.get_internal_symbol_name(symbol, symbol_name);
-        add_approximate_length(self.context, 8 + internal_name.encode_utf16().count());
+        add_approximate_length(
+            self.context,
+            8 + internal_name.encode_utf16().count()
+                + comment_text
+                    .as_deref()
+                    .map_or(0, |text| text.encode_utf16().count()),
+        );
         let name = create_identifier(self.arena, self.target, &internal_name)?;
         let type_parameters = array(self.arena, self.target, parameter_nodes)?;
         let declaration = create_node(
@@ -2081,6 +2221,16 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
                 r#type: type_node.map(TransformNode::node),
             }),
         )?;
+        if let Some(comment_text) = comment_text {
+            self.arena
+                .metadata_mut(declaration)
+                .add_leading_comment(SyntheticComment::new(
+                    SyntheticCommentKind::MultiLine,
+                    format!("*\n * {}\n ", comment_text.replace('\n', "\n * ")),
+                    false,
+                    true,
+                ));
+        }
         self.add_result(declaration, modifier_flags)
     }
 
@@ -4033,6 +4183,29 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         let object_flags = self.checker.tables.object_flags_of(r#type);
         if !object_flags.intersects(ObjectFlags::ANONYMOUS | ObjectFlags::MAPPED)
             || object_flags.intersects(ObjectFlags::CLASS)
+        {
+            return Ok(false);
+        }
+        // tsc-port: types originating directly in a type node are kept as a
+        // reference instead of being decomposed into a function/namespace
+        // merge (_tsc.js:55083-55086).
+        if self
+            .checker
+            .tables
+            .type_of(r#type)
+            .symbol
+            .is_some_and(|symbol| {
+                self.checker
+                    .binder
+                    .symbol(symbol)
+                    .declarations
+                    .iter()
+                    .copied()
+                    .any(|declaration| {
+                        self.checker
+                            .is_type_node_kind(self.checker.kind_of(declaration))
+                    })
+            })
         {
             return Ok(false);
         }
