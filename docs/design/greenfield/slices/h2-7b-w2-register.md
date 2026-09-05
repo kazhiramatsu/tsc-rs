@@ -1,7 +1,7 @@
 # h2-7b-w2 — register (values recorded as minted; `__X__` = TO-FILL at the named step)
 
 ## Design gate
-- Packet rev 1 (2026-09-05, integrator-authored draft from the w1 census + the verified owners; landed at E1 1f777680): sol cross-review r1 (launched 09:07, worktree `tsc-rs-w2-r`) = __R1__ → rev 2 → r2 = __R2__.
+- Packet rev 1 (2026-09-05, integrator-authored draft from the w1 census + the verified owners; landed at E1 1f777680): sol cross-review r1 (launched 09:07, worktree `tsc-rs-w2-r`, 8 min) = REVISE — B1 `preflight.py --verify` diffed from `origin/main` (would report E1's files as lane violations) → now diffs `<launch base>..HEAD` from the ticket's `Base SHA`; B2 `audit.js` compared only owner + vector set → now the full §6 rule (full-row equality, monotone coarse facets derived from the vector, refusal fields unchanged, fingerprint re-derived, duplicates rejected; self-tests against the canonical rows; also used by the E2 review); B3 criterion 5 had two ceilings → 8 h 33 m everywhere; non-blocking 1-3 applied (W2-E allowed paths narrowed to the two output subtrees; the battery scripts copied into each lane worktree at the ticket's relative path — lane B had already found the canonical absolute path; the re-mint record gained explicit zero fields) → rev 2 (09:19) → r2 = __R2__.
 
 ## Preflight (the w2 operating rules)
 - Launch check (`preflight.py SPEC-W2-A.md SPEC-W2-B.md SPEC-W2-E.md` at E1): OK at E1 1f777680 — SPEC-W2-A 12 paths, SPEC-W2-B 9, SPEC-W2-E 1; all three intersections empty; 0 single-writer hits; 0 missing files.
@@ -14,10 +14,10 @@
 - Integrator: E1 (packet draft, register skeleton, the three registered stubs, the 5g shadow registration) landed 2026-09-05 09:06 JST on `h2/7b-w2` from `main @709fb8fa`; checkpoints __CHECKPOINTS__.
 
 ## Timeline (JST)
-- lane launch 09:07 → handoff __T_HANDOFF__ → lanes merged __T_MERGED__ → train battery green __T_BATTERY__ → re-mint __T_REMINT__ → walk __T_WALK_START__ … cert __WALK__ → gate __T_GATE_START__ … exit __T_GATE_END__ → merge __T_MERGE__ (wall lane launch → merge: __WALL__; w1 reference 8 h 30 m).
+- lane launch 09:07 → handoff __T_HANDOFF__ → lanes merged __T_MERGED__ → train battery green __T_BATTERY__ → re-mint __T_REMINT__ → walk __T_WALK_START__ … cert __WALK__ → gate __T_GATE_START__ … exit __T_GATE_END__ → merge __T_MERGE__ (wall lane launch → merge: __WALL__; w1 reference 8 h 33 m = 00:31 → 09:04 JST).
 
 ## First w2 sweep / re-mint — TO-FILL
-- exact __EXACT__ / diverging __DIVERGING__ (rows __ROWS__; owner stays `h2-7b-m-2-divergence-closure`) — measured on the merged train before the canonical re-mint; closed rows __CLOSED__ (list, each with its §3 mechanism); byte-identical __EQUAL__; strict subsets __SUBSETS__; added elements 0; new rows 0.
+- exact __EXACT__ / diverging __DIVERGING__ (rows __ROWS__; owner stays `h2-7b-m-2-divergence-closure`) — measured on the merged train before the canonical re-mint; closed rows __CLOSED__ (list, each with its §3 mechanism); byte-identical (full row) __EQUAL__; strict subsets (vector shrank, coarse facets consistent, no `false → true`, no numeric increase, fingerprint re-derived) __SUBSETS__; added or replaced elements 0; new rows 0; owner changes 0; coarse-facet growth 0; duplicate ids 0.
 - adjacent bands (merged train, workers=2): 6c __6C__ (base 639 / 4 / 643), 5h __5H__ (824 / 64 / 44), 6a __6A__ (171 / 4 / 2), 6b __6B__ (6 / 0 / 0), full 5g __5G__ (9,027 / 8,511); whole suites: compiler contracts __CC__, checker __CHK__, xtask __XT__, emitter contracts __EC__; clippy; fmt; ledger __LEDGER__ (base 3,787 / 0 / 0).
 
 ## Walk / gate / PR — recorded in the PR body at the final head
@@ -30,7 +30,7 @@
 | 2 | zero train-battery-first regressions | __C2__ | __P2__ |
 | 3 | zero allowed-path STOPs | __C3__ | __P3__ |
 | 4 | zero perf-contention reruns | __C4__ | __P4__ |
-| 5 | > 23 rows in ≤ 8 h 30 m | __C5__ | __P5__ |
+| 5 | > 23 rows in ≤ 8 h 33 m | __C5__ | __P5__ |
 | 6 | zero lane conflicts / multi-writer pins | __C6__ | __P6__ |
 
 ## Implementation-time amendments
