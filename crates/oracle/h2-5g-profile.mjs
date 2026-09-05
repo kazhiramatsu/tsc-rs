@@ -327,6 +327,9 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/compiler/tests/integration/h2_7b_w2a_controls.rs",
   "crates/compiler/tests/integration/h2_7b_w2b_controls.rs",
   "crates/compiler/tests/integration/h2_7b_w2_write_census.rs",
+  // h2-7b-w3: the two implementer lanes' frozen controls (test-only; no runtime input).
+  "crates/compiler/tests/integration/h2_7b_w3a_controls.rs",
+  "crates/compiler/tests/integration/h2_7b_w3b_controls.rs",
   "crates/compiler/tests/integration/h2_7a_ca_controls.rs",
   // Diagnostic conformance-runner orchestration: drives the T0 harness
   // over ProgramSession's no-emit surface and is outside the H2 emit
