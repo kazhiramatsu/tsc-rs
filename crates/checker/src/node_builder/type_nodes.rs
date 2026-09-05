@@ -1126,6 +1126,14 @@ fn create_literal_type_node(
     )
 }
 
+/// tsc-port: createTypeReferenceNode @6.0.3 (the node builder's synthesized references)
+/// tsc-span: _tsc.js:22144-22150
+///
+/// Synthesized type references go through the factory so its parenthesizer rules
+/// apply at creation (`parenthesizeTypeArguments`: a leading generic function or
+/// constructor type is wrapped). The parser's factory runs without those rules,
+/// so a parsed `Array<<T>() => T>` keeps its shape while a synthesized one prints
+/// as `Array<(<T>() => T)>` — the printer never adds the parentheses itself.
 fn create_type_reference_node(
     arena: &mut TransformArena,
     target: TransformSourceId,
@@ -1133,17 +1141,18 @@ fn create_type_reference_node(
     arguments: Option<Vec<TransformNode>>,
 ) -> BuildResult<TransformNode> {
     let type_arguments = match arguments {
-        Some(arguments) => Some(create_node_array(arena, target, arguments)?),
+        Some(arguments) => Some(
+            arena
+                .factory()
+                .create_node_array(target, arguments)
+                .map_err(factory_error)?,
+        ),
         None => None,
     };
-    create_node(
-        arena,
-        target,
-        NodeData::TypeReference(TypeReferenceData {
-            type_arguments,
-            type_name: Some(name.node()),
-        }),
-    )
+    arena
+        .factory()
+        .create_type_reference_node(target, name, type_arguments)
+        .map_err(factory_error)
 }
 
 fn create_named_type_reference(

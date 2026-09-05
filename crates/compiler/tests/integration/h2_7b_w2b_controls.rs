@@ -529,14 +529,13 @@ frozen_control!(
     declaration_emit_cast_reused_type_filters_non_jsdoc_comment_strict,
     "compiler/declarationEmitCastReusesTypeNode2.ts#strictnullchecks%3Dtrue"
 );
-#[test]
-fn declaration_emit_retains_jsdoc_declaration_write_and_pins_javascript_boundary() {
-    assert_frozen_observation_with_boundaries(
-        "typescript-6.0.3/compiler/declarationEmitRetainsJsdocyComments.ts#default",
-        false,
-        true,
-    );
-}
+// w2 pinned this row's JavaScript write as a boundary (the declaration write exact, the JS
+// write short of one JSDoc comment); w3 B8 (the destructuring leaf keeps its binding-element
+// range) closed the row, so the control asserts the whole frozen observation like every other.
+frozen_control!(
+    declaration_emit_retains_jsdoc_declaration_and_javascript_writes_exact,
+    "compiler/declarationEmitRetainsJsdocyComments.ts#default"
+);
 
 frozen_control!(
     default_exclude_only_node_modules_amd_reports_merged_deprecations,

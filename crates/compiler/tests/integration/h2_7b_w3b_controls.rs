@@ -452,10 +452,10 @@ mod h2_7b_w2b_controls {
         comments_modules_es5_suppresses_nested_module_tails,
         "compiler/commentsModules.ts#target%3Des5"
     );
-    frozen_control!(
-        declaration_emit_first_generic_function_type_argument_is_parenthesized,
-        "compiler/declarationEmitFirstTypeArgumentGenericFunctionType.ts#default"
-    );
+    // `declarationEmitFirstTypeArgumentGenericFunctionType` is NOT closed by this wave: upstream parenthesizes the
+    // leading generic function type argument in the FACTORY when the declaration reuse walk clones and updates a
+    // parsed annotation (`visitExistingNodeTreeSymbols` -> `cloneNode` -> `updateTypeReferenceNode`), never in the
+    // printer (a plain reprint keeps `Array<<T>() => T>`, `h2-7a-printer-reprint`). The row moves to the w4 ahead lane.
     frozen_control!(
         null_property_name_aliases_future_reserved_expando_names,
         "conformance/declarationEmit/nullPropertyName.ts#default"

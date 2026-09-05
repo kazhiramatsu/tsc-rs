@@ -10579,15 +10579,9 @@ impl Printer {
                 writer.write(", ");
                 self.emit_separated_declaration_list_item_comments(transformation, child, writer)?;
             }
-            let leading_generic = index == 0
-                && match &transformation.arena().node(child)?.data {
-                    NodeData::FunctionType(data) => data.type_parameters.is_some(),
-                    NodeData::ConstructorType(data) => data.type_parameters.is_some(),
-                    _ => false,
-                };
-            if leading_generic {
-                writer.write_punctuation("(");
-            }
+            // Upstream parenthesizes a leading generic function/constructor type argument
+            // in the FACTORY (`parenthesizeTypeArguments`, at node creation), never in the
+            // printer: a parsed `Array<<T>() => T>` reprints unchanged.
             self.emit_node_id_with_context(
                 transformation,
                 source,
@@ -10595,9 +10589,6 @@ impl Printer {
                 expression_context.for_child(ExpressionSyntaxContext::NORMAL),
                 writer,
             )?;
-            if leading_generic {
-                writer.write_punctuation(")");
-            }
             self.emit_list_element_end_comments(transformation, child, writer)?;
         }
         writer.write_punctuation(">");
