@@ -1127,6 +1127,7 @@ fn create_literal_type_node(
 }
 
 /// tsc-port: createTypeReferenceNode @6.0.3 (the node builder's synthesized references)
+/// tsc-hash: f2446c3e6857b4c9c1415f0e42fde5ce046d7799226aea45f62d086108c0c8a7
 /// tsc-span: _tsc.js:22144-22150
 ///
 /// Synthesized type references go through the factory so its parenthesizer rules
