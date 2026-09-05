@@ -21,7 +21,7 @@
     "option_owner": {
       "source": {
         "path": "crates/oracle/h2-transition.mjs",
-        "sha256": "257a0a6ad094c571c1c6264b75a256f98f2a93e9e26e2d1c97c680b6b2603869"
+        "sha256": "d7366487eda653c04eb624f3dc0043048004d9ca7f4e427f51b45630281cfa07"
       },
       "span": {
         "start_line": 448,
@@ -22936,5 +22936,5 @@
       "partition": null
     }
   ],
-  "inventory_fingerprint_sha256": "858dffdf1cf9402c2ae0cad7178f49be654ee51df72e9510540366a6d9ee2171"
+  "inventory_fingerprint_sha256": "22039930e39c0eb39619e8dc850805aa0277f3fa869a7244d728e803e22d0867"
 }

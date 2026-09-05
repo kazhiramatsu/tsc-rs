@@ -42,8 +42,8 @@
     "file_count": 260,
     "rust_source_files": 245,
     "cargo_manifests": 15,
-    "bytes": 19530794,
-    "tree_sha256": "f39bc3214cfa326ea3a7944ec4786bcfa69470e0b30531feee3fec0ef67c68a0"
+    "bytes": 19552343,
+    "tree_sha256": "ac23022691d4fe8db2649fb2996235e78b5c29322333737d2f636569721275ba"
   },
   "summary": {
     "production_boundary_omissions": 0,
@@ -424,16 +424,16 @@
         "column": 1,
         "text": "pub struct TransformArena {",
         "text_sha256": "b6c3e905d93355f0b9cd4c8674ab28ed477ff430fd554a7d9b2bafbac5e314f2",
-        "file_sha256": "7d92059986e6ecd1faf61dacab1a519311594d03651cc13c263250ddd4ae7e7e"
+        "file_sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
       },
       {
         "id": "emitter-node-factory",
         "path": "crates/emitter/src/factory.rs",
-        "line": 1590,
+        "line": 1601,
         "column": 1,
         "text": "pub struct NodeFactory<'arena> {",
         "text_sha256": "fb050d83d8a697d4861efcdb071a8263bf79739425178a3d2f1eac9d053c68df",
-        "file_sha256": "7d92059986e6ecd1faf61dacab1a519311594d03651cc13c263250ddd4ae7e7e"
+        "file_sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
       },
       {
         "id": "emitter-transform-flags",
@@ -487,7 +487,7 @@
         "column": 1,
         "text": "pub fn create_printer(options: PrinterOptions) -> Printer {",
         "text_sha256": "2caa676a9cafb8286cd38da1d044dde68f241c4e0172f0ed7685f7c3dced94e9",
-        "file_sha256": "136d4a3897033f91124a24f2a2ca53d0d084da7820cd18ada15002aa9dd25f41"
+        "file_sha256": "2e8d68432c8545e85a9cdcdc620ff1c69eb443f4461098024f2c9779e6675269"
       },
       {
         "id": "emitter-position-domains",
@@ -559,7 +559,7 @@
         "column": 13,
         "text": "NodeData::ImportDeclaration(data) => {",
         "text_sha256": "910b2dd1f1b5eca67b7b7108c10a13a7a1793b32c1991a3434bd545954e7ce8b",
-        "file_sha256": "136d4a3897033f91124a24f2a2ca53d0d084da7820cd18ada15002aa9dd25f41"
+        "file_sha256": "2e8d68432c8545e85a9cdcdc620ff1c69eb443f4461098024f2c9779e6675269"
       },
       {
         "id": "checker-scoped-emit-session",
@@ -622,7 +622,7 @@
         "column": 1,
         "text": "pub struct ProgramSession {\n    prepared: PreparedProgram,\n}",
         "text_sha256": "665e8cc79aa3899b9439120a02ffdfe34c92d54b8953b9eb431f216af633981a",
-        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
+        "file_sha256": "a2f994a9245a2737a9434391e22de2569cb3ff1b99891b9bad2a650d9c4c0020"
       },
       {
         "id": "program-session-run",
@@ -631,7 +631,7 @@
         "column": 5,
         "text": "pub fn run(self) -> Result<NoEmitOutcome, DriverError> {\n        self.require_mode(PreparedProgramMode::NoEmit)?;\n        let mut no_emit_canary = no_emit_canary::NoEmitCanary::new();\n        self.run_with_no_emit_canary(\n            false,\n            LibraryPrefixCompletion::Complete,\n            &mut no_emit_canary,\n        )\n    }",
         "text_sha256": "72843bad62a020e651352f5298e1238e0d3233a734dfd355d03efded33399b80",
-        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
+        "file_sha256": "a2f994a9245a2737a9434391e22de2569cb3ff1b99891b9bad2a650d9c4c0020"
       },
       {
         "id": "program-session-emit",
@@ -640,7 +640,7 @@
         "column": 5,
         "text": "pub fn emit(self, sink: &mut dyn OutputSink) -> Result<EmitOutcome, DriverError> {",
         "text_sha256": "07a8bfeb7192441ea0205e51647ae2e065d5268e4e32d1f6183a039cbd2faa0a",
-        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
+        "file_sha256": "a2f994a9245a2737a9434391e22de2569cb3ff1b99891b9bad2a650d9c4c0020"
       },
       {
         "id": "program-session-memory-emit",
@@ -649,7 +649,7 @@
         "column": 9,
         "text": "h2_activity.construct_output_plan();\n        let preflight = preflight_emit(&emit_host, selection).map_err(DriverError::Emit)?;",
         "text_sha256": "3375e03b5f74bdc119bd01aab9a4a3c56c5222952feec228050212066b767898",
-        "file_sha256": "9389178832746066bd8c189972657b16209fe68e154b6033cfa4e76af7bbc114"
+        "file_sha256": "a2f994a9245a2737a9434391e22de2569cb3ff1b99891b9bad2a650d9c4c0020"
       },
       {
         "id": "emitter-host-protocol",
@@ -1140,5 +1140,5 @@
       }
     ]
   },
-  "inventory_fingerprint_sha256": "434737c529b44928f47b009d52411ffc7ab1d8cdc13c881ae5821ed62d2f4086"
+  "inventory_fingerprint_sha256": "446a76fa254cbbbce2f798a32806e387261113b9d4727ca816e8f2dbee46029d"
 }

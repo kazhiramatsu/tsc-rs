@@ -14,24 +14,24 @@
 - Integrator: E1 (packet draft, register skeleton, the three registered stubs, the 5g shadow registration) landed 2026-09-05 09:06 JST on `h2/7b-w2` from `main @709fb8fa`; checkpoints __CHECKPOINTS__.
 
 ## Timeline (JST)
-- lane launch 09:07 → handoff E 09:52 / B 11:05 / A 12:10 → lanes merged 12:12 (E 43c75ed3, B decec8b7, A 3d5e672e; no conflicts) → train battery 12:11 → 15:30 (green except one clippy lint in the evidence lane's instrument, fixed E2b da950401; the 3 h 19 m wall came from the load cap: `taskpolicy -b` = E-core band + 1 sweep worker + 2 test threads — a 2-worker P-core 7b sweep on the same tree measured 140 s vs the m-2 reference 136 s, so no merge-induced slowdown) → re-mint 15:45 → walk __T_WALK_START__ … cert __WALK__ → gate __T_GATE_START__ … exit __T_GATE_END__ → merge __T_MERGE__ (wall lane launch → merge: __WALL__; w1 reference 8 h 33 m = 00:31 → 09:04 JST).
+- lane launch 09:07 → handoff E 09:52 / B 11:05 / A 12:10 → lanes merged 12:12 (E 43c75ed3, B decec8b7, A 3d5e672e; no conflicts) → train battery 12:11 → 15:30 (green except one clippy lint in the evidence lane's instrument, fixed E2b da950401; the 3 h 19 m wall came from the load cap: `taskpolicy -b` = E-core band + 1 sweep worker + 2 test threads — a 2-worker P-core 7b sweep on the same tree measured 140 s vs the m-2 reference 136 s, so no merge-induced slowdown) → re-mint 15:45 → walk 15:46 … 17:58 (ONE launch: round 1 re-minted 64 rungs, round 2 CLEAN; 5g check receipt hit, zero re-observation) cert 20260905-154643-47783 → gate __T_GATE_START__ … exit __T_GATE_END__ → merge __T_MERGE__ (wall lane launch → merge: __WALL__; w1 reference 8 h 33 m = 00:31 → 09:04 JST).
 
 ## First w2 sweep / re-mint — TO-FILL
 - merged-train scratch sweep (before the canonical re-mint): exact 1,451 / diverging 106 (rows 106; owner stays `h2-7b-m-2-divergence-closure`); closed 56 (W2-B 36 + W2-A 20, each mapped to its §3 mechanism in the lanes' STATUS files under `lanes/w2/deliverables-{a,b}/`); the canonical re-mint (E2, 15:37-15:45, write + normal run + `audit.js`): exact 1,451 / diverging 106 (185 → 162 → 106); closed rows 56 (`lanes/w2/w2-closed-rows-final.txt`); byte-identical (full row) 102; strict subsets (vector shrank, coarse facets consistent, no `false → true`, no numeric increase, fingerprint re-derived) 4 — `declarationEmitRetainsJsdocyComments` (−2), `jsDeclarationsImportAliasExposedWithinNamespace` (−2), `jsFileCompilationSameNameDtsNotSpecifiedWithAllowJs#amd` (−2), `#commonjs` (−1); added or replaced elements 0; new rows 0; owner changes 0; coarse-facet growth 0; duplicate ids 0 (verdict OK).
 - adjacent bands (merged train, 1 worker): 6c 639 / 4 / 643 (base 639 / 4 / 643), 5h 830 / 58 / 44 (824 / 64 / 44 — the six B4 project rows, E2a 515a7273), 6a 171 / 4 / 2, 6b 6 / 0 / 0, full 5g 9,027 / 8,511 (unchanged); whole suites: compiler contracts 243 / 0 (16 w1 + the w2 controls), checker 1,700, xtask 270 / 0, emitter contracts 449; clippy red once on the merged train (the instrument's needless lifetime; criterion 2 counts it: one train-battery-first finding, a lint, no behaviour change) then clean; fmt clean; ledger 3,791 / 0 / 0 (base 3,787).
 
 ## Walk / gate / PR — recorded in the PR body at the final head
-- walk cert __WALK__ (launches: __WALK_LAUNCHES__); gate __GATE_LINE__ (reruns: __GATE_RERUNS__); hosted __HOSTED__; PR __PR__.
+- walk cert 20260905-154643-47783 (launches: 1 — `target/chain-walk/runs/` between E1 and the merge holds exactly this run); gate __GATE_LINE__ (reruns: __GATE_RERUNS__); hosted __HOSTED__; PR __PR__.
 
 ## Success criteria (packet §7) — recorded at close
 | # | criterion | value | pass |
 |---|---|---|---|
-| 1 | one walk launch | __C1__ | __P1__ |
-| 2 | zero train-battery-first regressions | __C2__ | __P2__ |
-| 3 | zero allowed-path STOPs | __C3__ | __P3__ |
+| 1 | one walk launch | 1 (run 20260905-154643-47783) | PASS |
+| 2 | zero train-battery-first regressions | 1 — a clippy `needless_lifetimes` lint in the evidence lane's instrument (no behaviour change; the evidence ticket did not require clippy — w3 tickets require the light stage for every lane) | FAIL (lint) |
+| 3 | zero allowed-path STOPs | 0 (W2-B 3 and W2-A 5 OUT-OF-SCOPE notes with proven owners; no lane waited) | PASS |
 | 4 | zero perf-contention reruns | __C4__ | __P4__ |
 | 5 | > 23 rows in ≤ 8 h 33 m | __C5__ | __P5__ |
-| 6 | zero lane conflicts / multi-writer pins | __C6__ | __P6__ |
+| 6 | zero lane conflicts / multi-writer pins | 0 (three lane merges applied cleanly; `preflight.py --verify` OK for A, B, E; pin surfaces written only by the integrator and the walk) | PASS |
 
 ## Implementation-time amendments
 - (none yet)

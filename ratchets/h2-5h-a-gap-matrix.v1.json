@@ -16,9 +16,9 @@
   "lineage": {
     "owner_graph": {
       "path": "ratchets/h2-5h-a-owner-graph.v1.json",
-      "sha256": "02b6b08b89c4c3feae3e7b15665228e597793f24b7e0c84006d9f6cb0f0002af"
+      "sha256": "dfd34d1e1248ca4c9327bb5d12ced9848bdbd142e1c9b47159929caf322dda94"
     },
-    "owner_graph_fingerprint_sha256": "9b5c6b45c14cb94a0e16bd0910c8fe1e77822bbc75659341d64f2aebae1a2ad1",
+    "owner_graph_fingerprint_sha256": "f6d9cfc644246c94f120ffba56f3ff5b3c6f14ac270eaa27ff05bafa6b891c2d",
     "architecture_map": {
       "path": "docs/design/greenfield/emitter-architecture.md",
       "sha256": "44b2c9fff5182bc9e0dab1efa6f6348e8ff22d8e2b0fb7e86af45abf394d0f6c"
@@ -126,7 +126,7 @@
           "symbol": "pub fn create_node",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "7d92059986e6ecd1faf61dacab1a519311594d03651cc13c263250ddd4ae7e7e"
+            "sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
           }
         },
         {
@@ -134,13 +134,13 @@
           "symbol": "pub fn create_node_array",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "7d92059986e6ecd1faf61dacab1a519311594d03651cc13c263250ddd4ae7e7e"
+            "sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
           }
         }
       ],
       "absences": [],
       "note": null,
-      "capability_fingerprint_sha256": "84b0c5f2f5b3dd468aa9bbc8faa7fbfe414d9f8daeff93a665a386ad39d75be2"
+      "capability_fingerprint_sha256": "10e99b4faeb1b7fdcbd6f5e25a5f8597eb60612a4213b94a94842746ac8a3aab"
     },
     {
       "index": 3,
@@ -160,7 +160,7 @@
           "symbol": "pub fn propagate_child_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "7d92059986e6ecd1faf61dacab1a519311594d03651cc13c263250ddd4ae7e7e"
+            "sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
           }
         },
         {
@@ -168,7 +168,7 @@
           "symbol": "fn classify_created_node_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "7d92059986e6ecd1faf61dacab1a519311594d03651cc13c263250ddd4ae7e7e"
+            "sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
           }
         },
         {
@@ -176,7 +176,7 @@
           "symbol": "fn classify_created_token_flags",
           "file": {
             "path": "crates/emitter/src/factory.rs",
-            "sha256": "7d92059986e6ecd1faf61dacab1a519311594d03651cc13c263250ddd4ae7e7e"
+            "sha256": "273c2666676e635a6359b22fc513b82cde26cbc40404eb398fba6e952a865e09"
           }
         },
         {
@@ -190,7 +190,7 @@
       ],
       "absences": [],
       "note": "B-1 landed the EA-GAP-FLAGS postorder classifier: per-created-kind facet tables ported from the owner-called creators, aggregated through propagate_child_flags; the eight TransformFlags facets of the nine-facet qualification surface carry table contracts (the ninth is the resolver-side NodeCheckFlags fact)",
-      "capability_fingerprint_sha256": "84f6c42281f0d9826ef4fa4fe8c5175ede5a188d1b31d082d4c80f5f16c7dc7f"
+      "capability_fingerprint_sha256": "812b2c536e844cf5ca6c3d3056b631c17100e5eb41b859fd844b1b8b0660c8c7"
     },
     {
       "index": 4,
@@ -399,7 +399,7 @@
           "symbol": "token_owned_comment_phase_prefix",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "136d4a3897033f91124a24f2a2ca53d0d084da7820cd18ada15002aa9dd25f41"
+            "sha256": "2e8d68432c8545e85a9cdcdc620ff1c69eb443f4461098024f2c9779e6675269"
           }
         },
         {
@@ -423,7 +423,7 @@
           "symbol": "fn established_container_sides",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "136d4a3897033f91124a24f2a2ca53d0d084da7820cd18ada15002aa9dd25f41"
+            "sha256": "2e8d68432c8545e85a9cdcdc620ff1c69eb443f4461098024f2c9779e6675269"
           }
         },
         {
@@ -431,7 +431,7 @@
           "symbol": "struct EmitContext",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "136d4a3897033f91124a24f2a2ca53d0d084da7820cd18ada15002aa9dd25f41"
+            "sha256": "2e8d68432c8545e85a9cdcdc620ff1c69eb443f4461098024f2c9779e6675269"
           }
         },
         {
@@ -439,7 +439,7 @@
           "symbol": "fn file_root",
           "file": {
             "path": "crates/emitter/src/printer.rs",
-            "sha256": "136d4a3897033f91124a24f2a2ca53d0d084da7820cd18ada15002aa9dd25f41"
+            "sha256": "2e8d68432c8545e85a9cdcdc620ff1c69eb443f4461098024f2c9779e6675269"
           }
         },
         {
@@ -461,7 +461,7 @@
       ],
       "absences": [],
       "note": "CS-2 landed the threaded scope at the root and core pipeline, CS-3 landed the per-side claim predicates on the expression/list routes, and CS-4 landed the statement/declaration-family migration with the declaration-list writer (claim_declaration_list_sides replaces the planned container claim; the statement-paired claim helper is deleted); CS-5 deleted the five contextless shims and the detached_transitional constructor, leaving file_root as the printer's single zero-scope entry; CS-6 landed the 30-case witness-driven fixture gate (byte parity against the frozen artifact, both removeComments polarities, six transforms) and the permanent zero-contextless workspace audit — the sub-packet is closed, requalified at 6acd5d43, and ES2015/Generators production (H2.5h-b) is unblocked",
-      "capability_fingerprint_sha256": "648f1dbf0dce8fdd54f5f163493ddf0f2cc48d6c04ff449239d4aa343e88e515"
+      "capability_fingerprint_sha256": "47e3208566e19661e6b38ad646bb38a9e83f4b093e432333027d2d7d47ce29b5"
     },
     {
       "index": 8,
@@ -750,5 +750,5 @@
     "rust_runs": 0,
     "runtime_admissions_delta": 0
   },
-  "gap_matrix_fingerprint_sha256": "abca14a199ab232600b70b1a238057a2b2fb78bb2b7dbb7dd8f5482b1f8dcfa4"
+  "gap_matrix_fingerprint_sha256": "056935c047c7ca876e9f62acee9157c136b1e45cea06b250ac358bfcc56cfe8b"
 }
