@@ -32,10 +32,12 @@ content-addressed verified roots, complete local-full projection, and exact-key
 hosted cache consumption. It does not amend or replace the current H2.5g
 closure commands.
 
-The target is the pinned TypeScript 6.0.3 compiler and tooling surface. LSP is
-listed because it is an intended Rust-native product, but it is not an
-upstream TypeScript protocol and never counts toward a TypeScript parity
-percentage.
+The current H2 compiler baseline is pinned TypeScript 6.0.3. The user-approved
+[TypeScript 7 and native LSP direction](typescript-7-direction.md)
+(2026-09-06) adds the Go implementation and its new features to the follow-on
+target. It supersedes the mandatory legacy tsserver / LSP-adapter sequence
+below: the intended service product provides LSP directly. Existing frozen
+6.0.3 evidence remains the baseline until an explicit version transition.
 
 `BLD1`, `W1`, and `API1` are intentionally verbose track IDs. They do not
 reuse the existing A1-A5 accepted-state/measurement names or B1-B4 evidence
@@ -1627,6 +1629,11 @@ not silently merge them in an implementation PR.
 
 ### 6.2 L3 Language Service
 
+Apply the [native TypeScript 7 direction](typescript-7-direction.md): use
+the Go service implementation as the primary design reference and select
+tests for the admitted feature/version. The operation inventory below remains
+useful; it does not require a legacy tsserver product before native LSP work.
+
 | Slice | Scope | Close evidence |
 | --- | --- | --- |
 | L3.0 | Complete Language Service/FourSlash owner and query inventory; service host, snapshots, registry integration, modes, cancellation, and multi-generation harness. | Every projected operation has an owner/disposition and fresh/reused oracle trace. |
@@ -1638,6 +1645,12 @@ not silently merge them in an implementation PR.
 
 ### 6.3 L4 tsserver and Project Service
 
+Historical inventory, amended by the 2026-09-06 user direction: retain needed
+project, overlay, watch and cancellation responsibilities inside the native
+LSP implementation. The tsserver wire protocol and compatible Session product
+are no longer required finish lines. Re-slice the applicable responsibilities
+with L3/L5 before their implementation; do not implement this table wholesale.
+
 | Slice | Scope | Close evidence |
 | --- | --- | --- |
 | L4.0 | Generate protocol/project-system/session/typings inventories and a framed request/response/event oracle. | Exact request/event denominator and virtualized time/I/O harness. |
@@ -1647,11 +1660,11 @@ not silently merge them in an implementation PR.
 | L4.4 | Plugins, package installation, automatic type acquisition, typings installer, and security/capability boundaries. | Exact mocked external interactions, cancellation, failure, cache, and cleanup behavior. |
 | L4.5 | Full tsserver/project-system qualification, restart/resource/platform freeze, and package entry point. | Every admitted server observation exact; bounded long-running state. |
 
-### 6.4 L5 independent Rust-native LSP adapter
+### 6.4 L5 native Rust LSP server
 
 | Slice | Scope | Close evidence |
 | --- | --- | --- |
-| L5.0 | Freeze supported LSP version/capabilities and the explicit Language Service-to-LSP mapping; build protocol and synchronization harnesses. | Independent capability/request/error manifest; no TypeScript parity borrowing. |
+| L5.0 | Freeze supported LSP version/capabilities and typed native Language Service request/result interfaces, using the Go implementation as reference; build protocol and synchronization harnesses. No tsserver-to-LSP adapter. | Independent capability/request/error manifest; no TypeScript parity borrowing. |
 | L5.1 | Initialize/shutdown, URI/path/workspace folders, UTF-16 positions, text-document synchronization, versioning, and configuration changes. | Protocol tests for Unicode, casing, symlinks, stale versions, reconnect, and close. |
 | L5.2 | Map navigation, completion, hover/signature, rename, symbols, hierarchy, code actions, formatting, semantic tokens, and inlay hints. | Exact mapped results and capability-dependent absence/presence. |
 | L5.3 | Concurrent scheduling, cancellation, progress, diagnostics publication, workspace edits, partial results, and error mapping. | Deterministic race/cancel traces with no stale diagnostics or partial engine state. |
@@ -1665,7 +1678,7 @@ not silently merge them in an implementation PR.
 | REL1.0 | Locale catalogs/fallback, Windows/POSIX path/case/drive/UNC/symlink/permission/timestamp/watch profiles, terminal capabilities, and filesystem failures for every claimed product. | Exact platform/locale matrices; unavailable profiles remain explicit. |
 | REL1.1 | `tsc`, compiler-library, tsserver, and optional LSP entry points; stock libs, licenses, package metadata, install/upgrade smoke tests, and reproducible artifacts. | Clean-environment execution, byte-reproducible packages, exact 6.0.3 version and entry behavior. |
 | REL1.2 | Final union-of-finish-lines report. | Each claimed compiler/build/API/service/server/LSP row points to its own evidence; no aggregate hides an unimplemented product. |
-| VER1.0 | Post-6.0.3 transition, only if separately approved. | New source/lib/locale/package pins, generated data, inventories, oracles, accepted sets, and explicit compatibility transition. It is never a routine dependency bump. |
+| VER1.0 | TypeScript 7.0 adoption and continued tracking of Go-era features, authorized by the user on 2026-09-06; reference selection and sequencing follow [the recorded direction](typescript-7-direction.md). | New source/lib/locale/package pins, generated data, inventories, oracles, accepted sets, and explicit compatibility transition for admitted behavior. It is never a routine dependency bump. |
 
 ## 8. Opening and closing a slice
 

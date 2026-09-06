@@ -1,0 +1,24 @@
+diff --git a/tsc/internal/checker/checker.go b/tsc/internal/checker/checker.go
+index d19cf6b2..7ee3c11b 100644
+--- a/tsc/internal/checker/checker.go
++++ b/tsc/internal/checker/checker.go
+@@ -9,0 +10,2 @@ import (
++	"os"
++	runtimedebug "runtime/debug"
+@@ -12260,0 +12263,2 @@ func (c *Checker) getContextualThisParameterType(fn *ast.Node) *Type {
++var tsrsTraceThisStack sync.Once
++
+@@ -12296,0 +12301,13 @@ func (c *Checker) checkThisExpression(node *ast.Node) *Type {
++	if filter := os.Getenv("TSRS_TRACE_FILE"); filter != "" {
++		file := ast.GetSourceFileOfNode(node).FileName()
++		if file == filter || strings.HasSuffix(file, "/"+filter) {
++			fmt.Fprintf(os.Stderr, "TSRS_TRACE file=%s node=%s span=%d:%d container=%s computed=%t arrow=%t type=%p\n",
++				file, node.Kind, node.Pos(), node.End(), container.Kind, thisInComputedPropertyName, capturedByArrowFunction, t)
++			if t != nil {
++				fmt.Fprintf(os.Stderr, "TSRS_TRACE type_id=%d flags=%v object_flags=%v data=%T\n", t.id, t.flags, t.objectFlags, t.data)
++			}
++			if os.Getenv("TSRS_TRACE_STACK") == "1" {
++				tsrsTraceThisStack.Do(func() { fmt.Fprintf(os.Stderr, "TSRS_TRACE stack\n%s", runtimedebug.Stack()) })
++			}
++		}
++	}

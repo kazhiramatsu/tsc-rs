@@ -121,8 +121,11 @@ implementation map.
 [post-h1-completion-slices.md](post-h1-completion-slices.md) — the approved
 branch-sized execution schedule for H2 broad one-shot compiler, L2 shared
 Program/resolution reuse, builder/project references/watch, public API,
-Language Service, tsserver, the independent Rust-native LSP adapter, and final
-release work. Its status header is the single progress authority; the root
+Language Service, native LSP, and final release work. The user-approved
+[TypeScript 7 direction](typescript-7-direction.md) supersedes the old
+tsserver/adapter sequence and starts with the
+[native test/build/debug workflow](typescript-7-workflow.md).
+Its status header is the single progress authority; the root
 README may mirror its live phase label, but mirrors counts and compatibility
 claims only at completed-slice freezes. This index deliberately does not
 duplicate dated slice counts.
@@ -272,7 +275,7 @@ each stage is one commit.
 | FCI reusable functional-CI framework — mandatory interlock after H2.5g and before H2.5h-a | [Functional-CI architecture](functional-ci-evidence.md) + [packet index](slices/README.md) | repository-independent pure core and bounded runner proven by typed H2-shaped and shard-free adapters; complete local-full shadow/activation; separate exact-key authenticated ts-tests-only hosted shadow/activation; deterministic no-impact process-count-zero and bounded CPU/RSS evidence |
 | L2 shared Program/resolution reuse — planned after H2 | [post-H1 slices](post-h1-completion-slices.md) | full registry, `isProgramUptoDate`, structure reuse, dependency-tracked caches/invalidation, publication/release/cancellation, multi-generation fresh equality, and bounded resources |
 | BLD1/W1 builder, project references, and watch — planned after L2 core | [post-H1 slices](post-h1-completion-slices.md) | deterministic affected queues/signatures/build info/restarts, solution build, virtual-clock watch traces, fault/cancellation behavior, and long-running qualification |
-| API1/L3-L5 public API and interactive products — planned | [post-H1 slices](post-h1-completion-slices.md) | explicit public ownership/identity contract, Language Service, tsserver Project Service/protocol, then independent LSP capability/protocol/resource qualification |
+| API1/L3-L5 public API and interactive products — planned | [TypeScript 7 direction](typescript-7-direction.md) and [post-H1 slices](post-h1-completion-slices.md) | public API ownership/identity contract separately; Language Service and editor projects behind native LSP capability/protocol/resource qualification |
 
 The T0 percentages are calibration points from the first
 implementation's history, not promises; the gate is "meets or beats,

@@ -1,5 +1,12 @@
 # LSP and incremental parsing — persistent Program foundation
 
+Follow-on direction (user instruction, 2026-09-06):
+[TypeScript 7 and native LSP](typescript-7-direction.md) supersedes this
+document's later mandatory tsserver-product / separate-LSP-adapter sequence.
+Use the Go service/project/LSP design for new work, retain applicable
+source-lifetime and reuse contracts, and provide LSP directly. The 6.0.3
+source pins below remain the evidence for the already qualified foundation.
+
 Status: L0.4 one-shot/registry and L1 incremental-parser qualification
 complete, 2026-08-07. The architecture audit found that the L0.0 one-shot data model was
 **not sufficient** for efficient Language Service, tsserver, or LSP operation.
