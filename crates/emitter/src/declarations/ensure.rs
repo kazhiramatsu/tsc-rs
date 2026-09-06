@@ -449,7 +449,18 @@ impl DeclarationTransformer<'_> {
         let current = self.effective_modifier_flags(cx, node)?;
         let ensured = self.ensure_modifier_flags(cx, node)?;
         if current == ensured {
-            return modifier_array(cx, node);
+            let Some(modifiers) = modifier_array(cx, node)? else {
+                return Ok(None);
+            };
+            let modifier_nodes = cx.arena().node_array(modifiers)?.nodes.clone();
+            let mut retained = Vec::with_capacity(modifier_nodes.len());
+            for modifier in modifier_nodes {
+                let modifier = TransformNode::new(node.source(), modifier);
+                if is_modifier_kind(cx.arena().node(modifier)?.kind) {
+                    retained.push(modifier);
+                }
+            }
+            return Ok(Some(cx.factory()?.update_node_array(modifiers, retained)?));
         }
         cx.factory()?
             .create_modifiers_from_modifier_flags(node.source(), ensured)
@@ -816,6 +827,27 @@ fn modifier_array(
         _ => None,
     };
     Ok(modifiers.and_then(|array| cx.arena().node_array_ref(node.source(), array)))
+}
+
+const fn is_modifier_kind(kind: SyntaxKind) -> bool {
+    matches!(
+        kind,
+        SyntaxKind::AbstractKeyword
+            | SyntaxKind::AccessorKeyword
+            | SyntaxKind::AsyncKeyword
+            | SyntaxKind::ConstKeyword
+            | SyntaxKind::DeclareKeyword
+            | SyntaxKind::DefaultKeyword
+            | SyntaxKind::ExportKeyword
+            | SyntaxKind::InKeyword
+            | SyntaxKind::PrivateKeyword
+            | SyntaxKind::ProtectedKeyword
+            | SyntaxKind::PublicKeyword
+            | SyntaxKind::ReadonlyKeyword
+            | SyntaxKind::StaticKeyword
+            | SyntaxKind::OutKeyword
+            | SyntaxKind::OverrideKeyword
+    )
 }
 
 fn unwrap_parenthesized(

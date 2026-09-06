@@ -211,6 +211,21 @@ impl EmitResolver for CheckerSession<'_> {
         .map(|container| container.map(|container| EmitResolverNode::new(node.source(), container)))
     }
 
+    fn get_external_module_file_from_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        self.with_resolver_node(
+            EmitResolverMethod::GetExternalModuleFileFromDeclaration,
+            node,
+            |state, declaration| {
+                state
+                    .get_external_module_file_from_declaration(declaration)
+                    .map(|file| file.map(|file| project_resolver_node(state, file)))
+            },
+        )
+    }
+
     fn get_referenced_import_declaration(
         &self,
         node: EmitResolverNode,

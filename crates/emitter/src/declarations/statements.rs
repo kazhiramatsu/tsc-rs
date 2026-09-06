@@ -1818,6 +1818,9 @@ pub(crate) fn is_preserved_declaration_statement(
     ))
 }
 
+/// tsc-port: visitDeclarationSubtree @6.0.3
+/// tsc-hash: be12bebbbb5fbeb1f15052215edafbbfcf43cd3b9afdc02661832034eba5bcbb
+/// tsc-span: _tsc.js:115400-115494
 fn expando_declaration_arm(
     transformer: &mut DeclarationTransformer<'_>,
     context: &mut TransformationContext,
@@ -1828,6 +1831,7 @@ fn expando_declaration_arm(
     let properties = transformer
         .resolver
         .get_properties_of_container_function(resolver_node)?;
+    let had_properties = !properties.is_empty();
     let enclosing_resolver = transformer
         .state()?
         .enclosing_declaration
@@ -1890,7 +1894,7 @@ fn expando_declaration_arm(
             ));
         }
     }
-    if property_types.is_empty() {
+    if property_types.is_empty() && !had_properties {
         return Ok(vec![function]);
     }
     let mut declarations = Vec::new();
