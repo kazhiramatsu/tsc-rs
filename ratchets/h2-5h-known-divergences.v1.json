@@ -18,14 +18,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/compiler/dynamicImportWithNestedThis_es5.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r5",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/emitAccessExpressionOfCastedObjectLiteralExpressionInArrowFunctionES5.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r4",
       "writes_diverging": 1,
@@ -50,14 +42,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/conformance/async/es5/asyncArrowFunction/asyncArrowFunction11_es5.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r5",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/conformance/async/es5/asyncAwait_es5.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r4",
       "writes_diverging": 1,
@@ -68,14 +52,6 @@
     {
       "case_id": "typescript-6.0.3/conformance/async/es5/asyncImportedPromise_es5.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r4",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/classes/classDeclarations/classAbstractKeyword/classAbstractAccessor.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
       "writes_diverging": 1,
       "diagnostics_diverging": false,
       "emit_result_diverging": false,
@@ -186,14 +162,6 @@
       "emit_refused": false
     },
     {
-      "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/accessorsOverrideProperty7.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r1",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
       "case_id": "typescript-6.0.3/conformance/classes/propertyMemberDeclarations/autoAccessor5.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r1",
       "writes_diverging": 1,
@@ -243,14 +211,6 @@
     },
     {
       "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNames12_ES5.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r4",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/es6/computedProperties/computedPropertyNames1_ES5.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r4",
       "writes_diverging": 1,
       "diagnostics_diverging": false,
@@ -419,30 +379,6 @@
     },
     {
       "case_id": "typescript-6.0.3/conformance/statements/for-ofStatements/ES5For-of37.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r4",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/types/spread/objectSpread.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r5",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/types/spread/objectSpreadNegative.ts#target%3Des5",
-      "owner": "h2-5h-ca-2a-r5",
-      "writes_diverging": 1,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": false
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/types/thisType/thisTypeInAccessors.ts#target%3Des5",
       "owner": "h2-5h-ca-2a-r4",
       "writes_diverging": 1,
       "diagnostics_diverging": false,
