@@ -274,6 +274,9 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/compiler/tests/integration/h2_7b_w4b_controls.rs",
   "crates/compiler/tests/integration/h2_7b_w4i_controls.rs",
   "crates/program/tests/unit/symlinks/tests.rs",
+  // h2-7b-w5: the lanes' frozen controls (tests only).
+  "crates/compiler/tests/integration/h2_7b_w5a_controls.rs",
+  "crates/compiler/tests/integration/h2_7b_w5b_controls.rs",
   "crates/xtask/src/acceptance_plan.rs",
   "crates/xtask/src/acceptance_slices.rs",
   "crates/xtask/tests/unit/acceptance_plan/tests.rs",
