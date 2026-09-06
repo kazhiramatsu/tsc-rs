@@ -233,7 +233,10 @@ fn assert_property_require_alias_shape(main_text: &str, expected_generated_name:
                 name_text(arena, qualified, Some(qualified_right.node())),
                 "y"
             );
-            assert!(array_nodes(arena, imports[1], second.modifiers)
+            // w4 T7: upstream's `canHaveExportModifier` excludes
+            // ImportEqualsDeclaration, so the synthesized property alias carries
+            // no inline `export` (the export goes through an export specifier).
+            assert!(!array_nodes(arena, imports[1], second.modifiers)
                 .iter()
                 .any(|&modifier| node(arena, modifier).kind == SyntaxKind::ExportKeyword));
 
@@ -706,7 +709,11 @@ fn javascript_require_property_alias_emits_generated_import_then_qualified_alias
             let NodeData::ImportEqualsDeclaration(second) = &node(arena, imports[1]).data else {
                 unreachable!()
             };
-            assert!(second.modifiers.is_some());
+            // w4 T7: no inline `export` on a synthesized import-equals alias
+            // (upstream `canHaveExportModifier` excludes ImportEqualsDeclaration).
+            assert!(!array_nodes(arena, imports[1], second.modifiers)
+                .iter()
+                .any(|&modifier| node(arena, modifier).kind == SyntaxKind::ExportKeyword));
             assert_eq!(name_text(arena, imports[1], second.name), "y");
             let qualified = child(arena, imports[1], second.module_reference);
             let NodeData::QualifiedName(qualified_data) = &node(arena, qualified).data else {
