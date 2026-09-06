@@ -27,7 +27,7 @@ const NODE_VERSION_PATH = ".node-version";
 const SOURCE_COMMIT = "050880ce59e30b356b686bd3144efe24f875ebc8";
 const H2_1C_MERGE_COMMIT = "533caca4df1ebcf9e9f2ec5fd13b9c73a3ee2786";
 const H2_1C_PROFILE_SHA256 =
-  "c13b8b63afaa95d7f1a22332aeb1735928ad3373beabdda90ddca03614795a1b";
+  "c0225c311da38629daa75f693794f60cf66997f6ead2a0d845ac8df0b2f20ccf";
 const EXPECTED_NODE = "25.2.1";
 const VIRTUAL_SOURCE_ROOT = "/.src";
 const MAX_TRANSFORM_DEPTH = 256;

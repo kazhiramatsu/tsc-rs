@@ -18,7 +18,7 @@ Packet: `h2-7b-w4.md` (rev 1 draft at E1; ratification after the sol review r2).
 - lane launch 07:05 → handoff A __T_A__ / B __T_B__ → train battery → re-mint → walk → gate → merge __T_MERGE__ (wall __WALL__).
 
 ## Walk / gate / PR — TO-FILL
-- walk cert __CERT__ (launches __LAUNCHES__); gate __GATE_LINE__; hosted __HOSTED__; PR __PR__.
+- walk cert 20260906-130025-98260 (13:00-15:25; round 1 re-minted, round 2 CLEAN, 5g receipt hit; harness pins 59 rows) — launches 2: 20260906-123810-96812 refused in the preflight (the integrator's inline test module), 20260906-130025-98260 converged; gate __GATE_LINE__; hosted __HOSTED__; PR __PR__.
 
 ## Success criteria (packet §7) — recorded at close
 | # | criterion | value | pass |
