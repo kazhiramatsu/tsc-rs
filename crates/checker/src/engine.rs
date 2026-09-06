@@ -904,6 +904,48 @@ impl<'a> CheckerState<'a> {
         containing_message_chain: Option<MessageChain>,
         error_node: Option<tsc_syntax::NodeId>,
     ) -> CheckResult<(bool, Option<RelationErrorOutput>)> {
+        let mut containing_message_chain = containing_message_chain;
+        self.check_relation_with_error_output_at_worker(
+            source,
+            target,
+            relation,
+            head_message,
+            containing_message_chain.as_mut(),
+            error_node,
+        )
+    }
+
+    /// tsrs-native: borrowed containing-chain face used by one applicability
+    /// run. Upstream passes a closure returning the same mutable chain to each
+    /// reporting relation, so every successful attachment advances its tail.
+    pub(crate) fn check_relation_with_shared_message_chain_at(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+        head_message: Option<&'static DiagnosticMessage>,
+        containing_message_chain: &mut MessageChain,
+        error_node: Option<tsc_syntax::NodeId>,
+    ) -> CheckResult<(bool, Option<RelationErrorOutput>)> {
+        self.check_relation_with_error_output_at_worker(
+            source,
+            target,
+            relation,
+            head_message,
+            Some(containing_message_chain),
+            error_node,
+        )
+    }
+
+    fn check_relation_with_error_output_at_worker(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        relation: RelationKind,
+        head_message: Option<&'static DiagnosticMessage>,
+        containing_message_chain: Option<&mut MessageChain>,
+        error_node: Option<tsc_syntax::NodeId>,
+    ) -> CheckResult<(bool, Option<RelationErrorOutput>)> {
         let relation_count = (16_000_000 - self.relations.cache(relation).len() as i64) >> 3;
         // reportUnmatchedProperty reads checkTypeRelatedTo's closure-
         // level `headMessage`, not the per-recursion `headMessage2`.
@@ -956,7 +998,7 @@ impl<'a> CheckerState<'a> {
         // drops diagnostics produced during JSX child elaboration.
         let related = !is_false(result);
         let mut message = checker.error_state.error_info.take();
-        if let Some(mut containing) = containing_message_chain {
+        if let Some(containing) = containing_message_chain {
             if let Some(inner) = message.take() {
                 fn append_to_leaf(chain: &mut MessageChain, inner: MessageChain) {
                     if chain.next.is_empty() {
@@ -966,14 +1008,14 @@ impl<'a> CheckerState<'a> {
                         append_to_leaf(
                             chain
                                 .next
-                                .last_mut()
-                                .expect("non-empty chain has a last child"),
+                                .first_mut()
+                                .expect("non-empty chain has a first child"),
                             inner,
                         );
                     }
                 }
-                append_to_leaf(&mut containing, inner);
-                message = Some(containing);
+                append_to_leaf(containing, inner);
+                message = Some(containing.clone());
             }
         }
         Ok((

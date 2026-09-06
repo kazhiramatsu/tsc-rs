@@ -6,7 +6,9 @@
 //! declined walk, while applicability captures the emitted diagnostics
 //! as overload-selection data.
 
-use tsc_diagnostics::{gen as diagnostics, Diagnostic, DiagnosticMessage, RelatedInfo};
+use tsc_diagnostics::{
+    gen as diagnostics, Diagnostic, DiagnosticMessage, MessageChain, RelatedInfo,
+};
 use tsc_syntax::{NodeData, NodeId, SyntaxKind};
 use tsc_types::{
     AccessFlags, CheckMode, IterationTypeKind, IterationUse, TypeData, TypeFlags, TypeId,
@@ -55,11 +57,17 @@ impl ElaborationOutcome {
 pub(crate) struct ElaborationDiagnosticSink {
     destination: ElaborationDiagnosticDestination,
     reports: usize,
+    containing_message_chain: Option<MessageChain>,
 }
 
 enum ElaborationDiagnosticDestination {
     Program,
-    Captured(Vec<Diagnostic>),
+    Captured(Vec<CapturedElaborationDiagnostic>),
+}
+
+struct CapturedElaborationDiagnostic {
+    diagnostic: Diagnostic,
+    used_containing_message_chain: bool,
 }
 
 impl ElaborationDiagnosticSink {
@@ -67,26 +75,37 @@ impl ElaborationDiagnosticSink {
         Self {
             destination: ElaborationDiagnosticDestination::Program,
             reports: 0,
+            containing_message_chain: None,
         }
     }
 
-    fn captured() -> Self {
+    fn captured(containing_message_chain: Option<MessageChain>) -> Self {
         Self {
             destination: ElaborationDiagnosticDestination::Captured(Vec::new()),
             reports: 0,
+            containing_message_chain,
         }
     }
 
-    /// tsrs-native: route one elaboration diagnostic to the typed program or
-    /// captured destination while advancing the frame-local report counter.
-    pub(crate) fn publish(&mut self, state: &mut CheckerState, diagnostic: Diagnostic) {
+    /// tsrs-native: retain whether the relation boundary consumed the
+    /// applicability run's containing chain. Captured rows are finalized only
+    /// after the complete elaboration walk has advanced that shared chain.
+    pub(crate) fn publish_relation(
+        &mut self,
+        state: &mut CheckerState,
+        diagnostic: Diagnostic,
+        used_containing_message_chain: bool,
+    ) {
         self.reports += 1;
         match &mut self.destination {
             ElaborationDiagnosticDestination::Program => {
                 state.push_error_diagnostic(diagnostic);
             }
             ElaborationDiagnosticDestination::Captured(diagnostics) => {
-                diagnostics.push(diagnostic);
+                diagnostics.push(CapturedElaborationDiagnostic {
+                    diagnostic,
+                    used_containing_message_chain,
+                })
             }
         }
     }
@@ -97,7 +116,10 @@ impl ElaborationDiagnosticSink {
         self.reports += 1;
         state.push_error_diagnostic(diagnostic.clone());
         if let ElaborationDiagnosticDestination::Captured(diagnostics) = &mut self.destination {
-            diagnostics.push(diagnostic);
+            diagnostics.push(CapturedElaborationDiagnostic {
+                diagnostic,
+                used_containing_message_chain: false,
+            });
         }
     }
 
@@ -118,12 +140,96 @@ impl ElaborationDiagnosticSink {
             ElaborationDiagnosticDestination::Program => {
                 unreachable!("captured elaboration wrapper owns a captured sink")
             }
-            ElaborationDiagnosticDestination::Captured(diagnostics) => diagnostics,
+            ElaborationDiagnosticDestination::Captured(diagnostics) => {
+                let completed_chain = self.containing_message_chain;
+                diagnostics
+                    .into_iter()
+                    .map(|mut captured| {
+                        if captured.used_containing_message_chain {
+                            captured.diagnostic.message = completed_chain
+                                .clone()
+                                .expect("a chain-consuming relation keeps its containing chain");
+                        }
+                        captured.diagnostic
+                    })
+                    .collect()
+            }
         }
     }
 }
 
 impl<'a> CheckerState<'a> {
+    /// tsrs-native: the captured-elaboration face of checkTypeRelatedTo's
+    /// containingMessageChain callback. A relation-produced row advances the
+    /// one chain owned by the applicability run; fallback diagnostics which
+    /// bypass that relation output remain unwrapped.
+    pub(crate) fn capture_type_assignable_to_diagnostic_for_sink(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        error_node: NodeId,
+        head_message: &'static DiagnosticMessage,
+        sink: &mut ElaborationDiagnosticSink,
+    ) -> CheckResult<(bool, Option<Diagnostic>, bool)> {
+        self.capture_type_assignable_to_diagnostic_with_containing_chain(
+            source,
+            target,
+            error_node,
+            head_message,
+            &mut sink.containing_message_chain,
+        )
+    }
+
+    /// tsrs-native: direct shared-chain adapter used by applicability paths
+    /// which do not own an elaboration sink.
+    pub(crate) fn capture_type_assignable_to_diagnostic_with_containing_chain(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        error_node: NodeId,
+        head_message: &'static DiagnosticMessage,
+        containing_message_chain: &mut Option<MessageChain>,
+    ) -> CheckResult<(bool, Option<Diagnostic>, bool)> {
+        let Some(containing_message_chain) = containing_message_chain.as_mut() else {
+            let (related, diagnostic) = self.capture_type_assignable_to_diagnostic(
+                source,
+                target,
+                error_node,
+                head_message,
+            )?;
+            return Ok((related, diagnostic, false));
+        };
+        let generic_head = std::ptr::eq(
+            head_message,
+            &diagnostics::Type_0_is_not_assignable_to_type_1,
+        );
+        let (related, output) = self.check_relation_with_shared_message_chain_at(
+            source,
+            target,
+            RelationKind::Assignable,
+            (!generic_head).then_some(head_message),
+            containing_message_chain,
+            Some(error_node),
+        )?;
+        if let Some(output) = output {
+            let mut diagnostic =
+                self.create_error(output.error_node.or(Some(error_node)), head_message, &[]);
+            diagnostic.message = output.message;
+            diagnostic.related = output.related;
+            return Ok((related, Some(diagnostic), true));
+        }
+        if related {
+            return Ok((true, None, false));
+        }
+
+        // Overflow and contained-abort fallbacks are direct diagnostics in
+        // the Rust projection. They never observed the shared upstream
+        // callback, so keep them direct instead of fabricating a prefix.
+        let (related, diagnostic) =
+            self.capture_type_assignable_to_diagnostic(source, target, error_node, head_message)?;
+        Ok((related, diagnostic, false))
+    }
+
     /// isOrHasGenericConditional (63954-63956).
     fn is_or_has_generic_conditional(&self, ty: TypeId) -> bool {
         let flags = self.tables.flags_of(ty);
@@ -200,8 +306,14 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(ElaborationOutcome::Declined);
         };
-        let (_, mut diagnostic) =
-            self.capture_type_assignable_to_diagnostic(source, target, node, head_message)?;
+        let (_, mut diagnostic, used_containing_message_chain) = self
+            .capture_type_assignable_to_diagnostic_for_sink(
+                source,
+                target,
+                node,
+                head_message,
+                sink,
+            )?;
         if let Some(diagnostic) = &mut diagnostic {
             let related = self.related_info_for_node(
                 node,
@@ -215,7 +327,7 @@ impl<'a> CheckerState<'a> {
             diagnostic.related.push(related);
         }
         if let Some(diagnostic) = diagnostic {
-            sink.publish(self, diagnostic);
+            sink.publish_relation(self, diagnostic, used_containing_message_chain);
             return Ok(ElaborationOutcome::Reported);
         }
         Ok(ElaborationOutcome::Declined)
@@ -496,6 +608,7 @@ impl<'a> CheckerState<'a> {
             specific_source,
             original_target,
         )?;
+        let mut used_containing_message_chain = false;
         let mut diagnostic = if let Some((tag_name, children_name, children_target)) = invalid_text
         {
             Some(self.create_error(
@@ -504,21 +617,27 @@ impl<'a> CheckerState<'a> {
                 &[tag_name, children_name, children_target],
             ))
         } else {
-            let (specific_related, mut diagnostic) = self.capture_type_assignable_to_diagnostic(
-                specific_source,
-                target_property_type,
-                error_node,
-                &diagnostics::Type_0_is_not_assignable_to_type_1,
-            )?;
-            if specific_related && specific_source != source_property_type {
-                let (_, fallback) = self.capture_type_assignable_to_diagnostic(
-                    source_property_type,
+            let (specific_related, mut diagnostic, used_chain) = self
+                .capture_type_assignable_to_diagnostic_for_sink(
+                    specific_source,
                     target_property_type,
                     error_node,
                     &diagnostics::Type_0_is_not_assignable_to_type_1,
+                    sink,
                 )?;
+            used_containing_message_chain = used_chain;
+            if specific_related && specific_source != source_property_type {
+                let (_, fallback, fallback_used_chain) = self
+                    .capture_type_assignable_to_diagnostic_for_sink(
+                        source_property_type,
+                        target_property_type,
+                        error_node,
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        sink,
+                    )?;
                 if fallback.is_some() {
                     diagnostic = fallback;
+                    used_containing_message_chain = fallback_used_chain;
                 }
             }
             diagnostic
@@ -531,7 +650,7 @@ impl<'a> CheckerState<'a> {
             }
         }
         if let Some(diagnostic) = diagnostic {
-            sink.publish(self, diagnostic);
+            sink.publish_relation(self, diagnostic, used_containing_message_chain);
             return Ok(true);
         }
         Ok(false)
@@ -886,9 +1005,10 @@ impl<'a> CheckerState<'a> {
         expression: NodeId,
         target_type: TypeId,
         probe_head: Option<&'static DiagnosticMessage>,
+        containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<(ElaborationOutcome, Vec<Diagnostic>)> {
         let source_type = self.check_expression_cached(expression, CheckMode::NORMAL)?;
-        let mut sink = ElaborationDiagnosticSink::captured();
+        let mut sink = ElaborationDiagnosticSink::captured(containing_message_chain);
         let outcome = self.elaborate_assignment_relation(
             expression,
             source_type,
@@ -1038,19 +1158,21 @@ impl<'a> CheckerState<'a> {
                 {
                     return Ok(ElaborationOutcome::Reported);
                 }
-                let (_, mut diagnostic) = self.capture_type_assignable_to_diagnostic(
-                    source_return,
-                    target_return,
-                    body,
-                    &diagnostics::Type_0_is_not_assignable_to_type_1,
-                )?;
+                let (_, mut diagnostic, used_containing_message_chain) = self
+                    .capture_type_assignable_to_diagnostic_for_sink(
+                        source_return,
+                        target_return,
+                        body,
+                        &diagnostics::Type_0_is_not_assignable_to_type_1,
+                        sink,
+                    )?;
                 if let Some(diagnostic) = &mut diagnostic {
                     if let Some(related) = self.arrow_return_elaboration_related(target_type) {
                         diagnostic.related.push(related);
                     }
                 }
                 if let Some(diagnostic) = diagnostic {
-                    sink.publish(self, diagnostic);
+                    sink.publish_relation(self, diagnostic, used_containing_message_chain);
                     return Ok(ElaborationOutcome::Reported);
                 }
                 return Ok(ElaborationOutcome::Declined);
@@ -1195,25 +1317,29 @@ impl<'a> CheckerState<'a> {
                         specific_source,
                         original_expected,
                     )?;
-                    let (specific_related, mut diagnostic) = self
-                        .capture_type_assignable_to_diagnostic(
+                    let (specific_related, mut diagnostic, mut used_containing_message_chain) =
+                        self.capture_type_assignable_to_diagnostic_for_sink(
                             specific_source,
                             expected,
                             name,
                             message,
+                            sink,
                         )?;
                     // 64168-64170: if contextual rechecking made the
                     // syntax-specific source pass, report against the
                     // indexed source property that originally failed.
                     if specific_related && specific_source != source_property_type {
-                        let (_, fallback) = self.capture_type_assignable_to_diagnostic(
-                            source_property_type,
-                            expected,
-                            name,
-                            message,
-                        )?;
+                        let (_, fallback, fallback_used_chain) = self
+                            .capture_type_assignable_to_diagnostic_for_sink(
+                                source_property_type,
+                                expected,
+                                name,
+                                message,
+                                sink,
+                            )?;
                         if fallback.is_some() {
                             diagnostic = fallback;
+                            used_containing_message_chain = fallback_used_chain;
                         }
                     }
                     if let Some(diagnostic) = &mut diagnostic {
@@ -1224,7 +1350,7 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     if let Some(diagnostic) = diagnostic {
-                        sink.publish(self, diagnostic);
+                        sink.publish_relation(self, diagnostic, used_containing_message_chain);
                     }
                 }
             }
@@ -1352,22 +1478,26 @@ impl<'a> CheckerState<'a> {
                         specific_source,
                         original_expected,
                     )?;
-                    let (specific_related, mut diagnostic) = self
-                        .capture_type_assignable_to_diagnostic(
+                    let (specific_related, mut diagnostic, mut used_containing_message_chain) =
+                        self.capture_type_assignable_to_diagnostic_for_sink(
                             specific_source,
                             expected,
                             error_node,
                             &diagnostics::Type_0_is_not_assignable_to_type_1,
+                            sink,
                         )?;
                     if specific_related && specific_source != source_property_type {
-                        let (_, fallback) = self.capture_type_assignable_to_diagnostic(
-                            source_property_type,
-                            expected,
-                            error_node,
-                            &diagnostics::Type_0_is_not_assignable_to_type_1,
-                        )?;
+                        let (_, fallback, fallback_used_chain) = self
+                            .capture_type_assignable_to_diagnostic_for_sink(
+                                source_property_type,
+                                expected,
+                                error_node,
+                                &diagnostics::Type_0_is_not_assignable_to_type_1,
+                                sink,
+                            )?;
                         if fallback.is_some() {
                             diagnostic = fallback;
+                            used_containing_message_chain = fallback_used_chain;
                         }
                     }
                     if let Some(diagnostic) = &mut diagnostic {
@@ -1378,7 +1508,7 @@ impl<'a> CheckerState<'a> {
                         }
                     }
                     if let Some(diagnostic) = diagnostic {
-                        sink.publish(self, diagnostic);
+                        sink.publish_relation(self, diagnostic, used_containing_message_chain);
                     }
                 }
             }
