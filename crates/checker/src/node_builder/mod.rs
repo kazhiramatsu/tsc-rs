@@ -859,12 +859,9 @@ pub(crate) fn late_bound_index_signatures(
         }
         let result = result.get_or_insert_with(Vec::new);
         for info in &info_list {
-            if info.declaration.is_some() {
+            if info.declaration.is_some() || info.is_any_base_type_index_info {
                 continue;
             }
-            // Upstream also skips the anyBaseTypeIndexInfo singleton
-            // (:88634); the Rust checker never synthesizes that identity
-            // (no constructor exists), so the arm is a documented no-op.
             if let Some(components) = &info.components {
                 let mut all_serializable = true;
                 for &component in components {

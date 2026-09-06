@@ -669,6 +669,7 @@ impl<'a> CheckerState<'a> {
                     declaration: None,
                     components: None,
                     is_enum_number_index_info: false,
+                    is_any_base_type_index_info: false,
                 },
                 /*union*/ true,
             )?;

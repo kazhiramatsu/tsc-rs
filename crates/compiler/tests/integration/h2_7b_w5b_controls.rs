@@ -1,5 +1,26 @@
-//! h2-7b-w5 lane B controls — the frozen closure rows of lane W5-B's classes
-//! (filled by lane W5-B; registered at E1 so the lane's allowed set names a
-//! concrete file). Every closed row replays through the production entry and
-//! compares the full observation (reported and emit diagnostic tuples, the emit
-//! result, every write's callback and materialized bytes).
+//! W5 NodeBuilder and emitter regressions use complete frozen observations.
+
+use super::h2_7b_w4a_controls::{assert_every_row, assert_frozen_observation};
+
+#[test]
+fn synthesized_accessor_lists_keep_each_members_comments() {
+    assert_every_row(&[
+        "typescript-6.0.3/compiler/accessorInAmbientContextES5.ts#target%3Des5",
+        "typescript-6.0.3/compiler/commentsClassMembers.ts#target%3Des5",
+        "typescript-6.0.3/compiler/declarationEmitClassMemberNameConflict.ts#target%3Des5",
+    ]);
+}
+
+#[test]
+fn private_names_follow_transformed_class_provenance() {
+    assert_frozen_observation(
+        "typescript-6.0.3/compiler/privateFieldsInClassExpressionDeclaration.ts#default",
+    );
+}
+
+#[test]
+fn import_type_reuses_its_literal_child() {
+    assert_frozen_observation(
+        "typescript-6.0.3/conformance/jsdoc/declarations/jsDeclarationsUniqueSymbolUsage.ts#default",
+    );
+}

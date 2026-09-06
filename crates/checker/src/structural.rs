@@ -7025,6 +7025,7 @@ impl<'a> CheckerState<'a> {
                 declaration: None,
                 components: None,
                 is_enum_number_index_info: false,
+                is_any_base_type_index_info: false,
             });
         }
         Ok(result)
@@ -7300,6 +7301,7 @@ impl<'a> CheckerState<'a> {
                     declaration: None,
                     components: None,
                     is_enum_number_index_info: false,
+                    is_any_base_type_index_info: false,
                 };
                 return Ok(());
             }
@@ -8150,6 +8152,7 @@ impl<'a> CheckerState<'a> {
                 declaration,
                 components: None,
                 is_enum_number_index_info: false,
+                is_any_base_type_index_info: false,
             }));
         }
         if let Some(info) = applicable.into_iter().next() {

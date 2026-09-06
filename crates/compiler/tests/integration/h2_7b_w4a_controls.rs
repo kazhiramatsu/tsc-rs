@@ -267,7 +267,7 @@ fn source_maps_value(actual: Option<&[tsc_compiler::SourceMapObservation]>) -> V
     })
 }
 
-fn assert_frozen_observation(case_id: &str) {
+pub(super) fn assert_frozen_observation(case_id: &str) {
     let case = frozen_case(case_id);
     assert_eq!(case["disposition"], "admitted-for-execution", "{case_id}");
     let prepared = prepared_band_row(&case);
@@ -425,7 +425,7 @@ fn assert_frozen_observation(case_id: &str) {
     }
 }
 
-fn assert_every_row(case_ids: &[&str]) {
+pub(super) fn assert_every_row(case_ids: &[&str]) {
     let mut failures = Vec::new();
     for case_id in case_ids {
         let result = std::panic::catch_unwind(|| assert_frozen_observation(case_id));
@@ -452,7 +452,6 @@ fn assert_every_row(case_ids: &[&str]) {
 }
 
 #[test]
-#[ignore = "S1 requires the sibling-owned syntactic type builder for the export-assigned array"]
 fn source_module_serializes_its_own_export_table() {
     assert_every_row(OWN_EXPORT_TABLE_CASES);
 }
@@ -463,7 +462,6 @@ fn import_equals_keeps_a_separate_export_declaration() {
 }
 
 #[test]
-#[ignore = "J10 introduces 21 TS2304 false positives in the required 2xxx guard"]
 fn property_alias_liveness_resolves_a_cold_identifier_cache() {
     assert_every_row(PROPERTY_ALIAS_LIVENESS_CASES);
 }

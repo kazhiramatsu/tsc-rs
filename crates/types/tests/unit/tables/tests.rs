@@ -337,6 +337,48 @@ fn tuple_targets_intern_by_flags_and_readonly() {
 }
 
 #[test]
+fn tuple_length_types_exist_before_member_queries() {
+    for (flags, lengths) in [
+        (vec![], vec![0]),
+        (vec![ElementFlags::REQUIRED; 2], vec![2]),
+        (
+            vec![ElementFlags::REQUIRED, ElementFlags::OPTIONAL],
+            vec![1, 2],
+        ),
+    ] {
+        for readonly in [false, true] {
+            let mut t = tables();
+            let flags = TupleTargetFlags::new(&flags).expect("fixed tuple shape");
+            let target = t.get_tuple_target_type(flags, readonly, None);
+            let TypeData::TupleTarget(data) = &t.type_of(target).data else {
+                panic!("tuple target");
+            };
+            let length_type = data.length_type;
+            assert!(length_type < target);
+            let literals: Vec<_> = lengths
+                .iter()
+                .map(|length| t.get_number_literal_type(*length as f64))
+                .collect();
+            assert!(literals.iter().all(|literal| *literal < target));
+            assert_eq!(
+                length_type,
+                t.get_union_type(&literals, UnionReduction::Literal)
+            );
+            assert_eq!(target, t.get_tuple_target_type(flags, readonly, None));
+        }
+    }
+    for tail in [ElementFlags::REST, ElementFlags::VARIADIC] {
+        let mut t = tables();
+        let flags = [ElementFlags::REQUIRED, tail];
+        let target = t.get_tuple_target_type(TupleTargetFlags::new(&flags).unwrap(), false, None);
+        let TypeData::TupleTarget(data) = &t.type_of(target).data else {
+            panic!("tuple target");
+        };
+        assert_eq!(data.length_type, t.intrinsics.number);
+    }
+}
+
+#[test]
 fn tuple_target_flags_exclude_the_checker_owned_single_rest_shape() {
     assert!(TupleTargetFlags::new(&[ElementFlags::REST]).is_none());
     assert!(TupleTargetFlags::new(&[]).is_some());

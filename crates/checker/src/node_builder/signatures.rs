@@ -1733,13 +1733,13 @@ pub(crate) fn index_info_to_index_signature_declaration_helper(
         data.name
     });
     let name_text = declaration_name
-        .and_then(|name| checker.identifier_text(name).map(str::to_owned))
+        .map(|name| {
+            node_util::declaration_name_to_string(checker.binder.source_of_node(name), Some(name))
+        })
         .unwrap_or_else(|| "x".to_owned());
-    let name = match declaration_name {
-        Some(name) => clone_parse_node(checker, arena, name)?
-            .unwrap_or(create_identifier(arena, target, &name_text)?),
-        None => create_identifier(arena, target, &name_text)?,
-    };
+    // getNameFromIndexInfo returns text. The parameter receives a fresh
+    // identifier in the output source, without the declaration's provenance.
+    let name = create_identifier(arena, target, &name_text)?;
     let indexer_type = required_type_node(checker, arena, target, index_info.key_type, context)?;
     let parameter = create_node(
         arena,

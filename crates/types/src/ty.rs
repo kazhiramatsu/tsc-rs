@@ -146,6 +146,9 @@ pub struct TupleTargetData {
     pub element_flags: Box<[ElementFlags]>,
     /// countWhere(flags, Required|Variadic) (61158).
     pub min_length: usize,
+    /// Length property's type, allocated before the target object as in
+    /// createTupleTargetType, even when nobody has read its members yet.
+    pub length_type: TypeId,
     /// Leading fixed-element count — positions before the first
     /// Rest/Variadic element (61168-61176).
     pub fixed_length: usize,

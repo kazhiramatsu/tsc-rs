@@ -1134,11 +1134,11 @@ impl<'a> CheckerState<'a> {
         prop: Option<SymbolId>,
         parent_type: TypeId,
     ) -> CheckResult<()> {
-        if self.kind_of(left) != SyntaxKind::Identifier {
+        if self.is_this_identifier(left) || self.kind_of(left) != SyntaxKind::Identifier {
             return Ok(());
         }
-        let parent_symbol = match self.links.node(left).resolved_symbol {
-            LinkSlot::Resolved(symbol) if symbol != self.unknown_symbol => symbol,
+        let parent_symbol = match self.get_resolved_symbol(left)? {
+            Some(symbol) if symbol != self.unknown_symbol => symbol,
             _ => return Ok(()),
         };
         if self.options.isolated_modules == Some(true)

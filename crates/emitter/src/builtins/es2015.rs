@@ -1117,11 +1117,22 @@ impl<'context, 'resolver, 'state> Es2015Visitor<'context, 'resolver, 'state> {
         node: TransformNode,
         range_source: TransformNode,
     ) -> Result<(), TransformError> {
-        if let Some(range) = self.effective_source_range(range_source)? {
+        let range = match self
+            .context
+            .arena()
+            .metadata(range_source)
+            .and_then(crate::EmitMetadata::comment_range)
+        {
+            Some(range) => Some(range),
+            None => self
+                .effective_source_range(range_source)?
+                .map(|range| CommentRange::new(range_source.source(), range)),
+        };
+        if let Some(range) = range {
             self.context
                 .arena_mut()?
                 .metadata_mut(node)
-                .set_comment_range(CommentRange::new(range_source.source(), range));
+                .set_comment_range(range);
         }
         Ok(())
     }

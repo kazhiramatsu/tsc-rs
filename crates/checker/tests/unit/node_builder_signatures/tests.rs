@@ -89,6 +89,41 @@ fn first_alias_rhs(checker: &CheckerState<'_>) -> NodeId {
 }
 
 #[test]
+fn index_parameter_names_are_synthesized_from_declaration_text() {
+    with_builder(
+        r"type Indexed = { [\u0073lot: string]: number };",
+        EmitNodeBuilderFlags::NONE,
+        |checker, arena, target, context| {
+            let rhs = first_alias_rhs(checker);
+            let ty = checker
+                .get_type_from_type_node(rhs)
+                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            let infos = checker
+                .get_index_infos_of_type(ty)
+                .map_err(|abort| checker_abort_error(checker, context, abort))?;
+            let node = index_info_to_index_signature_declaration_helper(
+                checker, arena, target, &infos[0], context, None,
+            )?;
+            let NodeData::IndexSignature(data) = &arena.node(node).map_err(factory_error)?.data
+            else {
+                panic!("index signature")
+            };
+            let parameters = emitted_array(arena, target, data.parameters.expect("parameters"));
+            let NodeData::Parameter(data) = &emitted_node(arena, target, parameters[0]).data else {
+                panic!("parameter")
+            };
+            let name = emitted_node(arena, target, data.name.expect("name"));
+            let NodeData::Identifier(data) = &name.data else {
+                panic!("identifier")
+            };
+            assert_eq!(data.text, r"\u0073lot");
+            assert_eq!((name.pos, name.end), (u32::MAX, u32::MAX));
+            Ok(())
+        },
+    );
+}
+
+#[test]
 fn signature_declaration_serializes_type_parameters_parameters_and_return_type() {
     let source = "type Fn = <T extends string = string>(value: T, count?: number) => T;";
     with_builder(

@@ -164,6 +164,31 @@ fn signature_parameter_grammar_reads_each_nodes_own_parameter_array() {
 }
 
 #[test]
+fn cached_empty_jsdoc_tags_create_property_presence_without_documents() {
+    with_program_state(
+        &[("a.js", "function undocumented() {}")],
+        &CompilerOptions {
+            allow_js: true,
+            ..CompilerOptions::default()
+        },
+        |state| {
+            let function = state
+                .binder
+                .source(0)
+                .arena
+                .node_ids()
+                .find(|&node| state.kind_of(node) == SyntaxKind::FunctionDeclaration)
+                .expect("function declaration");
+            assert!(!state.has_jsdoc_property(function));
+            assert!(state.get_jsdoc_tags(function).is_empty());
+            assert!(state.has_jsdoc_property(function));
+            assert!(!state.has_jsdoc_nodes(function));
+            assert!(state.direct_jsdoc_documents(function).is_empty());
+        },
+    );
+}
+
+#[test]
 fn unrelated_jsdoc_does_not_hide_checked_js_parameter_assignments() {
     let options = CompilerOptions {
         allow_js: true,

@@ -1573,7 +1573,9 @@ impl Printer {
                                     )?,
                                 ),
                                 (SourceRange::Original(first), SourceRange::Original(child))
-                                    if first.start() <= child.start() && child.end() <= first.end()
+                                    if skip_trivia(first_source.text(), first.start().value() as usize)
+                                        <= child.start().value() as usize
+                                        && child.end() <= first.end()
                             )
                         }
                         None => false,
@@ -1584,7 +1586,9 @@ impl Printer {
                 // A synthesized JS list does not restart trivia owned by an
                 // erased earlier statement. A retained declaration component
                 // (for example a VariableDeclarationList original) still owns
-                // the first statement's JSDoc prefix.
+                // the first statement's JSDoc prefix. A node within that
+                // leading trivia (such as a JSDoc overload signature) is not
+                // a statement component and owns its copied comment instead.
                 if first_differs
                     && (!statement_array_is_synthesized || emitted_is_within_first_statement)
                 {
@@ -6880,6 +6884,21 @@ impl Printer {
                             &mut pending_detached_comments,
                             statement,
                         )?;
+                        let container_resume = if !has_previous_original_statement {
+                            let owner = self.expression_comment_phase_owner_for_node(
+                                transformation,
+                                statement,
+                            )?;
+                            self.parent_comment_container_owned_prefix_for_owner(
+                                transformation,
+                                expression_context.comments().container_pos(),
+                                owner,
+                            )?
+                        } else {
+                            None
+                        };
+                        let detached_resume =
+                            Self::furthest_comment_resume(detached_resume, container_resume)?;
                         if expression_context.nested_comments_suppressed() {
                             // shouldEmitComments is false for the whole
                             // subtree of a NoNestedComments owner.
@@ -6902,15 +6921,9 @@ impl Printer {
                                 writer,
                             )?;
                         } else {
-                            // H2.5h CA-2a B(i) postscript: tsc's `containerPos`
-                            // is LINEAR printer state (the last node emitted
-                            // with a source position, `_tsc.js:121012-121022`),
-                            // not an ancestor-scoped claim — an ancestor-claim
-                            // consultation here suppressed real comments when a
-                            // preceding ranged sibling should have re-claimed
-                            // (System-module bodies, h2-5g case 4119). The
-                            // wrapper dup family is the named residual
-                            // h2-5h-ca-2a-r5 pending the faithful linear model.
+                            // Synthetic wrappers retain the enclosing
+                            // container's prefix ownership. The first child's
+                            // scoped resume above prevents reclaiming it.
                             self.emit_leading_comments_for_node(transformation, statement, writer)?;
                         }
                         if has_original_range {
@@ -7625,59 +7638,82 @@ impl Printer {
                     .arena()
                     .node_ref(source, id)
                     .ok_or(PrinterError::UnknownStatement(id.0))?;
-                if index == 0 && !synthesized_array {
-                    self.emit_leading_comments_for_multiline_delimited_list_start(
-                        transformation,
-                        child,
-                        writer,
-                    )?;
-                } else if index == 0 {
-                    self.emit_leading_comments_for_delimited_list_start(
-                        transformation,
-                        child,
-                        writer,
-                    )?;
-                } else if synthesized_array {
-                    // A transformed expression list has no source delimiter
-                    // between its retained children. The next child's trivia
-                    // may therefore belong to an operator that the transform
-                    // replaced (for example `left ** /* comment */ right`).
-                    // When a retained source comma *does* exist, the
-                    // preceding item returns an explicit comment cursor
-                    // through the trivia it already emitted. Otherwise the
-                    // child retains its full comment range.
-                    let resume = self.delimited_comment_resume_for_node(
-                        transformation,
-                        child,
-                        pending_delimited_comment.take(),
-                    )?;
-                    self.emit_leading_comments_for_node_worker(
-                        transformation,
-                        child,
-                        LeadingCommentContext::DelimitedListStart,
-                        resume,
-                        writer,
-                    )?;
+                let child_is_synthesized = transformation.arena().node(child)?.pos == u32::MAX;
+                if child_is_synthesized {
+                    // A multiline break disables the intervening-comment
+                    // phase. Raw synthetic children have no list boundary;
+                    // their explicit comment ranges belong to their own node
+                    // phase, including trailing comments before the comma.
+                    let _completed_comment_phase = self
+                        .emit_node_id_with_context_and_source_comments(
+                            transformation,
+                            source,
+                            id,
+                            expression_context.for_child(item_syntax),
+                            DeferredExpressionSourceComments {
+                                container: Some(ExpressionCommentContainer::Scope(
+                                    expression_context.comments(),
+                                )),
+                                preceding_token: None,
+                                extent: DeferredSourceCommentExtent::LeadingAndTrailing,
+                            },
+                            writer,
+                        )?;
                 } else {
-                    self.emit_leading_comments_for_node_after_sibling(
+                    if index == 0 && !synthesized_array {
+                        self.emit_leading_comments_for_multiline_delimited_list_start(
+                            transformation,
+                            child,
+                            writer,
+                        )?;
+                    } else if index == 0 {
+                        self.emit_leading_comments_for_delimited_list_start(
+                            transformation,
+                            child,
+                            writer,
+                        )?;
+                    } else if synthesized_array {
+                        // A transformed expression list has no source delimiter
+                        // between its retained children. The next child's trivia
+                        // may therefore belong to an operator that the transform
+                        // replaced (for example `left ** /* comment */ right`).
+                        // When a retained source comma *does* exist, the
+                        // preceding item returns an explicit comment cursor
+                        // through the trivia it already emitted. Otherwise the
+                        // child retains its full comment range.
+                        let resume = self.delimited_comment_resume_for_node(
+                            transformation,
+                            child,
+                            pending_delimited_comment.take(),
+                        )?;
+                        self.emit_leading_comments_for_node_worker(
+                            transformation,
+                            child,
+                            LeadingCommentContext::DelimitedListStart,
+                            resume,
+                            writer,
+                        )?;
+                    } else {
+                        self.emit_leading_comments_for_node_after_sibling(
+                            transformation,
+                            child,
+                            writer,
+                        )?;
+                    }
+                    self.emit_node_id_with_context(
+                        transformation,
+                        source,
+                        id,
+                        expression_context.for_child(item_syntax),
+                        writer,
+                    )?;
+                    self.emit_list_element_end_comments_in_container(
                         transformation,
                         child,
+                        expression_context.comments(),
                         writer,
                     )?;
                 }
-                self.emit_node_id_with_context(
-                    transformation,
-                    source,
-                    id,
-                    expression_context.for_child(item_syntax),
-                    writer,
-                )?;
-                self.emit_list_element_end_comments_in_container(
-                    transformation,
-                    child,
-                    expression_context.comments(),
-                    writer,
-                )?;
                 let emit_delimiter = index + 1 < count || trailing_comma;
                 if emit_delimiter {
                     writer.write_punctuation(",");

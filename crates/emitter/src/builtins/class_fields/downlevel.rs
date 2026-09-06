@@ -19,7 +19,7 @@ use tsc_types::{NodeCheckFlags, NodeFlags, ScriptTarget};
 use crate::{
     factory::EmitHelperName,
     metadata::{ClassExpressionDeclarationOrigin, RelocatedTrailingCommentOwner},
-    EmitFlags, EmitHelper, EmitResolver, EmitResolverNode, InternalEmitFlags,
+    CommentRange, EmitFlags, EmitHelper, EmitResolver, EmitResolverNode, InternalEmitFlags,
     LexicalEnvironmentFlags, SourceMapRange, SourceRange, TransformArena, TransformError,
     TransformFlags, TransformNode, TransformNodeArray, TransformSourceId, TransformationContext,
 };
@@ -203,15 +203,6 @@ struct PlannedPropertyName {
 enum AssignedClassName {
     Literal(String),
     Evaluated(TransformNode),
-}
-
-impl AssignedClassName {
-    fn literal_text(&self) -> Option<&str> {
-        match self {
-            Self::Literal(text) => Some(text),
-            Self::Evaluated(_) => None,
-        }
-    }
 }
 
 #[derive(Clone)]
@@ -1987,12 +1978,6 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         } else {
             None
         };
-        let class_name = declared_class_name.clone().or_else(|| {
-            assigned_class_name
-                .as_ref()
-                .and_then(AssignedClassName::literal_text)
-                .map(str::to_owned)
-        });
         let preferred_class_this = self
             .class_this_binding(original)
             .map(ClassBinding::existing);
@@ -2003,6 +1988,21 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             && assigned_class_name.is_some()
             && has_transformable_static_member
             && !already_has_named_evaluation;
+        // tsc injects a named-evaluation block before entering the private
+        // environment. This pass emits that helper directly below, so its
+        // pending assigned name represents the same cloned-class metadata.
+        let class_name = if needs_named_evaluation {
+            match assigned_class_name.as_ref() {
+                Some(AssignedClassName::Literal(name))
+                    if tsc_syntax::is_identifier_text_for_target(name, self.target) =>
+                {
+                    Some(name.clone())
+                }
+                _ => None,
+            }
+        } else {
+            self.private_environment_class_name(original)?
+        };
         data.members = self.expand_auto_accessors(data.members)?;
         let heritage_semantics = self.class_heritage_semantics(data.heritage_clauses)?;
         let private_plan = self.scan_private_environment(data.members)?;
@@ -2350,6 +2350,62 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
             alias.clone(),
         );
         Ok(())
+    }
+
+    /// Private storage uses getNameOfDeclaration on the current node. A clone
+    /// has no parent, even when the runtime named-evaluation query can recover
+    /// an enclosing assignment through the transform ownership index.
+    fn private_environment_class_name(
+        &self,
+        class: TransformNode,
+    ) -> Result<Option<String>, TransformError> {
+        let arena = self.context.arena();
+        let record = arena.node(class)?;
+        let NodeData::ClassExpression(data) = &record.data else {
+            return Ok(None);
+        };
+        let mut name = data.name;
+        if name.is_none() {
+            if let Some(parent) = record.parent {
+                name = match &arena.node(self.node(parent))?.data {
+                    NodeData::PropertyAssignment(data) => data.name,
+                    NodeData::BindingElement(data) => data.name,
+                    NodeData::VariableDeclaration(data) => data.name,
+                    NodeData::BinaryExpression(data) if data.right == Some(class.node()) => {
+                        match data.left {
+                            Some(left) => match &arena.node(self.node(left))?.data {
+                                NodeData::Identifier(_) => Some(left),
+                                NodeData::PropertyAccessExpression(data) => data.name,
+                                NodeData::ElementAccessExpression(data) => data.argument_expression,
+                                _ => None,
+                            },
+                            None => None,
+                        }
+                    }
+                    _ => None,
+                };
+            }
+        }
+        if let Some(name) = name.and_then(|name| self.identifier_text(self.node(name))) {
+            return Ok(Some(name.to_owned()));
+        }
+        let Some(assigned_name) = arena.metadata(class).and_then(|data| data.assigned_name) else {
+            return Ok(None);
+        };
+        let NodeData::StringLiteral(data) = &arena.node(assigned_name)?.data else {
+            return Ok(None);
+        };
+        if let Some(name) = arena
+            .metadata(assigned_name)
+            .and_then(|data| data.string_literal_text_source)
+            .and_then(|source| self.identifier_text(source))
+        {
+            return Ok(Some(name.to_owned()));
+        }
+        Ok(
+            tsc_syntax::is_identifier_text_for_target(&data.text, self.target)
+                .then(|| data.text.clone()),
+        )
     }
 
     /// Resolve the named-evaluation identity of an anonymous class expression
@@ -2833,13 +2889,43 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 TransformFlags::CONTAINS_CLASS_FIELDS,
             )?;
             self.generated_auto_accessor_backings.insert(backing.node());
-            self.set_original_and_range(backing, member)?;
             let getter = self.create_auto_accessor_getter(name, storage.node(), modifiers)?;
             let setter = self.create_auto_accessor_setter(name, storage.node(), modifiers)?;
             self.generated_auto_accessor_pairs
                 .insert(getter.node(), setter.node());
-            self.set_original_and_range(getter, member)?;
-            self.set_original_and_range(setter, member)?;
+            // transformAutoAccessor keeps all three nodes synthetic. Original
+            // provenance and source maps are shared, but only the getter
+            // receives the property's comment range. A text range on the
+            // setter would become a second comment owner in ES2015 lowering.
+            let arena = self.context.arena();
+            let record = arena.node(member)?;
+            let range = SourceRange::from_raw(
+                record.pos,
+                record.end,
+                arena.source(member.source())?.syntax().positions(),
+            )
+            .map_err(|error| TransformError::InvalidSourceRange {
+                node: member,
+                error,
+            })?;
+            let metadata = arena.metadata(member);
+            let source_map_range = metadata
+                .and_then(crate::EmitMetadata::source_map_range)
+                .unwrap_or_else(|| SourceMapRange::new(member.source(), range));
+            let comment_range = metadata
+                .and_then(crate::EmitMetadata::comment_range)
+                .unwrap_or_else(|| CommentRange::new(member.source(), range));
+            for generated in [backing, getter, setter] {
+                let arena = self.context.arena_mut()?;
+                arena.set_original_node(generated, Some(member))?;
+                arena
+                    .metadata_mut(generated)
+                    .set_source_map_range(source_map_range);
+            }
+            self.context
+                .arena_mut()?
+                .metadata_mut(getter)
+                .set_comment_range(comment_range);
             self.context
                 .arena_mut()?
                 .metadata_mut(backing)
