@@ -569,19 +569,23 @@ frozen_control!(
     same_name_dts_not_specified_commonjs_reports_merged_deprecations,
     "project/jsFileCompilationSameNameDtsNotSpecified.json#module%3Dcommonjs"
 );
+// w4 P1 closed the TS5055 hint boundary (the project runner keeps its config
+// identity, so the hint is no longer chained): the two rows are exact now —
+// their full frozen controls live in `h2_7b_w4i_controls.rs`; these w2
+// controls keep the exact comparison too.
 #[test]
-fn same_name_dts_not_specified_allow_js_amd_preserves_collision_boundary_then_deprecations() {
+fn same_name_dts_not_specified_allow_js_amd_is_exact_after_the_w4_config_identity_port() {
     assert_frozen_observation_with_collision_boundary(
         "typescript-6.0.3/project/jsFileCompilationSameNameDtsNotSpecifiedWithAllowJs.json#module%3Damd",
-        true,
+        false,
     );
 }
 
 #[test]
-fn same_name_dts_not_specified_allow_js_commonjs_preserves_collision_boundary_then_deprecations() {
+fn same_name_dts_not_specified_allow_js_commonjs_is_exact_after_the_w4_config_identity_port() {
     assert_frozen_observation_with_collision_boundary(
         "typescript-6.0.3/project/jsFileCompilationSameNameDtsNotSpecifiedWithAllowJs.json#module%3Dcommonjs",
-        true,
+        false,
     );
 }
 frozen_control!(
