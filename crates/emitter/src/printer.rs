@@ -12565,12 +12565,25 @@ impl Printer {
             } else {
                 let owner =
                     self.expression_comment_phase_owner_for_node(transformation, substituted)?;
-                let active_scope = self.active_expression_comment_scope(
-                    transformation,
-                    deferred_source_comments.as_ref(),
-                    expression_context,
-                    owner,
-                )?;
+                let active_scope = if owner.kind == SyntaxKind::Block
+                    && deferred_source_comments.is_none()
+                    && self.is_function_body_block(transformation, substituted)?
+                {
+                    // emitBlockFunctionBody is called directly, outside the
+                    // node comments pipeline (_tsc.js:119021-119031). Its
+                    // detached-list phase does not claim the body's range.
+                    // A concise arrow's rebuilt block shares its expression
+                    // range with the new return statement; claiming it here
+                    // would suppress that statement's leading comment.
+                    expression_context.comments()
+                } else {
+                    self.active_expression_comment_scope(
+                        transformation,
+                        deferred_source_comments.as_ref(),
+                        expression_context,
+                        owner,
+                    )?
+                };
                 let source_leading_phase = self.emit_deferred_expression_leading_comments(
                     transformation,
                     deferred_source_comments.as_ref(),

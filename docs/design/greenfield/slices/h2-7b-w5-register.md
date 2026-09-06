@@ -100,3 +100,27 @@ detached-header namespace controls retain the upstream placement. The failing
 case and all 77 admitted System-format H2.5g rows passed exact frozen-observation
 replays twice each before the final push (dev rebuild 4m05s). Final product
 checks and the hosted run are recorded in the PR body.
+
+The next hosted run, `34029626985` at `0b4146cb`, passed full diagnostic
+conformance and every H1 through H2.5g check, including all 8,511 admitted
+H2.5g observations. It then stopped because `dynamicImportWithNestedThis_es5`
+had become exact and remained in the H2.5h divergence manifest. This is a
+failed overall run; the later hosted bands had not executed.
+
+An independent full H2.5h observation found eight now-exact listed cases,
+unchanged facets for all other old entries, and one new write mismatch:
+`optionalChainingInArrow.ts#target=es5`. The eight removals exactly match
+the separately created commit `4c615ddd` (58 → 50), which was reviewed and
+retained. The raw observation's new mismatch was never adopted as an exception.
+
+A focused compiler contract reproduced the missing comment before a concise
+arrow's synthesized ES5 return. Upstream calls `emitBlockFunctionBody` directly
+outside the node comment pipeline (`_tsc.js:119021-119031`); its detached-list
+phase does not claim the body's own range. Rust's shared funnel now preserves
+the inherited comment scope on that direct function-body route. The rebuilt
+block no longer steals the return statement's expression-leading comment.
+The 19 focused controls passed (24.57 s), including the ES5 regression, System
+relocation, all 18 W5 rows and previous-wave controls. Formatting and whitespace
+checks passed. Normal H2.5h acceptance then passed: 932 candidates, 838 exact,
+50 unchanged known divergences, 44 deferred, repetitions=2. Later-band and
+final product/hosted results are recorded in the PR body.

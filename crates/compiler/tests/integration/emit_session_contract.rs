@@ -841,6 +841,44 @@ fn h2_1c_amd_and_umd_wrappers_match_the_pinned_transform() {
 }
 
 #[test]
+fn es5_arrow_return_keeps_its_expression_leading_comment() {
+    // The complete JavaScript text from the frozen H2.5h
+    // optionalChainingInArrow observation, with the same ES5/CRLF profile.
+    let source = concat!(
+        "// https://github.com/microsoft/TypeScript/issues/41814\n",
+        "const test = (names: string[]) =>\n",
+        "    // single-line comment\n",
+        "    names?.filter(x => x);\n",
+    );
+    let prepared = prepared_with_sources(
+        CompilerOptions {
+            no_emit: Some(false),
+            target: Some(1),
+            always_strict: Some(true),
+            new_line: Some(0),
+            ..CompilerOptions::default()
+        },
+        &[("/project/input.ts", source)],
+    );
+    let mut sink = MemoryOutputSink::new();
+    ProgramSession::new(prepared)
+        .emit_with_reported_diagnostics_for_harness(&mut sink)
+        .expect("ES5 optional-chain arrow emit");
+    assert_eq!(sink.writes().len(), 1);
+    assert_eq!(
+        sink.writes()[0].callback_text(),
+        concat!(
+            "\"use strict\";\r\n",
+            "// https://github.com/microsoft/TypeScript/issues/41814\r\n",
+            "var test = function (names) {\r\n",
+            "    // single-line comment\r\n",
+            "    return names === null || names === void 0 ? void 0 : names.filter(function (x) { return x; });\r\n",
+            "};\r\n",
+        )
+    );
+}
+
+#[test]
 fn system_relocated_body_retakes_leading_comments_without_repeating_detached_header() {
     // Vendored tsc 6.0.3, ES2015/System: a hoisted namespace declaration
     // leaves its ordinary leading comment at the relocated runtime IIFE.
