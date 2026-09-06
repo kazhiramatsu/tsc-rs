@@ -3,6 +3,18 @@
 use super::h2_7b_w4a_controls::{assert_every_row, assert_frozen_observation};
 
 #[test]
+fn w5_residual_recursive_accessor_keeps_its_inferred_type() {
+    assert_frozen_observation("typescript-6.0.3/compiler/recursiveConditionalTypes.ts#default");
+}
+
+#[test]
+fn w5_residual_computed_return_type_in_diagnostic() {
+    assert_frozen_observation(
+        "typescript-6.0.3/compiler/checkingObjectWithThisInNamePositionNoCrash.ts#default",
+    );
+}
+
+#[test]
 fn any_base_singleton_does_not_become_a_static_declaration_index() {
     assert_frozen_observation(
         "typescript-6.0.3/compiler/declarationEmitClassInherritsAny.ts#default",

@@ -1,39 +1,4 @@
 {
   "schema": 1,
-  "cases": [
-    {
-      "case_id": "typescript-6.0.3/compiler/checkingObjectWithThisInNamePositionNoCrash.ts#default",
-      "owner": "h2-7b-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": false,
-      "emit_refused": false,
-      "refused_option": null,
-      "mismatch_vector": [
-        "H2_7b:reported_diagnostic:1:message=722da9c03ef4ae6e73b9c9cd698511f24346fae70951a0ccd434435b41d84afc"
-      ],
-      "facet_fingerprint_sha256": "900dd7da289f6f934f79ffaaba1f92ef1d90920dd6fcb389eb1de0d34b24db61"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/recursiveConditionalTypes.ts#default",
-      "owner": "h2-7b-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": true,
-      "emit_result_diverging": false,
-      "emit_refused": false,
-      "refused_option": null,
-      "mismatch_vector": [
-        "H2_7b:reported_diagnostic:10:presence=ce64e93d11ae3eea54ad594e799478be9be3b873a0a2ddb845d6892796db200a",
-        "H2_7b:reported_diagnostic:8:code=66c3230e5b7d13febf253c3e6560d82d367bace8c8b69d5a62ee8935aeb138e8",
-        "H2_7b:reported_diagnostic:8:length=ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d",
-        "H2_7b:reported_diagnostic:8:message=3471aced226f1478d8de26d58ddc6a784cd06943192295a0e5b9af43c7911070",
-        "H2_7b:reported_diagnostic:8:start=6b0f184f14930ed2aab00d963792fac1cf7c8439503cb58ac06dde647c456940",
-        "H2_7b:reported_diagnostic:9:code=38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b",
-        "H2_7b:reported_diagnostic:9:length=6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b",
-        "H2_7b:reported_diagnostic:9:message=aaaf2b73ee5d8ed71f6593cadfc8772c9bd179c80875cf7d687601aadf7eceb3",
-        "H2_7b:reported_diagnostic:9:start=d9b22972eaaeb7016c4795d53abbdb02fdb09cb09ba9a818fc00962042c23f73"
-      ],
-      "facet_fingerprint_sha256": "d4019af6784c450b0613de35d17f1d36a497270e3d95ba4a0a916f46953acced"
-    }
-  ]
+  "cases": []
 }

@@ -6374,6 +6374,10 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         let getter = self.declaration_of_kind(symbol, SyntaxKind::GetAccessor);
+        let diagnostic_marks = (
+            self.diagnostics.len(),
+            self.visible_global_diagnostics.len(),
+        );
         let setter = self.declaration_of_kind(symbol, SyntaxKind::SetAccessor);
         // 56753: tryCast(..., isAutoAccessorPropertyDeclaration).
         let accessor = self
@@ -6542,12 +6546,13 @@ impl<'a> CheckerState<'a> {
             .resolved()
             .is_none()
         {
-            self.links.set_symbol_type(
+            self.links.set_symbol_type_once(
                 self.speculation_depth,
                 symbol,
                 LinkSlot::Resolved(resolved),
             );
         }
+        self.record_completed_contextual_diagnostics_since(diagnostic_marks.0, diagnostic_marks.1);
         Ok(self
             .links
             .symbol(symbol)

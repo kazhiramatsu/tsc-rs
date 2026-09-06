@@ -1,20 +1,24 @@
 # h2-7b-w5 — experiment register
 
-Packet: [h2-7b-w5.md](h2-7b-w5.md), revision 2. Trusted base:
+Packet: [h2-7b-w5.md](h2-7b-w5.md), revision 3. Trusted base:
 `main @3f90839e`. Train / PR: `h2/7b-w5`, #509.
 
 ## Result and validation
 
-The candidate removes 16 of the 18 H2.7b divergence rows. Every removal has a
+The final candidate removes all 18 H2.7b divergence rows. Every removal has a
 passing control comparing the complete frozen TypeScript observation, including
 diagnostics, writes and their metadata, emit result, source maps and exit code.
-The two survivors retain exactly the same mismatch vectors and fingerprints.
+The two initially open diagnostic cases also match their complete observations.
 Full-corpus regression validation runs once in unchanged hosted
 `cargo xtask acceptance`; its final-head result is recorded in the PR body.
 The duplicate local H2.7b sweep was deliberately terminated before completion,
 and is not a passing result.
 
-| local check | result | execution time |
+The following results describe the first 16-case candidate (`6c21f859`). Final
+checker and compiler/conformance checks are refreshed after adding D2/D5; their
+completed results are recorded below and in the final PR body.
+
+| first candidate local check | result | execution time |
 |---|---|---|
 | compiler focused + CLI / emit-session / filesystem / H1 I/O contracts | 85 passed, 10 existing Node-oracle audits ignored | 35.83 s |
 | checker library | 1,705 passed | 1.14 s |
@@ -46,15 +50,53 @@ checker run above is green. No implementation diagnostic was suppressed.
   Skipped checks are not represented as passing; hosted case coverage and
   upstream expected results are unchanged.
 
-## Remaining investigations
+## D2/D5 closure evidence
 
 `checkingObjectWithThisInNamePositionNoCrash`: the upstream minimal-source trace
 shows that correct diagnostic display comes from syntactic return-expression
 inference while the signature return cache itself still becomes `any`.
-The old cache-order hypothesis is incomplete; the missing diagnostic-renderer
-route is described in the packet.
+The missing diagnostic-renderer expression-inference route is now implemented.
+The route keeps the existing display context and mapper. Named-property and
+contextually typed controls keep the signature fallback; computed-name rejection
+can infer the return expression independently of the circular signature cache.
 
 `recursiveConditionalTypes`: upstream's minimal recursive-box getter first
 resolves its symbol type during `inferFromProperties`, then subsequent accesses
-reuse it. The first differing Rust resolution frame is still unproved.
-Neither remaining diagnostic is suppressed or removed from the exception set.
+reuse it. Rust's first demand was identical, but its completed overload
+transaction discarded that accessor type. The deferred check then recomputed it
+and reported a new circularity. Accessor types and their completed diagnostics
+now survive selected/rejected trials using the existing once-result journal;
+rollback and abort still restore the original state.
+
+Both full frozen-case controls passed together (2 passed, 7.02 s). The second
+case also passed individually (1 passed, 5.71 s) before the display change.
+No diagnostic is suppressed. The preserved-circularity controls verify that
+real TS7023 and overload errors remain observable.
+
+Refreshed D2/D5 validation: checker library 1,708 passed (1.35 s; build 4m54s);
+compiler focused/CLI/I/O contracts 87 passed, 10 existing ignored (52.70 s;
+build 6m17s). Full diagnostic conformance again matched all 49,024 diagnostics
+across 5,908 fixtures / 7,691 cases, T0/T1/T2/T3=100%, FP=0, FN=0
+(dev build 8m26s). Those diagnostic results preceded the comment-only System
+repair below; final hosted acceptance rechecks them at the landing head.
+
+The investigation ran in an isolated worktree while the first candidate's
+hosted check ran. The two ready fixes join PR #509, with hosted acceptance
+required again at the final implementation head; the earlier result alone
+does not qualify the additional fixes.
+
+## Hosted regression and repair
+
+The first candidate's hosted run `34026212895` failed after 32m20s in H2.5g
+at `systemModule7.ts#default`, index 4119. Full diagnostic conformance and
+H1 through H2.5f had passed. The failure was a missing leading comment on a
+namespace IIFE relocated into System's `execute` body, not a changed upstream
+expectation. This demonstrates why complete hosted coverage remains required.
+
+The block's inherited-container guard now respects the existing relocated-list
+metadata: relocated statements inherit only their explicit detached-prefix
+resume and retake ordinary leading comments at their new location. Direct and
+detached-header namespace controls retain the upstream placement. The failing
+case and all 77 admitted System-format H2.5g rows passed exact frozen-observation
+replays twice each before the final push (dev rebuild 4m05s). Final product
+checks and the hosted run are recorded in the PR body.

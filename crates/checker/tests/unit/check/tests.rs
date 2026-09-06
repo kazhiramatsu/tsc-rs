@@ -5,6 +5,74 @@ use tsc_types::{CompilerOptions, ObjectFlags, ScriptTarget, SymbolFlags, TypeDat
 use crate::state::test_support::{with_program_state, with_program_state_allow_parse_diagnostics};
 use crate::state::CheckerState;
 
+#[test]
+fn recursive_getter_type_survives_completed_overload_trials() {
+    // Vendored tsc 6.0.3, strict/noLib/ESNext: selected trial, rejected
+    // predecessor, and nested trials all leave this recursive getter clean.
+    let declarations = "interface Box<T> { value: T }; type RecBox<T> = T | Box<RecBox<T>>;";
+    let object = "{ value: { value: { get value() { return this; } }}}";
+    let overloads = "declare function unbox<T>(box: RecBox<T>, tag: \"first\"): T; declare function unbox<T>(box: RecBox<T>, tag: \"second\"): T;";
+    for source in [
+        format!("{declarations} declare function unbox<T>(box: RecBox<T>): T; unbox({object});"),
+        format!("{declarations}{overloads}unbox({object}, \"second\");"),
+        format!("{declarations}{overloads}declare function wrap<T>(value:T):T; wrap(unbox({object}, \"second\"));"),
+    ] {
+        assert_eq!(checked_diags(&source), [], "{source}");
+    }
+}
+
+#[test]
+fn completed_getter_trials_preserve_real_circularity_diagnostics() {
+    let declarations = "declare function pick<T>(value:T, tag:\"first\"):T; declare function pick<T>(value:T, tag:\"second\"):T;";
+    for (tag, expected) in [("second", vec![7023]), ("neither", vec![2769, 7023])] {
+        let source =
+            format!("{declarations} pick({{get value(){{return this.value;}}}}, \"{tag}\");");
+        let mut codes = checked_diags(&source)
+            .iter()
+            .map(|row| row.0)
+            .collect::<Vec<_>>();
+        codes.sort_unstable();
+        assert_eq!(codes, expected, "{source}");
+    }
+}
+
+#[test]
+fn computed_return_diagnostics_follow_syntactic_expression_inference() {
+    // Complete messages oracle-checked against vendored tsc 6.0.3,
+    // strict/noLib/ESNext. Supported literal properties keep the semantic
+    // return fallback; unsupported computed names infer the expression.
+    for (expression, return_type) in [
+        ("{ [this.a]: \"\" }", "{ [x: number]: string; }"),
+        ("({ [this.a]: \"\" })", "{ [x: number]: string; }"),
+        (
+            "({ [this.a]: \"\" } as const)",
+            "{ readonly [x: number]: \"\"; }",
+        ),
+        ("{ a: this.a }", "any"),
+        ("{ [+1]: this.a }", "any"),
+        ("{ [-1]: this.a }", "any"),
+        ("{ ...this.a }", "any"),
+        ("[this.a]", "{}"),
+    ] {
+        let source = format!("export const thing = {{ doit() {{ return {expression}; }} }};");
+        let rows = checked_diags(&source);
+        let mut codes = rows.iter().map(|row| row.0).collect::<Vec<_>>();
+        codes.sort_unstable();
+        assert_eq!(codes, [2339, 7023], "{source}");
+        assert_eq!(
+            rows.iter().find(|row| row.0 == 2339).unwrap().3,
+            format!("Property 'a' does not exist on type '{{ doit(): {return_type}; }}'."),
+            "{source}"
+        );
+    }
+    let contextual = "declare function call<T>(f:T):T; export const thing=call({doit(){return {[this.a]: \"\"};}});";
+    let rows = checked_diags(contextual);
+    assert_eq!(
+        rows.iter().find(|row| row.0 == 2339).unwrap().3,
+        "Property 'a' does not exist on type '{ doit(): any; }'."
+    );
+}
+
 /// Drive the check driver over a single-file program and return
 /// the checker sink as (code, start, length, head message) rows.
 fn checked_diags(text: &str) -> Vec<(u32, u32, u32, String)> {

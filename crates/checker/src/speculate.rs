@@ -33,7 +33,7 @@
 //!   type-node resolution, and structured members) journal and restore
 //!   the entry slot at either boundary. A completed candidate, selected
 //!   OR rejected, keeps its declaration SignatureIds, completed signature
-//!   return types, and contextual-function state (`ContextChecked` plus
+//!   return types, completed accessor types, and contextual-function state (`ContextChecked` plus
 //!   contextual parameter symbol types). tsc shares those once-results
 //!   across both relation passes; the typed `Reject` outcome preserves
 //!   them while still rolling back trial-only state. Nested retention
@@ -298,9 +298,9 @@ impl CheckerState<'_> {
     /// tsrs-native: journals completed contextual-check sink suffixes across
     /// Rust's speculation transaction; tsc has no candidate transaction.
     ///
-    /// Keep the diagnostic half of one successfully completed contextual
-    /// function check beside its retained `ContextChecked` and contextual
-    /// parameter-type writes. tsc has no candidate transaction: once the
+    /// Keep the diagnostic half of a completed contextual function check or
+    /// accessor inference beside its retained once-state (`ContextChecked`,
+    /// contextual parameter types, or accessor type). tsc has no candidate transaction: once the
     /// check completes, both effects remain observable even when that
     /// overload candidate is rejected. The transaction therefore journals
     /// only this completed sink suffix rather than preserving unrelated
