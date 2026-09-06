@@ -323,6 +323,11 @@ fn transform_top_level_declaration_worker(
                     transformer.required_resolver_node(context, input)?,
                 )?;
                 if is_expando && should_emit_function_properties(transformer, context, input)? {
+                    if transformer.options.isolated_declarations == Some(true) {
+                        transformer.tracker.report_expando_function_errors();
+                        let effects = transformer.tracker.take_pending_effects();
+                        materialize_effects(context, transformer.host, effects)?;
+                    }
                     // tsc-port: transformTopLevelDeclaration returns the complete
                     // expando replacement; the helper already includes the cleaned
                     // function when default-export lowering needs one
@@ -687,6 +692,15 @@ fn transform_top_level_declaration_worker(
                         SyntaxKind::EnumMember,
                         "name",
                     )?;
+                    // Isolated enum diagnostics need the resolver's external-
+                    // reference flag, which this packet does not expose yet.
+                    if transformer.options.isolated_declarations == Some(true)
+                        && member_data.initializer.is_some()
+                    {
+                        return Err(TransformError::Unsupported(
+                            crate::UnsupportedEmitFeature::IsolatedDeclarations,
+                        ));
+                    }
                     let value = transformer.resolver.get_enum_member_value(
                         transformer.required_resolver_node(context, member)?,
                     )?;
@@ -1650,6 +1664,11 @@ pub(crate) fn transform_import_declaration(
                     transformer.required_resolver_node(context, declaration)?,
                 )? {
                     return Ok(VisitResult::None);
+                }
+                if transformer.options.isolated_declarations == Some(true) {
+                    return Err(TransformError::Unsupported(
+                        crate::UnsupportedEmitFeature::IsolatedDeclarations,
+                    ));
                 }
                 let module_specifier = rewrite_module_specifier(
                     transformer,

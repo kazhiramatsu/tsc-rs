@@ -14,7 +14,6 @@ use super::h2_7b_w4a_controls::assert_exact_observation;
 
 #[test]
 fn declaration_blocking_matches_complete_typescript_observations() {
-    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let artifact: Value =
         serde_json::from_slice(include_bytes!("../fixtures/declaration-blocking.json"))
             .expect("frozen TypeScript observations");
@@ -22,6 +21,12 @@ fn declaration_blocking_matches_complete_typescript_observations() {
     assert_eq!(artifact["repetitions"], 2);
     let cases = artifact["cases"].as_array().expect("cases");
     assert_eq!(cases.len(), 22);
+    assert_cases(&artifact);
+}
+
+pub(super) fn assert_cases(artifact: &Value) {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let cases = artifact["cases"].as_array().expect("cases");
     let mut failures = Vec::new();
     for case in cases {
         let case_id = case["case_id"].as_str().expect("case id");
@@ -52,6 +57,8 @@ fn declaration_blocking_matches_complete_typescript_observations() {
                     "module" => options.module = Some(value.as_i64().unwrap() as i32),
                     "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
                     "declaration" => options.declaration = value.as_bool(),
+                    "isolatedDeclarations" => options.isolated_declarations = value.as_bool(),
+                    "strict" => options.strict = value.as_bool(),
                     "emitDeclarationOnly" => options.emit_declaration_only = value.as_bool(),
                     "noEmitOnError" => options.no_emit_on_error = value.as_bool(),
                     "stripInternal" => options.strip_internal = value.as_bool(),

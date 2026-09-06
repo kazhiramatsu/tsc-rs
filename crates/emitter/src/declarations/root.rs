@@ -94,11 +94,6 @@ pub(crate) fn transform_root(
     if source_syntax.is_declaration_file {
         return Ok(TransformRoot::SourceFile(source));
     }
-    if transformer.options.isolated_declarations == Some(true) {
-        return Err(TransformError::Unsupported(
-            crate::UnsupportedEmitFeature::IsolatedDeclarations,
-        ));
-    }
 
     let program_source = context
         .arena()

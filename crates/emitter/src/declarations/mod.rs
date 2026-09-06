@@ -4,6 +4,7 @@
 
 mod diagnostics;
 mod ensure;
+mod isolated;
 mod orchestration;
 mod paths;
 pub(crate) mod root;

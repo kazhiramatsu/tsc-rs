@@ -62,6 +62,7 @@ pub(crate) struct DiagnosticSpec {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum TrackerEffect {
     Diagnostic(DiagnosticSpec),
+    IsolatedInference(TrackerAnchor),
     Unsupported(UnsupportedEmitFeature),
     Contract(&'static str),
 }
@@ -213,6 +214,11 @@ impl<'t> DeclarationSymbolTracker<'t> {
         ));
     }
 
+    pub(crate) fn report_isolated_inference(&mut self, anchor: TrackerAnchor) {
+        self.pending_effects
+            .push_back(TrackerEffect::IsolatedInference(anchor));
+    }
+
     /// tsc-port: errorDeclarationNameWithFallback @6.0.3
     /// tsc-hash: 4bf6dc273bdda078539a812ee455228865fbffb7a0d51f6dd819951162293549
     /// tsc-span: _tsc.js:114381-114383
@@ -312,9 +318,28 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
         if node_source != self.current_program_source {
             return Ok(());
         }
-        self.pending_effects.push_back(TrackerEffect::Unsupported(
-            UnsupportedEmitFeature::IsolatedDeclarations,
-        ));
+        if let Some(parse) = description.parse.or(description.original) {
+            let kind = self
+                .host
+                .source_file(parse.source())
+                .and_then(|source| source.syntax())
+                .map(|source| source.arena.node(parse.node()).kind);
+            if kind == Some(SyntaxKind::VariableDeclaration)
+                && access.is_expando_function_declaration(node)?
+            {
+                self.report_expando_function_errors();
+                return Ok(());
+            }
+            if kind == Some(SyntaxKind::Parameter)
+                && access.requires_adding_implicit_undefined(node, None)?
+            {
+                self.pending_effects.push_back(TrackerEffect::Unsupported(
+                    UnsupportedEmitFeature::IsolatedDeclarations,
+                ));
+                return Ok(());
+            }
+        }
+        self.report_isolated_inference(TrackerAnchor::Resolver(description));
         Ok(())
     }
 
@@ -556,6 +581,10 @@ pub(crate) fn materialize_effects(
 ) -> Result<(), TransformError> {
     for effect in effects {
         match effect {
+            TrackerEffect::IsolatedInference(anchor) => {
+                let diagnostic = with_anchor(cx, host, &anchor, super::isolated::inference_error)??;
+                cx.add_diagnostic(diagnostic)?;
+            }
             TrackerEffect::Unsupported(feature) => {
                 return Err(TransformError::Unsupported(feature))
             }
@@ -664,7 +693,7 @@ fn with_anchor<R>(
     }
 }
 
-fn text_of_node(source: &SourceFile, node: NodeId) -> String {
+pub(crate) fn text_of_node(source: &SourceFile, node: NodeId) -> String {
     let node = source.arena.node(node);
     if let NodeData::Identifier(identifier) = &node.data {
         return identifier.text.clone();

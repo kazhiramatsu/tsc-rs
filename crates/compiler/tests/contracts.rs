@@ -82,3 +82,6 @@ mod h2_7c_strip_internal;
 
 #[path = "integration/h2_7c_declaration_blocking.rs"]
 mod h2_7c_declaration_blocking;
+
+#[path = "integration/h2_7c_isolated_inference.rs"]
+mod h2_7c_isolated_inference;

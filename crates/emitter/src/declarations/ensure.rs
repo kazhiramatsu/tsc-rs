@@ -3,7 +3,7 @@ use tsc_types::ModifierFlags;
 
 use crate::{
     EmitInternalNodeBuilderFlags, EmitNodeBuilderFlags, TransformError, TransformFlags,
-    TransformNode, TransformNodeArray, TransformationContext, UnsupportedEmitFeature,
+    TransformNode, TransformNodeArray, TransformationContext,
 };
 
 use super::diagnostics::{can_produce_diagnostics, effective_modifier_flags, DiagnosticContext};
@@ -200,9 +200,8 @@ impl DeclarationTransformer<'_> {
             && self.options.isolated_declarations == Some(true)
             && !current_source_is_js(cx, node.source())?
         {
-            return Err(TransformError::Unsupported(
-                UnsupportedEmitFeature::IsolatedDeclarations,
-            ));
+            self.tracker
+                .report_isolated_inference(super::tracker::TrackerAnchor::Transform(node));
         }
         let resolver_node = self.required_resolver_node(cx, node)?;
         let target = self.state()?.current_source_file;

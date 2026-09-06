@@ -602,13 +602,6 @@ fn refused_option_sets_leave_every_activity_counter_and_sink_write_at_zero() {
             },
             "outFile",
         ),
-        (
-            CompilerOptions {
-                emit_declaration_only: Some(true),
-                ..CompilerOptions::default()
-            },
-            "emitDeclarationOnly",
-        ),
     ] {
         let host = TestEmitHost::new(options, "/project", true, &[("/project/value.ts", true)]);
         let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
