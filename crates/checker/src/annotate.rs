@@ -1320,7 +1320,17 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.is_valid_es_symbol_declaration(node) {
-            let symbol = self.node_symbol(node).map(|s| self.get_merged_symbol(s));
+            let symbol_node = if self.is_common_js_export_property_assignment(node) {
+                match self.data_of(node) {
+                    NodeData::BinaryExpression(data) => data.left.unwrap_or(node),
+                    _ => node,
+                }
+            } else {
+                node
+            };
+            let symbol = self
+                .node_symbol(symbol_node)
+                .map(|s| self.get_merged_symbol(s));
             if let Some(symbol) = symbol {
                 if let Some(cached) = self.links.symbol(symbol).unique_es_symbol_type {
                     return Ok(cached);
@@ -1345,7 +1355,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 667a26eb7c294b84d739b1e9b57d758772ff062767d05c4cfabd873d99eac28c
     /// tsc-span: _tsc.js:14377-14379
     ///
-    /// isCommonJsExportPropertyAssignment is JS-only (constant false).
+    /// isCommonJsExportPropertyAssignment is JS-only and is classified by
+    /// the binder's assignment-declaration predicate.
     fn is_valid_es_symbol_declaration(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         match self.data_of(node) {
@@ -1372,8 +1383,19 @@ impl<'a> CheckerState<'a> {
             NodeData::PropertySignature(_) => {
                 node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::READONLY)
             }
+            NodeData::BinaryExpression(_) => self.is_common_js_export_property_assignment(node),
             _ => false,
         }
+    }
+
+    /// tsc-port: isCommonJsExportPropertyAssignment @6.0.3
+    /// tsc-hash: 214568915f19939eb6f80458a0e7667b5bdc1155b43f64d8fa8c08068da60194
+    /// tsc-span: _tsc.js:14373-14375
+    fn is_common_js_export_property_assignment(&self, node: NodeId) -> bool {
+        self.is_in_js_file(node)
+            && self.kind_of(node) == SyntaxKind::BinaryExpression
+            && tsc_binder::get_assignment_declaration_kind(self.binder.source_of_node(node), node)
+                == tsc_binder::AssignmentDeclarationKind::ExportsProperty
     }
 
     /// tsc isVariableDeclarationInVariableStatement (14384):
@@ -7040,11 +7062,7 @@ impl<'a> CheckerState<'a> {
                         let base_properties =
                             state.get_properties_of_type_full(base_constructor_type)?;
                         state.add_inherited_members(&mut members, &base_properties)?;
-                    } else if state
-                        .tables
-                        .flags_of(base_constructor_type)
-                        .intersects(TypeFlags::ANY)
-                    {
+                    } else if base_constructor_type == state.tables.intrinsics.any {
                         base_constructor_index_info = Some(IndexInfo {
                             key_type: state.tables.intrinsics.string,
                             value_type: state.tables.intrinsics.any,

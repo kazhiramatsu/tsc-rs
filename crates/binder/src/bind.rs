@@ -1698,7 +1698,14 @@ impl<'a> BinderWorker<'a> {
         is_prototype_property: bool,
         container_is_class: bool,
     ) {
-        let mut namespace_symbol = self.lookup_symbol_for_property_access(name);
+        let mut namespace_symbol = self
+            .block_scope_container
+            .and_then(|container| self.lookup_symbol_for_property_access_in(name, container))
+            .or_else(|| {
+                self.container.and_then(|container| {
+                    self.lookup_symbol_for_property_access_in(name, container)
+                })
+            });
         let Some(entity_name) = access_expression_of(self.source, property_access) else {
             return;
         };
@@ -2258,6 +2265,31 @@ impl<'a> BinderWorker<'a> {
                     .or_else(|| self.lookup_symbol_for_name(self.source.root, name))
             }
             NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                let parent = self
+                    .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
+                let name = get_element_or_property_access_name(self.source, node)?;
+                self.symbols.symbol(parent).exports.get(&name).copied()
+            }
+            _ => None,
+        }
+    }
+
+    /// tsc-port: lookupSymbolForPropertyAccess @6.0.3
+    /// tsc-hash: 8b98a232ba4f6f8a57a27b1af0f59eff73024239686bc4fe8c3abc2ac4efd3c6
+    /// tsc-span: _tsc.js:44948-44954
+    fn lookup_symbol_for_property_access_in(
+        &self,
+        node: NodeId,
+        container: NodeId,
+    ) -> Option<SymbolId> {
+        match &self.source.arena.node(node).data {
+            NodeData::Identifier(data) => {
+                let name = data.escaped_text.as_str();
+                self.lookup_symbol_for_name(container, name)
+            }
+            NodeData::PropertyAccessExpression(_) | NodeData::ElementAccessExpression(_) => {
+                // Upstream omits the explicit container on recursive prefix
+                // lookup; retain the established default-scope projection.
                 let parent = self
                     .lookup_symbol_for_property_access(access_expression_of(self.source, node)?)?;
                 let name = get_element_or_property_access_name(self.source, node)?;

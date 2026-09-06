@@ -2785,6 +2785,40 @@ impl<'a> CheckerState<'a> {
         Ok(self.diagnostic_at_span(span, MessageChain::new(head, &[source_text, target_text])))
     }
 
+    fn build_relation_error_with_head_and_containing_chain(
+        &mut self,
+        source: TypeId,
+        target: TypeId,
+        span: &DiagSpan,
+        head: &'static DiagnosticMessage,
+        mut containing_message_chain: Option<MessageChain>,
+    ) -> CheckResult<Diagnostic> {
+        let head = if head.code
+            == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
+            && self.options.exact_optional_property_types.unwrap_or(false)
+            && self.has_exact_optional_unassignable_properties(source, target)?
+        {
+            &diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1_with_exactOptionalPropertyTypes_true_Consider_adding_undefined_to_the_types_of_the_target_s_properties
+        } else {
+            head
+        };
+        if let Some(containing_message_chain) = containing_message_chain.as_mut() {
+            if let Ok((_, Some(output))) = self.check_relation_with_shared_message_chain_at(
+                source,
+                target,
+                RelationKind::Assignable,
+                Some(head),
+                containing_message_chain,
+                None,
+            ) {
+                let mut diagnostic = self.diagnostic_at_span(span, output.message);
+                diagnostic.related = output.related;
+                return Ok(diagnostic);
+            }
+        }
+        self.build_relation_error_with_head(source, target, span, head)
+    }
+
     /// reportRelationError's no-head face for callers whose diagnostic
     /// target is a SyntheticExpression span rather than an arena node.
     /// This retains the relation walk's own 2322-family head selection
@@ -3204,6 +3238,7 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         check_mode: CheckMode,
         mode: ApplicabilityMode,
+        mut containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
         let param_type = self.get_effective_first_argument_for_jsx_signature(signature, node)?;
         let is_jsx_open_fragment = self.kind_of(node) == SyntaxKind::JsxOpeningFragment;
@@ -3253,6 +3288,7 @@ impl<'a> CheckerState<'a> {
                 attributes,
                 param_type,
                 Some(&diagnostics::Type_0_is_not_assignable_to_type_1),
+                containing_message_chain.clone(),
             )?;
             if elaborated.reported() {
                 return Ok(Some(
@@ -3260,11 +3296,12 @@ impl<'a> CheckerState<'a> {
                 ));
             }
         }
-        let (_, diagnostic) = self.capture_type_assignable_to_diagnostic(
+        let (_, diagnostic, _) = self.capture_type_assignable_to_diagnostic_with_containing_chain(
             check_attributes_type,
             param_type,
             relation_error_node,
             &diagnostics::Type_0_is_not_assignable_to_type_1,
+            &mut containing_message_chain,
         )?;
         Ok(Some(self.applicability_errors_from_diagnostics(
             diagnostic.into_iter().collect(),
@@ -3451,9 +3488,14 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         head: &'static DiagnosticMessage,
         mode: ApplicabilityMode,
+        containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
-        let (outcome, diagnostics) =
-            self.capture_literal_assignment_elaboration(node, target, Some(head))?;
+        let (outcome, diagnostics) = self.capture_literal_assignment_elaboration(
+            node,
+            target,
+            Some(head),
+            containing_message_chain,
+        )?;
         if !outcome.reported() {
             debug_assert!(diagnostics.is_empty());
             return Ok(None);
@@ -3475,6 +3517,7 @@ impl<'a> CheckerState<'a> {
         target: TypeId,
         head: &'static DiagnosticMessage,
         mode: ApplicabilityMode,
+        mut containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Vec<ApplicabilityError>> {
         let head = if head.code
             == diagnostics::Argument_of_type_0_is_not_assignable_to_parameter_of_type_1.code
@@ -3485,8 +3528,30 @@ impl<'a> CheckerState<'a> {
         } else {
             head
         };
-        let (_, diagnostic) =
-            self.capture_type_assignable_to_diagnostic(source, target, node, head)?;
+        let diagnostic = if let Some(containing_message_chain) = containing_message_chain.as_mut() {
+            let (_, output) = self.check_relation_with_shared_message_chain_at(
+                source,
+                target,
+                RelationKind::Assignable,
+                Some(head),
+                containing_message_chain,
+                Some(node),
+            )?;
+            output.map(|output| {
+                let mut diagnostic = self.create_error(output.error_node.or(Some(node)), head, &[]);
+                diagnostic.message = output.message;
+                diagnostic.related = output.related;
+                diagnostic
+            })
+        } else {
+            None
+        };
+        let diagnostic = if diagnostic.is_some() {
+            diagnostic
+        } else {
+            self.capture_type_assignable_to_diagnostic(source, target, node, head)?
+                .1
+        };
         Ok(self.applicability_errors_from_diagnostics(diagnostic.into_iter().collect(), mode))
     }
 
@@ -3596,6 +3661,7 @@ impl<'a> CheckerState<'a> {
     /// the head diagnostics that resolveCall either publishes directly
     /// or nests under its overload chain. maybeAddMissingAwaitInfo
     /// (76265-76275) rides as related rows.
+    #[allow(clippy::too_many_arguments)] // Upstream arguments plus the shared diagnostic chain.
     fn get_signature_applicability_error(
         &mut self,
         node: NodeId,
@@ -3604,6 +3670,7 @@ impl<'a> CheckerState<'a> {
         relation: RelationKind,
         check_mode: CheckMode,
         mode: ApplicabilityMode,
+        containing_message_chain: Option<MessageChain>,
     ) -> CheckResult<Option<Vec<ApplicabilityError>>> {
         if matches!(
             self.kind_of(node),
@@ -3612,7 +3679,12 @@ impl<'a> CheckerState<'a> {
                 | SyntaxKind::JsxOpeningFragment
         ) {
             return self.check_applicable_signature_for_jsx_call_like_element(
-                node, signature, relation, check_mode, mode,
+                node,
+                signature,
+                relation,
+                check_mode,
+                mode,
+                containing_message_chain,
             );
         }
         let this_type = self.get_this_type_of_signature(signature)?;
@@ -3629,12 +3701,15 @@ impl<'a> CheckerState<'a> {
                     }
                     let span = self.diag_span_of_node(this_argument_node.unwrap_or(node));
                     let diagnostic = match mode {
-                        ApplicabilityMode::Report => Some(self.build_relation_error_with_head(
-                            this_argument_type,
-                            this_type,
-                            &span,
-                            &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
-                        )?),
+                        ApplicabilityMode::Report => Some(
+                            self.build_relation_error_with_head_and_containing_chain(
+                                this_argument_type,
+                                this_type,
+                                &span,
+                                &diagnostics::The_this_context_of_type_0_is_not_assignable_to_method_s_this_of_type_1,
+                                containing_message_chain,
+                            )?,
+                        ),
                         _ => None,
                     };
                     let related = diagnostic
@@ -3679,9 +3754,13 @@ impl<'a> CheckerState<'a> {
                     EffectiveArg::Synthetic { .. } => None,
                 };
                 if let Some(effective) = effective {
-                    if let Some(mut errors) =
-                        self.capture_argument_elaboration(effective, param_type, head, mode)?
-                    {
+                    if let Some(mut errors) = self.capture_argument_elaboration(
+                        effective,
+                        param_type,
+                        head,
+                        mode,
+                        containing_message_chain.clone(),
+                    )? {
                         if let Some(await_related) = self.missing_await_related(
                             node,
                             &arg,
@@ -3704,6 +3783,7 @@ impl<'a> CheckerState<'a> {
                         param_type,
                         head,
                         mode,
+                        containing_message_chain,
                     )?;
                     if let Some(await_related) = self.missing_await_related(
                         node,
@@ -3746,12 +3826,14 @@ impl<'a> CheckerState<'a> {
                             check_arg_type,
                             param_type,
                         )?;
-                        let mut diagnostic = self.build_relation_error_with_head(
-                            check_arg_type,
-                            report_target,
-                            &span,
-                            head,
-                        )?;
+                        let mut diagnostic = self
+                            .build_relation_error_with_head_and_containing_chain(
+                                check_arg_type,
+                                report_target,
+                                &span,
+                                head,
+                                containing_message_chain,
+                            )?;
                         diagnostic.related.extend(related);
                         related = diagnostic.related.clone();
                         Some(diagnostic)
@@ -4078,6 +4160,10 @@ impl<'a> CheckerState<'a> {
         Ok(result)
     }
 
+    /// tsc-port: resolveCall @6.0.3
+    /// tsc-hash: 68ea03ae08eca6dbec8884e7e22f605ee9cba8fef7ac659b0d6f2022c41b9781
+    /// tsc-span: _tsc.js:76635-76663
+    ///
     /// The reportErrors tail of resolveCall (76631-76742): the four-
     /// rung failure ladder. A present head message (instanceof 2860 at
     /// 5.7b; decorators 5.8) chains OUTERMOST and retains the selected
@@ -4129,6 +4215,7 @@ impl<'a> CheckerState<'a> {
                     RelationKind::Assignable,
                     CheckMode::NORMAL,
                     ApplicabilityMode::Report,
+                    prefix,
                 ) {
                     Ok(errors) => errors.unwrap_or_else(|| {
                         panic!(
@@ -4147,10 +4234,6 @@ impl<'a> CheckerState<'a> {
                 };
                 for error in errors {
                     let mut diagnostic = error.diagnostic.expect("Report mode builds diagnostics");
-                    if let Some(prefix) = prefix.clone() {
-                        diagnostic.message =
-                            append_to_linear_tail(prefix, diagnostic.message.clone());
-                    }
                     if over_three {
                         if let Some(declaration) = self.signature_of(last).declaration {
                             diagnostic.related.push(self.related_info_for_node(
@@ -4187,6 +4270,7 @@ impl<'a> CheckerState<'a> {
                         RelationKind::Assignable,
                         CheckMode::NORMAL,
                         ApplicabilityMode::Report,
+                        None,
                     ) {
                         Ok(errors) => errors.unwrap_or_else(|| {
                             panic!(
@@ -4458,6 +4542,7 @@ impl<'a> CheckerState<'a> {
                     relation,
                     CheckMode::NORMAL,
                     ApplicabilityMode::Silent,
+                    None,
                 )?
                 .is_some()
             {
@@ -4613,6 +4698,7 @@ impl<'a> CheckerState<'a> {
                 relation,
                 arg_check_mode,
                 ApplicabilityMode::Silent,
+                None,
             )?
             .is_some()
         {
@@ -4659,6 +4745,7 @@ impl<'a> CheckerState<'a> {
                     relation,
                     arg_check_mode,
                     ApplicabilityMode::Silent,
+                    None,
                 )?
                 .is_some()
             {
@@ -6061,12 +6148,14 @@ impl<'a> CheckerState<'a> {
                 source_type,
                 target_type,
             )?;
-            let (_, mut diagnostic) = self.capture_type_assignable_to_diagnostic(
-                source_type,
-                target_type,
-                name_node,
-                &diagnostics::Type_0_is_not_assignable_to_type_1,
-            )?;
+            let (_, mut diagnostic, used_containing_message_chain) = self
+                .capture_type_assignable_to_diagnostic_for_sink(
+                    source_type,
+                    target_type,
+                    name_node,
+                    &diagnostics::Type_0_is_not_assignable_to_type_1,
+                    sink,
+                )?;
             if let Some(diagnostic) = &mut diagnostic {
                 let name_type = self.tables.get_string_literal_type(&name);
                 if let Some(related) = self.elementwise_elaboration_related(target, name_type)? {
@@ -6074,7 +6163,7 @@ impl<'a> CheckerState<'a> {
                 }
             }
             if let Some(diagnostic) = diagnostic {
-                sink.publish(self, diagnostic);
+                sink.publish_relation(self, diagnostic, used_containing_message_chain);
                 reported = true;
             }
         }

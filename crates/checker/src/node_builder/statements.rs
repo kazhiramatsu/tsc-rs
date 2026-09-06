@@ -1304,17 +1304,34 @@ impl<'state, 'program, 'tracker> StatementSerializer<'state, 'program, 'tracker>
         transform_modifier_flags(self.arena, self.target, modifiers_of(data))
     }
 
+    /// tsc-port: canHaveExportModifier @6.0.3
+    /// tsc-hash: e9f9bfa860bfebc49cefd6207fbb6dde5b4e9b3d7436b0693bb4bd25e373e499
+    /// tsc-span: _tsc.js:19283-19285
     fn can_have_export_modifier(&self, node: TransformNode) -> BuildResult<bool> {
+        let kind = self.arena.node(node).map_err(factory_error)?.kind;
+        if kind == SyntaxKind::ModuleDeclaration {
+            let Some(parse) = self
+                .arena
+                .parse_tree_resolver_node(node)
+                .map_err(factory_error)?
+            else {
+                return Ok(true);
+            };
+            let source = self.checker.binder.source_of_node(parse.node());
+            return Ok(
+                !(node_util::is_global_scope_augmentation(source, parse.node())
+                    || node_util::is_ambient_module(source, parse.node())
+                        && node_util::is_module_augmentation_external(source, parse.node())),
+            );
+        }
         Ok(matches!(
-            self.arena.node(node).map_err(factory_error)?.kind,
+            kind,
             SyntaxKind::VariableStatement
                 | SyntaxKind::FunctionDeclaration
                 | SyntaxKind::ClassDeclaration
                 | SyntaxKind::InterfaceDeclaration
                 | SyntaxKind::TypeAliasDeclaration
                 | SyntaxKind::EnumDeclaration
-                | SyntaxKind::ModuleDeclaration
-                | SyntaxKind::ImportEqualsDeclaration
         ))
     }
 

@@ -1733,11 +1733,7 @@ impl<'a> CheckerState<'a> {
         else {
             return Ok(None);
         };
-        let source = self.binder.source_of_node(element);
-        if !node_util::has_dynamic_name(source, element) {
-            // hasBindableName: static (non-dynamic) names bind through
-            // the symbol; the late-bound half rides has_dynamic_name
-            // below.
+        if self.has_bindable_name(element)? {
             let symbol = self.get_symbol_of_declaration(element)?;
             let name = self.binder.symbol(symbol).escaped_name.clone();
             let name_type = self.links.symbol(symbol).name_type;
