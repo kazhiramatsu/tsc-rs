@@ -841,6 +841,50 @@ fn h2_1c_amd_and_umd_wrappers_match_the_pinned_transform() {
 }
 
 #[test]
+fn system_relocated_body_retakes_leading_comments_without_repeating_detached_header() {
+    // Vendored tsc 6.0.3, ES2015/System: a hoisted namespace declaration
+    // leaves its ordinary leading comment at the relocated runtime IIFE.
+    // A detached file header remains outside System.register.
+    let expected_body = concat!(
+        "System.register([], function (exports_1, context_1) {\n",
+        "    \"use strict\";\n",
+        "    var M;\n",
+        "    var __moduleName = context_1 && context_1.id;\n",
+        "    return {\n",
+        "        setters: [],\n",
+        "        execute: function () {\n",
+        "            // namespace comment\n",
+        "            (function (M) {\n",
+        "                var x = 1;\n",
+        "            })(M || (exports_1(\"M\", M = {})));\n",
+        "        }\n",
+        "    };\n",
+        "});\n",
+    );
+    for (prefix, emitted_prefix) in [("", ""), ("// detached header\n\n", "// detached header\n")] {
+        let source = format!("{prefix}// namespace comment\nexport namespace M {{ var x = 1; }}\n");
+        let prepared = prepared_with_sources(
+            CompilerOptions {
+                no_emit: Some(false),
+                target: Some(2),
+                module: Some(4),
+                ..CompilerOptions::default()
+            },
+            &[("/project/input.ts", &source)],
+        );
+        let mut sink = MemoryOutputSink::new();
+        ProgramSession::new(prepared)
+            .emit_with_reported_diagnostics_for_harness(&mut sink)
+            .expect("System relocated namespace emit");
+        assert_eq!(sink.writes().len(), 1);
+        assert_eq!(
+            sink.writes()[0].callback_text(),
+            format!("{emitted_prefix}{expected_body}")
+        );
+    }
+}
+
+#[test]
 fn h2_1d_system_wrapper_matches_the_pinned_transform() {
     let prepared = prepared_with_sources(
         CompilerOptions {

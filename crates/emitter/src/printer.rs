@@ -6884,7 +6884,13 @@ impl Printer {
                             &mut pending_detached_comments,
                             statement,
                         )?;
-                        let container_resume = if !has_previous_original_statement {
+                        let container_resume = if !has_previous_original_statement
+                            && relocated_statement_list_comments.is_none()
+                        {
+                            // A relocated list inherits only its explicitly
+                            // retained detached-prefix resume. Its first runtime
+                            // statement owns ordinary leading comments at the
+                            // new location, after the wrapper's hoisted nodes.
                             let owner = self.expression_comment_phase_owner_for_node(
                                 transformation,
                                 statement,
