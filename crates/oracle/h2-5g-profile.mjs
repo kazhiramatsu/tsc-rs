@@ -102,6 +102,10 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/checker/src/check.rs",
   // h2-7b-w3: W3-A's T2 port (the inferred predicate parameter is unescaped at construction).
   "crates/checker/src/narrow.rs",
+  // h2-7b-w4: W4-A's S4 port (property-assignment binding scope) and the
+  // integrator's symlink cache (module specifiers name symlinked packages).
+  "crates/binder/src/bind.rs",
+  "crates/program/src/symlinks.rs",
   "crates/checker/src/class.rs",
   "crates/checker/src/constraints.rs",
   "crates/checker/src/contextual.rs",
@@ -265,6 +269,10 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
 // shadow. They are not read by the fixed H2.5g acceptance command and must
 // not silently become H2 runtime evidence inputs.
 const NON_RUNTIME_SHADOW_INPUTS = new Set([
+  // h2-7b-w4: the lanes' and the integrator's frozen controls (tests only).
+  "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+  "crates/compiler/tests/integration/h2_7b_w4b_controls.rs",
+  "crates/compiler/tests/integration/h2_7b_w4i_controls.rs",
   "crates/xtask/src/acceptance_plan.rs",
   "crates/xtask/src/acceptance_slices.rs",
   "crates/xtask/tests/unit/acceptance_plan/tests.rs",
@@ -591,8 +599,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 243,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 243)`,
+    runtimeInputSet.size === 245,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 245)`,
   );
 
   return withFingerprint(
