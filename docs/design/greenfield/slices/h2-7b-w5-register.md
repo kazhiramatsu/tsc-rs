@@ -124,3 +124,9 @@ relocation, all 18 W5 rows and previous-wave controls. Formatting and whitespace
 checks passed. Normal H2.5h acceptance then passed: 932 candidates, 838 exact,
 50 unchanged known divergences, 44 deferred, repetitions=2. Later-band and
 final product/hosted results are recorded in the PR body.
+
+The full H2.7b runner requires an absent manifest to represent zero known
+divergences (`load_h2_vector_divergence_manifest`), matching its own manifest
+writer. The initial empty JSON representation was rejected before case
+execution and is removed. This changes the zero-entry representation only;
+every newly diverging case still fails the ordinary manifest join.
