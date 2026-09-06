@@ -273,6 +273,7 @@ const NON_RUNTIME_SHADOW_INPUTS = new Set([
   "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
   "crates/compiler/tests/integration/h2_7b_w4b_controls.rs",
   "crates/compiler/tests/integration/h2_7b_w4i_controls.rs",
+  "crates/program/tests/unit/symlinks/tests.rs",
   "crates/xtask/src/acceptance_plan.rs",
   "crates/xtask/src/acceptance_slices.rs",
   "crates/xtask/tests/unit/acceptance_plan/tests.rs",
