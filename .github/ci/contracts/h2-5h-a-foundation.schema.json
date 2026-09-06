@@ -525,19 +525,19 @@
               {
                 "properties": {
                   "parent_completed_runtime_slices": {
-                    "const": 25
+                    "const": 26
                   },
                   "runtime_admissions_before": {
-                    "const": 9196
+                    "const": 10753
                   },
                   "runtime_admissions_after": {
-                    "const": 9196
+                    "const": 10753
                   },
                   "executed_candidates_before": {
-                    "const": 9715
+                    "const": 11272
                   },
                   "executed_candidates_after": {
-                    "const": 9715
+                    "const": 11272
                   }
                 }
               }
@@ -970,24 +970,24 @@
             "integer",
             "null"
           ],
-          "minimum": 25,
-          "maximum": 25
+          "minimum": 26,
+          "maximum": 26
         },
         "runtime_admissions_before": {
           "type": [
             "integer",
             "null"
           ],
-          "minimum": 9196,
-          "maximum": 9196
+          "minimum": 10753,
+          "maximum": 10753
         },
         "runtime_admissions_after": {
           "type": [
             "integer",
             "null"
           ],
-          "minimum": 9196,
-          "maximum": 9196
+          "minimum": 10753,
+          "maximum": 10753
         },
         "runtime_admissions_delta": {
           "const": 0
@@ -997,16 +997,16 @@
             "integer",
             "null"
           ],
-          "minimum": 9715,
-          "maximum": 9715
+          "minimum": 11272,
+          "maximum": 11272
         },
         "executed_candidates_after": {
           "type": [
             "integer",
             "null"
           ],
-          "minimum": 9715,
-          "maximum": 9715
+          "minimum": 11272,
+          "maximum": 11272
         }
       }
     },

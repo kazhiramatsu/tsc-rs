@@ -89,6 +89,8 @@ invitation to fill in the answer during implementation.
 | [H2.7b / m-1 band census + qualification machine](h2-7b-m-1.md) | **Rev 3 RATIFIED** (sol rounds 1-2 REVISE → round 3 AGREE; 2026-09-03); train `h2/7b-m1` after the 6c repair; **Merged 2026-09-04 (PR #503 @440e6073)** | First ladder rung (evidence, mjs-only): the h2-6c qualification machine cloned with ten named deltas — the 6a dispositions selector over the 1,593-row candidate band with a fail-closed per-suite adapter, the effective-option census as a total decision function (compiler virtual configs via the recorded plans, a new conformance virtual-config parser, project configs via parseProjectConfig, classification BEFORE any route erasure) splitting ADMITTED (incl. the six `.d.ts`-only `no-emit-eligible-source` controls, observed twice) from a count-only DEFERRED set with first owners (H2.7c/H2.7e/H2.8b/…), the declaration floor, full `data_diagnostics` capture, the H2.7b owner closure incl. the four `owner_arms`, the two-denominator receipt in the projected `observationInputs` idiom, the serial `--write` checkpoint, the probe selectors; the machine `owner_arms` amendment of the H2.0a owner graph; the F15 resource contract (96 s per 6c pass measured; 40 min STOP; RSS 4/12 GB). Registration 21 → 22. |
 | [H2.7b / m-2 activation flip](h2-7b-m-2.md) | **Rev 10 RATIFIED** (sol rounds 1-9 REVISE → round 10 AGREE; 2026-09-04); train `h2/7b-m2` after the m-1 train | Second ladder rung (runtime): the acceptance runner `run_h2_7b` (the 6c clone with typed refusal handling, the `--pre-flip` census 111 / 1,450 / 6, the per-case H2.7b activity expectation 2,445, the exact write comparator with the stored per-facet mismatch vector, the path-valued manifest contract) wired onto the hosted boundary in the same train (the repair guard); the flip G1-G12 (member independence, the four-disjunct `collectLinkedAliases` pre-pass, the fallible `GlobalNameOracle` at the file-level uniqueness decision, the production `PlanDeclarationPaths`, the collision requalification, the retained/lifted controls, the H2.7a inventory anchors and the close artifact's `lifted-at-H2.7b` span-hash pins); the first post-flip sweep as the sole manifest baseline; the 6c runner under the flip (`outFile` / `declarationMap` projected → 33 typed refusals owned by H2.7d / H2.7e, exactly 293 H2.7b members on the 133 joined rows, the pre-flip vector population and the registered activation refinement). Zero wave closure. |
 
+| [H2.7b / ca completion and transition](h2-7b-ca.md) | Complete in the local close update (2026-09-07); adopts merged PR #509 | 1,557 exact / 0 known / 36 deferred; next H2.7c; completed runtime count 26. The lightweight workflow retains the hosted runtime evidence and omits the historical certificate walk. |
+
 The packet-control bootstrap added the shared versioned packet schema/checker
 and completed its pre-closure purpose: FCI-1a through FCI-5b and the FCI-5c.1
 membership shadow are landed non-authoritative assets (FCI-3c and FCI-5b are
@@ -106,8 +108,7 @@ H2.6b closed on the h2/6b-ca train (PR #482, 2026-08-28), H2.6c closed on the
 h2/6c-close train (PR #495 @5b4c626a, 2026-08-31), and the H2.7a
 dormant-foundation era ran m-1 through m-4 (PRs #496-#500) and closes on
 the h2/7a-ca train under [h2-7a-ca.md](h2-7a-ca.md) — zero runtime
-admissions, `next_slice` → H2.7b; the H2.7b era is next under its own
-opening packet. Read-only
+admissions, `next_slice` → H2.7b; H2.7b is now complete under [h2-7b-ca.md](h2-7b-ca.md), and H2.7c is next. Read-only
 work may overlap only under an indexed packet; no stage-table row authorizes
 production code.
 

@@ -1293,15 +1293,12 @@ function loadParentProfile(requireParent) {
       parent.status === "qualified" &&
       parent.phase === "H2.5g" &&
       parent.transition.completed_slice === "H2.5g" &&
-      // The H2.7a close landing (h2-7a-ca.md §5) rewrote the live
-      // transition block: the dormant declaration foundation closed with
-      // zero admissions, and next_slice now re-converges with H2.7b's
-      // runtime activation on non-bundle declaration output.
-      parent.transition.next_slice === "H2.7b" &&
-      parent.transition.next_slice_scope === "non-bundle-declaration-output" &&
-      parent.transition.next_runtime_activation_slice === "H2.7b" &&
+      // H2.7b ca advances the live parent; dormant controls stay unchanged.
+      parent.transition.next_slice === "H2.7c" &&
+      parent.transition.next_slice_scope === "declaration-diagnostics-and-options" &&
+      parent.transition.next_runtime_activation_slice === "H2.7c" &&
       canonical(parent.transition.active_runtime_slices) ===
-        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h", "H2.6a", "H2.6b", "H2.6c"]) &&
+        canonical([...CLOSED_THROUGH_H2_5G, "H2.5h", "H2.6a", "H2.6b", "H2.6c", "H2.7b"]) &&
       parent.transition.target_es2015_transform_owner ===
         "complete-with-h2-5h-divergence-ratchet" &&
       parent.transition.target_generators_transform_owner ===
@@ -1321,15 +1318,15 @@ function loadParentProfile(requireParent) {
       parent.transition.h2_6c_exact_cases === 188 &&
       parent.transition.h2_6c_known_divergences === 451 &&
       parent.transition.h2_6c_source_deferred_cases === 4 &&
-      parent.summary.completed_runtime_slices === 25 &&
+      parent.summary.completed_runtime_slices === 26 &&
       parent.summary.next_slice_runtime_slice_delta === 0 &&
-      // 9,191 at the H2.5g candidate plus the five reviewed H2.1a exact
+      // Add 1,557 H2.7b admissions to 9,191 plus the five H2.1a exact
       // promotions recorded in the closed profile's
       // current_exact_promotions (arrayFromAsync, arrayIterationLibES5
       // TargetDifferent, mapGroupBy, objectGroupBy,
       // regularExpressionScanning).
-      parent.summary.runtime_admissions === 9_196 &&
-      parent.summary.executed_candidates === 9_715 &&
+      parent.summary.runtime_admissions === 10_753 &&
+      parent.summary.executed_candidates === 11_272 &&
       parent.summary.unexecuted_candidates === 0 &&
       parent.summary.undispositioned_candidates === 0,
     "H2.5g parent profile is not closed",

@@ -1,15 +1,18 @@
 # Post-H1 TypeScript 6.0.3 completion slices
 
-Status: execution schedule approved on 2026-08-08. H0, L0/L1, H1, H2.0a,
-H2.0b, H2.1a-H2.1e, H2.2a-H2.2d, H2.3a-H2.3d, H2.4a-H2.4b, and
-**H2.5a-H2.5g are complete and qualified**; the recorded H2.5g
-validation/merge lineage is in §1.2, and the 2026-08-17 post-merge roadmap
-review below pauses the Functional-CI packet tail (Option A,
-emitter-first) so that H2.5h-a is the next active slice.
-This status header is the single current progress authority. A summary table
-elsewhere may mirror the live phase label, but counts and compatibility claims
-there remain at the last completed-slice freeze until this header records the
-next completed freeze.
+Status (2026-09-07): H2.5a–H2.5g are qualified; H2.5h and H2.6a–H2.6c
+have landed with their shrink-only residual queues; H2.7a's dormant declaration
+foundation has landed; **H2.7b non-bundle declaration output is complete**.
+The [H2.7b close record](slices/h2-7b-ca.md) adopts PR #509's passing hosted
+acceptance: 1,557 exact, zero known divergences, 36 deferred. The live profile
+advances to **H2.7c, declaration diagnostics and options**. STAGE is unchanged.
+The user-authorized lightweight workflow continues: focused complete upstream
+observations and adjacent product regressions while editing, then the existing
+hosted acceptance before landing runtime changes. The historical certificate
+walk and full developer CI remain omitted and are not claimed as passing.
+The Functional-CI tail remains paused in favor of emitter implementation.
+This header owns current progress; earlier section records retain their dated
+validation and merge lineage.
 
 This document turns the audited post-H1 residual into branch-sized execution
 slices. It owns post-H1 slice IDs, dependency order, and slice-specific
