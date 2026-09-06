@@ -76,3 +76,6 @@ mod source_map_emit_witness_contract;
 mod source_map_recording_witness_contract;
 #[path = "integration/upstream_no_emit_harness_contract.rs"]
 mod upstream_no_emit_harness_contract;
+
+#[path = "integration/h2_7c_strip_internal.rs"]
+mod h2_7c_strip_internal;

@@ -5,7 +5,8 @@ have landed with their shrink-only residual queues; H2.7a's dormant declaration
 foundation has landed; **H2.7b non-bundle declaration output is complete**.
 The [H2.7b close record](slices/h2-7b-ca.md) adopts PR #509's passing hosted
 acceptance: 1,557 exact, zero known divergences, 36 deferred. The live profile
-advances to **H2.7c, declaration diagnostics and options**. STAGE is unchanged.
+advances to **H2.7c, declaration diagnostics and options**, with the first
+[stripInternal packet](slices/h2-7c.md) in progress. STAGE is unchanged.
 The user-authorized lightweight workflow continues: focused complete upstream
 observations and adjacent product regressions while editing, then the existing
 hosted acceptance before landing runtime changes. The historical certificate

@@ -1022,14 +1022,16 @@ fn parameter_properties(
                 .question_token
                 .and_then(|node| context.arena().node_ref(parameter.source(), node));
             let type_node = transformer.ensure_type(context, parameter, false)?;
-            context.factory()?.create_property_declaration(
+            let initializer = transformer.ensure_no_initializer(context, parameter)?;
+            let property = context.factory()?.create_property_declaration(
                 parameter.source(),
                 modifiers,
                 name,
                 question_token,
                 type_node,
-                None,
-            )
+                initializer,
+            )?;
+            super::subtree::preserve_js_doc(context, property, parameter)
         })();
         transformer
             .tracker

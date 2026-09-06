@@ -271,11 +271,18 @@ pub(super) fn assert_frozen_observation(case_id: &str) {
     let case = frozen_case(case_id);
     assert_eq!(case["disposition"], "admitted-for-execution", "{case_id}");
     let prepared = prepared_band_row(&case);
+    assert_observation(case_id, prepared, &case["typescript_observation"]);
+}
+
+pub(super) fn assert_observation(
+    case_id: &str,
+    prepared: tsc_program::PreparedProgram,
+    expected: &Value,
+) {
     let mut sink = MemoryOutputSink::new();
     let (outcome, reported) = ProgramSession::new(prepared)
         .emit_with_reported_diagnostics_for_harness(&mut sink)
         .unwrap_or_else(|error| panic!("{case_id}: production emit completes: {error}"));
-    let expected = &case["typescript_observation"];
 
     assert_eq!(
         actual_diagnostics(&reported),

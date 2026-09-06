@@ -329,9 +329,9 @@ enum SourceCommentKind {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-struct SourceCommentRange {
-    start: usize,
-    end: usize,
+pub(crate) struct SourceCommentRange {
+    pub(crate) start: usize,
+    pub(crate) end: usize,
     kind: SourceCommentKind,
     has_trailing_new_line: bool,
 }
@@ -16106,7 +16106,7 @@ fn synthetic_comment_will_emit_new_line(comment: &SyntheticComment) -> bool {
     comment.kind() == SyntheticCommentKind::SingleLine || comment.has_trailing_new_line()
 }
 
-fn collect_source_comment_ranges(
+pub(crate) fn collect_source_comment_ranges(
     source: &str,
     position: usize,
     trailing: bool,

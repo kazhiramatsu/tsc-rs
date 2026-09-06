@@ -91,6 +91,8 @@ invitation to fill in the answer during implementation.
 
 | [H2.7b / ca completion and transition](h2-7b-ca.md) | Complete in the local close update (2026-09-07); adopts merged PR #509 | 1,557 exact / 0 known / 36 deferred; next H2.7c; completed runtime count 26. The lightweight workflow retains the hosted runtime evidence and omits the historical certificate walk. |
 
+| [H2.7c declaration diagnostics and options](h2-7c.md) | First bounded implementation packet (2026-09-07) | stripInternal comment ownership, complete official observations and adjacent controls; the 6.0.3 band remains frozen and the 7-series correspondence is explicit. |
+
 The packet-control bootstrap added the shared versioned packet schema/checker
 and completed its pre-closure purpose: FCI-1a through FCI-5b and the FCI-5c.1
 membership shadow are landed non-authoritative assets (FCI-3c and FCI-5b are

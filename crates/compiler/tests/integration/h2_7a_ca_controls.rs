@@ -196,12 +196,13 @@ fn declaration_family_options_remain_typed_refusals() {
         tsc_emitter::validate_bootstrap_emit_request(&combined),
         Ok(())
     );
-    assert_unsupported_option(
-        CompilerOptions {
-            strip_internal: Some(true),
-            ..CompilerOptions::default()
-        },
-        "stripInternal",
+    let strip_internal = control_host(CompilerOptions {
+        strip_internal: Some(true),
+        ..CompilerOptions::default()
+    });
+    assert_eq!(
+        tsc_emitter::validate_bootstrap_emit_request(&strip_internal),
+        Ok(()),
     );
     assert_unsupported_option(
         CompilerOptions {

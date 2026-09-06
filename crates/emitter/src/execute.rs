@@ -119,7 +119,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
         ),
-        (options.strip_internal == Some(true), "stripInternal"),
         (options.incremental == Some(true), "incremental"),
         (options.composite == Some(true), "composite"),
         (

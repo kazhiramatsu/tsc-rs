@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "353815b82b74c5db53d7cebaa7489d8c356bdcb748731bc128ab002d5eba46e6"
+    "sha256": "ada673193d9c82cb4e633435364c764881109b1d73a8738d2ea311bd2f5ad911"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
@@ -239,27 +239,22 @@
         {
           "name": "declarationMap",
           "line": 112,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
+          "span_sha256": "7b6a45b8b9151fbb0644c5ee17c0527be3644ef4804e781bf8f3681dea843254"
         },
         {
           "name": "emitDeclarationOnly",
           "line": 114,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
-        },
-        {
-          "name": "stripInternal",
-          "line": 122,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
+          "span_sha256": "7b6a45b8b9151fbb0644c5ee17c0527be3644ef4804e781bf8f3681dea843254"
         },
         {
           "name": "composite",
-          "line": 124,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
+          "line": 123,
+          "span_sha256": "7b6a45b8b9151fbb0644c5ee17c0527be3644ef4804e781bf8f3681dea843254"
         },
         {
           "name": "declarationDir",
-          "line": 143,
-          "span_sha256": "7fe90e3f2018e534015c91192418fa1501dcfdf0a453c3b78eb9175f12771e15"
+          "line": 142,
+          "span_sha256": "7b6a45b8b9151fbb0644c5ee17c0527be3644ef4804e781bf8f3681dea843254"
         }
       ],
       "sha256_at_h2_6c_close": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae"
@@ -317,5 +312,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "be9415f3a63c6f0c61f7e97547ee780a7f6df3c4fec7caf09d7968bfcf66024c"
+  "close_fingerprint_sha256": "c3873e44235cd0d608ccb75143624ee225d8378c4d6535519d14bd73d92f9357"
 }

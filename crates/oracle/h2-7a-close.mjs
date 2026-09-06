@@ -65,9 +65,9 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
     arms: Object.freeze([
       Object.freeze({ name: "declarationMap", line: 112, marker: "options.declaration_map == Some(true)" }),
       Object.freeze({ name: "emitDeclarationOnly", line: 114, marker: "options.emit_declaration_only == Some(true)" }),
-      Object.freeze({ name: "stripInternal", line: 122, marker: "options.strip_internal == Some(true)" }),
-      Object.freeze({ name: "composite", line: 124, marker: "(options.composite == Some(true), \"composite\")" }),
-      Object.freeze({ name: "declarationDir", line: 143, marker: "options.declaration_dir.is_some()" }),
+      // H2.7c stripInternal is covered by the focused complete observations.
+      Object.freeze({ name: "composite", line: 123, marker: "(options.composite == Some(true), \"composite\")" }),
+      Object.freeze({ name: "declarationDir", line: 142, marker: "options.declaration_dir.is_some()" }),
     ]),
   }),
   Object.freeze({
