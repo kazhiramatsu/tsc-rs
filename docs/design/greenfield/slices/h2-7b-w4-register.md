@@ -12,7 +12,7 @@ Packet: `h2-7b-w4.md` (rev 1 draft at E1; ratification after the sol review r2).
 
 ## First w4 sweep / re-mint
 - merged-train scratch sweep (11:30, before the canonical re-mint; head e9b758dd + E1f): exact 1,539 / diverging **18** (owner stays `h2-7b-m-2-divergence-closure`); componentwise audit vs the canonical 55: closed **37** (A0 11 + integrator 10 + W4-B 8 + W4-A 8; `lanes/w4/w4-closed-rows.txt`), equal 17, strict subsets 1 (the inherited `jsDeclarationsUniqueSymbolUsage` reduction), added or replaced elements 0, new rows 0. Adjacent bands (merged train, 1 worker): 6c 321 / 318 / 4, 5h 830 / 58 / 44, 6a 171 / 4 / 2, 6b 6 / 0 / 0 (all unchanged); 5g full 9,027 / 8,511 (unchanged); whole suites: compiler contracts 314 / 0 (18 ignored: the lanes' out-of-scope controls), checker 1,700 / 0 (after E1f), emitter contracts 449, emitter lib 459, compiler lib 11, xtask 270 / 0; clippy clean; fmt clean; ledger 3,815 / 0 / 0 (base 3,801). Battery 11:30 → 12:28 (58 min in the foreground band at nice 15, one sweep worker).
-- the canonical re-mint (E2): __E2__.
+- the canonical re-mint (E2, 12:29-12:37, write + normal run + `audit.js` vs the trusted base 399c62ba): exact 1,539 / diverging 18 (55 → 18); closed rows **37** (`lanes/w4/w4-closed-rows-final.txt`); byte-identical 17; strict subsets 1 (the inherited `jsDeclarationsUniqueSymbolUsage` reduction); added or replaced elements 0; new rows 0; owner unchanged — verdict OK.
 
 ## Timeline (JST) — TO-FILL
 - lane launch 07:05 → handoff A __T_A__ / B __T_B__ → train battery → re-mint → walk → gate → merge __T_MERGE__ (wall __WALL__).
