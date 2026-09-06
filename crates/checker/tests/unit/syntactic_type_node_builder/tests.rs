@@ -93,6 +93,13 @@ impl TestResolver {
 }
 
 impl EmitTrackerAccess for TestResolver {
+    fn parent_node(
+        &mut self,
+        _node: EmitTrackerNode,
+    ) -> Result<Option<EmitTrackerNode>, EmitResolverError> {
+        panic!("this mock does not project parent nodes")
+    }
+
     fn is_symbol_accessible(
         &mut self,
         _symbol: EmitTrackerSymbol,

@@ -29,10 +29,6 @@ fn specialized_isolated_declaration_seams_remain_typed_before_writes() {
             "export class C { get value() { return 1 + 1; } }",
         ),
         (
-            "implicit undefined",
-            "type T = number; export function f(value: T = 1, required: number): void {}",
-        ),
-        (
             "computed name",
             "const name = 'value'; export class C { [name]: number = 1; }",
         ),

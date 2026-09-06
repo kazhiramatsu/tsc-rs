@@ -1415,6 +1415,19 @@ impl<'state, 'program> ProductionSyntacticBuilderResolver<'state, 'program> {
 }
 
 impl EmitTrackerAccess for ProductionSyntacticBuilderResolver<'_, '_> {
+    fn parent_node(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<Option<EmitTrackerNode>, EmitResolverError> {
+        let node = self
+            .tracker_node(node)
+            .ok_or_else(|| self.invalid_token_error(None))?;
+        Ok(self
+            .checker
+            .parent_of(node)
+            .map(|parent| EmitTrackerNode(u64::from(parent.0))))
+    }
+
     fn is_symbol_accessible(
         &mut self,
         symbol: EmitTrackerSymbol,

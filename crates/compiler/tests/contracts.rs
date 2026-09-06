@@ -85,3 +85,6 @@ mod h2_7c_declaration_blocking;
 
 #[path = "integration/h2_7c_isolated_inference.rs"]
 mod h2_7c_isolated_inference;
+
+#[path = "integration/h2_7c_isolated_parameters.rs"]
+mod h2_7c_isolated_parameters;

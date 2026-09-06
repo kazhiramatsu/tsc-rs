@@ -217,6 +217,17 @@ impl CheckerTrackerAccess<'_, '_> {
 }
 
 impl EmitTrackerAccess for CheckerTrackerAccess<'_, '_> {
+    fn parent_node(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<Option<EmitTrackerNode>, EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.unavailable(None))?;
+        Ok(self
+            .checker
+            .parent_of(node)
+            .map(|parent| EmitTrackerNode(u64::from(parent.0))))
+    }
+
     fn is_symbol_accessible(
         &mut self,
         symbol: EmitTrackerSymbol,

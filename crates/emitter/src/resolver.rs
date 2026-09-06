@@ -187,6 +187,14 @@ pub trait EmitTrackerAccess {
         enclosing_declaration: Option<EmitTrackerNode>,
     ) -> Result<bool, EmitResolverError>;
 
+    /// Read the actual parent of a callback node and mint its callback-scoped
+    /// token. In particular, createParameterError passes node.parent to
+    /// requiresAddingImplicitUndefined; a recording projection is not a token.
+    fn parent_node(
+        &mut self,
+        node: EmitTrackerNode,
+    ) -> Result<Option<EmitTrackerNode>, EmitResolverError>;
+
     /// Recording projections for harness trackers; production trackers may
     /// ignore these.
     fn describe_symbol(&mut self, symbol: EmitTrackerSymbol) -> EmitTrackerSymbolDescription;

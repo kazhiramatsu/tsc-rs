@@ -684,6 +684,17 @@ impl StandaloneTrackerAccess<'_, '_> {
 }
 
 impl tsc_emitter::EmitTrackerAccess for StandaloneTrackerAccess<'_, '_> {
+    fn parent_node(
+        &mut self,
+        node: tsc_emitter::EmitTrackerNode,
+    ) -> Result<Option<tsc_emitter::EmitTrackerNode>, tsc_emitter::EmitResolverError> {
+        let node = self.node(node).ok_or_else(|| self.invalid_token())?;
+        Ok(self
+            .checker
+            .parent_of(node)
+            .map(|parent| tsc_emitter::EmitTrackerNode(u64::from(parent.0))))
+    }
+
     fn is_symbol_accessible(
         &mut self,
         symbol: tsc_emitter::EmitTrackerSymbol,

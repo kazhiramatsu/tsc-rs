@@ -1,0 +1,2929 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "compiler/isolatedDeclarationsAddUndefined.ts#enabled",
+      "files": [
+        {
+          "path": "/project/file1.ts",
+          "text": "type N = 1;\nexport class Bar {\n    c? = [2 as N] as const;\n    c3? = 1 as N;\n    readonly r = 1;\n    f = 2;\n}\n"
+        },
+        {
+          "path": "/project/file2.ts",
+          "text": "export function foo(p = (ip = 10, v: number): void => {}): void{\n}\ntype T = number\nexport function foo2(p = (ip = 10 as T, v: number): void => {}): void{}\nexport class Bar2 {\n    readonly r = 1;\n    f = 2;\n}"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "source_sha256": "1d8e839553a6566d0bff911ae32e311fd2a8f032445981a2d80fa63bfca34265",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/file1.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyID0gdm9pZCAwOw0KY2xhc3MgQmFyIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5jID0gWzJdOw0KICAgICAgICB0aGlzLmMzID0gMTsNCiAgICAgICAgdGhpcy5yID0gMTsNCiAgICAgICAgdGhpcy5mID0gMjsNCiAgICB9DQp9DQpleHBvcnRzLkJhciA9IEJhcjsNCg==",
+            "callback_utf8_bytes": 253,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyID0gdm9pZCAwOw0KY2xhc3MgQmFyIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5jID0gWzJdOw0KICAgICAgICB0aGlzLmMzID0gMTsNCiAgICAgICAgdGhpcy5yID0gMTsNCiAgICAgICAgdGhpcy5mID0gMjsNCiAgICB9DQp9DQpleHBvcnRzLkJhciA9IEJhcjsNCg==",
+            "materialized_utf8_bytes": 253,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/file1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/file1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBOID0gMTsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEJhciB7DQogICAgYz86IHJlYWRvbmx5IFsxXSB8IHVuZGVmaW5lZDsNCiAgICBjMz86IE47DQogICAgcmVhZG9ubHkgciA9IDE7DQogICAgZjogbnVtYmVyOw0KfQ0KZXhwb3J0IHt9Ow0K",
+            "callback_utf8_bytes": 141,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBOID0gMTsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEJhciB7DQogICAgYz86IHJlYWRvbmx5IFsxXSB8IHVuZGVmaW5lZDsNCiAgICBjMz86IE47DQogICAgcmVhZG9ubHkgciA9IDE7DQogICAgZjogbnVtYmVyOw0KfQ0KZXhwb3J0IHt9Ow0K",
+            "materialized_utf8_bytes": 141,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/file1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/file2.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyMiA9IHZvaWQgMDsNCmV4cG9ydHMuZm9vID0gZm9vOw0KZXhwb3J0cy5mb28yID0gZm9vMjsNCmZ1bmN0aW9uIGZvbyhwID0gKGlwID0gMTAsIHYpID0+IHsgfSkgew0KfQ0KZnVuY3Rpb24gZm9vMihwID0gKGlwID0gMTAsIHYpID0+IHsgfSkgeyB9DQpjbGFzcyBCYXIyIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5yID0gMTsNCiAgICAgICAgdGhpcy5mID0gMjsNCiAgICB9DQp9DQpleHBvcnRzLkJhcjIgPSBCYXIyOw0K",
+            "callback_utf8_bytes": 342,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyMiA9IHZvaWQgMDsNCmV4cG9ydHMuZm9vID0gZm9vOw0KZXhwb3J0cy5mb28yID0gZm9vMjsNCmZ1bmN0aW9uIGZvbyhwID0gKGlwID0gMTAsIHYpID0+IHsgfSkgew0KfQ0KZnVuY3Rpb24gZm9vMihwID0gKGlwID0gMTAsIHYpID0+IHsgfSkgeyB9DQpjbGFzcyBCYXIyIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5yID0gMTsNCiAgICAgICAgdGhpcy5mID0gMjsNCiAgICB9DQp9DQpleHBvcnRzLkJhcjIgPSBCYXIyOw0K",
+            "materialized_utf8_bytes": 342,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/file2.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9011,
+            "category": "Error",
+            "file": "/project/file2.ts",
+            "start": 120,
+            "length": 1,
+            "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/file2.ts",
+                "start": 109,
+                "length": 12,
+                "message": "Add a type annotation to the parameter ip.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9011,
+              "category": "Error",
+              "file": "/project/file2.ts",
+              "start": 120,
+              "length": 1,
+              "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/file2.ts",
+                  "start": 109,
+                  "length": 12,
+                  "message": "Add a type annotation to the parameter ip.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationsAddUndefined.ts#disabled",
+      "files": [
+        {
+          "path": "/project/file1.ts",
+          "text": "type N = 1;\nexport class Bar {\n    c? = [2 as N] as const;\n    c3? = 1 as N;\n    readonly r = 1;\n    f = 2;\n}\n"
+        },
+        {
+          "path": "/project/file2.ts",
+          "text": "export function foo(p = (ip = 10, v: number): void => {}): void{\n}\ntype T = number\nexport function foo2(p = (ip = 10 as T, v: number): void => {}): void{}\nexport class Bar2 {\n    readonly r = 1;\n    f = 2;\n}"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "source_sha256": "1d8e839553a6566d0bff911ae32e311fd2a8f032445981a2d80fa63bfca34265",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/file1.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyID0gdm9pZCAwOw0KY2xhc3MgQmFyIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5jID0gWzJdOw0KICAgICAgICB0aGlzLmMzID0gMTsNCiAgICAgICAgdGhpcy5yID0gMTsNCiAgICAgICAgdGhpcy5mID0gMjsNCiAgICB9DQp9DQpleHBvcnRzLkJhciA9IEJhcjsNCg==",
+            "callback_utf8_bytes": 253,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyID0gdm9pZCAwOw0KY2xhc3MgQmFyIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5jID0gWzJdOw0KICAgICAgICB0aGlzLmMzID0gMTsNCiAgICAgICAgdGhpcy5yID0gMTsNCiAgICAgICAgdGhpcy5mID0gMjsNCiAgICB9DQp9DQpleHBvcnRzLkJhciA9IEJhcjsNCg==",
+            "materialized_utf8_bytes": 253,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/file1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/file1.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBOID0gMTsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEJhciB7DQogICAgYz86IHJlYWRvbmx5IFsxXSB8IHVuZGVmaW5lZDsNCiAgICBjMz86IE47DQogICAgcmVhZG9ubHkgciA9IDE7DQogICAgZjogbnVtYmVyOw0KfQ0KZXhwb3J0IHt9Ow0K",
+            "callback_utf8_bytes": 141,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBOID0gMTsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEJhciB7DQogICAgYz86IHJlYWRvbmx5IFsxXSB8IHVuZGVmaW5lZDsNCiAgICBjMz86IE47DQogICAgcmVhZG9ubHkgciA9IDE7DQogICAgZjogbnVtYmVyOw0KfQ0KZXhwb3J0IHt9Ow0K",
+            "materialized_utf8_bytes": 141,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/file1.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/file2.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyMiA9IHZvaWQgMDsNCmV4cG9ydHMuZm9vID0gZm9vOw0KZXhwb3J0cy5mb28yID0gZm9vMjsNCmZ1bmN0aW9uIGZvbyhwID0gKGlwID0gMTAsIHYpID0+IHsgfSkgew0KfQ0KZnVuY3Rpb24gZm9vMihwID0gKGlwID0gMTAsIHYpID0+IHsgfSkgeyB9DQpjbGFzcyBCYXIyIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5yID0gMTsNCiAgICAgICAgdGhpcy5mID0gMjsNCiAgICB9DQp9DQpleHBvcnRzLkJhcjIgPSBCYXIyOw0K",
+            "callback_utf8_bytes": 342,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyMiA9IHZvaWQgMDsNCmV4cG9ydHMuZm9vID0gZm9vOw0KZXhwb3J0cy5mb28yID0gZm9vMjsNCmZ1bmN0aW9uIGZvbyhwID0gKGlwID0gMTAsIHYpID0+IHsgfSkgew0KfQ0KZnVuY3Rpb24gZm9vMihwID0gKGlwID0gMTAsIHYpID0+IHsgfSkgeyB9DQpjbGFzcyBCYXIyIHsNCiAgICBjb25zdHJ1Y3RvcigpIHsNCiAgICAgICAgdGhpcy5yID0gMTsNCiAgICAgICAgdGhpcy5mID0gMjsNCiAgICB9DQp9DQpleHBvcnRzLkJhcjIgPSBCYXIyOw0K",
+            "materialized_utf8_bytes": 342,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/file2.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/file2.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZm9vKHA/OiAoaXA6IG51bWJlciB8IHVuZGVmaW5lZCwgdjogbnVtYmVyKSA9PiB2b2lkKTogdm9pZDsNCnR5cGUgVCA9IG51bWJlcjsNCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIGZvbzIocD86IChpcDogVCB8IHVuZGVmaW5lZCwgdjogbnVtYmVyKSA9PiB2b2lkKTogdm9pZDsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEJhcjIgew0KICAgIHJlYWRvbmx5IHIgPSAxOw0KICAgIGY6IG51bWJlcjsNCn0NCmV4cG9ydCB7fTsNCg==",
+            "callback_utf8_bytes": 265,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZm9vKHA/OiAoaXA6IG51bWJlciB8IHVuZGVmaW5lZCwgdjogbnVtYmVyKSA9PiB2b2lkKTogdm9pZDsNCnR5cGUgVCA9IG51bWJlcjsNCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIGZvbzIocD86IChpcDogVCB8IHVuZGVmaW5lZCwgdjogbnVtYmVyKSA9PiB2b2lkKTogdm9pZDsNCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEJhcjIgew0KICAgIHJlYWRvbmx5IHIgPSAxOw0KICAgIGY6IG51bWJlcjsNCn0NCmV4cG9ydCB7fTsNCg==",
+            "materialized_utf8_bytes": 265,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/file2.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationsAddUndefined.ts#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/file1.ts",
+          "text": "type N = 1;\nexport class Bar {\n    c? = [2 as N] as const;\n    c3? = 1 as N;\n    readonly r = 1;\n    f = 2;\n}\n"
+        },
+        {
+          "path": "/project/file2.ts",
+          "text": "export function foo(p = (ip = 10, v: number): void => {}): void{\n}\ntype T = number\nexport function foo2(p = (ip = 10 as T, v: number): void => {}): void{}\nexport class Bar2 {\n    readonly r = 1;\n    f = 2;\n}"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "source_sha256": "1d8e839553a6566d0bff911ae32e311fd2a8f032445981a2d80fa63bfca34265",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9011,
+            "category": "Error",
+            "file": "/project/file2.ts",
+            "start": 120,
+            "length": 1,
+            "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/file2.ts",
+                "start": 109,
+                "length": 12,
+                "message": "Add a type annotation to the parameter ip.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9011,
+              "category": "Error",
+              "file": "/project/file2.ts",
+              "start": 120,
+              "length": 1,
+              "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/file2.ts",
+                  "start": 109,
+                  "length": 12,
+                  "message": "Add a type annotation to the parameter ip.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationsAddUndefined2.ts#enabled",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationsAddUndefined2.ts",
+          "text": "// https://github.com/microsoft/TypeScript/issues/60123\n\nexport class Bar {\n    constructor(private x?: Array | undefined) {}\n}\n\nexport class Bar2 {\n    constructor(private x?: Array) {}\n}\n\nexport class Bar3 {\n    constructor(private x: Array | undefined) {}\n}\n\nexport class Bar4 {\n    constructor(private x: Array) {}\n}\n\nexport function test1(x?: Array | undefined): void {}\n\nexport function test2(x?: Unresolved | undefined): void {}\n\nexport function test3(x?: Unresolved): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "source_sha256": "b9b4b92e23ba16b4d08e4d44a48cf41dd5763997507d0722c517ff66fa1b009d",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/isolatedDeclarationsAddUndefined2.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy82MDEyMw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyNCA9IGV4cG9ydHMuQmFyMyA9IGV4cG9ydHMuQmFyMiA9IGV4cG9ydHMuQmFyID0gdm9pZCAwOw0KZXhwb3J0cy50ZXN0MSA9IHRlc3QxOw0KZXhwb3J0cy50ZXN0MiA9IHRlc3QyOw0KZXhwb3J0cy50ZXN0MyA9IHRlc3QzOw0KY2xhc3MgQmFyIHsNCiAgICBjb25zdHJ1Y3Rvcih4KSB7DQogICAgICAgIHRoaXMueCA9IHg7DQogICAgfQ0KfQ0KZXhwb3J0cy5CYXIgPSBCYXI7DQpjbGFzcyBCYXIyIHsNCiAgICBjb25zdHJ1Y3Rvcih4KSB7DQogICAgICAgIHRoaXMueCA9IHg7DQogICAgfQ0KfQ0KZXhwb3J0cy5CYXIyID0gQmFyMjsNCmNsYXNzIEJhcjMgew0KICAgIGNvbnN0cnVjdG9yKHgpIHsNCiAgICAgICAgdGhpcy54ID0geDsNCiAgICB9DQp9DQpleHBvcnRzLkJhcjMgPSBCYXIzOw0KY2xhc3MgQmFyNCB7DQogICAgY29uc3RydWN0b3IoeCkgew0KICAgICAgICB0aGlzLnggPSB4Ow0KICAgIH0NCn0NCmV4cG9ydHMuQmFyNCA9IEJhcjQ7DQpmdW5jdGlvbiB0ZXN0MSh4KSB7IH0NCmZ1bmN0aW9uIHRlc3QyKHgpIHsgfQ0KZnVuY3Rpb24gdGVzdDMoeCkgeyB9DQo=",
+            "callback_utf8_bytes": 698,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy82MDEyMw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyNCA9IGV4cG9ydHMuQmFyMyA9IGV4cG9ydHMuQmFyMiA9IGV4cG9ydHMuQmFyID0gdm9pZCAwOw0KZXhwb3J0cy50ZXN0MSA9IHRlc3QxOw0KZXhwb3J0cy50ZXN0MiA9IHRlc3QyOw0KZXhwb3J0cy50ZXN0MyA9IHRlc3QzOw0KY2xhc3MgQmFyIHsNCiAgICBjb25zdHJ1Y3Rvcih4KSB7DQogICAgICAgIHRoaXMueCA9IHg7DQogICAgfQ0KfQ0KZXhwb3J0cy5CYXIgPSBCYXI7DQpjbGFzcyBCYXIyIHsNCiAgICBjb25zdHJ1Y3Rvcih4KSB7DQogICAgICAgIHRoaXMueCA9IHg7DQogICAgfQ0KfQ0KZXhwb3J0cy5CYXIyID0gQmFyMjsNCmNsYXNzIEJhcjMgew0KICAgIGNvbnN0cnVjdG9yKHgpIHsNCiAgICAgICAgdGhpcy54ID0geDsNCiAgICB9DQp9DQpleHBvcnRzLkJhcjMgPSBCYXIzOw0KY2xhc3MgQmFyNCB7DQogICAgY29uc3RydWN0b3IoeCkgew0KICAgICAgICB0aGlzLnggPSB4Ow0KICAgIH0NCn0NCmV4cG9ydHMuQmFyNCA9IEJhcjQ7DQpmdW5jdGlvbiB0ZXN0MSh4KSB7IH0NCmZ1bmN0aW9uIHRlc3QyKHgpIHsgfQ0KZnVuY3Rpb24gdGVzdDMoeCkgeyB9DQo=",
+            "materialized_utf8_bytes": 698,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationsAddUndefined2.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/isolatedDeclarationsAddUndefined2.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQmFyIHsNCiAgICBwcml2YXRlIHg/Ow0KICAgIGNvbnN0cnVjdG9yKHg/OiBBcnJheSB8IHVuZGVmaW5lZCk7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIyIHsNCiAgICBwcml2YXRlIHg/Ow0KICAgIGNvbnN0cnVjdG9yKHg/OiBBcnJheSk7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIzIHsNCiAgICBwcml2YXRlIHg7DQogICAgY29uc3RydWN0b3IoeDogQXJyYXkgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgQmFyNCB7DQogICAgcHJpdmF0ZSB4Ow0KICAgIGNvbnN0cnVjdG9yKHg6IEFycmF5KTsNCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIHRlc3QxKHg/OiBBcnJheSB8IHVuZGVmaW5lZCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0ZXN0Mih4PzogVW5yZXNvbHZlZCB8IHVuZGVmaW5lZCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0ZXN0Myh4PzogVW5yZXNvbHZlZCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 512,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQmFyIHsNCiAgICBwcml2YXRlIHg/Ow0KICAgIGNvbnN0cnVjdG9yKHg/OiBBcnJheSB8IHVuZGVmaW5lZCk7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIyIHsNCiAgICBwcml2YXRlIHg/Ow0KICAgIGNvbnN0cnVjdG9yKHg/OiBBcnJheSk7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIzIHsNCiAgICBwcml2YXRlIHg7DQogICAgY29uc3RydWN0b3IoeDogQXJyYXkgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgQmFyNCB7DQogICAgcHJpdmF0ZSB4Ow0KICAgIGNvbnN0cnVjdG9yKHg6IEFycmF5KTsNCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIHRlc3QxKHg/OiBBcnJheSB8IHVuZGVmaW5lZCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0ZXN0Mih4PzogVW5yZXNvbHZlZCB8IHVuZGVmaW5lZCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0ZXN0Myh4PzogVW5yZXNvbHZlZCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 512,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationsAddUndefined2.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 104,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 177,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 237,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 309,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 348,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 403,
+            "length": 10,
+            "message": "Cannot find name 'Unresolved'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 463,
+            "length": 10,
+            "message": "Cannot find name 'Unresolved'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationsAddUndefined2.ts#disabled",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationsAddUndefined2.ts",
+          "text": "// https://github.com/microsoft/TypeScript/issues/60123\n\nexport class Bar {\n    constructor(private x?: Array | undefined) {}\n}\n\nexport class Bar2 {\n    constructor(private x?: Array) {}\n}\n\nexport class Bar3 {\n    constructor(private x: Array | undefined) {}\n}\n\nexport class Bar4 {\n    constructor(private x: Array) {}\n}\n\nexport function test1(x?: Array | undefined): void {}\n\nexport function test2(x?: Unresolved | undefined): void {}\n\nexport function test3(x?: Unresolved): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "source_sha256": "b9b4b92e23ba16b4d08e4d44a48cf41dd5763997507d0722c517ff66fa1b009d",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/isolatedDeclarationsAddUndefined2.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy82MDEyMw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyNCA9IGV4cG9ydHMuQmFyMyA9IGV4cG9ydHMuQmFyMiA9IGV4cG9ydHMuQmFyID0gdm9pZCAwOw0KZXhwb3J0cy50ZXN0MSA9IHRlc3QxOw0KZXhwb3J0cy50ZXN0MiA9IHRlc3QyOw0KZXhwb3J0cy50ZXN0MyA9IHRlc3QzOw0KY2xhc3MgQmFyIHsNCiAgICBjb25zdHJ1Y3Rvcih4KSB7DQogICAgICAgIHRoaXMueCA9IHg7DQogICAgfQ0KfQ0KZXhwb3J0cy5CYXIgPSBCYXI7DQpjbGFzcyBCYXIyIHsNCiAgICBjb25zdHJ1Y3Rvcih4KSB7DQogICAgICAgIHRoaXMueCA9IHg7DQogICAgfQ0KfQ0KZXhwb3J0cy5CYXIyID0gQmFyMjsNCmNsYXNzIEJhcjMgew0KICAgIGNvbnN0cnVjdG9yKHgpIHsNCiAgICAgICAgdGhpcy54ID0geDsNCiAgICB9DQp9DQpleHBvcnRzLkJhcjMgPSBCYXIzOw0KY2xhc3MgQmFyNCB7DQogICAgY29uc3RydWN0b3IoeCkgew0KICAgICAgICB0aGlzLnggPSB4Ow0KICAgIH0NCn0NCmV4cG9ydHMuQmFyNCA9IEJhcjQ7DQpmdW5jdGlvbiB0ZXN0MSh4KSB7IH0NCmZ1bmN0aW9uIHRlc3QyKHgpIHsgfQ0KZnVuY3Rpb24gdGVzdDMoeCkgeyB9DQo=",
+            "callback_utf8_bytes": 698,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KLy8gaHR0cHM6Ly9naXRodWIuY29tL21pY3Jvc29mdC9UeXBlU2NyaXB0L2lzc3Vlcy82MDEyMw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuQmFyNCA9IGV4cG9ydHMuQmFyMyA9IGV4cG9ydHMuQmFyMiA9IGV4cG9ydHMuQmFyID0gdm9pZCAwOw0KZXhwb3J0cy50ZXN0MSA9IHRlc3QxOw0KZXhwb3J0cy50ZXN0MiA9IHRlc3QyOw0KZXhwb3J0cy50ZXN0MyA9IHRlc3QzOw0KY2xhc3MgQmFyIHsNCiAgICBjb25zdHJ1Y3Rvcih4KSB7DQogICAgICAgIHRoaXMueCA9IHg7DQogICAgfQ0KfQ0KZXhwb3J0cy5CYXIgPSBCYXI7DQpjbGFzcyBCYXIyIHsNCiAgICBjb25zdHJ1Y3Rvcih4KSB7DQogICAgICAgIHRoaXMueCA9IHg7DQogICAgfQ0KfQ0KZXhwb3J0cy5CYXIyID0gQmFyMjsNCmNsYXNzIEJhcjMgew0KICAgIGNvbnN0cnVjdG9yKHgpIHsNCiAgICAgICAgdGhpcy54ID0geDsNCiAgICB9DQp9DQpleHBvcnRzLkJhcjMgPSBCYXIzOw0KY2xhc3MgQmFyNCB7DQogICAgY29uc3RydWN0b3IoeCkgew0KICAgICAgICB0aGlzLnggPSB4Ow0KICAgIH0NCn0NCmV4cG9ydHMuQmFyNCA9IEJhcjQ7DQpmdW5jdGlvbiB0ZXN0MSh4KSB7IH0NCmZ1bmN0aW9uIHRlc3QyKHgpIHsgfQ0KZnVuY3Rpb24gdGVzdDMoeCkgeyB9DQo=",
+            "materialized_utf8_bytes": 698,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationsAddUndefined2.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/isolatedDeclarationsAddUndefined2.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQmFyIHsNCiAgICBwcml2YXRlIHg/Ow0KICAgIGNvbnN0cnVjdG9yKHg/OiBBcnJheSB8IHVuZGVmaW5lZCk7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIyIHsNCiAgICBwcml2YXRlIHg/Ow0KICAgIGNvbnN0cnVjdG9yKHg/OiBBcnJheSk7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIzIHsNCiAgICBwcml2YXRlIHg7DQogICAgY29uc3RydWN0b3IoeDogQXJyYXkgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgQmFyNCB7DQogICAgcHJpdmF0ZSB4Ow0KICAgIGNvbnN0cnVjdG9yKHg6IEFycmF5KTsNCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIHRlc3QxKHg/OiBBcnJheSB8IHVuZGVmaW5lZCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0ZXN0Mih4PzogVW5yZXNvbHZlZCB8IHVuZGVmaW5lZCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0ZXN0Myh4PzogVW5yZXNvbHZlZCk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 512,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY2xhc3MgQmFyIHsNCiAgICBwcml2YXRlIHg/Ow0KICAgIGNvbnN0cnVjdG9yKHg/OiBBcnJheSB8IHVuZGVmaW5lZCk7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIyIHsNCiAgICBwcml2YXRlIHg/Ow0KICAgIGNvbnN0cnVjdG9yKHg/OiBBcnJheSk7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBCYXIzIHsNCiAgICBwcml2YXRlIHg7DQogICAgY29uc3RydWN0b3IoeDogQXJyYXkgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgQmFyNCB7DQogICAgcHJpdmF0ZSB4Ow0KICAgIGNvbnN0cnVjdG9yKHg6IEFycmF5KTsNCn0NCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIHRlc3QxKHg/OiBBcnJheSB8IHVuZGVmaW5lZCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0ZXN0Mih4PzogVW5yZXNvbHZlZCB8IHVuZGVmaW5lZCk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiB0ZXN0Myh4PzogVW5yZXNvbHZlZCk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 512,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationsAddUndefined2.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 104,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 177,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 237,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 309,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 348,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 403,
+            "length": 10,
+            "message": "Cannot find name 'Unresolved'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 463,
+            "length": 10,
+            "message": "Cannot find name 'Unresolved'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationsAddUndefined2.ts#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationsAddUndefined2.ts",
+          "text": "// https://github.com/microsoft/TypeScript/issues/60123\n\nexport class Bar {\n    constructor(private x?: Array | undefined) {}\n}\n\nexport class Bar2 {\n    constructor(private x?: Array) {}\n}\n\nexport class Bar3 {\n    constructor(private x: Array | undefined) {}\n}\n\nexport class Bar4 {\n    constructor(private x: Array) {}\n}\n\nexport function test1(x?: Array | undefined): void {}\n\nexport function test2(x?: Unresolved | undefined): void {}\n\nexport function test3(x?: Unresolved): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "source_sha256": "b9b4b92e23ba16b4d08e4d44a48cf41dd5763997507d0722c517ff66fa1b009d",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 104,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 177,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 237,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 309,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2314,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 348,
+            "length": 5,
+            "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 403,
+            "length": 10,
+            "message": "Cannot find name 'Unresolved'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+            "start": 463,
+            "length": 10,
+            "message": "Cannot find name 'Unresolved'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+              "start": 104,
+              "length": 5,
+              "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+              "start": 177,
+              "length": 5,
+              "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+              "start": 237,
+              "length": 5,
+              "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+              "start": 309,
+              "length": 5,
+              "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2314,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+              "start": 348,
+              "length": 5,
+              "message": "Generic type 'Array<T>' requires 1 type argument(s).",
+              "related_information": null
+            },
+            {
+              "code": 2304,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+              "start": 403,
+              "length": 10,
+              "message": "Cannot find name 'Unresolved'.",
+              "related_information": null
+            },
+            {
+              "code": 2304,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationsAddUndefined2.ts",
+              "start": 463,
+              "length": 10,
+              "message": "Cannot find name 'Unresolved'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsFunctionDeclarations.ts#enabled",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+          "text": "export function noReturn() {}\n\nexport function noParamAnnotation(p): void {}\n\nexport function noParamAnnotationDefault(p = 1): void {}\n\nexport function noParamAnnotationBadDefault(p = 1 + 1, p2 = { a: 1 + 1 }, p3 = [1 + 1] as const): void {}\n\nexport function noParamAnnotationBadDefault2(p = { a: 1 + 1 }): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "source_sha256": "8f2fb5f275e85a8b109fbc3847bdcc6bae2d9e20003854a096a41d6ce824d1ab",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/isolatedDeclarationErrorsFunctionDeclarations.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubm9SZXR1cm4gPSBub1JldHVybjsNCmV4cG9ydHMubm9QYXJhbUFubm90YXRpb24gPSBub1BhcmFtQW5ub3RhdGlvbjsNCmV4cG9ydHMubm9QYXJhbUFubm90YXRpb25EZWZhdWx0ID0gbm9QYXJhbUFubm90YXRpb25EZWZhdWx0Ow0KZXhwb3J0cy5ub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQgPSBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQ7DQpleHBvcnRzLm5vUGFyYW1Bbm5vdGF0aW9uQmFkRGVmYXVsdDIgPSBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQyOw0KZnVuY3Rpb24gbm9SZXR1cm4oKSB7IH0NCmZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uKHApIHsgfQ0KZnVuY3Rpb24gbm9QYXJhbUFubm90YXRpb25EZWZhdWx0KHAgPSAxKSB7IH0NCmZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uQmFkRGVmYXVsdChwID0gMSArIDEsIHAyID0geyBhOiAxICsgMSB9LCBwMyA9IFsxICsgMV0pIHsgfQ0KZnVuY3Rpb24gbm9QYXJhbUFubm90YXRpb25CYWREZWZhdWx0MihwID0geyBhOiAxICsgMSB9KSB7IH0NCg==",
+            "callback_utf8_bytes": 610,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubm9SZXR1cm4gPSBub1JldHVybjsNCmV4cG9ydHMubm9QYXJhbUFubm90YXRpb24gPSBub1BhcmFtQW5ub3RhdGlvbjsNCmV4cG9ydHMubm9QYXJhbUFubm90YXRpb25EZWZhdWx0ID0gbm9QYXJhbUFubm90YXRpb25EZWZhdWx0Ow0KZXhwb3J0cy5ub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQgPSBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQ7DQpleHBvcnRzLm5vUGFyYW1Bbm5vdGF0aW9uQmFkRGVmYXVsdDIgPSBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQyOw0KZnVuY3Rpb24gbm9SZXR1cm4oKSB7IH0NCmZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uKHApIHsgfQ0KZnVuY3Rpb24gbm9QYXJhbUFubm90YXRpb25EZWZhdWx0KHAgPSAxKSB7IH0NCmZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uQmFkRGVmYXVsdChwID0gMSArIDEsIHAyID0geyBhOiAxICsgMSB9LCBwMyA9IFsxICsgMV0pIHsgfQ0KZnVuY3Rpb24gbm9QYXJhbUFubm90YXRpb25CYWREZWZhdWx0MihwID0geyBhOiAxICsgMSB9KSB7IH0NCg==",
+            "materialized_utf8_bytes": 610,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsFunctionDeclarations.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9007,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 16,
+            "length": 8,
+            "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9031,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 16,
+                "length": 8,
+                "message": "Add a return type to the function declaration.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9011,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 65,
+            "length": 1,
+            "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 65,
+                "length": 1,
+                "message": "Add a type annotation to the parameter p.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9011,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 184,
+            "length": 5,
+            "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 180,
+                "length": 9,
+                "message": "Add a type annotation to the parameter p.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9013,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 201,
+            "length": 5,
+            "message": "Expression type can't be inferred with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 191,
+                "length": 17,
+                "message": "Add a type annotation to the parameter p2.",
+                "related_information": null
+              },
+              {
+                "code": 9035,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 201,
+                "length": 5,
+                "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9013,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 216,
+            "length": 5,
+            "message": "Expression type can't be inferred with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 210,
+                "length": 21,
+                "message": "Add a type annotation to the parameter p3.",
+                "related_information": null
+              },
+              {
+                "code": 9035,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 216,
+                "length": 5,
+                "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9013,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 297,
+            "length": 5,
+            "message": "Expression type can't be inferred with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 288,
+                "length": 16,
+                "message": "Add a type annotation to the parameter p.",
+                "related_information": null
+              },
+              {
+                "code": 9035,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 297,
+                "length": 5,
+                "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9007,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 16,
+              "length": 8,
+              "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9031,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 16,
+                  "length": 8,
+                  "message": "Add a return type to the function declaration.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9011,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 65,
+              "length": 1,
+              "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 65,
+                  "length": 1,
+                  "message": "Add a type annotation to the parameter p.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9011,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 184,
+              "length": 5,
+              "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 180,
+                  "length": 9,
+                  "message": "Add a type annotation to the parameter p.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9013,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 201,
+              "length": 5,
+              "message": "Expression type can't be inferred with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 191,
+                  "length": 17,
+                  "message": "Add a type annotation to the parameter p2.",
+                  "related_information": null
+                },
+                {
+                  "code": 9035,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 201,
+                  "length": 5,
+                  "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9013,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 216,
+              "length": 5,
+              "message": "Expression type can't be inferred with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 210,
+                  "length": 21,
+                  "message": "Add a type annotation to the parameter p3.",
+                  "related_information": null
+                },
+                {
+                  "code": 9035,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 216,
+                  "length": 5,
+                  "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9013,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 297,
+              "length": 5,
+              "message": "Expression type can't be inferred with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 288,
+                  "length": 16,
+                  "message": "Add a type annotation to the parameter p.",
+                  "related_information": null
+                },
+                {
+                  "code": 9035,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 297,
+                  "length": 5,
+                  "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsFunctionDeclarations.ts#disabled",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+          "text": "export function noReturn() {}\n\nexport function noParamAnnotation(p): void {}\n\nexport function noParamAnnotationDefault(p = 1): void {}\n\nexport function noParamAnnotationBadDefault(p = 1 + 1, p2 = { a: 1 + 1 }, p3 = [1 + 1] as const): void {}\n\nexport function noParamAnnotationBadDefault2(p = { a: 1 + 1 }): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "source_sha256": "8f2fb5f275e85a8b109fbc3847bdcc6bae2d9e20003854a096a41d6ce824d1ab",
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/isolatedDeclarationErrorsFunctionDeclarations.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubm9SZXR1cm4gPSBub1JldHVybjsNCmV4cG9ydHMubm9QYXJhbUFubm90YXRpb24gPSBub1BhcmFtQW5ub3RhdGlvbjsNCmV4cG9ydHMubm9QYXJhbUFubm90YXRpb25EZWZhdWx0ID0gbm9QYXJhbUFubm90YXRpb25EZWZhdWx0Ow0KZXhwb3J0cy5ub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQgPSBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQ7DQpleHBvcnRzLm5vUGFyYW1Bbm5vdGF0aW9uQmFkRGVmYXVsdDIgPSBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQyOw0KZnVuY3Rpb24gbm9SZXR1cm4oKSB7IH0NCmZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uKHApIHsgfQ0KZnVuY3Rpb24gbm9QYXJhbUFubm90YXRpb25EZWZhdWx0KHAgPSAxKSB7IH0NCmZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uQmFkRGVmYXVsdChwID0gMSArIDEsIHAyID0geyBhOiAxICsgMSB9LCBwMyA9IFsxICsgMV0pIHsgfQ0KZnVuY3Rpb24gbm9QYXJhbUFubm90YXRpb25CYWREZWZhdWx0MihwID0geyBhOiAxICsgMSB9KSB7IH0NCg==",
+            "callback_utf8_bytes": 610,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubm9SZXR1cm4gPSBub1JldHVybjsNCmV4cG9ydHMubm9QYXJhbUFubm90YXRpb24gPSBub1BhcmFtQW5ub3RhdGlvbjsNCmV4cG9ydHMubm9QYXJhbUFubm90YXRpb25EZWZhdWx0ID0gbm9QYXJhbUFubm90YXRpb25EZWZhdWx0Ow0KZXhwb3J0cy5ub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQgPSBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQ7DQpleHBvcnRzLm5vUGFyYW1Bbm5vdGF0aW9uQmFkRGVmYXVsdDIgPSBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQyOw0KZnVuY3Rpb24gbm9SZXR1cm4oKSB7IH0NCmZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uKHApIHsgfQ0KZnVuY3Rpb24gbm9QYXJhbUFubm90YXRpb25EZWZhdWx0KHAgPSAxKSB7IH0NCmZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uQmFkRGVmYXVsdChwID0gMSArIDEsIHAyID0geyBhOiAxICsgMSB9LCBwMyA9IFsxICsgMV0pIHsgfQ0KZnVuY3Rpb24gbm9QYXJhbUFubm90YXRpb25CYWREZWZhdWx0MihwID0geyBhOiAxICsgMSB9KSB7IH0NCg==",
+            "materialized_utf8_bytes": 610,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsFunctionDeclarations.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/isolatedDeclarationErrorsFunctionDeclarations.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gbm9SZXR1cm4oKTogdm9pZDsNCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uKHA6IGFueSk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBub1BhcmFtQW5ub3RhdGlvbkRlZmF1bHQocD86IG51bWJlcik6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQocD86IG51bWJlciwgcDI/OiB7DQogICAgYTogbnVtYmVyOw0KfSwgcDM/OiByZWFkb25seSBbbnVtYmVyXSk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQyKHA/OiB7DQogICAgYTogbnVtYmVyOw0KfSk6IHZvaWQ7DQo=",
+            "callback_utf8_bytes": 380,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gbm9SZXR1cm4oKTogdm9pZDsNCmV4cG9ydCBkZWNsYXJlIGZ1bmN0aW9uIG5vUGFyYW1Bbm5vdGF0aW9uKHA6IGFueSk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBub1BhcmFtQW5ub3RhdGlvbkRlZmF1bHQocD86IG51bWJlcik6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQocD86IG51bWJlciwgcDI/OiB7DQogICAgYTogbnVtYmVyOw0KfSwgcDM/OiByZWFkb25seSBbbnVtYmVyXSk6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBub1BhcmFtQW5ub3RhdGlvbkJhZERlZmF1bHQyKHA/OiB7DQogICAgYTogbnVtYmVyOw0KfSk6IHZvaWQ7DQo=",
+            "materialized_utf8_bytes": 380,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/isolatedDeclarationErrorsFunctionDeclarations.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "compiler/isolatedDeclarationErrorsFunctionDeclarations.ts#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+          "text": "export function noReturn() {}\n\nexport function noParamAnnotation(p): void {}\n\nexport function noParamAnnotationDefault(p = 1): void {}\n\nexport function noParamAnnotationBadDefault(p = 1 + 1, p2 = { a: 1 + 1 }, p3 = [1 + 1] as const): void {}\n\nexport function noParamAnnotationBadDefault2(p = { a: 1 + 1 }): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "source_sha256": "8f2fb5f275e85a8b109fbc3847bdcc6bae2d9e20003854a096a41d6ce824d1ab",
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9007,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 16,
+            "length": 8,
+            "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9031,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 16,
+                "length": 8,
+                "message": "Add a return type to the function declaration.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9011,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 65,
+            "length": 1,
+            "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 65,
+                "length": 1,
+                "message": "Add a type annotation to the parameter p.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9011,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 184,
+            "length": 5,
+            "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 180,
+                "length": 9,
+                "message": "Add a type annotation to the parameter p.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9013,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 201,
+            "length": 5,
+            "message": "Expression type can't be inferred with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 191,
+                "length": 17,
+                "message": "Add a type annotation to the parameter p2.",
+                "related_information": null
+              },
+              {
+                "code": 9035,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 201,
+                "length": 5,
+                "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9013,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 216,
+            "length": 5,
+            "message": "Expression type can't be inferred with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 210,
+                "length": 21,
+                "message": "Add a type annotation to the parameter p3.",
+                "related_information": null
+              },
+              {
+                "code": 9035,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 216,
+                "length": 5,
+                "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9013,
+            "category": "Error",
+            "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+            "start": 297,
+            "length": 5,
+            "message": "Expression type can't be inferred with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 288,
+                "length": 16,
+                "message": "Add a type annotation to the parameter p.",
+                "related_information": null
+              },
+              {
+                "code": 9035,
+                "category": "Error",
+                "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                "start": 297,
+                "length": 5,
+                "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9007,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 16,
+              "length": 8,
+              "message": "Function must have an explicit return type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9031,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 16,
+                  "length": 8,
+                  "message": "Add a return type to the function declaration.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9011,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 65,
+              "length": 1,
+              "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 65,
+                  "length": 1,
+                  "message": "Add a type annotation to the parameter p.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9011,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 184,
+              "length": 5,
+              "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 180,
+                  "length": 9,
+                  "message": "Add a type annotation to the parameter p.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9013,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 201,
+              "length": 5,
+              "message": "Expression type can't be inferred with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 191,
+                  "length": 17,
+                  "message": "Add a type annotation to the parameter p2.",
+                  "related_information": null
+                },
+                {
+                  "code": 9035,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 201,
+                  "length": 5,
+                  "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9013,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 216,
+              "length": 5,
+              "message": "Expression type can't be inferred with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 210,
+                  "length": 21,
+                  "message": "Add a type annotation to the parameter p3.",
+                  "related_information": null
+                },
+                {
+                  "code": 9035,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 216,
+                  "length": 5,
+                  "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9013,
+              "category": "Error",
+              "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+              "start": 297,
+              "length": 5,
+              "message": "Expression type can't be inferred with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 288,
+                  "length": 16,
+                  "message": "Add a type annotation to the parameter p.",
+                  "related_information": null
+                },
+                {
+                  "code": 9035,
+                  "category": "Error",
+                  "file": "/project/isolatedDeclarationErrorsFunctionDeclarations.ts",
+                  "start": 297,
+                  "length": 5,
+                  "message": "Add satisfies and a type assertion to this expression (satisfies T as T) to make the type explicit.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/required-initialized-parameters#enabled",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/parameters.ts",
+          "text": "\ntype T = number;\nexport function alias(value: T = 1, required: number): void {}\nexport function primitive(value: number = 1, required: number): void {}\nexport function inferred(value = 1, required: number): void {}\nexport function explicitUndefined(value: T | undefined = 1, required: number): void {}\nexport function optional(value: T = 1): void {}\nexport const nested = (fn = (value: T = 1, required: number): void => {}): void => {};\nexport function destructured({ value } = { value: 1 }, required: number): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/good.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZ29vZCA9IHZvaWQgMDsNCmV4cG9ydHMuZ29vZCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZ29vZCA9IHZvaWQgMDsNCmV4cG9ydHMuZ29vZCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/good.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZ29vZDogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZ29vZDogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parameters.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubmVzdGVkID0gdm9pZCAwOw0KZXhwb3J0cy5hbGlhcyA9IGFsaWFzOw0KZXhwb3J0cy5wcmltaXRpdmUgPSBwcmltaXRpdmU7DQpleHBvcnRzLmluZmVycmVkID0gaW5mZXJyZWQ7DQpleHBvcnRzLmV4cGxpY2l0VW5kZWZpbmVkID0gZXhwbGljaXRVbmRlZmluZWQ7DQpleHBvcnRzLm9wdGlvbmFsID0gb3B0aW9uYWw7DQpleHBvcnRzLmRlc3RydWN0dXJlZCA9IGRlc3RydWN0dXJlZDsNCmZ1bmN0aW9uIGFsaWFzKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gcHJpbWl0aXZlKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gaW5mZXJyZWQodmFsdWUgPSAxLCByZXF1aXJlZCkgeyB9DQpmdW5jdGlvbiBleHBsaWNpdFVuZGVmaW5lZCh2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7IH0NCmZ1bmN0aW9uIG9wdGlvbmFsKHZhbHVlID0gMSkgeyB9DQpjb25zdCBuZXN0ZWQgPSAoZm4gPSAodmFsdWUgPSAxLCByZXF1aXJlZCkgPT4geyB9KSA9PiB7IH07DQpleHBvcnRzLm5lc3RlZCA9IG5lc3RlZDsNCmZ1bmN0aW9uIGRlc3RydWN0dXJlZCh7IHZhbHVlIH0gPSB7IHZhbHVlOiAxIH0sIHJlcXVpcmVkKSB7IH0NCg==",
+            "callback_utf8_bytes": 673,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubmVzdGVkID0gdm9pZCAwOw0KZXhwb3J0cy5hbGlhcyA9IGFsaWFzOw0KZXhwb3J0cy5wcmltaXRpdmUgPSBwcmltaXRpdmU7DQpleHBvcnRzLmluZmVycmVkID0gaW5mZXJyZWQ7DQpleHBvcnRzLmV4cGxpY2l0VW5kZWZpbmVkID0gZXhwbGljaXRVbmRlZmluZWQ7DQpleHBvcnRzLm9wdGlvbmFsID0gb3B0aW9uYWw7DQpleHBvcnRzLmRlc3RydWN0dXJlZCA9IGRlc3RydWN0dXJlZDsNCmZ1bmN0aW9uIGFsaWFzKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gcHJpbWl0aXZlKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gaW5mZXJyZWQodmFsdWUgPSAxLCByZXF1aXJlZCkgeyB9DQpmdW5jdGlvbiBleHBsaWNpdFVuZGVmaW5lZCh2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7IH0NCmZ1bmN0aW9uIG9wdGlvbmFsKHZhbHVlID0gMSkgeyB9DQpjb25zdCBuZXN0ZWQgPSAoZm4gPSAodmFsdWUgPSAxLCByZXF1aXJlZCkgPT4geyB9KSA9PiB7IH07DQpleHBvcnRzLm5lc3RlZCA9IG5lc3RlZDsNCmZ1bmN0aW9uIGRlc3RydWN0dXJlZCh7IHZhbHVlIH0gPSB7IHZhbHVlOiAxIH0sIHJlcXVpcmVkKSB7IH0NCg==",
+            "materialized_utf8_bytes": 673,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parameters.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/parameters.ts",
+            "start": 40,
+            "length": 12,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/parameters.ts",
+                "start": 40,
+                "length": 12,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/parameters.ts",
+            "start": 380,
+            "length": 12,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/parameters.ts",
+                "start": 380,
+                "length": 12,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/parameters.ts",
+            "start": 467,
+            "length": 24,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/parameters.ts",
+                "start": 467,
+                "length": 24,
+                "message": "Add a type annotation to the parameter { value }.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/parameters.ts",
+              "start": 40,
+              "length": 12,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/parameters.ts",
+                  "start": 40,
+                  "length": 12,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/parameters.ts",
+              "start": 380,
+              "length": 12,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/parameters.ts",
+                  "start": 380,
+                  "length": 12,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/parameters.ts",
+              "start": 467,
+              "length": 24,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/parameters.ts",
+                  "start": 467,
+                  "length": 24,
+                  "message": "Add a type annotation to the parameter { value }.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/required-initialized-parameters#disabled",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/parameters.ts",
+          "text": "\ntype T = number;\nexport function alias(value: T = 1, required: number): void {}\nexport function primitive(value: number = 1, required: number): void {}\nexport function inferred(value = 1, required: number): void {}\nexport function explicitUndefined(value: T | undefined = 1, required: number): void {}\nexport function optional(value: T = 1): void {}\nexport const nested = (fn = (value: T = 1, required: number): void => {}): void => {};\nexport function destructured({ value } = { value: 1 }, required: number): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/good.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZ29vZCA9IHZvaWQgMDsNCmV4cG9ydHMuZ29vZCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZ29vZCA9IHZvaWQgMDsNCmV4cG9ydHMuZ29vZCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/good.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZ29vZDogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZ29vZDogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parameters.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubmVzdGVkID0gdm9pZCAwOw0KZXhwb3J0cy5hbGlhcyA9IGFsaWFzOw0KZXhwb3J0cy5wcmltaXRpdmUgPSBwcmltaXRpdmU7DQpleHBvcnRzLmluZmVycmVkID0gaW5mZXJyZWQ7DQpleHBvcnRzLmV4cGxpY2l0VW5kZWZpbmVkID0gZXhwbGljaXRVbmRlZmluZWQ7DQpleHBvcnRzLm9wdGlvbmFsID0gb3B0aW9uYWw7DQpleHBvcnRzLmRlc3RydWN0dXJlZCA9IGRlc3RydWN0dXJlZDsNCmZ1bmN0aW9uIGFsaWFzKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gcHJpbWl0aXZlKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gaW5mZXJyZWQodmFsdWUgPSAxLCByZXF1aXJlZCkgeyB9DQpmdW5jdGlvbiBleHBsaWNpdFVuZGVmaW5lZCh2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7IH0NCmZ1bmN0aW9uIG9wdGlvbmFsKHZhbHVlID0gMSkgeyB9DQpjb25zdCBuZXN0ZWQgPSAoZm4gPSAodmFsdWUgPSAxLCByZXF1aXJlZCkgPT4geyB9KSA9PiB7IH07DQpleHBvcnRzLm5lc3RlZCA9IG5lc3RlZDsNCmZ1bmN0aW9uIGRlc3RydWN0dXJlZCh7IHZhbHVlIH0gPSB7IHZhbHVlOiAxIH0sIHJlcXVpcmVkKSB7IH0NCg==",
+            "callback_utf8_bytes": 673,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubmVzdGVkID0gdm9pZCAwOw0KZXhwb3J0cy5hbGlhcyA9IGFsaWFzOw0KZXhwb3J0cy5wcmltaXRpdmUgPSBwcmltaXRpdmU7DQpleHBvcnRzLmluZmVycmVkID0gaW5mZXJyZWQ7DQpleHBvcnRzLmV4cGxpY2l0VW5kZWZpbmVkID0gZXhwbGljaXRVbmRlZmluZWQ7DQpleHBvcnRzLm9wdGlvbmFsID0gb3B0aW9uYWw7DQpleHBvcnRzLmRlc3RydWN0dXJlZCA9IGRlc3RydWN0dXJlZDsNCmZ1bmN0aW9uIGFsaWFzKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gcHJpbWl0aXZlKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gaW5mZXJyZWQodmFsdWUgPSAxLCByZXF1aXJlZCkgeyB9DQpmdW5jdGlvbiBleHBsaWNpdFVuZGVmaW5lZCh2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7IH0NCmZ1bmN0aW9uIG9wdGlvbmFsKHZhbHVlID0gMSkgeyB9DQpjb25zdCBuZXN0ZWQgPSAoZm4gPSAodmFsdWUgPSAxLCByZXF1aXJlZCkgPT4geyB9KSA9PiB7IH07DQpleHBvcnRzLm5lc3RlZCA9IG5lc3RlZDsNCmZ1bmN0aW9uIGRlc3RydWN0dXJlZCh7IHZhbHVlIH0gPSB7IHZhbHVlOiAxIH0sIHJlcXVpcmVkKSB7IH0NCg==",
+            "materialized_utf8_bytes": 673,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parameters.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/parameters.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gYWxpYXModmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gcHJpbWl0aXZlKHZhbHVlOiBudW1iZXIgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gaW5mZXJyZWQodmFsdWU6IG51bWJlciB8IHVuZGVmaW5lZCwgcmVxdWlyZWQ6IG51bWJlcik6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBleHBsaWNpdFVuZGVmaW5lZCh2YWx1ZTogVCB8IHVuZGVmaW5lZCwgcmVxdWlyZWQ6IG51bWJlcik6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBvcHRpb25hbCh2YWx1ZT86IFQpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgbmVzdGVkOiAoZm4/OiAodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpID0+IHZvaWQpID0+IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBkZXN0cnVjdHVyZWQoeyB2YWx1ZSB9OiB7DQogICAgdmFsdWU6IG51bWJlcjsNCn0gfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IHt9Ow0K",
+            "callback_utf8_bytes": 630,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gYWxpYXModmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gcHJpbWl0aXZlKHZhbHVlOiBudW1iZXIgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gaW5mZXJyZWQodmFsdWU6IG51bWJlciB8IHVuZGVmaW5lZCwgcmVxdWlyZWQ6IG51bWJlcik6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBleHBsaWNpdFVuZGVmaW5lZCh2YWx1ZTogVCB8IHVuZGVmaW5lZCwgcmVxdWlyZWQ6IG51bWJlcik6IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBvcHRpb25hbCh2YWx1ZT86IFQpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgY29uc3QgbmVzdGVkOiAoZm4/OiAodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpID0+IHZvaWQpID0+IHZvaWQ7DQpleHBvcnQgZGVjbGFyZSBmdW5jdGlvbiBkZXN0cnVjdHVyZWQoeyB2YWx1ZSB9OiB7DQogICAgdmFsdWU6IG51bWJlcjsNCn0gfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IHt9Ow0K",
+            "materialized_utf8_bytes": 630,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parameters.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/required-initialized-parameters#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/parameters.ts",
+          "text": "\ntype T = number;\nexport function alias(value: T = 1, required: number): void {}\nexport function primitive(value: number = 1, required: number): void {}\nexport function inferred(value = 1, required: number): void {}\nexport function explicitUndefined(value: T | undefined = 1, required: number): void {}\nexport function optional(value: T = 1): void {}\nexport const nested = (fn = (value: T = 1, required: number): void => {}): void => {};\nexport function destructured({ value } = { value: 1 }, required: number): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/parameters.ts",
+            "start": 40,
+            "length": 12,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/parameters.ts",
+                "start": 40,
+                "length": 12,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/parameters.ts",
+            "start": 380,
+            "length": 12,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/parameters.ts",
+                "start": 380,
+                "length": 12,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/parameters.ts",
+            "start": 467,
+            "length": 24,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/parameters.ts",
+                "start": 467,
+                "length": 24,
+                "message": "Add a type annotation to the parameter { value }.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/parameters.ts",
+              "start": 40,
+              "length": 12,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/parameters.ts",
+                  "start": 40,
+                  "length": 12,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/parameters.ts",
+              "start": 380,
+              "length": 12,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/parameters.ts",
+                  "start": 380,
+                  "length": 12,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/parameters.ts",
+              "start": 467,
+              "length": 24,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/parameters.ts",
+                  "start": 467,
+                  "length": 24,
+                  "message": "Add a type annotation to the parameter { value }.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/parameter-properties#enabled",
+      "files": [
+        {
+          "path": "/project/properties.ts",
+          "text": "\ntype T = number;\nexport class Optional { constructor(public value?: T) {} }\nexport class Initialized { constructor(public value: T = 1, required: number) {} }\nexport class Inferred { constructor(public value = 1, required: number) {} }\nexport class Private { constructor(private value: T = 1, required: number) {} }\nexport class Readonly { constructor(readonly value: T = 1, required: number) {} }\nexport class Protected { constructor(protected value?: T) {} }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/properties.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUHJvdGVjdGVkID0gZXhwb3J0cy5SZWFkb25seSA9IGV4cG9ydHMuUHJpdmF0ZSA9IGV4cG9ydHMuSW5mZXJyZWQgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLkluZmVycmVkID0gSW5mZXJyZWQ7DQpjbGFzcyBQcml2YXRlIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLlByaXZhdGUgPSBQcml2YXRlOw0KY2xhc3MgUmVhZG9ubHkgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUmVhZG9ubHkgPSBSZWFkb25seTsNCmNsYXNzIFByb3RlY3RlZCB7DQogICAgdmFsdWU7DQogICAgY29uc3RydWN0b3IodmFsdWUpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUHJvdGVjdGVkID0gUHJvdGVjdGVkOw0K",
+            "callback_utf8_bytes": 1020,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUHJvdGVjdGVkID0gZXhwb3J0cy5SZWFkb25seSA9IGV4cG9ydHMuUHJpdmF0ZSA9IGV4cG9ydHMuSW5mZXJyZWQgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLkluZmVycmVkID0gSW5mZXJyZWQ7DQpjbGFzcyBQcml2YXRlIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLlByaXZhdGUgPSBQcml2YXRlOw0KY2xhc3MgUmVhZG9ubHkgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUmVhZG9ubHkgPSBSZWFkb25seTsNCmNsYXNzIFByb3RlY3RlZCB7DQogICAgdmFsdWU7DQogICAgY29uc3RydWN0b3IodmFsdWUpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUHJvdGVjdGVkID0gUHJvdGVjdGVkOw0K",
+            "materialized_utf8_bytes": 1020,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/properties.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 54,
+            "length": 16,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 54,
+                "length": 16,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 116,
+            "length": 19,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 116,
+                "length": 19,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 272,
+            "length": 20,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 272,
+                "length": 20,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 353,
+            "length": 21,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 353,
+                "length": 21,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 436,
+            "length": 19,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 436,
+                "length": 19,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 54,
+              "length": 16,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 54,
+                  "length": 16,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 116,
+              "length": 19,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 116,
+                  "length": 19,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 272,
+              "length": 20,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 272,
+                  "length": 20,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 353,
+              "length": 21,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 353,
+                  "length": 21,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 436,
+              "length": 19,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 436,
+                  "length": 19,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/parameter-properties#disabled",
+      "files": [
+        {
+          "path": "/project/properties.ts",
+          "text": "\ntype T = number;\nexport class Optional { constructor(public value?: T) {} }\nexport class Initialized { constructor(public value: T = 1, required: number) {} }\nexport class Inferred { constructor(public value = 1, required: number) {} }\nexport class Private { constructor(private value: T = 1, required: number) {} }\nexport class Readonly { constructor(readonly value: T = 1, required: number) {} }\nexport class Protected { constructor(protected value?: T) {} }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/properties.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUHJvdGVjdGVkID0gZXhwb3J0cy5SZWFkb25seSA9IGV4cG9ydHMuUHJpdmF0ZSA9IGV4cG9ydHMuSW5mZXJyZWQgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLkluZmVycmVkID0gSW5mZXJyZWQ7DQpjbGFzcyBQcml2YXRlIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLlByaXZhdGUgPSBQcml2YXRlOw0KY2xhc3MgUmVhZG9ubHkgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUmVhZG9ubHkgPSBSZWFkb25seTsNCmNsYXNzIFByb3RlY3RlZCB7DQogICAgdmFsdWU7DQogICAgY29uc3RydWN0b3IodmFsdWUpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUHJvdGVjdGVkID0gUHJvdGVjdGVkOw0K",
+            "callback_utf8_bytes": 1020,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUHJvdGVjdGVkID0gZXhwb3J0cy5SZWFkb25seSA9IGV4cG9ydHMuUHJpdmF0ZSA9IGV4cG9ydHMuSW5mZXJyZWQgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLkluZmVycmVkID0gSW5mZXJyZWQ7DQpjbGFzcyBQcml2YXRlIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLlByaXZhdGUgPSBQcml2YXRlOw0KY2xhc3MgUmVhZG9ubHkgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUmVhZG9ubHkgPSBSZWFkb25seTsNCmNsYXNzIFByb3RlY3RlZCB7DQogICAgdmFsdWU7DQogICAgY29uc3RydWN0b3IodmFsdWUpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUHJvdGVjdGVkID0gUHJvdGVjdGVkOw0K",
+            "materialized_utf8_bytes": 1020,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/properties.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/properties.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTogbnVtYmVyOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBudW1iZXIgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgUHJpdmF0ZSB7DQogICAgcHJpdmF0ZSB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZTogVCB8IHVuZGVmaW5lZCwgcmVxdWlyZWQ6IG51bWJlcik7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBSZWFkb25seSB7DQogICAgcmVhZG9ubHkgdmFsdWU6IFQ7DQogICAgY29uc3RydWN0b3IodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgUHJvdGVjdGVkIHsNCiAgICBwcm90ZWN0ZWQgdmFsdWU/OiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlPzogVCB8IHVuZGVmaW5lZCk7DQp9DQpleHBvcnQge307DQo=",
+            "callback_utf8_bytes": 713,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTogbnVtYmVyOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBudW1iZXIgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgUHJpdmF0ZSB7DQogICAgcHJpdmF0ZSB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZTogVCB8IHVuZGVmaW5lZCwgcmVxdWlyZWQ6IG51bWJlcik7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBSZWFkb25seSB7DQogICAgcmVhZG9ubHkgdmFsdWU6IFQ7DQogICAgY29uc3RydWN0b3IodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgUHJvdGVjdGVkIHsNCiAgICBwcm90ZWN0ZWQgdmFsdWU/OiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlPzogVCB8IHVuZGVmaW5lZCk7DQp9DQpleHBvcnQge307DQo=",
+            "materialized_utf8_bytes": 713,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/properties.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/parameter-properties#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/properties.ts",
+          "text": "\ntype T = number;\nexport class Optional { constructor(public value?: T) {} }\nexport class Initialized { constructor(public value: T = 1, required: number) {} }\nexport class Inferred { constructor(public value = 1, required: number) {} }\nexport class Private { constructor(private value: T = 1, required: number) {} }\nexport class Readonly { constructor(readonly value: T = 1, required: number) {} }\nexport class Protected { constructor(protected value?: T) {} }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [],
+        "reported_diagnostics": [
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 54,
+            "length": 16,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 54,
+                "length": 16,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 116,
+            "length": 19,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 116,
+                "length": 19,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 272,
+            "length": 20,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 272,
+                "length": 20,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 353,
+            "length": 21,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 353,
+                "length": 21,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          },
+          {
+            "code": 9025,
+            "category": "Error",
+            "file": "/project/properties.ts",
+            "start": 436,
+            "length": 19,
+            "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/properties.ts",
+                "start": 436,
+                "length": 19,
+                "message": "Add a type annotation to the parameter value.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 54,
+              "length": 16,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 54,
+                  "length": 16,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 116,
+              "length": 19,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 116,
+                  "length": 19,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 272,
+              "length": 20,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 272,
+                  "length": 20,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 353,
+              "length": 21,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 353,
+                  "length": 21,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 9025,
+              "category": "Error",
+              "file": "/project/properties.ts",
+              "start": 436,
+              "length": 19,
+              "message": "Declaration emit for this parameter requires implicitly adding undefined to its type. This is not supported with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/properties.ts",
+                  "start": 436,
+                  "length": 19,
+                  "message": "Add a type annotation to the parameter value.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/annotated-parameter-controls#enabled",
+      "files": [
+        {
+          "path": "/project/controls.ts",
+          "text": "\ntype T = number;\nexport class Optional { constructor(public value?: T | undefined) {} }\nexport class Initialized { constructor(public value: T | undefined = 1, required: number) {} }\nexport class Trailing { constructor(public value: T = 1) {} }\nexport function explicitUndefined(value: T | undefined = 1, required: number): void {}\nexport function optional(value?: T): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/controls.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuVHJhaWxpbmcgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmV4cG9ydHMuZXhwbGljaXRVbmRlZmluZWQgPSBleHBsaWNpdFVuZGVmaW5lZDsNCmV4cG9ydHMub3B0aW9uYWwgPSBvcHRpb25hbDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuVHJhaWxpbmcgPSBUcmFpbGluZzsNCmZ1bmN0aW9uIGV4cGxpY2l0VW5kZWZpbmVkKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gb3B0aW9uYWwodmFsdWUpIHsgfQ0K",
+            "callback_utf8_bytes": 711,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuVHJhaWxpbmcgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmV4cG9ydHMuZXhwbGljaXRVbmRlZmluZWQgPSBleHBsaWNpdFVuZGVmaW5lZDsNCmV4cG9ydHMub3B0aW9uYWwgPSBvcHRpb25hbDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuVHJhaWxpbmcgPSBUcmFpbGluZzsNCmZ1bmN0aW9uIGV4cGxpY2l0VW5kZWZpbmVkKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gb3B0aW9uYWwodmFsdWUpIHsgfQ0K",
+            "materialized_utf8_bytes": 711,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/controls.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/controls.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZXhwbGljaXRVbmRlZmluZWQodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gb3B0aW9uYWwodmFsdWU/OiBUKTogdm9pZDsNCmV4cG9ydCB7fTsNCg==",
+            "callback_utf8_bytes": 481,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZXhwbGljaXRVbmRlZmluZWQodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gb3B0aW9uYWwodmFsdWU/OiBUKTogdm9pZDsNCmV4cG9ydCB7fTsNCg==",
+            "materialized_utf8_bytes": 481,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/controls.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/annotated-parameter-controls#disabled",
+      "files": [
+        {
+          "path": "/project/controls.ts",
+          "text": "\ntype T = number;\nexport class Optional { constructor(public value?: T | undefined) {} }\nexport class Initialized { constructor(public value: T | undefined = 1, required: number) {} }\nexport class Trailing { constructor(public value: T = 1) {} }\nexport function explicitUndefined(value: T | undefined = 1, required: number): void {}\nexport function optional(value?: T): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": false
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/controls.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuVHJhaWxpbmcgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmV4cG9ydHMuZXhwbGljaXRVbmRlZmluZWQgPSBleHBsaWNpdFVuZGVmaW5lZDsNCmV4cG9ydHMub3B0aW9uYWwgPSBvcHRpb25hbDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuVHJhaWxpbmcgPSBUcmFpbGluZzsNCmZ1bmN0aW9uIGV4cGxpY2l0VW5kZWZpbmVkKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gb3B0aW9uYWwodmFsdWUpIHsgfQ0K",
+            "callback_utf8_bytes": 711,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuVHJhaWxpbmcgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmV4cG9ydHMuZXhwbGljaXRVbmRlZmluZWQgPSBleHBsaWNpdFVuZGVmaW5lZDsNCmV4cG9ydHMub3B0aW9uYWwgPSBvcHRpb25hbDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuVHJhaWxpbmcgPSBUcmFpbGluZzsNCmZ1bmN0aW9uIGV4cGxpY2l0VW5kZWZpbmVkKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gb3B0aW9uYWwodmFsdWUpIHsgfQ0K",
+            "materialized_utf8_bytes": 711,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/controls.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/controls.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZXhwbGljaXRVbmRlZmluZWQodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gb3B0aW9uYWwodmFsdWU/OiBUKTogdm9pZDsNCmV4cG9ydCB7fTsNCg==",
+            "callback_utf8_bytes": 481,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZXhwbGljaXRVbmRlZmluZWQodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gb3B0aW9uYWwodmFsdWU/OiBUKTogdm9pZDsNCmV4cG9ydCB7fTsNCg==",
+            "materialized_utf8_bytes": 481,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/controls.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/annotated-parameter-controls#no-emit-on-error",
+      "files": [
+        {
+          "path": "/project/controls.ts",
+          "text": "\ntype T = number;\nexport class Optional { constructor(public value?: T | undefined) {} }\nexport class Initialized { constructor(public value: T | undefined = 1, required: number) {} }\nexport class Trailing { constructor(public value: T = 1) {} }\nexport function explicitUndefined(value: T | undefined = 1, required: number): void {}\nexport function optional(value?: T): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": true,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true,
+        "noEmitOnError": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/controls.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuVHJhaWxpbmcgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmV4cG9ydHMuZXhwbGljaXRVbmRlZmluZWQgPSBleHBsaWNpdFVuZGVmaW5lZDsNCmV4cG9ydHMub3B0aW9uYWwgPSBvcHRpb25hbDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuVHJhaWxpbmcgPSBUcmFpbGluZzsNCmZ1bmN0aW9uIGV4cGxpY2l0VW5kZWZpbmVkKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gb3B0aW9uYWwodmFsdWUpIHsgfQ0K",
+            "callback_utf8_bytes": 711,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuVHJhaWxpbmcgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmV4cG9ydHMuZXhwbGljaXRVbmRlZmluZWQgPSBleHBsaWNpdFVuZGVmaW5lZDsNCmV4cG9ydHMub3B0aW9uYWwgPSBvcHRpb25hbDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuVHJhaWxpbmcgPSBUcmFpbGluZzsNCmZ1bmN0aW9uIGV4cGxpY2l0VW5kZWZpbmVkKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gb3B0aW9uYWwodmFsdWUpIHsgfQ0K",
+            "materialized_utf8_bytes": 711,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/controls.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/controls.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZXhwbGljaXRVbmRlZmluZWQodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gb3B0aW9uYWwodmFsdWU/OiBUKTogdm9pZDsNCmV4cG9ydCB7fTsNCg==",
+            "callback_utf8_bytes": 481,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZXhwbGljaXRVbmRlZmluZWQodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gb3B0aW9uYWwodmFsdWU/OiBUKTogdm9pZDsNCmV4cG9ydCB7fTsNCg==",
+            "materialized_utf8_bytes": 481,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/controls.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/required-initialized-parameters#non-strict",
+      "files": [
+        {
+          "path": "/project/good.ts",
+          "text": "export const good: number = 1;\n"
+        },
+        {
+          "path": "/project/parameters.ts",
+          "text": "\ntype T = number;\nexport function alias(value: T = 1, required: number): void {}\nexport function primitive(value: number = 1, required: number): void {}\nexport function inferred(value = 1, required: number): void {}\nexport function explicitUndefined(value: T | undefined = 1, required: number): void {}\nexport function optional(value: T = 1): void {}\nexport const nested = (fn = (value: T = 1, required: number): void => {}): void => {};\nexport function destructured({ value } = { value: 1 }, required: number): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/good.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZ29vZCA9IHZvaWQgMDsNCmV4cG9ydHMuZ29vZCA9IDE7DQo=",
+            "callback_utf8_bytes": 122,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZ29vZCA9IHZvaWQgMDsNCmV4cG9ydHMuZ29vZCA9IDE7DQo=",
+            "materialized_utf8_bytes": 122,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/good.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZ29vZDogbnVtYmVyOw0K",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgZ29vZDogbnVtYmVyOw0K",
+            "materialized_utf8_bytes": 36,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/good.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/parameters.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubmVzdGVkID0gdm9pZCAwOw0KZXhwb3J0cy5hbGlhcyA9IGFsaWFzOw0KZXhwb3J0cy5wcmltaXRpdmUgPSBwcmltaXRpdmU7DQpleHBvcnRzLmluZmVycmVkID0gaW5mZXJyZWQ7DQpleHBvcnRzLmV4cGxpY2l0VW5kZWZpbmVkID0gZXhwbGljaXRVbmRlZmluZWQ7DQpleHBvcnRzLm9wdGlvbmFsID0gb3B0aW9uYWw7DQpleHBvcnRzLmRlc3RydWN0dXJlZCA9IGRlc3RydWN0dXJlZDsNCmZ1bmN0aW9uIGFsaWFzKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gcHJpbWl0aXZlKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gaW5mZXJyZWQodmFsdWUgPSAxLCByZXF1aXJlZCkgeyB9DQpmdW5jdGlvbiBleHBsaWNpdFVuZGVmaW5lZCh2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7IH0NCmZ1bmN0aW9uIG9wdGlvbmFsKHZhbHVlID0gMSkgeyB9DQpjb25zdCBuZXN0ZWQgPSAoZm4gPSAodmFsdWUgPSAxLCByZXF1aXJlZCkgPT4geyB9KSA9PiB7IH07DQpleHBvcnRzLm5lc3RlZCA9IG5lc3RlZDsNCmZ1bmN0aW9uIGRlc3RydWN0dXJlZCh7IHZhbHVlIH0gPSB7IHZhbHVlOiAxIH0sIHJlcXVpcmVkKSB7IH0NCg==",
+            "callback_utf8_bytes": 673,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMubmVzdGVkID0gdm9pZCAwOw0KZXhwb3J0cy5hbGlhcyA9IGFsaWFzOw0KZXhwb3J0cy5wcmltaXRpdmUgPSBwcmltaXRpdmU7DQpleHBvcnRzLmluZmVycmVkID0gaW5mZXJyZWQ7DQpleHBvcnRzLmV4cGxpY2l0VW5kZWZpbmVkID0gZXhwbGljaXRVbmRlZmluZWQ7DQpleHBvcnRzLm9wdGlvbmFsID0gb3B0aW9uYWw7DQpleHBvcnRzLmRlc3RydWN0dXJlZCA9IGRlc3RydWN0dXJlZDsNCmZ1bmN0aW9uIGFsaWFzKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gcHJpbWl0aXZlKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gaW5mZXJyZWQodmFsdWUgPSAxLCByZXF1aXJlZCkgeyB9DQpmdW5jdGlvbiBleHBsaWNpdFVuZGVmaW5lZCh2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7IH0NCmZ1bmN0aW9uIG9wdGlvbmFsKHZhbHVlID0gMSkgeyB9DQpjb25zdCBuZXN0ZWQgPSAoZm4gPSAodmFsdWUgPSAxLCByZXF1aXJlZCkgPT4geyB9KSA9PiB7IH07DQpleHBvcnRzLm5lc3RlZCA9IG5lc3RlZDsNCmZ1bmN0aW9uIGRlc3RydWN0dXJlZCh7IHZhbHVlIH0gPSB7IHZhbHVlOiAxIH0sIHJlcXVpcmVkKSB7IH0NCg==",
+            "materialized_utf8_bytes": 673,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/parameters.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 9011,
+            "category": "Error",
+            "file": "/project/parameters.ts",
+            "start": 479,
+            "length": 12,
+            "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+            "related_information": [
+              {
+                "code": 9028,
+                "category": "Error",
+                "file": "/project/parameters.ts",
+                "start": 467,
+                "length": 24,
+                "message": "Add a type annotation to the parameter { value }.",
+                "related_information": null
+              }
+            ]
+          }
+        ],
+        "emit_refused": true,
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 9011,
+              "category": "Error",
+              "file": "/project/parameters.ts",
+              "start": 479,
+              "length": 12,
+              "message": "Parameter must have an explicit type annotation with --isolatedDeclarations.",
+              "related_information": [
+                {
+                  "code": 9028,
+                  "category": "Error",
+                  "file": "/project/parameters.ts",
+                  "start": 467,
+                  "length": 24,
+                  "message": "Add a type annotation to the parameter { value }.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 1
+      }
+    },
+    {
+      "case_id": "adjacent/parameter-properties#non-strict",
+      "files": [
+        {
+          "path": "/project/properties.ts",
+          "text": "\ntype T = number;\nexport class Optional { constructor(public value?: T) {} }\nexport class Initialized { constructor(public value: T = 1, required: number) {} }\nexport class Inferred { constructor(public value = 1, required: number) {} }\nexport class Private { constructor(private value: T = 1, required: number) {} }\nexport class Readonly { constructor(readonly value: T = 1, required: number) {} }\nexport class Protected { constructor(protected value?: T) {} }\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/properties.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUHJvdGVjdGVkID0gZXhwb3J0cy5SZWFkb25seSA9IGV4cG9ydHMuUHJpdmF0ZSA9IGV4cG9ydHMuSW5mZXJyZWQgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLkluZmVycmVkID0gSW5mZXJyZWQ7DQpjbGFzcyBQcml2YXRlIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLlByaXZhdGUgPSBQcml2YXRlOw0KY2xhc3MgUmVhZG9ubHkgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUmVhZG9ubHkgPSBSZWFkb25seTsNCmNsYXNzIFByb3RlY3RlZCB7DQogICAgdmFsdWU7DQogICAgY29uc3RydWN0b3IodmFsdWUpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUHJvdGVjdGVkID0gUHJvdGVjdGVkOw0K",
+            "callback_utf8_bytes": 1020,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuUHJvdGVjdGVkID0gZXhwb3J0cy5SZWFkb25seSA9IGV4cG9ydHMuUHJpdmF0ZSA9IGV4cG9ydHMuSW5mZXJyZWQgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLkluZmVycmVkID0gSW5mZXJyZWQ7DQpjbGFzcyBQcml2YXRlIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEsIHJlcXVpcmVkKSB7DQogICAgICAgIHRoaXMudmFsdWUgPSB2YWx1ZTsNCiAgICB9DQp9DQpleHBvcnRzLlByaXZhdGUgPSBQcml2YXRlOw0KY2xhc3MgUmVhZG9ubHkgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUmVhZG9ubHkgPSBSZWFkb25seTsNCmNsYXNzIFByb3RlY3RlZCB7DQogICAgdmFsdWU7DQogICAgY29uc3RydWN0b3IodmFsdWUpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuUHJvdGVjdGVkID0gUHJvdGVjdGVkOw0K",
+            "materialized_utf8_bytes": 1020,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/properties.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/properties.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBULCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTogbnVtYmVyOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBudW1iZXIsIHJlcXVpcmVkOiBudW1iZXIpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgUHJpdmF0ZSB7DQogICAgcHJpdmF0ZSB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZTogVCwgcmVxdWlyZWQ6IG51bWJlcik7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBSZWFkb25seSB7DQogICAgcmVhZG9ubHkgdmFsdWU6IFQ7DQogICAgY29uc3RydWN0b3IodmFsdWU6IFQsIHJlcXVpcmVkOiBudW1iZXIpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgUHJvdGVjdGVkIHsNCiAgICBwcm90ZWN0ZWQgdmFsdWU/OiBUOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlPzogVCk7DQp9DQpleHBvcnQge307DQo=",
+            "callback_utf8_bytes": 617,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBULCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIEluZmVycmVkIHsNCiAgICB2YWx1ZTogbnVtYmVyOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBudW1iZXIsIHJlcXVpcmVkOiBudW1iZXIpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgUHJpdmF0ZSB7DQogICAgcHJpdmF0ZSB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZTogVCwgcmVxdWlyZWQ6IG51bWJlcik7DQp9DQpleHBvcnQgZGVjbGFyZSBjbGFzcyBSZWFkb25seSB7DQogICAgcmVhZG9ubHkgdmFsdWU6IFQ7DQogICAgY29uc3RydWN0b3IodmFsdWU6IFQsIHJlcXVpcmVkOiBudW1iZXIpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgUHJvdGVjdGVkIHsNCiAgICBwcm90ZWN0ZWQgdmFsdWU/OiBUOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlPzogVCk7DQp9DQpleHBvcnQge307DQo=",
+            "materialized_utf8_bytes": 617,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/properties.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "adjacent/annotated-parameter-controls#non-strict",
+      "files": [
+        {
+          "path": "/project/controls.ts",
+          "text": "\ntype T = number;\nexport class Optional { constructor(public value?: T | undefined) {} }\nexport class Initialized { constructor(public value: T | undefined = 1, required: number) {} }\nexport class Trailing { constructor(public value: T = 1) {} }\nexport function explicitUndefined(value: T | undefined = 1, required: number): void {}\nexport function optional(value?: T): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 99,
+        "module": 1,
+        "declaration": true,
+        "strict": false,
+        "newLine": 0,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "isolatedDeclarations": true
+      },
+      "typescript_observation": {
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/controls.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuVHJhaWxpbmcgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmV4cG9ydHMuZXhwbGljaXRVbmRlZmluZWQgPSBleHBsaWNpdFVuZGVmaW5lZDsNCmV4cG9ydHMub3B0aW9uYWwgPSBvcHRpb25hbDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuVHJhaWxpbmcgPSBUcmFpbGluZzsNCmZ1bmN0aW9uIGV4cGxpY2l0VW5kZWZpbmVkKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gb3B0aW9uYWwodmFsdWUpIHsgfQ0K",
+            "callback_utf8_bytes": 711,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuVHJhaWxpbmcgPSBleHBvcnRzLkluaXRpYWxpemVkID0gZXhwb3J0cy5PcHRpb25hbCA9IHZvaWQgMDsNCmV4cG9ydHMuZXhwbGljaXRVbmRlZmluZWQgPSBleHBsaWNpdFVuZGVmaW5lZDsNCmV4cG9ydHMub3B0aW9uYWwgPSBvcHRpb25hbDsNCmNsYXNzIE9wdGlvbmFsIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSkgew0KICAgICAgICB0aGlzLnZhbHVlID0gdmFsdWU7DQogICAgfQ0KfQ0KZXhwb3J0cy5PcHRpb25hbCA9IE9wdGlvbmFsOw0KY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuSW5pdGlhbGl6ZWQgPSBJbml0aWFsaXplZDsNCmNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZSA9IDEpIHsNCiAgICAgICAgdGhpcy52YWx1ZSA9IHZhbHVlOw0KICAgIH0NCn0NCmV4cG9ydHMuVHJhaWxpbmcgPSBUcmFpbGluZzsNCmZ1bmN0aW9uIGV4cGxpY2l0VW5kZWZpbmVkKHZhbHVlID0gMSwgcmVxdWlyZWQpIHsgfQ0KZnVuY3Rpb24gb3B0aW9uYWwodmFsdWUpIHsgfQ0K",
+            "materialized_utf8_bytes": 711,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/controls.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/controls.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZXhwbGljaXRVbmRlZmluZWQodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gb3B0aW9uYWwodmFsdWU/OiBUKTogdm9pZDsNCmV4cG9ydCB7fTsNCg==",
+            "callback_utf8_bytes": 481,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dHlwZSBUID0gbnVtYmVyOw0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgT3B0aW9uYWwgew0KICAgIHZhbHVlPzogVCB8IHVuZGVmaW5lZDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQgfCB1bmRlZmluZWQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgY2xhc3MgSW5pdGlhbGl6ZWQgew0KICAgIHZhbHVlOiBUIHwgdW5kZWZpbmVkOw0KICAgIGNvbnN0cnVjdG9yKHZhbHVlOiBUIHwgdW5kZWZpbmVkLCByZXF1aXJlZDogbnVtYmVyKTsNCn0NCmV4cG9ydCBkZWNsYXJlIGNsYXNzIFRyYWlsaW5nIHsNCiAgICB2YWx1ZTogVDsNCiAgICBjb25zdHJ1Y3Rvcih2YWx1ZT86IFQpOw0KfQ0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZXhwbGljaXRVbmRlZmluZWQodmFsdWU6IFQgfCB1bmRlZmluZWQsIHJlcXVpcmVkOiBudW1iZXIpOiB2b2lkOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gb3B0aW9uYWwodmFsdWU/OiBUKTogdm9pZDsNCmV4cG9ydCB7fTsNCg==",
+            "materialized_utf8_bytes": 481,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/controls.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 0
+      }
+    }
+  ]
+}

@@ -63,6 +63,10 @@ pub(crate) struct DiagnosticSpec {
 pub(crate) enum TrackerEffect {
     Diagnostic(DiagnosticSpec),
     IsolatedInference(TrackerAnchor),
+    IsolatedParameter {
+        anchor: TrackerAnchor,
+        add_undefined: bool,
+    },
     Unsupported(UnsupportedEmitFeature),
     Contract(&'static str),
 }
@@ -330,12 +334,14 @@ impl EmitSymbolTracker for DeclarationSymbolTracker<'_> {
                 self.report_expando_function_errors();
                 return Ok(());
             }
-            if kind == Some(SyntaxKind::Parameter)
-                && access.requires_adding_implicit_undefined(node, None)?
-            {
-                self.pending_effects.push_back(TrackerEffect::Unsupported(
-                    UnsupportedEmitFeature::IsolatedDeclarations,
-                ));
+            if kind == Some(SyntaxKind::Parameter) {
+                let parent = access.parent_node(node)?;
+                let add_undefined = access.requires_adding_implicit_undefined(node, parent)?;
+                self.pending_effects
+                    .push_back(TrackerEffect::IsolatedParameter {
+                        anchor: TrackerAnchor::Resolver(description),
+                        add_undefined,
+                    });
                 return Ok(());
             }
         }
@@ -581,8 +587,19 @@ pub(crate) fn materialize_effects(
 ) -> Result<(), TransformError> {
     for effect in effects {
         match effect {
+            TrackerEffect::IsolatedParameter {
+                anchor,
+                add_undefined,
+            } => {
+                let diagnostic = with_anchor(cx, host, &anchor, |source, node| {
+                    super::isolated::inference_error(source, node, Some(add_undefined))
+                })??;
+                cx.add_diagnostic(diagnostic)?;
+            }
             TrackerEffect::IsolatedInference(anchor) => {
-                let diagnostic = with_anchor(cx, host, &anchor, super::isolated::inference_error)??;
+                let diagnostic = with_anchor(cx, host, &anchor, |source, node| {
+                    super::isolated::inference_error(source, node, None)
+                })??;
                 cx.add_diagnostic(diagnostic)?;
             }
             TrackerEffect::Unsupported(feature) => {

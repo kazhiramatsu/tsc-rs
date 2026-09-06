@@ -12,11 +12,12 @@ use super::tracker::text_of_node;
 /// tsc-port: createGetIsolatedDeclarationErrors @6.0.3
 /// tsc-hash: b3e7aef2bd5f93d15e0b3987570eae6e9e2e3bd63234699fde0320e8eb7e0326
 /// tsc-span: _tsc.js:114054-114246
-/// Accessor pairs, private type names and implicit-undefined parameters retain
-/// their typed boundary until their resolver observations are implemented.
+/// Accessor pairs and private type names retain their typed boundary until
+/// their resolver observations are implemented.
 pub(crate) fn inference_error(
     source: &SourceFile,
     node: NodeId,
+    parameter_add_undefined: Option<bool>,
 ) -> Result<Diagnostic, TransformError> {
     let record = source.arena.node(node);
     if ancestor(source, Some(node), |kind| {
@@ -49,6 +50,9 @@ pub(crate) fn inference_error(
     match &record.data {
         NodeData::GetAccessor(_) | NodeData::SetAccessor(_) => unsupported(),
         NodeData::Parameter(data) => {
+            if let Some(add_undefined) = parameter_add_undefined {
+                return parameter_error(source, node, add_undefined);
+            }
             if data.r#type.is_some()
                 || data.modifiers.is_some()
                 || record
@@ -120,6 +124,38 @@ fn declaration_error(source: &SourceFile, node: NodeId) -> Result<Diagnostic, Tr
         source,
         node,
         error_message(source.arena.node(node).kind)?,
+        &[],
+    );
+    add_suggestion(source, node, &mut diagnostic)?;
+    Ok(diagnostic)
+}
+
+/// createParameterError consumes the callback-safe resolver decision made
+/// with the original parameter's actual parent as its enclosing declaration.
+fn parameter_error(
+    source: &SourceFile,
+    node: NodeId,
+    add_undefined: bool,
+) -> Result<Diagnostic, TransformError> {
+    let record = source.arena.node(node);
+    let NodeData::Parameter(data) = &record.data else {
+        return Err(contract("parameter diagnostic anchor is not a parameter"));
+    };
+    if record
+        .parent
+        .is_some_and(|parent| source.arena.node(parent).kind == SyntaxKind::SetAccessor)
+    {
+        return unsupported();
+    }
+    if !add_undefined {
+        if let Some(initializer) = data.initializer {
+            return expression_error(source, initializer, None);
+        }
+        return declaration_error(source, node);
+    }
+    let mut diagnostic = diagnostic_for_source_node(
+        source, node,
+        &d::Declaration_emit_for_this_parameter_requires_implicitly_adding_undefined_to_its_type_This_is_not_supported_with_isolatedDeclarations,
         &[],
     );
     add_suggestion(source, node, &mut diagnostic)?;

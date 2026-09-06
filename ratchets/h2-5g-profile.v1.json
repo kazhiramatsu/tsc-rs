@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "4d395d8813f2ed225f50af61b86de927f1e78949cf62d67f56f569494c1f6b92"
+    "sha256": "4673b38082c413ccb6ecb8d226328a92b4b7e66d5fceb921241baca7a7d2eb0c"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "49c5201c0a3d7449b3b096f42455e1325320b5726f863884ee265f04b3b8750b"
+    "sha256": "cf2caf8e92e20172531e4537cfd3a2958337f3574b6260339c4a0756e26c9f1e"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -228,7 +228,7 @@
     },
     {
       "path": "crates/emitter/src/resolver.rs",
-      "sha256": "098757ea48024b5806e88cf89d258a5157d2bb65893b8b5adcafa9b5f603c37a"
+      "sha256": "281d75b2d721c8e474a6fe1cfb8520e10a7c0bf44782d3b6700cb7a7b8e576cb"
     },
     {
       "path": "crates/emitter/src/transform.rs",
@@ -508,7 +508,7 @@
     },
     {
       "path": "crates/emitter/src/declarations/isolated.rs",
-      "sha256": "251d6ec4b923b19aea66abe85c238b17f7d768096343bd2e7b9a52d01a88d9be"
+      "sha256": "0a5aed7ec9b8f531c50137ac769ca3d6c9df740b55aeab7bd3bede890b59d23e"
     },
     {
       "path": "crates/compiler/tests/fixtures/isolated-declaration-inference.json",
@@ -516,7 +516,15 @@
     },
     {
       "path": "crates/compiler/tests/integration/h2_7c_isolated_inference.rs",
-      "sha256": "d83758148b1c3f44fc61bc1eb1a5181b2887fe7cbd58cbecaf48f6125d9f4018"
+      "sha256": "e537bae2e3826e815d3f9c34fc21108c08e8a98d43c818a119646c12d4c02104"
+    },
+    {
+      "path": "crates/compiler/tests/fixtures/isolated-declaration-parameters.json",
+      "sha256": "261dfe641e9324553da6d5407d79885a42011b71d6c3a056913c2d0f82971e1a"
+    },
+    {
+      "path": "crates/compiler/tests/integration/h2_7c_isolated_parameters.rs",
+      "sha256": "68d47763e12b457eff9292f5cac3becec610bbb41a69d9c9bff64bbb0008d55a"
     },
     {
       "path": "crates/checker/src/inference.rs",
@@ -604,7 +612,7 @@
     },
     {
       "path": "crates/checker/src/node_builder/chains.rs",
-      "sha256": "3064a61d444f4f9a13f3177c6720e9b747b914825e942aecfd1e8d988180c3a5"
+      "sha256": "39921ef5ee968f3c9bcc32d22b9bdfc8c1318537a0162883e82d19b4d5c4b03c"
     },
     {
       "path": "crates/checker/src/node_builder/context.rs",
@@ -612,11 +620,11 @@
     },
     {
       "path": "crates/checker/src/node_builder/mod.rs",
-      "sha256": "6386b5de710978f6277d92a05523e7ff5f78aa35e3a70209c71783095ba262da"
+      "sha256": "bbf7656ba6252a90c71be5f1c25b0109a38cbb505b3f6f372cb8a72b6af5a2f2"
     },
     {
       "path": "crates/checker/src/node_builder/serialize.rs",
-      "sha256": "925eec7f1a85997e9f5aa16064dd8735e7cd9cb34e226fd1aaa4cce9c2105ce3"
+      "sha256": "17be25200d275e51992a29b40ae8cf04e496e4b13a4d3e1c2ff33753a6669f48"
     },
     {
       "path": "crates/checker/src/node_builder/signatures.rs",
@@ -652,7 +660,7 @@
     },
     {
       "path": "crates/checker/tests/unit/node_builder_core/tests.rs",
-      "sha256": "85f36706515713e0be28d6993d6b417c899f7f01e72358b208df6e77e85ed8f0"
+      "sha256": "a4a10dff30b018ca4baf7622ac69891d089673410eaf73a3000ae64b79dbea19"
     },
     {
       "path": "crates/checker/tests/unit/node_builder_serialize/tests.rs",
@@ -676,7 +684,7 @@
     },
     {
       "path": "crates/checker/tests/unit/syntactic_type_node_builder/tests.rs",
-      "sha256": "5e7d4b6b0633fe7cdab03d32850daac4ddd222bbd1758e667c071aa2510dfc30"
+      "sha256": "ba0f6ddb2ef0b60b203a37c900944f16b1c34c1b410990b4a2a5a3ba78da8ebd"
     },
     {
       "path": "crates/emitter/tests/unit/factory_seams/tests.rs",
@@ -868,7 +876,7 @@
     },
     {
       "path": "crates/compiler/tests/contracts.rs",
-      "sha256": "1904defc867fb0763b7a59ed07df389c31d69b76a5e914b36d4478d053cd7313"
+      "sha256": "c22d9f572f773a1f12a0b6fdbf65d29d0135846affa08dc79279d494cb1486b5"
     },
     {
       "path": "crates/compiler/tests/integration/es2015_generators_witness_contract.rs",
@@ -1132,7 +1140,7 @@
     },
     {
       "path": "crates/emitter/src/declarations/tracker.rs",
-      "sha256": "6d6fb1857a01b2149864d508f5c2514b1fa827df53057674e422c15b4c72352c"
+      "sha256": "1086f6695f0db0336564ac7744752339371c584c99130372723f814be83d9eff"
     },
     {
       "path": "crates/emitter/tests/unit/declarations/tests.rs",
@@ -1404,5 +1412,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "7b752f58271e8fa5cf685160a20ef3ed2e18bcee705c9cdfc45595180f2b358e"
+  "profile_fingerprint_sha256": "1a8d104b394cc458560266014b3520933ce54552d2d7f54aa6b4c05fde32ab1f"
 }
