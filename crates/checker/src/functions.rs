@@ -3490,7 +3490,7 @@ impl<'a> CheckerState<'a> {
             // owned by the ordinary host declaration's symbol.
             if self.is_in_js_file(node)
                 && node_util::is_function_like_kind(node_kind)
-                && self.has_jsdoc_nodes(node)
+                && self.has_jsdoc_property(node)
             {
                 has_overloads = !self
                     .all_jsdoc_tags(node, SyntaxKind::JSDocOverloadTag)

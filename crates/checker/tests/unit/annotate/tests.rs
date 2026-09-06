@@ -47,6 +47,38 @@ fn with_state<R>(text: &str, run: impl FnOnce(&mut CheckerState) -> R) -> R {
 }
 
 #[test]
+fn any_base_index_identity_preserves_semantic_indexing_and_distinguishes_declared_indexes() {
+    with_state(
+        "declare const Base: any; class Derived extends Base {}\n\
+         declare const instance: Derived; declare const constructor: typeof Derived;\n\
+         declare const ordinary: { [key: string]: any };",
+        |state| {
+            for name in ["instance", "constructor", "ordinary"] {
+                let ty = annotation_type(state, name);
+                let infos = state
+                    .get_index_infos_of_type(ty)
+                    .expect("resolved index infos");
+                assert_eq!(infos.len(), 1, "{name}");
+                assert_eq!(infos[0].key_type, state.tables.intrinsics.string);
+                assert_eq!(infos[0].value_type, state.tables.intrinsics.any);
+                assert_eq!(infos[0].is_any_base_type_index_info, name != "ordinary");
+            }
+        },
+    );
+}
+
+#[test]
+fn negative_literal_annotations_reserve_the_positive_operand_identities() {
+    with_state("declare const value: -7;", |state| {
+        let negative = annotation_type(state, "value");
+        let positive = state.tables.get_number_literal_type(7.0);
+        let positive_fresh = state.tables.get_fresh_type_of_literal_type(positive);
+        assert!(positive.0 < negative.0);
+        assert!(positive_fresh.0 < negative.0);
+    });
+}
+
+#[test]
 fn checked_js_non_jsdoc_base_constructor_error_is_published() {
     let result = check_program(
         &[

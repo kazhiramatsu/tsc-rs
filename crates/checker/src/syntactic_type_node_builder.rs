@@ -1111,11 +1111,16 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                         );
                     }
                     let specifier = self.rewrite_module_specifier_2(node, literal)?;
-                    import_type.argument = if specifier == literal {
+                    let reused_literal = if specifier == literal {
+                        self.reuse_node_required(literal, Some(literal))?
+                    } else {
+                        specifier
+                    };
+                    import_type.argument = if reused_literal == literal {
                         self.reuse_node(Some(argument), Some(argument))?
                             .map(TransformNode::node)
                     } else {
-                        Some(self.create_literal_type(source, specifier)?.node())
+                        Some(self.create_literal_type(source, reused_literal)?.node())
                     };
                     import_type.attributes =
                         self.visit_optional_child(source, import_type.attributes)?;

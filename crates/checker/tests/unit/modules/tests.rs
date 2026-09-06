@@ -4,6 +4,31 @@ use tsc_diagnostics::{gen as diagnostics, DiagnosticCategory, MessageChain};
 use tsc_emitter::EmitExportContainerMode;
 use tsc_syntax::{for_each_child, NodeData, SyntaxKind};
 
+#[test]
+fn property_alias_resolution_excludes_this_type_queries_and_keeps_missing_name_errors() {
+    let text = concat!(
+        "class C { static x = 1; static y: typeof this.x; ",
+        "method(): typeof this.method { return this.method; } }\n",
+        "declare const bad: typeof missing.member;",
+    );
+    let result = check_program(
+        &[InputFile::new("case.ts".to_owned(), text.to_owned())],
+        &CompilerOptions {
+            strict: Some(true),
+            target: Some(99),
+            ..CompilerOptions::default()
+        },
+    );
+    assert_eq!(
+        result
+            .diagnostics
+            .iter()
+            .map(|diagnostic| (diagnostic.code(), diagnostic.start))
+            .collect::<Vec<_>>(),
+        [(2304, Some(130))],
+    );
+}
+
 fn internal_import_reference_state(tail: &str, options: &CompilerOptions) -> (bool, bool) {
     let text =
         format!("namespace N {{ export const x = 1; }}\nimport A = N;\nexport {{}};\n{tail}\n");

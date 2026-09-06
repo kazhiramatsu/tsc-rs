@@ -1775,6 +1775,46 @@ fn nested_class_computed_field_names_use_the_enclosing_static_evaluation_frame()
 }
 
 #[test]
+fn private_storage_names_follow_current_class_provenance() {
+    for (source, expected, forbidden) in [
+        (
+            "const Local = class { #x = 1; };",
+            "_Local_x = new WeakMap()",
+            "\n    _x = new WeakMap()",
+        ),
+        (
+            "const Local = class { #x: number = 1; };",
+            "_x = new WeakMap()",
+            "_Local_x",
+        ),
+        (
+            "const Local = class Named { #x: number = 1; };",
+            "_Named_x = new WeakMap()",
+            "_Local_x",
+        ),
+        (
+            "const Local = class { static #x: number = 1; };",
+            "_Local_x = { value: 1 }",
+            "\n    _x = { value: 1 }",
+        ),
+        (
+            "const Wrapped = (class { #x = 1; });",
+            "_x = new WeakMap()",
+            "_Wrapped_x",
+        ),
+        (
+            "obj[\"bad-name\"] = class { static #x = 1; };",
+            "_x = { value: 1 }",
+            "_bad-name_x",
+        ),
+    ] {
+        let output = transform_and_print_es2015_class_fields(source);
+        assert!(output.contains(expected), "{source}: {output}");
+        assert!(!output.contains(forbidden), "{source}: {output}");
+    }
+}
+
+#[test]
 fn private_storage_captured_by_a_loop_class_expression_is_declared_in_the_loop_body() {
     let source_text = concat!(
         "const array = [];\n",

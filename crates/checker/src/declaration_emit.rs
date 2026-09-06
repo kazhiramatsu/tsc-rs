@@ -4965,17 +4965,9 @@ impl<'a> CheckerState<'a> {
                 Some(locals) => locals.clone(),
             },
             Some(symbol) => {
-                let resolved = self
-                    .resolve_external_module_symbol(Some(symbol), false)
+                self.resolve_external_module_symbol(Some(symbol), false)
                     .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
-                let _ = resolved;
-                let exports = self
-                    .get_exports_of_module(symbol)
-                    .map_err(|abort| node_builder_abort_error(self, method, node, abort))?;
-                if exports.is_empty() {
-                    return Ok(Some(Vec::new()));
-                }
-                exports
+                self.binder.symbol(symbol).exports.clone()
             }
         };
         crate::node_builder::with_context(

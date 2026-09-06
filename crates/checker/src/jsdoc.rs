@@ -10,6 +10,19 @@ use tsc_types::SymbolId;
 use crate::state::CheckerState;
 
 impl<'a> CheckerState<'a> {
+    /// Project direct `node.jsDoc` property presence. getJSDocTagsWorker
+    /// creates an empty array when caching tags, including an empty result;
+    /// our immutable syntax arena keeps that state in jsdoc_tag_cache.
+    pub(crate) fn has_jsdoc_property(&self, node: NodeId) -> bool {
+        self.binder
+            .source_of_node(node)
+            .arena
+            .node(node)
+            .js_doc
+            .is_some()
+            || self.jsdoc_tag_cache.borrow().contains_key(&node)
+    }
+
     /// tsc-port: hasJSDocNodes @6.0.3
     /// tsc-hash: 45123251ec15122f9da8fa85555784320976613ea79839fdaec4671cfb8e256d
     /// tsc-span: _tsc.js:12534-12538

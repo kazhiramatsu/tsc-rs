@@ -9899,7 +9899,9 @@ impl<'a> CheckerState<'a> {
                     return Ok(text);
                 }
             }
-            if let Some(text) = self.syntactic_single_return_type_text_slice(declaration)? {
+            if let Some(text) =
+                self.syntactic_single_return_type_text_slice(declaration, fully_qualified)?
+            {
                 return Ok(text);
             }
         }
@@ -9917,13 +9919,13 @@ impl<'a> CheckerState<'a> {
     /// Keep the syntactic face separate from the semantic return type:
     /// the former preserves an assertion such as `number | string` in
     /// the enclosing function signature, while a nested relation still
-    /// prints the canonical semantic union `string | number`. The full
-    /// syntactic builder also derives primitive/function/literal faces;
-    /// unsupported expression shapes deliberately fall through to the
-    /// semantic serializer instead of duplicating that builder here.
+    /// prints the canonical semantic union `string | number`. The expression-inference
+    /// arms preserve the current mapper and recursive display context; other
+    /// unsupported syntactic shapes fall through to the semantic serializer.
     fn syntactic_single_return_type_text_slice(
         &mut self,
         declaration: NodeId,
+        fully_qualified: bool,
     ) -> CheckResult<Option<String>> {
         if !matches!(
             self.kind_of(declaration),
@@ -9981,6 +9983,26 @@ impl<'a> CheckerState<'a> {
             return Ok(None);
         };
 
+        // isContextuallyTyped (:134442-134446): contextual expressions
+        // only admit the non-const assertion reuse path. Semantic expression
+        // inference here is the syntactic builder's non-contextual arm.
+        let mut contextually_typed = false;
+        let mut ancestor = self.parent_of(expression);
+        while let Some(node) = ancestor {
+            let kind = self.kind_of(node);
+            if matches!(
+                kind,
+                SyntaxKind::CallExpression | SyntaxKind::JsxElement | SyntaxKind::JsxExpression
+            ) || (!node_util::is_function_like_declaration_kind(kind)
+                && self.effective_type_annotation_node(node).is_some())
+            {
+                contextually_typed = true;
+                break;
+            }
+            ancestor = self.parent_of(node);
+        }
+        let mut is_const_context = false;
+
         loop {
             if let Some(type_node) = self.jsdoc_type_assertion_type_node(expression) {
                 return if self.is_const_type_reference_node(type_node) {
@@ -10000,25 +10022,167 @@ impl<'a> CheckerState<'a> {
                     let Some(type_node) = data.r#type else {
                         return Ok(None);
                     };
-                    return if self.is_const_type_reference_node(type_node) {
-                        Ok(None)
-                    } else {
-                        self.type_annotation_text_slice(type_node).map(Some)
+                    if !self.is_const_type_reference_node(type_node) {
+                        return self.type_annotation_text_slice(type_node).map(Some);
+                    }
+                    let Some(inner) = data.expression.filter(|_| !contextually_typed) else {
+                        return Ok(None);
                     };
+                    expression = inner;
+                    is_const_context = true;
                 }
                 NodeData::TypeAssertionExpression(data) => {
                     let Some(type_node) = data.r#type else {
                         return Ok(None);
                     };
-                    return if self.is_const_type_reference_node(type_node) {
-                        Ok(None)
-                    } else {
-                        self.type_annotation_text_slice(type_node).map(Some)
+                    if !self.is_const_type_reference_node(type_node) {
+                        return self.type_annotation_text_slice(type_node).map(Some);
+                    }
+                    let Some(inner) = data.expression.filter(|_| !contextually_typed) else {
+                        return Ok(None);
                     };
+                    expression = inner;
+                    is_const_context = true;
                 }
-                _ => return Ok(None),
+                _ if contextually_typed => return Ok(None),
+                _ => {
+                    return self.syntactic_expression_inference_text_slice(
+                        expression,
+                        is_const_context,
+                        fully_qualified,
+                    );
+                }
             }
         }
+    }
+
+    /// Diagnostic display projection of the inferExpressionType branches.
+    ///
+    /// tsc-port: typeFromExpression @6.0.3
+    /// tsc-hash: 618dccd876b1fdcf9053f5bfabc74f50521767b59a4b2b3bb3e2f5b441562ca7
+    /// tsc-span: _tsc.js:134000-134082
+    /// tsc-port: canGetTypeFromObjectLiteral @6.0.3
+    /// tsc-hash: 59976f6fafe490e01cd5681beb491a819e9e17bb01f5ccd5ca061025966f08f9
+    /// tsc-span: _tsc.js:134146-134174
+    /// tsc-port: typeFromArrayLiteral @6.0.3
+    /// tsc-hash: 2431975c6161697a74205141f9641c62a5f334c6e62dcb017aaa1cb2b88ed9c4
+    /// tsc-span: _tsc.js:134113-134145
+    /// tsc-port: typeFromObjectLiteral @6.0.3
+    /// tsc-hash: c39996ec238e6596ad43ad4a0408abe5051696954de9a57e0729deefcfdc8e71
+    /// tsc-span: _tsc.js:134175-134221
+    ///
+    /// A failed syntactic object/array inference can still serialize the
+    /// expression's type, independently of a circular signature return type.
+    /// The syntactically supported object/const-array arms instead return
+    /// notImplemented, so those retain the signature's semantic fallback.
+    fn syntactic_expression_inference_text_slice(
+        &mut self,
+        expression: NodeId,
+        is_const_context: bool,
+        fully_qualified: bool,
+    ) -> CheckResult<Option<String>> {
+        match self.data_of(expression) {
+            NodeData::ClassExpression(_) => {}
+            NodeData::ArrayLiteralExpression(data) => {
+                if is_const_context
+                    && !self
+                        .nodes_of(data.elements)
+                        .iter()
+                        .any(|&element| self.kind_of(element) == SyntaxKind::SpreadElement)
+                {
+                    return Ok(None);
+                }
+                if self.syntactic_expression_has_declaration_parent_slice(expression) {
+                    return Ok(None);
+                }
+            }
+            NodeData::ObjectLiteralExpression(data) => {
+                let properties = self.nodes_of(data.properties).to_vec();
+                let mut can_get_type = true;
+                for property in properties {
+                    if self.node_flags(property) & tsc_types::NodeFlags::THIS_NODE_HAS_ERROR.bits()
+                        != 0
+                    {
+                        can_get_type = false;
+                        break;
+                    }
+                    if matches!(
+                        self.kind_of(property),
+                        SyntaxKind::ShorthandPropertyAssignment | SyntaxKind::SpreadAssignment
+                    ) {
+                        can_get_type = false;
+                        continue;
+                    }
+                    let Some(name) = self.name_of_node(property) else {
+                        can_get_type = false;
+                        break;
+                    };
+                    if self.node_flags(name) & tsc_types::NodeFlags::THIS_NODE_HAS_ERROR.bits() != 0
+                    {
+                        can_get_type = false;
+                        break;
+                    }
+                    if self.kind_of(name) == SyntaxKind::PrivateIdentifier {
+                        can_get_type = false;
+                    } else if let NodeData::ComputedPropertyName(data) = self.data_of(name) {
+                        let Some(key) = data.expression else {
+                            can_get_type = false;
+                            break;
+                        };
+                        let primitive = match self.data_of(key) {
+                            NodeData::PrefixUnaryExpression(data) => {
+                                matches!(
+                                    data.operator,
+                                    SyntaxKind::MinusToken | SyntaxKind::PlusToken
+                                ) && data.operand.is_some_and(|operand| {
+                                    self.kind_of(operand) == SyntaxKind::NumericLiteral
+                                })
+                            }
+                            _ => matches!(
+                                self.kind_of(key),
+                                SyntaxKind::TrueKeyword
+                                    | SyntaxKind::FalseKeyword
+                                    | SyntaxKind::NumericLiteral
+                                    | SyntaxKind::StringLiteral
+                                    | SyntaxKind::NoSubstitutionTemplateLiteral
+                            ),
+                        };
+                        if !primitive
+                            && !self.emit_is_definitely_reference_to_global_symbol_object(key)?
+                        {
+                            can_get_type = false;
+                        }
+                    }
+                }
+                if can_get_type
+                    || self.syntactic_expression_has_declaration_parent_slice(expression)
+                {
+                    return Ok(None);
+                }
+            }
+            _ => return Ok(None),
+        }
+        // resolver.serializeTypeOfExpression (:50823-50827): obtain the
+        // expression type, regularize literals, widen, then apply the current
+        // signature mapper before rendering in the existing display context.
+        let ty = self.get_type_of_expression(expression)?;
+        let regular = self.tables.get_regular_type_of_literal_type(ty);
+        let widened = self.get_widened_type(regular)?;
+        let mapper = self.slice_display_mappers.last().copied();
+        let instantiated = self.instantiate_type(widened, mapper)?;
+        self.type_to_string_slice_ex(instantiated, fully_qualified)
+            .map(Some)
+    }
+
+    fn syntactic_expression_has_declaration_parent_slice(&self, expression: NodeId) -> bool {
+        let mut parent = self.parent_of(expression);
+        while let Some(node) = parent {
+            if self.kind_of(node) != SyntaxKind::ParenthesizedExpression {
+                return node_util::is_declaration(self.binder.source_of_node(node), node);
+            }
+            parent = self.parent_of(node);
+        }
+        false
     }
 
     /// tsc-port: typePredicateToTypePredicateNodeHelper @6.0.3

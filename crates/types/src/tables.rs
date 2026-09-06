@@ -1946,10 +1946,9 @@ impl TypeTables {
     /// tsc-hash: 174a20487ba5d9cbae89e49e7ce9bb1b4e37e4de1cc60e38ece5bfd3e9be0490
     /// tsc-span: _tsc.js:61156-61209
     ///
-    /// Ported WITHOUT the per-index/`length` property symbol synthesis
-    /// (61160-61185): tuple RELATIONS read elementFlags + type
-    /// arguments only (propertiesRelatedTo 66804-66805); property
-    /// synthesis lands with the first member-reading consumer (M4).
+    /// Property symbols are checker-owned and materialized on first member
+    /// read. Their types are allocated here in upstream order, including
+    /// length literals before the tuple target object (61177-61186).
     fn create_tuple_target_type(
         &mut self,
         element_flags: &[ElementFlags],
@@ -1976,6 +1975,14 @@ impl TypeTables {
             }
         }
         let has_rest_element = combined_flags.intersects(ElementFlags::VARIABLE);
+        let length_type = if has_rest_element {
+            self.intrinsics.number
+        } else {
+            let literals: Vec<TypeId> = (min_length..=arity)
+                .map(|length| self.get_number_literal_type(length as f64))
+                .collect();
+            self.get_union_type(&literals, UnionReduction::Literal)
+        };
         let target = self.create_type(
             TypeFlags::OBJECT,
             TypeData::TupleTarget(TupleTargetData {
@@ -1985,6 +1992,7 @@ impl TypeTables {
                 this_type: TypeId(u32::MAX),
                 element_flags: element_flags.to_vec().into_boxed_slice(),
                 min_length,
+                length_type,
                 fixed_length,
                 has_rest_element,
                 combined_flags,

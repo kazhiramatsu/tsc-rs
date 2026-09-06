@@ -638,6 +638,7 @@ impl<'a> CheckerState<'a> {
             declaration: None,
             components,
             is_enum_number_index_info: false,
+            is_any_base_type_index_info: false,
         })
     }
 
@@ -1991,6 +1992,7 @@ impl<'a> CheckerState<'a> {
                 // createIndexInfo makes a NEW object — the
                 // enumNumberIndexInfo identity does not survive.
                 is_enum_number_index_info: false,
+                is_any_base_type_index_info: false,
                 ..info
             }
         } else {

@@ -198,6 +198,11 @@ pub struct IndexInfo {
     /// tsc-visible copies (createIndexInfo clones like
     /// getIndexInfoWithReadonly / instantiateIndexInfo) — is false.
     pub is_enum_number_index_info: bool,
+    /// Identity of tsc's anyBaseTypeIndexInfo singleton. Retaining an info
+    /// preserves this bit; createIndexInfo paths clear it, even for an
+    /// unchanged string-to-any shape. Declaration synthesis excludes only
+    /// the singleton, while semantic indexing still uses it.
+    pub is_any_base_type_index_info: bool,
 }
 
 /// tsc-port: createWideningContext @6.0.3

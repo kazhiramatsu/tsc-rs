@@ -536,15 +536,15 @@ type SpeculativeTypeOnlyAliasWrite = (u32, SymbolId, Option<Option<NodeId>>, Opt
 /// Whether a speculative symbol-type write is merely a candidate-local
 /// cache publication or semantic state selected by overload resolution.
 ///
-/// Contextual parameter types are completed once-results of the function
-/// expression: tsc leaves both the parameter type and `ContextChecked` in
-/// place after a selected OR rejected candidate. Other lazy symbol-type
+/// Contextual parameter types and completed accessor types are once-results:
+/// tsc leaves them (and the function's `ContextChecked` flag) in place after
+/// a selected OR rejected candidate. Other lazy symbol-type
 /// publications remain transaction-local and are discarded at either
 /// boundary.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum SpeculativeSymbolTypeDisposition {
     Temporary,
-    ContextualOnceResult,
+    CompletedOnceResult,
 }
 
 #[derive(Clone, Debug)]
@@ -617,8 +617,7 @@ pub struct LinksTables {
     speculative_symbol_declared_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
     /// Trial-local value-type publications for symbols first forced by
     /// candidate checking. The disposition distinguishes reproducible
-    /// cache state from contextual parameter types owned by the selected
-    /// candidate.
+    /// cache state from completed contextual parameter and accessor types.
     speculative_symbol_type_writes: Vec<SpeculativeSymbolTypeWrite>,
     /// Trial-local accessor/instantiated-property write-type caches.
     speculative_symbol_write_type_writes: Vec<(u32, SymbolId, LinkSlot<TypeId>)>,
@@ -950,7 +949,7 @@ impl LinksTables {
             .iter_mut()
             .find(|write| write.depth == speculation_depth && write.symbol == id)
         {
-            if disposition == SpeculativeSymbolTypeDisposition::ContextualOnceResult {
+            if disposition == SpeculativeSymbolTypeDisposition::CompletedOnceResult {
                 existing.disposition = disposition;
             }
             return;
@@ -1586,10 +1585,9 @@ impl LinksTables {
     /// Discard candidate-local protocols and lazy cache publications.
     /// Semantic objects constructed during the candidate initialize
     /// their owned fields through the `set_fresh_*` setters instead.
-    /// Declaration signatures, contextual-check flags, and contextual
-    /// parameter types are the exceptions: a completed contextual function
-    /// must keep that semantic state for later candidates and its deferred
-    /// body check.
+    /// Declaration signatures, contextual-check flags, contextual parameter
+    /// types, and completed accessor types are the exceptions: these once-results
+    /// must remain available to later candidates and deferred body checks.
     pub(crate) fn commit_speculative_writes(
         &mut self,
         marks: SpeculativeLinksMarks,
@@ -1790,9 +1788,9 @@ impl LinksTables {
         }
     }
 
-    /// Retain only completed contextual parameter types.
-    /// Lazy value-type cache entries are restored exactly as on rollback.
-    /// Nested contextual writes promote their original snapshot to the
+    /// Retain completed contextual parameter and accessor types.
+    /// Other lazy value-type entries are restored exactly as on rollback.
+    /// Nested completed writes promote their original snapshot to the
     /// parent transaction, mirroring declaration-signature ownership.
     fn commit_speculative_symbol_types(&mut self, mark: usize, parent_depth: u32) {
         let committed: Vec<_> = self.speculative_symbol_type_writes.drain(mark..).collect();
@@ -1803,8 +1801,8 @@ impl LinksTables {
                     note_resolving_transition(slot.is_resolving(), write.previous.is_resolving());
                     *slot = write.previous;
                 }
-                SpeculativeSymbolTypeDisposition::ContextualOnceResult if parent_depth == 0 => {}
-                SpeculativeSymbolTypeDisposition::ContextualOnceResult => {
+                SpeculativeSymbolTypeDisposition::CompletedOnceResult if parent_depth == 0 => {}
+                SpeculativeSymbolTypeDisposition::CompletedOnceResult => {
                     if let Some(parent) =
                         self.speculative_symbol_type_writes
                             .iter_mut()
@@ -1812,7 +1810,7 @@ impl LinksTables {
                                 parent.depth == parent_depth && parent.symbol == write.symbol
                             })
                     {
-                        parent.disposition = SpeculativeSymbolTypeDisposition::ContextualOnceResult;
+                        parent.disposition = SpeculativeSymbolTypeDisposition::CompletedOnceResult;
                     } else {
                         self.speculative_symbol_type_writes
                             .push(SpeculativeSymbolTypeWrite {
@@ -2433,6 +2431,30 @@ impl LinksTables {
         );
     }
 
+    /// Retain a completed declaration-owned value type across completed
+    /// overload candidates. Upstream accessor resolution fills links.type
+    /// once, including when a candidate is rejected. Recomputing that type
+    /// later can encounter a different contextual type and introduce a cycle.
+    /// An aborted or explicitly rolled-back transaction still restores the
+    /// original slot, together with its completed diagnostic journal.
+    /// tsrs-native: journal protocol for upstream's accessor once-result.
+    pub fn set_symbol_type_once(
+        &mut self,
+        speculation_depth: u32,
+        id: SymbolId,
+        value: LinkSlot<TypeId>,
+    ) {
+        self.journal_symbol_type(
+            speculation_depth,
+            id,
+            SpeculativeSymbolTypeDisposition::CompletedOnceResult,
+        );
+        Self::write_slot(
+            &mut self.symbol.entry(id).or_default().type_of_symbol,
+            value,
+        );
+    }
+
     /// tsrs-native: candidate-local contextual symbol initialization.
     ///
     /// The parameter type must remain stable while a candidate is checked.
@@ -2449,7 +2471,7 @@ impl LinksTables {
         self.journal_symbol_type(
             speculation_depth,
             id,
-            SpeculativeSymbolTypeDisposition::ContextualOnceResult,
+            SpeculativeSymbolTypeDisposition::CompletedOnceResult,
         );
         let slot = &mut self.symbol.entry(id).or_default().type_of_symbol;
         note_resolving_transition(slot.is_resolving(), value.is_resolving());

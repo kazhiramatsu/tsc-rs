@@ -359,6 +359,8 @@ impl<'a> CheckerState<'a> {
         let mut index_infos = self.get_index_infos_of_type(ty)?;
         for info in &mut index_infos {
             info.value_type = self.get_widened_type(info.value_type)?;
+            // Upstream creates a new IndexInfo even if its type is unchanged.
+            info.is_any_base_type_index_info = false;
         }
         let symbol = self.tables.type_of(ty).symbol;
         let result = self

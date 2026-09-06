@@ -477,6 +477,7 @@ fn front_doors_preserve_flags_and_build_real_node_shapes() {
                 declaration: None,
                 components: None,
                 is_enum_number_index_info: false,
+                is_any_base_type_index_info: false,
             };
             let index = index_info_to_index_signature_declaration(
                 checker,

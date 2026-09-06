@@ -481,6 +481,10 @@ impl<'a> CheckerState<'a> {
                 let operand = data
                     .operand
                     .expect("parser invariant: literal-type PrefixUnary operand always parsed");
+                // checkPrefixUnaryExpression checks the positive operand
+                // first. Its regular/fresh identities precede the negative
+                // literal even when this expression occurs in a type node.
+                self.check_literal_expression(operand)?;
                 match self.data_of(operand).clone() {
                     NodeData::NumericLiteral(data) => {
                         let value = -parse_numeric_literal_text(&data.text)?;
@@ -1631,6 +1635,7 @@ impl<'a> CheckerState<'a> {
                             declaration: None,
                             components: None,
                             is_enum_number_index_info: false,
+                            is_any_base_type_index_info: false,
                         }]
                     } else {
                         Vec::new()
@@ -4115,6 +4120,7 @@ impl<'a> CheckerState<'a> {
                     declaration: None,
                     components: None,
                     is_enum_number_index_info: false,
+                    is_any_base_type_index_info: false,
                 });
             }
 
@@ -4326,16 +4332,8 @@ impl<'a> CheckerState<'a> {
                     CheckFlags::READONLY,
                 );
             }
-            let length_type = if combined.intersects(ElementFlags::VARIABLE) {
-                self.tables.intrinsics.number
-            } else {
-                let literals: Vec<TypeId> = (data.min_length..=data.type_parameters.len())
-                    .map(|length| self.tables.get_number_literal_type(length as f64))
-                    .collect();
-                self.get_union_type_ex(&literals, UnionReduction::Literal)?
-            };
             self.links
-                .set_fresh_symbol_type(length_symbol, LinkSlot::Resolved(length_type));
+                .set_fresh_symbol_type(length_symbol, LinkSlot::Resolved(data.length_type));
             properties.push(length_symbol);
             let members = self.symbol_list_to_table(&properties);
             let id = self.alloc_members(ResolvedMembers {
@@ -4530,6 +4528,7 @@ impl<'a> CheckerState<'a> {
                                 declaration: None,
                                 components: None,
                                 is_enum_number_index_info: false,
+                                is_any_base_type_index_info: true,
                             }]
                         };
                     for info in inherited_index_infos {
@@ -6375,6 +6374,10 @@ impl<'a> CheckerState<'a> {
             return Ok(self.tables.intrinsics.error);
         }
         let getter = self.declaration_of_kind(symbol, SyntaxKind::GetAccessor);
+        let diagnostic_marks = (
+            self.diagnostics.len(),
+            self.visible_global_diagnostics.len(),
+        );
         let setter = self.declaration_of_kind(symbol, SyntaxKind::SetAccessor);
         // 56753: tryCast(..., isAutoAccessorPropertyDeclaration).
         let accessor = self
@@ -6543,12 +6546,13 @@ impl<'a> CheckerState<'a> {
             .resolved()
             .is_none()
         {
-            self.links.set_symbol_type(
+            self.links.set_symbol_type_once(
                 self.speculation_depth,
                 symbol,
                 LinkSlot::Resolved(resolved),
             );
         }
+        self.record_completed_contextual_diagnostics_since(diagnostic_marks.0, diagnostic_marks.1);
         Ok(self
             .links
             .symbol(symbol)
@@ -7070,6 +7074,7 @@ impl<'a> CheckerState<'a> {
                             declaration: None,
                             components: None,
                             is_enum_number_index_info: false,
+                            is_any_base_type_index_info: true,
                         });
                     }
                 }
@@ -7117,6 +7122,7 @@ impl<'a> CheckerState<'a> {
                                     declaration: None,
                                     components: None,
                                     is_enum_number_index_info: true,
+                                    is_any_base_type_index_info: false,
                                 });
                             }
                         }
@@ -7334,6 +7340,7 @@ impl<'a> CheckerState<'a> {
                             declaration: Some(declaration),
                             components: None,
                             is_enum_number_index_info: false,
+                            is_any_base_type_index_info: false,
                         });
                     }
                 }
@@ -9084,6 +9091,16 @@ impl<'a> CheckerState<'a> {
             let alias_type_arguments = self.tables.type_of(ty).alias_type_arguments.clone();
             self.tables.type_mut(result).alias_symbol = alias_symbol;
             self.tables.type_mut(result).alias_type_arguments = alias_type_arguments;
+            if source_object_flags.intersects(ObjectFlags::REFERENCE) {
+                // getInitializerTypeFromAssignmentDeclaration preserves a
+                // reference's name/arguments on an unchanged CommonJS clone.
+                // Otherwise exporting an array expands all of Array's members.
+                let alias_symbol = self.tables.type_of(ty).symbol;
+                let arguments = self.get_type_arguments(ty)?;
+                self.tables.type_mut(result).alias_symbol = alias_symbol;
+                self.tables.type_mut(result).alias_type_arguments =
+                    (!arguments.is_empty()).then(|| arguments.into());
+            }
         }
         Ok(result)
     }
@@ -9925,7 +9942,7 @@ impl<'a> CheckerState<'a> {
                     continue;
                 }
             }
-            if self.is_in_js_file(declaration) && self.has_jsdoc_nodes(declaration) {
+            if self.is_in_js_file(declaration) && self.has_jsdoc_property(declaration) {
                 let overloads = self.all_jsdoc_tags(declaration, SyntaxKind::JSDocOverloadTag);
                 if !overloads.is_empty() {
                     for overload in overloads {
@@ -10888,6 +10905,7 @@ impl<'a> CheckerState<'a> {
                     declaration: None,
                     components: None,
                     is_enum_number_index_info: false,
+                    is_any_base_type_index_info: false,
                 });
                 continue;
             }
