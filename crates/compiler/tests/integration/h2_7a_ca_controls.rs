@@ -180,12 +180,13 @@ fn declaration_family_options_remain_typed_refusals() {
         },
         "declarationMap",
     );
-    assert_unsupported_option(
-        CompilerOptions {
-            emit_declaration_only: Some(true),
-            ..CompilerOptions::default()
-        },
-        "emitDeclarationOnly",
+    let declaration_only = control_host(CompilerOptions {
+        emit_declaration_only: Some(true),
+        ..CompilerOptions::default()
+    });
+    assert_eq!(
+        tsc_emitter::validate_bootstrap_emit_request(&declaration_only),
+        Ok(())
     );
     let combined = control_host(CompilerOptions {
         declaration: Some(true),

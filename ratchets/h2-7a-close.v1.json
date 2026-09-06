@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "ada673193d9c82cb4e633435364c764881109b1d73a8738d2ea311bd2f5ad911"
+    "sha256": "7a102ca8b58fbe997ad160fd2d56711a3614d7c922aa0000b7c241f9e52039a6"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
@@ -238,23 +238,18 @@
       "retained_arms": [
         {
           "name": "declarationMap",
-          "line": 112,
-          "span_sha256": "7b6a45b8b9151fbb0644c5ee17c0527be3644ef4804e781bf8f3681dea843254"
-        },
-        {
-          "name": "emitDeclarationOnly",
           "line": 114,
-          "span_sha256": "7b6a45b8b9151fbb0644c5ee17c0527be3644ef4804e781bf8f3681dea843254"
+          "span_sha256": "cd20647b3e900f587b6b70c53b34759e27bf746fc4e5086099612fbecf717e3b"
         },
         {
           "name": "composite",
-          "line": 123,
-          "span_sha256": "7b6a45b8b9151fbb0644c5ee17c0527be3644ef4804e781bf8f3681dea843254"
+          "line": 120,
+          "span_sha256": "cd20647b3e900f587b6b70c53b34759e27bf746fc4e5086099612fbecf717e3b"
         },
         {
           "name": "declarationDir",
-          "line": 142,
-          "span_sha256": "7b6a45b8b9151fbb0644c5ee17c0527be3644ef4804e781bf8f3681dea843254"
+          "line": 139,
+          "span_sha256": "cd20647b3e900f587b6b70c53b34759e27bf746fc4e5086099612fbecf717e3b"
         }
       ],
       "sha256_at_h2_6c_close": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae"
@@ -312,5 +307,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "c3873e44235cd0d608ccb75143624ee225d8378c4d6535519d14bd73d92f9357"
+  "close_fingerprint_sha256": "7dc803bb1025ead4f36dd9091b1e37223d8e746da951b589c9946d617be60b6c"
 }

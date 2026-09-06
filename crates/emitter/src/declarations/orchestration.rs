@@ -73,6 +73,54 @@ impl GlobalNameOracle for ResolverGlobalNameOracle<'_> {
     }
 }
 
+/// Run the declaration transform solely for diagnostics, without constructing
+/// a printer or applying the per-output path blocking rules.
+///
+/// The caller supplies a source selected by getSourceFilesToEmit. JSON is the
+/// remaining exclusion in the upstream declaration-diagnostic worker.
+/// tsc-port: getDeclarationDiagnostics @6.0.3
+/// tsc-hash: b34e4107425e1377261d1f20e0c23e3d970722b026812172da73afad146434a8
+/// tsc-span: _tsc.js:114249-114263
+pub(crate) fn get_declaration_diagnostics(
+    resolver: &dyn EmitResolver,
+    host: &dyn EmitHost,
+    paths: &dyn DeclarationPathResolver,
+    source: SourceFileId,
+    activity: &mut H2ActivityCanary,
+) -> Result<Vec<Diagnostic>, EmitFailure> {
+    let emit_source = host.source_file(source).ok_or(EmitFailure::Contract(
+        EmitContractViolation::PlannedSourceMissing(source),
+    ))?;
+    if emit_source
+        .path()
+        .to_string_lossy()
+        .to_ascii_lowercase()
+        .ends_with(".json")
+    {
+        return Ok(Vec::new());
+    }
+    let mut arena = TransformArena::new();
+    let transform_source = mount_declaration_program_sources(&mut arena, host, source)?;
+    let transformers = get_declaration_transformers(
+        host.compiler_options(),
+        resolver,
+        host,
+        paths,
+        &DeclarationCustomTransformers::none(),
+    )?;
+    activity.observe_runtime_slice(H2RuntimeSlice::H2_7b);
+    activity.construct_transform_context();
+    let mut result = transform_nodes(
+        arena,
+        vec![TransformRoot::SourceFile(transform_source)],
+        transformers,
+        false,
+    )?;
+    let diagnostics = result.diagnostics().to_vec();
+    result.dispose();
+    Ok(diagnostics)
+}
+
 /// tsc-port: emitDeclarationFileOrBundle @6.0.3
 /// tsc-hash: 8275307ffb4a07e3c7d8b7a5d7f2acf16bfe01c5f746285165c54dc225904434
 /// tsc-span: _tsc.js:116640-116715

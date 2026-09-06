@@ -2,7 +2,9 @@ use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticLi
 use tsc_types::{CompilerOptions, ScriptTarget};
 
 use crate::builtins::get_script_transformers_with_activity;
-use crate::declarations::{emit_declaration_unit, PlanDeclarationPaths};
+use crate::declarations::{
+    emit_declaration_unit, get_declaration_diagnostics, PlanDeclarationPaths,
+};
 use crate::{
     create_printer, transform_nodes, EmitArtifact, EmitContractViolation, EmitFailure, EmitHost,
     EmitOutcome, EmitPreflight, EmitResolver, EmitRoot, EmitSelection, EmitTextMetadata,
@@ -110,11 +112,6 @@ pub fn validate_bootstrap_emit_options(options: &CompilerOptions) -> Result<(), 
             "allowImportingTsExtensions",
         ),
         (options.declaration_map == Some(true), "declarationMap"),
-        (
-            options.emit_declaration_only == Some(true)
-                && !(options.declaration == Some(true) || options.composite == Some(true)),
-            "emitDeclarationOnly",
-        ),
         (
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
@@ -633,8 +630,28 @@ pub fn emit_files_with_activity(
     }
 
     let emitted_files_enabled = options.list_emitted_files == Some(true);
+    let declaration_paths = PlanDeclarationPaths::new(host, &preflight);
+    // tsc-port: handleNoEmitOptions @6.0.3
+    // tsc-hash: dd8ed6d22974cbe8efc5097db50ffc3bf3aeabd1de0ca9f3a4e0878d3aa87de1
+    // tsc-span: _tsc.js:125641-125668
     if options.no_emit_on_error == Some(true) {
-        let diagnostics = diagnostic_gate.collect_with_preflight(preflight.diagnostics());
+        let mut diagnostics = diagnostic_gate.collect_with_preflight(preflight.diagnostics());
+        if diagnostics.is_empty()
+            && (options.declaration == Some(true) || options.composite == Some(true))
+        {
+            // TypeScript checks declarations across the whole program before
+            // any JavaScript emit, even for a targeted emit request.
+            for source in crate::get_source_files_to_emit(host, EmitSelection::WholeProgram)? {
+                diagnostics.extend(get_declaration_diagnostics(
+                    resolver,
+                    host,
+                    &declaration_paths,
+                    source,
+                    activity,
+                )?);
+            }
+            sort_and_dedupe_diagnostics(&mut diagnostics);
+        }
         if !diagnostics.is_empty() {
             return Ok(EmitOutcome::new(
                 diagnostics,
@@ -661,7 +678,6 @@ pub fn emit_files_with_activity(
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
 
-    let declaration_paths = PlanDeclarationPaths::new(host, &preflight);
     let mut artifacts = Vec::with_capacity(preflight.plan().units().len() * 3);
     // emittedFiles lists js THEN map THEN declaration per unit while the sink
     // writes map THEN js THEN declaration. The list order is plan-owned,
@@ -861,6 +877,10 @@ pub fn emit_files_with_activity(
             if let Some(artifact) = declaration.artifact {
                 artifacts.push(artifact);
             }
+        } else if options.emit_declaration_only == Some(true) {
+            // emitDeclarationFileOrBundle also marks a missing declaration
+            // path as skipped. An all-.d.ts program has no units to visit.
+            emit_skipped = true;
         }
         unit_listing.push((javascript_path, javascript_map_path, declaration_path));
     }

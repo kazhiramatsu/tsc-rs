@@ -1454,6 +1454,12 @@ fn load_config_program_inner(
         ConfigProgramMode::NoEmit { force: false } | ConfigProgramMode::Emit { force: false } => {}
     }
     overrides.apply(&mut compiler_options, &mut program_options);
+    if matches!(mode, ConfigProgramMode::Emit { .. }) {
+        // Emit must see effective option diagnostics before noEmitOnError
+        // decides whether to run declaration transforms or write output.
+        // Preserve config syntax for locations while applying CLI overrides.
+        program_options = program_options.with_program_owned_config_option_diagnostics();
+    }
     let loaded = match mode {
         ConfigProgramMode::NoEmit { .. } => load_program_with_root_reasons(
             host,
@@ -3142,6 +3148,7 @@ fn option_relationship_diagnostics(
         exact_optional_property_types: config_option_bool(options, "exactOptionalPropertyTypes"),
         isolated_declarations: config_option_bool(options, "isolatedDeclarations"),
         declaration: config_option_bool(options, "declaration"),
+        emit_declaration_only: config_option_bool(options, "emitDeclarationOnly"),
         composite: config_option_bool(options, "composite"),
         jsx: config_option_i32(options, "jsx"),
         source_map: config_option_bool(options, "sourceMap"),

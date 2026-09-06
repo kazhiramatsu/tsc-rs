@@ -79,3 +79,6 @@ mod upstream_no_emit_harness_contract;
 
 #[path = "integration/h2_7c_strip_internal.rs"]
 mod h2_7c_strip_internal;
+
+#[path = "integration/h2_7c_declaration_blocking.rs"]
+mod h2_7c_declaration_blocking;

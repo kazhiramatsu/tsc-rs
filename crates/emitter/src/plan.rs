@@ -409,7 +409,10 @@ pub fn for_each_emitted_file(
             EmitContractViolation::PlannedSourceMissing(source_file),
         ))?;
         let paths = get_output_paths_for(source, host)?;
-        if paths.javascript_path().is_some()
+        // Declaration-only requests still visit a source with no output
+        // paths, so emitDeclarationFileOrBundle can mark it skipped.
+        if host.compiler_options().emit_declaration_only == Some(true)
+            || paths.javascript_path().is_some()
             || paths.javascript_map_path().is_some()
             || paths.declaration_path().is_some()
             || paths.declaration_map_path().is_some()

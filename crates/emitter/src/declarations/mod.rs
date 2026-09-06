@@ -24,7 +24,7 @@ use crate::{
     TransformationContext, Transformer,
 };
 
-pub(crate) use self::orchestration::emit_declaration_unit;
+pub(crate) use self::orchestration::{emit_declaration_unit, get_declaration_diagnostics};
 pub use self::orchestration::{
     transform_declaration_unit_for_harness, transform_declaration_unit_with_observer_for_harness,
     DeclBlockedInputs, DeclarationTransformOutcome,

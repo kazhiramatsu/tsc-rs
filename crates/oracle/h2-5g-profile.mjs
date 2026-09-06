@@ -96,6 +96,9 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   // h2-7c: focused option observations and production-entry comparisons.
   "crates/compiler/tests/fixtures/strip-internal.json",
   "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
+  "crates/compiler/tests/fixtures/declaration-blocking.json",
+  "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+  "crates/compiler/tests/integration/cli_contract.rs",
 
   // h2-7b-ca: W5 inputs omitted during the lightweight closure pilot.
   "crates/checker/src/inference.rs",
@@ -627,8 +630,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 256,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 256)`,
+    runtimeInputSet.size === 259,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 259)`,
   );
 
   return withFingerprint(
