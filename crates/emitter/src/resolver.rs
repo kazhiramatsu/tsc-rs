@@ -419,6 +419,7 @@ pub enum EmitResolverMethod {
     GetConstantValue,
     GetEnumMemberValue,
     GetReferencedExportContainer,
+    GetExternalModuleFileFromDeclaration,
     GetReferencedImportDeclaration,
     GetReferencedImportDeclarationAtLocation,
     GetJsxFactoryImportDeclaration,
@@ -490,6 +491,7 @@ impl EmitResolverMethod {
             Self::GetConstantValue => "getConstantValue",
             Self::GetEnumMemberValue => "getEnumMemberValue",
             Self::GetReferencedExportContainer => "getReferencedExportContainer",
+            Self::GetExternalModuleFileFromDeclaration => "getExternalModuleFileFromDeclaration",
             Self::GetReferencedImportDeclaration => "getReferencedImportDeclaration",
             Self::GetReferencedImportDeclarationAtLocation => {
                 "getReferencedImportDeclarationAtLocation"
@@ -758,6 +760,19 @@ pub trait EmitResolver {
         let _ = mode;
         Err(unavailable(
             EmitResolverMethod::GetReferencedExportContainer,
+            node,
+        ))
+    }
+
+    /// tsc-port: getExternalModuleFileFromDeclaration @6.0.3
+    /// tsc-hash: b1d92eecc4c854409d14d155534bda3b0cc44c709b9f3f2eeb970f1a233861a0
+    /// tsc-span: _tsc.js:88719-88731
+    fn get_external_module_file_from_declaration(
+        &self,
+        node: EmitResolverNode,
+    ) -> Result<Option<EmitResolverNode>, EmitResolverError> {
+        Err(unavailable(
+            EmitResolverMethod::GetExternalModuleFileFromDeclaration,
             node,
         ))
     }

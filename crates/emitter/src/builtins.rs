@@ -425,7 +425,7 @@ fn transform_implied_node_format_dependent_module<'dependencies>(
 ) -> Box<dyn Transformer + 'dependencies> {
     activity.construct_transform_ecmascript_module();
     let esm = transform_ecmascript_module(options);
-    let cjs = transform_module(options, resolver);
+    let cjs = transform_module_with_host(options, resolver, host);
     Box::new(ImpliedNodeFormatDependentModuleTransformer { host, esm, cjs })
 }
 
@@ -2330,12 +2330,30 @@ impl Transformer for ImpliedNodeFormatDependentModuleTransformer<'_> {
 /// tsc-port: transformModule @6.0.3
 /// tsc-hash: 3d54d8672774bc47f161ad1b4747b2d39a9a04f3da0a7cdab4c8b5ea125ca3eb
 /// tsc-span: _tsc.js:110090-112041
+#[cfg(test)]
 fn transform_module<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Box<dyn Transformer + 'resolver> {
+    transform_module_with_optional_host(options, resolver, None)
+}
+
+fn transform_module_with_host<'resolver>(
+    options: &CompilerOptions,
+    resolver: &'resolver dyn EmitResolver,
+    host: &'resolver dyn EmitHost,
+) -> Box<dyn Transformer + 'resolver> {
+    transform_module_with_optional_host(options, resolver, Some(host))
+}
+
+fn transform_module_with_optional_host<'resolver>(
+    options: &CompilerOptions,
+    resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
+) -> Box<dyn Transformer + 'resolver> {
     Box::new(CommonJsModuleTransformer {
         resolver,
+        host,
         module_kind: options.emit_module_kind(),
         always_strict: options.always_strict_effective(),
         es_module_interop: options.es_module_interop_effective(),
@@ -2349,6 +2367,7 @@ fn transform_module<'resolver>(
 
 struct CommonJsModuleTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
     module_kind: i32,
     always_strict: bool,
     es_module_interop: bool,
@@ -2428,6 +2447,7 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             context,
             source,
             self.resolver,
+            self.host,
             CommonJsVisitorOptions {
                 module_kind: self.module_kind,
                 es_module_interop: self.es_module_interop,
@@ -2468,9 +2488,10 @@ enum ImportHelperKind {
 
 #[derive(Clone, Debug)]
 struct ImportPlan {
+    declaration: TransformNode,
+    module_specifier_node: TransformNode,
     runtime_name: Option<Box<str>>,
     namespace_alias: Option<Box<str>>,
-    module_specifier: Box<str>,
     helper: ImportHelperKind,
     import_equals_publication: Option<ImportEqualsPublication>,
 }
@@ -3040,9 +3061,10 @@ impl CommonJsModuleInfo {
                     info.imports.insert(
                         arena.get_original_node(*statement).node(),
                         ImportPlan {
+                            declaration: arena.get_original_node(*statement),
+                            module_specifier_node: module_specifier,
                             runtime_name,
                             namespace_alias,
-                            module_specifier: module_text.to_owned().into_boxed_str(),
                             helper,
                             import_equals_publication: None,
                         },
@@ -3068,7 +3090,6 @@ impl CommonJsModuleInfo {
                     else {
                         continue;
                     };
-                    let module_text = string_literal_text(arena, module_specifier)?;
                     let Some(name) = data
                         .name
                         .and_then(|id| arena.node_ref(source, id))
@@ -3082,9 +3103,10 @@ impl CommonJsModuleInfo {
                     info.imports.insert(
                         key,
                         ImportPlan {
+                            declaration: arena.get_original_node(*statement),
+                            module_specifier_node: module_specifier,
                             runtime_name: Some(name.clone().into_boxed_str()),
                             namespace_alias: None,
-                            module_specifier: module_text.to_owned().into_boxed_str(),
                             helper: ImportHelperKind::None,
                             import_equals_publication: Some(if exported {
                                 ImportEqualsPublication::ExportObject {
@@ -3294,9 +3316,10 @@ impl CommonJsModuleInfo {
                     info.imports.insert(
                         key,
                         ImportPlan {
+                            declaration: arena.get_original_node(*statement),
+                            module_specifier_node: module_specifier,
                             runtime_name,
                             namespace_alias: None,
-                            module_specifier: module_text.to_owned().into_boxed_str(),
                             helper: ImportHelperKind::None,
                             import_equals_publication: None,
                         },
@@ -4365,6 +4388,7 @@ struct CommonJsVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
     module_kind: i32,
     es_module_interop: bool,
     has_dynamic_import: bool,
@@ -4385,6 +4409,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
+        host: Option<&'resolver dyn EmitHost>,
         options: CommonJsVisitorOptions,
         info: CommonJsModuleInfo,
     ) -> Self {
@@ -4393,6 +4418,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             context,
             source,
             resolver,
+            host,
             module_kind: options.module_kind,
             es_module_interop: options.es_module_interop,
             has_dynamic_import: options.has_dynamic_import,
@@ -4645,7 +4671,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(statement)
     }
 
-    fn asynchronous_dependencies(&self) -> Result<AsynchronousDependencies, TransformError> {
+    fn asynchronous_dependencies(&mut self) -> Result<AsynchronousDependencies, TransformError> {
         let source = self.context.arena().source(self.source)?.syntax();
         let amd_dependencies = source.amd_dependencies.clone();
         let import_plans = self
@@ -4668,12 +4694,11 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
         }
         for plan in import_plans {
-            let module_specifier = if self.rewrite_relative_import_extensions {
-                rewrite_relative_module_specifier(&plan.module_specifier)
-                    .unwrap_or_else(|| plan.module_specifier.to_string())
-            } else {
-                plan.module_specifier.to_string()
-            };
+            let module_specifier =
+                self.external_module_name_literal(plan.declaration, plan.module_specifier_node)?;
+            let module_specifier = self.rewrite_import_argument(module_specifier)?;
+            let module_specifier =
+                string_literal_text(self.context.arena(), module_specifier)?.to_owned();
             if self.module_kind == MODULE_AMD && plan.runtime_name.is_some() {
                 aliased.push(AliasedAsynchronousDependency {
                     path: module_specifier,
@@ -5035,7 +5060,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
             return Ok(statements);
         }
-        let require = self.create_require_call(module_specifier)?;
+        let require = self.create_require_call(original, module_specifier)?;
         if data.import_clause.is_none() {
             let statement = self.create_expression_statement(require)?;
             self.set_original_and_range(statement, original)?;
@@ -5326,7 +5351,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 statements.push(self.set_original_and_range(statement, original)?);
             }
             (ImportEqualsPublication::LocalBinding, false) => {
-                let require = self.create_require_call(module_specifier)?;
+                let require = self.create_require_call(original, module_specifier)?;
                 let declaration = self.create_variable_declaration(runtime_name, require)?;
                 let statement = self.create_variable_statement(
                     vec![declaration],
@@ -5339,7 +5364,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 statements.push(self.set_original_and_range(statement, original)?);
             }
             (ImportEqualsPublication::ExportObject { exported_name }, false) => {
-                let require = self.create_require_call(module_specifier)?;
+                let require = self.create_require_call(original, module_specifier)?;
                 let target = self.create_export_access(exported_name)?;
                 let assignment = self.create_assignment(target, require)?;
                 let statement = self.create_expression_statement(assignment)?;
@@ -5412,7 +5437,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .expect("an AMD export-star declaration owns a generated module binding");
                 self.create_identifier(generated_name)?
             } else {
-                self.create_require_call(module_specifier)?
+                self.create_require_call(original, module_specifier)?
             };
             let call = self.create_call(helper, vec![module, exports])?;
             let statement = self.create_expression_statement(call)?;
@@ -5429,7 +5454,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .to_owned();
                 let mut statements = Vec::new();
                 if self.module_kind != MODULE_AMD {
-                    let require = self.create_require_call(module_specifier)?;
+                    let require = self.create_require_call(original, module_specifier)?;
                     let declaration = self.create_variable_declaration(&generated_name, require)?;
                     let statement =
                         self.create_variable_statement(vec![declaration], NodeFlags::NONE)?;
@@ -5513,7 +5538,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                         .expect("an AMD namespace export owns a generated module binding");
                     self.create_identifier(generated_name)?
                 } else {
-                    self.create_require_call(module_specifier)?
+                    self.create_require_call(original, module_specifier)?
                 };
                 if self.es_module_interop {
                     self.request_import_star_helper()?;
@@ -9236,11 +9261,60 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         )
     }
 
+    /// tsc-port: getExternalModuleNameLiteral @6.0.3
+    /// tsc-hash: 9a9092da7f95400d7c328345cadf68a9716abde9c36ce4199d6a1c7840646ee6
+    /// tsc-span: _tsc.js:27713-27737
+    fn external_module_name_literal(
+        &mut self,
+        declaration: TransformNode,
+        fallback: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let declaration = self.context.arena().get_original_node(declaration);
+        let has_module_name_source = self.host.is_some_and(|host| {
+            host.source_file_ids().iter().copied().any(|source| {
+                host.source_file(source)
+                    .and_then(|source| source.syntax())
+                    .is_some_and(|source| source.module_name.is_some())
+            })
+        });
+        let target = if has_module_name_source {
+            if let Some(declaration) = self.context.arena().parse_tree_resolver_node(declaration)? {
+                match self
+                    .resolver
+                    .get_external_module_file_from_declaration(declaration)
+                {
+                    Ok(target) => target,
+                    Err(EmitResolverError::Unavailable {
+                        method: EmitResolverMethod::GetExternalModuleFileFromDeclaration,
+                        ..
+                    }) => None,
+                    Err(error) => return Err(error.into()),
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let module_name = self.host.and_then(|host| {
+            target
+                .and_then(|target| host.source_file(target.source()))
+                .and_then(|source| source.syntax())
+                .and_then(|source| source.module_name.clone())
+        });
+        if let Some(module_name) = module_name {
+            self.create_string_literal(&module_name)
+        } else {
+            self.context.factory()?.clone_node(fallback)
+        }
+    }
+
     fn create_require_call(
         &mut self,
+        declaration: TransformNode,
         module_specifier: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let module_specifier = self.context.factory()?.clone_node(module_specifier)?;
+        let module_specifier = self.external_module_name_literal(declaration, module_specifier)?;
         let module_specifier = self.rewrite_import_argument(module_specifier)?;
         self.create_raw_require_call(module_specifier)
     }
