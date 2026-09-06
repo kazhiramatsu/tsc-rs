@@ -974,6 +974,12 @@ fn missing_path_reference_diagnostics<'a>(
     options: &CompilerOptions,
     current_directory: &str,
 ) -> DiagnosticList {
+    // tsc's processReferencedFiles/processTypeReferenceDirectives gate is
+    // outside getSourceFileFromReferenceWorker. Keep this bridge on the same
+    // side of that noResolve boundary.
+    if options.no_resolve == Some(true) {
+        return Vec::new();
+    }
     let known_paths: std::collections::HashSet<String> = host_files.collect();
     let mut diagnostics = Vec::new();
     for source in sources {

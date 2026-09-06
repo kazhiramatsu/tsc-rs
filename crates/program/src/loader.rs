@@ -668,6 +668,12 @@ fn load_program_worker(
         }
     }
     let staged = graph.finish();
+    // Before the package table is collected: the prelude's resolutions read
+    // package.json files under their symlink spellings, and module-specifier
+    // generation later reads those spellings back (upstream shares one
+    // package.json info cache between resolution and specifier generation).
+    let dependency_symlink_resolutions =
+        resolve_runtime_dependency_symlinks(&mut resolver, &staged)?;
     let mut packages_by_path = BTreeMap::new();
     for package in resolver.observed_package_metadata().chain(
         library_resolver
@@ -686,10 +692,111 @@ fn load_program_worker(
         mode,
         staged,
         packages,
+        dependency_symlink_resolutions,
         path_context,
         compiler_options,
         program_options,
     )
+}
+
+/// tsc-port: getAllModulePathsWorker @6.0.3
+/// tsc-hash: 29f3f2796fae09795c9ba292485de9c6f7c91888e1b419dc364964bc6814c791
+/// tsc-span: _tsc.js:45717-45741
+///
+/// The prelude of upstream's module-path enumeration: for an importing file
+/// outside `node_modules`, every runtime dependency of its package scope is
+/// resolved from `<packageDirectory>/package.json` and the resolution is fed
+/// to the symlink cache (`links.setSymlinksFromResolution`). Upstream runs it
+/// lazily per importing file whenever a module specifier is computed; the
+/// program runs it once here, over every non-library source outside
+/// `node_modules`, and keeps only the resolutions that went through a
+/// symlink — the only observable product (the cache) is identical.
+fn resolve_runtime_dependency_symlinks(
+    resolver: &mut ModuleResolver<'_>,
+    staged: &CompleteGraph,
+) -> Result<Vec<(ProgramPath, ProgramPath)>, ProgramLoadError> {
+    let mut seen_scopes: BTreeSet<CanonicalPath> = BTreeSet::new();
+    let mut seen_pairs: BTreeSet<(CanonicalPath, CanonicalPath)> = BTreeSet::new();
+    let mut resolutions = Vec::new();
+    for source in &staged.sources {
+        if source.library_priority.is_some() {
+            continue;
+        }
+        let file = source.prepared.path();
+        if file
+            .display()
+            .to_string_lossy()
+            .replace('\\', "/")
+            .contains("/node_modules/")
+        {
+            continue;
+        }
+        let Some(package) = resolver
+            .package_scope_for_file(file.display())
+            .map_err(|error| {
+                ProgramLoadError::resolution(
+                    ProgramLoadOperation::ObservePackageScope,
+                    Some(file.display().to_path_buf()),
+                    None,
+                    error,
+                )
+            })?
+        else {
+            continue;
+        };
+        if !seen_scopes.insert(package.package_json().canonical().clone()) {
+            continue;
+        }
+        for name in runtime_dependency_names(package.package_json(), package.text()) {
+            let outcome = resolver
+                .resolve(
+                    package.package_json().display(),
+                    &name,
+                    ResolutionMode::Unspecified,
+                )
+                .map_err(|error| {
+                    ProgramLoadError::resolution(
+                        ProgramLoadOperation::ResolveModule,
+                        Some(package.package_json().display().to_path_buf()),
+                        Some(name.clone()),
+                        error,
+                    )
+                })?;
+            let ResolutionOutcome::Resolved(module) = outcome else {
+                continue;
+            };
+            let Some(original_path) = module.original_path() else {
+                continue;
+            };
+            let pair = (
+                module.resolved_file().canonical().clone(),
+                original_path.canonical().clone(),
+            );
+            if seen_pairs.insert(pair) {
+                resolutions.push((module.resolved_file().clone(), original_path.clone()));
+            }
+        }
+    }
+    Ok(resolutions)
+}
+
+/// tsc-port: getAllRuntimeDependencies @6.0.3
+/// tsc-hash: 62d9e01fb8c9f3f49fcd53deafb8cb72ff3d1b91d8b9f86ad573d1f29900a484
+/// tsc-span: _tsc.js:45707-45716
+fn runtime_dependency_names(package_json: &ProgramPath, text: &str) -> Vec<String> {
+    let (_, object) = parse_json_object(package_json.display(), text.to_owned());
+    let mut names = Vec::new();
+    for field in ["dependencies", "peerDependencies", "optionalDependencies"] {
+        if let Some(serde_json::Value::Object(dependencies)) = json_object_get(&object, field) {
+            names.extend(
+                dependencies
+                    .keys()
+                    .filter_map(|key| crate::json::decode_user_object_key(key))
+                    .map(str::to_owned),
+            );
+        }
+    }
+    names
 }
 
 fn validate_admitted_options(
@@ -2879,6 +2986,7 @@ fn publish_program(
     mode: PreparedProgramMode,
     staged: CompleteGraph,
     packages: Vec<PackageMetadata>,
+    dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
     path_context: PathContext,
     compiler_options: CompilerOptions,
     program_options: ProgramOptions,
@@ -2891,6 +2999,7 @@ fn publish_program(
             PreparedProgram::emitting_builder(path_context, compiler_options.clone())
         }
     };
+    builder = builder.with_dependency_symlink_resolutions(dependency_symlink_resolutions);
     let config_file = program_options.config_file().cloned();
     builder.set_program_options(program_options);
 

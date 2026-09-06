@@ -2685,10 +2685,15 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
             .require_parse_tree_resolver_node(js_doc_property)
             .map_err(factory_error)?
             .node();
-        let NodeData::JSDocPropertyTag(property_data) = self.checker.data_of(property) else {
-            return Ok(None);
+        // tsc-port: getJsDocPropertyOverride @6.0.3
+        // tsc-hash: 69a30c585d2d3343afe6661c5ffd0d9932212330ebe97890ddd0e5476e2b425d
+        // tsc-span: _tsc.js:50859-50864
+        let (property_name, type_expression) = match self.checker.data_of(property) {
+            NodeData::JSDocPropertyTag(data) => (data.name, data.type_expression),
+            NodeData::JSDocParameterTag(data) => (data.name, data.type_expression),
+            _ => return Ok(None),
         };
-        let Some(property_name) = property_data.name else {
+        let Some(property_name) = property_name else {
             return Ok(None);
         };
         let name = match self.checker.data_of(property_name) {
@@ -2710,12 +2715,11 @@ impl SyntacticBuilderResolver for ProductionSyntacticBuilderResolver<'_, '_> {
         let Some(type_via_parent) = type_via_parent else {
             return Ok(None);
         };
-        let existing_type = property_data.type_expression.and_then(|expression| {
-            match self.checker.data_of(expression) {
+        let existing_type =
+            type_expression.and_then(|expression| match self.checker.data_of(expression) {
                 NodeData::JSDocTypeExpression(data) => data.r#type,
                 _ => None,
-            }
-        });
+            });
         let Some(existing_type) = existing_type else {
             return Ok(None);
         };

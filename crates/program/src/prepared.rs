@@ -1237,6 +1237,12 @@ impl ResolutionTable {
         self.type_references.iter()
     }
 
+    /// Iterate authoritative module rows in exact key order (the same stable
+    /// `BTreeMap` order as [`Self::type_references`]).
+    pub fn modules(&self) -> impl ExactSizeIterator<Item = (&ResolutionKey, &ModuleResolution)> {
+        self.modules.iter()
+    }
+
     pub fn module_len(&self) -> usize {
         self.modules.len()
     }
@@ -1260,6 +1266,7 @@ pub struct PreparedProgram {
     auxiliary_files: BTreeMap<CanonicalPath, PreparedAuxiliaryFile>,
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
     resolutions: ResolutionTable,
+    dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
     diagnostics: PreparationDiagnostics,
 }
 
@@ -1342,6 +1349,18 @@ impl PreparedProgram {
         &self.resolutions
     }
 
+    /// The resolutions of every runtime dependency (`dependencies`,
+    /// `peerDependencies`, `optionalDependencies`) declared by the package
+    /// scope of each non-library, non-`node_modules` source file, kept only
+    /// when the resolved file was reached through a symlink:
+    /// `(resolved_file, original_path)`. Upstream resolves these lazily inside
+    /// module-specifier generation (`getAllModulePathsWorker`) purely to feed
+    /// its symlink cache; the program resolves them once at preparation for
+    /// the same cache (see [`crate::discover_symlink_facts`]).
+    pub fn dependency_symlink_resolutions(&self) -> &[(ProgramPath, ProgramPath)] {
+        &self.dependency_symlink_resolutions
+    }
+
     pub fn diagnostics(&self) -> &PreparationDiagnostics {
         &self.diagnostics
     }
@@ -1369,11 +1388,20 @@ pub struct PreparedProgramBuilder {
     packages: BTreeMap<CanonicalPath, PackageMetadata>,
     text_by_canonical: BTreeMap<CanonicalPath, String>,
     resolutions: ResolutionTable,
+    dependency_symlink_resolutions: Vec<(ProgramPath, ProgramPath)>,
     diagnostics: PreparationDiagnostics,
     fatal_error: Option<PreparationError>,
 }
 
 impl PreparedProgramBuilder {
+    pub fn with_dependency_symlink_resolutions(
+        mut self,
+        resolutions: Vec<(ProgramPath, ProgramPath)>,
+    ) -> Self {
+        self.dependency_symlink_resolutions = resolutions;
+        self
+    }
+
     pub fn new(path_context: PathContext, compiler_options: CompilerOptions) -> Self {
         Self::for_mode(PreparedProgramMode::NoEmit, path_context, compiler_options)
     }
@@ -1401,6 +1429,7 @@ impl PreparedProgramBuilder {
             packages: BTreeMap::new(),
             text_by_canonical: BTreeMap::new(),
             resolutions: ResolutionTable::default(),
+            dependency_symlink_resolutions: Vec::new(),
             diagnostics: PreparationDiagnostics::default(),
             fatal_error: None,
         }
@@ -1880,6 +1909,7 @@ impl PreparedProgramBuilder {
             auxiliary_files: self.auxiliary_files,
             packages: self.packages,
             resolutions: self.resolutions,
+            dependency_symlink_resolutions: self.dependency_symlink_resolutions,
             diagnostics: self.diagnostics,
         })
     }

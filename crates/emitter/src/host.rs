@@ -116,6 +116,20 @@ pub trait EmitHost {
         })
     }
 
+    /// Symlink facts discovered from the program's resolutions (upstream
+    /// `getSymlinkCache`, consumed by module specifier generation):
+    /// `(real_path, symlink_path)` per aliased file. Hosts without
+    /// resolutions expose none.
+    fn symlinked_files(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+
+    /// `(real_directory, symlink_directory)` per guessed directory link (see
+    /// [`Self::symlinked_files`]).
+    fn symlinked_directories(&self) -> Vec<(String, String)> {
+        Vec::new()
+    }
+
     /// Canonicalize one output spelling with the same case policy used for
     /// source identities. Implementations may override this when their path
     /// model is richer than the frozen POSIX H1 profile.

@@ -907,10 +907,20 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                 let tags = self.nodes(source, data.js_doc_property_tags)?;
                 let mut members = Vec::with_capacity(tags.len());
                 for tag in tags {
-                    let NodeData::JSDocPropertyTag(tag_data) = self.node(tag)?.data.clone() else {
-                        continue;
-                    };
-                    let Some(name) = self.child(source, tag_data.name) else {
+                    // tsc-port: visitExistingNodeTreeSymbols (JSDocTypeLiteral) @6.0.3
+                    // tsc-hash: 1cf444d81393bf59cab6555d09fa2234a853b231a9def4bf59ad00f2c8f2c323
+                    // tsc-span: _tsc.js:133415-133426
+                    let (tag_name, tag_type_expression, is_bracketed) =
+                        match self.node(tag)?.data.clone() {
+                            NodeData::JSDocPropertyTag(data) => {
+                                (data.name, data.type_expression, data.is_bracketed)
+                            }
+                            NodeData::JSDocParameterTag(data) => {
+                                (data.name, data.type_expression, data.is_bracketed)
+                            }
+                            _ => continue,
+                        };
+                    let Some(name) = self.child(source, tag_name) else {
                         continue;
                     };
                     let name = self.rightmost_name(name)?;
@@ -924,11 +934,11 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
                         node,
                         tag,
                     )?;
-                    let type_expression = match self.child(source, tag_data.type_expression) {
+                    let type_expression = match self.child(source, tag_type_expression) {
                         Some(expression) => self.jsdoc_type_expression_type(expression)?,
                         None => None,
                     };
-                    let optional = tag_data.is_bracketed
+                    let optional = is_bracketed
                         || type_expression.is_some_and(|r#type| {
                             self.kind(r#type).ok() == Some(SyntaxKind::JSDocOptionalType)
                         });

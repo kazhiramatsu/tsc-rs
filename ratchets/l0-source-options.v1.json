@@ -235,7 +235,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 92,
-        "source_sha256": "a73cd9f27a67185d36b4c5676087537301b4641909b3db9410f427e3b6f8cb78",
+        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
         "evidence": "pub struct PreparedSourceFile {"
       },
       {
@@ -243,7 +243,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/checker/src/lib.rs",
         "line": 76,
-        "source_sha256": "deabe7b93564d984efc3d364628ac630ffb5d18d01474abc0193a9db690c2ebb",
+        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
         "evidence": "pub struct InputFile {"
       },
       {
@@ -268,7 +268,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 798,
-        "source_sha256": "a73cd9f27a67185d36b4c5676087537301b4641909b3db9410f427e3b6f8cb78",
+        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
         "evidence": "pub struct ProgramConfigFile {"
       },
       {
@@ -276,7 +276,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 296,
-        "source_sha256": "a73cd9f27a67185d36b4c5676087537301b4641909b3db9410f427e3b6f8cb78",
+        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
         "evidence": "pub struct PreparedAuxiliaryFile {"
       },
       {
@@ -284,7 +284,7 @@
         "storage": "Arc<TextSnapshot>",
         "path": "crates/program/src/prepared.rs",
         "line": 418,
-        "source_sha256": "a73cd9f27a67185d36b4c5676087537301b4641909b3db9410f427e3b6f8cb78",
+        "source_sha256": "a2d3adcdf086328021c72849777fd1daeed75ad92447124cfd591cfba4dcf1da",
         "evidence": "pub struct PackageMetadata {"
       }
     ],
@@ -293,8 +293,8 @@
         "from": "PreparedSourceFile.snapshot",
         "to": "InputFile.snapshot",
         "path": "crates/compiler/src/lib.rs",
-        "line": 1489,
-        "source_sha256": "a2f994a9245a2737a9434391e22de2569cb3ff1b99891b9bad2a650d9c4c0020",
+        "line": 1508,
+        "source_sha256": "4ad9dc557d89d3cdb3953ea7e6a573c6055b80c154f85b6d5567f9c1fd956125",
         "evidence": "        InputFile::from_snapshot(name, Arc::clone(source.snapshot())),"
       },
       {
@@ -302,8 +302,8 @@
         "to": "SourceFile.snapshot",
         "branch": "json",
         "path": "crates/checker/src/lib.rs",
-        "line": 1682,
-        "source_sha256": "deabe7b93564d984efc3d364628ac630ffb5d18d01474abc0193a9db690c2ebb",
+        "line": 1688,
+        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
         "evidence": "            let source_file = tsc_syntax::parse_json_text_from_snapshot_in_identity_domain("
       },
       {
@@ -311,8 +311,8 @@
         "to": "SourceFile.snapshot",
         "branch": "ordinary",
         "path": "crates/checker/src/lib.rs",
-        "line": 1766,
-        "source_sha256": "deabe7b93564d984efc3d364628ac630ffb5d18d01474abc0193a9db690c2ebb",
+        "line": 1772,
+        "source_sha256": "51721d435ce9f8486a8705e7eece54aa392ef0bf59e323aeb3b6b54190902c3c",
         "evidence": "        let source_file = tsc_syntax::parse_source_file_from_snapshot_in_identity_domain("
       },
       {

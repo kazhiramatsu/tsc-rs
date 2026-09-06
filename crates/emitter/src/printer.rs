@@ -1461,12 +1461,23 @@ impl Printer {
             .map(|first| self.detached_source_prefix(transformation, first))
             .transpose()?
             .flatten();
-        let source_owned_detached_prefix = self
-            .source_file_owns_detached_prefix(
-                transformation,
-                statement_array,
-                statements.first().copied(),
-            )?
+        let statement_array_is_synthesized = statement_array
+            .map(|array| {
+                let source = transformation.arena().source(array.source())?.syntax();
+                let array = transformation.arena().node_array(array)?;
+                Ok::<_, PrinterError>(!matches!(
+                    SourceRange::from_raw(array.pos, array.end, source.positions())?,
+                    SourceRange::Original(_)
+                ))
+            })
+            .transpose()?
+            .unwrap_or(false);
+        let source_owns_detached_prefix = self.source_file_owns_detached_prefix(
+            transformation,
+            statement_array,
+            statements.first().copied(),
+        )?;
+        let source_owned_detached_prefix = source_owns_detached_prefix
             .then_some(detached_source_prefix)
             .flatten();
         let mut pending_detached_comments = PendingDetachedComments::default();
@@ -1539,7 +1550,44 @@ impl Printer {
                 last_original_statement = Some(original);
             }
             if !accounted_for_original_prefix && emitted_has_original_range {
-                if original_first_statement.is_some_and(|first| first != original) {
+                let first_differs = original_first_statement.is_some_and(|first| first != original);
+                let emitted_is_within_first_statement = if statement_array_is_synthesized {
+                    match original_first_statement
+                        .filter(|first| first.source() == original.source())
+                    {
+                        Some(first) => {
+                            let first_record = transformation.arena().node(first)?;
+                            let first_source =
+                                transformation.arena().source(first.source())?.syntax();
+                            matches!(
+                                (
+                                    SourceRange::from_raw(
+                                        first_record.pos,
+                                        first_record.end,
+                                        first_source.positions(),
+                                    )?,
+                                    SourceRange::from_raw(
+                                        original_record.pos,
+                                        original_record.end,
+                                        original_source.positions(),
+                                    )?,
+                                ),
+                                (SourceRange::Original(first), SourceRange::Original(child))
+                                    if first.start() <= child.start() && child.end() <= first.end()
+                            )
+                        }
+                        None => false,
+                    }
+                } else {
+                    false
+                };
+                // A synthesized JS list does not restart trivia owned by an
+                // erased earlier statement. A retained declaration component
+                // (for example a VariableDeclarationList original) still owns
+                // the first statement's JSDoc prefix.
+                if first_differs
+                    && (!statement_array_is_synthesized || emitted_is_within_first_statement)
+                {
                     self.emit_detached_comment_prefix(
                         transformation,
                         detached_source_prefix,
@@ -16870,9 +16918,13 @@ fn write_synthetic_comment(comment: &SyntheticComment, writer: &mut TextWriter) 
             writer.write_comment(comment.text());
         }
         SyntheticCommentKind::MultiLine => {
-            writer.write_comment("/*");
-            writer.write_comment(comment.text());
-            writer.write_comment("*/");
+            // tsc-port: writeSynthesizedComment formats the delimiters and
+            // sends multiline text through writeCommentRange. Reuse the same
+            // line/relative-indent writer as source comments so continuation
+            // lines use the active writer indent and configured newline
+            // (_tsc.js:121067-121070,16867-16920).
+            let text = format!("/*{}*/", comment.text());
+            write_source_comment_text(&text, 0, text.len(), writer);
         }
     }
 }

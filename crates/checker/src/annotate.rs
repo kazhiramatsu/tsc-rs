@@ -1320,7 +1320,17 @@ impl<'a> CheckerState<'a> {
             }
         }
         if self.is_valid_es_symbol_declaration(node) {
-            let symbol = self.node_symbol(node).map(|s| self.get_merged_symbol(s));
+            let symbol_node = if self.is_common_js_export_property_assignment(node) {
+                match self.data_of(node) {
+                    NodeData::BinaryExpression(data) => data.left.unwrap_or(node),
+                    _ => node,
+                }
+            } else {
+                node
+            };
+            let symbol = self
+                .node_symbol(symbol_node)
+                .map(|s| self.get_merged_symbol(s));
             if let Some(symbol) = symbol {
                 if let Some(cached) = self.links.symbol(symbol).unique_es_symbol_type {
                     return Ok(cached);
@@ -1345,7 +1355,8 @@ impl<'a> CheckerState<'a> {
     /// tsc-hash: 667a26eb7c294b84d739b1e9b57d758772ff062767d05c4cfabd873d99eac28c
     /// tsc-span: _tsc.js:14377-14379
     ///
-    /// isCommonJsExportPropertyAssignment is JS-only (constant false).
+    /// isCommonJsExportPropertyAssignment is JS-only and is classified by
+    /// the binder's assignment-declaration predicate.
     fn is_valid_es_symbol_declaration(&self, node: NodeId) -> bool {
         let source = self.binder.source_of_node(node);
         match self.data_of(node) {
@@ -1372,8 +1383,19 @@ impl<'a> CheckerState<'a> {
             NodeData::PropertySignature(_) => {
                 node_util::has_syntactic_modifier(source, node, tsc_types::ModifierFlags::READONLY)
             }
+            NodeData::BinaryExpression(_) => self.is_common_js_export_property_assignment(node),
             _ => false,
         }
+    }
+
+    /// tsc-port: isCommonJsExportPropertyAssignment @6.0.3
+    /// tsc-hash: 214568915f19939eb6f80458a0e7667b5bdc1155b43f64d8fa8c08068da60194
+    /// tsc-span: _tsc.js:14373-14375
+    fn is_common_js_export_property_assignment(&self, node: NodeId) -> bool {
+        self.is_in_js_file(node)
+            && self.kind_of(node) == SyntaxKind::BinaryExpression
+            && tsc_binder::get_assignment_declaration_kind(self.binder.source_of_node(node), node)
+                == tsc_binder::AssignmentDeclarationKind::ExportsProperty
     }
 
     /// tsc isVariableDeclarationInVariableStatement (14384):
@@ -3101,13 +3123,42 @@ impl<'a> CheckerState<'a> {
                 return Ok(self.tables.intrinsics.error);
             }
             let alias_symbol = self.get_alias_symbol_for_type_node(node);
-            let new_alias_symbol = alias_symbol.filter(|&alias| {
+            let mut new_alias_symbol = alias_symbol.filter(|&alias| {
                 self.is_local_type_alias(symbol) || !self.is_local_type_alias(alias)
             });
-            let alias_type_arguments = self.get_type_arguments_for_alias_symbol(new_alias_symbol);
+            let mut alias_type_arguments =
+                self.get_type_arguments_for_alias_symbol(new_alias_symbol);
             let mut resolved_arguments: Vec<TypeId> = Vec::with_capacity(node_type_arguments.len());
-            for argument in node_type_arguments {
+            for &argument in &node_type_arguments {
                 resolved_arguments.push(self.get_type_from_type_node(argument)?);
+            }
+            // tsc-port: an imported alias that resolves to this type alias keeps
+            // its written arguments as display metadata, independently of the
+            // default-filled semantic instantiation (_tsc.js:60312-60332).
+            if new_alias_symbol.is_none()
+                && matches!(
+                    self.kind_of(node),
+                    SyntaxKind::TypeReference | SyntaxKind::ExpressionWithTypeArguments
+                )
+            {
+                let alias = self.resolve_type_reference_name(
+                    node,
+                    SymbolFlags::ALIAS,
+                    /*ignore_errors*/ true,
+                )?;
+                if alias != self.unknown_symbol {
+                    let resolved = self.resolve_alias(alias)?;
+                    if resolved != self.unknown_symbol
+                        && self
+                            .binder
+                            .symbol(resolved)
+                            .flags
+                            .intersects(SymbolFlags::TYPE_ALIAS)
+                    {
+                        new_alias_symbol = Some(resolved);
+                        alias_type_arguments = Some(resolved_arguments.clone());
+                    }
+                }
             }
             let type_arguments = (num_type_arguments > 0).then_some(resolved_arguments);
             return self.get_type_alias_instantiation(
@@ -7011,11 +7062,7 @@ impl<'a> CheckerState<'a> {
                         let base_properties =
                             state.get_properties_of_type_full(base_constructor_type)?;
                         state.add_inherited_members(&mut members, &base_properties)?;
-                    } else if state
-                        .tables
-                        .flags_of(base_constructor_type)
-                        .intersects(TypeFlags::ANY)
-                    {
+                    } else if base_constructor_type == state.tables.intrinsics.any {
                         base_constructor_index_info = Some(IndexInfo {
                             key_type: state.tables.intrinsics.string,
                             value_type: state.tables.intrinsics.any,

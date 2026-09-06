@@ -8203,6 +8203,28 @@ impl<'a> CheckerState<'a> {
         // all observable (`SymbolConstructor` -> global `Symbol`).
         let container_flags = self.binder.symbol(container).flags;
         let left_meaning = Self::qualified_left_meaning(meaning);
+        let object_literal_container =
+            self.variable_declaration_of_object_literal_slice(container, meaning)?;
+        // tsc-port: getWithAlternativeContainers prefers a directly accessible
+        // container before export-equals alternatives (_tsc.js:50027-50034).
+        if enclosing.is_some()
+            && container_flags.intersects(left_meaning)
+            && self
+                .accessible_symbol_chain_at_slice(
+                    container,
+                    tsc_types::SymbolFlags::NAMESPACE,
+                    enclosing,
+                )?
+                .is_some()
+        {
+            let mut result = Vec::with_capacity(additional.len() + 2);
+            result.push(container);
+            result.extend(additional);
+            if let Some(object_literal_container) = object_literal_container {
+                result.push(object_literal_container);
+            }
+            return Ok(result);
+        }
         let first_variable_match = if !container_flags.intersects(left_meaning)
             && container_flags.intersects(tsc_types::SymbolFlags::TYPE)
             && meaning == tsc_types::SymbolFlags::VALUE
@@ -8227,8 +8249,6 @@ impl<'a> CheckerState<'a> {
         } else {
             None
         };
-        let object_literal_container =
-            self.variable_declaration_of_object_literal_slice(container, meaning)?;
         let mut result = Vec::with_capacity(additional.len() + 3);
         if let Some(first_variable_match) = first_variable_match {
             result.push(first_variable_match);

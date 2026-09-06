@@ -846,6 +846,9 @@ impl DeclarationTransformer<'_> {
             && self.has_effective_modifier(cx, parent, ModifierFlags::PRIVATE)?)
     }
 
+    /// tsc-port: visitEachChildOfTypeReferenceNode @6.0.3
+    /// tsc-hash: 6e63d6f9eae4eff917d6ada403ba87029e81f02cb5aabcee3e11b13525ae1bfc
+    /// tsc-span: _tsc.js:91479-91484
     fn visit_each_child(
         &mut self,
         cx: &mut TransformationContext,
@@ -864,6 +867,21 @@ impl DeclarationTransformer<'_> {
             return Ok(input);
         }
         let kind = cx.arena().node(input)?.kind;
+        if kind == SyntaxKind::TypeReference {
+            let NodeData::TypeReference(reference) = data else {
+                return Err(Self::contract("type-reference kind/data mismatch"));
+            };
+            let type_name = reference
+                .type_name
+                .and_then(|name| cx.arena().node_ref(input.source(), name))
+                .ok_or_else(|| Self::contract("type reference has no type name"))?;
+            let type_arguments = reference
+                .type_arguments
+                .and_then(|arguments| cx.arena().node_array_ref(input.source(), arguments));
+            return cx
+                .factory()?
+                .update_type_reference_node(input, type_name, type_arguments);
+        }
         let mut flags = cx.arena().transform_flags(input);
         if kind == SyntaxKind::TypeParameter
             || kind as u16 >= SyntaxKind::FirstTypeNode as u16
@@ -1109,9 +1127,38 @@ fn dynamic_name_expression(
     let NodeData::ComputedPropertyName(data) = &cx.arena().node(name)?.data else {
         return Ok(None);
     };
-    Ok(data
+    let Some(expression) = data
         .expression
-        .and_then(|expression| cx.arena().node_ref(node.source(), expression)))
+        .and_then(|expression| cx.arena().node_ref(node.source(), expression))
+    else {
+        return Ok(None);
+    };
+    // tsc-port: isDynamicName @6.0.3
+    // tsc-hash: d58a97708b749b1eef6d5bf40f2392014367fc67d598a1343c5499356315c4b8
+    // tsc-span: _tsc.js:15844-15860
+    // ComputedPropertyName expressions are inspected directly. Parentheses are
+    // stripped only for ElementAccessExpression names in upstream.
+    let is_static = match &cx.arena().node(expression)?.data {
+        NodeData::StringLiteral(_)
+        | NodeData::NoSubstitutionTemplateLiteral(_)
+        | NodeData::NumericLiteral(_) => true,
+        NodeData::PrefixUnaryExpression(data)
+            if matches!(
+                data.operator,
+                SyntaxKind::PlusToken | SyntaxKind::MinusToken
+            ) =>
+        {
+            data.operand
+                .and_then(|operand| cx.arena().node_ref(node.source(), operand))
+                .is_some_and(|operand| {
+                    cx.arena()
+                        .node(operand)
+                        .is_ok_and(|operand| operand.kind == SyntaxKind::NumericLiteral)
+                })
+        }
+        _ => false,
+    };
+    Ok((!is_static).then_some(expression))
 }
 
 fn has_private_identifier_name(

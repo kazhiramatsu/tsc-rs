@@ -154,14 +154,22 @@ pub(crate) fn transform_root(
         }
     };
 
-    let original_statement_range = source_statement_array(context.arena(), root_node)?
-        .map(|array| {
-            context
-                .arena()
-                .node_array(array)
-                .map(|array| (array.pos, array.end))
-        })
-        .transpose()?;
+    // tsc-port: transformRoot gives only the transformed TypeScript list the
+    // parsed statement-array range. JavaScript declarations are a fresh
+    // synthesized list, so detached source comments do not belong to it
+    // (_tsc.js:114530-114535).
+    let original_statement_range = if is_javascript {
+        None
+    } else {
+        source_statement_array(context.arena(), root_node)?
+            .map(|array| {
+                context
+                    .arena()
+                    .node_array(array)
+                    .map(|array| (array.pos, array.end))
+            })
+            .transpose()?
+    };
     let referenced_files = referenced_files(
         transformer,
         context.arena(),

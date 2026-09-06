@@ -1022,7 +1022,7 @@ pub(crate) fn compute_module_specifiers(
                     .map(|index| host.get_mode_for_resolution_at_index(importing_node, index))
                     .unwrap_or(EmitResolutionMode::None),
             );
-            let resolved_module = if let Some(provider) = state.authoritative_module_provider {
+            let mut resolved_module = if let Some(provider) = state.authoritative_module_provider {
                 let Some(specifier) = literal_text_in_source(state, importing_index, literal)
                 else {
                     continue;
@@ -1054,6 +1054,17 @@ pub(crate) fn compute_module_specifiers(
                     .resolve_external_module_name(importing_file, literal, true)?
                     .and_then(|module| source_file_index_of_module(state, module))
             };
+            // tsc-port: computeModuleSpecifiers reuses the source literal's
+            // already-resolved module when host include reasons are absent.
+            // The authoritative provider can legitimately have no fresh
+            // answer (for example after an invalid package metadata field),
+            // while the checker node still owns the semantic resolution
+            // (_tsc.js:45493-45510,124100-124117).
+            if resolved_module.is_none() {
+                resolved_module = state
+                    .resolve_external_module_name(importing_file, literal, true)?
+                    .and_then(|module| source_file_index_of_module(state, module));
+            }
             let Some(resolved_module) = resolved_module else {
                 continue;
             };

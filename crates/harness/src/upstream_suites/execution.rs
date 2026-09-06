@@ -12,7 +12,7 @@
 //! order. This adapter is not the future general filesystem `matchFiles` host.
 
 use std::cell::RefCell;
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -158,6 +158,33 @@ pub fn load_qualified_compiler_emit_with_option_floor(
     limits: ProgramLoadLimits,
     floor: EmitOptionFloor,
 ) -> HarnessResult<PreparedProgram> {
+    load_qualified_compiler_emit_with_symlinks(
+        workspace,
+        current_directory,
+        files,
+        &[],
+        roots,
+        settings,
+        limits,
+        floor,
+    )
+}
+
+/// [`load_qualified_compiler_emit_with_option_floor`] plus the frozen
+/// input's file-level symlinks (`vfs_symlinks`: each `(link, target)` pair is
+/// an aliased file spelling the upstream vfs presented, with `realpath`
+/// resolving the link to its physical target).
+#[allow(clippy::too_many_arguments)]
+pub fn load_qualified_compiler_emit_with_symlinks(
+    workspace: &Path,
+    current_directory: &str,
+    files: &[(PathBuf, Vec<u8>)],
+    symlinks: &[(PathBuf, PathBuf)],
+    roots: &[PathBuf],
+    settings: &[(String, String)],
+    limits: ProgramLoadLimits,
+    floor: EmitOptionFloor,
+) -> HarnessResult<PreparedProgram> {
     if files.is_empty() || roots.is_empty() {
         return Err(error(
             "qualified compiler input must contain files and roots",
@@ -172,6 +199,21 @@ pub fn load_qualified_compiler_emit_with_option_floor(
             )));
         }
         host_builder = host_builder.file(file_name, bytes.clone());
+    }
+    for (link, target) in symlinks {
+        let Some((_, bytes)) = files.iter().find(|(path, _)| path == target) else {
+            return Err(error(format!(
+                "qualified compiler symlink target is absent from the VFS: {target:?}"
+            )));
+        };
+        if !link.is_absolute() || !unique_paths.insert(link.clone()) {
+            return Err(error(format!(
+                "qualified compiler symlink has an invalid or duplicate link path {link:?}"
+            )));
+        }
+        host_builder = host_builder
+            .file(link, bytes.clone())
+            .realpath(link.clone(), target.clone());
     }
     for root in roots {
         if !root.is_absolute() || !unique_paths.contains(root) {
@@ -393,7 +435,18 @@ fn load_compiler_program(
     // The compiler runner's VFS presents document/global symlinks through
     // `realpath`. MemoryCompilerHost requires both spellings to exist before
     // accepting that identity override, so publish a byte-identical alias
-    // only for a link whose target has content.
+    // for every file a link makes visible: an exact-file link publishes its
+    // target; a DIRECTORY link publishes every descendant of its target
+    // under the link-relative suffix (upstream's vfs mounts the target
+    // directory node at the link path, so `fileExists(link/sub/file)` holds,
+    // `realpath` resolves to the physical file, and module resolution sees
+    // package directories such as `node_modules/package-a/{package.json,
+    // index.d.ts}` — `_tsc.js:41239-41246` accepts each aliased file and
+    // `:40047-40054` keeps both the original and the real spelling).
+    // Descendants published by other links count too (a link into a
+    // directory that itself contains links), so the expansion repeats until
+    // no alias is added; every alias resolves through earlier overrides to
+    // its physical file.
     let symlink_operations = plan
         .fixture
         .global_symlinks
@@ -405,28 +458,59 @@ fn load_compiler_program(
                 .flat_map(|unit| unit.document_symlinks.iter()),
         )
         .collect::<Vec<_>>();
-    let mut realpath_overrides = Vec::new();
-    for operation in symlink_operations {
-        let Some(target_content) = source_paths.get(operation.normalized_target.as_ref()) else {
-            continue;
-        };
-        if !source_paths.contains_key(operation.normalized_link_path.as_ref()) {
-            host_builder = host_builder.file(
-                operation.normalized_link_path.as_ref(),
-                target_content.as_bytes().to_vec(),
-            );
-            source_paths.insert(
-                operation.normalized_link_path.to_string(),
-                Arc::clone(target_content),
-            );
+    let mut realpath_overrides: BTreeMap<String, String> = BTreeMap::new();
+    let resolve_physical = |overrides: &BTreeMap<String, String>, path: &str| -> String {
+        let mut current = path.to_owned();
+        for _ in 0..symlink_operations.len().max(1) {
+            match overrides.get(&current) {
+                Some(next) if *next != current => current = next.clone(),
+                _ => break,
+            }
         }
-        realpath_overrides.push((
-            PathBuf::from(operation.normalized_link_path.as_ref()),
-            PathBuf::from(operation.normalized_target.as_ref()),
-        ));
+        current
+    };
+    let mut expanded = true;
+    let mut passes = 0usize;
+    while expanded && passes <= symlink_operations.len() {
+        expanded = false;
+        passes += 1;
+        for operation in &symlink_operations {
+            let target = operation.normalized_target.as_ref();
+            let link = operation.normalized_link_path.as_ref();
+            let mut aliases: Vec<(String, String)> = Vec::new();
+            if source_paths.contains_key(target) {
+                aliases.push((link.to_owned(), target.to_owned()));
+            } else {
+                let prefix = format!("{}/", target.trim_end_matches('/'));
+                let link_prefix = link.trim_end_matches('/');
+                for descendant in source_paths.keys() {
+                    if let Some(suffix) = descendant.strip_prefix(&prefix) {
+                        aliases.push((format!("{link_prefix}/{suffix}"), descendant.clone()));
+                    }
+                }
+            }
+            for (alias, physical) in aliases {
+                let physical = resolve_physical(&realpath_overrides, &physical);
+                if alias == physical {
+                    continue;
+                }
+                if !source_paths.contains_key(&alias) {
+                    let Some(content) = source_paths.get(&physical).cloned() else {
+                        continue;
+                    };
+                    host_builder = host_builder.file(alias.as_str(), content.as_bytes().to_vec());
+                    source_paths.insert(alias.clone(), content);
+                    expanded = true;
+                }
+                if realpath_overrides.get(&alias) != Some(&physical) {
+                    realpath_overrides.insert(alias, physical);
+                    expanded = true;
+                }
+            }
+        }
     }
     for (link, target) in realpath_overrides {
-        host_builder = host_builder.realpath(link, target);
+        host_builder = host_builder.realpath(PathBuf::from(link), PathBuf::from(target));
     }
     for directory in compiler_vfs_trailing_directory_aliases(
         source_paths.keys().map(|path| Path::new(path.as_str())),
