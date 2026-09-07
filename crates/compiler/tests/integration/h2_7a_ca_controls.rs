@@ -173,12 +173,16 @@ fn assert_unsupported_option(options: CompilerOptions, expected: &'static str) {
 
 #[test]
 fn declaration_family_options_remain_typed_refusals() {
-    assert_unsupported_option(
-        CompilerOptions {
-            declaration_map: Some(true),
-            ..CompilerOptions::default()
-        },
-        "declarationMap",
+    // The unchanged declarationMap-only input now reports the ordinary
+    // TS5069 prerequisite diagnostic and emits JavaScript (E m3 original
+    // corpus comparison); it is no longer an emit-request refusal.
+    let declaration_map = control_host(CompilerOptions {
+        declaration_map: Some(true),
+        ..CompilerOptions::default()
+    });
+    assert_eq!(
+        tsc_emitter::validate_bootstrap_emit_request(&declaration_map),
+        Ok(()),
     );
     let declaration_only = control_host(CompilerOptions {
         emit_declaration_only: Some(true),
