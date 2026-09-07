@@ -633,6 +633,7 @@ fn h2_7b_rejects_declaration_option_and_forced_requests_before_printing() {
         },
         CompilerOptions {
             isolated_declarations: Some(true),
+            declaration: Some(true),
             ..CompilerOptions::default()
         },
         CompilerOptions {
@@ -696,34 +697,36 @@ fn h2_7b_rejects_declaration_option_and_forced_requests_before_printing() {
 }
 
 #[test]
-fn disabled_declaration_options_and_javascript_no_emit_on_error_retain_h2_7b() {
-    let options = CompilerOptions {
-        strip_internal: Some(false),
-        isolated_declarations: Some(false),
-        no_emit_on_error: Some(true),
-        ..CompilerOptions::default()
-    };
-    let host = TestEmitHost::new(options, "/project", true, &[]);
-    let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
-    let mut activity = H2ActivityCanary::h2_7b_profile();
-    let mut sink = MemoryOutputSink::new();
-    let outcome = emit_files_with_activity(
-        &UnavailableEmitResolver,
-        &host,
-        preflight,
-        EmitSelection::WholeProgram,
-        &EmitDiagnosticGate::default(),
-        &mut sink,
-        &mut activity,
-    )
-    .unwrap();
-    assert_eq!(
-        outcome
-            .h2_activity()
-            .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
-        0
-    );
-    assert!(sink.writes().is_empty());
+fn legacy_javascript_option_requests_retain_h2_7b() {
+    for isolated_declarations in [false, true] {
+        let options = CompilerOptions {
+            strip_internal: Some(false),
+            isolated_declarations: Some(isolated_declarations),
+            no_emit_on_error: Some(true),
+            ..CompilerOptions::default()
+        };
+        let host = TestEmitHost::new(options, "/project", true, &[]);
+        let preflight = preflight_emit(&host, EmitSelection::WholeProgram).unwrap();
+        let mut activity = H2ActivityCanary::h2_7b_profile();
+        let mut sink = MemoryOutputSink::new();
+        let outcome = emit_files_with_activity(
+            &UnavailableEmitResolver,
+            &host,
+            preflight,
+            EmitSelection::WholeProgram,
+            &EmitDiagnosticGate::default(),
+            &mut sink,
+            &mut activity,
+        )
+        .unwrap();
+        assert_eq!(
+            outcome
+                .h2_activity()
+                .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
+            0
+        );
+        assert!(sink.writes().is_empty());
+    }
 }
 
 #[test]

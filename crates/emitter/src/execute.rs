@@ -667,9 +667,10 @@ pub fn emit_files_with_activity(
 
     // Observe the admitted declaration request even when option diagnostics,
     // noEmitOnError, or a declaration-only input prevent every transform.
-    // JavaScript-only noEmitOnError remains part of the earlier runtime band.
+    // JavaScript-only noEmitOnError and the isolatedDeclarations prerequisite
+    // diagnostic without declaration output remain in the earlier runtime band.
     if options.strip_internal == Some(true)
-        || options.isolated_declarations == Some(true)
+        || (options.isolated_declarations == Some(true) && options.declaration == Some(true))
         || options.declaration_dir.is_some()
         || (options.no_emit_on_error == Some(true) && options.declaration == Some(true))
         || (options.emit_declaration_only == Some(true) && options.declaration != Some(true))
