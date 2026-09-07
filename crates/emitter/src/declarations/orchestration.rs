@@ -63,6 +63,8 @@ pub(crate) struct DeclarationUnitEmit {
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) decl_blocked: bool,
     pub(crate) artifact: Option<EmitArtifact>,
+    pub(crate) map_artifact: Option<EmitArtifact>,
+    pub(crate) map_observation: Option<crate::SourceMapObservation>,
 }
 
 struct ResolverGlobalNameOracle<'resolver>(&'resolver dyn EmitResolver);
@@ -134,6 +136,7 @@ pub(crate) fn emit_declaration_unit(
     paths: &dyn DeclarationPathResolver,
     source: SourceFileId,
     declaration_path: &Path,
+    declaration_map_path: Option<&Path>,
     activity: &mut H2ActivityCanary,
     force_dts_emit: bool,
 ) -> Result<DeclarationUnitEmit, EmitFailure> {
@@ -148,6 +151,8 @@ pub(crate) fn emit_declaration_unit(
             diagnostics: Vec::new(),
             decl_blocked: false,
             artifact: None,
+            map_artifact: None,
+            map_observation: None,
         });
     }
 
@@ -191,6 +196,8 @@ pub(crate) fn emit_declaration_unit(
             diagnostics,
             decl_blocked: true,
             artifact: None,
+            map_artifact: None,
+            map_observation: None,
         });
     }
     if result.roots().len() != 1 {
@@ -229,24 +236,58 @@ pub(crate) fn emit_declaration_unit(
         .with_source_file_text_mode(SourceFileTextMode::Canonical);
     activity.construct_printer();
     let global_name_oracle = ResolverGlobalNameOracle(resolver);
-    let printed = create_printer(printer_options).print_declaration(
+    let map_lane = crate::execute::map_lane_inputs(host);
+    let recording = declaration_map_path.map(|_| {
+        crate::declaration_map_recording_inputs_for(
+            &map_lane,
+            options,
+            declaration_path,
+            emit_source.path(),
+        )
+    });
+    let printed = create_printer(printer_options).print_declaration_with_recording(
         &mut result,
         root_source,
         DeclarationPrintHandlers::new(&global_name_oracle),
+        recording,
     );
     result.dispose();
     let printed = printed?;
-    let artifact = EmitArtifact::declaration(
-        declaration_path,
-        printed.text(),
-        options.emit_bom == Some(true),
-        Some(vec![emit_source.path().to_path_buf()]),
-        EmitTextMetadata::new(diagnostics.clone(), None),
-    );
+    let (artifact, map_artifact, map_observation) = if let Some(map_path) = declaration_map_path {
+        let mapped = crate::finish_declaration_map(
+            &map_lane,
+            options,
+            declaration_path,
+            map_path,
+            emit_source.path(),
+            &printed,
+            diagnostics.clone(),
+            new_line,
+        )?;
+        (
+            mapped.declaration,
+            Some(mapped.map),
+            Some(mapped.observation),
+        )
+    } else {
+        (
+            EmitArtifact::declaration(
+                declaration_path,
+                printed.text(),
+                options.emit_bom == Some(true),
+                Some(vec![emit_source.path().to_path_buf()]),
+                EmitTextMetadata::new(diagnostics.clone(), None),
+            ),
+            None,
+            None,
+        )
+    };
     Ok(DeclarationUnitEmit {
         diagnostics,
         decl_blocked,
         artifact: Some(artifact),
+        map_artifact,
+        map_observation,
     })
 }
 

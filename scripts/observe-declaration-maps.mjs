@@ -6,7 +6,8 @@ import path from "node:path";
 import ts from "../vendor/typescript-6.0.3/lib/typescript.js";
 import { createHermeticDirectoryOverlay } from "../crates/oracle/vfs-directory-overlay.mjs";
 const root = path.resolve(import.meta.dirname, "..");
-const output = path.join(root, "crates/compiler/tests/fixtures/declaration-maps.json");
+const runtime = process.argv.includes("--runtime");
+const output = path.join(root, "crates/compiler/tests/fixtures", runtime ? "declaration-maps-runtime.json" : "declaration-maps.json");
 const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.equal(process.versions.node, fs.readFileSync(path.join(root, ".node-version"), "utf8").trim());
@@ -53,7 +54,7 @@ function diagnostic(d) {
 }
 function write(args, index) {
   const [name,text,bom,onError,sourceFiles,data] = args, callback = Buffer.from(text), materialized = bom ? Buffer.concat([Buffer.from([239,187,191]),callback]) : callback;
-  return {index,path:name,kind:name.endsWith(".map") ? "declaration-map" : "declaration", callback_utf8_base64:callback.toString("base64"), callback_utf8_bytes:callback.length,
+  return {index,path:name,kind:name.endsWith(".d.ts.map") ? "declaration-map" : name.endsWith(".map") ? "javascript-map" : name.endsWith(".d.ts") ? "declaration" : "javascript", callback_utf8_base64:callback.toString("base64"), callback_utf8_bytes:callback.length,
     write_byte_order_mark:bom,materialized_utf8_base64:materialized.toString("base64"),materialized_utf8_bytes:materialized.length,
     on_error_callback_present:onError!==undefined,source_files:sourceFiles?.map(f=>f.fileName) ?? null,data_present:data!==undefined,
     data_source_map_url_pos:data?.sourceMapUrlPos ?? null,data_diagnostics:data?.diagnostics?.map(diagnostic) ?? null};
@@ -75,8 +76,19 @@ function observe(input) {
   return {common_source_directory:program.getCommonSourceDirectory(),writes,reported_diagnostics:reported,emit_refused:result.emitSkipped,
     emit_result:{emit_skipped:result.emitSkipped,diagnostics:result.diagnostics.map(diagnostic),emitted_files:result.emittedFiles??null,source_maps:result.sourceMaps??null},status_writes:status,exit_code:exit};
 }
-const cases=inputs.map(input=>{const first=observe(input);assert.deepEqual(observe(input),first,input.case_id);return {...input,typescript_observation:first};});
+const runtimeInputs = [];
+for (const [name, options] of [
+  ["javascript-and-declaration", {}],
+  ["both-external-maps", {sourceMap: true}],
+  ["inline-javascript-external-declaration", {inlineSourceMap: true, inlineSources: true}],
+]) {
+  add("runtime/" + name, {"a.ts": syntax.variables, "b.ts": syntax.functions}, {emitDeclarationOnly: false, ...options});
+  runtimeInputs.push(inputs.pop());
+}
+const cases=(runtime ? runtimeInputs : inputs).map(input=>{const first=observe(input);assert.deepEqual(observe(input),first,input.case_id);return {...input,typescript_observation:first};});
 const artifact={version:1,typescript:ts.version,source_commit:"050880ce59e30b356b686bd3144efe24f875ebc8",compiler_sha256:sha256(fs.readFileSync(path.join(root,"vendor/typescript-6.0.3/lib/typescript.js"))),repetitions:2,cases};
 const rendered=JSON.stringify(artifact,null,2)+"\n";
-if(process.argv[2]==="--write")fs.writeFileSync(output,rendered);else{assert.ok(process.argv[2]===undefined||process.argv[2]==="--check");assert.equal(fs.readFileSync(output,"utf8"),rendered);}
+const mode = process.argv.slice(2).filter(arg => arg !== "--runtime");
+assert.ok(mode.length <= 1 && (mode[0] === undefined || mode[0] === "--write" || mode[0] === "--check"));
+if(mode[0] === "--write")fs.writeFileSync(output,rendered);else assert.equal(fs.readFileSync(output,"utf8"),rendered);
 console.log(`H2.7e non-bundle declaration map observations: ${cases.length}, twice each`);

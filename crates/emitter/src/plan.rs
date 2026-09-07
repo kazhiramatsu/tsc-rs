@@ -236,8 +236,9 @@ impl EmitOutputPlan {
                 }
             }
             // h2-6a-m-3 G8: a planned `.js.map` is a supported unit member.
-            // H2.7b additionally admits the non-bundle declaration member.
-            if unit.paths.declaration_map.is_some() {
+            // H2.7e admits a non-bundle declaration map only alongside its
+            // declaration text member; bundle roots remain rejected above.
+            if unit.paths.declaration_map.is_some() && unit.paths.declaration.is_none() {
                 return Err(EmitFailure::Unsupported(
                     UnsupportedEmitFeature::DeclarationMap,
                 ));

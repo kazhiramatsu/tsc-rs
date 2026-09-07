@@ -131,7 +131,14 @@ fn validate_emit_options(
             options.allow_importing_ts_extensions == Some(true),
             "allowImportingTsExtensions",
         ),
-        (options.declaration_map == Some(true), "declarationMap"),
+        (
+            // This packet admits ordinary maps with declarations enabled.
+            // Disabled declarations and getter/force intersections retain their
+            // previous typed boundary until their separate API integration.
+            options.declaration_map == Some(true)
+                && (operation != EmitOperation::Files || options.declaration != Some(true)),
+            "declarationMap",
+        ),
         (
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
@@ -448,7 +455,7 @@ pub struct MapLaneInputs {
     pub use_case_sensitive_source_keys: bool,
 }
 
-fn map_lane_inputs(host: &dyn EmitHost) -> MapLaneInputs {
+pub(crate) fn map_lane_inputs(host: &dyn EmitHost) -> MapLaneInputs {
     MapLaneInputs {
         common_source_directory: crate::source_map::paths::ensure_trailing_directory_separator(
             &crate::source_map::paths::normalize_slashes(
@@ -728,19 +735,24 @@ pub fn emit_files_with_activity(
     );
 
     let mut artifacts = Vec::with_capacity(preflight.plan().units().len() * 3);
-    // emittedFiles lists js THEN map THEN declaration per unit while the sink
-    // writes map THEN js THEN declaration. The list order is plan-owned,
-    // never derived from the write order.
-    let mut unit_listing: Vec<(
-        Option<std::path::PathBuf>,
-        Option<std::path::PathBuf>,
-        Option<std::path::PathBuf>,
-    )> = Vec::new();
+    // The list orders each text before its map, while callbacks write each
+    // map before its text. A declaration map is listed whenever its print
+    // branch ran, independently of the sink disposition.
+    struct UnitListing {
+        javascript_path: Option<std::path::PathBuf>,
+        javascript_map_path: Option<std::path::PathBuf>,
+        declaration_path: Option<std::path::PathBuf>,
+        declaration_map_path: Option<std::path::PathBuf>,
+    }
+    let mut unit_listing = Vec::new();
     // sourceMapDataList is allocated iff a map option is on (116532):
-    // `sourceMap || inlineSourceMap` since the h2-6b-m-2 flip.
+    // `sourceMap || inlineSourceMap || getAreDeclarationMapsEnabled(options)`.
     let mut source_map_observations: Vec<SourceMapObservation> = Vec::new();
-    let map_options_enabled =
+    let javascript_map_options_enabled =
         options.source_map == Some(true) || options.inline_source_map == Some(true);
+    let map_options_enabled = javascript_map_options_enabled
+        || (options.declaration_map == Some(true)
+            && (options.declaration == Some(true) || options.composite == Some(true)));
     let mut emit_skipped = false;
     let mut diagnostics: DiagnosticList = Vec::new();
     for unit in preflight.plan().units() {
@@ -789,7 +801,7 @@ pub fn emit_files_with_activity(
                 // tsc-hash: 313b475b45d97ba74f69e4e404efd89763caf5fcc7ca9f94c293edf8fdea4f52
                 // tsc-span: _tsc.js:116805-116807
                 let json_source = source.path().to_string_lossy().ends_with(".json");
-                let recording_enabled = map_options_enabled && !json_source;
+                let recording_enabled = javascript_map_options_enabled && !json_source;
                 if recording_enabled
                     && options.inline_source_map != Some(true)
                     && javascript_map_path.is_none()
@@ -911,6 +923,7 @@ pub fn emit_files_with_activity(
             }
         }
 
+        let mut printed_declaration_map_path = None;
         if let Some(declaration_path) = declaration_path.as_deref() {
             let declaration = emit_declaration_unit(
                 resolver,
@@ -919,11 +932,19 @@ pub fn emit_files_with_activity(
                 &declaration_paths,
                 *source_id,
                 declaration_path,
+                unit.paths().declaration_map_path(),
                 activity,
                 false,
             )?;
             emit_skipped |= declaration.decl_blocked;
             diagnostics.extend(declaration.diagnostics);
+            if let Some(observation) = declaration.map_observation {
+                source_map_observations.push(observation);
+            }
+            if let Some(map) = declaration.map_artifact {
+                printed_declaration_map_path = Some(map.path().to_path_buf());
+                artifacts.push(map);
+            }
             if let Some(artifact) = declaration.artifact {
                 artifacts.push(artifact);
             }
@@ -932,13 +953,24 @@ pub fn emit_files_with_activity(
             // path as skipped. An all-.d.ts program has no units to visit.
             emit_skipped = true;
         }
-        unit_listing.push((javascript_path, javascript_map_path, declaration_path));
+        unit_listing.push(UnitListing {
+            javascript_path,
+            javascript_map_path,
+            declaration_path,
+            declaration_map_path: printed_declaration_map_path,
+        });
     }
 
     let written_paths = write_artifacts(artifacts, sink, &mut diagnostics, activity);
     let emitted_files = emitted_files_enabled.then(|| {
         let mut listing = Vec::new();
-        for (javascript_path, map_path, declaration_path) in unit_listing {
+        for UnitListing {
+            javascript_path,
+            javascript_map_path: map_path,
+            declaration_path,
+            declaration_map_path,
+        } in unit_listing
+        {
             if let Some(javascript_path) = javascript_path {
                 if written_paths.contains(&javascript_path) {
                     listing.push(javascript_path);
@@ -953,6 +985,9 @@ pub fn emit_files_with_activity(
                 if written_paths.contains(&declaration_path) {
                     listing.push(declaration_path);
                 }
+            }
+            if let Some(declaration_map_path) = declaration_map_path {
+                listing.push(declaration_map_path);
             }
         }
         listing
@@ -1037,7 +1072,7 @@ pub fn emit_forced_declarations_with_activity(
             .declaration_path()
             .expect("forced plan has a declaration path");
         let declaration = emit_declaration_unit(
-            resolver, host, &preflight, &paths, *source, path, activity, true,
+            resolver, host, &preflight, &paths, *source, path, None, activity, true,
         )?;
         emit_skipped |= declaration.decl_blocked;
         diagnostics.extend(declaration.diagnostics);
