@@ -100,6 +100,15 @@ fn h2_2c_parameter_property_outputs_are_exact() {
 }
 
 #[test]
+fn h2_5g_isolated_declarations_prerequisite_retains_legacy_activity() {
+    // Frozen H2.5g row 2604 is isolatedDeclarationsRequiresDeclaration.ts:
+    // isolatedDeclarations without declaration emits JavaScript and TS5069.
+    // The complete original observation must retain zero H2.7c requests.
+    super::run_h2_5g_probe(&workspace(), &[2604])
+        .expect("legacy isolatedDeclarations prerequisite observation");
+}
+
+#[test]
 fn h2_5g_transform_activity_uses_complete_unique_write_provenance() {
     let multi_output = serde_json::json!({
         "writes": [
