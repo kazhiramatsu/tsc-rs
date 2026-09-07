@@ -78,14 +78,20 @@ fn historical_overlap(row: &Value) -> bool {
         .any(|p| p["parent"] == "H2.6c")
 }
 
-/// Only the 107 actual library files are mounted; no installed TS/global host fallback.
-/// The digest frames sorted UTF-8 basenames and complete original file bytes with NULs.
+/// Preserve the pinned 107-file named-library digest, then include the default
+/// lib.d.ts wrapper used by the observer's ES5 programs. Both sets use original
+/// bytes; there is no installed TypeScript or global host fallback.
 fn libraries() -> BTreeMap<String, Vec<u8>> {
     let mut files = BTreeMap::new();
     for entry in std::fs::read_dir(workspace().join("vendor/typescript-6.0.3/lib")).unwrap() {
         let entry = entry.unwrap();
         let name = entry.file_name().into_string().unwrap();
-        if name.starts_with("lib.") && name.ends_with(".d.ts") {
+        // Match /^lib\..*\.d\.ts$/ without allowing the prefix and suffix
+        // to overlap, as they do in "lib.d.ts".
+        if name
+            .strip_prefix("lib.")
+            .is_some_and(|rest| rest.ends_with(".d.ts"))
+        {
             files.insert(name, std::fs::read(entry.path()).unwrap());
         }
     }
@@ -101,6 +107,19 @@ fn libraries() -> BTreeMap<String, Vec<u8>> {
         format!("{:x}", hash.finalize()),
         "9bb5d7e6912946bf4ed42015a9549d5c61f536bdebb0e1f72e3200235c569b22"
     );
+    // The frozen observer permits this wrapper under its library-root fallback;
+    // 23 original observations (21 D-only) actually load it. Excluding it from
+    // the digest must not remove it from the Program's available library inputs.
+    let default_wrapper =
+        std::fs::read(workspace().join("vendor/typescript-6.0.3/lib/lib.d.ts")).unwrap();
+    assert_eq!(
+        digest(&default_wrapper),
+        "0e6477e5049e579cc5de741a70ac91235252edc0468b2e569f22de9db3357786"
+    );
+    assert!(files
+        .insert("lib.d.ts".to_owned(), default_wrapper)
+        .is_none());
+    assert_eq!(files.len(), 108);
     files
 }
 
@@ -166,7 +185,8 @@ fn projected_options(case: &Value, host: &MemoryCompilerHost) -> (CompilerOption
     let input = &case["input"];
     // The fixed observer uses createProgram(original roots, parsed options overlaid
     // with effective_options). It does not run tsc's config-program entry or replace
-    // those roots with a second config glob. Preserve config location provenance.
+    // those roots with a second config glob. That object spread retains the
+    // enumerable configFilePath, but drops the non-enumerable configFile AST.
     let mut program = if input["config"].is_null() {
         ProgramOptions::default()
     } else {
@@ -193,6 +213,12 @@ fn projected_options(case: &Value, host: &MemoryCompilerHost) -> (CompilerOption
         );
         plan.program_options()
             .clone()
+            .with_config_file_path(
+                plan.program_options()
+                    .config_file_path()
+                    .expect("the original TS config parse retains configFilePath")
+                    .clone(),
+            )
             .with_program_owned_config_option_diagnostics()
     };
     let mut options = CompilerOptions::default();
@@ -679,6 +705,25 @@ fn h2_7d_original_corpus_matches_production_command_tuples() {
             let result = std::panic::catch_unwind(|| {
                 let host = memory_host(case, &input_artifact, &libraries);
                 let actual = observe(case, &host, &libraries);
+                // Optional failure artifacts preserve the complete observations;
+                // selecting an artifact directory never filters the corpus.
+                if actual != *expected {
+                    if let Some(directory) = std::env::var_os("TSC_RS_H2_7D_FAILURE_DIR") {
+                        let directory = PathBuf::from(directory);
+                        std::fs::create_dir_all(&directory).unwrap();
+                        let record = json!({
+                            "case_id": id,
+                            "repetition": repetition + 1,
+                            "actual": actual,
+                            "expected": expected,
+                        });
+                        std::fs::write(
+                            directory.join(format!("{}-{}.json", digest(id), repetition + 1)),
+                            serde_json::to_vec_pretty(&record).unwrap(),
+                        )
+                        .unwrap();
+                    }
+                }
                 assert_complete(&actual, expected);
             });
             if let Err(error) = result {

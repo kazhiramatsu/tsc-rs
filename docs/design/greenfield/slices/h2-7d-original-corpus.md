@@ -1,8 +1,10 @@
 # H2.7d original corpus comparison draft
 
 This standalone compiler test joins the unchanged candidate census, original
-inputs and complete TS 6.0.3 observations. It has been compiled and checked against the artifact shapes and source hashes.
-Execution through the newly connected bundle pipeline remains pending.
+inputs and complete TS 6.0.3 observations. The first complete production run
+compared all 280 D-only inputs twice: 178 exact and 102 failing cases (242.70s).
+The second run incorporates diagnosed option, JSON and input-projection fixes;
+its result remains pending.
 No candidate is admitted by adding this test. All D-only failures remain failures;
 there is no allowlist, diagnostic replacement or input reduction.
 
@@ -42,8 +44,10 @@ the original `lib.es5.d.ts` default override, 9 configs and one file-symlink inp
 Two compiler originals also retain drive-rooted `A:/`, `B:/` or `c:/` paths on
 the POSIX test host; filesystem-native absolute-path checks do not replace TS paths.
 The mount/write/config/alias precedence mirrors the frozen observer. Config
-syntax/location provenance remains attached while the original effective options
-and roots drive `load_emitting_program`. Config discovery does not replace roots.
+path remains attached while the original effective options and roots drive
+`load_emitting_program`. The frozen observer spreads parsed options, discarding
+TypeScript's non-enumerable `configFile` AST while preserving `configFilePath`.
+The comparator mirrors that distinction; config discovery does not replace roots.
 Resolved project mapRoot/sourceRoot values remain the newer census input contract;
 historical H2.6c observations are not reused as expectations for those paths.
 
@@ -51,8 +55,10 @@ All 41 effective option keys occurring across the 315 D rows are handled explici
 TS's serialized `lib.*.d.ts` names are checked against the existing Rust catalog's
 logical keys. The two `traceResolution:true` rows retain the observer's no-op trace
 reporting contract; this host reporting flag has no Rust CompilerOptions field.
-All 107 pinned standard library files are mounted under `/lib` and collectively
-SHA256 checked (`basename + NUL + complete bytes + NUL`, sorted basenames). Loaded
+The 107 named standard libraries retain their collective SHA256 check
+(`basename + NUL + complete bytes + NUL`, sorted basenames). The independently
+pinned `lib.d.ts` wrapper is also mounted under `/lib`, for 108 available files.
+The frozen observer loads that wrapper in 21 D-only observations. Loaded
 library order and loaded source text are obtained from the real PreparedProgram.
 
 ## Production comparison and remaining entrances
@@ -69,7 +75,9 @@ emit diagnostics, emittedFiles, sourceMaps (including canonical JSON bytes), sta
 writes and exit code. Absent and empty values remain distinct. Failures are
 aggregated per original ID and repetition, with JSON field or decoded output byte
 positions; unexpected runtime errors report partial callback paths and hashes.
-The next fresh Program still runs after a failed repetition. This is the complete
+Setting `TSC_RS_H2_7D_FAILURE_DIR` writes complete failed observations for diagnosis;
+it never filters cases or changes comparisons. The next fresh Program still runs
+after a failed repetition. This is the complete
 frozen Program/command tuple, not a new filesystem/CLI subprocess claim. Relocating
 these originals into generated configs would change absolute paths, config
 diagnostic locations or project lib defaults, so such CLI controls require their
