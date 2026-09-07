@@ -232,8 +232,8 @@ fn assert_cli(case: &Value, expected: &Value) {
     std::fs::create_dir(&directory).unwrap();
     let tree = CliTree(directory.canonicalize().unwrap());
     // The Program comparison retains /.src verbatim. The CLI additionally
-    // checks its real wrapper in a relocated input tree; these rows have no
-    // location-dependent diagnostics or status writes and maps stay relative.
+    // checks its real wrapper in a relocated input tree; maps stay relative.
+    // The declaration-absent row additionally compares TS's config diagnostic.
     let mut input_paths = BTreeSet::from([PathBuf::from("tsconfig.json")]);
     for file in case["input"]["files"].as_array().unwrap() {
         let relative = file["path"]
@@ -282,13 +282,18 @@ fn assert_cli(case: &Value, expected: &Value) {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    assert_eq!(expected["reported_diagnostics"], json!([]));
     assert_eq!(expected["status_writes"], json!([]));
-    assert!(
-        output.stdout.is_empty(),
-        "{}",
-        String::from_utf8_lossy(&output.stdout)
-    );
+    let has_diagnostics = !expected["reported_diagnostics"]
+        .as_array()
+        .unwrap()
+        .is_empty();
+    if !has_diagnostics {
+        assert!(
+            output.stdout.is_empty(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+    }
     assert_eq!(json!(output.status.code()), expected["exit_code"]);
     let mut output_paths = BTreeSet::new();
     for write in expected["writes"].as_array().unwrap() {
@@ -313,6 +318,32 @@ fn assert_cli(case: &Value, expected: &Value) {
         .filter(|p| !input_paths.contains(p))
         .collect::<BTreeSet<_>>();
     assert_eq!(actual_paths, output_paths);
+    if has_diagnostics {
+        assert_eq!(
+            case["case_id"],
+            "typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default"
+        );
+        assert!(case["effective_options"].get("declaration").is_none());
+        assert_eq!(
+            expected["reported_diagnostics"].as_array().unwrap().len(),
+            1
+        );
+        assert_eq!(expected["reported_diagnostics"][0]["code"], 5069);
+        assert_eq!(expected["reported_diagnostics"][0]["file"], Value::Null);
+        // The immutable Program observation has no config file. Compare the
+        // relocated CLI's config position with the pinned TS6 CLI separately.
+        // Rust bytes and absence of extra outputs were checked before TS can
+        // write into this tree, so an oracle write cannot hide a Rust mismatch.
+        let reference = std::process::Command::new("node")
+            .arg(workspace().join("vendor/typescript-6.0.3/lib/_tsc.js"))
+            .current_dir(&tree.0)
+            .args(["-p", "tsconfig.json", "--pretty", "false"])
+            .output()
+            .unwrap();
+        assert_eq!(output.stdout, reference.stdout);
+        assert_eq!(output.stderr, reference.stderr);
+        assert_eq!(output.status.code(), reference.status.code());
+    }
 }
 
 #[test]
@@ -359,6 +390,8 @@ fn h2_7e_original_corpus_preserves_complete_tuples_and_boundaries() {
     let census = indexed(&census);
     let inputs = indexed(&inputs);
     let observations = indexed(&observations);
+    assert_eq!(census.len(), 325, "unchanged D/E candidate union");
+    assert_eq!(inputs.len(), 325);
     let cases = census
         .iter()
         .filter(|(_, row)| {
@@ -369,7 +402,7 @@ fn h2_7e_original_corpus_preserves_complete_tuples_and_boundaries() {
         })
         .collect::<Vec<_>>();
     assert_eq!(cases.len(), 13);
-    let (mut ordinary, mut disabled, mut bundles, mut transpile) = (0, 0, 0, 0);
+    let (mut ordinary, mut declaration_absent, mut bundles, mut transpile) = (0, 0, 0, 0);
     let (mut historical_total, mut historical_exact) = (0, 0);
     let mut failures = Vec::new();
     for (id, row) in cases {
@@ -399,14 +432,18 @@ fn h2_7e_original_corpus_preserves_complete_tuples_and_boundaries() {
             Some("outFile")
         } else {
             assert_eq!(*owners, json!(["H2.7e"]));
-            if input["effective_options"]["declaration"] != true {
-                disabled += 1;
-                Some("declarationMap")
+            if input["effective_options"].get("declaration").is_none() {
+                assert_eq!(
+                    *id,
+                    "typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default"
+                );
+                declaration_absent += 1;
             } else {
-                ordinary += 1;
-                historical_exact += usize::from(in_h2_6c);
-                None
+                assert_eq!(input["effective_options"]["declaration"], true);
             }
+            ordinary += 1;
+            historical_exact += usize::from(in_h2_6c);
+            None
         };
         let compared = std::panic::catch_unwind(|| {
             for _ in 0..2 {
@@ -439,11 +476,14 @@ fn h2_7e_original_corpus_preserves_complete_tuples_and_boundaries() {
             eprintln!("H2.7e original PASS {id} ({})", refusal.unwrap_or("exact"));
         }
     }
-    assert_eq!((ordinary, disabled, bundles, transpile), (7, 1, 3, 2));
+    assert_eq!(
+        (ordinary, declaration_absent, bundles, transpile),
+        (8, 1, 3, 2)
+    );
     assert_eq!((historical_total, historical_exact), (6, 5));
     assert_eq!(
         ordinary - historical_exact,
-        2,
+        3,
         "new case IDs relative to H2.6c"
     );
     assert!(
