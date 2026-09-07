@@ -77,10 +77,14 @@ references and builder runtime retain their H2.8, API1 and BLD1 boundaries.
 | [Original D corpus](h2-7d-original-corpus.md), including shared 3 | 283 complete production tuples, twice |
 | [Original E-only corpus](h2-7e-original-corpus.md) | 8 complete tuples twice and 16 CLI runs; final rerun 33.28s |
 | Bundle internal comparisons | 130 complete comparisons; final rerun 86.31s |
-| Ordinary/getter/forced Program paths | 4 Bundle Program tests and 532 E API comparisons pass |
+| Ordinary/getter/forced Program paths | 4 Bundle Program tests; final E API rerun: 532 calls and 130 final diagnostic snapshots pass in 59.86s |
 | [Bundle sinks](h2-7de-bundle-sinks.md) and request canaries | 10 sink cases twice plus 4 stateful callback throws twice; final rerun 16.07s |
 | Old H2.6c routes, third collector | 160 exact + 17 typed refusals, each twice; 106.04s |
 | Full local H2.6c acceptance | 481 exact / 158 known / 4 deferred; 17 refusal migrations, twice; B activity 552 |
+| Emitter regressions | 480 unit tests and 451 contracts pass |
+| Adjacent compiler contracts | 21 pass in 427.96s, including declaration transformer replay, all 16 H2.7c contracts and dormant H2.7a controls |
+| Populated legacy registries and historical controls | 19 pass in 194.39s, including missing/duplicate/unknown IDs and changed result rejection |
+| Qualification and metadata | 41 policy controls, 28 source pins, four schemas and profile/foundation/close freshness pass |
 
 The old collector (`target/h2-6c-de-legacy177-third.json`) reports no unstable,
 setup-failure or comparison-failure IDs. First-repetition successful activity is
