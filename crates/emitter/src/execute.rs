@@ -493,6 +493,15 @@ pub fn source_map_directory(
     javascript_path: &std::path::Path,
     source_path: &std::path::Path,
 ) -> String {
+    source_map_directory_for_output(lane, options, javascript_path, Some(source_path))
+}
+
+pub(crate) fn source_map_directory_for_output(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    javascript_path: &std::path::Path,
+    source_path: Option<&std::path::Path>,
+) -> String {
     use crate::source_map::paths;
     if options
         .source_root
@@ -509,14 +518,16 @@ pub fn source_map_directory(
         // per-file nesting (getSourceFilePathInNewDir): the relative
         // mapRoot stays relative through the worker; the root-length
         // check below then resolves it (upstream order).
-        let nested = paths::source_file_path_in_new_dir_worker(
-            &normalized_display(source_path),
-            &source_map_dir,
-            &lane.current_directory,
-            &lane.common_source_directory,
-            lane.use_case_sensitive_source_keys,
-        );
-        source_map_dir = directory_and_basename(&nested).0.to_owned();
+        if let Some(source_path) = source_path {
+            let nested = paths::source_file_path_in_new_dir_worker(
+                &normalized_display(source_path),
+                &source_map_dir,
+                &lane.current_directory,
+                &lane.common_source_directory,
+                lane.use_case_sensitive_source_keys,
+            );
+            source_map_dir = directory_and_basename(&nested).0.to_owned();
+        }
         if paths::get_root_length(&source_map_dir) == 0 {
             source_map_dir = paths::combine_paths(
                 lane.common_source_directory.trim_end_matches('/'),
@@ -543,13 +554,27 @@ pub fn source_map_recording_inputs_for(
     javascript_path: &std::path::Path,
     source_path: &std::path::Path,
 ) -> SourceMapRecordingInputs {
+    source_map_recording_inputs_for_output(lane, options, javascript_path, Some(source_path))
+}
+
+pub(crate) fn source_map_recording_inputs_for_output(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    javascript_path: &std::path::Path,
+    source_path: Option<&std::path::Path>,
+) -> SourceMapRecordingInputs {
     let normalized = normalized_display(javascript_path);
     let (_, basename) = directory_and_basename(&normalized);
     SourceMapRecordingInputs {
         file: basename.into(),
         source_root: source_root_field(options).into(),
-        sources_directory_path: source_map_directory(lane, options, javascript_path, source_path)
-            .into(),
+        sources_directory_path: source_map_directory_for_output(
+            lane,
+            options,
+            javascript_path,
+            source_path,
+        )
+        .into(),
         current_directory: lane.current_directory.clone().into(),
         use_case_sensitive_source_keys: lane.use_case_sensitive_source_keys,
         inline_sources: options.inline_sources == Some(true),
@@ -608,6 +633,24 @@ pub fn source_mapping_url(
     map_path: Option<&std::path::Path>,
     source_path: &std::path::Path,
 ) -> Result<String, EmitFailure> {
+    source_mapping_url_for_output(
+        lane,
+        options,
+        map_text,
+        javascript_path,
+        map_path,
+        Some(source_path),
+    )
+}
+
+pub(crate) fn source_mapping_url_for_output(
+    lane: &MapLaneInputs,
+    options: &CompilerOptions,
+    map_text: &str,
+    javascript_path: &std::path::Path,
+    map_path: Option<&std::path::Path>,
+    source_path: Option<&std::path::Path>,
+) -> Result<String, EmitFailure> {
     use crate::source_map::paths;
     if options.inline_source_map == Some(true) {
         return Ok(format!(
@@ -624,14 +667,16 @@ pub fn source_mapping_url(
     let (_, map_basename) = directory_and_basename(&normalized_map);
     if let Some(map_root) = options.map_root.as_deref().filter(|root| !root.is_empty()) {
         let mut source_map_dir = paths::normalize_slashes(map_root);
-        let nested = paths::source_file_path_in_new_dir_worker(
-            &normalized_display(source_path),
-            &source_map_dir,
-            &lane.current_directory,
-            &lane.common_source_directory,
-            lane.use_case_sensitive_source_keys,
-        );
-        source_map_dir = directory_and_basename(&nested).0.to_owned();
+        if let Some(source_path) = source_path {
+            let nested = paths::source_file_path_in_new_dir_worker(
+                &normalized_display(source_path),
+                &source_map_dir,
+                &lane.current_directory,
+                &lane.common_source_directory,
+                lane.use_case_sensitive_source_keys,
+            );
+            source_map_dir = directory_and_basename(&nested).0.to_owned();
+        }
         if paths::get_root_length(&source_map_dir) == 0 {
             source_map_dir = paths::combine_paths(
                 lane.common_source_directory.trim_end_matches('/'),
