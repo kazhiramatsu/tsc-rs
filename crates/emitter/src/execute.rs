@@ -1108,14 +1108,17 @@ pub fn emit_files_with_activity(
             }
         }
 
-        // printSourceFileOrBundle writes JavaScript before starting the
-        // declaration transform. Retain those callbacks if a later stage fails.
-        written_paths.extend(write_artifacts(
-            std::mem::take(&mut artifacts),
-            sink,
-            &mut diagnostics,
-            activity,
-        ));
+        // Bundle callbacks precede the declaration transform. Ordinary source
+        // outputs retain the existing whole-Program failure boundary: a later
+        // unsupported source must fail before any artifact reaches the sink.
+        if matches!(unit.root(), EmitRoot::Bundle(_)) {
+            written_paths.extend(write_artifacts(
+                std::mem::take(&mut artifacts),
+                sink,
+                &mut diagnostics,
+                activity,
+            ));
+        }
 
         let mut printed_declaration_map_path = None;
         if let Some(declaration_path) = declaration_path.as_deref() {
@@ -1148,12 +1151,14 @@ pub fn emit_files_with_activity(
             // path as skipped. An all-.d.ts program has no units to visit.
             emit_skipped = true;
         }
-        written_paths.extend(write_artifacts(
-            std::mem::take(&mut artifacts),
-            sink,
-            &mut diagnostics,
-            activity,
-        ));
+        if matches!(unit.root(), EmitRoot::Bundle(_)) {
+            written_paths.extend(write_artifacts(
+                std::mem::take(&mut artifacts),
+                sink,
+                &mut diagnostics,
+                activity,
+            ));
+        }
         unit_listing.push(UnitListing {
             javascript_path: javascript_path.filter(|_| javascript_printed),
             javascript_map_path: javascript_map_path.filter(|_| javascript_printed),
@@ -1162,6 +1167,7 @@ pub fn emit_files_with_activity(
         });
     }
 
+    written_paths.extend(write_artifacts(artifacts, sink, &mut diagnostics, activity));
     let emitted_files = emitted_files_enabled.then(|| {
         let mut listing = Vec::new();
         for UnitListing {

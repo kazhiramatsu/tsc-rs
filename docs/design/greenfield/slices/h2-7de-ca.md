@@ -104,6 +104,34 @@ source-deferred rows remain unchanged. The earlier 188/451 profile snapshot is
 historical; current transition fields match the measured 481/158 manifest.
 This is local acceptance evidence; hosted acceptance remains pending.
 
+## Ordinary source failure boundary correction
+
+The first candidate `b706142daa562fab2f1f145767c620f1623974b5` failed
+[hosted run 34116180082](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34116180082)
+after 5m33s. Compilation, conformance and H1 passed; H2.1a then rejected two
+writes from the source-deferred `bigintArbirtraryIdentifier.ts` input. Later
+bands, including D/E, were not reached.
+
+The Bundle callback change had also dispatched ordinary SourceFile outputs
+before all Program sources had transformed successfully. In this six-source
+input, two valid sources reached the sink before a later unsupported source
+failed. Ordinary SourceFile outputs now retain their previous whole-Program
+staging boundary; Bundle callbacks still run before declaration transformation
+and at the end of the Bundle. Forced declaration dispatch is unchanged.
+Historical ordinary source-deferred failures remain typed and occur before
+the first sink write.
+No input, expected tuple, promotion or deferred denominator was changed.
+
+All 295 H2.1a candidates pass again (246 exact, 49 historical source-deferred,
+704 exact diagnostics and 256 writes, twice; 233.31s). The current unpromoted
+multi-source controls are all covered by that existing test. The Bundle sink
+controls pass in 12.81s, E's 532 calls/130 snapshots in 59.37s, and original
+E-only8/CLI16 in 18.42s. These are local correction checks; the corrected
+candidate still requires its own passing hosted run. H2.1e also passes all six
+candidates (4.59s); all 451 emitter contracts pass (1.28s), and emitter/compiler/
+xtask all-target Clippy with warnings denied passes (59.19s). Four schemas,
+profile/foundation/close freshness, formatting and diff checks pass.
+
 ## Pending adoption
 
 Complete the existing single-job hosted acceptance with the registered joint

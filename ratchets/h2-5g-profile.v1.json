@@ -200,7 +200,7 @@
     },
     {
       "path": "crates/emitter/src/execute.rs",
-      "sha256": "6305bf4ead003d22d20493d81203c644a146fbd9b9122ad7bfb8fe45bf7e0dcc"
+      "sha256": "9d238221bbc5afb3a27b99d25b52e13c4f1f3032201b8dfc48b0bf3bfee2864b"
     },
     {
       "path": "crates/emitter/src/factory.rs",
@@ -1654,5 +1654,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "e754c55626763d26513c41672b2588eb4946927a2b7807566d19aa78cab98cf7"
+  "profile_fingerprint_sha256": "7933961697eb25b6af1838e7fa9dcb025414a1e583ee665735ebf4681b9c90aa"
 }
