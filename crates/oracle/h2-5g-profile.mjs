@@ -97,6 +97,7 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   // Formal runtime adoption and the remaining API/bundle boundaries stay separate.
   "crates/compiler/tests/fixtures/declaration-maps.json",
   "crates/compiler/tests/h2_7e_declaration_maps.rs",
+  "crates/compiler/tests/h2_7e_original_corpus.rs",
   "crates/emitter/src/declaration_map.rs",
   "crates/emitter/tests/fixtures/bundle-plan.json",
   "crates/emitter/tests/unit/bundle_plan/tests.rs",
@@ -104,6 +105,9 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/compiler/tests/fixtures/declaration-map-apis.json",
   "crates/compiler/tests/fixtures/declaration-maps-runtime.json",
   "crates/emitter/tests/fixtures/bundle-module-identities.json",
+  "crates/emitter/tests/fixtures/bundle-declarations.json",
+  "crates/emitter/src/external_module_names.rs",
+  "crates/emitter/tests/unit/external_module_names/tests.rs",
   "crates/emitter/tests/fixtures/bundle-transform.json",
   "crates/emitter/tests/unit/bundle_transform/tests.rs",
   "crates/compiler/tests/fixtures/h2-7c-corpus-inputs.json",
@@ -666,8 +670,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 293,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 293)`,
+    runtimeInputSet.size === 297,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 297)`,
   );
 
   return withFingerprint(

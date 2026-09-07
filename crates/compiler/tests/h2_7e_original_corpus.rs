@@ -4,15 +4,15 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
 use base64::Engine;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tsc_compiler::{MemoryOutputSink, ProgramSession};
 use tsc_diagnostics::{Diagnostic, MessageChain};
 use tsc_emitter::{EmitArtifact, EmitArtifactKind, EmitWriteMetadata};
 use tsc_host::MemoryCompilerHost;
 use tsc_program::{
-    CompilerOptions, LibraryCatalog, PreparedProgram, ProgramLoadLimits, ProgramOptions,
-    load_emitting_program,
+    load_emitting_program, CompilerOptions, LibraryCatalog, PreparedProgram, ProgramLoadLimits,
+    ProgramOptions,
 };
 
 fn workspace() -> PathBuf {
