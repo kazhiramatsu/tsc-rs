@@ -1,7 +1,9 @@
 use tsc_diagnostics::{gen, sort_and_dedupe_diagnostics, Diagnostic, DiagnosticList, MessageChain};
 use tsc_types::{CompilerOptions, ScriptTarget};
 
-use crate::builtins::get_script_transformers_with_activity;
+use crate::builtins::{
+    get_script_transformers_with_activity, observe_additional_bundle_source_activity,
+};
 use crate::declarations::{
     emit_declaration_unit, get_declaration_diagnostics, PlanDeclarationPaths,
 };
@@ -914,6 +916,14 @@ pub fn emit_files_with_activity(
                 let transformers = get_script_transformers_with_activity(
                     options, resolver, host, source_id, activity,
                 )?;
+                for &additional_source in unit.root().source_files().iter().skip(1) {
+                    observe_additional_bundle_source_activity(
+                        options,
+                        host,
+                        additional_source,
+                        activity,
+                    );
+                }
                 activity.construct_transform_context();
                 let mut transformation =
                     transform_nodes(arena, vec![transform_root], transformers, false)?;

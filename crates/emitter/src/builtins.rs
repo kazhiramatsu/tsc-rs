@@ -139,6 +139,96 @@ pub(crate) fn get_script_transformers_with_activity<'transformers>(
     get_script_transformers_with_optional_host(options, resolver, Some((host, source)), activity)
 }
 
+// The transformer list is shared by a Bundle, while these predicates inspect
+// a particular source. Option-wide owners retain one event per list.
+fn observe_script_source_routing(
+    options: &CompilerOptions,
+    host: &dyn EmitHost,
+    source: SourceFileId,
+    first_source: bool,
+    activity: &mut H2ActivityCanary,
+) {
+    let source_record = host.source_file(source);
+    let source_name = source_record
+        .map(|record| record.path().to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    let owns_node_format_option = matches!(
+        options.emit_module_kind(),
+        MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
+    ) || options.rewrite_relative_import_extensions == Some(true);
+    let owns_node_format = (first_source && owns_node_format_option)
+        || (!owns_node_format_option
+            && (source_name.ends_with(".mts")
+                || source_name.ends_with(".cts")
+                || source_record
+                    .and_then(crate::EmitSource::syntax)
+                    .is_some_and(source_contains_import_attributes)));
+    if owns_node_format {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
+    }
+    if source_record
+        .and_then(crate::EmitSource::syntax)
+        .is_some_and(source_contains_runtime_enum)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_2a);
+    }
+    if source_record
+        .and_then(crate::EmitSource::syntax)
+        .is_some_and(source_contains_runtime_namespace)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_2b);
+    }
+    if source_record
+        .and_then(crate::EmitSource::syntax)
+        .is_some_and(source_contains_parameter_property)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
+    }
+    if source_record
+        .and_then(crate::EmitSource::syntax)
+        .is_some_and(source_contains_import_or_export_equals)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
+    }
+    if options.experimental_decorators
+        && source_record
+            .and_then(crate::EmitSource::syntax)
+            .is_some_and(source_contains_decorator)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
+    }
+    if (first_source && !options.use_define_for_class_fields_effective())
+        || (options.use_define_for_class_fields_effective()
+            && !options.experimental_decorators
+            && source_record
+                .and_then(crate::EmitSource::syntax)
+                .is_some_and(source_contains_decorator))
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
+    }
+}
+
+/// Observe a later actual Bundle member without constructing another list.
+/// Call only after the first source has selected the list and only for sources
+/// in the JavaScript output root (not every mounted Program source).
+pub(crate) fn observe_additional_bundle_source_activity(
+    options: &CompilerOptions,
+    host: &dyn EmitHost,
+    source: SourceFileId,
+    activity: &mut H2ActivityCanary,
+) {
+    observe_script_source_routing(options, host, source, false, activity);
+    if !matches!(options.emit_module_kind(), MODULE_PRESERVE | MODULE_SYSTEM) {
+        let emit_format = host.get_emit_module_format_of_file(source);
+        if emit_format.is_some_and(|format| format < 5) {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+        }
+        if emit_format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
+        }
+    }
+}
+
 fn get_script_transformers_with_optional_host<'transformers>(
     options: &CompilerOptions,
     resolver: &'transformers dyn EmitResolver,
@@ -186,61 +276,7 @@ fn get_script_transformers_with_optional_host<'transformers>(
         });
     }
     if let Some((host, source)) = host {
-        let source_record = host.source_file(source);
-        let source_name = source_record
-            .map(|record| record.path().to_string_lossy().to_ascii_lowercase())
-            .unwrap_or_default();
-        let owns_node_format = matches!(
-            options.emit_module_kind(),
-            MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
-        ) || options.rewrite_relative_import_extensions == Some(true)
-            || source_name.ends_with(".mts")
-            || source_name.ends_with(".cts")
-            || source_record
-                .and_then(crate::EmitSource::syntax)
-                .is_some_and(source_contains_import_attributes);
-        if owns_node_format {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
-        }
-        if source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_runtime_enum)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_2a);
-        }
-        if source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_runtime_namespace)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_2b);
-        }
-        if source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_parameter_property)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
-        }
-        if source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_import_or_export_equals)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
-        }
-        if options.experimental_decorators
-            && source_record
-                .and_then(crate::EmitSource::syntax)
-                .is_some_and(source_contains_decorator)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
-        }
-        if !options.use_define_for_class_fields_effective()
-            || (!options.experimental_decorators
-                && source_record
-                    .and_then(crate::EmitSource::syntax)
-                    .is_some_and(source_contains_decorator))
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
-        }
+        observe_script_source_routing(options, host, source, true, activity);
         if target < ScriptTarget::ES_NEXT {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_5a);
         }
