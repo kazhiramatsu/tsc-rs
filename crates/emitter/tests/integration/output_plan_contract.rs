@@ -942,8 +942,16 @@ fn sink_errors_continue_and_emitted_files_remain_independent_from_disposition() 
     .unwrap();
     assert_eq!(skipping.paths, failing.paths);
     assert!(outcome.diagnostics().is_empty());
+    // emitJsFileOrBundle ignores the printer's skippedDtsWrite return value
+    // (_tsc.js:116634-116638). Both printed JavaScript files remain listed.
     assert_eq!(
         outcome.emitted_files(),
-        Some([PathBuf::from("/project/second.js")].as_slice())
+        Some(
+            [
+                PathBuf::from("/project/first.js"),
+                PathBuf::from("/project/second.js"),
+            ]
+            .as_slice()
+        )
     );
 }

@@ -303,10 +303,9 @@ fn unsupported<T>(option: &'static str) -> Result<T, EmitFailure> {
 /// tsc-hash: 62e93c3a8e9e2840b759bbaa0fa6de5e548ebd565748dbbddb47a933a1cf442c
 /// tsc-span: _tsc.js:116530-116858
 ///
-/// The profile-only preconstruction of every JavaScript artifact is a
-/// fail-closed Rust ownership adaptation: an unsupported later source cannot
-/// leave earlier callback writes behind. Once all artifacts exist, callback
-/// order follows the ported output-unit order exactly.
+/// Each output unit writes JavaScript before transforming and writing its
+/// declaration. Later failures retain the callbacks already delivered, while
+/// map callbacks precede their text and listings preserve the opposite order.
 pub fn emit_files(
     resolver: &dyn EmitResolver,
     host: &dyn EmitHost,
