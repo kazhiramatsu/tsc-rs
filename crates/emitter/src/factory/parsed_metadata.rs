@@ -7,14 +7,14 @@ use tsc_syntax::{NodeId, SourceFile};
 use tsc_types::IdentityLease;
 
 use super::{TransformArena, TransformNode, TransformSourceId};
-use crate::{EmitFlags, EmitHost, EmitMetadata, TransformError};
+use crate::{EmitConstantValue, EmitFlags, EmitHost, EmitMetadata, TransformError};
 
 /// Metadata actually attached to original parse nodes by a completed
 /// JavaScript transform/print. It is passed only to the declaration transform
 /// of that same ordinary emit. Fresh getter/forced operations start empty.
 ///
 /// Synthetic nodes and their `original` chains are never projected into this
-/// snapshot. The first portable packet covers the observed flags/typeNode
+/// snapshot. The portable packet covers the observed flags/typeNode/constantValue
 /// mutations; other metadata is a typed refusal, never silently discarded.
 #[derive(Debug, Default)]
 pub struct ParsedEmitMetadata {
@@ -52,6 +52,7 @@ impl ParsedSourceIdentity {
 struct ParsedNodeMetadata {
     flags: EmitFlags,
     type_node: Option<(SourceFileId, NodeId)>,
+    constant_value: Option<EmitConstantValue>,
 }
 
 impl TransformArena {
@@ -69,8 +70,16 @@ impl TransformArena {
             // An explicit whitelist ensures new fields and synthetic identity
             // channels cannot quietly disappear at this boundary.
             let mut remainder = metadata.clone();
+            // This Rust-only protocol marks the JavaScript operation which
+            // now owns a moved field initializer's trailing comments. It is
+            // not a TS emitNode mutation and has no declaration-lane owner.
+            remainder.relocated_trailing_comment_owner = None;
+            if remainder == EmitMetadata::default() {
+                continue;
+            }
             remainder.flags = EmitFlags::NONE;
             remainder.type_node = None;
+            remainder.constant_value = None;
             if remainder != EmitMetadata::default() {
                 return Err(TransformError::ParsedEmitMetadataNotPortable(node));
             }
@@ -86,6 +95,7 @@ impl TransformArena {
                     ParsedNodeMetadata {
                         flags: metadata.flags(),
                         type_node,
+                        constant_value: metadata.constant_value().cloned(),
                     },
                 )
                 .is_some()
@@ -137,6 +147,7 @@ impl TransformArena {
             }
             let value = EmitMetadata {
                 flags: metadata.flags,
+                constant_value: metadata.constant_value.clone(),
                 type_node: metadata
                     .type_node
                     .map(|(program, id)| TransformNode::new(mounted[&program], id)),
@@ -368,5 +379,44 @@ mod tests {
             .set_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
         assert!(matches!(arena.snapshot_parsed_emit_metadata(&host),
             Err(TransformError::ParsedEmitMetadataSourceMismatch(id)) if id == host.ids[0]));
+    }
+
+    #[test]
+    fn parsed_constants_preserve_bits_and_code_units_without_javascript_comment_ownership() {
+        let host = Host::new();
+        let (mut javascript, [a, b]) = host.mount(false);
+        let number =
+            EmitConstantValue::Number(crate::JavaScriptNumber::from_bits(0x8000_0000_0000_0000));
+        let string = EmitConstantValue::String(crate::JavaScriptString::from_code_units(vec![
+            0x6587, 0xd83d, 0xde00, 0xd800,
+        ]));
+        javascript
+            .metadata_mut(a)
+            .set_constant_value(number.clone());
+        javascript
+            .metadata_mut(b)
+            .set_constant_value(string.clone());
+        javascript.metadata_mut(a).relocated_trailing_comment_owner =
+            Some(crate::metadata::RelocatedTrailingCommentOwner::ClassFieldOperation);
+        let snapshot = javascript.snapshot_parsed_emit_metadata(&host).unwrap();
+        let (mut declaration, [a, b]) = host.mount(true);
+        declaration
+            .restore_parsed_emit_metadata(&snapshot, &host)
+            .unwrap();
+        assert_eq!(
+            declaration.metadata(a).unwrap().constant_value(),
+            Some(&number)
+        );
+        assert_eq!(
+            declaration.metadata(b).unwrap().constant_value(),
+            Some(&string)
+        );
+        assert_eq!(
+            declaration
+                .metadata(a)
+                .unwrap()
+                .relocated_trailing_comment_owner,
+            None
+        );
     }
 }

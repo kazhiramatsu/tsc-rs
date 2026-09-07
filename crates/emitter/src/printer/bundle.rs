@@ -73,7 +73,6 @@ impl Printer {
                 source.is_declaration_file
                     || source.external_module_indicator.is_some()
                         && !matches!(self.options.module_kind, Some(2 | 4))
-                    || source.file_name.to_ascii_lowercase().ends_with(".json")
             } {
                 return Err(PrinterError::Unsupported(
                     UnsupportedEmitFeature::BundleRoot,

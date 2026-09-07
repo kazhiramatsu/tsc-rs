@@ -85,7 +85,7 @@ function makeProgram(input) {
   for (const file of program.getSourceFiles()) assert.ok(files.has(canonical(file.fileName)) || library(file.fileName), file.fileName);
   return { program, library };
 }
-function observe(input, probeMode = null) {
+function observe(input, probeMode = null, recordConstants = false) {
   const { program, library } = makeProgram(input);
   const writes = [];
   const parseNodes = new Map();
@@ -127,7 +127,16 @@ function observe(input, probeMode = null) {
     syntactic_diagnostics: program.getSyntacticDiagnostics().map(diagnostic),
     global_diagnostics: program.getGlobalDiagnostics().map(diagnostic),
     semantic_diagnostics: program.getSemanticDiagnostics().map(diagnostic),
-    ...(probeMode ? { phases } : {}) };
+    ...(probeMode ? { phases } : {}),
+    ...(recordConstants ? { parsed_constant_values: [...parseNodes].filter(([node]) => node.emitNode?.constantValue !== undefined)
+      .map(([node, identity]) => {
+        const value = node.emitNode.constantValue;
+        const bytes = Buffer.alloc(8);
+        if (typeof value === "number") bytes.writeDoubleBE(value);
+        return { ...identity, kind: ts.SyntaxKind[node.kind], pos: node.pos, end: node.end,
+          value: typeof value === "number" ? { number_bits: bytes.toString("hex") }
+            : { string_utf16: Array.from({ length: value.length }, (_, index) => value.charCodeAt(index)) } };
+      }) } : {}) };
 }
 const cases = inputs.map(input => {
   const first = observe(input);
@@ -176,13 +185,76 @@ for (const row of metadataLifetimeReferences.filter(row => row.origin.kind === "
   assert.ok(params("ordinary").some(node => node.name.flags === 64 && node.name.parsed_identity !== null));
   assert.ok(params("fresh-forced").every(node => node.name.flags === 0));
 }
+const constantValueReferences = [ts.ScriptTarget.ES5, ts.ScriptTarget.ES2015].map(target => {
+  const input = { ...inputs[0], case_id: `metadata/constant-value/${target}`,
+    files: [{ path: "/project/src/a.ts", text: 'const enum E { N = -0, S = "文😀" }\nconst n = E.N;\nconst s = E.S;\n' },
+      { path: "/project/src/b.ts", text: 'const numberText = (E.N).toString();\n' }],
+    options: { ...defaults, target }, origin: { kind: "new-constant-value-control" } };
+  const modes = Object.fromEntries(["ordinary", "fresh-forced"].map(mode => {
+    const first = observe(input, mode, true);
+    assert.deepEqual(observe(input, mode, true), first);
+    assert.equal(first.exception, null);
+    assert.equal(first.parsed_constant_values.length, mode === "ordinary" ? 3 : 0);
+    return [mode, first];
+  }));
+  return { ...input, modes };
+});
+const jsonInputs = [];
+for (const id of ["wrappers/mixed-amd", "wrappers/mixed-system"]) {
+  const original = baseline.cases.find(row => row.case_id === id);
+  const input = Object.fromEntries(["case_id", "current_directory", "use_case_sensitive_file_names", "files", "roots", "options"].filter(key => original[key] !== undefined).map(key => [key, original[key]]));
+  jsonInputs.push({ ...input, origin: { kind: "unchanged-declaration-control", case_id: id } });
+  jsonInputs.push({ ...input, case_id: `json/${id}/maps`, options: { ...input.options, sourceMap: true, declarationMap: true, inlineSources: true }, origin: { kind: "new-json-map-control" } });
+}
+for (const module of [ts.ModuleKind.AMD, ts.ModuleKind.System]) {
+  jsonInputs.push({ ...inputs[0], case_id: `json/only-object/${module}`, files: [{ path: "/project/data.json", text: '{ "n": 1 }\n' }],
+    options: { ...defaults, module, resolveJsonModule: true, moduleResolution: ts.ModuleResolutionKind.Node10 }, origin: { kind: "new-json-map-control" } });
+}
+jsonInputs.push({ ...jsonInputs.at(-1), case_id: "json/only-string/system", files: [{ path: "/project/data.json", text: '"hello"\n' }] });
+jsonInputs.push({ ...jsonInputs.at(-2), case_id: "json/first/system", files: [{ path: "/project/data.json", text: '{ "n": 1 }\n' }, { path: "/project/a.ts", text: 'const a: number = 1;\n' }] });
+const jsonBundleReferences = jsonInputs.map(input => {
+  const first = observe(input);
+  assert.deepEqual(observe(input), first, input.case_id);
+  assert.equal(first.exception, null);
+  if (input.origin.kind === "unchanged-declaration-control") {
+    const original = baseline.cases.find(row => row.case_id === input.origin.case_id);
+    assert.deepEqual(first.writes, original.ordinary_declaration_tree_reference.writes);
+    assert.deepEqual(first.emit_result, original.ordinary_declaration_tree_reference.emit_result);
+  }
+  return { ...input, typescript_observation: first };
+});
+const runtimeCommentOwnerReferences = ["state/late-painted-first", "state/late-painted-last", "diagnostics/multiple-files"].map(id => {
+  const original = baseline.cases.find(row => row.case_id === id);
+  const input = Object.fromEntries(["case_id", "current_directory", "use_case_sensitive_file_names", "files", "roots", "options"].filter(key => original[key] !== undefined).map(key => [key, original[key]]));
+  const modes = Object.fromEntries(["ordinary", "fresh-forced"].map(mode => {
+    const first = observe(input, mode);
+    assert.deepEqual(observe(input, mode), first, `${id} ${mode}`);
+    assert.equal(first.exception, null);
+    if (mode === "ordinary") {
+      assert.deepEqual(first.writes, original.ordinary_declaration_tree_reference.writes);
+      assert.deepEqual(first.emit_result, original.ordinary_declaration_tree_reference.emit_result);
+    }
+    return [mode, first];
+  }));
+  return { ...input, origin: { kind: "unchanged-declaration-control", case_id: id }, modes };
+});
+// Extending the observer must retain the first packet's complete main inputs,
+// ordinary tuples and ordinary/fresh-forced metadata references unchanged.
+assert.equal(sha256(JSON.stringify(cases)), "09c080d0accad1da4a47051996ae5d8842835a90c5fb0d1e81672adb440bac7d");
+assert.equal(sha256(JSON.stringify(metadataLifetimeReferences)), "ea3ba98c4aed0582642dfb6cdd769e3a0c3c5a9268e18eba2417c68d55424038");
 const artifact = { schema: 1, kind: "bundle-maps", status: "internal-printer-reference", typescript: ts.version,
   source_commit: "050880ce59e30b356b686bd3144efe24f875ebc8", repetitions: 2, observer: identity(observerPath),
   inputs: [baselinePath, "vendor/typescript-6.0.3/lib/typescript.js", "vendor/typescript-6.0.3/lib/_tsc.js", "crates/oracle/vfs-directory-overlay.mjs", ".node-version"].map(identity),
   contract: "Complete ordinary Program.emit tuples on two fresh Programs. The three original compound inputs and ordinary write/result tuples join the frozen declaration observations unchanged. Internal Rust recorder comparison is separate from public outFile, cold getter/forced APIs, full command acceptance, and root-option owner admission.",
   cases, metadata_lifetime_references: metadataLifetimeReferences,
+  constant_value_references: constantValueReferences,
+  json_bundle_references: jsonBundleReferences,
+  runtime_comment_owner_references: runtimeCommentOwnerReferences,
   summary: { new_controls: 9, unchanged_original_compounds: 3, fresh_programs: 24,
     producer_inputs: 6, producer_fresh_programs: 24,
+    constant_value_inputs: 2, constant_value_fresh_programs: 8,
+    json_bundle_inputs: 8, json_bundle_fresh_programs: 16,
+    runtime_comment_owner_inputs: 3, runtime_comment_owner_fresh_programs: 12,
     writes_per_repetition: cases.reduce((sum, row) => sum + row.typescript_observation.writes.length, 0), runtime_admitted: 0 } };
 const rendered = JSON.stringify(artifact, null, 2) + "\n";
 assert.ok(!rendered.includes(root));

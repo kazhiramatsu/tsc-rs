@@ -582,7 +582,7 @@ fn compare_recorded_output(
     } else {
         "\n"
     };
-    if declaration {
+    if declaration && printed.source_map().is_some() {
         let artifacts = tsc_emitter::finish_declaration_bundle_map(
             lane,
             map_options,
@@ -735,7 +735,12 @@ fn compare_bundle_recording(
             .collect::<Value>()
     );
     for write in expected["writes"].as_array().unwrap() {
-        assert_eq!(write["source_files"], json!(source_names));
+        let declaration = write["path"].as_str().unwrap().contains(".d.ts");
+        let associated = source_names
+            .iter()
+            .filter(|name| !declaration || forced || !name.to_ascii_lowercase().ends_with(".json"))
+            .collect::<Vec<_>>();
+        assert_eq!(write["source_files"], json!(associated));
     }
     let first = root.source_files()[0];
     let first_source_path = host.source_file(first).unwrap().path().to_path_buf();
@@ -761,6 +766,7 @@ fn compare_bundle_recording(
         NewLineKind::LineFeed
     };
     let mut maps = Vec::new();
+    let mut emit_diagnostics = Vec::new();
     let mut parsed_metadata = None;
     for declaration in [false, true] {
         if forced && !declaration {
@@ -785,7 +791,22 @@ fn compare_bundle_recording(
                 )
             })
             .collect::<std::collections::BTreeMap<_, _>>();
-        let selected = root.source_files().iter().map(|id| ids[id]).collect();
+        let selected = root
+            .source_files()
+            .iter()
+            .filter(|&&id| {
+                !declaration
+                    || forced
+                    || !host
+                        .source_file(id)
+                        .unwrap()
+                        .path()
+                        .to_string_lossy()
+                        .to_ascii_lowercase()
+                        .ends_with(".json")
+            })
+            .map(|id| ids[id])
+            .collect();
         if declaration {
             if let Some(snapshot) = &parsed_metadata {
                 arena.restore_parsed_emit_metadata(snapshot, host).unwrap();
@@ -806,7 +827,19 @@ fn compare_bundle_recording(
             false,
         )
         .unwrap();
-        assert!(result.diagnostics().is_empty());
+        if !result.diagnostics().is_empty() {
+            assert!(declaration);
+            emit_diagnostics.extend(result.diagnostics().iter().cloned());
+            if !forced {
+                assert!(expected["writes"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|write| write["path"] != path.to_string_lossy().as_ref()));
+                result.dispose();
+                continue;
+            }
+        }
         let TransformRoot::Bundle(bundle) = result.roots()[0].clone() else {
             panic!("bundle result")
         };
@@ -858,13 +891,6 @@ fn compare_bundle_recording(
         if !declaration {
             parsed_metadata = Some(result.arena().snapshot_parsed_emit_metadata(host).unwrap());
             if let Some(phases) = expected["phases"].as_array() {
-                // These six producer controls use ASCII source, so their
-                // source byte positions are the observed UTF-16 positions.
-                assert!(case["files"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .all(|file| file["text"].as_str().unwrap().is_ascii()));
                 let last = phases
                     .iter()
                     .rev()
@@ -897,7 +923,8 @@ fn compare_bundle_recording(
                             continue;
                         }
                         actual_metadata.push(json!({ "file": parsed.file_name, "kind": format!("{:?}", record.kind),
-                            "pos": record.pos, "end": record.end, "flags": metadata.flags().bits(),
+                            "pos": parsed.positions().byte_to_utf16(record.pos).unwrap(),
+                            "end": parsed.positions().byte_to_utf16(record.end).unwrap(), "flags": metadata.flags().bits(),
                             "type_kind": metadata.type_node().map(|node| format!("{:?}", result.arena().node(node).unwrap().kind)),
                         }).to_string());
                     }
@@ -910,6 +937,54 @@ fn compare_bundle_recording(
                     case["case_id"]
                 );
             }
+        }
+        if (!declaration || forced) && expected["parsed_constant_values"].is_array() {
+            let mut actual_constants = Vec::new();
+            for (&program, &source) in &ids {
+                let parsed = host.source_file(program).unwrap().syntax().unwrap();
+                for (offset, record) in parsed.arena.nodes().iter().enumerate() {
+                    let node = TransformNode::new(
+                        source,
+                        tsc_syntax::NodeId(parsed.arena.node_base() + offset as u32),
+                    );
+                    let Some(value) = result
+                        .arena()
+                        .metadata(node)
+                        .and_then(tsc_emitter::EmitMetadata::constant_value)
+                    else {
+                        continue;
+                    };
+                    let value = match value {
+                        tsc_emitter::EmitConstantValue::Number(value) => {
+                            json!({ "number_bits": format!("{:016x}", value.bits()) })
+                        }
+                        tsc_emitter::EmitConstantValue::String(value) => {
+                            json!({ "string_utf16": value.code_units() })
+                        }
+                        other => panic!("unobserved constant {other:?}"),
+                    };
+                    actual_constants.push(json!({ "file": parsed.file_name, "kind": format!("{:?}", record.kind),
+                        "pos": parsed.positions().byte_to_utf16(record.pos).unwrap(),
+                        "end": parsed.positions().byte_to_utf16(record.end).unwrap(), "value": value }).to_string());
+                }
+            }
+            let mut expected_constants = expected["parsed_constant_values"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|value| {
+                    json!({ "file": value["file"], "kind": value["kind"], "pos": value["pos"],
+                        "end": value["end"], "value": value["value"] })
+                    .to_string()
+                })
+                .collect::<Vec<_>>();
+            actual_constants.sort();
+            expected_constants.sort();
+            assert_eq!(
+                actual_constants, expected_constants,
+                "{} direct constantValue metadata",
+                case["case_id"]
+            );
         }
         let map_path = if declaration {
             unit.paths().declaration_map_path()
@@ -936,13 +1011,23 @@ fn compare_bundle_recording(
         result.dispose();
     }
     assert_eq!(
-        json!(maps),
+        json!((options.source_map == Some(true)
+            || options.inline_source_map == Some(true)
+            || options.declaration_map == Some(true))
+        .then_some(maps)),
         expected["emit_result"]["source_maps"],
         "{} complete sourceMaps",
         case["case_id"]
     );
-    assert_eq!(expected["emit_result"]["diagnostics"], json!([]));
-    assert_eq!(expected["emit_result"]["emit_skipped"], false);
+    tsc_diagnostics::sort_and_dedupe_diagnostics(&mut emit_diagnostics);
+    assert_eq!(
+        expected["emit_result"]["diagnostics"],
+        json!(emit_diagnostics.iter().map(diagnostic).collect::<Vec<_>>())
+    );
+    assert_eq!(
+        expected["emit_result"]["emit_skipped"],
+        !emit_diagnostics.is_empty()
+    );
 }
 
 #[test]
@@ -954,7 +1039,14 @@ fn ordinary_bundle_source_maps_match_complete_typescript_maps_twice() {
     assert_eq!(fixture["cases"].as_array().unwrap().len(), 12);
     let libraries = libraries();
     let mut failures = Vec::new();
-    for case in fixture["cases"].as_array().unwrap() {
+    let json_references = fixture["json_bundle_references"].as_array().unwrap();
+    assert_eq!(json_references.len(), 8);
+    for case in fixture["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .chain(json_references)
+    {
         for repetition in 0..2 {
             let outcome = std::panic::catch_unwind(|| {
                 let prepared = prepare(case, &libraries);
@@ -984,9 +1076,19 @@ fn ordinary_and_fresh_forced_bundle_metadata_lifetimes_match_typescript_twice() 
     .unwrap();
     let references = fixture["metadata_lifetime_references"].as_array().unwrap();
     assert_eq!(references.len(), 6);
+    let constant_references = fixture["constant_value_references"].as_array().unwrap();
+    assert_eq!(constant_references.len(), 2);
+    let runtime_references = fixture["runtime_comment_owner_references"]
+        .as_array()
+        .unwrap();
+    assert_eq!(runtime_references.len(), 3);
     let libraries = libraries();
     let mut failures = Vec::new();
-    for reference in references {
+    for reference in references
+        .iter()
+        .chain(constant_references)
+        .chain(runtime_references)
+    {
         for mode in ["ordinary", "fresh-forced"] {
             let mut case = reference.clone();
             case["typescript_observation"] = reference["modes"][mode].clone();

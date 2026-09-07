@@ -78,7 +78,7 @@ retain the complete transformed Bundle source list independently of generator
 `raw_sources`. Map and declaration artifacts retain complete bytes, BOM,
 source association and optional metadata. Sink invocation and callback fault
 ordering remain executor work. No input option is removed; additional
-root-option owners and JavaScript JSON Bundle printing remain separate.
+root-option owners retain their boundaries.
 
 ## Ordinary metadata lifetime and producer corrections
 
@@ -105,11 +105,36 @@ validates original text-snapshot identity, parse lease and node range against
 the live host, and remaps source identities when mount order changes.
 Restore validates the complete snapshot before changing an empty target.
 Only metadata directly attached to parsed nodes is captured; synthetic
-`original` links are not walked. This bounded packet supports observed
-flags/typeNode metadata and refuses other fields or synthetic references
-explicitly. Fresh forced/getter operations do not restore an ordinary snapshot.
-Constant-value and other additional metadata require subsequent observation
-and portable ownership work before broader executor acceptance.
+`original` links are not walked. The portable fields are flags, typeNode and
+constantValue. Other fields or synthetic references are refused explicitly.
+Fresh forced/getter operations do not restore an ordinary snapshot.
+
+Two constant-enum controls retain complete ordinary/fresh-forced tuples and
+direct parsed constant values. Each ordinary print attaches three values;
+fresh forced printing attaches none. Number bits (including negative zero)
+and string UTF-16 code units remain exact through the handoff. This is the
+`setConstantValue` / print-time `substituteConstantValue` channel
+(`_tsc.js:25396-25404`, `95827-95839`), not a replacement of checker evaluation.
+The pinned native `transformers/inliners/constenum.go:32-78` instead folds
+these accesses in a dedicated visitor using its resolver; that pass layout
+does not replace the TS6 print-time metadata lifetime.
+
+Rust's `relocated_trailing_comment_owner` is explicitly excluded: it marks
+the JavaScript operation that owns trivia moved from a field initializer and
+is not a TS emitNode field. The unchanged `state/late-painted-first`,
+`state/late-painted-last` and `diagnostics/multiple-files` inputs retain full
+ordinary/fresh-forced references and direct parsed metadata observations.
+Their ordinary tuples join the prior declaration observations unchanged.
+Declaration comment ownership starts independently in the declaration lane;
+the JavaScript-only protocol is not transferred to it.
+
+Parameter-property local names must replace inherited flags with NoComments
+(`_tsc.js:94884-94887`, `97543-97556`). The target-before-ES2022 owner is
+`class_fields/downlevel.rs::materialize_field_value`; the higher-target and
+TypeScript assignment owners follow the same setter rule. An independent TS
+intervention changing only RHS flags 3072 to 3136 reproduces the former Rust
+map bytes at both targets while preserving the other three callbacks. The
+observed expectations themselves remain unchanged.
 
 The ES2018 object-spread producer also returned an extra original/text range
 on its synthetic assign-helper call. TypeScript's
@@ -122,6 +147,49 @@ The fixed native `tstransforms/legacydecorators.go:127-147` likewise updates
 the retained parameter name's flag through its emit context. Native Bundle
 absence and transformer layout do not replace the TS6 ordinary/fresh-forced
 lifetime observations.
+
+## JSON Bundle references
+
+Eight fresh ordinary controls retain complete outputs: the prior mixed
+AMD/System inputs unchanged, map-enabled variants, JSON-only objects under
+both module formats, a System JSON string, and JSON preceding TypeScript.
+AMD consumes the separate module producer's synthetic `define(name, [],
+payload)` AST. System prints the retained JSON value. The shared expression
+statement worker omits its semicolon and statement parentheses only for a
+JSON expression with original positions; synthesized AMD calls retain normal
+JavaScript punctuation. The standalone JSON printer route is unchanged.
+The pinned native printer (`printer.go:3415-3444`) explicitly retains the
+same JSON parenthesizing and synthesized-expression semicolon distinction.
+
+`shouldEmitSourceMaps` enables a generator for a Bundle even when every
+source is JSON (`_tsc.js:116805-116807`). `setSourceMapSource` still excludes
+JSON from source registration and mappings (`121352-121377`). Thus JSON-only
+outputs produce complete empty maps with `sources: []`; ordinary declarations
+exclude JSON and still produce an empty declaration Bundle with callback
+`sourceFiles: []`. These lists are not normalized to absence. The mixed
+controls retain the distinct complete JavaScript source list and filtered
+ordinary declaration source list. Public execution, cold API behavior, sink
+failure order and final admission remain separately verified by their owners.
+
+## Candidate verification status
+
+The follow-up JSON/portable-metadata candidate preserves the original twelve
+map references and six metadata references byte-for-byte. The expanded
+observer reproduces 84 fresh Programs in both `--write` and `--check`. The
+original twelve map cases and nineteen declaration visitor cases pass twice;
+both parameter-property targets and the three unchanged runtime-comment-owner
+inputs pass ordinary/fresh-forced comparison twice. Five snapshot unit tests
+pass, including exact constant bits/code units and comment-owner exclusion.
+
+Seven of eight JSON cases pass twice. The map-enabled mixed System case still
+differs in JavaScript mappings for `export const moduleValue: number = 2`;
+source lists, inline content, and the corresponding unmapped full output agree.
+Its unchanged expected mapping remains a failing comparison pending the
+System producer owner. The two constant controls show identical values and
+positions; a comparator object-key-order correction awaits rerun. Adjacent
+contracts and lint checks are still running at candidate publication. This
+candidate does not claim that the expanded packet or public Bundle behavior
+is complete.
 
 ```sh
 node scripts/observe-bundle-maps.mjs --check

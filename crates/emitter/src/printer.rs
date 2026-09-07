@@ -2450,6 +2450,20 @@ impl Printer {
                 )
             }
             NodeData::ExpressionStatement(data) => {
+                // Bundle JSON uses this shared statement writer. Retained
+                // JSON values have no expression-statement parentheses or
+                // semicolon; AMD's synthesized define call keeps normal JS
+                // punctuation. The standalone JSON entry remains unchanged.
+                // tsc-port: emitExpressionStatement @6.0.3
+                // tsc-span: _tsc.js:118623-118628
+                let json_value = json_source
+                    && data
+                        .expression
+                        .and_then(|id| transformation.arena().node_ref(node.source(), id))
+                        .and_then(|node| transformation.arena().node(node).ok())
+                        .is_some_and(|expression| {
+                            expression.pos != u32::MAX && expression.end != u32::MAX
+                        });
                 self.emit_required_node_with_context_and_source_extent(
                     transformation,
                     node.source(),
@@ -2457,11 +2471,17 @@ impl Printer {
                     node,
                     SyntaxKind::ExpressionStatement,
                     "expression",
-                    expression_context.for_child(ExpressionSyntaxContext::EXPRESSION_STATEMENT),
+                    if json_value {
+                        EmitContext::file_root()
+                    } else {
+                        expression_context.for_child(ExpressionSyntaxContext::EXPRESSION_STATEMENT)
+                    },
                     DeferredSourceCommentExtent::LeadingAndTrailing,
                     writer,
                 )?;
-                writer.write_trailing_semicolon(";");
+                if !json_value {
+                    writer.write_trailing_semicolon(";");
+                }
                 Ok(())
             }
             NodeData::DebuggerStatement(_) => {
