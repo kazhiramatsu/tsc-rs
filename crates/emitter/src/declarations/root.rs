@@ -171,6 +171,7 @@ pub(crate) fn transform_root(
         source,
         &output_directory,
         program_source,
+        None,
     )?;
     let type_references = transformer.state()?.references.type_references();
     let lib_references = transformer.state()?.references.lib_references();
@@ -234,6 +235,7 @@ pub(crate) fn referenced_files(
     _source: TransformSourceId,
     output_directory: &Path,
     program_source: SourceFileId,
+    bundle_sources: Option<&[TransformSourceId]>,
 ) -> Result<Vec<FileReference>, TransformError> {
     let mut result = Vec::new();
     for (referencing_source, reference) in &transformer.state()?.references.referenced {
@@ -260,6 +262,15 @@ pub(crate) fn referenced_files(
         {
             file.path().to_path_buf()
         } else {
+            if bundle_sources.is_some_and(|sources| {
+                sources.iter().any(|&source| {
+                    arena
+                        .source(source)
+                        .is_ok_and(|source| source.program_source() == Some(file.id()))
+                })
+            }) {
+                continue;
+            }
             transformer
                 .paths
                 .reference_target_path(file.id())
@@ -274,7 +285,7 @@ pub(crate) fn referenced_files(
     Ok(result)
 }
 
-fn source_statements(
+pub(super) fn source_statements(
     arena: &TransformArena,
     root: TransformNode,
 ) -> Result<Vec<TransformNode>, TransformError> {
@@ -290,7 +301,7 @@ fn source_statements(
         .collect())
 }
 
-fn source_statement_array(
+pub(super) fn source_statement_array(
     arena: &TransformArena,
     root: TransformNode,
 ) -> Result<Option<crate::TransformNodeArray>, TransformError> {
@@ -319,11 +330,11 @@ fn statements_with_empty_exports(
         .collect())
 }
 
-fn normalize_slashes(path: PathBuf) -> PathBuf {
+pub(super) fn normalize_slashes(path: PathBuf) -> PathBuf {
     PathBuf::from(path.to_string_lossy().replace('\\', "/"))
 }
 
-fn is_javascript_source(source: &SourceFile, flags: i32) -> bool {
+pub(super) fn is_javascript_source(source: &SourceFile, flags: i32) -> bool {
     let name = source.file_name.to_ascii_lowercase();
     name.ends_with(".js")
         || name.ends_with(".jsx")

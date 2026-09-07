@@ -39,6 +39,7 @@ mod h2_3b_acceptance;
 mod h2_3c_acceptance;
 mod h2_3d_acceptance;
 mod h2_7c_acceptance;
+mod h2_7de_acceptance;
 mod host_resolution;
 mod invariant_attestation;
 mod l0_identity_stress;
@@ -98,6 +99,7 @@ fn main() {
         Some("h2-6c-acceptance") => run_or_exit(h2_6c_acceptance(args)),
         Some("h2-7b-acceptance") => run_or_exit(h2_7b_acceptance(args)),
         Some("h2-7c-acceptance") => run_or_exit(h2_7c_acceptance_command(args)),
+        Some("h2-7de-acceptance") => run_or_exit(h2_7de_acceptance_command(args)),
         Some("h2-5g-probe") => run_or_exit(h2_5g_probe(args)),
         Some("h2-5g-inventory") => run_or_exit(h2_5g_inventory(args)),
         Some("h2-5g-owner-controls") => run_or_exit(h2_5g_owner_controls(args)),
@@ -4419,7 +4421,15 @@ fn acceptance(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Erro
     h2_2c_acceptance::run_h2_6b(&workspace)?;
     h2_2c_acceptance::run_h2_6c(&workspace)?;
     h2_2c_acceptance::run_h2_7b(&workspace)?;
-    h2_7c_acceptance::run(&workspace)
+    h2_7c_acceptance::run(&workspace)?;
+    h2_7de_acceptance::run_h2_7de(&workspace)
+}
+
+fn h2_7de_acceptance_command(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
+    if let Some(argument) = args.next() {
+        return Err(format!("unexpected h2-7de-acceptance argument: {argument}").into());
+    }
+    h2_7de_acceptance::run_h2_7de(&find_workspace_root()?)
 }
 
 fn h2_7c_acceptance_command(mut args: impl Iterator<Item = String>) -> Result<(), Box<dyn Error>> {
@@ -7868,6 +7878,13 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
         || ci_h2_7c_oracle_gates(&workspace),
     )?;
     resume.run_phase(
+        "h2-7de-oracle",
+        local_ci_resume::InputScope::NodeRuntimeOracle,
+        "",
+        &[],
+        || ci_h2_7de_oracle_gates(&workspace),
+    )?;
+    resume.run_phase(
         "h2-owner-controls",
         local_ci_resume::InputScope::Verification,
         "",
@@ -9080,6 +9097,15 @@ fn ci_h2_7c_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .current_dir(workspace)
             .arg("crates/oracle/h2-7c-qualification.mjs")
+            .arg("--check"),
+    )
+}
+
+fn ci_h2_7de_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("crates/oracle/h2-7de-qualification.mjs")
             .arg("--check"),
     )
 }

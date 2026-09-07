@@ -496,7 +496,7 @@ impl<'context> Es2018Visitor<'context> {
                     .transform_flags(original)
                     .contains(TransformFlags::CONTAINS_OBJECT_REST_OR_SPREAD) =>
             {
-                Some(self.visit_object_literal_expression(original, data)?.node())
+                Some(self.visit_object_literal_expression(data)?.node())
             }
             NodeData::Token => Some(id),
             data => Some(self.update_generic(original, data)?),
@@ -3605,7 +3605,6 @@ impl<'context> Es2018Visitor<'context> {
 
     fn visit_object_literal_expression(
         &mut self,
-        original: TransformNode,
         data: tsc_syntax::nodes::ObjectLiteralExpressionData,
     ) -> Result<TransformNode, TransformError> {
         let properties = self.array_nodes(data.properties)?;
@@ -3665,13 +3664,16 @@ impl<'context> Es2018Visitor<'context> {
             // chunk. Besides matching emit shape, this preserves the
             // observable Object.assign lookup/call required by object spread.
             expression = self.create_object_assign_call(vec![expression])?;
-            return self.set_original_and_range(expression, original);
+            return Ok(expression);
         };
         expression = self.create_object_assign(expression, first_source)?;
         for operand in operands {
             expression = self.create_object_assign(expression, operand)?;
         }
-        self.set_original_and_range(expression, original)
+        // transformES2018 returns createAssignHelper directly: the synthetic
+        // call has neither the object literal's range nor its original link.
+        // tsc-port: visitObjectLiteralExpression @6.0.3 (_tsc.js:102002-102017).
+        Ok(expression)
     }
 
     fn create_object_assign(

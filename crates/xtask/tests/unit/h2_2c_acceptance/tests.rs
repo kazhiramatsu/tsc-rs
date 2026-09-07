@@ -127,6 +127,9 @@ fn h2_6c_no_emit_on_error_early_diagnostics_retain_legacy_activity() {
     // both complete observations of the original declaration-enabled input.
     let result = super::execute_h2_6c_case(&workspace, case, &inputs)
         .expect("legacy early diagnostic gate observation");
+    let super::h2_6c_refusal_migrations::CaseOutcome::Compared(result) = result else {
+        panic!("the legacy C diagnostic control cannot become a migrated refusal");
+    };
     assert!(!result.deferred);
     assert!(result.divergence.is_exact());
     assert_eq!(result.h2_7b_activity, 0);
@@ -694,4 +697,101 @@ mod h2_5h_ratchet {
             .expect_err("facet drift must fail");
         assert!(error.to_string().contains("facets differ"), "{error}");
     }
+}
+
+#[test]
+fn legacy_declaration_map_kind_keeps_coarse_and_full_vectors_consistent() {
+    use base64::Engine;
+    use tsc_emitter::{EmitArtifact, EmitArtifactKind, MemoryOutputSink, OutputSink};
+    let workspace = workspace();
+    let artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::H2_6C_QUALIFICATION_RELATIVE_PATH)).unwrap(),
+    )
+    .unwrap();
+    let case = artifact["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| {
+            case["case_id"] == "typescript-6.0.3/compiler/declarationMapsWithSourceMap.ts#default"
+        })
+        .unwrap();
+    let observation = super::compact_typescript_observation(case).unwrap();
+    let expected = observation["writes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|write| write["path"].as_str().unwrap().ends_with(".d.ts.map"))
+        .unwrap();
+    assert_eq!(expected["kind"], "source-map");
+    for (suffix, kind) in [
+        (".d.ts.map", EmitArtifactKind::DeclarationMap),
+        (".d.mts.map", EmitArtifactKind::DeclarationMap),
+        (".d.cts.map", EmitArtifactKind::DeclarationMap),
+        (".js.map", EmitArtifactKind::JavaScriptMap),
+    ] {
+        assert_eq!(
+            super::normalized_oracle_write_kind(
+                super::H2MismatchProfile::H2_6c,
+                "source-map",
+                &format!("/project/file{suffix}")
+            )
+            .unwrap(),
+            kind
+        );
+    }
+    let path = expected["path"].as_str().unwrap();
+    let text = String::from_utf8(
+        base64::engine::general_purpose::STANDARD
+            .decode(expected["callback_utf8_base64"].as_str().unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    for (actual, expected_count) in [
+        (EmitArtifact::declaration_map(path, text.clone(), None), 0),
+        (EmitArtifact::javascript_map(path, text, None), 1),
+    ] {
+        let mut sink = MemoryOutputSink::default();
+        sink.write(actual).unwrap();
+        let mut vector = Vec::new();
+        let count = super::vectorize_writes(
+            super::H2MismatchProfile::H2_6c,
+            std::slice::from_ref(expected),
+            &sink,
+            &mut vector,
+        )
+        .unwrap();
+        assert_eq!(count, expected_count);
+        assert_eq!(vector.is_empty(), expected_count == 0);
+        if expected_count != 0 {
+            assert_eq!(vector.len(), 1);
+        }
+    }
+}
+
+#[test]
+fn h2_5h_async_numbered_parent_allocation_preserves_original_outputs() {
+    let workspace = workspace();
+    let artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::H2_5H_QUALIFICATION_RELATIVE_PATH))
+            .expect("read frozen H2.5h qualification"),
+    )
+    .expect("parse H2.5h qualification");
+    let cases =
+        super::validate_h2_5h_qualification(&artifact).expect("validate H2.5h qualification");
+    let case = cases
+        .iter()
+        .find(|case| {
+            case["case_id"]
+                == "typescript-6.0.3/compiler/operationsAvailableOnPromisedType.ts#target%3Des5"
+        })
+        .expect("original async/for-await composition case");
+    let inputs = super::H2_5hExecutionInputs::load(&workspace).expect("load original H2.5h inputs");
+    // The frozen command checks both fresh emissions, full write bytes and
+    // diagnostics/result/activity. Its derived error binding is visited before
+    // the parent's own naming moment; the parent must consume one ordinal.
+    let observed = super::execute_h2_5h_case(&workspace, case, &inputs)
+        .expect("execute original H2.5h case twice");
+    assert!(!observed.deferred);
+    assert!(observed.divergence.is_exact(), "{:?}", observed.divergence);
 }

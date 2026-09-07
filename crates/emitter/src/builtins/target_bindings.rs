@@ -281,8 +281,10 @@ impl TargetBinding {
         numbered_base: String,
         provisional_name: String,
     ) -> Result<Self, TransformError> {
+        let id = context.allocate_generated_binding_id()?;
+        context.record_generated_binding_numbered_base(id, &numbered_base);
         Ok(Self {
-            id: context.allocate_generated_binding_id()?,
+            id,
             provisional_name,
             numbered_base: Some(numbered_base),
             preferred_base: None,
@@ -518,6 +520,7 @@ pub(crate) fn finalize_generated_binding_names(
         root,
         GeneratedNameReservedSetPolicy::TransformerRoot,
         None,
+        None,
     )
 }
 
@@ -533,6 +536,7 @@ fn finalize_generated_binding_names_with_policy(
     root: TransformNode,
     reserved_set_policy: GeneratedNameReservedSetPolicy<'_>,
     global_name_oracle: Option<&dyn GlobalNameOracle>,
+    mut bundle_generated_names: Option<&mut BTreeSet<String>>,
 ) -> Result<(), TransformError> {
     let mut events = Vec::new();
     collect_binding_name_events(context.arena(), source, root, true, &mut events)?;
@@ -546,8 +550,16 @@ fn finalize_generated_binding_names_with_policy(
         }
         GeneratedNameReservedSetPolicy::PrintSource(reserved) => reserved.clone(),
     };
+    // writeBundle retains the printer's generatedNames set between sources;
+    // setSourceFile only changes the parsed identifier collision table. Keep
+    // those domains separate: file-level optimistic names intentionally ignore
+    // generated peers, whereas ordinary numbered names must avoid them.
+    let mut scope_reserved = reserved.clone();
+    if let Some(generated) = bundle_generated_names.as_deref() {
+        scope_reserved.extend(generated.iter().cloned());
+    }
     let mut scopes =
-        GeneratedBindingScopes::new(reserved.clone(), AncestorBindingPolicy::AllowShadow);
+        GeneratedBindingScopes::new(scope_reserved, AncestorBindingPolicy::AllowShadow);
     let mut scope_stack = Vec::new();
     let mut assigned = BTreeMap::<GeneratedBindingId, String>::new();
     let mut node_names = BTreeMap::<TransformNode, String>::new();
@@ -621,17 +633,47 @@ fn finalize_generated_binding_names_with_policy(
             .cmp(&b.moment_path)
             .then(a.sequence.cmp(&b.sequence))
     });
+    let printed_numbered_bindings: BTreeSet<_> =
+        numbered_order.iter().map(|entry| entry.binding).collect();
+    let mut shared_numbered_bindings = BTreeSet::new();
     for entry in &numbered_order {
         // A derived binding appends its ordinal to the base binding's
         // FINALIZED spelling (`getGeneratedNameForNode`); the recorded
         // text base covers bases outside the numbered family.
+        // Only unprinted parents need an eager name. A printed parent has
+        // its own naming moment; allocating it here and again at that moment
+        // would consume two ordinals and overwrite its cached spelling.
+        if let Some(parent) = entry
+            .derived_from
+            .filter(|parent| !printed_numbered_bindings.contains(parent))
+        {
+            if let std::collections::btree_map::Entry::Vacant(entry) = assigned.entry(parent) {
+                if let Some(base) = context.generated_binding_numbered_base(parent) {
+                    let name = allocate_numbered_name_with_global_oracle(
+                        &mut scopes,
+                        base,
+                        false,
+                        global_name_oracle,
+                    )?;
+                    entry.insert(name);
+                    shared_numbered_bindings.insert(parent);
+                }
+            }
+        }
         let base = entry
             .derived_from
             .and_then(|parent| assigned.get(&parent).cloned())
             .unwrap_or_else(|| entry.base.clone());
-        let name =
-            scopes.allocate_source_numbered_with_policy(&base, entry.reserve_in_nested_scopes);
+        let name = allocate_numbered_name_with_global_oracle(
+            &mut scopes,
+            &base,
+            entry.reserve_in_nested_scopes,
+            global_name_oracle,
+        )?;
         assigned.insert(entry.binding, name);
+        if !entry.reserve_in_nested_scopes {
+            shared_numbered_bindings.insert(entry.binding);
+        }
     }
     for event in events {
         match event {
@@ -734,6 +776,11 @@ fn finalize_generated_binding_names_with_policy(
         });
     }
     let _ = scopes.source_bindings();
+    if let Some(generated) = bundle_generated_names.as_mut() {
+        for binding in shared_numbered_bindings {
+            generated.insert(assigned[&binding].clone());
+        }
+    }
     for (binding, name) in &assigned {
         context.record_generated_binding_name(*binding, name);
     }
@@ -742,6 +789,27 @@ fn finalize_generated_binding_names_with_policy(
         arena.set_generated_identifier_text(node, &name)?;
     }
     Ok(())
+}
+
+// Numbered names (including unprinted parents of derived setter names) use
+// the same checker-owned global-name predicate as file-level names. Rejected
+// candidates remain reserved locally: they are actual global bindings, not
+// generated names to share with the next bundle source. A failed query aborts.
+fn allocate_numbered_name_with_global_oracle(
+    scopes: &mut GeneratedBindingScopes,
+    base: &str,
+    reserve_in_nested_scopes: bool,
+    global_name_oracle: Option<&dyn GlobalNameOracle>,
+) -> Result<String, TransformError> {
+    loop {
+        let candidate = scopes.allocate_source_numbered_with_policy(base, reserve_in_nested_scopes);
+        if let Some(oracle) = global_name_oracle {
+            if oracle.has_global_name(&candidate)? {
+                continue;
+            }
+        }
+        return Ok(candidate);
+    }
 }
 
 /// tsc-port: isUniqueName/isFileLevelUniqueNameInCurrentFile @6.0.3
@@ -803,10 +871,42 @@ impl TransformationContext {
             root,
             GeneratedNameReservedSetPolicy::PrintSource(&reserved),
             global_name_oracle,
+            None,
         )?;
         for event in events {
             if let BindingNameEvent::Identifier { binding, .. } = event {
                 self.record_print_finalized_generated_binding(binding);
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn finalize_bundle_generated_binding_names_for_print(
+        &mut self,
+        sources: &[TransformSourceId],
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
+    ) -> Result<(), TransformError> {
+        // TypeScript resets generatedNames once after writeBundle, while
+        // writeFile resets it after each standalone source (_tsc.js:
+        // 117058-117085, 117117-117145, 120638-120640, 120741-120786).
+        let mut generated_names = BTreeSet::new();
+        for &source in sources {
+            let root = self.arena().root(source)?;
+            let reserved = ParsedSourceIdentifierNames::collect(self.arena(), source)?.0;
+            finalize_generated_binding_names_with_policy(
+                self,
+                source,
+                root,
+                GeneratedNameReservedSetPolicy::PrintSource(&reserved),
+                global_name_oracle,
+                Some(&mut generated_names),
+            )?;
+            let mut events = Vec::new();
+            collect_binding_name_events(self.arena(), source, root, true, &mut events)?;
+            for event in events {
+                if let BindingNameEvent::Identifier { binding, .. } = event {
+                    self.record_print_finalized_generated_binding(binding);
+                }
             }
         }
         Ok(())

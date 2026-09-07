@@ -1,0 +1,4342 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "dependencies": [
+    {
+      "path": "scripts/observe-system-generated-names.mjs",
+      "sha256": "3bf111ca026ea4bc3a58cbf809a875b631f8bb48d89a92025e47c031d93e9bb3"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/bundle-module-identities.json",
+      "sha256": "965c6ab4b187ac8488b63e572544ea0924afd230af43077092ce57ed69bb91bb"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": ".node-version",
+      "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c"
+    }
+  ],
+  "contract": "Complete ordinary Program.emit tuples plus lexical names decoded from emitted JavaScript; no Rust execution, CLI status, forced API or runtime admission. The original module-identity fixture is unchanged.",
+  "upstream_references": [
+    {
+      "owner": "System generated exports/context",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 112079,
+      "last_line": 112092,
+      "sha256": "862ba2bbab60c3900b95aade03add0257b890ad54d2554664517b520face7c82"
+    },
+    {
+      "owner": "System generated exportedNames/exportStar",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 112292,
+      "last_line": 112319,
+      "sha256": "ed6f3009f870761e492bd24465f2b8c984c7a100e2e33bb86763c87657a64623"
+    },
+    {
+      "owner": "System generated dependency setter parameters",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 112403,
+      "last_line": 112410,
+      "sha256": "2f528a78d332ac60507cfd2e633eca3b94c9c8fb5526ead2b87a65d7ba732467"
+    },
+    {
+      "owner": "Bundle vs standalone writer reset",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 117058,
+      "last_line": 117081,
+      "sha256": "f1944309ed6d7f4f14ddc22e578c13d1ed2c328d8ece416ad3b3d660e1e5531a"
+    },
+    {
+      "owner": "Printer generated-name reset",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 117117,
+      "last_line": 117141,
+      "sha256": "fd783bac486dbc9d5ab0add829f7969be57ed27c0b816b8becb0da687102115d"
+    },
+    {
+      "owner": "Cached generation and current-source/generated-name uniqueness",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 120624,
+      "last_line": 120667,
+      "sha256": "4eec6179af2b274e8d6e022543772713e609f53c413423ba4f76702afe8f5c2b"
+    },
+    {
+      "owner": "makeUniqueName numeric suffix allocation",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 120741,
+      "last_line": 120779,
+      "sha256": "24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "bundle/two-modules",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: number = 2;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": []
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBiOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IDIpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 518,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBiOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IDIpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 102,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/three-modules",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: number = 2;\n"
+        },
+        {
+          "path": "/project/src/c.ts",
+          "text": "export const c: number = 3;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts",
+        "/project/src/c.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts",
+          "/project/src/c.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": []
+          },
+          {
+            "path": "/project/src/c.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "c",
+            "emitted_module_name": "c",
+            "imports": []
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBiOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IDIpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoImMiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMywgY29udGV4dF8zKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYzsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzMgJiYgY29udGV4dF8zLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMygiYyIsIGMgPSAzKTsKICAgICAgICB9CiAgICB9Owp9KTsK",
+            "callback_utf8_bytes": 777,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBiOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IDIpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoImMiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMywgY29udGV4dF8zKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYzsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzMgJiYgY29udGV4dF8zLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMygiYyIsIGMgPSAzKTsKICAgICAgICB9CiAgICB9Owp9KTsK",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImMiIHsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 153,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImMiIHsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "c",
+                "dependencies": [],
+                "export_parameter": "exports_3",
+                "context_parameter": "context_3",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "standalone/three-modules",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1,
+        "outDir": "/project/dist"
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: number = 2;\n"
+        },
+        {
+          "path": "/project/src/c.ts",
+          "text": "export const c: number = 3;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts",
+        "/project/src/c.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [
+            "outFile"
+          ],
+          "added": {
+            "outDir": "/project/dist"
+          }
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts",
+          "/project/src/c.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": null,
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": null,
+            "imports": []
+          },
+          {
+            "path": "/project/src/c.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "c",
+            "emitted_module_name": null,
+            "imports": []
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/a.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJhIiwgYSA9IDEpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 254,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJhIiwgYSA9IDEpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/a.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOwo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 2,
+            "path": "/project/dist/b.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBiOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJiIiwgYiA9IDIpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 254,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBiOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJiIiwgYiA9IDIpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 3,
+            "path": "/project/dist/b.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 4,
+            "path": "/project/dist/c.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBjOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJjIiwgYyA9IDMpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 254,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBjOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJjIiwgYyA9IDMpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 5,
+            "path": "/project/dist/c.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYzogbnVtYmVyOwo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYzogbnVtYmVyOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/a.js",
+            "/project/dist/a.d.ts",
+            "/project/dist/b.js",
+            "/project/dist/b.d.ts",
+            "/project/dist/c.js",
+            "/project/dist/c.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/a.js",
+            "registers": [
+              {
+                "module_name": null,
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          },
+          {
+            "path": "/project/dist/b.js",
+            "registers": [
+              {
+                "module_name": null,
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          },
+          {
+            "path": "/project/dist/c.js",
+            "registers": [
+              {
+                "module_name": null,
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/parsed-parameters-before",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "const exports_1: number = 10; const context_1: number = 20;\nexport const a = exports_1 + context_1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: number = 2;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": []
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGV4cG9ydHNfMSwgY29udGV4dF8xLCBhOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xID0gMTA7CiAgICAgICAgICAgIGNvbnRleHRfMSA9IDIwOwogICAgICAgICAgICBleHBvcnRzXzIoImEiLCBhID0gZXhwb3J0c18xICsgY29udGV4dF8xKTsKICAgICAgICB9CiAgICB9Owp9KTsKU3lzdGVtLnJlZ2lzdGVyKCJiIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGI7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImIiLCBiID0gMik7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 616,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGV4cG9ydHNfMSwgY29udGV4dF8xLCBhOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xID0gMTA7CiAgICAgICAgICAgIGNvbnRleHRfMSA9IDIwOwogICAgICAgICAgICBleHBvcnRzXzIoImEiLCBhID0gZXhwb3J0c18xICsgY29udGV4dF8xKTsKICAgICAgICB9CiAgICB9Owp9KTsKU3lzdGVtLnJlZ2lzdGVyKCJiIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGI7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImIiLCBiID0gMik7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 102,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/parsed-parameters-after",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "const exports_1: number = 10; const context_1: number = 20;\nexport const b = exports_1 + context_1;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": []
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBleHBvcnRzXzEsIGNvbnRleHRfMSwgYjsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSA9IDEwOwogICAgICAgICAgICBjb250ZXh0XzEgPSAyMDsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IGV4cG9ydHNfMSArIGNvbnRleHRfMSk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 616,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBleHBvcnRzXzEsIGNvbnRleHRfMSwgYjsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSA9IDEwOwogICAgICAgICAgICBjb250ZXh0XzEgPSAyMDsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IGV4cG9ydHNfMSArIGNvbnRleHRfMSk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 102,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/parsed-next-suffixes",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "const exports_2: number = 10; const context_2: number = 20;\nexport const b = exports_2 + context_2;\n"
+        },
+        {
+          "path": "/project/src/c.ts",
+          "text": "const exports_3: number = 10; const context_3: number = 20;\nexport const c = exports_3 + context_3;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts",
+        "/project/src/c.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts",
+          "/project/src/c.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": []
+          },
+          {
+            "path": "/project/src/c.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "c",
+            "emitted_module_name": "c",
+            "imports": []
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18zLCBjb250ZXh0XzMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBleHBvcnRzXzIsIGNvbnRleHRfMiwgYjsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzMgJiYgY29udGV4dF8zLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMiA9IDEwOwogICAgICAgICAgICBjb250ZXh0XzIgPSAyMDsKICAgICAgICAgICAgZXhwb3J0c18zKCJiIiwgYiA9IGV4cG9ydHNfMiArIGNvbnRleHRfMik7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYyIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBleHBvcnRzXzMsIGNvbnRleHRfMywgYzsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMyA9IDEwOwogICAgICAgICAgICBjb250ZXh0XzMgPSAyMDsKICAgICAgICAgICAgZXhwb3J0c18yKCJjIiwgYyA9IGV4cG9ydHNfMyArIGNvbnRleHRfMyk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 973,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18zLCBjb250ZXh0XzMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBleHBvcnRzXzIsIGNvbnRleHRfMiwgYjsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzMgJiYgY29udGV4dF8zLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMiA9IDEwOwogICAgICAgICAgICBjb250ZXh0XzIgPSAyMDsKICAgICAgICAgICAgZXhwb3J0c18zKCJiIiwgYiA9IGV4cG9ydHNfMiArIGNvbnRleHRfMik7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYyIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBleHBvcnRzXzMsIGNvbnRleHRfMywgYzsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMyA9IDEwOwogICAgICAgICAgICBjb250ZXh0XzMgPSAyMDsKICAgICAgICAgICAgZXhwb3J0c18yKCJjIiwgYyA9IGV4cG9ydHNfMyArIGNvbnRleHRfMyk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImMiIHsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 153,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImMiIHsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [],
+                "export_parameter": "exports_3",
+                "context_parameter": "context_3",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "c",
+                "dependencies": [],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/star-dependency-chain",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { a } from './a'; export * from './a'; export const b: number = a + 1;\n"
+        },
+        {
+          "path": "/project/src/c.ts",
+          "text": "import { a } from './a'; import { b } from './b'; export * from './a'; export * from './b'; export const c: number = a + b;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts",
+        "/project/src/c.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts",
+          "/project/src/c.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/c.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "c",
+            "emitted_module_name": "c",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./b",
+                "resolved_file": "/project/src/b.ts",
+                "literal": "b",
+                "declaration_name": "b"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./b",
+                "resolved_file": "/project/src/b.ts",
+                "literal": "b",
+                "declaration_name": "b"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFsiYSJdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhXzEsIGI7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImIiOiB0cnVlCiAgICB9OwogICAgZnVuY3Rpb24gZXhwb3J0U3Rhcl8xKG0pIHsKICAgICAgICB2YXIgZXhwb3J0cyA9IHt9OwogICAgICAgIGZvciAodmFyIG4gaW4gbSkgewogICAgICAgICAgICBpZiAobiAhPT0gImRlZmF1bHQiICYmICFleHBvcnRlZE5hbWVzXzEuaGFzT3duUHJvcGVydHkobikpIGV4cG9ydHNbbl0gPSBtW25dOwogICAgICAgIH0KICAgICAgICBleHBvcnRzXzIoZXhwb3J0cyk7CiAgICB9CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFsKICAgICAgICAgICAgZnVuY3Rpb24gKGFfMV8xKSB7CiAgICAgICAgICAgICAgICBhXzEgPSBhXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMShhXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IGFfMS5hICsgMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYyIsIFsiYSIsICJiIl0sIGZ1bmN0aW9uIChleHBvcnRzXzMsIGNvbnRleHRfMykgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGFfMiwgYl8xLCBjOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMyAmJiBjb250ZXh0XzMuaWQ7CiAgICB2YXIgZXhwb3J0ZWROYW1lc18yID0gewogICAgICAgICJjIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMihtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18yLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18zKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChhXzJfMSkgewogICAgICAgICAgICAgICAgYV8yID0gYV8yXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzIoYV8yXzEpOwogICAgICAgICAgICB9LAogICAgICAgICAgICBmdW5jdGlvbiAoYl8xXzEpIHsKICAgICAgICAgICAgICAgIGJfMSA9IGJfMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8yKGJfMV8xKTsKICAgICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzMoImMiLCBjID0gYV8yLmEgKyBiXzEuYik7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 1717,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFsiYSJdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhXzEsIGI7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImIiOiB0cnVlCiAgICB9OwogICAgZnVuY3Rpb24gZXhwb3J0U3Rhcl8xKG0pIHsKICAgICAgICB2YXIgZXhwb3J0cyA9IHt9OwogICAgICAgIGZvciAodmFyIG4gaW4gbSkgewogICAgICAgICAgICBpZiAobiAhPT0gImRlZmF1bHQiICYmICFleHBvcnRlZE5hbWVzXzEuaGFzT3duUHJvcGVydHkobikpIGV4cG9ydHNbbl0gPSBtW25dOwogICAgICAgIH0KICAgICAgICBleHBvcnRzXzIoZXhwb3J0cyk7CiAgICB9CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFsKICAgICAgICAgICAgZnVuY3Rpb24gKGFfMV8xKSB7CiAgICAgICAgICAgICAgICBhXzEgPSBhXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMShhXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IGFfMS5hICsgMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYyIsIFsiYSIsICJiIl0sIGZ1bmN0aW9uIChleHBvcnRzXzMsIGNvbnRleHRfMykgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGFfMiwgYl8xLCBjOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMyAmJiBjb250ZXh0XzMuaWQ7CiAgICB2YXIgZXhwb3J0ZWROYW1lc18yID0gewogICAgICAgICJjIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMihtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18yLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18zKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChhXzJfMSkgewogICAgICAgICAgICAgICAgYV8yID0gYV8yXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzIoYV8yXzEpOwogICAgICAgICAgICB9LAogICAgICAgICAgICBmdW5jdGlvbiAoYl8xXzEpIHsKICAgICAgICAgICAgICAgIGJfMSA9IGJfMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8yKGJfMV8xKTsKICAgICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzMoImMiLCBjID0gYV8yLmEgKyBiXzEuYik7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCAqIGZyb20gImEiOwogICAgZXhwb3J0IGNvbnN0IGI6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYyIgewogICAgZXhwb3J0ICogZnJvbSAiYSI7CiAgICBleHBvcnQgKiBmcm9tICJiIjsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 222,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCAqIGZyb20gImEiOwogICAgZXhwb3J0IGNvbnN0IGI6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYyIgewogICAgZXhwb3J0ICogZnJvbSAiYSI7CiAgICBleHBvcnQgKiBmcm9tICJiIjsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [
+                  "a"
+                ],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [
+                  [
+                    "a_1_1"
+                  ]
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              },
+              {
+                "module_name": "c",
+                "dependencies": [
+                  "a",
+                  "b"
+                ],
+                "export_parameter": "exports_3",
+                "context_parameter": "context_3",
+                "setter_parameters": [
+                  [
+                    "a_2_1"
+                  ],
+                  [
+                    "b_1_1"
+                  ]
+                ],
+                "export_star_functions": [
+                  "exportStar_2"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_2"
+                ]
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/parsed-helper-names-before",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "const exportStar_1: number = 10; const exportedNames_1: number = 20;\nconst exportStar_2: number = 11; const exportedNames_2: number = 21;\nconst a_1: number = 30; const a_1_1: number = 40; const a_2_1: number = 41;\nconst b_1: number = 50; const b_1_1: number = 60;\nexport const a: number = 1;\nexport const userNames = exportStar_1 + exportedNames_1 + exportStar_2 + exportedNames_2 + a_1 + a_1_1 + a_2_1 + b_1 + b_1_1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { a } from './a'; export * from './a'; export const b: number = a + 1;\n"
+        },
+        {
+          "path": "/project/src/c.ts",
+          "text": "import { a } from './a'; import { b } from './b'; export * from './a'; export * from './b'; export const c: number = a + b;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts",
+        "/project/src/c.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts",
+          "/project/src/c.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/c.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "c",
+            "emitted_module_name": "c",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./b",
+                "resolved_file": "/project/src/b.ts",
+                "literal": "b",
+                "declaration_name": "b"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./b",
+                "resolved_file": "/project/src/b.ts",
+                "literal": "b",
+                "declaration_name": "b"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGV4cG9ydFN0YXJfMSwgZXhwb3J0ZWROYW1lc18xLCBleHBvcnRTdGFyXzIsIGV4cG9ydGVkTmFtZXNfMiwgYV8xLCBhXzFfMSwgYV8yXzEsIGJfMSwgYl8xXzEsIGEsIHVzZXJOYW1lczsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydFN0YXJfMSA9IDEwOwogICAgICAgICAgICBleHBvcnRlZE5hbWVzXzEgPSAyMDsKICAgICAgICAgICAgZXhwb3J0U3Rhcl8yID0gMTE7CiAgICAgICAgICAgIGV4cG9ydGVkTmFtZXNfMiA9IDIxOwogICAgICAgICAgICBhXzEgPSAzMDsKICAgICAgICAgICAgYV8xXzEgPSA0MDsKICAgICAgICAgICAgYV8yXzEgPSA0MTsKICAgICAgICAgICAgYl8xID0gNTA7CiAgICAgICAgICAgIGJfMV8xID0gNjA7CiAgICAgICAgICAgIGV4cG9ydHNfMSgiYSIsIGEgPSAxKTsKICAgICAgICAgICAgZXhwb3J0c18xKCJ1c2VyTmFtZXMiLCB1c2VyTmFtZXMgPSBleHBvcnRTdGFyXzEgKyBleHBvcnRlZE5hbWVzXzEgKyBleHBvcnRTdGFyXzIgKyBleHBvcnRlZE5hbWVzXzIgKyBhXzEgKyBhXzFfMSArIGFfMl8xICsgYl8xICsgYl8xXzEpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoImIiLCBbImEiXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYV8xLCBiOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7CiAgICB2YXIgZXhwb3J0ZWROYW1lc18xID0gewogICAgICAgICJiIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMShtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18xLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18yKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChhXzFfMSkgewogICAgICAgICAgICAgICAgYV8xID0gYV8xXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzEoYV8xXzEpOwogICAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMigiYiIsIGIgPSBhXzEuYSArIDEpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoImMiLCBbImEiLCAiYiJdLCBmdW5jdGlvbiAoZXhwb3J0c18zLCBjb250ZXh0XzMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhXzIsIGJfMSwgYzsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzMgJiYgY29udGV4dF8zLmlkOwogICAgdmFyIGV4cG9ydGVkTmFtZXNfMiA9IHsKICAgICAgICAiYyI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzIobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMi5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMyhleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoYV8yXzEpIHsKICAgICAgICAgICAgICAgIGFfMiA9IGFfMl8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8yKGFfMl8xKTsKICAgICAgICAgICAgfSwKICAgICAgICAgICAgZnVuY3Rpb24gKGJfMV8xKSB7CiAgICAgICAgICAgICAgICBiXzEgPSBiXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMihiXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18zKCJjIiwgYyA9IGFfMi5hICsgYl8xLmIpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 2216,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGV4cG9ydFN0YXJfMSwgZXhwb3J0ZWROYW1lc18xLCBleHBvcnRTdGFyXzIsIGV4cG9ydGVkTmFtZXNfMiwgYV8xLCBhXzFfMSwgYV8yXzEsIGJfMSwgYl8xXzEsIGEsIHVzZXJOYW1lczsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydFN0YXJfMSA9IDEwOwogICAgICAgICAgICBleHBvcnRlZE5hbWVzXzEgPSAyMDsKICAgICAgICAgICAgZXhwb3J0U3Rhcl8yID0gMTE7CiAgICAgICAgICAgIGV4cG9ydGVkTmFtZXNfMiA9IDIxOwogICAgICAgICAgICBhXzEgPSAzMDsKICAgICAgICAgICAgYV8xXzEgPSA0MDsKICAgICAgICAgICAgYV8yXzEgPSA0MTsKICAgICAgICAgICAgYl8xID0gNTA7CiAgICAgICAgICAgIGJfMV8xID0gNjA7CiAgICAgICAgICAgIGV4cG9ydHNfMSgiYSIsIGEgPSAxKTsKICAgICAgICAgICAgZXhwb3J0c18xKCJ1c2VyTmFtZXMiLCB1c2VyTmFtZXMgPSBleHBvcnRTdGFyXzEgKyBleHBvcnRlZE5hbWVzXzEgKyBleHBvcnRTdGFyXzIgKyBleHBvcnRlZE5hbWVzXzIgKyBhXzEgKyBhXzFfMSArIGFfMl8xICsgYl8xICsgYl8xXzEpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoImIiLCBbImEiXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYV8xLCBiOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMiAmJiBjb250ZXh0XzIuaWQ7CiAgICB2YXIgZXhwb3J0ZWROYW1lc18xID0gewogICAgICAgICJiIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMShtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18xLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18yKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChhXzFfMSkgewogICAgICAgICAgICAgICAgYV8xID0gYV8xXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzEoYV8xXzEpOwogICAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMigiYiIsIGIgPSBhXzEuYSArIDEpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoImMiLCBbImEiLCAiYiJdLCBmdW5jdGlvbiAoZXhwb3J0c18zLCBjb250ZXh0XzMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhXzIsIGJfMSwgYzsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzMgJiYgY29udGV4dF8zLmlkOwogICAgdmFyIGV4cG9ydGVkTmFtZXNfMiA9IHsKICAgICAgICAiYyI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzIobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMi5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMyhleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoYV8yXzEpIHsKICAgICAgICAgICAgICAgIGFfMiA9IGFfMl8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8yKGFfMl8xKTsKICAgICAgICAgICAgfSwKICAgICAgICAgICAgZnVuY3Rpb24gKGJfMV8xKSB7CiAgICAgICAgICAgICAgICBiXzEgPSBiXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMihiXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18zKCJjIiwgYyA9IGFfMi5hICsgYl8xLmIpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7CiAgICBleHBvcnQgY29uc3QgdXNlck5hbWVzOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCAqIGZyb20gImEiOwogICAgZXhwb3J0IGNvbnN0IGI6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYyIgewogICAgZXhwb3J0ICogZnJvbSAiYSI7CiAgICBleHBvcnQgKiBmcm9tICJiIjsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 258,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7CiAgICBleHBvcnQgY29uc3QgdXNlck5hbWVzOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCAqIGZyb20gImEiOwogICAgZXhwb3J0IGNvbnN0IGI6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYyIgewogICAgZXhwb3J0ICogZnJvbSAiYSI7CiAgICBleHBvcnQgKiBmcm9tICJiIjsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [
+                  "a"
+                ],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [
+                  [
+                    "a_1_1"
+                  ]
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              },
+              {
+                "module_name": "c",
+                "dependencies": [
+                  "a",
+                  "b"
+                ],
+                "export_parameter": "exports_3",
+                "context_parameter": "context_3",
+                "setter_parameters": [
+                  [
+                    "a_2_1"
+                  ],
+                  [
+                    "b_1_1"
+                  ]
+                ],
+                "export_star_functions": [
+                  "exportStar_2"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_2"
+                ]
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/parsed-helper-names-after",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { a } from './a'; export * from './a'; export const b: number = a + 1;\n"
+        },
+        {
+          "path": "/project/src/c.ts",
+          "text": "const exportStar_1: number = 10; const exportedNames_1: number = 20;\nconst exportStar_2: number = 11; const exportedNames_2: number = 21;\nconst a_1: number = 30; const a_1_1: number = 40; const a_2_1: number = 41;\nconst b_1: number = 50; const b_1_1: number = 60;\nimport { a } from './a'; import { b } from './b'; export * from './a'; export * from './b'; export const c: number = a + b;\nexport const userNames = exportStar_1 + exportedNames_1 + exportStar_2 + exportedNames_2 + a_1 + a_1_1 + a_2_1 + b_1 + b_1_1;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts",
+        "/project/src/c.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts",
+          "/project/src/c.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/c.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "c",
+            "emitted_module_name": "c",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./b",
+                "resolved_file": "/project/src/b.ts",
+                "literal": "b",
+                "declaration_name": "b"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./b",
+                "resolved_file": "/project/src/b.ts",
+                "literal": "b",
+                "declaration_name": "b"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFsiYSJdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhXzEsIGI7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImIiOiB0cnVlCiAgICB9OwogICAgZnVuY3Rpb24gZXhwb3J0U3Rhcl8xKG0pIHsKICAgICAgICB2YXIgZXhwb3J0cyA9IHt9OwogICAgICAgIGZvciAodmFyIG4gaW4gbSkgewogICAgICAgICAgICBpZiAobiAhPT0gImRlZmF1bHQiICYmICFleHBvcnRlZE5hbWVzXzEuaGFzT3duUHJvcGVydHkobikpIGV4cG9ydHNbbl0gPSBtW25dOwogICAgICAgIH0KICAgICAgICBleHBvcnRzXzIoZXhwb3J0cyk7CiAgICB9CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFsKICAgICAgICAgICAgZnVuY3Rpb24gKGFfMV8xKSB7CiAgICAgICAgICAgICAgICBhXzEgPSBhXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMShhXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IGFfMS5hICsgMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYyIsIFsiYSIsICJiIl0sIGZ1bmN0aW9uIChleHBvcnRzXzMsIGNvbnRleHRfMykgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGV4cG9ydFN0YXJfMSwgZXhwb3J0ZWROYW1lc18xLCBleHBvcnRTdGFyXzIsIGV4cG9ydGVkTmFtZXNfMiwgYV8xLCBhXzFfMSwgYV8yXzEsIGJfMSwgYl8xXzEsIGFfMiwgYl8yLCBjLCB1c2VyTmFtZXM7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8zICYmIGNvbnRleHRfMy5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzMgPSB7CiAgICAgICAgImMiOiB0cnVlLAogICAgICAgICJ1c2VyTmFtZXMiOiB0cnVlCiAgICB9OwogICAgZnVuY3Rpb24gZXhwb3J0U3Rhcl8zKG0pIHsKICAgICAgICB2YXIgZXhwb3J0cyA9IHt9OwogICAgICAgIGZvciAodmFyIG4gaW4gbSkgewogICAgICAgICAgICBpZiAobiAhPT0gImRlZmF1bHQiICYmICFleHBvcnRlZE5hbWVzXzMuaGFzT3duUHJvcGVydHkobikpIGV4cG9ydHNbbl0gPSBtW25dOwogICAgICAgIH0KICAgICAgICBleHBvcnRzXzMoZXhwb3J0cyk7CiAgICB9CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFsKICAgICAgICAgICAgZnVuY3Rpb24gKGFfMl8yKSB7CiAgICAgICAgICAgICAgICBhXzIgPSBhXzJfMjsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMyhhXzJfMik7CiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIGZ1bmN0aW9uIChiXzJfMSkgewogICAgICAgICAgICAgICAgYl8yID0gYl8yXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzMoYl8yXzEpOwogICAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydFN0YXJfMSA9IDEwOwogICAgICAgICAgICBleHBvcnRlZE5hbWVzXzEgPSAyMDsKICAgICAgICAgICAgZXhwb3J0U3Rhcl8yID0gMTE7CiAgICAgICAgICAgIGV4cG9ydGVkTmFtZXNfMiA9IDIxOwogICAgICAgICAgICBhXzEgPSAzMDsKICAgICAgICAgICAgYV8xXzEgPSA0MDsKICAgICAgICAgICAgYV8yXzEgPSA0MTsKICAgICAgICAgICAgYl8xID0gNTA7CiAgICAgICAgICAgIGJfMV8xID0gNjA7CiAgICAgICAgICAgIGV4cG9ydHNfMygiYyIsIGMgPSBhXzIuYSArIGJfMi5iKTsKICAgICAgICAgICAgZXhwb3J0c18zKCJ1c2VyTmFtZXMiLCB1c2VyTmFtZXMgPSBleHBvcnRTdGFyXzEgKyBleHBvcnRlZE5hbWVzXzEgKyBleHBvcnRTdGFyXzIgKyBleHBvcnRlZE5hbWVzXzIgKyBhXzEgKyBhXzFfMSArIGFfMl8xICsgYl8xICsgYl8xXzEpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 2243,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJhIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGE7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImEiLCBhID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYiIsIFsiYSJdLCBmdW5jdGlvbiAoZXhwb3J0c18yLCBjb250ZXh0XzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhXzEsIGI7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImIiOiB0cnVlCiAgICB9OwogICAgZnVuY3Rpb24gZXhwb3J0U3Rhcl8xKG0pIHsKICAgICAgICB2YXIgZXhwb3J0cyA9IHt9OwogICAgICAgIGZvciAodmFyIG4gaW4gbSkgewogICAgICAgICAgICBpZiAobiAhPT0gImRlZmF1bHQiICYmICFleHBvcnRlZE5hbWVzXzEuaGFzT3duUHJvcGVydHkobikpIGV4cG9ydHNbbl0gPSBtW25dOwogICAgICAgIH0KICAgICAgICBleHBvcnRzXzIoZXhwb3J0cyk7CiAgICB9CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFsKICAgICAgICAgICAgZnVuY3Rpb24gKGFfMV8xKSB7CiAgICAgICAgICAgICAgICBhXzEgPSBhXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMShhXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18yKCJiIiwgYiA9IGFfMS5hICsgMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYyIsIFsiYSIsICJiIl0sIGZ1bmN0aW9uIChleHBvcnRzXzMsIGNvbnRleHRfMykgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGV4cG9ydFN0YXJfMSwgZXhwb3J0ZWROYW1lc18xLCBleHBvcnRTdGFyXzIsIGV4cG9ydGVkTmFtZXNfMiwgYV8xLCBhXzFfMSwgYV8yXzEsIGJfMSwgYl8xXzEsIGFfMiwgYl8yLCBjLCB1c2VyTmFtZXM7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8zICYmIGNvbnRleHRfMy5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzMgPSB7CiAgICAgICAgImMiOiB0cnVlLAogICAgICAgICJ1c2VyTmFtZXMiOiB0cnVlCiAgICB9OwogICAgZnVuY3Rpb24gZXhwb3J0U3Rhcl8zKG0pIHsKICAgICAgICB2YXIgZXhwb3J0cyA9IHt9OwogICAgICAgIGZvciAodmFyIG4gaW4gbSkgewogICAgICAgICAgICBpZiAobiAhPT0gImRlZmF1bHQiICYmICFleHBvcnRlZE5hbWVzXzMuaGFzT3duUHJvcGVydHkobikpIGV4cG9ydHNbbl0gPSBtW25dOwogICAgICAgIH0KICAgICAgICBleHBvcnRzXzMoZXhwb3J0cyk7CiAgICB9CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFsKICAgICAgICAgICAgZnVuY3Rpb24gKGFfMl8yKSB7CiAgICAgICAgICAgICAgICBhXzIgPSBhXzJfMjsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMyhhXzJfMik7CiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIGZ1bmN0aW9uIChiXzJfMSkgewogICAgICAgICAgICAgICAgYl8yID0gYl8yXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzMoYl8yXzEpOwogICAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydFN0YXJfMSA9IDEwOwogICAgICAgICAgICBleHBvcnRlZE5hbWVzXzEgPSAyMDsKICAgICAgICAgICAgZXhwb3J0U3Rhcl8yID0gMTE7CiAgICAgICAgICAgIGV4cG9ydGVkTmFtZXNfMiA9IDIxOwogICAgICAgICAgICBhXzEgPSAzMDsKICAgICAgICAgICAgYV8xXzEgPSA0MDsKICAgICAgICAgICAgYV8yXzEgPSA0MTsKICAgICAgICAgICAgYl8xID0gNTA7CiAgICAgICAgICAgIGJfMV8xID0gNjA7CiAgICAgICAgICAgIGV4cG9ydHNfMygiYyIsIGMgPSBhXzIuYSArIGJfMi5iKTsKICAgICAgICAgICAgZXhwb3J0c18zKCJ1c2VyTmFtZXMiLCB1c2VyTmFtZXMgPSBleHBvcnRTdGFyXzEgKyBleHBvcnRlZE5hbWVzXzEgKyBleHBvcnRTdGFyXzIgKyBleHBvcnRlZE5hbWVzXzIgKyBhXzEgKyBhXzFfMSArIGFfMl8xICsgYl8xICsgYl8xXzEpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCAqIGZyb20gImEiOwogICAgZXhwb3J0IGNvbnN0IGI6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYyIgewogICAgZXhwb3J0ICogZnJvbSAiYSI7CiAgICBleHBvcnQgKiBmcm9tICJiIjsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7CiAgICBleHBvcnQgY29uc3QgdXNlck5hbWVzOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 258,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCAqIGZyb20gImEiOwogICAgZXhwb3J0IGNvbnN0IGI6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYyIgewogICAgZXhwb3J0ICogZnJvbSAiYSI7CiAgICBleHBvcnQgKiBmcm9tICJiIjsKICAgIGV4cG9ydCBjb25zdCBjOiBudW1iZXI7CiAgICBleHBvcnQgY29uc3QgdXNlck5hbWVzOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts",
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [
+                  "a"
+                ],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [
+                  [
+                    "a_1_1"
+                  ]
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              },
+              {
+                "module_name": "c",
+                "dependencies": [
+                  "a",
+                  "b"
+                ],
+                "export_parameter": "exports_3",
+                "context_parameter": "context_3",
+                "setter_parameters": [
+                  [
+                    "a_2_2"
+                  ],
+                  [
+                    "b_2_1"
+                  ]
+                ],
+                "export_star_functions": [
+                  "exportStar_3"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_3"
+                ]
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "standalone/star-dependency-chain",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1,
+        "outDir": "/project/dist"
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "import { a } from './a'; export * from './a'; export const b: number = a + 1;\n"
+        },
+        {
+          "path": "/project/src/c.ts",
+          "text": "import { a } from './a'; import { b } from './b'; export * from './a'; export * from './b'; export const c: number = a + b;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/b.ts",
+        "/project/src/c.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [
+            "outFile"
+          ],
+          "added": {
+            "outDir": "/project/dist"
+          }
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/b.ts",
+          "/project/src/c.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": null,
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": null,
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "./a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "./a",
+                "declaration_name": "a"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/c.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "c",
+            "emitted_module_name": null,
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "./a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./b",
+                "resolved_file": "/project/src/b.ts",
+                "literal": "./b",
+                "declaration_name": "b"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./a",
+                "resolved_file": "/project/src/a.ts",
+                "literal": "./a",
+                "declaration_name": "a"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./b",
+                "resolved_file": "/project/src/b.ts",
+                "literal": "./b",
+                "declaration_name": "b"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/a.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJhIiwgYSA9IDEpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 254,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJhIiwgYSA9IDEpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/a.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOwo=",
+            "callback_utf8_bytes": 32,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgYTogbnVtYmVyOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 2,
+            "path": "/project/dist/b.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9hIl0sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGFfMSwgYjsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgdmFyIGV4cG9ydGVkTmFtZXNfMSA9IHsKICAgICAgICAiYiI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMShleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoYV8xXzEpIHsKICAgICAgICAgICAgICAgIGFfMSA9IGFfMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8xKGFfMV8xKTsKICAgICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImIiLCBiID0gYV8xLmEgKyAxKTsKICAgICAgICB9CiAgICB9Owp9KTsK",
+            "callback_utf8_bytes": 663,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9hIl0sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGFfMSwgYjsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgdmFyIGV4cG9ydGVkTmFtZXNfMSA9IHsKICAgICAgICAiYiI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMShleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoYV8xXzEpIHsKICAgICAgICAgICAgICAgIGFfMSA9IGFfMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8xKGFfMV8xKTsKICAgICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoImIiLCBiID0gYV8xLmEgKyAxKTsKICAgICAgICB9CiAgICB9Owp9KTsK",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 3,
+            "path": "/project/dist/b.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9hJzsKZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwo=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9hJzsKZXhwb3J0IGRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 4,
+            "path": "/project/dist/c.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9hIiwgIi4vYiJdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhXzEsIGJfMSwgYzsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgdmFyIGV4cG9ydGVkTmFtZXNfMSA9IHsKICAgICAgICAiYyI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMShleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoYV8xXzEpIHsKICAgICAgICAgICAgICAgIGFfMSA9IGFfMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8xKGFfMV8xKTsKICAgICAgICAgICAgfSwKICAgICAgICAgICAgZnVuY3Rpb24gKGJfMV8xKSB7CiAgICAgICAgICAgICAgICBiXzEgPSBiXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMShiXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJjIiwgYyA9IGFfMS5hICsgYl8xLmIpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 791,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9hIiwgIi4vYiJdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBhXzEsIGJfMSwgYzsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgdmFyIGV4cG9ydGVkTmFtZXNfMSA9IHsKICAgICAgICAiYyI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMShleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoYV8xXzEpIHsKICAgICAgICAgICAgICAgIGFfMSA9IGFfMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8xKGFfMV8xKTsKICAgICAgICAgICAgfSwKICAgICAgICAgICAgZnVuY3Rpb24gKGJfMV8xKSB7CiAgICAgICAgICAgICAgICBiXzEgPSBiXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMShiXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJjIiwgYyA9IGFfMS5hICsgYl8xLmIpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 5,
+            "path": "/project/dist/c.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9hJzsKZXhwb3J0ICogZnJvbSAnLi9iJzsKZXhwb3J0IGRlY2xhcmUgY29uc3QgYzogbnVtYmVyOwo=",
+            "callback_utf8_bytes": 74,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9hJzsKZXhwb3J0ICogZnJvbSAnLi9iJzsKZXhwb3J0IGRlY2xhcmUgY29uc3QgYzogbnVtYmVyOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/c.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/a.js",
+            "/project/dist/a.d.ts",
+            "/project/dist/b.js",
+            "/project/dist/b.d.ts",
+            "/project/dist/c.js",
+            "/project/dist/c.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/a.js",
+            "registers": [
+              {
+                "module_name": null,
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          },
+          {
+            "path": "/project/dist/b.js",
+            "registers": [
+              {
+                "module_name": null,
+                "dependencies": [
+                  "./a"
+                ],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [
+                  [
+                    "a_1_1"
+                  ]
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "/project/dist/c.js",
+            "registers": [
+              {
+                "module_name": null,
+                "dependencies": [
+                  "./a",
+                  "./b"
+                ],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [
+                  [
+                    "a_1_1"
+                  ],
+                  [
+                    "b_1_1"
+                  ]
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/empty-between-modules",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/empty.ts",
+          "text": ""
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: number = 2;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/empty.ts",
+        "/project/src/b.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/empty.ts",
+          "/project/src/b.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/empty.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "empty",
+            "emitted_module_name": "empty",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": []
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpTeXN0ZW0ucmVnaXN0ZXIoImEiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgiYSIsIGEgPSAxKTsKICAgICAgICB9CiAgICB9Owp9KTsKU3lzdGVtLnJlZ2lzdGVyKCJiIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGI7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzIoImIiLCBiID0gMik7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 532,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpTeXN0ZW0ucmVnaXN0ZXIoImEiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgiYSIsIGEgPSAxKTsKICAgICAgICB9CiAgICB9Owp9KTsKU3lzdGVtLnJlZ2lzdGVyKCJiIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGI7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzIoImIiLCBiID0gMik7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/empty.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 102,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/empty.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_1",
+                "context_parameter": "context_1",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "bundle/global-between-modules",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/a.ts",
+          "text": "export const a: number = 1;\n"
+        },
+        {
+          "path": "/project/src/global.ts",
+          "text": "const exports_1: number = 10; const context_1: number = 20;\n"
+        },
+        {
+          "path": "/project/src/b.ts",
+          "text": "export const b: number = 2;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/a.ts",
+        "/project/src/global.ts",
+        "/project/src/b.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/a.ts",
+          "/project/src/global.ts",
+          "/project/src/b.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/a.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "a",
+            "emitted_module_name": "a",
+            "imports": []
+          },
+          {
+            "path": "/project/src/global.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "global",
+            "emitted_module_name": "global",
+            "imports": []
+          },
+          {
+            "path": "/project/src/b.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "b",
+            "emitted_module_name": "b",
+            "imports": []
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpTeXN0ZW0ucmVnaXN0ZXIoImEiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMigiYSIsIGEgPSAxKTsKICAgICAgICB9CiAgICB9Owp9KTsKY29uc3QgZXhwb3J0c18xID0gMTA7CmNvbnN0IGNvbnRleHRfMSA9IDIwOwpTeXN0ZW0ucmVnaXN0ZXIoImIiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMywgY29udGV4dF8zKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYjsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzMgJiYgY29udGV4dF8zLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMygiYiIsIGIgPSAyKTsKICAgICAgICB9CiAgICB9Owp9KTsK",
+            "callback_utf8_bytes": 576,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpTeXN0ZW0ucmVnaXN0ZXIoImEiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzIgJiYgY29udGV4dF8yLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMigiYSIsIGEgPSAxKTsKICAgICAgICB9CiAgICB9Owp9KTsKY29uc3QgZXhwb3J0c18xID0gMTA7CmNvbnN0IGNvbnRleHRfMSA9IDIwOwpTeXN0ZW0ucmVnaXN0ZXIoImIiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMywgY29udGV4dF8zKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgYjsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzMgJiYgY29udGV4dF8zLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMygiYiIsIGIgPSAyKTsKICAgICAgICB9CiAgICB9Owp9KTsK",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/global.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBjb25zdCBleHBvcnRzXzE6IG51bWJlcjsKZGVjbGFyZSBjb25zdCBjb250ZXh0XzE6IG51bWJlcjsKZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "callback_utf8_bytes": 168,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsKICAgIGV4cG9ydCBjb25zdCBhOiBudW1iZXI7Cn0KZGVjbGFyZSBjb25zdCBleHBvcnRzXzE6IG51bWJlcjsKZGVjbGFyZSBjb25zdCBjb250ZXh0XzE6IG51bWJlcjsKZGVjbGFyZSBtb2R1bGUgImIiIHsKICAgIGV4cG9ydCBjb25zdCBiOiBudW1iZXI7Cn0K",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/global.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "system_registers": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registers": [
+              {
+                "module_name": "a",
+                "dependencies": [],
+                "export_parameter": "exports_2",
+                "context_parameter": "context_2",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "module_name": "b",
+                "dependencies": [],
+                "export_parameter": "exports_3",
+                "context_parameter": "context_3",
+                "setter_parameters": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    }
+  ]
+}

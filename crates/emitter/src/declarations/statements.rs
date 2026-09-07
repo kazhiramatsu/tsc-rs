@@ -446,6 +446,22 @@ fn transform_top_level_declaration_worker(
                     input_kind(context, input)?,
                     "name",
                 )?;
+                let name = if inner.is_some_and(|body| {
+                    context
+                        .arena()
+                        .node(body)
+                        .is_ok_and(|node| node.kind == SyntaxKind::ModuleBlock)
+                }) && super::bundle::is_external_module_augmentation(
+                    transformer,
+                    context,
+                    input,
+                )? {
+                    rewrite_module_specifier(transformer, context, input, Some(name))?.ok_or_else(
+                        || DeclarationTransformer::contract("module augmentation name is required"),
+                    )?
+                } else {
+                    name
+                };
                 VisitResult::Node(update_module_declaration_and_keyword(
                     transformer,
                     context,
@@ -467,6 +483,11 @@ fn transform_top_level_declaration_worker(
                     .and_then(|node| context.arena().node_ref(input.source(), node));
                 let original_members = array_or_empty(context, input.source(), data.members)?;
                 let modifiers = transformer.ensure_modifiers(context, input)?;
+                let modifiers = Some(array_or_empty(
+                    context,
+                    input.source(),
+                    modifiers.map(TransformNodeArray::array),
+                )?);
                 let type_parameters =
                     transformer.ensure_type_params(context, input, data.type_parameters)?;
                 let constructor_properties = parameter_properties(
@@ -716,6 +737,11 @@ fn transform_top_level_declaration_worker(
                     members.push(super::subtree::preserve_js_doc(context, updated, member)?);
                 }
                 let modifiers = transformer.ensure_modifiers(context, input)?;
+                let modifiers = Some(array_or_empty(
+                    context,
+                    input.source(),
+                    modifiers.map(TransformNodeArray::array),
+                )?);
                 let mut factory = context.factory()?;
                 let members = factory.create_node_array(input.source(), members)?;
                 let updated = factory.update_enum_declaration(input, modifiers, name, members)?;
@@ -813,7 +839,14 @@ pub(crate) fn transform_and_replace_late_painted_statements(
                 });
             }
             let previous_needs_declare = transformer.state()?.needs_declare;
-            transformer.state_mut()?.needs_declare = is_source_file_parent(context, input)?;
+            transformer.state_mut()?.needs_declare = is_source_file_parent(context, input)?
+                && !(transformer.state()?.is_bundled_emit
+                    && context
+                        .arena()
+                        .source(input.source())?
+                        .syntax()
+                        .external_module_indicator
+                        .is_some());
             let result = transform_top_level_declaration(transformer, context, input)?;
             transformer.state_mut()?.needs_declare = previous_needs_declare;
             transformer
@@ -923,6 +956,11 @@ pub(crate) fn transform_variable_statement(
         }
     }
     let modifiers = transformer.ensure_modifiers(context, input)?;
+    let modifiers = Some(array_or_empty(
+        context,
+        input.source(),
+        modifiers.map(TransformNodeArray::array),
+    )?);
     let original_declarations = list_data
         .declarations
         .and_then(|array| context.arena().node_array_ref(input.source(), array));
@@ -1777,7 +1815,7 @@ pub(crate) fn try_get_resolution_mode_override(
 /// tsc-span: _tsc.js:114809-114821
 pub(crate) fn rewrite_module_specifier(
     transformer: &mut DeclarationTransformer<'_>,
-    context: &TransformationContext,
+    context: &mut TransformationContext,
     parent: TransformNode,
     input: Option<TransformNode>,
 ) -> Result<Option<TransformNode>, TransformError> {
@@ -1794,9 +1832,27 @@ pub(crate) fn rewrite_module_specifier(
             .result_has_external_module_indicator = true;
     }
     if transformer.state()?.is_bundled_emit {
-        return Err(TransformError::Unsupported(
-            crate::UnsupportedEmitFeature::BundleRoot,
-        ));
+        let text = match &context.arena().node(input)?.data {
+            NodeData::StringLiteral(data) => Some(data.text.clone()),
+            NodeData::NoSubstitutionTemplateLiteral(data) => Some(data.text.clone()),
+            _ => None,
+        };
+        if let Some(text) = text {
+            if let Some(name) = super::bundle::external_module_name_from_declaration(
+                transformer,
+                context,
+                parent,
+                &text,
+            )? {
+                if !name.is_empty() {
+                    return Ok(Some(context.factory()?.create_string_literal(
+                        input.source(),
+                        name,
+                        false,
+                    )?));
+                }
+            }
+        }
     }
     Ok(Some(input))
 }

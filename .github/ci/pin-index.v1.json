@@ -1659,6 +1659,28 @@
         }
       ]
     },
+    "crates/oracle/h2-7de-qualification.mjs": {
+      "family": "oracle-script",
+      "pins": [
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-7de-candidate-inputs.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-7de-candidates.v1.json"
+        },
+        {
+          "count": 1,
+          "grammar": "A",
+          "path": "ratchets/h2-7de-observations.v1.json"
+        }
+      ],
+      "semantic": [],
+      "unmatched": []
+    },
     "crates/oracle/h2-transition.mjs": {
       "family": "oracle-script",
       "pins": [

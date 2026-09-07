@@ -18,6 +18,7 @@ pub struct EmitSource<'host> {
     may_be_emitted: bool,
     may_emit_forced_declaration: bool,
     implied_node_format_for_emit: Option<ResolutionMode>,
+    is_external_module: Option<bool>,
     syntax: Option<&'host SourceFile>,
 }
 
@@ -37,6 +38,10 @@ impl<'host> EmitSource<'host> {
             may_be_emitted,
             may_emit_forced_declaration: may_be_emitted,
             implied_node_format_for_emit,
+            is_external_module: match syntax {
+                Some(source) => Some(source.external_module_indicator.is_some()),
+                None => None,
+            },
             syntax,
         }
     }
@@ -75,6 +80,19 @@ impl<'host> EmitSource<'host> {
 
     pub const fn syntax(self) -> Option<&'host SourceFile> {
         self.syntax
+    }
+
+    /// Use the Program's already parsed module-detection fact before checked
+    /// syntax is borrowed. An unknown prepared fact retains any syntax-derived value.
+    pub const fn with_is_external_module(mut self, value: Option<bool>) -> Self {
+        if value.is_some() {
+            self.is_external_module = value;
+        }
+        self
+    }
+
+    pub const fn is_external_module(self) -> Option<bool> {
+        self.is_external_module
     }
 }
 

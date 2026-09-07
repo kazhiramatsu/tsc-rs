@@ -7,8 +7,8 @@ use tsc_syntax::{for_each_child, NodeData, NodeId, SyntaxKind};
 use crate::{
     create_printer, transform_nodes, DeclarationPrintHandlers, EmitArtifact, EmitContractViolation,
     EmitFailure, EmitHost, EmitPreflight, EmitResolver, EmitResolverNode, EmitTextMetadata,
-    GlobalNameOracle, H2ActivityCanary, H2RuntimeSlice, NewLineKind, PrinterOptions,
-    SourceFileTextMode, TransformArena, TransformError, TransformRoot, TransformationResult,
+    H2ActivityCanary, H2RuntimeSlice, NewLineKind, PrinterOptions, SourceFileTextMode,
+    TransformArena, TransformError, TransformRoot, TransformationResult,
 };
 
 use super::{
@@ -63,14 +63,8 @@ pub(crate) struct DeclarationUnitEmit {
     pub(crate) diagnostics: Vec<Diagnostic>,
     pub(crate) decl_blocked: bool,
     pub(crate) artifact: Option<EmitArtifact>,
-}
-
-struct ResolverGlobalNameOracle<'resolver>(&'resolver dyn EmitResolver);
-
-impl GlobalNameOracle for ResolverGlobalNameOracle<'_> {
-    fn has_global_name(&self, name: &str) -> Result<bool, crate::EmitResolverError> {
-        self.0.has_global_name(name)
-    }
+    pub(crate) map_artifact: Option<EmitArtifact>,
+    pub(crate) map_observation: Option<crate::SourceMapObservation>,
 }
 
 /// Run the declaration transform solely for diagnostics, without constructing
@@ -132,40 +126,71 @@ pub(crate) fn emit_declaration_unit(
     host: &dyn EmitHost,
     preflight: &EmitPreflight,
     paths: &dyn DeclarationPathResolver,
-    source: SourceFileId,
+    planned_root: &crate::EmitRoot,
     declaration_path: &Path,
+    declaration_map_path: Option<&Path>,
     activity: &mut H2ActivityCanary,
     force_dts_emit: bool,
+    parsed_emit_metadata: Option<&crate::ParsedEmitMetadata>,
 ) -> Result<DeclarationUnitEmit, EmitFailure> {
-    let emit_source = host.source_file(source).ok_or(EmitFailure::Contract(
-        EmitContractViolation::PlannedSourceMissing(source),
-    ))?;
-    let syntax = emit_source.syntax().ok_or(EmitFailure::Contract(
-        EmitContractViolation::CheckedSyntaxUnavailable(source),
-    ))?;
-    if !force_dts_emit && syntax.file_name.to_ascii_lowercase().ends_with(".json") {
-        return Ok(DeclarationUnitEmit {
-            diagnostics: Vec::new(),
-            decl_blocked: false,
-            artifact: None,
-        });
+    let mut files_for_emit = Vec::new();
+    for &source in planned_root.source_files() {
+        let file = host.source_file(source).ok_or(EmitFailure::Contract(
+            EmitContractViolation::PlannedSourceMissing(source),
+        ))?;
+        let syntax = file.syntax().ok_or(EmitFailure::Contract(
+            EmitContractViolation::CheckedSyntaxUnavailable(source),
+        ))?;
+        if force_dts_emit || !syntax.file_name.to_ascii_lowercase().ends_with(".json") {
+            files_for_emit.push(source);
+        }
     }
-
-    activity.observe_runtime_slice(H2RuntimeSlice::H2_7b);
-
-    // This forced route is declaration-only, so it skips source checking
-    // and must collect linked aliases before transforming (:116649-116653).
-    if force_dts_emit
-        || !resolver
-            .can_include_bind_and_check_diagnostics(source)
-            .map_err(TransformError::from)?
-    {
-        collect_linked_aliases_for_declaration(resolver, source, syntax)?;
+    let root = match planned_root {
+        crate::EmitRoot::SourceFile(_) if files_for_emit.is_empty() => {
+            return Ok(DeclarationUnitEmit {
+                diagnostics: Vec::new(),
+                decl_blocked: false,
+                artifact: None,
+                map_artifact: None,
+                map_observation: None,
+            });
+        }
+        crate::EmitRoot::SourceFile(source) => crate::EmitRoot::SourceFile(*source),
+        crate::EmitRoot::Bundle(_) => {
+            crate::EmitRoot::Bundle(crate::EmitBundle::new(files_for_emit.clone()))
+        }
+    };
+    for &source in &files_for_emit {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_7b);
+        // A forced request skips checking; ordinary requests also collect
+        // linked aliases when their source cannot include checker diagnostics.
+        if force_dts_emit
+            || !resolver
+                .can_include_bind_and_check_diagnostics(source)
+                .map_err(TransformError::from)?
+        {
+            let syntax = host
+                .source_file(source)
+                .and_then(crate::EmitSource::syntax)
+                .ok_or(EmitFailure::Contract(
+                    EmitContractViolation::CheckedSyntaxUnavailable(source),
+                ))?;
+            collect_linked_aliases_for_declaration(resolver, source, syntax)?;
+        }
     }
-
     let options = host.compiler_options();
     let mut arena = TransformArena::new();
-    let transform_source = mount_declaration_program_sources(&mut arena, host, source)?;
+    let transform_root = crate::execute::mount_emit_root(&mut arena, host, &root)?;
+    for &other in host.source_file_ids() {
+        if !files_for_emit.contains(&other) {
+            if let Some(syntax) = host.source_file(other).and_then(crate::EmitSource::syntax) {
+                arena.add_source(syntax, Some(other));
+            }
+        }
+    }
+    if let Some(metadata) = parsed_emit_metadata {
+        arena.restore_parsed_emit_metadata(metadata, host)?;
+    }
     let transformers = get_declaration_transformers(
         options,
         resolver,
@@ -174,13 +199,7 @@ pub(crate) fn emit_declaration_unit(
         &DeclarationCustomTransformers::none(),
     )?;
     activity.construct_transform_context();
-    let mut result = transform_nodes(
-        arena,
-        vec![TransformRoot::SourceFile(transform_source)],
-        transformers,
-        false,
-    )
-    .map_err(|error| EmitFailure::Transform(Box::new(error)))?;
+    let mut result = transform_nodes(arena, vec![transform_root], transformers, false)?;
     let diagnostics = result.diagnostics().to_vec();
     let diagnostics_blocked = !diagnostics.is_empty();
     let path_blocked = !diagnostics_blocked && preflight.is_emit_blocked(host, declaration_path);
@@ -191,6 +210,8 @@ pub(crate) fn emit_declaration_unit(
             diagnostics,
             decl_blocked: true,
             artifact: None,
+            map_artifact: None,
+            map_observation: None,
         });
     }
     if result.roots().len() != 1 {
@@ -202,14 +223,11 @@ pub(crate) fn emit_declaration_unit(
             },
         )));
     }
-    let TransformRoot::SourceFile(root_source) = result.roots()[0] else {
-        result.dispose();
-        return Err(EmitFailure::Transform(Box::new(
-            TransformError::UnsupportedCompilerOption {
-                option: "declaration transformer contract",
-                detail: "declaration transform root must be a source file",
-            },
-        )));
+    let transformed_root = result.roots()[0].clone();
+    let source_files = crate::execute::transformed_source_paths(&result, &transformed_root, host)?;
+    let source_path = match &transformed_root {
+        TransformRoot::SourceFile(_) => Some(source_files[0].as_path()),
+        TransformRoot::Bundle(_) => None,
     };
     let new_line = match options.new_line {
         Some(0) => NewLineKind::CarriageReturnLineFeed,
@@ -225,28 +243,91 @@ pub(crate) fn emit_declaration_unit(
         .with_declaration_syntax(true)
         .with_only_print_js_doc_style(true)
         .with_omit_brace_source_map_positions(true)
+        .with_module_kind(options.emit_module_kind())
         .with_target(options.emit_script_target())
         .with_source_file_text_mode(SourceFileTextMode::Canonical);
     activity.construct_printer();
-    let global_name_oracle = ResolverGlobalNameOracle(resolver);
-    let printed = create_printer(printer_options).print_declaration(
-        &mut result,
-        root_source,
-        DeclarationPrintHandlers::new(&global_name_oracle),
-    );
+    let global_name_oracle = crate::execute::ResolverGlobalNameOracle(resolver);
+    let recording_enabled = options.declaration_map == Some(true)
+        && !source_path.is_some_and(|path| path.to_string_lossy().ends_with(".json"));
+    let map_lane = recording_enabled.then(|| crate::execute::map_lane_inputs(host));
+    let recording = map_lane.as_ref().map(|lane| match source_path {
+        Some(source_path) => crate::declaration_map_recording_inputs_for(
+            lane,
+            options,
+            declaration_path,
+            source_path,
+        ),
+        None => crate::declaration_bundle_map_recording_inputs_for(lane, options, declaration_path),
+    });
+    let mut printer = create_printer(printer_options);
+    let printed = match transformed_root {
+        TransformRoot::SourceFile(root_source) => printer.print_declaration_with_recording(
+            &mut result,
+            root_source,
+            DeclarationPrintHandlers::new(&global_name_oracle),
+            recording,
+        ),
+        TransformRoot::Bundle(bundle) => printer.print_declaration_bundle(
+            &mut result,
+            &bundle,
+            DeclarationPrintHandlers::new(&global_name_oracle),
+            recording,
+        ),
+    };
     result.dispose();
     let printed = printed?;
-    let artifact = EmitArtifact::declaration(
-        declaration_path,
-        printed.text(),
-        options.emit_bom == Some(true),
-        Some(vec![emit_source.path().to_path_buf()]),
-        EmitTextMetadata::new(diagnostics.clone(), None),
-    );
+    let (artifact, map_artifact, map_observation) = if let Some(map_lane) = &map_lane {
+        // TS prints before asserting that the map output path is present.
+        let map_path = declaration_map_path.ok_or(EmitFailure::Contract(
+            crate::EmitContractViolation::DeclarationMapPathMissing,
+        ))?;
+        let mapped = match source_path {
+            Some(source_path) => crate::finish_declaration_map(
+                map_lane,
+                options,
+                declaration_path,
+                map_path,
+                source_path,
+                &printed,
+                diagnostics.clone(),
+                new_line,
+            ),
+            None => crate::finish_declaration_bundle_map(
+                map_lane,
+                options,
+                declaration_path,
+                map_path,
+                &source_files,
+                &printed,
+                diagnostics.clone(),
+                new_line,
+            ),
+        }?;
+        (
+            mapped.declaration,
+            Some(mapped.map),
+            Some(mapped.observation),
+        )
+    } else {
+        (
+            EmitArtifact::declaration(
+                declaration_path,
+                printed.text(),
+                options.emit_bom == Some(true),
+                Some(source_files),
+                EmitTextMetadata::new(diagnostics.clone(), None),
+            ),
+            None,
+            None,
+        )
+    };
     Ok(DeclarationUnitEmit {
         diagnostics,
         decl_blocked,
         artifact: Some(artifact),
+        map_artifact,
+        map_observation,
     })
 }
 

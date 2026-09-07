@@ -501,6 +501,24 @@ impl H2ActivityCanary {
         profile
     }
 
+    /// Admit Bundle/outFile requests. Like declaration getters, a request is
+    /// observed even when diagnostics or an empty selection prevent printing.
+    #[doc(hidden)]
+    pub const fn h2_7d_profile() -> Self {
+        let mut profile = Self::h2_7c_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_7d.index();
+        profile
+    }
+
+    /// Admit declaration-map requests, including option diagnostics and
+    /// getter/forced requests whose result contains no map artifact.
+    #[doc(hidden)]
+    pub const fn h2_7e_profile() -> Self {
+        let mut profile = Self::h2_7d_profile();
+        profile.admitted_runtime_slices |= 1_u64 << H2RuntimeSlice::H2_7e.index();
+        profile
+    }
+
     pub const fn counters(&self) -> H2ActivityCounters {
         self.counters
     }

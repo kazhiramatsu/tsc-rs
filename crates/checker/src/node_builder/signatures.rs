@@ -22,9 +22,10 @@ use crate::narrow::{TypePredicate, TypePredicateKind};
 use crate::state::{CheckerState, IndexInfo, SignatureId};
 
 use super::type_nodes::{
-    add_approximate_length, checker_abort_error, clone_parse_node, clone_parse_node_to_source,
-    create_identifier, create_node, create_node_array, create_token, factory_error,
-    range_synthesized_node_to_parse, set_no_ascii_escaping, set_single_line, BuildResult,
+    add_approximate_length, checker_abort_error, clone_parameter_name_to_source, clone_parse_node,
+    clone_parse_node_to_source, create_identifier, create_node, create_node_array, create_token,
+    factory_error, range_synthesized_node_to_parse, set_no_ascii_escaping, set_single_line,
+    BuildResult,
 };
 use super::{
     can_possibly_expand_type, restore_flags, save_restore_flags,
@@ -1498,7 +1499,7 @@ pub(super) fn parameter_to_parameter_declaration_name(
     };
     match checker.kind_of(name) {
         SyntaxKind::Identifier => {
-            let cloned = clone_parse_node_to_source(checker, arena, target, name)?.unwrap_or(
+            let cloned = clone_parameter_name_to_source(checker, arena, target, name)?.unwrap_or(
                 create_identifier(arena, target, &checker.symbol_display_name(parameter))?,
             );
             Ok(set_no_ascii_escaping(arena, cloned))
@@ -1509,7 +1510,7 @@ pub(super) fn parameter_to_parameter_declaration_name(
                 _ => None,
             };
             let cloned = match right {
-                Some(right) => clone_parse_node_to_source(checker, arena, target, right)?,
+                Some(right) => clone_parameter_name_to_source(checker, arena, target, right)?,
                 None => None,
             }
             .unwrap_or(create_identifier(

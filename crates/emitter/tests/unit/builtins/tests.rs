@@ -4690,7 +4690,7 @@ fn system_module_preserves_generated_automatic_jsx_local_reference() {
         vec![
             transform_type_script(&options, &resolver),
             transform_jsx(&options, &resolver),
-            transform_system_module(&options, &resolver),
+            transform_system_module(&options, &resolver, None),
         ],
         false,
     )
@@ -4734,7 +4734,7 @@ fn system_default_import_call_keeps_the_substituted_direct_callee() {
         vec![TransformRoot::SourceFile(source)],
         vec![
             transform_type_script(&options, &resolver),
-            transform_system_module(&options, &resolver),
+            transform_system_module(&options, &resolver, None),
         ],
         false,
     )
@@ -4780,7 +4780,7 @@ fn system_module_reuses_single_destructuring_initializer_without_a_temp() {
         vec![TransformRoot::SourceFile(source)],
         vec![
             transform_type_script(&options, &resolver),
-            transform_system_module(&options, &resolver),
+            transform_system_module(&options, &resolver, None),
         ],
         false,
     )

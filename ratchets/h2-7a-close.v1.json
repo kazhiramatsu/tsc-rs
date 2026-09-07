@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "6ef54d4fded4e29fb7696e7a5d635b04ab62905925836fbaf3e26fa2c2e25713"
+    "sha256": "92f854f24e2288243a79a4bd96cbb43dce21248051afeea38aadbd69f786081d"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
-    "sha256": "565dad2632f44cc9e8bacba6166d0ee3082b7bc3d4cb01d57585c3f62881e0d0"
+    "sha256": "4aa93e382a226760568bbbd865126925ecc8814951346d4f1ecd25b155a519e7"
   },
   "inputs": {
     "owner_inventory": {
@@ -206,28 +206,28 @@
       "retained_arms": [
         {
           "name": "DeclarationOnly",
-          "line": 218,
-          "span_sha256": "626d31a02c5eb067ec1840cb9d2d35e8c71c415b8943d6dd806f44096935d9f3"
+          "line": 231,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "BuilderSignature",
-          "line": 223,
-          "span_sha256": "626d31a02c5eb067ec1840cb9d2d35e8c71c415b8943d6dd806f44096935d9f3"
+          "line": 236,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "DeclarationMap",
-          "line": 238,
-          "span_sha256": "626d31a02c5eb067ec1840cb9d2d35e8c71c415b8943d6dd806f44096935d9f3"
+          "line": 251,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "BuildInfo",
-          "line": 242,
-          "span_sha256": "626d31a02c5eb067ec1840cb9d2d35e8c71c415b8943d6dd806f44096935d9f3"
+          "line": 255,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         },
         {
           "name": "ScriptOutputMissingJavaScriptPath",
-          "line": 248,
-          "span_sha256": "626d31a02c5eb067ec1840cb9d2d35e8c71c415b8943d6dd806f44096935d9f3"
+          "line": 261,
+          "span_sha256": "abeb3ea58f849d6d605f738925e6ed45712d6f11b50be7448bb48d05588f424d"
         }
       ],
       "sha256_at_h2_6c_close": "ac36b2be2a480b0fce8b25a3983a9ec4e0c63661f138b45fcf31db1124c4fa3e"
@@ -237,14 +237,9 @@
       "disposition": "lifted-at-H2.7b",
       "retained_arms": [
         {
-          "name": "declarationMap",
-          "line": 134,
-          "span_sha256": "9e4464655501a510a4c5fa2d958856cc0e7ca83aecc32774fed28d84d3d4bc22"
-        },
-        {
           "name": "composite",
-          "line": 140,
-          "span_sha256": "9e4464655501a510a4c5fa2d958856cc0e7ca83aecc32774fed28d84d3d4bc22"
+          "line": 151,
+          "span_sha256": "6989d50f565df3bc031a11a54a3031588953dc39a9c9f67175c0778cef7416eb"
         }
       ],
       "sha256_at_h2_6c_close": "e4b1e42504e5af8fc49433b4e2bf2ee3255f6e40e264e38e7743f01170f7a1ae"
@@ -271,23 +266,23 @@
       "disposition": "lifted-at-H2.7b",
       "retained_arms": [
         {
-          "name": "Bundle",
-          "line": 1057,
-          "span_sha256": "dc7623ee67cfaf2ed2cf0b3adeb7fe2bdc04f8e8dc415519914be4add9880292"
+          "name": "BundleDispatch",
+          "line": 1082,
+          "span_sha256": "c7d7ad51c32eb24ea88af506d6dfb34b03ab5e6ad47b99e92687c6a8fb6912fa"
         }
       ]
     }
   ],
   "transition_landing": {
-    "next_slice": "H2.7c",
-    "next_slice_scope": "declaration-diagnostics-and-options",
-    "next_runtime_activation_slice": "H2.7c",
+    "next_slice": "H2.7d",
+    "next_slice_scope": "bundles-and-outfile",
+    "next_runtime_activation_slice": "H2.7d",
     "completed_slice": "H2.5g",
-    "inactive_runtime_slice_count": 10,
-    "completed_runtime_slices": 26,
+    "inactive_runtime_slice_count": 9,
+    "completed_runtime_slices": 27,
     "next_slice_runtime_slice_delta": 0,
-    "runtime_admissions": 10753,
-    "executed_candidates": 11272,
+    "runtime_admissions": 10784,
+    "executed_candidates": 11303,
     "unexecuted_candidates": 0,
     "undispositioned_candidates": 0
   },
@@ -302,5 +297,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "83289d0b63980d3ce0841aca4b13fc0899252b506f55609b3e028e88af95d0b6"
+  "close_fingerprint_sha256": "5ad8ad2b6fcc789076a9ce31be33302375315e889c59d25a47b4cfd08dea6f75"
 }

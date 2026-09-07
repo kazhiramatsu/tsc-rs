@@ -7,6 +7,10 @@ use tsc_program::SourceFileId;
 use crate::host::normalize_lexical_path;
 use crate::{EmitContractViolation, EmitFailure, EmitHost, EmitSource, UnsupportedEmitFeature};
 
+#[cfg(test)]
+#[path = "../tests/unit/bundle_plan/tests.rs"]
+mod tests;
+
 /// Public request selection retained independently from emitted roots.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EmitSelection {
@@ -37,6 +41,15 @@ impl EmitBundle {
 pub enum EmitRoot {
     SourceFile(SourceFileId),
     Bundle(EmitBundle),
+}
+
+impl EmitRoot {
+    pub fn source_files(&self) -> &[SourceFileId] {
+        match self {
+            Self::SourceFile(source) => std::slice::from_ref(source),
+            Self::Bundle(bundle) => bundle.source_files(),
+        }
+    }
 }
 
 /// Independent emit mode corresponding to TypeScript's internal emit-only
@@ -210,7 +223,7 @@ impl EmitOutputPlan {
             ));
         }
         for unit in &self.units {
-            if matches!(unit.root, EmitRoot::Bundle(_)) {
+            if matches!(&unit.root, EmitRoot::Bundle(bundle) if bundle.source_files().is_empty()) {
                 return Err(EmitFailure::Unsupported(UnsupportedEmitFeature::BundleRoot));
             }
             match unit.mode {
@@ -232,8 +245,8 @@ impl EmitOutputPlan {
                 }
             }
             // h2-6a-m-3 G8: a planned `.js.map` is a supported unit member.
-            // H2.7b additionally admits the non-bundle declaration member.
-            if unit.paths.declaration_map.is_some() {
+            // Declaration maps require their declaration text member.
+            if unit.paths.declaration_map.is_some() && unit.paths.declaration.is_none() {
                 return Err(EmitFailure::Unsupported(
                     UnsupportedEmitFeature::DeclarationMap,
                 ));
@@ -299,9 +312,12 @@ fn select_source_files(
     selection: EmitSelection,
     force_dts_emit: bool,
 ) -> Result<Vec<SourceFileId>, EmitFailure> {
-    let candidates: Vec<SourceFileId> = match selection {
-        EmitSelection::WholeProgram => host.source_file_ids().to_vec(),
-        EmitSelection::TargetSourceFile(source) => vec![source],
+    let bundle = active_out_file(host).is_some();
+    let module_emit_enabled = host.compiler_options().emit_declaration_only == Some(true)
+        || matches!(host.compiler_options().emit_module_kind(), 2 | 4);
+    let candidates: Vec<SourceFileId> = match (bundle, selection) {
+        (true, _) | (_, EmitSelection::WholeProgram) => host.source_file_ids().to_vec(),
+        (false, EmitSelection::TargetSourceFile(source)) => vec![source],
     };
     candidates
         .into_iter()
@@ -313,6 +329,19 @@ fn select_source_files(
                     source_file_may_be_emitted_for_host(source, host)
                 } =>
             {
+                // outFile always selects from the complete Program, even
+                // when Program.emit receives a target source. Only AMD,
+                // System, and declaration-only requests include modules.
+                if bundle && !module_emit_enabled {
+                    let Some(is_external_module) = source.is_external_module() else {
+                        return Some(Err(EmitFailure::Contract(
+                            EmitContractViolation::CheckedSyntaxUnavailable(id),
+                        )));
+                    };
+                    if is_external_module {
+                        return None;
+                    }
+                }
                 Some(Ok(id))
             }
             Some(_) => None,
@@ -333,10 +362,10 @@ pub fn source_file_may_be_emitted(source: EmitSource<'_>) -> bool {
 /// The Program retains source-side eligibility. JSON additionally depends on
 /// the emit request having somewhere distinct to copy the source, matching
 /// the option-dependent arm of TypeScript's `sourceFileMayBeEmitted`.
-pub(crate) fn source_file_may_be_emitted_for_host(
-    source: EmitSource<'_>,
-    host: &dyn EmitHost,
-) -> bool {
+/// Shared with the compiler's common-source-directory projection, which
+/// deliberately does not apply outFile's external-module selection filter.
+#[doc(hidden)]
+pub fn source_file_may_be_emitted_for_host(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
     if !source_file_may_be_emitted(source) || no_emit_for_js_source(source, host) {
         return false;
     }
@@ -346,7 +375,7 @@ pub(crate) fn source_file_may_be_emitted_for_host(
         .to_ascii_lowercase()
         .ends_with(".json")
         || host.compiler_options().out_dir.is_some()
-        || host.compiler_options().out_file.is_some()
+        || active_out_file(host).is_some()
 }
 
 fn no_emit_for_js_source(source: EmitSource<'_>, host: &dyn EmitHost) -> bool {
@@ -375,6 +404,14 @@ pub fn get_output_paths_for(
     source: EmitSource<'_>,
     host: &dyn EmitHost,
 ) -> Result<EmitOutputPaths, EmitFailure> {
+    get_output_paths_for_with_force(source, host, false)
+}
+
+fn get_output_paths_for_with_force(
+    source: EmitSource<'_>,
+    host: &dyn EmitHost,
+    force_dts_paths: bool,
+) -> Result<EmitOutputPaths, EmitFailure> {
     let options = host.compiler_options();
     let extension = get_output_extension(source.path(), options.jsx)?;
     let javascript = get_own_emit_output_file_path(source.path(), host, extension);
@@ -397,9 +434,10 @@ pub fn get_output_paths_for(
             paths = paths.with_javascript_map(format!("{}.map", path.to_string_lossy()));
         }
     }
-    if (options.declaration == Some(true) || options.composite == Some(true)) && !is_json {
+    let declarations_enabled = options.declaration == Some(true) || options.composite == Some(true);
+    if force_dts_paths || declarations_enabled && !is_json {
         let declaration = declaration_output_path(source.path(), host);
-        if options.declaration_map == Some(true) {
+        if declarations_enabled && options.declaration_map == Some(true) {
             paths = paths.with_declaration_map(format!("{}.map", declaration.to_string_lossy()));
         }
         paths = paths.with_declaration(declaration);
@@ -413,34 +451,26 @@ pub fn get_output_paths_for(
 pub fn for_each_emitted_file(
     host: &dyn EmitHost,
     selection: EmitSelection,
+    action: impl FnMut(&EmitOutputPaths, &EmitRoot),
+) -> Result<(), EmitFailure> {
+    for_each_emitted_file_with_force(host, selection, false, action)
+}
+
+fn for_each_emitted_file_with_force(
+    host: &dyn EmitHost,
+    selection: EmitSelection,
+    force_dts_paths: bool,
     mut action: impl FnMut(&EmitOutputPaths, &EmitRoot),
 ) -> Result<(), EmitFailure> {
-    let source_files = get_source_files_to_emit(host, selection)?;
-    if let Some(out_file) = host.compiler_options().out_file.as_deref() {
+    let source_files = if force_dts_paths {
+        get_source_files_for_forced_declaration_emit(host, selection)?
+    } else {
+        get_source_files_to_emit(host, selection)?
+    };
+    if let Some(out_file) = active_out_file(host) {
         if !source_files.is_empty() {
-            let mut paths = EmitOutputPaths::javascript(resolve_option_path(host, out_file));
-            if host.compiler_options().source_map == Some(true)
-                && host.compiler_options().inline_source_map != Some(true)
-            {
-                let path = paths
-                    .javascript_path()
-                    .expect("bundle JavaScript path")
-                    .to_path_buf();
-                paths = paths.with_javascript_map(format!("{}.map", path.to_string_lossy()));
-            }
-            if host.compiler_options().declaration == Some(true)
-                || host.compiler_options().composite == Some(true)
-            {
-                let declaration = paths
-                    .javascript_path()
-                    .expect("bundle JavaScript path")
-                    .with_extension("d.ts");
-                if host.compiler_options().declaration_map == Some(true) {
-                    paths = paths
-                        .with_declaration_map(format!("{}.map", declaration.to_string_lossy()));
-                }
-                paths = paths.with_declaration(declaration);
-            }
+            let paths =
+                get_output_paths_for_bundle(host.compiler_options(), out_file, force_dts_paths);
             action(&paths, &EmitRoot::Bundle(EmitBundle::new(source_files)));
         }
         return Ok(());
@@ -450,7 +480,7 @@ pub fn for_each_emitted_file(
         let source = host.source_file(source_file).ok_or(EmitFailure::Contract(
             EmitContractViolation::PlannedSourceMissing(source_file),
         ))?;
-        let paths = get_output_paths_for(source, host)?;
+        let paths = get_output_paths_for_with_force(source, host, force_dts_paths)?;
         // Declaration-only requests still visit a source with no output
         // paths, so emitDeclarationFileOrBundle can mark it skipped.
         if host.compiler_options().emit_declaration_only == Some(true)
@@ -464,6 +494,59 @@ pub fn for_each_emitted_file(
         }
     }
     Ok(())
+}
+
+fn active_out_file(host: &dyn EmitHost) -> Option<&str> {
+    host.compiler_options()
+        .out_file
+        .as_deref()
+        .filter(|path| !path.is_empty())
+}
+
+/// tsc-port: getOutputPathsForBundle @6.0.3
+/// tsc-hash: c901ed763ea596470c0d7ac24a1dedf99dfcc4781e59eb4871e9b0743abc4775
+/// tsc-span: _tsc.js:116365-116372
+pub(crate) fn get_output_paths_for_bundle(
+    options: &tsc_types::CompilerOptions,
+    out_file: &str,
+    force_dts_paths: bool,
+) -> EmitOutputPaths {
+    // The callback spelling is the raw outFile option. Only collision keys
+    // resolve it against the Program directory; outDir/declarationDir do not
+    // relocate bundle members.
+    let mut paths = if options.emit_declaration_only == Some(true) {
+        EmitOutputPaths::empty()
+    } else {
+        EmitOutputPaths::javascript(out_file)
+    };
+    if paths.javascript_path().is_some()
+        && options.source_map == Some(true)
+        && options.inline_source_map != Some(true)
+    {
+        paths = paths.with_javascript_map(format!("{out_file}.map"));
+    }
+    let declarations_enabled = options.declaration == Some(true) || options.composite == Some(true);
+    if force_dts_paths || declarations_enabled {
+        // removeFileExtension strips supported TypeScript extensions only,
+        // case-sensitively, with declaration extensions preceding `.ts`.
+        let extensionless = [
+            ".d.ts", ".d.mts", ".d.cts", ".mjs", ".mts", ".cjs", ".cts", ".ts", ".js", ".tsx",
+            ".jsx", ".json",
+        ]
+        .iter()
+        .find_map(|extension| {
+            (out_file.len() > extension.len())
+                .then(|| out_file.strip_suffix(extension))
+                .flatten()
+        })
+        .unwrap_or(out_file);
+        let declaration = format!("{extensionless}.d.ts");
+        if declarations_enabled && options.declaration_map == Some(true) {
+            paths = paths.with_declaration_map(format!("{declaration}.map"));
+        }
+        paths = paths.with_declaration(declaration);
+    }
+    paths
 }
 
 /// Build every output unit and run overwrite/duplicate-output validation
@@ -553,20 +636,22 @@ pub(crate) fn preflight_forced_declarations(
     selection: EmitSelection,
 ) -> Result<EmitPreflight, EmitFailure> {
     let mut preflight = preflight_emit(host, EmitSelection::WholeProgram)?;
-    let units = get_source_files_for_forced_declaration_emit(host, selection)?
-        .into_iter()
-        .map(|source| {
-            let file = host.source_file(source).ok_or(EmitFailure::Contract(
-                EmitContractViolation::PlannedSourceMissing(source),
-            ))?;
-            Ok(EmitOutputUnit::new(
-                EmitRoot::SourceFile(source),
-                EmitOutputPaths::empty()
-                    .with_declaration(declaration_output_path(file.path(), host)),
-                EmitMode::DeclarationOnly,
-            ))
-        })
-        .collect::<Result<Vec<_>, EmitFailure>>()?;
+    let mut units = Vec::new();
+    for_each_emitted_file_with_force(host, selection, true, |paths, root| {
+        let mut declaration_paths = EmitOutputPaths::empty().with_declaration(
+            paths
+                .declaration_path()
+                .expect("forced declaration output path"),
+        );
+        if let Some(map) = paths.declaration_map_path() {
+            declaration_paths = declaration_paths.with_declaration_map(map);
+        }
+        units.push(EmitOutputUnit::new(
+            root.clone(),
+            declaration_paths,
+            EmitMode::DeclarationOnly,
+        ));
+    })?;
     preflight.plan = match selection {
         EmitSelection::WholeProgram => EmitOutputPlan::whole_program(units),
         EmitSelection::TargetSourceFile(source) => EmitOutputPlan::targeted(source, units),
@@ -711,15 +796,6 @@ fn absolute_display_path(host: &dyn EmitHost, path: &Path) -> PathBuf {
         host.current_directory().join(path)
     };
     normalize_lexical_path(&absolute)
-}
-
-fn resolve_option_path(host: &dyn EmitHost, path: &str) -> PathBuf {
-    let path = Path::new(path);
-    if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        host.current_directory().join(path)
-    }
 }
 
 fn is_declaration_file_name(path: &Path) -> bool {

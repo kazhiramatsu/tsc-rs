@@ -14,6 +14,7 @@ use tsc_emitter::{
 use crate::state::{CheckResult, CheckerState};
 use crate::{evaluate::EvalValue, AuthoritativeSourceToken, ProgramSnapshot};
 use tsc_binder::SymbolId;
+use tsc_diagnostics::DiagnosticList;
 use tsc_types::CompilerOptions;
 
 static NEXT_EMIT_RESOLVER_SESSION_TOKEN: AtomicU64 = AtomicU64::new(1);
@@ -24,6 +25,12 @@ static NEXT_EMIT_RESOLVER_SESSION_TOKEN: AtomicU64 = AtomicU64::new(1);
 pub struct CheckerSession<'program> {
     state: RefCell<CheckerState<'program>>,
     session_token: u64,
+    program_diagnostics: RefCell<Option<ProgramDiagnosticContext>>,
+}
+
+struct ProgramDiagnosticContext {
+    preparation: DiagnosticList,
+    semantic: Option<DiagnosticList>,
 }
 
 impl<'program> CheckerSession<'program> {
@@ -44,7 +51,83 @@ impl<'program> CheckerSession<'program> {
         Self {
             state: RefCell::new(state),
             session_token: NEXT_EMIT_RESOLVER_SESSION_TOKEN.fetch_add(1, Ordering::Relaxed),
+            program_diagnostics: RefCell::new(None),
         }
+    }
+
+    pub(crate) fn with_program_diagnostics(
+        self,
+        preparation: DiagnosticList,
+        semantic: Option<DiagnosticList>,
+    ) -> Self {
+        *self.program_diagnostics.borrow_mut() = Some(ProgramDiagnosticContext {
+            preparation,
+            semantic,
+        });
+        self
+    }
+
+    /// Observe the initialized checker's current file-less diagnostic bucket.
+    /// This does not schedule source checking or declaration transforms.
+    pub fn get_global_diagnostics(&self) -> DiagnosticList {
+        let mut diagnostics = self.state.borrow().visible_global_diagnostics.clone();
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+        diagnostics
+    }
+
+    /// Complete the whole-Program semantic getter on this same checker.
+    /// Program diagnostics are cached independently of the declaration getter;
+    /// a declaration resolver preparation does not populate this cache.
+    /// The second tuple member preserves typed partial-check evidence.
+    /// tsrs-native: scoped getDiagnosticsHelper/getDiagnosticsWorker adapter
+    /// (_tsc.js:123631-123641,87111-87135), reusing the Program row producer.
+    pub fn get_program_semantic_diagnostics(
+        &self,
+    ) -> Result<(DiagnosticList, Vec<crate::PartialCheck>), crate::AuthoritativeModuleFailure> {
+        let mut state = self.state.borrow_mut();
+        let mut context = self.program_diagnostics.borrow_mut();
+        let context =
+            context
+                .as_mut()
+                .ok_or_else(|| crate::AuthoritativeModuleFailure::InvalidMetadata {
+                    detail: "whole-Program diagnostics require an authoritative Program context"
+                        .to_owned(),
+                })?;
+        if let Some(diagnostics) = &context.semantic {
+            return Ok((diagnostics.clone(), state.partial_check_records.clone()));
+        }
+        let files = state.binder.file_ids().collect::<Vec<_>>();
+        let mut new_globals = vec![Vec::new(); files.len()];
+        for file in &files {
+            if state.skip_type_checking_file(*file) {
+                continue;
+            }
+            // getDiagnosticsWorker returns only globals newly published by
+            // this semantic request. Earlier declaration preparations did
+            // not populate the Program bind/check diagnostic cache.
+            let start = state.visible_global_diagnostics.len();
+            state.check_source_file(file.index());
+            new_globals[file.index()].extend_from_slice(&state.visible_global_diagnostics[start..]);
+        }
+        if let Some(failure) = state.take_authoritative_module_failure() {
+            return Err(failure);
+        }
+        let mut diagnostics = Vec::new();
+        for file in files {
+            if state.skip_type_checking_file(file) {
+                continue;
+            }
+            diagnostics.extend(crate::semantic_diagnostics_for_program_file(
+                &state,
+                file.index(),
+                &new_globals[file.index()],
+                &context.preparation,
+                state.options,
+            ));
+        }
+        tsc_diagnostics::sort_and_dedupe_diagnostics(&mut diagnostics);
+        context.semantic = Some(diagnostics.clone());
+        Ok((diagnostics, state.partial_check_records.clone()))
     }
 
     /// Borrow only the consumer-owned resolver protocol for transform/print.
@@ -75,6 +158,24 @@ impl<'program> CheckerSession<'program> {
                 ),
             })?;
         state.check_source_file(index);
+        if let Some(failure) = state.take_authoritative_module_failure() {
+            return Err(failure);
+        }
+        Ok(state.partial_check_records.clone())
+    }
+
+    /// Complete the whole-Program getEmitResolver request without filling
+    /// Program's semantic diagnostic cache. Reporting may have skipped its
+    /// semantic getter because an earlier diagnostic bucket was nonempty.
+    /// tsrs-native: whole-source branch of getEmitResolver (_tsc.js:47561-47564).
+    pub fn prepare_program_emit(
+        &self,
+    ) -> Result<Vec<crate::PartialCheck>, crate::AuthoritativeModuleFailure> {
+        let mut state = self.state.borrow_mut();
+        let files = state.binder.file_ids().collect::<Vec<_>>();
+        for file in files {
+            state.check_source_file(file.index());
+        }
         if let Some(failure) = state.take_authoritative_module_failure() {
             return Err(failure);
         }

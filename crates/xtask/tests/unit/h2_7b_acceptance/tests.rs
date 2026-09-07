@@ -154,30 +154,17 @@ fn h2_7b_manifest_contract_covers_absent_scratch_and_empty_target() {
 }
 
 #[test]
-fn h2_6c_refused_option_map_has_the_two_frozen_totals() {
-    // The manifest is the POST-flip regeneration (h2-7b-m-2 §6.4(c2)): the
-    // 33 registered transitions have replaced their vectors by the typed
-    // refusal, so its `refused_option` map is the post-flip total; the
-    // pre-flip (c1) total is that map minus the transitions.
+fn h2_6c_original_33_option_transitions_keep_the_frozen_history() {
+    // Historical H2.7b flip evidence is derived from frozen original settings.
+    // The live manifest may legitimately lose later exact promotions.
     let workspace = workspace();
-    let manifest = read_json(&workspace.join(super::H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH));
-    let mut post_flip = BTreeMap::<String, u64>::new();
-    for case in manifest["cases"].as_array().expect("manifest cases") {
-        if let Some(option) = case["refused_option"].as_str() {
-            *post_flip.entry(option.to_owned()).or_default() += 1;
-        }
-    }
-    assert_eq!(
-        post_flip,
-        BTreeMap::from([
-            ("declarationMap".to_owned(), 6),
-            ("isolatedModules".to_owned(), 1),
-            ("outDir".to_owned(), 130),
-            ("outFile".to_owned(), 171),
-            ("rootDir".to_owned(), 4),
-        ])
-    );
-
+    let post_flip = BTreeMap::from([
+        ("declarationMap".to_owned(), 6),
+        ("isolatedModules".to_owned(), 1),
+        ("outDir".to_owned(), 130),
+        ("outFile".to_owned(), 171),
+        ("rootDir".to_owned(), 4),
+    ]);
     let qualification = read_json(&workspace.join(super::H2_6C_QUALIFICATION_RELATIVE_PATH));
     let mut transitions = BTreeMap::<String, u64>::new();
     let mut transition_ids = BTreeSet::new();
@@ -234,6 +221,33 @@ fn h2_6c_refused_option_map_has_the_two_frozen_totals() {
             ("outFile".to_owned(), 144),
             ("rootDir".to_owned(), 4),
         ])
+    );
+}
+
+#[test]
+fn h2_6c_current_manifest_keeps_only_unclosed_historical_refusals() {
+    let workspace = workspace();
+    let manifest = read_json(&workspace.join(super::H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH));
+    let mut actual = BTreeMap::<String, u64>::new();
+    for case in manifest["cases"].as_array().expect("manifest cases") {
+        if let Some(option) = case["refused_option"].as_str() {
+            *actual.entry(option.to_owned()).or_default() += 1;
+        }
+    }
+    let historical = BTreeMap::from([
+        ("declarationMap".to_owned(), 6),
+        ("isolatedModules".to_owned(), 1),
+        ("outDir".to_owned(), 130),
+        ("outFile".to_owned(), 171),
+        ("rootDir".to_owned(), 4),
+    ]);
+    let expected = super::h2_6c_de_promotions::adjusted_refusals(historical)
+        .expect("each exact identity removes its pinned old refusal once");
+    // Migrated refusals remain historical outFile rows in this file. Their
+    // actual new options are verified separately by the partition tests.
+    assert_eq!(
+        actual, expected,
+        "shrink stale exact rows before the normal acceptance run"
     );
 }
 

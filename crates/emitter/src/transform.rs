@@ -6,8 +6,8 @@ use tsc_diagnostics::{Diagnostic, DiagnosticList};
 use tsc_syntax::SyntaxKind;
 
 use crate::{
-    EmitFlags, EmitResolver, EmitResolverError, NodeFactory, SourcePositionError, TransformArena,
-    TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
+    EmitFlags, EmitResolver, EmitResolverError, NodeFactory, SourceFileId, SourcePositionError,
+    TransformArena, TransformNode, TransformNodeArray, TransformSourceId, UnsupportedEmitFeature,
 };
 
 /// Fallible declaration-printer projection of the checker's global-name
@@ -258,17 +258,52 @@ impl UnsupportedTransformFeature {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TransformBundle {
     sources: Box<[TransformSourceId]>,
+    synthetic_file_references: Option<Vec<tsc_syntax::FileReference>>,
+    synthetic_type_references: Option<Vec<tsc_syntax::TypeReferenceDirective>>,
+    synthetic_lib_references: Option<Vec<tsc_syntax::FileReference>>,
 }
 
 impl TransformBundle {
     pub fn new(sources: Vec<TransformSourceId>) -> Self {
         Self {
             sources: sources.into_boxed_slice(),
+            synthetic_file_references: None,
+            synthetic_type_references: None,
+            synthetic_lib_references: None,
         }
     }
 
     pub fn sources(&self) -> &[TransformSourceId] {
         &self.sources
+    }
+
+    pub fn synthetic_file_references(&self) -> Option<&[tsc_syntax::FileReference]> {
+        self.synthetic_file_references.as_deref()
+    }
+
+    pub fn synthetic_type_references(&self) -> Option<&[tsc_syntax::TypeReferenceDirective]> {
+        self.synthetic_type_references.as_deref()
+    }
+
+    pub fn synthetic_lib_references(&self) -> Option<&[tsc_syntax::FileReference]> {
+        self.synthetic_lib_references.as_deref()
+    }
+
+    pub(crate) fn with_sources(mut self, sources: Vec<TransformSourceId>) -> Self {
+        self.sources = sources.into_boxed_slice();
+        self
+    }
+
+    pub(crate) fn with_synthetic_references(
+        mut self,
+        files: Vec<tsc_syntax::FileReference>,
+        types: Vec<tsc_syntax::TypeReferenceDirective>,
+        libs: Vec<tsc_syntax::FileReference>,
+    ) -> Self {
+        self.synthetic_file_references = Some(files);
+        self.synthetic_type_references = Some(types);
+        self.synthetic_lib_references = Some(libs);
+        self
     }
 }
 
@@ -464,8 +499,10 @@ pub struct TransformationContext {
     block_scoped_variables: Vec<TransformNode>,
     block_scope_stack: Vec<Vec<TransformNode>>,
     emit_helpers: Vec<EmitHelper>,
+    source_emit_helpers: BTreeMap<TransformSourceId, Vec<EmitHelper>>,
     diagnostics: DiagnosticList,
     generated_binding_names: BTreeMap<GeneratedBindingId, Box<str>>,
+    generated_binding_numbered_bases: BTreeMap<GeneratedBindingId, Box<str>>,
     print_finalized_generated_bindings: BTreeSet<GeneratedBindingId>,
 }
 
@@ -482,8 +519,10 @@ impl TransformationContext {
             block_scoped_variables: Vec::new(),
             block_scope_stack: Vec::new(),
             emit_helpers: Vec::new(),
+            source_emit_helpers: BTreeMap::new(),
             diagnostics: Vec::new(),
             generated_binding_names: BTreeMap::new(),
+            generated_binding_numbered_bases: BTreeMap::new(),
             print_finalized_generated_bindings: BTreeSet::new(),
         }
     }
@@ -523,6 +562,24 @@ impl TransformationContext {
 
     pub(crate) fn generated_binding_name(&self, binding: GeneratedBindingId) -> Option<&str> {
         self.generated_binding_names
+            .get(&binding)
+            .map(AsRef::as_ref)
+    }
+
+    pub(crate) fn record_generated_binding_numbered_base(
+        &mut self,
+        binding: GeneratedBindingId,
+        base: &str,
+    ) {
+        self.generated_binding_numbered_bases
+            .insert(binding, base.into());
+    }
+
+    pub(crate) fn generated_binding_numbered_base(
+        &self,
+        binding: GeneratedBindingId,
+    ) -> Option<&str> {
+        self.generated_binding_numbered_bases
             .get(&binding)
             .map(AsRef::as_ref)
     }
@@ -803,7 +860,9 @@ impl TransformationContext {
         self.block_scoped_variables.clear();
         self.block_scope_stack.clear();
         self.emit_helpers.clear();
+        self.source_emit_helpers.clear();
         self.generated_binding_names.clear();
+        self.generated_binding_numbered_bases.clear();
         self.print_finalized_generated_bindings.clear();
         self.arena.clear_session_metadata();
         self.state = TransformationState::Disposed;
@@ -825,6 +884,22 @@ pub trait Transformer {
         root: TransformRoot,
     ) -> Result<TransformRoot, TransformError> {
         Ok(root)
+    }
+
+    /// Internal `chainBundle` equivalent (_tsc.js:92747-92755). Each
+    /// transformer visits the entire source sequence before the next pass.
+    /// Declaration transformation overrides this visitor because its bundle
+    /// has shared references and external-module declaration wrappers.
+    fn transform_bundle(
+        &mut self,
+        context: &mut TransformationContext,
+        bundle: TransformBundle,
+    ) -> Result<TransformBundle, TransformError> {
+        let mut sources = Vec::with_capacity(bundle.sources().len());
+        for source in bundle.sources() {
+            sources.push(transform_source_with_helpers(self, context, *source)?);
+        }
+        Ok(bundle.with_sources(sources))
     }
 
     fn substitute_node(
@@ -911,6 +986,15 @@ impl TransformationResult<'_> {
             .finalize_generated_binding_names_for_print(root, global_name_oracle)
     }
 
+    pub(crate) fn finalize_bundle_generated_names_for_print(
+        &mut self,
+        sources: &[TransformSourceId],
+        global_name_oracle: Option<&dyn GlobalNameOracle>,
+    ) -> Result<(), TransformError> {
+        self.context
+            .finalize_bundle_generated_binding_names_for_print(sources, global_name_oracle)
+    }
+
     pub fn roots(&self) -> &[TransformRoot] {
         &self.roots
     }
@@ -919,8 +1003,11 @@ impl TransformationResult<'_> {
         &self.context.diagnostics
     }
 
-    pub(crate) fn emit_helpers(&self) -> &[EmitHelper] {
-        &self.context.emit_helpers
+    pub(crate) fn emit_helpers_for_source(&self, source: TransformSourceId) -> &[EmitHelper] {
+        self.context
+            .source_emit_helpers
+            .get(&source)
+            .map_or(&[], Vec::as_slice)
     }
 
     pub(crate) fn emit_pipeline_hooks(
@@ -991,6 +1078,36 @@ impl Drop for TransformationResult<'_> {
     }
 }
 
+// The original single-source context retains earlier passes' helpers for
+// importHelpers synthesis. Select that list by source while running a pass,
+// then retain it for the next pass and the printer. A bundle cannot let one
+// source's helper requests become another source's external helper import.
+fn transform_source_with_helpers<T: Transformer + ?Sized>(
+    transformer: &mut T,
+    context: &mut TransformationContext,
+    source: TransformSourceId,
+) -> Result<TransformSourceId, TransformError> {
+    context.arena.source(source)?;
+    context.emit_helpers = context
+        .source_emit_helpers
+        .remove(&source)
+        .unwrap_or_default();
+    let result = transformer.transform_root(context, TransformRoot::SourceFile(source));
+    let helpers = std::mem::take(&mut context.emit_helpers);
+    let transformed_source = match result? {
+        TransformRoot::SourceFile(source) => source,
+        TransformRoot::Bundle(_) => {
+            return Err(TransformError::Unsupported(
+                UnsupportedEmitFeature::BundleRoot,
+            ));
+        }
+    };
+    context
+        .source_emit_helpers
+        .insert(transformed_source, helpers);
+    Ok(transformed_source)
+}
+
 /// tsc-port: transformNodes @6.0.3
 /// tsc-hash: ef2079da1a35b78b43d8794c034dd6caabdad5b71547b22c3270c40d47349e84
 /// tsc-span: _tsc.js:115977-116276
@@ -1002,15 +1119,6 @@ pub fn transform_nodes<'transformers>(
 ) -> Result<TransformationResult<'transformers>, TransformError> {
     let mut context = TransformationContext::new(arena);
     let transformed = (|| {
-        if roots
-            .iter()
-            .any(|root| matches!(root, TransformRoot::Bundle(_)))
-        {
-            return Err(TransformError::Unsupported(
-                UnsupportedEmitFeature::BundleRoot,
-            ));
-        }
-
         for transformer in &mut transformers {
             transformer.initialize(&mut context)?;
         }
@@ -1023,16 +1131,29 @@ pub fn transform_nodes<'transformers>(
                     let syntax = context.arena.source(*source)?.syntax();
                     allow_declaration_files || !syntax.is_declaration_file
                 }
-                TransformRoot::Bundle(_) => false,
+                // Upstream applies the declaration-file gate only to a
+                // SourceFile root. A bundle visitor owns its member policy.
+                TransformRoot::Bundle(bundle) => {
+                    for source in bundle.sources() {
+                        context.arena.source(*source)?;
+                    }
+                    true
+                }
             };
             if should_transform {
                 for transformer in &mut transformers {
-                    root = transformer.transform_root(&mut context, root)?;
-                    if matches!(root, TransformRoot::Bundle(_)) {
-                        return Err(TransformError::Unsupported(
-                            UnsupportedEmitFeature::BundleRoot,
-                        ));
-                    }
+                    root = match root {
+                        TransformRoot::SourceFile(source) => {
+                            TransformRoot::SourceFile(transform_source_with_helpers(
+                                transformer.as_mut(),
+                                &mut context,
+                                source,
+                            )?)
+                        }
+                        TransformRoot::Bundle(bundle) => TransformRoot::Bundle(
+                            transformer.transform_bundle(&mut context, bundle)?,
+                        ),
+                    };
                 }
             }
             transformed.push(root);
@@ -1113,6 +1234,9 @@ pub enum TransformError {
         parent: TransformNode,
     },
     MissingProgramSource(TransformNode),
+    ParsedEmitMetadataSourceMismatch(SourceFileId),
+    ParsedEmitMetadataNotPortable(TransformNode),
+    ParsedEmitMetadataRestoreConflict(TransformNode),
     ResolverNodeNotInParseTree(TransformNode),
     InvalidSourceRange {
         node: TransformNode,
@@ -1164,6 +1288,18 @@ pub enum TransformError {
 impl fmt::Display for TransformError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::ParsedEmitMetadataSourceMismatch(source) => write!(
+                formatter,
+                "parsed emit metadata requires the same original Program source {source:?}"
+            ),
+            Self::ParsedEmitMetadataNotPortable(node) => write!(
+                formatter,
+                "parsed emit metadata at {node:?} requires an unsupported cross-arena identity"
+            ),
+            Self::ParsedEmitMetadataRestoreConflict(node) => write!(
+                formatter,
+                "parsed emit metadata target {node:?} already has emit metadata"
+            ),
             Self::UnknownSource(source) => {
                 write!(formatter, "unknown transform source {}", source.raw())
             }
@@ -1385,3 +1521,7 @@ impl From<EmitResolverError> for TransformError {
 #[cfg(test)]
 #[path = "../tests/unit/hook_chaining/tests.rs"]
 mod hook_chaining_tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/bundle_transform/tests.rs"]
+mod bundle_transform_tests;

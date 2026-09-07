@@ -8,6 +8,112 @@ use serde_json::Value;
 
 use super::{SourceMapGenerator, SourceMappingFields};
 
+/// Replay TS mapping positions to isolate bundle path/options and URL workers.
+/// These are helper facets; the Bundle printer owns position/registration tests.
+#[test]
+fn h2_7e_bundle_declaration_map_path_lanes_match_typescript() {
+    use std::path::Path;
+    let fixture: Value = serde_json::from_slice(include_bytes!(
+        "../../fixtures/bundle-declaration-map-paths.json"
+    ))
+    .unwrap();
+    assert_eq!(fixture["repetitions"], 2);
+    assert_eq!(fixture["cases"].as_array().unwrap().len(), 10);
+    for case in fixture["cases"].as_array().unwrap() {
+        let id = case["case_id"].as_str().unwrap();
+        let raw_options = &case["options"];
+        let options = tsc_types::CompilerOptions {
+            declaration_map: raw_options["declarationMap"].as_bool(),
+            source_map: raw_options["sourceMap"].as_bool(),
+            inline_source_map: raw_options["inlineSourceMap"].as_bool(),
+            inline_sources: raw_options["inlineSources"].as_bool(),
+            source_root: raw_options["sourceRoot"].as_str().map(str::to_owned),
+            map_root: raw_options["mapRoot"].as_str().map(str::to_owned),
+            ..Default::default()
+        };
+        let observed = &case["typescript_observation"];
+        let writes = observed["writes"].as_array().unwrap();
+        let map_path = Path::new(writes[0]["path"].as_str().unwrap());
+        let declaration_path = Path::new(writes[1]["path"].as_str().unwrap());
+        let map = &observed["emit_result"]["source_maps"][0];
+        let frozen = map["source_map_json"].as_str().unwrap();
+        let parsed: Value = serde_json::from_str(frozen).unwrap();
+        let lane = crate::MapLaneInputs {
+            common_source_directory: observed["common_source_directory"]
+                .as_str()
+                .unwrap()
+                .to_owned(),
+            current_directory: case["current_directory"].as_str().unwrap().to_owned(),
+            use_case_sensitive_source_keys: case["use_case_sensitive_file_names"]
+                .as_bool()
+                .unwrap(),
+        };
+        for _ in 0..2 {
+            let inputs = crate::declaration_bundle_map_recording_inputs_for(
+                &lane,
+                &options,
+                declaration_path,
+            );
+            assert!(
+                !inputs.inline_sources,
+                "declaration options omit inlineSources"
+            );
+            let mut generator = SourceMapGenerator::new(
+                &*inputs.file,
+                &*inputs.source_root,
+                &*inputs.sources_directory_path,
+                &*inputs.current_directory,
+                inputs.use_case_sensitive_source_keys,
+            );
+            for source in map["input_source_file_names"].as_array().unwrap() {
+                generator.add_source(source.as_str().unwrap());
+            }
+            for segment in decode_mappings(parsed["mappings"].as_str().unwrap()) {
+                generator.add_mapping(
+                    segment.generated_line,
+                    segment.generated_character,
+                    segment
+                        .source
+                        .map(
+                            |(source_index, source_line, source_character)| SourceMappingFields {
+                                source_index,
+                                source_line,
+                                source_character,
+                            },
+                        ),
+                    segment.name,
+                );
+            }
+            assert_eq!(
+                generator.to_json_string(),
+                frozen,
+                "{id}: complete path-lane map replay"
+            );
+            let url = crate::execute::source_mapping_url_for_output(
+                &lane,
+                &crate::declaration_map::map_options(&options),
+                frozen,
+                declaration_path,
+                Some(map_path),
+                None,
+            )
+            .unwrap();
+            let text = String::from_utf8(decode_base64(
+                writes[1]["callback_utf8_base64"].as_str().unwrap(),
+            ))
+            .unwrap();
+            let utf16 = text.encode_utf16().collect::<Vec<_>>();
+            let position = writes[1]["data_source_map_url_pos"].as_u64().unwrap() as usize;
+            let comment = String::from_utf16(&utf16[position..]).unwrap();
+            assert_eq!(
+                Some(url.as_str()),
+                comment.strip_prefix("//# sourceMappingURL="),
+                "{id}: Bundle URL"
+            );
+        }
+    }
+}
+
 const WITNESSES: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../ratchets/h2-6a-witnesses.v1.json"

@@ -6387,7 +6387,18 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
         let inlineable = self.is_simple_inlineable_expression(inner)?;
         let identifier = self.context.arena().node(inner)?.kind == SyntaxKind::Identifier;
         let (key_expression, evaluation) = if should_capture && !inlineable {
-            let temporary_name = self.allocate_temp_name()?;
+            // getPropertyNameExpressionIfNeeded selects the name's loop
+            // binding owner independently of the enclosing class temp.
+            let owner = if self.resolver.has_node_check_flag(
+                self.resolver_node(original)?,
+                NodeCheckFlags::BLOCK_SCOPED_BINDING_IN_LOOP.bits() as u32,
+            )? {
+                LexicalBindingOwner::CurrentLoop
+            } else {
+                LexicalBindingOwner::Hoisted
+            };
+            let temporary_name =
+                self.allocate_temp_name_with_nested_scope_reservation_and_owner(true, owner)?;
             let target = self.create_binding_identifier(&temporary_name)?;
             let evaluation = self.create_assignment(target, expression)?;
             let read = self.create_binding_identifier(&temporary_name)?;
@@ -6655,7 +6666,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 self.context
                     .arena_mut()?
                     .metadata_mut(local)
-                    .add_flags(EmitFlags::NO_COMMENTS);
+                    .set_flags(EmitFlags::NO_COMMENTS);
                 let Some(prefix) = prefix else {
                     return Ok(local);
                 };

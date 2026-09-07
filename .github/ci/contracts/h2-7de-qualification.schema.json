@@ -1,0 +1,572 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-7de-qualification.schema.json",
+  "title": "H2.7d/e frozen TypeScript qualification join; no Rust admission",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "typescript",
+    "source_commit",
+    "repetitions",
+    "generator",
+    "contract",
+    "inputs",
+    "selection_contract",
+    "execution_contract",
+    "cases",
+    "summary",
+    "qualification_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "const": "h2-7de-qualification"
+    },
+    "status": {
+      "const": "qualified-typescript-oracle"
+    },
+    "typescript": {
+      "const": "6.0.3"
+    },
+    "source_commit": {
+      "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+    },
+    "repetitions": {
+      "const": 2
+    },
+    "generator": {
+      "$ref": "#/$defs/identity"
+    },
+    "contract": {
+      "$ref": "#/$defs/identity"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/identity"
+      },
+      "minItems": 9,
+      "maxItems": 9,
+      "uniqueItems": true
+    },
+    "selection_contract": {
+      "type": "string",
+      "minLength": 1
+    },
+    "execution_contract": {
+      "type": "string",
+      "minLength": 1
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/case"
+      },
+      "minItems": 325,
+      "maxItems": 325
+    },
+    "summary": {
+      "$ref": "#/$defs/summary"
+    },
+    "qualification_fingerprint_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256",
+        "git_blob_sha1"
+      ],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "git_blob_sha1": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "row_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "sha256"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 324
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "observation_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "sha256",
+        "typescript_observation_sha256",
+        "repetitions"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 322
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "typescript_observation_sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "repetitions": {
+          "const": 2
+        }
+      }
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "suite",
+        "source",
+        "bands",
+        "required_slices",
+        "remaining_slices",
+        "input_route",
+        "disposition",
+        "candidate",
+        "input",
+        "observation"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suite": {
+          "enum": [
+            "compiler",
+            "conformance",
+            "project",
+            "transpile"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "bands": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "H2.7d",
+              "H2.7e"
+            ]
+          },
+          "minItems": 1,
+          "maxItems": 2,
+          "uniqueItems": true
+        },
+        "required_slices": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "H2.7d",
+              "H2.7e",
+              "H2.8a",
+              "H2.8b",
+              "H2.8c",
+              "H2.9"
+            ]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "remaining_slices": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "H2.8a",
+              "H2.8b",
+              "H2.8c",
+              "H2.9"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "input_route": {
+          "enum": [
+            "whole-program",
+            "transpile-api"
+          ]
+        },
+        "disposition": {
+          "enum": [
+            "eligible-for-rust-comparison",
+            "deferred"
+          ]
+        },
+        "candidate": {
+          "$ref": "#/$defs/row_reference"
+        },
+        "input": {
+          "$ref": "#/$defs/row_reference"
+        },
+        "observation": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/observation_reference"
+            }
+          ]
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "eligible-for-rust-comparison"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "input_route": {
+                "const": "whole-program"
+              },
+              "remaining_slices": {
+                "maxItems": 0
+              },
+              "observation": {
+                "$ref": "#/$defs/observation_reference"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "input_route": {
+                "const": "transpile-api"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "suite": {
+                "const": "transpile"
+              },
+              "disposition": {
+                "const": "deferred"
+              },
+              "observation": {
+                "type": "null"
+              },
+              "remaining_slices": {
+                "const": [
+                  "H2.8c"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "disposition": {
+                "const": "deferred"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "remaining_slices": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "input_route": {
+                "const": "whole-program"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "observation": {
+                "$ref": "#/$defs/observation_reference"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "union",
+        "bands",
+        "intersection",
+        "exclusive_groups",
+        "observed_whole_program",
+        "observed_eligible",
+        "observed_deferred",
+        "unobserved_transpile_references",
+        "later_by_owner"
+      ],
+      "properties": {
+        "union": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidates",
+            "eligible",
+            "deferred"
+          ],
+          "properties": {
+            "candidates": {
+              "const": 325
+            },
+            "eligible": {
+              "const": 291
+            },
+            "deferred": {
+              "const": 34
+            }
+          }
+        },
+        "bands": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "H2.7d",
+            "H2.7e"
+          ],
+          "properties": {
+            "H2.7d": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidates",
+                "eligible",
+                "deferred"
+              ],
+              "properties": {
+                "candidates": {
+                  "const": 315
+                },
+                "eligible": {
+                  "const": 283
+                },
+                "deferred": {
+                  "const": 32
+                }
+              }
+            },
+            "H2.7e": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidates",
+                "eligible",
+                "deferred"
+              ],
+              "properties": {
+                "candidates": {
+                  "const": 13
+                },
+                "eligible": {
+                  "const": 11
+                },
+                "deferred": {
+                  "const": 2
+                }
+              }
+            }
+          }
+        },
+        "intersection": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "candidates",
+            "eligible",
+            "deferred"
+          ],
+          "properties": {
+            "candidates": {
+              "const": 3
+            },
+            "eligible": {
+              "const": 3
+            },
+            "deferred": {
+              "const": 0
+            }
+          }
+        },
+        "exclusive_groups": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "d_only",
+            "e_only",
+            "d_and_e"
+          ],
+          "properties": {
+            "d_only": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidates",
+                "eligible",
+                "deferred"
+              ],
+              "properties": {
+                "candidates": {
+                  "const": 312
+                },
+                "eligible": {
+                  "const": 280
+                },
+                "deferred": {
+                  "const": 32
+                }
+              }
+            },
+            "e_only": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidates",
+                "eligible",
+                "deferred"
+              ],
+              "properties": {
+                "candidates": {
+                  "const": 10
+                },
+                "eligible": {
+                  "const": 8
+                },
+                "deferred": {
+                  "const": 2
+                }
+              }
+            },
+            "d_and_e": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "candidates",
+                "eligible",
+                "deferred"
+              ],
+              "properties": {
+                "candidates": {
+                  "const": 3
+                },
+                "eligible": {
+                  "const": 3
+                },
+                "deferred": {
+                  "const": 0
+                }
+              }
+            }
+          }
+        },
+        "observed_whole_program": {
+          "const": 323
+        },
+        "observed_eligible": {
+          "const": 291
+        },
+        "observed_deferred": {
+          "const": 32
+        },
+        "unobserved_transpile_references": {
+          "const": 2
+        },
+        "later_by_owner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "H2.8a",
+            "H2.8b",
+            "H2.8c",
+            "H2.9"
+          ],
+          "properties": {
+            "H2.8a": {
+              "const": 23
+            },
+            "H2.8b": {
+              "const": 5
+            },
+            "H2.8c": {
+              "const": 2
+            },
+            "H2.9": {
+              "const": 4
+            }
+          }
+        }
+      }
+    }
+  }
+}

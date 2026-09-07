@@ -932,20 +932,12 @@ fn execute_prepared(
     )
 }
 
-fn execute_emitting_prepared(
+/// Shared command producer for real CLI execution and scoped Program emits.
+pub(crate) fn emit_command_status(
     current_directory: &Path,
-    source_texts: DiagnosticSourceMap,
-    prepared: tsc_program::PreparedProgram,
-    additional_diagnostics: &[Diagnostic],
-    route: &mut CliRoute<'_>,
-) -> Result<CliOutput, CliError> {
-    let mut sink = FsOutputSink::new(route.output_filesystem);
-    let outcome = ProgramSession::new(prepared)
-        .emit_for_cli(&mut sink)
-        .map_err(|error| CliError::Driver(error.to_string()))?;
-
-    let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
-
+    emit: &crate::EmitOutcome,
+    diagnostics: &[Diagnostic],
+) -> (Vec<String>, i32) {
     let status_writes = emit
         .emitted_files()
         .unwrap_or_default()
@@ -966,6 +958,24 @@ fn execute_emitting_prepared(
     } else {
         EXIT_SUCCESS
     };
+    (status_writes, exit_code)
+}
+
+fn execute_emitting_prepared(
+    current_directory: &Path,
+    source_texts: DiagnosticSourceMap,
+    prepared: tsc_program::PreparedProgram,
+    additional_diagnostics: &[Diagnostic],
+    route: &mut CliRoute<'_>,
+) -> Result<CliOutput, CliError> {
+    let mut sink = FsOutputSink::new(route.output_filesystem);
+    let outcome = ProgramSession::new(prepared)
+        .emit_for_cli(&mut sink)
+        .map_err(|error| CliError::Driver(error.to_string()))?;
+
+    let (emit, diagnostics, work_counters) = outcome.into_reported(additional_diagnostics);
+
+    let (status_writes, exit_code) = emit_command_status(current_directory, &emit, &diagnostics);
     rendered_diagnostics_with_exit_work_status_and_h2(
         current_directory,
         &source_texts,

@@ -1,0 +1,680 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "runtime/javascript-and-declaration",
+      "current_directory": "/project",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const constant = 1;\nexport let value: number = 2;\nexport const text = 'hello';\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "export function f<T>(value: T, count = 1): T { return value; }\nexport function g(a: string, ...rest: number[]): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": false,
+        "listEmittedFiles": true,
+        "newLine": 0,
+        "strict": false,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true
+      },
+      "typescript_observation": {
+        "common_source_directory": "/project/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudGV4dCA9IGV4cG9ydHMudmFsdWUgPSBleHBvcnRzLmNvbnN0YW50ID0gdm9pZCAwOw0KZXhwb3J0cy5jb25zdGFudCA9IDE7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMudGV4dCA9ICdoZWxsbyc7DQo=",
+            "callback_utf8_bytes": 206,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudGV4dCA9IGV4cG9ydHMudmFsdWUgPSBleHBvcnRzLmNvbnN0YW50ID0gdm9pZCAwOw0KZXhwb3J0cy5jb25zdGFudCA9IDE7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMudGV4dCA9ICdoZWxsbyc7DQo=",
+            "materialized_utf8_bytes": 206,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sUUFBUSxJQUFJLENBQUM7QUFDMUIsZUFBTyxJQUFJLEtBQUssRUFBRSxNQUFVLENBQUM7QUFDN0IsZUFBTyxNQUFNLElBQUksVUFBVSxDQUFDIn0=",
+            "callback_utf8_bytes": 185,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sUUFBUSxJQUFJLENBQUM7QUFDMUIsZUFBTyxJQUFJLEtBQUssRUFBRSxNQUFVLENBQUM7QUFDN0IsZUFBTyxNQUFNLElBQUksVUFBVSxDQUFDIn0=",
+            "materialized_utf8_bytes": 185,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 2,
+            "path": "/project/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgY29uc3RhbnQgPSAxOw0KZXhwb3J0IGRlY2xhcmUgbGV0IHZhbHVlOiBudW1iZXI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCB0ZXh0ID0gImhlbGxvIjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgY29uc3RhbnQgPSAxOw0KZXhwb3J0IGRlY2xhcmUgbGV0IHZhbHVlOiBudW1iZXI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCB0ZXh0ID0gImhlbGxvIjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 109,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpleHBvcnRzLmcgPSBnOw0KZnVuY3Rpb24gZih2YWx1ZSwgY291bnQgPSAxKSB7IHJldHVybiB2YWx1ZTsgfQ0KZnVuY3Rpb24gZyhhLCAuLi5yZXN0KSB7IH0NCg==",
+            "callback_utf8_bytes": 187,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpleHBvcnRzLmcgPSBnOw0KZnVuY3Rpb24gZih2YWx1ZSwgY291bnQgPSAxKSB7IHJldHVybiB2YWx1ZTsgfQ0KZnVuY3Rpb24gZyhhLCAuLi5yZXN0KSB7IH0NCg==",
+            "materialized_utf8_bytes": 187,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSx3QkFBZ0IsQ0FBQyxDQUFDLENBQUMsRUFBRSxLQUFLLEVBQUUsQ0FBQyxFQUFFLEtBQUssU0FBSSxHQUFHLENBQUMsQ0FBa0I7QUFDOUQsd0JBQWdCLENBQUMsQ0FBQyxDQUFDLEVBQUUsTUFBTSxFQUFFLEdBQUcsSUFBSSxFQUFFLE1BQU0sRUFBRSxHQUFHLElBQUksQ0FBRyJ9",
+            "callback_utf8_bytes": 249,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSx3QkFBZ0IsQ0FBQyxDQUFDLENBQUMsRUFBRSxLQUFLLEVBQUUsQ0FBQyxFQUFFLEtBQUssU0FBSSxHQUFHLENBQUMsQ0FBa0I7QUFDOUQsd0JBQWdCLENBQUMsQ0FBQyxDQUFDLEVBQUUsTUFBTSxFQUFFLEdBQUcsSUFBSSxFQUFFLE1BQU0sRUFBRSxHQUFHLElBQUksQ0FBRyJ9",
+            "materialized_utf8_bytes": 249,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZjxUPih2YWx1ZTogVCwgY291bnQ/OiBudW1iZXIpOiBUOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhOiBzdHJpbmcsIC4uLnJlc3Q6IG51bWJlcltdKTogdm9pZDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuZC50cy5tYXA=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZjxUPih2YWx1ZTogVCwgY291bnQ/OiBudW1iZXIpOiBUOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhOiBzdHJpbmcsIC4uLnJlc3Q6IG51bWJlcltdKTogdm9pZDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 124,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/a.js",
+            "/project/a.d.ts",
+            "/project/a.d.ts.map",
+            "/project/b.js",
+            "/project/b.d.ts",
+            "/project/b.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "inputSourceFileNames": [
+                "/project/a.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "a.d.ts",
+                "sourceRoot": "",
+                "sources": [
+                  "a.ts"
+                ],
+                "names": [],
+                "mappings": "AAAA,eAAO,MAAM,QAAQ,IAAI,CAAC;AAC1B,eAAO,IAAI,KAAK,EAAE,MAAU,CAAC;AAC7B,eAAO,MAAM,IAAI,UAAU,CAAC"
+              }
+            },
+            {
+              "inputSourceFileNames": [
+                "/project/b.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "b.d.ts",
+                "sourceRoot": "",
+                "sources": [
+                  "b.ts"
+                ],
+                "names": [],
+                "mappings": "AAAA,wBAAgB,CAAC,CAAC,CAAC,EAAE,KAAK,EAAE,CAAC,EAAE,KAAK,SAAI,GAAG,CAAC,CAAkB;AAC9D,wBAAgB,CAAC,CAAC,CAAC,EAAE,MAAM,EAAE,GAAG,IAAI,EAAE,MAAM,EAAE,GAAG,IAAI,CAAG"
+              }
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/a.js",
+          "TSFILE: /project/a.d.ts",
+          "TSFILE: /project/a.d.ts.map",
+          "TSFILE: /project/b.js",
+          "TSFILE: /project/b.d.ts",
+          "TSFILE: /project/b.d.ts.map"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "runtime/both-external-maps",
+      "current_directory": "/project",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const constant = 1;\nexport let value: number = 2;\nexport const text = 'hello';\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "export function f<T>(value: T, count = 1): T { return value; }\nexport function g(a: string, ...rest: number[]): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": false,
+        "listEmittedFiles": true,
+        "newLine": 0,
+        "strict": false,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "sourceMap": true
+      },
+      "typescript_observation": {
+        "common_source_directory": "/project/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImEudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxRQUFRLEdBQUcsQ0FBQyxDQUFDO0FBQ2YsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ2hCLFFBQUEsSUFBSSxHQUFHLE9BQU8sQ0FBQyJ9",
+            "callback_utf8_bytes": 180,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImEudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7O0FBQWEsUUFBQSxRQUFRLEdBQUcsQ0FBQyxDQUFDO0FBQ2YsUUFBQSxLQUFLLEdBQVcsQ0FBQyxDQUFDO0FBQ2hCLFFBQUEsSUFBSSxHQUFHLE9BQU8sQ0FBQyJ9",
+            "materialized_utf8_bytes": 180,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 1,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudGV4dCA9IGV4cG9ydHMudmFsdWUgPSBleHBvcnRzLmNvbnN0YW50ID0gdm9pZCAwOw0KZXhwb3J0cy5jb25zdGFudCA9IDE7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMudGV4dCA9ICdoZWxsbyc7DQovLyMgc291cmNlTWFwcGluZ1VSTD1hLmpzLm1hcA==",
+            "callback_utf8_bytes": 235,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudGV4dCA9IGV4cG9ydHMudmFsdWUgPSBleHBvcnRzLmNvbnN0YW50ID0gdm9pZCAwOw0KZXhwb3J0cy5jb25zdGFudCA9IDE7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMudGV4dCA9ICdoZWxsbyc7DQovLyMgc291cmNlTWFwcGluZ1VSTD1hLmpzLm1hcA==",
+            "materialized_utf8_bytes": 235,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 206,
+            "data_diagnostics": []
+          },
+          {
+            "index": 2,
+            "path": "/project/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sUUFBUSxJQUFJLENBQUM7QUFDMUIsZUFBTyxJQUFJLEtBQUssRUFBRSxNQUFVLENBQUM7QUFDN0IsZUFBTyxNQUFNLElBQUksVUFBVSxDQUFDIn0=",
+            "callback_utf8_bytes": 185,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sUUFBUSxJQUFJLENBQUM7QUFDMUIsZUFBTyxJQUFJLEtBQUssRUFBRSxNQUFVLENBQUM7QUFDN0IsZUFBTyxNQUFNLElBQUksVUFBVSxDQUFDIn0=",
+            "materialized_utf8_bytes": 185,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 3,
+            "path": "/project/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgY29uc3RhbnQgPSAxOw0KZXhwb3J0IGRlY2xhcmUgbGV0IHZhbHVlOiBudW1iZXI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCB0ZXh0ID0gImhlbGxvIjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgY29uc3RhbnQgPSAxOw0KZXhwb3J0IGRlY2xhcmUgbGV0IHZhbHVlOiBudW1iZXI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCB0ZXh0ID0gImhlbGxvIjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 109,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/b.js.map",
+            "kind": "javascript-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxjQUE4RDtBQUM5RCxjQUF3RDtBQUR4RCxTQUFnQixDQUFDLENBQUksS0FBUSxFQUFFLEtBQUssR0FBRyxDQUFDLElBQU8sT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDO0FBQzlELFNBQWdCLENBQUMsQ0FBQyxDQUFTLEVBQUUsR0FBRyxJQUFjLElBQVMsQ0FBQyJ9",
+            "callback_utf8_bytes": 240,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5qcyIsInNvdXJjZVJvb3QiOiIiLCJzb3VyY2VzIjpbImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6Ijs7QUFBQSxjQUE4RDtBQUM5RCxjQUF3RDtBQUR4RCxTQUFnQixDQUFDLENBQUksS0FBUSxFQUFFLEtBQUssR0FBRyxDQUFDLElBQU8sT0FBTyxLQUFLLENBQUMsQ0FBQyxDQUFDO0FBQzlELFNBQWdCLENBQUMsQ0FBQyxDQUFTLEVBQUUsR0FBRyxJQUFjLElBQVMsQ0FBQyJ9",
+            "materialized_utf8_bytes": 240,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpleHBvcnRzLmcgPSBnOw0KZnVuY3Rpb24gZih2YWx1ZSwgY291bnQgPSAxKSB7IHJldHVybiB2YWx1ZTsgfQ0KZnVuY3Rpb24gZyhhLCAuLi5yZXN0KSB7IH0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "callback_utf8_bytes": 216,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpleHBvcnRzLmcgPSBnOw0KZnVuY3Rpb24gZih2YWx1ZSwgY291bnQgPSAxKSB7IHJldHVybiB2YWx1ZTsgfQ0KZnVuY3Rpb24gZyhhLCAuLi5yZXN0KSB7IH0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuanMubWFw",
+            "materialized_utf8_bytes": 216,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 187,
+            "data_diagnostics": []
+          },
+          {
+            "index": 6,
+            "path": "/project/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSx3QkFBZ0IsQ0FBQyxDQUFDLENBQUMsRUFBRSxLQUFLLEVBQUUsQ0FBQyxFQUFFLEtBQUssU0FBSSxHQUFHLENBQUMsQ0FBa0I7QUFDOUQsd0JBQWdCLENBQUMsQ0FBQyxDQUFDLEVBQUUsTUFBTSxFQUFFLEdBQUcsSUFBSSxFQUFFLE1BQU0sRUFBRSxHQUFHLElBQUksQ0FBRyJ9",
+            "callback_utf8_bytes": 249,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSx3QkFBZ0IsQ0FBQyxDQUFDLENBQUMsRUFBRSxLQUFLLEVBQUUsQ0FBQyxFQUFFLEtBQUssU0FBSSxHQUFHLENBQUMsQ0FBa0I7QUFDOUQsd0JBQWdCLENBQUMsQ0FBQyxDQUFDLEVBQUUsTUFBTSxFQUFFLEdBQUcsSUFBSSxFQUFFLE1BQU0sRUFBRSxHQUFHLElBQUksQ0FBRyJ9",
+            "materialized_utf8_bytes": 249,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 7,
+            "path": "/project/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZjxUPih2YWx1ZTogVCwgY291bnQ/OiBudW1iZXIpOiBUOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhOiBzdHJpbmcsIC4uLnJlc3Q6IG51bWJlcltdKTogdm9pZDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuZC50cy5tYXA=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZjxUPih2YWx1ZTogVCwgY291bnQ/OiBudW1iZXIpOiBUOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhOiBzdHJpbmcsIC4uLnJlc3Q6IG51bWJlcltdKTogdm9pZDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 124,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/a.js",
+            "/project/a.js.map",
+            "/project/a.d.ts",
+            "/project/a.d.ts.map",
+            "/project/b.js",
+            "/project/b.js.map",
+            "/project/b.d.ts",
+            "/project/b.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "inputSourceFileNames": [
+                "/project/a.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "a.js",
+                "sourceRoot": "",
+                "sources": [
+                  "a.ts"
+                ],
+                "names": [],
+                "mappings": ";;;AAAa,QAAA,QAAQ,GAAG,CAAC,CAAC;AACf,QAAA,KAAK,GAAW,CAAC,CAAC;AAChB,QAAA,IAAI,GAAG,OAAO,CAAC"
+              }
+            },
+            {
+              "inputSourceFileNames": [
+                "/project/a.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "a.d.ts",
+                "sourceRoot": "",
+                "sources": [
+                  "a.ts"
+                ],
+                "names": [],
+                "mappings": "AAAA,eAAO,MAAM,QAAQ,IAAI,CAAC;AAC1B,eAAO,IAAI,KAAK,EAAE,MAAU,CAAC;AAC7B,eAAO,MAAM,IAAI,UAAU,CAAC"
+              }
+            },
+            {
+              "inputSourceFileNames": [
+                "/project/b.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "b.js",
+                "sourceRoot": "",
+                "sources": [
+                  "b.ts"
+                ],
+                "names": [],
+                "mappings": ";;AAAA,cAA8D;AAC9D,cAAwD;AADxD,SAAgB,CAAC,CAAI,KAAQ,EAAE,KAAK,GAAG,CAAC,IAAO,OAAO,KAAK,CAAC,CAAC,CAAC;AAC9D,SAAgB,CAAC,CAAC,CAAS,EAAE,GAAG,IAAc,IAAS,CAAC"
+              }
+            },
+            {
+              "inputSourceFileNames": [
+                "/project/b.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "b.d.ts",
+                "sourceRoot": "",
+                "sources": [
+                  "b.ts"
+                ],
+                "names": [],
+                "mappings": "AAAA,wBAAgB,CAAC,CAAC,CAAC,EAAE,KAAK,EAAE,CAAC,EAAE,KAAK,SAAI,GAAG,CAAC,CAAkB;AAC9D,wBAAgB,CAAC,CAAC,CAAC,EAAE,MAAM,EAAE,GAAG,IAAI,EAAE,MAAM,EAAE,GAAG,IAAI,CAAG"
+              }
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/a.js",
+          "TSFILE: /project/a.js.map",
+          "TSFILE: /project/a.d.ts",
+          "TSFILE: /project/a.d.ts.map",
+          "TSFILE: /project/b.js",
+          "TSFILE: /project/b.js.map",
+          "TSFILE: /project/b.d.ts",
+          "TSFILE: /project/b.d.ts.map"
+        ],
+        "exit_code": 0
+      }
+    },
+    {
+      "case_id": "runtime/inline-javascript-external-declaration",
+      "current_directory": "/project",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "export const constant = 1;\nexport let value: number = 2;\nexport const text = 'hello';\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "export function f<T>(value: T, count = 1): T { return value; }\nexport function g(a: string, ...rest: number[]): void {}\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 1,
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": false,
+        "listEmittedFiles": true,
+        "newLine": 0,
+        "strict": false,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "inlineSourceMap": true,
+        "inlineSources": true
+      },
+      "typescript_observation": {
+        "common_source_directory": "/project/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/a.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudGV4dCA9IGV4cG9ydHMudmFsdWUgPSBleHBvcnRzLmNvbnN0YW50ID0gdm9pZCAwOw0KZXhwb3J0cy5jb25zdGFudCA9IDE7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMudGV4dCA9ICdoZWxsbyc7DQovLyMgc291cmNlTWFwcGluZ1VSTD1kYXRhOmFwcGxpY2F0aW9uL2pzb247YmFzZTY0LGV5SjJaWEp6YVc5dUlqb3pMQ0ptYVd4bElqb2lZUzVxY3lJc0luTnZkWEpqWlZKdmIzUWlPaUlpTENKemIzVnlZMlZ6SWpwYkltRXVkSE1pWFN3aWJtRnRaWE1pT2x0ZExDSnRZWEJ3YVc1bmN5STZJanM3TzBGQlFXRXNVVUZCUVN4UlFVRlJMRWRCUVVjc1EwRkJReXhEUVVGRE8wRkJRMllzVVVGQlFTeExRVUZMTEVkQlFWY3NRMEZCUXl4RFFVRkRPMEZCUTJoQ0xGRkJRVUVzU1VGQlNTeEhRVUZITEU5QlFVOHNRMEZCUXlJc0luTnZkWEpqWlhORGIyNTBaVzUwSWpwYkltVjRjRzl5ZENCamIyNXpkQ0JqYjI1emRHRnVkQ0E5SURFN1hHNWxlSEJ2Y25RZ2JHVjBJSFpoYkhWbE9pQnVkVzFpWlhJZ1BTQXlPMXh1Wlhod2IzSjBJR052Ym5OMElIUmxlSFFnUFNBbmFHVnNiRzhuTzF4dUlsMTk=",
+            "callback_utf8_bytes": 644,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMudGV4dCA9IGV4cG9ydHMudmFsdWUgPSBleHBvcnRzLmNvbnN0YW50ID0gdm9pZCAwOw0KZXhwb3J0cy5jb25zdGFudCA9IDE7DQpleHBvcnRzLnZhbHVlID0gMjsNCmV4cG9ydHMudGV4dCA9ICdoZWxsbyc7DQovLyMgc291cmNlTWFwcGluZ1VSTD1kYXRhOmFwcGxpY2F0aW9uL2pzb247YmFzZTY0LGV5SjJaWEp6YVc5dUlqb3pMQ0ptYVd4bElqb2lZUzVxY3lJc0luTnZkWEpqWlZKdmIzUWlPaUlpTENKemIzVnlZMlZ6SWpwYkltRXVkSE1pWFN3aWJtRnRaWE1pT2x0ZExDSnRZWEJ3YVc1bmN5STZJanM3TzBGQlFXRXNVVUZCUVN4UlFVRlJMRWRCUVVjc1EwRkJReXhEUVVGRE8wRkJRMllzVVVGQlFTeExRVUZMTEVkQlFWY3NRMEZCUXl4RFFVRkRPMEZCUTJoQ0xGRkJRVUVzU1VGQlNTeEhRVUZITEU5QlFVOHNRMEZCUXlJc0luTnZkWEpqWlhORGIyNTBaVzUwSWpwYkltVjRjRzl5ZENCamIyNXpkQ0JqYjI1emRHRnVkQ0E5SURFN1hHNWxlSEJ2Y25RZ2JHVjBJSFpoYkhWbE9pQnVkVzFpWlhJZ1BTQXlPMXh1Wlhod2IzSjBJR052Ym5OMElIUmxlSFFnUFNBbmFHVnNiRzhuTzF4dUlsMTk=",
+            "materialized_utf8_bytes": 644,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 206,
+            "data_diagnostics": []
+          },
+          {
+            "index": 1,
+            "path": "/project/a.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sUUFBUSxJQUFJLENBQUM7QUFDMUIsZUFBTyxJQUFJLEtBQUssRUFBRSxNQUFVLENBQUM7QUFDN0IsZUFBTyxNQUFNLElBQUksVUFBVSxDQUFDIn0=",
+            "callback_utf8_bytes": 185,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxlQUFPLE1BQU0sUUFBUSxJQUFJLENBQUM7QUFDMUIsZUFBTyxJQUFJLEtBQUssRUFBRSxNQUFVLENBQUM7QUFDN0IsZUFBTyxNQUFNLElBQUksVUFBVSxDQUFDIn0=",
+            "materialized_utf8_bytes": 185,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 2,
+            "path": "/project/a.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgY29uc3RhbnQgPSAxOw0KZXhwb3J0IGRlY2xhcmUgbGV0IHZhbHVlOiBudW1iZXI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCB0ZXh0ID0gImhlbGxvIjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "callback_utf8_bytes": 140,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgY29uc3RhbnQgPSAxOw0KZXhwb3J0IGRlY2xhcmUgbGV0IHZhbHVlOiBudW1iZXI7DQpleHBvcnQgZGVjbGFyZSBjb25zdCB0ZXh0ID0gImhlbGxvIjsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWEuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 140,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 109,
+            "data_diagnostics": []
+          },
+          {
+            "index": 3,
+            "path": "/project/b.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpleHBvcnRzLmcgPSBnOw0KZnVuY3Rpb24gZih2YWx1ZSwgY291bnQgPSAxKSB7IHJldHVybiB2YWx1ZTsgfQ0KZnVuY3Rpb24gZyhhLCAuLi5yZXN0KSB7IH0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaVlpNXFjeUlzSW5OdmRYSmpaVkp2YjNRaU9pSWlMQ0p6YjNWeVkyVnpJanBiSW1JdWRITWlYU3dpYm1GdFpYTWlPbHRkTENKdFlYQndhVzVuY3lJNklqczdRVUZCUVN4alFVRTRSRHRCUVVNNVJDeGpRVUYzUkR0QlFVUjRSQ3hUUVVGblFpeERRVUZETEVOQlFVa3NTMEZCVVN4RlFVRkZMRXRCUVVzc1IwRkJSeXhEUVVGRExFbEJRVThzVDBGQlR5eExRVUZMTEVOQlFVTXNRMEZCUXl4RFFVRkRPMEZCUXpsRUxGTkJRV2RDTEVOQlFVTXNRMEZCUXl4RFFVRlRMRVZCUVVVc1IwRkJSeXhKUVVGakxFbEJRVk1zUTBGQlF5SXNJbk52ZFhKalpYTkRiMjUwWlc1MElqcGJJbVY0Y0c5eWRDQm1kVzVqZEdsdmJpQm1QRlErS0haaGJIVmxPaUJVTENCamIzVnVkQ0E5SURFcE9pQlVJSHNnY21WMGRYSnVJSFpoYkhWbE95QjlYRzVsZUhCdmNuUWdablZ1WTNScGIyNGdaeWhoT2lCemRISnBibWNzSUM0dUxuSmxjM1E2SUc1MWJXSmxjbHRkS1RvZ2RtOXBaQ0I3ZlZ4dUlsMTk=",
+            "callback_utf8_bytes": 749,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCmV4cG9ydHMuZiA9IGY7DQpleHBvcnRzLmcgPSBnOw0KZnVuY3Rpb24gZih2YWx1ZSwgY291bnQgPSAxKSB7IHJldHVybiB2YWx1ZTsgfQ0KZnVuY3Rpb24gZyhhLCAuLi5yZXN0KSB7IH0NCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWRhdGE6YXBwbGljYXRpb24vanNvbjtiYXNlNjQsZXlKMlpYSnphVzl1SWpvekxDSm1hV3hsSWpvaVlpNXFjeUlzSW5OdmRYSmpaVkp2YjNRaU9pSWlMQ0p6YjNWeVkyVnpJanBiSW1JdWRITWlYU3dpYm1GdFpYTWlPbHRkTENKdFlYQndhVzVuY3lJNklqczdRVUZCUVN4alFVRTRSRHRCUVVNNVJDeGpRVUYzUkR0QlFVUjRSQ3hUUVVGblFpeERRVUZETEVOQlFVa3NTMEZCVVN4RlFVRkZMRXRCUVVzc1IwRkJSeXhEUVVGRExFbEJRVThzVDBGQlR5eExRVUZMTEVOQlFVTXNRMEZCUXl4RFFVRkRPMEZCUXpsRUxGTkJRV2RDTEVOQlFVTXNRMEZCUXl4RFFVRlRMRVZCUVVVc1IwRkJSeXhKUVVGakxFbEJRVk1zUTBGQlF5SXNJbk52ZFhKalpYTkRiMjUwWlc1MElqcGJJbVY0Y0c5eWRDQm1kVzVqZEdsdmJpQm1QRlErS0haaGJIVmxPaUJVTENCamIzVnVkQ0E5SURFcE9pQlVJSHNnY21WMGRYSnVJSFpoYkhWbE95QjlYRzVsZUhCdmNuUWdablZ1WTNScGIyNGdaeWhoT2lCemRISnBibWNzSUM0dUxuSmxjM1E2SUc1MWJXSmxjbHRkS1RvZ2RtOXBaQ0I3ZlZ4dUlsMTk=",
+            "materialized_utf8_bytes": 749,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 187,
+            "data_diagnostics": []
+          },
+          {
+            "index": 4,
+            "path": "/project/b.d.ts.map",
+            "kind": "declaration-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSx3QkFBZ0IsQ0FBQyxDQUFDLENBQUMsRUFBRSxLQUFLLEVBQUUsQ0FBQyxFQUFFLEtBQUssU0FBSSxHQUFHLENBQUMsQ0FBa0I7QUFDOUQsd0JBQWdCLENBQUMsQ0FBQyxDQUFDLEVBQUUsTUFBTSxFQUFFLEdBQUcsSUFBSSxFQUFFLE1BQU0sRUFBRSxHQUFHLElBQUksQ0FBRyJ9",
+            "callback_utf8_bytes": 249,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYi5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSx3QkFBZ0IsQ0FBQyxDQUFDLENBQUMsRUFBRSxLQUFLLEVBQUUsQ0FBQyxFQUFFLEtBQUssU0FBSSxHQUFHLENBQUMsQ0FBa0I7QUFDOUQsd0JBQWdCLENBQUMsQ0FBQyxDQUFDLEVBQUUsTUFBTSxFQUFFLEdBQUcsSUFBSSxFQUFFLE1BQU0sRUFBRSxHQUFHLElBQUksQ0FBRyJ9",
+            "materialized_utf8_bytes": 249,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": false,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null
+          },
+          {
+            "index": 5,
+            "path": "/project/b.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZjxUPih2YWx1ZTogVCwgY291bnQ/OiBudW1iZXIpOiBUOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhOiBzdHJpbmcsIC4uLnJlc3Q6IG51bWJlcltdKTogdm9pZDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuZC50cy5tYXA=",
+            "callback_utf8_bytes": 155,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZjxUPih2YWx1ZTogVCwgY291bnQ/OiBudW1iZXIpOiBUOw0KZXhwb3J0IGRlY2xhcmUgZnVuY3Rpb24gZyhhOiBzdHJpbmcsIC4uLnJlc3Q6IG51bWJlcltdKTogdm9pZDsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWIuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 155,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": 124,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/a.js",
+            "/project/a.d.ts",
+            "/project/a.d.ts.map",
+            "/project/b.js",
+            "/project/b.d.ts",
+            "/project/b.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "inputSourceFileNames": [
+                "/project/a.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "a.js",
+                "sourceRoot": "",
+                "sources": [
+                  "a.ts"
+                ],
+                "names": [],
+                "mappings": ";;;AAAa,QAAA,QAAQ,GAAG,CAAC,CAAC;AACf,QAAA,KAAK,GAAW,CAAC,CAAC;AAChB,QAAA,IAAI,GAAG,OAAO,CAAC",
+                "sourcesContent": [
+                  "export const constant = 1;\nexport let value: number = 2;\nexport const text = 'hello';\n"
+                ]
+              }
+            },
+            {
+              "inputSourceFileNames": [
+                "/project/a.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "a.d.ts",
+                "sourceRoot": "",
+                "sources": [
+                  "a.ts"
+                ],
+                "names": [],
+                "mappings": "AAAA,eAAO,MAAM,QAAQ,IAAI,CAAC;AAC1B,eAAO,IAAI,KAAK,EAAE,MAAU,CAAC;AAC7B,eAAO,MAAM,IAAI,UAAU,CAAC"
+              }
+            },
+            {
+              "inputSourceFileNames": [
+                "/project/b.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "b.js",
+                "sourceRoot": "",
+                "sources": [
+                  "b.ts"
+                ],
+                "names": [],
+                "mappings": ";;AAAA,cAA8D;AAC9D,cAAwD;AADxD,SAAgB,CAAC,CAAI,KAAQ,EAAE,KAAK,GAAG,CAAC,IAAO,OAAO,KAAK,CAAC,CAAC,CAAC;AAC9D,SAAgB,CAAC,CAAC,CAAS,EAAE,GAAG,IAAc,IAAS,CAAC",
+                "sourcesContent": [
+                  "export function f<T>(value: T, count = 1): T { return value; }\nexport function g(a: string, ...rest: number[]): void {}\n"
+                ]
+              }
+            },
+            {
+              "inputSourceFileNames": [
+                "/project/b.ts"
+              ],
+              "sourceMap": {
+                "version": 3,
+                "file": "b.d.ts",
+                "sourceRoot": "",
+                "sources": [
+                  "b.ts"
+                ],
+                "names": [],
+                "mappings": "AAAA,wBAAgB,CAAC,CAAC,CAAC,EAAE,KAAK,EAAE,CAAC,EAAE,KAAK,SAAI,GAAG,CAAC,CAAkB;AAC9D,wBAAgB,CAAC,CAAC,CAAC,EAAE,MAAM,EAAE,GAAG,IAAI,EAAE,MAAM,EAAE,GAAG,IAAI,CAAG"
+              }
+            }
+          ]
+        },
+        "status_writes": [
+          "TSFILE: /project/a.js",
+          "TSFILE: /project/a.d.ts",
+          "TSFILE: /project/a.d.ts.map",
+          "TSFILE: /project/b.js",
+          "TSFILE: /project/b.d.ts",
+          "TSFILE: /project/b.d.ts.map"
+        ],
+        "exit_code": 0
+      }
+    }
+  ]
+}

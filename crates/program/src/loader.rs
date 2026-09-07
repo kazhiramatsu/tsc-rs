@@ -1979,6 +1979,8 @@ impl<'host, 'options, 'resolver> StagedGraph<'host, 'options, 'resolver> {
             plan.as_ref()
                 .map_or(0, |plan| plan.observed_request_occurrence_count()),
         );
+        prepared = prepared
+            .with_is_external_module(plan.as_ref().is_some_and(|plan| plan.is_external_module()));
         let path_references = plan
             .as_ref()
             .map_or_else(Vec::new, |plan| plan.path_references().to_vec());

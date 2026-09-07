@@ -36,7 +36,8 @@ pub(crate) struct TransformState {
 
 impl TransformState {
     /// tsrs-native: source-only transformDeclarations state reset
-    /// (_tsc.js:114513-114530; bundle reset is deliberately absent).
+    /// (_tsc.js:114513-114530). The bundle visitor starts from the same
+    /// source-local state and then sets its bundle/ambient-wrapper flags.
     pub(crate) fn for_source(source: TransformSourceId, root: TransformNode) -> Self {
         Self {
             needs_declare: true,

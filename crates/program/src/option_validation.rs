@@ -36,6 +36,11 @@ pub enum CompilerOptionViolation {
     IsolatedDeclarationsRequiresDeclaration,
     EmitDeclarationOnlyRequiresDeclaration,
     DeclarationDirectoryRequiresDeclaration,
+    DeclarationDirectoryConflictsWithOutFile,
+    DeclarationMapRequiresDeclaration,
+    ResolveJsonModuleConflictsWithClassicResolution,
+    ResolveJsonModuleConflictsWithModule,
+    OutFileRequiresAmdOrSystemModule,
     ReactNamespaceConflictsWithJsxFactory,
     JsxFactoryConflictsWithAutomaticRuntime { jsx: &'static str },
     InvalidJsxFactory { value: String },
@@ -70,6 +75,11 @@ impl CompilerOptionViolation {
             }
             Self::EmitDeclarationOnlyRequiresDeclaration => &["emitDeclarationOnly", "declaration"],
             Self::DeclarationDirectoryRequiresDeclaration => &["declarationDir", "declaration"],
+            Self::DeclarationDirectoryConflictsWithOutFile => &["declarationDir", "outFile"],
+            Self::DeclarationMapRequiresDeclaration => &["declarationMap", "declaration"],
+            Self::ResolveJsonModuleConflictsWithClassicResolution => &["resolveJsonModule"],
+            Self::ResolveJsonModuleConflictsWithModule => &["resolveJsonModule", "module"],
+            Self::OutFileRequiresAmdOrSystemModule => &["outFile", "module"],
             Self::ReactNamespaceConflictsWithJsxFactory => &["reactNamespace", "jsxFactory"],
             Self::JsxFactoryConflictsWithAutomaticRuntime { .. }
             | Self::InvalidJsxFactory { .. } => &["jsxFactory"],
@@ -135,6 +145,26 @@ impl CompilerOptionViolation {
             Self::DeclarationDirectoryRequiresDeclaration => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                 &["declarationDir".to_owned(), "declaration".to_owned(), "composite".to_owned()],
+            ),
+            Self::DeclarationDirectoryConflictsWithOutFile => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_with_option_1,
+                &["declarationDir".to_owned(), "outFile".to_owned()],
+            ),
+            Self::DeclarationMapRequiresDeclaration => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                &["declarationMap".to_owned(), "declaration".to_owned(), "composite".to_owned()],
+            ),
+            Self::OutFileRequiresAmdOrSystemModule => MessageChain::new(
+                &gen::Only_amd_and_system_modules_are_supported_alongside_0,
+                &["outFile".to_owned()],
+            ),
+            Self::ResolveJsonModuleConflictsWithClassicResolution => MessageChain::new(
+                &gen::Option_resolveJsonModule_cannot_be_specified_when_moduleResolution_is_set_to_classic,
+                &[],
+            ),
+            Self::ResolveJsonModuleConflictsWithModule => MessageChain::new(
+                &gen::Option_resolveJsonModule_cannot_be_specified_when_module_is_set_to_none_system_or_umd,
+                &[],
             ),
             Self::ReactNamespaceConflictsWithJsxFactory => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_with_option_1,
@@ -221,6 +251,9 @@ impl CompilerOptionViolation {
 /// tsc-port: verifyCompilerOptions @6.0.3 (declaration-only prerequisite)
 /// tsc-hash: 502558caa3484d85116380b71c5ffce3864d14b552e9368298016a238d9aee9f
 /// tsc-span: _tsc.js:124946-124953
+/// tsc-port: verifyCompilerOptions @6.0.3 (declaration map prerequisite)
+/// tsc-hash: e1006c5a6a1d61f895b10092c7e7cff24f64d570cca0d9a4d13f30f4ba0c8c46
+/// tsc-span: _tsc.js:124874-124876
 pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptionViolation> {
     let mut violations = Vec::new();
     if options.strict_property_initialization == Some(true)
@@ -278,16 +311,53 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
     if map_root && !(source_map || options.declaration_map == Some(true)) {
         violations.push(CompilerOptionViolation::MapRootRequiresSourceMapOrDeclarationMap);
     }
-    // declarationDir prerequisite (:124866-124869); the outFile profile
-    // remains the separately refused H2.7d bundle axis.
+    // verifyCompilerOptions (:124866-124872) reports these independently.
     if options
         .declaration_dir
         .as_deref()
         .is_some_and(|directory| !directory.is_empty())
+    {
+        if options.declaration != Some(true) && options.composite != Some(true) {
+            violations.push(CompilerOptionViolation::DeclarationDirectoryRequiresDeclaration);
+        }
+        if options
+            .out_file
+            .as_deref()
+            .is_some_and(|path| !path.is_empty())
+        {
+            violations.push(CompilerOptionViolation::DeclarationDirectoryConflictsWithOutFile);
+        }
+    }
+    if options.declaration_map == Some(true)
         && options.declaration != Some(true)
         && options.composite != Some(true)
     {
-        violations.push(CompilerOptionViolation::DeclarationDirectoryRequiresDeclaration);
+        violations.push(CompilerOptionViolation::DeclarationMapRequiresDeclaration);
+    }
+    // verifyCompilerOptions (:124891-124894) tests the raw module option,
+    // including JavaScript falsiness of None=0. An absent module instead
+    // belongs to the source-dependent TS6131 branch, not this relation.
+    if options
+        .out_file
+        .as_deref()
+        .is_some_and(|path| !path.is_empty())
+        && options.emit_declaration_only != Some(true)
+        && options
+            .module
+            .is_some_and(|module| !matches!(module, 0 | 2 | 4))
+    {
+        violations.push(CompilerOptionViolation::OutFileRequiresAmdOrSystemModule);
+    }
+    // verifyCompilerOptions (:124901-124907) uses the computed options.
+    // Classic resolution takes precedence over unsupported JSON emit modules.
+    // This relationship is independent of outFile and emitDeclarationOnly.
+    if options.resolve_json_module_effective() {
+        if options.emit_module_resolution_kind() == 1 {
+            violations
+                .push(CompilerOptionViolation::ResolveJsonModuleConflictsWithClassicResolution);
+        } else if matches!(options.emit_module_kind(), 0 | 3 | 4) {
+            violations.push(CompilerOptionViolation::ResolveJsonModuleConflictsWithModule);
+        }
     }
     if options.emit_declaration_only == Some(true)
         && options.declaration != Some(true)
