@@ -99,6 +99,8 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/emitter/src/declaration_map.rs",
   "crates/emitter/tests/fixtures/bundle-plan.json",
   "crates/emitter/tests/unit/bundle_plan/tests.rs",
+  "crates/program/tests/h2_7d_bundle_source_facts.rs",
+  "crates/compiler/tests/fixtures/declaration-map-apis.json",
   "crates/compiler/tests/fixtures/h2-7c-corpus-inputs.json",
   "crates/compiler/tests/integration/h2_7c_corpus.rs",
   "crates/xtask/src/h2_7c_acceptance.rs",
@@ -659,8 +661,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 287,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 287)`,
+    runtimeInputSet.size === 289,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 289)`,
   );
 
   return withFingerprint(
