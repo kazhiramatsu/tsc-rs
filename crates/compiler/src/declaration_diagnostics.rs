@@ -5,7 +5,7 @@ use tsc_checker::AuthoritativeSourceToken;
 use tsc_diagnostics::{sort_and_dedupe_diagnostics, DiagnosticList};
 use tsc_emitter::{
     get_declaration_diagnostics, EmitContractViolation, EmitFailure, EmitHost, EmitSelection,
-    H2ActivityCanary, H2ActivityCounters, PlanDeclarationPaths,
+    H2ActivityCanary, H2ActivityCounters, H2RuntimeSlice, PlanDeclarationPaths,
 };
 use tsc_program::{PreparedProgram, SourceFileId};
 
@@ -37,7 +37,7 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
             checker,
             paths,
             cache: BTreeMap::new(),
-            activity: H2ActivityCanary::h2_7b_profile(),
+            activity: H2ActivityCanary::h2_7c_profile(),
         })
     }
 
@@ -50,6 +50,7 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
         &mut self,
         selection: EmitSelection,
     ) -> Result<DiagnosticList, DriverError> {
+        self.activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
         let sources = match selection {
             EmitSelection::WholeProgram => self.host.source_file_ids().to_vec(),
             EmitSelection::TargetSourceFile(source) => vec![source],

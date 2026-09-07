@@ -158,11 +158,28 @@ pub(super) fn assert_corpus(artifact: &Value) {
                         tsc_emitter::EmitFailure::UnsupportedCompilerOption{option: actual}) if actual == option));
                     assert!(sink.writes().is_empty());
                 } else {
-                    super::h2_7b_w4a_controls::assert_exact_observation(
+                    let activity = super::h2_7b_w4a_controls::assert_exact_observation(
                         case_id,
                         prepared,
                         &case["typescript_observation"],
                     );
+                    assert_eq!(
+                        activity.runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
+                        1,
+                        "{case_id}: one admitted declaration option request"
+                    );
+                    for slice in tsc_emitter::H2RuntimeSlice::ALL {
+                        if slice == tsc_emitter::H2RuntimeSlice::H2_7a
+                            || slice > tsc_emitter::H2RuntimeSlice::H2_7c
+                        {
+                            assert_eq!(
+                                activity.runtime_slice(slice),
+                                0,
+                                "{case_id}: inactive {}",
+                                slice.name()
+                            );
+                        }
+                    }
                 }
             }
         });

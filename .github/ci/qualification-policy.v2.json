@@ -35,10 +35,10 @@
       "crates/xtask/src/h2_3d_acceptance.rs": "f968c8c9fc033109318e38f49f40633d0a2bacaadb9637dc7c419d9b68ccc980",
       "crates/xtask/src/h2_7c_acceptance.rs": "364ffc71980dd25b772930adc3bc6e6b3beea6e0935b181e92fa0d2030a3679e",
       "crates/compiler/tests/integration/h2_7b_w4a_controls.rs": "c90310a802d3a2538467c18eebc338f586a9237253049fbd6a33ef9e34980aba",
-      "crates/compiler/tests/integration/h2_7c_corpus.rs": "769648b5fd3ee7eb9c9207b5fee25b21bb5055dabeec8639c48bb0b362f787c1",
+      "crates/compiler/tests/integration/h2_7c_corpus.rs": "4b044619add9f00a2c7debba1fab2dd8db8dc449039e658ec9b99eb08f859807",
       "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "1958ceef48bb871d4ac09c8b7ea8f1b3d9ee60a44280741bbe46bf2bd348440e",
-      "crates/compiler/tests/integration/h2_7c_declaration_getters.rs": "7689112a30367fd7c912435f8ccb34cc072736e0fed1bcdd52a94c239105353e",
-      "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": "f719b8c1a7ad62d053ef98902dc8797f12f746c0594c8c269b1c9b956091f8fc",
+      "crates/compiler/tests/integration/h2_7c_declaration_getters.rs": "81c49865461f6b29161d5bec6cfbdd7ff06a097d8678127c7454b46d2edb4f82",
+      "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": "d64337e2647828fd3ef9855fd3b819279205744289e3e14def1f5ae094a58e7b",
       "crates/compiler/tests/integration/h2_7c_strip_internal.rs": "1356a92b17cc5db3685ef5da88f28860f62495592f26cea2282b45d91c14ec4b"
     }
   },

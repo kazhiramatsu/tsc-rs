@@ -147,7 +147,7 @@ pub(super) fn assert_declaration_getters() {
                     let mut transformed = BTreeSet::new();
                     let mut resolver_requests = 0;
                     let request_traces = case["owner_observation"]["resolver_requests_by_call"].as_array().unwrap();
-                    for (call, requests) in calls.iter().zip(request_traces) {
+                    for (call_index, (call, requests)) in calls.iter().zip(request_traces).enumerate() {
                         resolver_requests += requests.as_array().unwrap().len() as u64;
                         let selection = call["source_file"].as_str().map_or(EmitSelection::WholeProgram,
                             |path| EmitSelection::TargetSourceFile(*sources.get(path).expect("selected source is loaded")));
@@ -157,6 +157,8 @@ pub(super) fn assert_declaration_getters() {
                         }
                         let diagnostics = getter.get_declaration_diagnostics(selection)?;
                         let activity = getter.activity();
+                        assert_eq!(activity.runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c), call_index as u64 + 1,
+                            "{case_id}: cached and empty getters still record each public request");
                         assert_eq!(activity.emit_resolver_borrows(), resolver_requests, "{case_id}: uncached non-d.ts resolver requests");
                         assert_eq!(activity.transform_context_constructions(), transformed.len() as u64, "{case_id}: each source transforms once");
                         assert_eq!(activity.emit_session_constructions(), 0, "{case_id}: no emit session");

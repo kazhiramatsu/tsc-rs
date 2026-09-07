@@ -295,7 +295,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_7b_profile();
+    let mut activity = H2ActivityCanary::h2_7c_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -340,7 +340,7 @@ pub fn print_script_units_with_recording_for_harness(
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
-    let mut activity = H2ActivityCanary::h2_7b_profile();
+    let mut activity = H2ActivityCanary::h2_7c_profile();
     let mut printed_units = Vec::new();
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -663,6 +663,18 @@ pub fn emit_files_with_activity(
         return Err(EmitFailure::Unsupported(
             crate::UnsupportedEmitFeature::TargetedSelection,
         ));
+    }
+
+    // Observe the admitted declaration request even when option diagnostics,
+    // noEmitOnError, or a declaration-only input prevent every transform.
+    // JavaScript-only noEmitOnError remains part of the earlier runtime band.
+    if options.strip_internal == Some(true)
+        || options.isolated_declarations == Some(true)
+        || options.declaration_dir.is_some()
+        || (options.no_emit_on_error == Some(true) && options.declaration == Some(true))
+        || (options.emit_declaration_only == Some(true) && options.declaration != Some(true))
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
     }
 
     let emitted_files_enabled = options.list_emitted_files == Some(true);
@@ -1004,6 +1016,7 @@ pub fn emit_forced_declarations_with_activity(
     activity: &mut H2ActivityCanary,
 ) -> Result<EmitOutcome, EmitFailure> {
     validate_forced_declaration_request(host)?;
+    activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
     let preflight = crate::plan::preflight_forced_declarations(host, selection)?;
     activity.construct_emit_session();
     activity.construct_output_plan();

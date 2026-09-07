@@ -541,3 +541,34 @@ fn h2_5h_profile_admits_only_the_twenty_three_completed_runtime_slices() {
         }
     }
 }
+
+#[test]
+fn declaration_profiles_admit_only_their_own_completed_runtime_slices() {
+    for (make_profile, last, expected_count) in [
+        (
+            H2ActivityCanary::h2_7b_profile as fn() -> H2ActivityCanary,
+            H2RuntimeSlice::H2_7b,
+            27,
+        ),
+        (
+            H2ActivityCanary::h2_7c_profile as fn() -> H2ActivityCanary,
+            H2RuntimeSlice::H2_7c,
+            28,
+        ),
+    ] {
+        let mut canary = make_profile();
+        let mut count = 0;
+        for slice in H2RuntimeSlice::ALL {
+            if slice <= last && slice != H2RuntimeSlice::H2_7a {
+                canary.observe_runtime_slice(slice);
+                assert_eq!(canary.counters().runtime_slice(slice), 1);
+                count += 1;
+            } else {
+                let result =
+                    std::panic::catch_unwind(|| make_profile().observe_runtime_slice(slice));
+                assert!(result.is_err(), "{} did not fail closed", slice.name());
+            }
+        }
+        assert_eq!(count, expected_count);
+    }
+}

@@ -22,8 +22,9 @@ pass. The formal TypeScript qualification now records all 42 original corpus
 rows (31 exact candidates, 11 deferred), with 32 repeated observations identical
 to the draft, and separately pins the 244 focused windows. The shared Rust
 corpus comparator is connected to hosted acceptance; focused controls stay
-local under the existing policy. Canary/admission and hosted acceptance remain
-open. Ordinary
+local under the existing policy. The runtime request canary now passes the
+same complete comparisons and its profile controls; whole-slice adoption and
+hosted acceptance remain open. Ordinary
 emitOnly references retain H2.8d ownership. STAGE is unchanged.
 The user-authorized lightweight workflow continues: focused complete upstream
 observations and adjacent product regressions while editing, then the existing

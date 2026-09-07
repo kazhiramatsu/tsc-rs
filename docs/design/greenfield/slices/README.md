@@ -91,7 +91,7 @@ invitation to fill in the answer during implementation.
 
 | [H2.7b / ca completion and transition](h2-7b-ca.md) | Complete in the local close update (2026-09-07); adopts merged PR #509 | 1,557 exact / 0 known / 36 deferred; next H2.7c; completed runtime count 26. The lightweight workflow retains the hosted runtime evidence and omits the historical certificate walk. |
 
-| [H2.7c declaration diagnostics and options](h2-7c.md) | Twelve locally validated packets; whole-slice qualification and hosted acceptance remain open (2026-09-07) | stripInternal, declaration blocking, isolated diagnostics, declarationDir, public getters and forced emit. Current production passes 244 focused windows twice (241 exact / three outDir refusals), plus an original-input probe with 31 exact / one rootDir refusal. The API commit passes diagnostic conformance FP/FN zero and the 1,557/36 declaration band. STAGE is unchanged. |
+| [H2.7c declaration diagnostics and options](h2-7c.md) | Twelve locally validated packets, formal corpus qualification and a runtime canary candidate; adoption and hosted acceptance remain open (2026-09-07) | stripInternal, declaration blocking, isolated diagnostics, declarationDir, public getters and forced emit. Current production passes 244 focused windows twice (241 exact / three outDir refusals), plus the original corpus with 31 exact / one rootDir refusal. The 42-row qualification retains 11 later-owner cases. Request accounting and old-profile refusal controls pass. STAGE is unchanged. |
 
 The packet-control bootstrap added the shared versioned packet schema/checker
 and completed its pre-closure purpose: FCI-1a through FCI-5b and the FCI-5c.1

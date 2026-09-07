@@ -213,6 +213,14 @@ pub(super) fn assert_cases(source_family: SourceFamily) {
                         None => Value::Null,
                         Some(other) => panic!("unexpected priming operation {other}"),
                     };
+                    let mut declaration_requests =
+                        u64::from(case["before"] == "declaration-diagnostics");
+                    assert_eq!(
+                        declarations
+                            .activity()
+                            .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
+                        declaration_requests
+                    );
                     let mut requests = case["owner_observation"]["before_resolver_requests"]
                         .as_array()
                         .unwrap()
@@ -237,6 +245,14 @@ pub(super) fn assert_cases(source_family: SourceFamily) {
                         let mut sink = MemoryOutputSink::new();
                         let outcome =
                             declarations.emit_forced_declarations(selection, &mut sink)?;
+                        declaration_requests += 1;
+                        assert_eq!(
+                            outcome
+                                .h2_activity()
+                                .runtime_slice(tsc_emitter::H2RuntimeSlice::H2_7c),
+                            declaration_requests,
+                            "{case_id}: every forced request, including empty programs"
+                        );
                         assert_eq!(
                             declarations.activity().emit_resolver_borrows(),
                             requests,
