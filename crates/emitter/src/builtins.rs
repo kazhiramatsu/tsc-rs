@@ -2432,11 +2432,31 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         let has_dynamic_import = source_contains_dynamic_import(context.arena(), current_root)?;
         let has_import_reference_substitution =
             source_contains_import_reference_substitution(context.arena(), current_root)?;
-        let requires_module_rewrite = is_external || has_dynamic_import;
+        // transformModule also enters the AMD outFile branch for JSON even
+        // though JSON has no external-module indicator (_tsc.js:110131).
+        // hasJsonModuleEmitEnabled excludes System/UMD/None; those JSON roots
+        // keep their expression and do not acquire an asynchronous wrapper.
+        let is_json = context
+            .arena()
+            .source(source)?
+            .syntax()
+            .file_name
+            .to_ascii_lowercase()
+            .ends_with(".json");
+        let json_amd_bundle = is_json
+            && self.module_kind == MODULE_AMD
+            && self.host.is_some_and(|host| {
+                host.compiler_options()
+                    .out_file
+                    .as_deref()
+                    .is_some_and(|path| !path.is_empty())
+            });
+        let requires_module_rewrite = is_external || has_dynamic_import || json_amd_bundle;
         if !requires_module_rewrite && !has_import_reference_substitution {
             return Ok(TransformRoot::SourceFile(source));
         }
         if requires_module_rewrite
+            && !is_json
             && (matches!(self.module_kind, MODULE_AMD | MODULE_UMD)
                 || self.always_strict
                 || is_external)
@@ -2469,10 +2489,15 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             },
             info,
         );
-        let mut updated = visitor.transform_source_file(current_root)?;
-        if requires_module_rewrite && matches!(self.module_kind, MODULE_AMD | MODULE_UMD) {
-            updated = visitor.wrap_asynchronous_module(updated)?;
-        }
+        let updated = if json_amd_bundle {
+            visitor.transform_amd_json_module(current_root)?
+        } else {
+            let mut updated = visitor.transform_source_file(current_root)?;
+            if requires_module_rewrite && matches!(self.module_kind, MODULE_AMD | MODULE_UMD) {
+                updated = visitor.wrap_asynchronous_module(updated)?;
+            }
+            updated
+        };
         visitor.context.arena_mut()?.replace_root(source, updated)?;
         Ok(TransformRoot::SourceFile(source))
     }
@@ -4737,6 +4762,81 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             }
         }
         Ok(AsynchronousDependencies { aliased, unaliased })
+    }
+
+    /// JSON arm of transformAMDModule (_tsc.js:110205-110280). Its third
+    /// define argument is the original JSON expression, not a module-body
+    /// function. Empty JSON supplies a synthesized empty object. Only the
+    /// outer statement-list range is copied; the payload keeps its own range.
+    fn transform_amd_json_module(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let mut source_data = match self.context.arena().node(root)?.data.clone() {
+            NodeData::SourceFile(data) => data,
+            _ => {
+                return Err(TransformError::RootKindExpected {
+                    actual: self.context.arena().node(root)?.kind,
+                })
+            }
+        };
+        let original_array = source_data
+            .statements
+            .and_then(|array| self.context.arena().node_array_ref(self.source, array));
+        let input = node_array_nodes(self.context.arena(), self.source, source_data.statements)?;
+        let payload = if let Some(&statement) = input.first() {
+            let expression = match &self.context.arena().node(statement)?.data {
+                NodeData::ExpressionStatement(data) => data.expression,
+                _ => None,
+            };
+            expression
+                .and_then(|node| self.context.arena().node_ref(self.source, node))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ExpressionStatement,
+                    field: "JSON expression",
+                })?
+        } else {
+            let properties = self
+                .context
+                .factory()?
+                .create_node_array(self.source, Vec::new())?;
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::ObjectLiteralExpression(tsc_syntax::nodes::ObjectLiteralExpressionData {
+                    properties: Some(properties.array()),
+                }),
+                TransformFlags::NONE,
+            )?
+        };
+        let module_name = crate::external_module_names::try_get_module_name_from_file(
+            self.host,
+            self.context.arena().source(self.source)?.syntax(),
+        );
+        let define = self.create_identifier("define")?;
+        let mut arguments = Vec::new();
+        if let Some(module_name) = module_name {
+            arguments.push(self.create_string_literal(&module_name)?);
+        }
+        arguments.push(self.create_array_literal(Vec::new())?);
+        arguments.push(payload);
+        let call = self.create_call(define, arguments)?;
+        let statement = self.create_expression_statement(call)?;
+        let statements = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![statement])?;
+        if let Some(original_array) = original_array {
+            let original_array = self.context.arena().node_array(original_array)?;
+            let (pos, end) = (original_array.pos, original_array.end);
+            self.context
+                .factory()?
+                .set_node_array_text_range(statements, pos, end)?;
+        }
+        source_data.statements = Some(statements.array());
+        let flags = self.context.arena().transform_flags(root);
+        self.context
+            .factory()?
+            .update_node(root, NodeData::SourceFile(source_data), flags)
     }
 
     fn wrap_asynchronous_module(
