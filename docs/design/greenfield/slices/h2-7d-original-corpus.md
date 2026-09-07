@@ -43,7 +43,11 @@ D-only includes 156 project inputs using the complete shared 233-file mount and
 the original `lib.es5.d.ts` default override, 9 configs and one file-symlink input.
 Two compiler originals also retain drive-rooted `A:/`, `B:/` or `c:/` paths on
 the POSIX test host; filesystem-native absolute-path checks do not replace TS paths.
-The mount/write/config/alias precedence mirrors the frozen observer. Config
+The mount/write/config/alias precedence mirrors the frozen observer. A test host
+adapter trims trailing separators only for directory-existence queries, matching
+the observer's canonical directory overlay while preserving MemoryCompilerHost's
+exact file keys and directory enumeration. This handles drive roots (`A:/`)
+and directory imports (`/a/src/`) without substituting source order. Config
 path remains attached while the original effective options and roots drive
 `load_emitting_program`. The frozen observer spreads parsed options, discarding
 TypeScript's non-enumerable `configFile` AST while preserving `configFilePath`.

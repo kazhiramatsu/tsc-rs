@@ -123,13 +123,58 @@ fn libraries() -> BTreeMap<String, Vec<u8>> {
     files
 }
 
+/// The TS observer's directory overlay canonicalizes directory spellings.
+/// MemoryCompilerHost deliberately retains raw keys and uses native parent paths:
+/// on POSIX, A:/file.ts creates parent A:, and /a/src/file.ts creates /a/src.
+/// Adapt only directory existence; preserve bytes, file identity, enumeration,
+/// realpath, original roots and every compiler option.
+struct OriginalCorpusHost(MemoryCompilerHost);
+
+impl CompilerHost for OriginalCorpusHost {
+    fn current_directory(&self) -> Result<PathBuf, tsc_host::HostError> {
+        self.0.current_directory()
+    }
+
+    fn use_case_sensitive_file_names(&self) -> bool {
+        self.0.use_case_sensitive_file_names()
+    }
+
+    fn read_file(&self, path: &Path) -> Result<Option<Vec<u8>>, tsc_host::HostError> {
+        self.0.read_file(path)
+    }
+
+    fn file_exists(&self, path: &Path) -> Result<bool, tsc_host::HostError> {
+        self.0.file_exists(path)
+    }
+
+    fn directory_exists(&self, path: &Path) -> Result<bool, tsc_host::HostError> {
+        let lookup = path.to_str().map(|name| name.trim_end_matches('/'));
+        match lookup {
+            Some(name) if !name.is_empty() => self.0.directory_exists(Path::new(name)),
+            _ => self.0.directory_exists(path),
+        }
+    }
+
+    fn read_directory(&self, path: &Path) -> Result<Vec<PathBuf>, tsc_host::HostError> {
+        self.0.read_directory(path)
+    }
+
+    fn get_directories(&self, path: &Path) -> Result<Vec<PathBuf>, tsc_host::HostError> {
+        self.0.get_directories(path)
+    }
+
+    fn realpath(&self, path: &Path) -> Result<Option<PathBuf>, tsc_host::HostError> {
+        self.0.realpath(path)
+    }
+}
+
 /// The observer overlays shared mounts, per-case writes, missing config, then aliases.
 /// Retaining that order matters independently of root order and discovery order.
 fn memory_host(
     case: &Value,
     input_artifact: &Value,
     libraries: &BTreeMap<String, Vec<u8>>,
-) -> MemoryCompilerHost {
+) -> OriginalCorpusHost {
     let input = &case["input"];
     assert_eq!(input["route"], "whole-program");
     let mut files = BTreeMap::<String, Vec<u8>>::new();
@@ -178,10 +223,10 @@ fn memory_host(
             link["target_path"].as_str().unwrap(),
         );
     }
-    builder.build().unwrap()
+    OriginalCorpusHost(builder.build().unwrap())
 }
 
-fn projected_options(case: &Value, host: &MemoryCompilerHost) -> (CompilerOptions, ProgramOptions) {
+fn projected_options(case: &Value, host: &dyn CompilerHost) -> (CompilerOptions, ProgramOptions) {
     let input = &case["input"];
     // The fixed observer uses createProgram(original roots, parsed options overlaid
     // with effective_options). It does not run tsc's config-program entry or replace
@@ -320,7 +365,7 @@ fn projected_options(case: &Value, host: &MemoryCompilerHost) -> (CompilerOption
     (options, program)
 }
 
-fn prepared(case: &Value, host: &MemoryCompilerHost) -> Result<PreparedProgram, ProgramLoadError> {
+fn prepared(case: &Value, host: &dyn CompilerHost) -> Result<PreparedProgram, ProgramLoadError> {
     let (options, program) = projected_options(case, host);
     let roots = strings(&case["input"]["roots"])
         .into_iter()
@@ -388,11 +433,7 @@ fn write(index: usize, artifact: &EmitArtifact) -> Value {
         "data_source_map_url_pos":position,"data_diagnostics":data_diagnostics,"data_build_info":null})
 }
 
-fn observe(
-    case: &Value,
-    host: &MemoryCompilerHost,
-    libraries: &BTreeMap<String, Vec<u8>>,
-) -> Value {
+fn observe(case: &Value, host: &dyn CompilerHost, libraries: &BTreeMap<String, Vec<u8>>) -> Value {
     let program =
         prepared(case, host).unwrap_or_else(|error| panic!("load_emitting_program: {error:?}"));
     let mut sources = Vec::new();
