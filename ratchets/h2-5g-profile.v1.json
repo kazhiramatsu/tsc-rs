@@ -17,11 +17,11 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5g-profile.mjs",
-    "sha256": "986e9183a5f6329a7a2f43b179ea1c63eb6593b92a49a74ffa9ff3569cc87c3e"
+    "sha256": "093f3175b480905a6be8186f66b672afda4cd9b99bf6cf4ecebe397c72a82003"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5g-profile.schema.json",
-    "sha256": "d93bc5c4827aa7adadaa7e578aec5296dfc96b835382c80931004b30bbd5e48c"
+    "sha256": "1bae4f3856a7b91fb7f0e4ca1fba80f9214460fbdf129c4d2a3c6c19c65d7b7b"
   },
   "origin": {
     "trusted_h2_5f_merge": "11f5d0abb93fed4b109bdb1dc552721ceb05e707",
@@ -240,7 +240,7 @@
     },
     {
       "path": "crates/emitter/tests/integration/output_plan_contract.rs",
-      "sha256": "2c2359650b3a443f497b430b399d29892c8a1086cad47001c7a1d37c66404f87"
+      "sha256": "64b3728de210ed3f697ba931415a21449d9fabf7764a47fc5a810b6622d46e66"
     },
     {
       "path": "crates/emitter/tests/unit/activity/tests.rs",
@@ -595,8 +595,12 @@
       "sha256": "4a8e17708b7b4edec981e9be40ef03d28afdb0e9a7ccf545a7c4896818783cdc"
     },
     {
+      "path": "crates/compiler/tests/fixtures/declaration-reference-paths.json",
+      "sha256": "cf4674c1728d1d2b770c58d9e2823d28469820b7abc25632457cc159b2311d01"
+    },
+    {
       "path": "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
-      "sha256": "d64337e2647828fd3ef9855fd3b819279205744289e3e14def1f5ae094a58e7b"
+      "sha256": "a02cf139a700beb958f0c8448f74c9327eae1e0c8ae0ef44eefa2978c864b714"
     },
     {
       "path": "crates/checker/src/inference.rs",
@@ -1268,7 +1272,7 @@
     },
     {
       "path": "crates/emitter/src/declarations/paths.rs",
-      "sha256": "159b18ca1ee0324f2f5d0885fdd5f282ff6056bac184ca8100dd7c138d6ce4de"
+      "sha256": "fac2970d8a434192cb90b9a7225c148e753ccfa6b2542b2e3964492bd3d84f31"
     }
   ],
   "admitted_profile": {
@@ -1484,5 +1488,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "34464fe7a7459001bb61651d142ab2ae6c7b70d2769e9eba9c0ff94516cd31b1"
+  "profile_fingerprint_sha256": "9bec68c3f5aa29219a02bec81cf3da49faab12e11cc06f934b2750404639f20e"
 }

@@ -38,7 +38,7 @@
       "crates/compiler/tests/integration/h2_7c_corpus.rs": "7aa3f5786798da6cab35c46962a7655f830ea0e00b5a216f48333d73cdee758a",
       "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs": "1958ceef48bb871d4ac09c8b7ea8f1b3d9ee60a44280741bbe46bf2bd348440e",
       "crates/compiler/tests/integration/h2_7c_declaration_getters.rs": "81c49865461f6b29161d5bec6cfbdd7ff06a097d8678127c7454b46d2edb4f82",
-      "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": "d64337e2647828fd3ef9855fd3b819279205744289e3e14def1f5ae094a58e7b",
+      "crates/compiler/tests/integration/h2_7c_forced_declarations.rs": "a02cf139a700beb958f0c8448f74c9327eae1e0c8ae0ef44eefa2978c864b714",
       "crates/compiler/tests/integration/h2_7c_strip_internal.rs": "1356a92b17cc5db3685ef5da88f28860f62495592f26cea2282b45d91c14ec4b"
     }
   },
