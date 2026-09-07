@@ -6655,7 +6655,7 @@ impl<'context, 'resolver, 'aliases> DownlevelClassVisitor<'context, 'resolver, '
                 self.context
                     .arena_mut()?
                     .metadata_mut(local)
-                    .add_flags(EmitFlags::NO_COMMENTS);
+                    .set_flags(EmitFlags::NO_COMMENTS);
                 let Some(prefix) = prefix else {
                     return Ok(local);
                 };
