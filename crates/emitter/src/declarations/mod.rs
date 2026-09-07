@@ -241,6 +241,18 @@ impl Transformer for DeclarationTransformer<'_> {
         root::transform_root(self, context, root)
     }
 
+    fn transform_bundle(
+        &mut self,
+        _context: &mut TransformationContext,
+        _bundle: crate::TransformBundle,
+    ) -> Result<crate::TransformBundle, TransformError> {
+        // Declaration bundles require their shared-reference and ambient
+        // module visitor; ordinary per-source composition is not equivalent.
+        Err(TransformError::Unsupported(
+            crate::UnsupportedEmitFeature::BundleRoot,
+        ))
+    }
+
     fn dispose(&mut self) {}
 }
 

@@ -1444,7 +1444,7 @@ impl Printer {
         let helpers = if self.options.no_emit_helpers {
             Vec::new()
         } else {
-            let mut helpers = transformation.emit_helpers().to_vec();
+            let mut helpers = transformation.emit_helpers_for_source(source_id).to_vec();
             if suppress_unscoped {
                 helpers.retain(|helper| helper.scoped());
             }
