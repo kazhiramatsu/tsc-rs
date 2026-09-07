@@ -208,7 +208,7 @@
     },
     {
       "path": "crates/emitter/src/host.rs",
-      "sha256": "9fa594441b0c0e4a307e499971c63648fe0731eb18cd21cbf144c2a668cb24d4"
+      "sha256": "8c72481355b4abad3cb6f2a14916677e8d08ee4d1a296c5d1d8c4b590eaaeea1"
     },
     {
       "path": "crates/emitter/src/lib.rs",
@@ -220,7 +220,7 @@
     },
     {
       "path": "crates/emitter/src/plan.rs",
-      "sha256": "27b30fa42f5f8b1a12283d4af26295cf30692cb50649fcb655189469260b0f3e"
+      "sha256": "e1499493a2c3a4f23ce6f3f536635db403804e418beeb7dacdd71f7ffe08ed36"
     },
     {
       "path": "crates/emitter/src/printer.rs",
@@ -560,11 +560,11 @@
     },
     {
       "path": "crates/compiler/tests/fixtures/declaration-dir.json",
-      "sha256": "6374e7ee2cd55804eb088f46d0ad856ead6582eb3173e4fa8e85f9ef5e2e724b"
+      "sha256": "103b48f41cff1317fd83fbb1a0f75e2be60f51c663cf4927d0c097d727392543"
     },
     {
       "path": "crates/compiler/tests/integration/h2_7c_declaration_dir.rs",
-      "sha256": "8b95bfd48aa9d376187aacbdcc572045bf7ece244d4301a06f5b428d3cb0b2e7"
+      "sha256": "7ca026e0d910615dc4ff0b3522d498ca2061b4adbc35c8d5af2ca0f8bfa2a50e"
     },
     {
       "path": "crates/compiler/src/declaration_diagnostics.rs",
@@ -1472,5 +1472,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "6fdfd10b1b7f7933a29e358be87620875dd7054ac743ec61d1dc5a2d2a6ce035"
+  "profile_fingerprint_sha256": "6475094ee854716d525734d2d8cc7ac7e38b49fba766bc3e086f006f136dec8d"
 }

@@ -6,16 +6,20 @@ foundation has landed; **H2.7b non-bundle declaration output is complete**.
 The [H2.7b close record](slices/h2-7b-ca.md) adopts PR #509's passing hosted
 acceptance: 1,557 exact, zero known divergences, 36 deferred. The live profile
 advances to **H2.7c, declaration diagnostics and options**. The
-[eleven locally validated implementation packets](slices/h2-7c.md) cover
+[twelve locally validated implementation packets](slices/h2-7c.md) cover
 stripInternal, declaration output blocking, isolated inference and parameter,
 accessor/computed-name, enum, expando/augmentation and private-type diagnostics,
-plus declarationDir, public getters and forced declaration emission. The final
-source passes 230 focused windows twice: 227 complete matches and three retained
-H2.8a outDir refusals with zero writes. The API packets contribute 19 getter
-programs and 37 forced programs. Full diagnostic conformance passes 7,691 cases
-with FP/FN zero; the frozen declaration band retains 1,557 exact / zero known /
-36 deferred. Whole-slice qualification and hosted acceptance remain open.
-Ordinary emitOnly references retain H2.8d ownership. STAGE is unchanged.
+plus declarationDir, public getters and forced declaration emission. The current
+production source passes 244 focused windows twice: 241 complete matches and
+three retained H2.8a outDir refusals with zero writes. The API packets contribute
+19 getter programs and 37 forced programs. Their commit `95f30f0f` passes full
+diagnostic conformance (7,691 cases, FP/FN zero) and the frozen declaration band
+(1,557 exact / zero known / 36 deferred). The twelfth packet repairs three
+relative declarationDir callback paths incorrectly made absolute and adds 14
+path/collision/reference windows. Its original-input probe passes 31 exact
+cases and one retained rootDir refusal, twice, and output-planning controls
+pass. Whole-slice qualification and hosted acceptance remain open. Ordinary
+emitOnly references retain H2.8d ownership. STAGE is unchanged.
 The user-authorized lightweight workflow continues: focused complete upstream
 observations and adjacent product regressions while editing, then the existing
 hosted acceptance before landing runtime changes. The historical certificate

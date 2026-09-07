@@ -7,7 +7,7 @@ fn declaration_dir_match_complete_typescript_observations() {
             .expect("frozen TypeScript observations");
     assert_eq!(artifact["typescript"], "6.0.3");
     assert_eq!(artifact["repetitions"], 2);
-    assert_eq!(artifact["cases"].as_array().unwrap().len(), 20);
+    assert_eq!(artifact["cases"].as_array().unwrap().len(), 34);
     assert_eq!(
         artifact["cases"]
             .as_array()

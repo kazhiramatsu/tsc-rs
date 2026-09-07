@@ -684,7 +684,9 @@ fn source_file_path_in_new_dir(
     host: &dyn EmitHost,
     output_directory: &str,
 ) -> PathBuf {
-    let output_directory = resolve_option_path(host, output_directory);
+    // getSourceFilePathInNewDirWorker (_tsc.js:16638-16643) retains the
+    // requested directory in callback paths; blocked-path comparison is canonical.
+    let output_directory = Path::new(output_directory);
     let source = absolute_display_path(host, source_file);
     let common = absolute_display_path(host, host.common_source_directory());
     let canonical_source = host.canonical_output_path(&source);

@@ -161,9 +161,9 @@ pub trait EmitHost {
 
 /// Lexically normalize a path without consulting the filesystem.
 ///
-/// Prepared Program paths and emitting option paths are already absolute and
-/// validated at their owning boundaries. This helper preserves a root and
-/// performs only the `.`/`..` simplification needed for output equality.
+/// Callers resolve display paths against the Program directory before comparing
+/// outputs. This helper preserves a root and performs only the `.`/`..`
+/// simplification needed for output equality.
 pub(crate) fn normalize_lexical_path(path: &Path) -> PathBuf {
     use std::path::Component;
 

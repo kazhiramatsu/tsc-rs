@@ -79,6 +79,24 @@ for (const noEmitOnError of [false, true]) {
 }
 add("adjacent/empty-directory#beside-source", nested, { declarationDir: "" });
 
+// Program API paths preserve a relative declarationDir in callback filenames.
+for (const declarationDir of ["types", "./types", "types/../decl", "../decl", "."]) {
+  for (const emitDeclarationOnly of [false, true]) {
+    add("adjacent/relative-directory#" + declarationDir + "#declaration-only-" + emitDeclarationOnly,
+      nested, { declarationDir, emitDeclarationOnly });
+  }
+}
+for (const noEmitOnError of [false, true]) {
+  add("adjacent/relative-collision#" + noEmitOnError,
+    { "src/a.ts": "export const value: number = 1;\n", "src/a.d.ts": "export declare const original: string;\n" },
+    { declarationDir: "src", noEmitOnError });
+}
+for (const declarationDir of ["types", "../types"]) {
+  add("adjacent/relative-reference#" + declarationDir,
+    { "src/a.ts": "export class A {}\n", "src/nested/b.ts": "import { A } from '../a'; export const value: A = new A();\n" },
+    { declarationDir });
+}
+
 // H2.8a owns these outDir combinations. Keep the full TypeScript observation
 // beside the explicit Rust boundary, without counting it as compatible emit.
 const outDirBoundaryWindows = new Set([

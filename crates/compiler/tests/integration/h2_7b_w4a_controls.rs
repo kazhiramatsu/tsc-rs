@@ -374,9 +374,10 @@ fn assert_observation_with_listing(
         "{case_id}: write count"
     );
     for (write, expected) in sink.writes().iter().zip(expected_writes) {
+        // Callback filenames are observable text; Path equality folds dot components.
         assert_eq!(
-            write.path(),
-            Path::new(expected["path"].as_str().expect("frozen write path")),
+            write.path().as_os_str(),
+            std::ffi::OsStr::new(expected["path"].as_str().expect("frozen write path")),
             "{case_id}: output path"
         );
         assert_eq!(
