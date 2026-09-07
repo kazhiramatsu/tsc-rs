@@ -1,0 +1,146 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "cases": [
+    {
+      "case_id": "typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default",
+      "current_directory": "/.src",
+      "files": [
+        {
+          "path": "/.src/declarationMapsWithoutDeclaration.ts",
+          "text": "namespace m2 {\n    export interface connectModule {\n        (res, req, next): void;\n    }\n    export interface connectExport {\n        use: (mod: connectModule) => connectExport;\n        listen: (port: number) => void;\n    }\n\n}\n\ndeclare var m2: {\n    (): m2.connectExport;\n    test1: m2.connectModule;\n    test2(): m2.connectModule;\n};\n\nexport = m2;"
+        }
+      ],
+      "options": {
+        "declarationMap": true,
+        "module": 1,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": false,
+        "target": 2
+      },
+      "source": {
+        "path": "declarationMapsWithoutDeclaration.ts",
+        "bytes": 453,
+        "sha256": "92aa8b1b5aff1b000cb8a7e8ed6867a42fd89f2693d0156a5c108f80418af38f",
+        "git_blob_sha1": "1decfaedb977844acd9ae8f66a1d4dea984bd3e4"
+      },
+      "typescript_observation": {
+        "common_source_directory": "/.src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationMapsWithoutDeclaration.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMgPSBtMjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMgPSBtMjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/declarationMapsWithoutDeclaration.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'declarationMap' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    },
+    {
+      "case_id": "options/declarationMap-with-explicit-false",
+      "current_directory": "/.src",
+      "files": [
+        {
+          "path": "/.src/declarationMapsWithoutDeclaration.ts",
+          "text": "namespace m2 {\n    export interface connectModule {\n        (res, req, next): void;\n    }\n    export interface connectExport {\n        use: (mod: connectModule) => connectExport;\n        listen: (port: number) => void;\n    }\n\n}\n\ndeclare var m2: {\n    (): m2.connectExport;\n    test1: m2.connectModule;\n    test2(): m2.connectModule;\n};\n\nexport = m2;"
+        }
+      ],
+      "options": {
+        "declarationMap": true,
+        "module": 1,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "noResolve": false,
+        "skipDefaultLibCheck": true,
+        "strict": false,
+        "target": 2,
+        "declaration": false
+      },
+      "source": {
+        "path": "declarationMapsWithoutDeclaration.ts",
+        "bytes": 453,
+        "sha256": "92aa8b1b5aff1b000cb8a7e8ed6867a42fd89f2693d0156a5c108f80418af38f",
+        "git_blob_sha1": "1decfaedb977844acd9ae8f66a1d4dea984bd3e4"
+      },
+      "typescript_observation": {
+        "common_source_directory": "/.src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/.src/declarationMapsWithoutDeclaration.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMgPSBtMjsNCg==",
+            "callback_utf8_bytes": 37,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KbW9kdWxlLmV4cG9ydHMgPSBtMjsNCg==",
+            "materialized_utf8_bytes": 37,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/declarationMapsWithoutDeclaration.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "reported_diagnostics": [
+          {
+            "code": 5069,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'declarationMap' cannot be specified without specifying option 'declaration' or option 'composite'.",
+            "related_information": null
+          }
+        ],
+        "emit_refused": false,
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "status_writes": [],
+        "exit_code": 2
+      }
+    }
+  ]
+}

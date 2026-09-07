@@ -93,6 +93,7 @@ fn project_options(value: &Value) -> CompilerOptions {
             "listEmittedFiles" => options.list_emitted_files = value.as_bool(),
             "newLine" => options.new_line = Some(value.as_i64().unwrap() as i32),
             "strict" => options.strict = value.as_bool(),
+            "noResolve" => options.no_resolve = value.as_bool(),
             "skipDefaultLibCheck" => options.skip_default_lib_check = value.as_bool(),
             "noErrorTruncation" => options.no_error_truncation = value.as_bool(),
             "stripInternal" => options.strip_internal = value.as_bool(),
@@ -155,6 +156,17 @@ fn assert_artifact(actual: &EmitArtifact, expected: &Value) {
             .collect::<Vec<_>>(),
         serde_json::from_value::<Vec<String>>(expected["source_files"].clone()).unwrap()
     );
+    if expected.get("data_keys").is_some() {
+        assert_eq!(
+            expected["data_keys"],
+            if actual.metadata().is_some() {
+                json!(["sourceMapUrlPos", "diagnostics"])
+            } else {
+                Value::Null
+            }
+        );
+        assert_eq!(expected["data_build_info"], Value::Null);
+    }
     match actual.metadata() {
         Some(EmitWriteMetadata::Text(data)) => {
             assert_eq!(expected["data_present"], true);
@@ -380,7 +392,7 @@ fn diagnostics_json(diagnostics: &[Diagnostic]) -> Value {
 }
 
 fn memory_host(case: &Value) -> MemoryCompilerHost {
-    let mut builder = MemoryCompilerHost::builder("/project");
+    let mut builder = MemoryCompilerHost::builder(case["current_directory"].as_str().unwrap());
     for file in case["files"].as_array().unwrap() {
         builder = builder.file(
             file["path"].as_str().unwrap(),
@@ -458,7 +470,22 @@ fn assert_program_case(case: &Value) {
     let host = memory_host(case);
     for _ in 0..2 {
         let mut sink = MemoryOutputSink::new();
-        let (outcome, reported) = ProgramSession::new(prepared(case, &host))
+        let program = prepared(case, &host);
+        if expected.get("program_source_order").is_some() {
+            let mut sources = Vec::new();
+            let mut libraries = Vec::new();
+            for source in program.source_files() {
+                let name = source.path().display().to_string_lossy();
+                if let Some(name) = name.strip_prefix("/lib/") {
+                    libraries.push(name.to_owned());
+                } else {
+                    sources.push(name.into_owned());
+                }
+            }
+            assert_eq!(json!(sources), expected["program_source_order"]);
+            assert_eq!(json!(libraries), expected["standard_libraries"]);
+        }
+        let (outcome, reported) = ProgramSession::new(program)
             .emit_with_reported_diagnostics_for_harness(&mut sink)
             .unwrap();
         assert_eq!(
@@ -529,6 +556,7 @@ fn h2_7e_cli_status_and_exit_match_every_typescript_observation() {
 }
 
 fn assert_cli_case(case: &Value) {
+    let prefix = format!("{}/", case["current_directory"].as_str().unwrap());
     let tree = CliTree::new();
     let roots = case["files"]
         .as_array()
@@ -538,7 +566,7 @@ fn assert_cli_case(case: &Value) {
             let name = file["path"]
                 .as_str()
                 .unwrap()
-                .strip_prefix("/project/")
+                .strip_prefix(prefix.as_str())
                 .unwrap();
             let destination = tree.0.join(name);
             std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
@@ -558,7 +586,7 @@ fn assert_cli_case(case: &Value) {
     });
     if let Some(directory) = options["declarationDir"]
         .as_str()
-        .and_then(|s| s.strip_prefix("/project/"))
+        .and_then(|s| s.strip_prefix(prefix.as_str()))
     {
         options["declarationDir"] = json!(tree.0.join(directory));
     }
@@ -579,7 +607,7 @@ fn assert_cli_case(case: &Value) {
             let relative = rule["path"]
                 .as_str()
                 .unwrap()
-                .strip_prefix("/project/")
+                .strip_prefix(prefix.as_str())
                 .unwrap();
             std::fs::create_dir_all(tree.0.join(relative)).unwrap();
         }
@@ -611,7 +639,7 @@ fn assert_cli_case(case: &Value) {
             let relative = line
                 .as_str()
                 .unwrap()
-                .strip_prefix("TSFILE: /project/")
+                .strip_prefix(format!("TSFILE: {prefix}").as_str())
                 .unwrap();
             format!("TSFILE: {}", tree.0.join(relative).display())
         })
@@ -622,6 +650,54 @@ fn assert_cli_case(case: &Value) {
         expected["exit_code"],
         "actual CLI output: {stdout}"
     );
+    if case["options"]["declarationMap"] == true && case["options"]["declaration"] != true {
+        // Preserve the original Program tuple above; additionally compare the
+        // relocated CLI's config-diagnostic rendering and exact JS bytes.
+        for write in expected["writes"].as_array().unwrap() {
+            let relative = write["path"]
+                .as_str()
+                .unwrap()
+                .strip_prefix(prefix.as_str())
+                .unwrap();
+            assert_eq!(
+                std::fs::read(tree.0.join(relative)).unwrap(),
+                base64::engine::general_purpose::STANDARD
+                    .decode(write["materialized_utf8_base64"].as_str().unwrap())
+                    .unwrap()
+            );
+        }
+        let reference = std::process::Command::new("node")
+            .arg(
+                Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../vendor/typescript-6.0.3/lib/_tsc.js"),
+            )
+            .current_dir(&tree.0)
+            .args(["-p", "tsconfig.json", "--pretty", "false"])
+            .output()
+            .unwrap();
+        assert_eq!(reference.stdout, stdout.as_bytes());
+        assert_eq!(reference.stderr, output.stderr);
+        assert_eq!(reference.status.code(), output.status.code());
+        let actual_outputs = std::fs::read_dir(&tree.0)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .filter(|name| name != "tsconfig.json" && !roots.contains(name))
+            .collect::<std::collections::BTreeSet<_>>();
+        let expected_outputs = expected["writes"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|write| {
+                write["path"]
+                    .as_str()
+                    .unwrap()
+                    .strip_prefix(prefix.as_str())
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(actual_outputs, expected_outputs);
+    }
 }
 
 #[test]
@@ -664,20 +740,6 @@ fn h2_7e_getters_forced_and_bundle_maps_keep_typed_boundaries() {
             })
         ));
         assert!(sink.writes().is_empty());
-        if !declaration {
-            let error = ProgramSession::new(prepared(&case, &host))
-                .emit(&mut sink)
-                .unwrap_err();
-            assert!(matches!(
-                error,
-                tsc_compiler::DriverError::Emit(
-                    tsc_emitter::EmitFailure::UnsupportedCompilerOption {
-                        option: "declarationMap"
-                    }
-                )
-            ));
-            assert!(sink.writes().is_empty());
-        }
     }
     case["options"]["declaration"] = json!(true);
     case["options"]["outFile"] = json!("/project/bundle.js");
@@ -930,4 +992,58 @@ fn h2_7e_ordinary_api_gates_and_sink_feedback_match_typescript() {
         }
         eprintln!("H2.7e sink PASS {id}");
     }
+}
+
+#[test]
+fn h2_7e_ordinary_maps_without_declaration_preserve_ts5069_and_javascript() {
+    const ORIGINAL: &str = "typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default";
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    use sha2::{Digest, Sha256};
+    let read = |path: &str, hash: &str| -> Value {
+        let bytes = std::fs::read(root.join(path)).unwrap();
+        assert_eq!(format!("{:x}", Sha256::digest(&bytes)), hash);
+        serde_json::from_slice(&bytes).unwrap()
+    };
+    let inputs = read(
+        "ratchets/h2-7de-candidate-inputs.v1.json",
+        "f2e078a6b6d10cd3c6df833584924c18e8f78fe98c1e41621c70e10e215a073a",
+    );
+    let observations = read(
+        "ratchets/h2-7de-observations.v1.json",
+        "1a1681b2375d27d9012b06e29808aca72aa3e39d1dbc1536b80ba2aadf9e8ce2",
+    );
+    let input = inputs["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["case_id"] == ORIGINAL)
+        .unwrap();
+    let original = observations["cases"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|case| case["case_id"] == ORIGINAL)
+        .unwrap();
+    assert_eq!(
+        original["input_sha256"],
+        "7849a59f11919c9201e9bf1b227ad6f2d4defd63aa7b484703404946c215b4b3"
+    );
+    let joined = json!({"case_id":ORIGINAL,"current_directory":input["input"]["current_directory"],
+        "files":input["input"]["files"],"options":input["effective_options"],"typescript_observation":original["typescript_observation"]});
+    assert_eq!(
+        input["input"]["roots"],
+        json!(["/.src/declarationMapsWithoutDeclaration.ts"])
+    );
+    assert!(joined["options"].get("declaration").is_none());
+    assert_program_case(&joined);
+    assert_cli_case(&joined);
+    compare_fixture(
+        include_str!("fixtures/declaration-maps-disabled-declaration.json"),
+        2,
+        |case| {
+            assert_eq!(case["files"], input["input"]["files"]);
+            assert_program_case(case);
+            assert_cli_case(case);
+        },
+    );
 }

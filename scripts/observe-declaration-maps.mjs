@@ -7,7 +7,9 @@ import ts from "../vendor/typescript-6.0.3/lib/typescript.js";
 import { createHermeticDirectoryOverlay } from "../crates/oracle/vfs-directory-overlay.mjs";
 const root = path.resolve(import.meta.dirname, "..");
 const runtime = process.argv.includes("--runtime");
-const output = path.join(root, "crates/compiler/tests/fixtures", runtime ? "declaration-maps-runtime.json" : "declaration-maps.json");
+const disabled = process.argv.includes("--disabled-declaration");
+assert.ok(!(runtime && disabled));
+const output = path.join(root, "crates/compiler/tests/fixtures", disabled ? "declaration-maps-disabled-declaration.json" : runtime ? "declaration-maps-runtime.json" : "declaration-maps.json");
 const sha256 = bytes => crypto.createHash("sha256").update(bytes).digest("hex");
 assert.equal(ts.version, "6.0.3");
 assert.equal(process.versions.node, fs.readFileSync(path.join(root, ".node-version"), "utf8").trim());
@@ -85,10 +87,19 @@ for (const [name, options] of [
   add("runtime/" + name, {"a.ts": syntax.variables, "b.ts": syntax.functions}, {emitDeclarationOnly: false, ...options});
   runtimeInputs.push(inputs.pop());
 }
-const cases=(runtime ? runtimeInputs : inputs).map(input=>{const first=observe(input);assert.deepEqual(observe(input),first,input.case_id);return {...input,typescript_observation:first};});
+const originalInputs = disabled ? JSON.parse(fs.readFileSync(path.join(root, "ratchets/h2-7de-candidate-inputs.v1.json"), "utf8")) : undefined;
+const originalWithoutDeclaration = originalInputs?.cases.find(c => c.case_id === "typescript-6.0.3/compiler/declarationMapsWithoutDeclaration.ts#default");
+const disabledInputs = disabled ? [undefined, false].map(declaration => ({
+  case_id: declaration === undefined ? originalWithoutDeclaration.case_id : "options/declarationMap-with-explicit-false",
+  current_directory: originalWithoutDeclaration.input.current_directory,
+  files: originalWithoutDeclaration.input.files,
+  options: {...originalWithoutDeclaration.effective_options, ...(declaration === undefined ? {} : {declaration})},
+  source: originalWithoutDeclaration.source,
+})) : [];
+const cases=(disabled ? disabledInputs : runtime ? runtimeInputs : inputs).map(input=>{const first=observe(input);assert.deepEqual(observe(input),first,input.case_id);return {...input,typescript_observation:first};});
 const artifact={version:1,typescript:ts.version,source_commit:"050880ce59e30b356b686bd3144efe24f875ebc8",compiler_sha256:sha256(fs.readFileSync(path.join(root,"vendor/typescript-6.0.3/lib/typescript.js"))),repetitions:2,cases};
 const rendered=JSON.stringify(artifact,null,2)+"\n";
-const mode = process.argv.slice(2).filter(arg => arg !== "--runtime");
+const mode = process.argv.slice(2).filter(arg => arg !== "--runtime" && arg !== "--disabled-declaration");
 assert.ok(mode.length <= 1 && (mode[0] === undefined || mode[0] === "--write" || mode[0] === "--check"));
 if(mode[0] === "--write")fs.writeFileSync(output,rendered);else assert.equal(fs.readFileSync(output,"utf8"),rendered);
 console.log(`H2.7e non-bundle declaration map observations: ${cases.length}, twice each`);

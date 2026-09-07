@@ -132,11 +132,10 @@ fn validate_emit_options(
             "allowImportingTsExtensions",
         ),
         (
-            // This packet admits ordinary maps with declarations enabled.
-            // Disabled declarations and getter/force intersections retain their
-            // previous typed boundary until their separate API integration.
-            options.declaration_map == Some(true)
-                && (operation != EmitOperation::Files || options.declaration != Some(true)),
+            // DeclarationMap without declaration is an ordinary options
+            // diagnostic, not an emit refusal. Getter/force intersections
+            // retain their boundary until the separate API integration.
+            options.declaration_map == Some(true) && operation != EmitOperation::Files,
             "declarationMap",
         ),
         (

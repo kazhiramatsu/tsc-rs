@@ -159,27 +159,36 @@ fn source_map_relationships_follow_tsc_order_and_messages() {
 }
 
 #[test]
-fn source_map_relationships_accept_their_prerequisites() {
-    for options in [
-        CompilerOptions {
-            source_map: Some(true),
-            source_root: Some("sources".to_owned()),
-            map_root: Some("maps".to_owned()),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            declaration_map: Some(true),
-            map_root: Some("maps".to_owned()),
-            ..CompilerOptions::default()
-        },
-        CompilerOptions {
-            inline_source_map: Some(true),
-            source_root: Some("sources".to_owned()),
-            inline_sources: Some(true),
-            ..CompilerOptions::default()
-        },
+fn source_map_prerequisites_retain_independent_declaration_diagnostics() {
+    for (options, expected) in [
+        (
+            CompilerOptions {
+                source_map: Some(true),
+                source_root: Some("sources".to_owned()),
+                map_root: Some("maps".to_owned()),
+                ..CompilerOptions::default()
+            },
+            vec![],
+        ),
+        (
+            CompilerOptions {
+                declaration_map: Some(true),
+                map_root: Some("maps".to_owned()),
+                ..CompilerOptions::default()
+            },
+            vec![CompilerOptionViolation::DeclarationMapRequiresDeclaration],
+        ),
+        (
+            CompilerOptions {
+                inline_source_map: Some(true),
+                source_root: Some("sources".to_owned()),
+                inline_sources: Some(true),
+                ..CompilerOptions::default()
+            },
+            vec![],
+        ),
     ] {
-        assert!(validate_compiler_options(&options).is_empty());
+        assert_eq!(validate_compiler_options(&options), expected);
     }
 }
 

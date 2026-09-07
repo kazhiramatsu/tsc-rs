@@ -591,9 +591,10 @@ fn refused_option_sets_leave_every_activity_counter_and_sink_write_at_zero() {
         (
             CompilerOptions {
                 declaration_map: Some(true),
+                out_file: Some("/project/bundle.js".to_owned()),
                 ..CompilerOptions::default()
             },
-            "declarationMap",
+            "outFile",
         ),
         (
             CompilerOptions {

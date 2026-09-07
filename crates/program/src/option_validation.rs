@@ -36,6 +36,7 @@ pub enum CompilerOptionViolation {
     IsolatedDeclarationsRequiresDeclaration,
     EmitDeclarationOnlyRequiresDeclaration,
     DeclarationDirectoryRequiresDeclaration,
+    DeclarationMapRequiresDeclaration,
     ReactNamespaceConflictsWithJsxFactory,
     JsxFactoryConflictsWithAutomaticRuntime { jsx: &'static str },
     InvalidJsxFactory { value: String },
@@ -70,6 +71,7 @@ impl CompilerOptionViolation {
             }
             Self::EmitDeclarationOnlyRequiresDeclaration => &["emitDeclarationOnly", "declaration"],
             Self::DeclarationDirectoryRequiresDeclaration => &["declarationDir", "declaration"],
+            Self::DeclarationMapRequiresDeclaration => &["declarationMap", "declaration"],
             Self::ReactNamespaceConflictsWithJsxFactory => &["reactNamespace", "jsxFactory"],
             Self::JsxFactoryConflictsWithAutomaticRuntime { .. }
             | Self::InvalidJsxFactory { .. } => &["jsxFactory"],
@@ -135,6 +137,10 @@ impl CompilerOptionViolation {
             Self::DeclarationDirectoryRequiresDeclaration => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
                 &["declarationDir".to_owned(), "declaration".to_owned(), "composite".to_owned()],
+            ),
+            Self::DeclarationMapRequiresDeclaration => MessageChain::new(
+                &gen::Option_0_cannot_be_specified_without_specifying_option_1_or_option_2,
+                &["declarationMap".to_owned(), "declaration".to_owned(), "composite".to_owned()],
             ),
             Self::ReactNamespaceConflictsWithJsxFactory => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_with_option_1,
@@ -221,6 +227,9 @@ impl CompilerOptionViolation {
 /// tsc-port: verifyCompilerOptions @6.0.3 (declaration-only prerequisite)
 /// tsc-hash: 502558caa3484d85116380b71c5ffce3864d14b552e9368298016a238d9aee9f
 /// tsc-span: _tsc.js:124946-124953
+/// tsc-port: verifyCompilerOptions @6.0.3 (declaration map prerequisite)
+/// tsc-hash: e1006c5a6a1d61f895b10092c7e7cff24f64d570cca0d9a4d13f30f4ba0c8c46
+/// tsc-span: _tsc.js:124874-124876
 pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptionViolation> {
     let mut violations = Vec::new();
     if options.strict_property_initialization == Some(true)
@@ -288,6 +297,12 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
         && options.composite != Some(true)
     {
         violations.push(CompilerOptionViolation::DeclarationDirectoryRequiresDeclaration);
+    }
+    if options.declaration_map == Some(true)
+        && options.declaration != Some(true)
+        && options.composite != Some(true)
+    {
+        violations.push(CompilerOptionViolation::DeclarationMapRequiresDeclaration);
     }
     if options.emit_declaration_only == Some(true)
         && options.declaration != Some(true)
