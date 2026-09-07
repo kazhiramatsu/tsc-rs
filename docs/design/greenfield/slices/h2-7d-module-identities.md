@@ -50,7 +50,7 @@ admission of the later host-casing owner.
 
 The existing Rust checker already projects
 `get_external_module_file_from_declaration` through `EmitResolver`. Current
-AMD `ModuleTransformer::external_module_name_literal` consults that method
+AMD's `external_module_name_literal` worker consults that method
 only when some source has an explicit module name, then selects only that
 explicit name. Its wrapper-name branch also selects only `module_name`.
 System similarly selects only an explicit wrapper name, while dependency
