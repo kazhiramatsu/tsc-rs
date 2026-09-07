@@ -633,12 +633,20 @@ fn finalize_generated_binding_names_with_policy(
             .cmp(&b.moment_path)
             .then(a.sequence.cmp(&b.sequence))
     });
+    let printed_numbered_bindings: BTreeSet<_> =
+        numbered_order.iter().map(|entry| entry.binding).collect();
     let mut shared_numbered_bindings = BTreeSet::new();
     for entry in &numbered_order {
         // A derived binding appends its ordinal to the base binding's
         // FINALIZED spelling (`getGeneratedNameForNode`); the recorded
         // text base covers bases outside the numbered family.
-        if let Some(parent) = entry.derived_from {
+        // Only unprinted parents need an eager name. A printed parent has
+        // its own naming moment; allocating it here and again at that moment
+        // would consume two ordinals and overwrite its cached spelling.
+        if let Some(parent) = entry
+            .derived_from
+            .filter(|parent| !printed_numbered_bindings.contains(parent))
+        {
             if let std::collections::btree_map::Entry::Vacant(entry) = assigned.entry(parent) {
                 if let Some(base) = context.generated_binding_numbered_base(parent) {
                     let name = allocate_numbered_name_with_global_oracle(

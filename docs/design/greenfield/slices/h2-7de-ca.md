@@ -132,6 +132,41 @@ candidates (4.59s); all 451 emitter contracts pass (1.28s), and emitter/compiler
 xtask all-target Clippy with warnings denied passes (59.19s). Four schemas,
 profile/foundation/close freshness, formatting and diff checks pass.
 
+## Printed-parent naming correction
+
+The second [hosted run](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34117768773)
+on `a8fededca48f6e002ecac3d380d1cfbe5e62c096` failed after 34m44s (acceptance
+step 34m31s). All bands through H2.5g passed, including the restored H2.1a
+deferred-source boundary. H2.5h then reported a new JavaScript-write divergence
+in the original `operationsAvailableOnPromisedType.ts#target%3Des5` case.
+H2.6/H2.7 were not reached by this run.
+
+The focused original-input replay found three `e_1` → `e_2` substitutions
+inside the same 6,097-byte output. The shared numbered-name finalizer eagerly
+allocated a parent that already had a later naming moment, then allocated it
+again. The [bounded correction](h2-7d-system-generated-names.md#printed-parent-allocation-correction-2026-09-07)
+limits eager allocation to parents absent from the printed numbered-binding
+inventory. Printed parents retain their existing naming moments; unprinted
+System setter parents retain their generated identity and global/bundle
+uniqueness checks. Original input bytes, TypeScript expectations and divergence
+manifests remain unchanged.
+
+The focused frozen command comparison passes both fresh repetitions (7.23s,
+after 4m39s compilation). Full H2.5h passes 932 candidates: 838 exact, 50 known
+divergences and 44 deferred, with two repetitions and one local worker. No
+manifest entry was added or changed to accommodate the regression.
+
+All 283 original D cases pass twice (304.80s), as do the eight E-only original
+cases and 16 real CLI invocations (18.94s). The three module/name tests pass
+their 20 module, 12 System and six underscore-alias inputs twice (60.92s);
+these retain their JavaScript-only facet boundary. All 451 emitter contracts
+pass (1.63s after compilation), including the existing for-await naming
+controls. Emitter/compiler/xtask all-target Clippy passes with warnings denied
+(60.74s). The current profile's 323 input identities, foundation and close
+artifacts are regenerated and fresh; four metadata schemas, formatting and
+the original H2.7a runtime-contract equality check pass. The corrected final
+candidate still requires its own hosted acceptance result before adoption.
+
 ## Pending adoption
 
 Complete the existing single-job hosted acceptance with the registered joint

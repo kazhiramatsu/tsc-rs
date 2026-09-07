@@ -360,7 +360,7 @@
     },
     {
       "path": "crates/xtask/tests/unit/h2_2c_acceptance/tests.rs",
-      "sha256": "87f3dd5f37edb3154deae12bad3878833c5fe61b4e5b07fedee13c79aa15c9d0"
+      "sha256": "66b36320215cb601ff36a0e755c57c70486d5cedc4c7d7c8ccacc5e3584d85c7"
     },
     {
       "path": "crates/xtask/tests/unit/h2_2d_acceptance/tests.rs",
@@ -476,7 +476,7 @@
     },
     {
       "path": "crates/emitter/src/builtins/target_bindings.rs",
-      "sha256": "76f17fe93cbb44e37f719e64c1359563f0592be85d510b6c9d2674c4caded66f"
+      "sha256": "47bbc4595d39460a085a86ac94e3b1fb95a1fb14b58e9a8cc1cb4eb406d91f3e"
     },
     {
       "path": "crates/emitter/tests/unit/generated_bindings/tests.rs",
@@ -1654,5 +1654,5 @@
     "undispositioned_candidates": 0,
     "historical_artifacts_reinterpreted": 0
   },
-  "profile_fingerprint_sha256": "7933961697eb25b6af1838e7fa9dcb025414a1e583ee665735ebf4681b9c90aa"
+  "profile_fingerprint_sha256": "bbbd0e3c45c530675816d9ec8f61620fa7d9c73640f5f92f7edb1b671c62b24a"
 }

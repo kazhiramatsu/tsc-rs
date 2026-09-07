@@ -96,3 +96,53 @@ Program resolver. Its post-correction full-byte comparison is pending. Review
 also identified the need to connect the actual checker's global-name oracle
 for numbered candidates; that connection is still being prepared. This is
 internal candidate work, not public outFile admission or H2.7d completion.
+
+## Printed-parent allocation correction (2026-09-07)
+
+Hosted run [34117768773](https://github.com/kazhiramatsu/tsc-rs/actions/runs/34117768773)
+failed on candidate `a8fededca48f6e002ecac3d380d1cfbe5e62c096` in the
+historical H2.5h band. Earlier bands through H2.5g passed. H2.6/H2.7 acceptance
+was not reached. The unchanged original
+`operationsAvailableOnPromisedType.ts#target%3Des5` emits 6,097 callback bytes;
+the frozen expected SHA256 is
+`832fd52d13e436955a8ffda96c762fe40b50c0a38e7e1495cf1e592188131fbd`.
+The candidate produces the same length with `e_2` replacing `e_1` at three
+locations, while the derived `e_1_1` spelling is unchanged. Diagnostics,
+emit result and refusal facets do not diverge.
+
+The shared numbered-name finalizer preallocates a derived binding's parent
+when its assigned-name cache is empty. A parent that occurs later in
+`numbered_order` is then allocated again at its existing naming moment. This
+consumes another ordinal and overwrites its cached name. The pinned
+`generateNameCached` and `makeUniqueName` owners above cache by generated
+identity; the extra allocation has no upstream counterpart.
+
+The bounded repair is in private
+`finalize_generated_binding_names_with_policy` in
+`crates/emitter/src/builtins/target_bindings.rs`. Build a set of the numbered
+binding identities already present in `numbered_order`, after its existing
+collection/sort. Eager parent allocation applies only to parents absent from
+that set. Printed parents retain the existing naming-moment assignment;
+unprinted System dependency parents retain eager allocation, checker global
+name queries and bundle generated-name sharing. No source-, path-, option-
+or case-ID branch is added. The set lives only for this finalizer call and
+does not escape into Program or printer caches.
+
+Before production mutation, the local original-input comparison reproduced
+the exact three substitutions, and independent source review confirmed the
+double allocation and the retained unprinted-parent requirement. The repair
+adds a focused frozen H2.5h comparison, then runs the complete existing H2.5h
+band, original D band and retained System/module-identity controls. The
+expected original inputs, observations and known-divergence manifests stay
+unchanged. Root owns the finalizer, regression and integration documentation;
+the parallel reviewers are read-only. Local Cargo uses one worker/test thread
+and the isolated integration target at background priority. A fresh hosted
+acceptance result is required for the corrected final candidate.
+
+The corrected focused H2.5h case passes twice. The complete historical band
+also passes unchanged (932 candidates, 838 exact, 50 known, 44 deferred, two
+repetitions). Original D283 and E-only8 pass twice, along with E's 16 CLI runs.
+The retained ordinary module20, System12 and underscore6 JavaScript controls
+pass twice, preserving the unprinted-parent `dep_1_1` route. All 451 emitter
+contracts and emitter/compiler/xtask all-target Clippy pass. The shared close
+record carries the measured durations and the still-pending hosted boundary.

@@ -768,3 +768,30 @@ fn legacy_declaration_map_kind_keeps_coarse_and_full_vectors_consistent() {
         }
     }
 }
+
+#[test]
+fn h2_5h_async_numbered_parent_allocation_preserves_original_outputs() {
+    let workspace = workspace();
+    let artifact: serde_json::Value = serde_json::from_slice(
+        &fs::read(workspace.join(super::H2_5H_QUALIFICATION_RELATIVE_PATH))
+            .expect("read frozen H2.5h qualification"),
+    )
+    .expect("parse H2.5h qualification");
+    let cases =
+        super::validate_h2_5h_qualification(&artifact).expect("validate H2.5h qualification");
+    let case = cases
+        .iter()
+        .find(|case| {
+            case["case_id"]
+                == "typescript-6.0.3/compiler/operationsAvailableOnPromisedType.ts#target%3Des5"
+        })
+        .expect("original async/for-await composition case");
+    let inputs = super::H2_5hExecutionInputs::load(&workspace).expect("load original H2.5h inputs");
+    // The frozen command checks both fresh emissions, full write bytes and
+    // diagnostics/result/activity. Its derived error binding is visited before
+    // the parent's own naming moment; the parent must consume one ordinal.
+    let observed = super::execute_h2_5h_case(&workspace, case, &inputs)
+        .expect("execute original H2.5h case twice");
+    assert!(!observed.deferred);
+    assert!(observed.divergence.is_exact(), "{:?}", observed.divergence);
+}
