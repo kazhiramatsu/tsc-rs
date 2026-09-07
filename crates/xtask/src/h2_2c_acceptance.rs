@@ -4243,6 +4243,11 @@ pub fn run_h2_6b(workspace: &Path) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
+#[path = "h2_6c_de_promotions.rs"]
+mod h2_6c_de_promotions;
+#[path = "h2_6c_refusal_migrations.rs"]
+mod h2_6c_refusal_migrations;
+
 const H2_6C_QUALIFICATION_RELATIVE_PATH: &str = "ratchets/h2-6c-qualification.v1.json";
 const H2_6C_KNOWN_DIVERGENCES_RELATIVE_PATH: &str = "ratchets/h2-6c-known-divergences.v1.json";
 const H2_6C_WRITE_DIVERGENCES_ENV: &str = "TSRS_H2_6C_WRITE_DIVERGENCES";
@@ -4963,17 +4968,17 @@ fn execute_h2_6c_case(
     workspace: &Path,
     case: &Value,
     inputs: &H2_6cExecutionInputs,
-) -> Result<H2VectorCaseOutcome, Box<dyn Error>> {
+) -> Result<h2_6c_refusal_migrations::CaseOutcome, Box<dyn Error>> {
     let case_id = string(case, "case_id")?.to_owned();
     match string(case, "disposition")? {
         "admitted-for-execution" => {}
         "deferred-to-slices" => {
-            return Ok(H2VectorCaseOutcome {
+            return Ok(h2_6c_refusal_migrations::compared(H2VectorCaseOutcome {
                 case_id,
                 deferred: true,
                 h2_7b_activity: 0,
                 divergence: H2VectorDivergence::default(),
-            });
+            }));
         }
         other => {
             return Err(failure(format!(
@@ -4984,11 +4989,15 @@ fn execute_h2_6c_case(
     let expected = compact_typescript_observation(case)?;
     let first_program = prepare_h2_6c_case(workspace, case, inputs)?;
     let compiler_options = first_program.compiler_options().clone();
+    let case_sensitive = first_program.path_context().use_case_sensitive_file_names();
     let expected_h2_7b_members = inputs
         .h2_7b_expected_members
         .get(&case_id)
         .copied()
         .unwrap_or(0);
+    let expected_h2_7b_members = h2_6c_de_promotions::find(&case_id)
+        .map(|row| row.declaration_members)
+        .unwrap_or(expected_h2_7b_members);
     let second_program = first_program.clone();
     let first_session = ProgramSession::new(first_program);
     let harness_lib_bundle = first_session.prepare_harness_lib_bundle()?;
@@ -5019,18 +5028,24 @@ fn execute_h2_6c_case(
                         "{case_id}: typed refusal occurred after a sink write"
                     )));
                 }
+                if let Some(observed) = h2_6c_refusal_migrations::observe(
+                    &case_id, &compiler_options, case_sensitive, first_option,
+                    [first_sink.writes().len(), second_sink.writes().len()],
+                )? {
+                    return Ok(h2_6c_refusal_migrations::migrated(observed));
+                }
                 assert_h2_6c_refused_option(
                     &case_id,
                     first_option,
                     &compiler_options,
                     inputs,
                 )?;
-                return Ok(H2VectorCaseOutcome {
+                return Ok(h2_6c_refusal_migrations::compared(H2VectorCaseOutcome {
                     case_id,
                     deferred: false,
                     h2_7b_activity: 0,
                     divergence: vectorize_refusal(H2MismatchProfile::H2_6c, first_option),
-                });
+                }));
             }
             (Err(first), Err(second)) => {
                 return Err(failure(format!(
@@ -5050,6 +5065,7 @@ fn execute_h2_6c_case(
     }
     // The unadmitted-runtime-slice guard with the H2.1a..H2.6c ladder.
     let activity = first.h2_activity();
+    h2_6c_de_promotions::validate_activity(&case_id, &first)?;
     for slice in H2RuntimeSlice::ALL {
         if !matches!(
             slice,
@@ -5080,7 +5096,8 @@ fn execute_h2_6c_case(
                 | H2RuntimeSlice::H2_6b
                 | H2RuntimeSlice::H2_6c
                 | H2RuntimeSlice::H2_7b
-        ) && activity.runtime_slice(slice) != 0
+        ) && !h2_6c_de_promotions::pinned_request(&case_id, slice)
+            && activity.runtime_slice(slice) != 0
         {
             return Err(failure(format!(
                 "{case_id}: unadmitted {} activity",
@@ -5102,12 +5119,12 @@ fn execute_h2_6c_case(
         &first_reported,
         &expected["emit_result"]["emitted_files"],
     )?;
-    Ok(H2VectorCaseOutcome {
+    Ok(h2_6c_refusal_migrations::compared(H2VectorCaseOutcome {
         case_id,
         deferred: false,
         h2_7b_activity: activity.runtime_slice(H2RuntimeSlice::H2_7b),
         divergence,
-    })
+    }))
 }
 
 struct H2LoadedVectorManifest {
@@ -5316,6 +5333,7 @@ struct H2_6cSuiteTotals {
     diagnostics_diverging: u64,
     emit_result_diverging: u64,
     emit_refused: u64,
+    migrated_refusals: u64,
 }
 
 fn h2_6c_suite_index(suite: &str) -> Option<usize> {
@@ -5331,6 +5349,7 @@ fn h2_6c_suite_index(suite: &str) -> Option<usize> {
 fn report_h2_6c_suite_outcomes(
     cases: &[Value],
     diverging: &[(String, H2VectorDivergence)],
+    migrations: &[h2_6c_refusal_migrations::ObservedRefusal],
 ) -> Result<(), Box<dyn Error>> {
     const SUITES: [&str; 4] = ["compiler", "conformance", "project", "transpile"];
     let divergence_by_case = diverging
@@ -5340,6 +5359,18 @@ fn report_h2_6c_suite_outcomes(
     if divergence_by_case.len() != diverging.len() {
         return Err(failure("H2.6c suite report received duplicate divergences"));
     }
+    let migrated_ids = migrations
+        .iter()
+        .map(|row| row.case_id.as_str())
+        .collect::<BTreeSet<_>>();
+    if migrated_ids.len() != migrations.len()
+        || migrated_ids
+            .iter()
+            .any(|id| divergence_by_case.contains_key(id))
+    {
+        return Err(failure("duplicate ordinary/migrated refusal accounting"));
+    }
+    let mut observed_migrations = 0usize;
     let mut observed_divergences = 0usize;
     let mut totals = [H2_6cSuiteTotals::default(); 4];
     for case in cases {
@@ -5349,6 +5380,18 @@ fn report_h2_6c_suite_outcomes(
             .ok_or_else(|| failure(format!("{case_id}: unexpected H2.6c suite {suite}")))?;
         let suite_totals = &mut totals[index];
         suite_totals.candidates += 1;
+        if migrated_ids.contains(case_id) {
+            if case["disposition"] != "admitted-for-execution" {
+                return Err(failure(
+                    "refusal migration cannot reclassify a deferred original",
+                ));
+            }
+            observed_migrations += 1;
+            suite_totals.diverging += 1;
+            suite_totals.emit_refused += 1;
+            suite_totals.migrated_refusals += 1;
+            continue;
+        }
         match string(case, "disposition")? {
             "deferred-to-slices" => suite_totals.deferred += 1,
             "admitted-for-execution" => match divergence_by_case.get(case_id) {
@@ -5371,14 +5414,14 @@ fn report_h2_6c_suite_outcomes(
             }
         }
     }
-    if observed_divergences != diverging.len() {
+    if observed_divergences != diverging.len() || observed_migrations != migrations.len() {
         return Err(failure(
             "H2.6c suite report received an unknown or deferred divergence case",
         ));
     }
     for (suite, totals) in SUITES.into_iter().zip(totals) {
         println!(
-            "H2.6c suite acceptance: suite={suite} candidates={} exact={} known_diverging={} deferred={} unexecuted_suite=0 writes_diverging={} diagnostics_diverging={} emit_result_diverging={} emit_refused={}",
+            "H2.6c suite acceptance: suite={suite} candidates={} exact={} known_diverging={} deferred={} unexecuted_suite=0 writes_diverging={} diagnostics_diverging={} emit_result_diverging={} emit_refused={} migrated_refusals={}",
             totals.candidates,
             totals.exact,
             totals.diverging,
@@ -5387,6 +5430,7 @@ fn report_h2_6c_suite_outcomes(
             totals.diagnostics_diverging,
             totals.emit_result_diverging,
             totals.emit_refused,
+            totals.migrated_refusals,
         );
     }
     Ok(())
@@ -5394,6 +5438,7 @@ fn report_h2_6c_suite_outcomes(
 
 fn h2_6c_refused_option_totals(
     results: &[Result<H2VectorCaseOutcome, String>],
+    migrations: &[h2_6c_refusal_migrations::ObservedRefusal],
 ) -> Result<BTreeMap<String, u64>, Box<dyn Error>> {
     let mut totals = BTreeMap::new();
     for result in results {
@@ -5401,6 +5446,9 @@ fn h2_6c_refused_option_totals(
         if let Some(option) = outcome.divergence.refused_option.as_deref() {
             *totals.entry(option.to_owned()).or_default() += 1;
         }
+    }
+    for migrated in migrations {
+        *totals.entry(migrated.current_option.clone()).or_default() += 1;
     }
     let pre_flip = BTreeMap::from([
         ("isolatedModules".to_owned(), 1),
@@ -5415,7 +5463,12 @@ fn h2_6c_refused_option_totals(
         ("outFile".to_owned(), 171),
         ("rootDir".to_owned(), 4),
     ]);
-    if totals != pre_flip && totals != projected {
+    let projected = h2_6c_de_promotions::adjusted_refusals(projected)?;
+    let projected = h2_6c_refusal_migrations::adjust_refusal_totals(projected)?;
+    let legacy_pre_flip = h2_6c_de_promotions::promoted_count() == 0
+        && h2_6c_refusal_migrations::count() == 0
+        && totals == pre_flip;
+    if !legacy_pre_flip && totals != projected {
         return Err(failure(format!(
             "H2.6c refused_option totals differ from both frozen states: {totals:?}"
         )));
@@ -5497,6 +5550,8 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
     let write_manifest = std::env::var_os(H2_6C_WRITE_DIVERGENCES_ENV).is_some();
     let listed = load_h2_6c_divergence_manifest_state(workspace, write_manifest)?;
     let inputs = H2_6cExecutionInputs::load(workspace)?;
+    h2_6c_de_promotions::validate(workspace, cases, &inputs.h2_7b_expected_members)?;
+    h2_6c_refusal_migrations::validate(workspace, cases, &listed)?;
     let worker_count = h2_5g_worker_count()?.min(cases.len());
     println!(
         "H2.6c ordered acceptance pipeline: cases={} workers={worker_count}",
@@ -5506,6 +5561,9 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
         execute_h2_6c_case(workspace, case, &inputs)
             .map_err(|error| format!("H2.6c case index {index}: {error}"))
     })?;
+    let (results, migrations) = h2_6c_refusal_migrations::partition(results)?;
+    let ordinary_manifest = h2_6c_refusal_migrations::ordinary_manifest(&listed);
+    h2_6c_refusal_migrations::validate_ordinary_results(&results, &ordinary_manifest)?;
     let observed_h2_7b_activity =
         results
             .iter()
@@ -5513,43 +5571,49 @@ pub fn run_h2_6c(workspace: &Path) -> Result<(), Box<dyn Error>> {
                 let outcome = result.as_ref().map_err(|error| failure(error.to_owned()))?;
                 Ok(total + outcome.h2_7b_activity)
             })?;
-    if observed_h2_7b_activity != 293 {
+    h2_6c_de_promotions::validate_results(&results, &ordinary_manifest)?;
+    let expected_h2_7b_activity = h2_6c_de_promotions::declaration_members_total();
+    if observed_h2_7b_activity != expected_h2_7b_activity {
         return Err(failure(format!(
-            "H2.6c aggregate H2.7b activity differs: expected 293, observed {observed_h2_7b_activity}"
+            "H2.6c aggregate H2.7b activity differs: expected {expected_h2_7b_activity}, observed {observed_h2_7b_activity}"
         )));
     }
     println!(
-        "H2.6c H2.7b activity: admitted_join_rows=133 declaration_members={observed_h2_7b_activity} other_executed_rows=0"
+        "H2.6c successful-result H2.7b activity (refusal activity is unavailable): historical_join_rows=133 D/E_promoted_old_IDs={} declaration_members={observed_h2_7b_activity}; old candidate denominator unchanged",
+        h2_6c_de_promotions::promoted_count()
     );
-    let refused_option_totals = h2_6c_refused_option_totals(&results)?;
+    let refused_option_totals = h2_6c_refused_option_totals(&results, &migrations)?;
     println!("H2.6c refused_option totals: {refused_option_totals:?}");
-    let (exact, deferred, mut diverging) =
-        h2_vector_ratchet_join("H2.6c", results, &listed.entries, write_manifest)?;
+    let (exact, deferred, diverging) =
+        h2_vector_ratchet_join("H2.6c", results, &ordinary_manifest, write_manifest)?;
+    let retained = h2_6c_refusal_migrations::retained_manifest(&listed, &diverging)?;
+    let known_diverging = diverging.len() + migrations.len();
     if write_manifest {
-        assert_h2_6c_vector_population(&listed, &diverging)?;
-        if diverging.is_empty() {
+        assert_h2_6c_vector_population(&listed, &retained)?;
+        if retained.is_empty() {
             println!("H2.6c first sweep proved zero diverging rows: no manifest is created");
         } else {
-            diverging.sort_by(|left, right| left.0.cmp(&right.0));
-            write_h2_6c_divergence_manifest(workspace, &diverging)?;
+            // Current migrations retain their old rows; no new refusal vector
+            // is inserted into the historical manifest.
+            write_h2_6c_divergence_manifest(workspace, &retained)?;
         }
-    } else if diverging.len() != listed.entries.len() {
+    } else if retained.len() != listed.entries.len() {
         return Err(failure(format!(
             "H2.6c divergence-manifest coverage differs: observed {} listed {}",
-            diverging.len(),
+            retained.len(),
             listed.entries.len()
         )));
     }
-    if exact + diverging.len() as u64 != 639 || deferred != 4 {
+    if exact + known_diverging as u64 != 639 || deferred != 4 {
         return Err(failure(format!(
             "H2.6c execution totals differ: exact={exact} known_diverging={} deferred={deferred}",
-            diverging.len()
+            known_diverging
         )));
     }
-    report_h2_6c_suite_outcomes(cases, &diverging)?;
+    report_h2_6c_suite_outcomes(cases, &diverging, &migrations)?;
     println!(
-        "H2.6c emit acceptance: candidates=643 exact={exact} known_diverging={} deferred={deferred} repetitions=2",
-        diverging.len()
+        "H2.6c emit acceptance: candidates=643 exact={exact} known_diverging={known_diverging} deferred={deferred} current_migrated_refusals={} repetitions=2",
+        migrations.len()
     );
     Ok(())
 }

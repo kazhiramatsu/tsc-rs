@@ -127,6 +127,9 @@ fn h2_6c_no_emit_on_error_early_diagnostics_retain_legacy_activity() {
     // both complete observations of the original declaration-enabled input.
     let result = super::execute_h2_6c_case(&workspace, case, &inputs)
         .expect("legacy early diagnostic gate observation");
+    let super::h2_6c_refusal_migrations::CaseOutcome::Compared(result) = result else {
+        panic!("the legacy C diagnostic control cannot become a migrated refusal");
+    };
     assert!(!result.deferred);
     assert!(result.divergence.is_exact());
     assert_eq!(result.h2_7b_activity, 0);

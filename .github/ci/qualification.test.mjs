@@ -101,6 +101,8 @@ const HOSTED_MODULE_PATHS = [
 ];
 
 const SHARED_MODULE_PATHS = [
+  "crates/xtask/src/h2_6c_de_promotions.rs",
+  "crates/xtask/src/h2_6c_refusal_migrations.rs",
   "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
   "crates/compiler/tests/integration/h2_7c_corpus.rs",
   "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
@@ -837,6 +839,31 @@ test("H2.7d/e shared comparators retain hosted source pins and owner boundaries"
       () => validateRustOwnerControlBoundaries(changed),
       /hosted Rust source pins.*original_corpus_shared.rs.*content hash drifted/u,
     );
+  }
+});
+
+test("legacy D/E registries remain in the hosted source and owner boundary", () => {
+  for (const name of ["h2_6c_de_promotions", "h2_6c_refusal_migrations"]) {
+    const shared = `crates/xtask/src/${name}.rs`;
+    const fixture = rustOwnerBoundaryFixture();
+    const entry = "crates/xtask/src/h2_2c_acceptance.rs";
+    fixture.moduleSources[entry] = fixture.moduleSources[entry].replace(
+      "    let decoy =", `    ${name}::run(workspace)?;\n    let decoy =`,
+    );
+    fixture.moduleSources[shared] = fixture.moduleSources[shared].replace(
+      "    let decoy =", "    h2_3d_acceptance::run_owner_controls(workspace)?;\n    let decoy =",
+    );
+    repinRustFixture(fixture);
+    assert.throws(() => validateRustOwnerControlBoundaries(fixture),
+      /hosted call graph.*h2_6c_.*::run.*owner-control symbol/u);
+    const changed = rustOwnerBoundaryFixture();
+    changed.moduleSources[shared] += "\n// registry changed\n";
+    assert.throws(() => validateRustOwnerControlBoundaries(changed),
+      /hosted Rust source pins.*h2_6c_.*.rs.*content hash drifted/u);
+    const missing = rustOwnerBoundaryFixture();
+    delete missing.moduleSources[shared];
+    repinRustFixture(missing);
+    assert.throws(() => validateRustOwnerControlBoundaries(missing), /module set drifted/u);
   }
 });
 

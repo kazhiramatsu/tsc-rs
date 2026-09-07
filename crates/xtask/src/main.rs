@@ -7878,6 +7878,13 @@ fn ci_rust_gates(resume: &mut local_ci_resume::LocalCiResume) -> Result<(), Box<
         || ci_h2_7c_oracle_gates(&workspace),
     )?;
     resume.run_phase(
+        "h2-7de-oracle",
+        local_ci_resume::InputScope::NodeRuntimeOracle,
+        "",
+        &[],
+        || ci_h2_7de_oracle_gates(&workspace),
+    )?;
+    resume.run_phase(
         "h2-owner-controls",
         local_ci_resume::InputScope::Verification,
         "",
@@ -9090,6 +9097,15 @@ fn ci_h2_7c_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
         Command::new("node")
             .current_dir(workspace)
             .arg("crates/oracle/h2-7c-qualification.mjs")
+            .arg("--check"),
+    )
+}
+
+fn ci_h2_7de_oracle_gates(workspace: &Path) -> Result<(), Box<dyn Error>> {
+    run_command(
+        Command::new("node")
+            .current_dir(workspace)
+            .arg("crates/oracle/h2-7de-qualification.mjs")
             .arg("--check"),
     )
 }

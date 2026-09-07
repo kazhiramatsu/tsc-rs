@@ -35,6 +35,8 @@ const HOSTED_ACCEPTANCE_MODULES = Object.freeze([
 // of the same call-graph and raw-source pin closure, without being top-level
 // main.rs module declarations.
 const HOSTED_ACCEPTANCE_SHARED_MODULES = Object.freeze([
+  "crates/xtask/src/h2_6c_de_promotions.rs",
+  "crates/xtask/src/h2_6c_refusal_migrations.rs",
   "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
   "crates/compiler/tests/integration/h2_7c_corpus.rs",
   "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
