@@ -1,0 +1,653 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/kazhiramatsu/tsc-rs/.github/ci/contracts/h2-7c-qualification.schema.json",
+  "title": "H2.7c original corpus and focused declaration observations",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "kind",
+    "status",
+    "typescript",
+    "source_commit",
+    "repetitions",
+    "generator",
+    "contract",
+    "inputs",
+    "selection_contract",
+    "execution_contract",
+    "cases",
+    "focused",
+    "summary",
+    "qualification_fingerprint_sha256"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "kind": {
+      "const": "h2-7c-qualification"
+    },
+    "status": {
+      "const": "qualified-typescript-oracle"
+    },
+    "typescript": {
+      "const": "6.0.3"
+    },
+    "source_commit": {
+      "const": "050880ce59e30b356b686bd3144efe24f875ebc8"
+    },
+    "repetitions": {
+      "const": 2
+    },
+    "generator": {
+      "$ref": "#/$defs/path_hash"
+    },
+    "contract": {
+      "$ref": "#/$defs/path_hash"
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/path_hash"
+      },
+      "minItems": 10,
+      "maxItems": 10
+    },
+    "selection_contract": {
+      "type": "string"
+    },
+    "execution_contract": {
+      "type": "string"
+    },
+    "cases": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/case"
+      },
+      "minItems": 42,
+      "maxItems": 42
+    },
+    "focused": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "observer",
+          "fixture",
+          "cases",
+          "typed_refusals"
+        ],
+        "properties": {
+          "observer": {
+            "$ref": "#/$defs/path_hash"
+          },
+          "fixture": {
+            "$ref": "#/$defs/path_hash"
+          },
+          "cases": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "typed_refusals": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      },
+      "minItems": 11,
+      "maxItems": 11
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "corpus",
+        "exact",
+        "deferred",
+        "boundary_probes",
+        "focused",
+        "focused_exact",
+        "focused_typed_refusals",
+        "adjacent_ordinary_api_references",
+        "adjacent_ordinary_api_owner"
+      ],
+      "properties": {
+        "corpus": {
+          "const": 42
+        },
+        "exact": {
+          "const": 31
+        },
+        "deferred": {
+          "const": 11
+        },
+        "boundary_probes": {
+          "const": 1
+        },
+        "focused": {
+          "const": 244
+        },
+        "focused_exact": {
+          "const": 241
+        },
+        "focused_typed_refusals": {
+          "const": 3
+        },
+        "adjacent_ordinary_api_references": {
+          "const": 37
+        },
+        "adjacent_ordinary_api_owner": {
+          "const": "H2.8d"
+        }
+      }
+    },
+    "qualification_fingerprint_sha256": {
+      "$ref": "#/$defs/sha256"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "path_hash": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "bytes",
+        "sha256",
+        "git_blob_sha1"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "git_blob_sha1": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "category",
+        "file",
+        "start",
+        "length",
+        "message",
+        "related_information"
+      ],
+      "properties": {
+        "code": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "category": {
+          "enum": [
+            "Error",
+            "Warning",
+            "Message",
+            "Suggestion"
+          ]
+        },
+        "file": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "length": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "message": {
+          "type": "string"
+        },
+        "related_information": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/diagnostic"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "write": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "index",
+        "path",
+        "kind",
+        "callback_utf8_base64",
+        "callback_utf8_bytes",
+        "write_byte_order_mark",
+        "materialized_utf8_base64",
+        "materialized_utf8_bytes",
+        "on_error_callback_present",
+        "source_files",
+        "data_present",
+        "data_source_map_url_pos",
+        "data_diagnostics"
+      ],
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "path": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "declaration",
+            "javascript",
+            "source-map"
+          ]
+        },
+        "callback_utf8_base64": {
+          "type": "string"
+        },
+        "callback_utf8_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "write_byte_order_mark": {
+          "type": "boolean"
+        },
+        "materialized_utf8_base64": {
+          "type": "string"
+        },
+        "materialized_utf8_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "on_error_callback_present": {
+          "type": "boolean"
+        },
+        "source_files": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          ]
+        },
+        "data_present": {
+          "type": "boolean"
+        },
+        "data_source_map_url_pos": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "data_diagnostics": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/diagnostic"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "writes",
+        "reported_diagnostics",
+        "emit_refused",
+        "emit_result",
+        "status_writes",
+        "exit_code"
+      ],
+      "properties": {
+        "writes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/write"
+          }
+        },
+        "reported_diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/diagnostic"
+          }
+        },
+        "emit_refused": {
+          "type": "boolean"
+        },
+        "emit_result": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "emit_skipped",
+            "diagnostics",
+            "emitted_files",
+            "source_maps"
+          ],
+          "properties": {
+            "emit_skipped": {
+              "type": "boolean"
+            },
+            "diagnostics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/diagnostic"
+              }
+            },
+            "emitted_files": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              ]
+            },
+            "source_maps": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "array",
+                  "items": {},
+                  "maxItems": 0
+                }
+              ]
+            }
+          }
+        },
+        "status_writes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exit_code": {
+          "enum": [
+            0,
+            1,
+            2
+          ]
+        }
+      }
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "text"
+      ],
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        }
+      }
+    },
+    "replay_input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "current_directory",
+        "roots",
+        "vfs_symlinks",
+        "files",
+        "config",
+        "default_library_file_name"
+      ],
+      "properties": {
+        "current_directory": {
+          "type": "string"
+        },
+        "roots": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "vfs_symlinks": {
+          "type": "array",
+          "items": {},
+          "maxItems": 0
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/file"
+          }
+        },
+        "config": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/file"
+            }
+          ]
+        },
+        "default_library_file_name": {
+          "enum": [
+            null,
+            "lib.es5.d.ts"
+          ]
+        }
+      }
+    },
+    "case": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "case_id",
+            "origin",
+            "source",
+            "remaining_slices",
+            "disposition",
+            "replay_input",
+            "typescript_observation"
+          ],
+          "properties": {
+            "case_id": {
+              "type": "string"
+            },
+            "origin": {
+              "enum": [
+                "h2-7b-first-owner",
+                "global-required-slice"
+              ]
+            },
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "remaining_slices": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "H2.7d",
+                  "H2.7e",
+                  "H2.8a",
+                  "H2.8b",
+                  "H2.8c",
+                  "H2.8d"
+                ]
+              }
+            },
+            "disposition": {
+              "const": "deferred"
+            },
+            "replay_input": {
+              "type": "null"
+            },
+            "typescript_observation": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "case_id",
+            "origin",
+            "source",
+            "remaining_slices",
+            "effective_declaration_options",
+            "original_deferred_slices",
+            "settings",
+            "selection",
+            "files",
+            "project_input",
+            "replay_input",
+            "disposition",
+            "typescript_observation"
+          ],
+          "properties": {
+            "case_id": {
+              "type": "string"
+            },
+            "origin": {
+              "enum": [
+                "h2-7b-first-owner",
+                "global-required-slice"
+              ]
+            },
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "remaining_slices": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "H2.7d",
+                  "H2.7e",
+                  "H2.8a",
+                  "H2.8b",
+                  "H2.8c",
+                  "H2.8d"
+                ]
+              }
+            },
+            "effective_declaration_options": {
+              "type": "object"
+            },
+            "original_deferred_slices": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "settings": {
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "selection": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "files": {
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "project_input": {
+              "type": [
+                "object",
+                "null"
+              ]
+            },
+            "replay_input": {
+              "$ref": "#/$defs/replay_input"
+            },
+            "rust_expected_unsupported_option": {
+              "const": "rootDir"
+            },
+            "disposition": {
+              "enum": [
+                "exact",
+                "deferred"
+              ]
+            },
+            "typescript_observation": {
+              "$ref": "#/$defs/observation"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

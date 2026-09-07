@@ -46,6 +46,10 @@ pub(super) fn diagnostic_json(diagnostic: &Diagnostic) -> Value {
 
 #[test]
 fn public_declaration_getters_match_complete_typescript_observations() {
+    assert_declaration_getters();
+}
+
+pub(super) fn assert_declaration_getters() {
     let artifact: Value =
         serde_json::from_slice(include_bytes!("../fixtures/declaration-getters.json"))
             .expect("frozen TypeScript getter observations");

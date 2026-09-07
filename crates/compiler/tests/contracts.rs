@@ -109,3 +109,6 @@ mod h2_7c_declaration_getters;
 
 #[path = "integration/h2_7c_forced_declarations.rs"]
 mod h2_7c_forced_declarations;
+
+#[path = "integration/h2_7c_corpus.rs"]
+mod h2_7c_corpus;

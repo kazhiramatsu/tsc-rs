@@ -58,13 +58,13 @@ fn forced_empty_program_matches_complete_typescript_observations() {
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
-enum SourceFamily {
+pub(super) enum SourceFamily {
     TypeScriptAndJavaScript,
     Json,
     Empty,
 }
 
-fn assert_cases(source_family: SourceFamily) {
+pub(super) fn assert_cases(source_family: SourceFamily) {
     let artifact: Value =
         serde_json::from_slice(include_bytes!("../fixtures/forced-declarations.json")).unwrap();
     assert_eq!(artifact["typescript"], "6.0.3");

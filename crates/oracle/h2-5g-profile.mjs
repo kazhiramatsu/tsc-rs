@@ -93,6 +93,9 @@ const HISTORICAL_AUTHORITIES = Object.freeze([
 // this append-only set is every non-oracle crate path changed from the trusted
 // H2.5f merge that was not already part of the parent profile.
 const NEW_RUNTIME_INPUTS = Object.freeze([
+  "crates/compiler/tests/fixtures/h2-7c-corpus-inputs.json",
+  "crates/compiler/tests/integration/h2_7c_corpus.rs",
+  "crates/xtask/src/h2_7c_acceptance.rs",
   // h2-7c: focused option observations and production-entry comparisons.
   "crates/compiler/tests/fixtures/strip-internal.json",
   "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
@@ -650,8 +653,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 279,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 279)`,
+    runtimeInputSet.size === 282,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 282)`,
   );
 
   return withFingerprint(

@@ -12,6 +12,10 @@ use super::h2_7b_w4a_controls::assert_observation;
 
 #[test]
 fn strip_internal_matches_complete_typescript_observations() {
+    assert_strip_internal();
+}
+
+pub(super) fn assert_strip_internal() {
     let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let artifact: Value = serde_json::from_slice(include_bytes!("../fixtures/strip-internal.json"))
         .expect("frozen TypeScript observations");

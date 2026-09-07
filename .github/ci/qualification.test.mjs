@@ -96,12 +96,23 @@ const HOSTED_MODULE_PATHS = [
   "crates/xtask/src/h2_3b_acceptance.rs",
   "crates/xtask/src/h2_3c_acceptance.rs",
   "crates/xtask/src/h2_3d_acceptance.rs",
+  "crates/xtask/src/h2_7c_acceptance.rs",
+];
+
+const SHARED_MODULE_PATHS = [
+  "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
+  "crates/compiler/tests/integration/h2_7c_corpus.rs",
+  "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
+  "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
+  "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
+  "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
 ];
 
 const OWNER_MODULE_PATHS = [
   "crates/xtask/src/h2_3b_acceptance.rs",
   "crates/xtask/src/h2_3c_acceptance.rs",
   "crates/xtask/src/h2_3d_acceptance.rs",
+  "crates/xtask/src/h2_7c_acceptance.rs",
 ];
 
 const LOCAL_OWNER_CALLS = [
@@ -117,6 +128,7 @@ const LOCAL_OWNER_CALLS = [
   "h2_3d_acceptance::run_h2_5e_owner_controls",
   "h2_3d_acceptance::run_h2_5f_owner_controls",
   "h2_3d_acceptance::run_h2_5g_owner_controls",
+  "h2_7c_acceptance::run_owner_controls",
 ];
 
 function rustSourceSha256(xtaskSource, moduleSources) {
@@ -138,7 +150,7 @@ function rustOwnerBoundaryFixture() {
       : `    ${callee}(workspace)?;`,
   ).join("\n");
   const hostedStatements = [
-    ...HOSTED_MODULE_PATHS.filter((modulePath) => !modulePath.endsWith("/bounded_pipeline.rs")).map((modulePath) =>
+    ...HOSTED_MODULE_PATHS.filter((modulePath) => !modulePath.endsWith("/bounded_pipeline.rs") && !modulePath.endsWith("/h2_7c_acceptance.rs")).map((modulePath) =>
       `${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)}::run(&workspace)?;`,
     ),
     "h2_2c_acceptance::run_h2_4a(&workspace)?;",
@@ -154,7 +166,8 @@ function rustOwnerBoundaryFixture() {
     "h2_2c_acceptance::run_h2_6a(&workspace)?;",
     "h2_2c_acceptance::run_h2_6b(&workspace)?;",
     "h2_2c_acceptance::run_h2_6c(&workspace)?;",
-    "h2_2c_acceptance::run_h2_7b(&workspace)",
+    "h2_2c_acceptance::run_h2_7b(&workspace)?;",
+    "h2_7c_acceptance::run(&workspace)",
   ].map((statement) => `    ${statement}`).join("\n");
   const moduleDeclarations = HOSTED_MODULE_PATHS.map((modulePath) =>
     `mod ${modulePath.slice(modulePath.lastIndexOf("/") + 1, -3)};`,
@@ -177,7 +190,7 @@ ${ownerStatements}
 }
 `;
   const moduleSources = Object.fromEntries(
-    HOSTED_MODULE_PATHS.map((modulePath) => {
+    [...HOSTED_MODULE_PATHS, ...SHARED_MODULE_PATHS].map((modulePath) => {
       const ownerFunction = OWNER_MODULE_PATHS.includes(modulePath)
         ? `
 const OWNER_CONTROLS_RELATIVE_PATH: &str = "owner.json";
@@ -302,6 +315,10 @@ test("artifact-to-schema mapping is fixed and immutable", () => {
       [
         ".github/ci/contracts/h2-7b-qualification.schema.json",
         "ratchets/h2-7b-qualification.v1.json",
+      ],
+      [
+        ".github/ci/contracts/h2-7c-qualification.schema.json",
+        "ratchets/h2-7c-qualification.v1.json",
       ],
     ],
   );
@@ -759,6 +776,30 @@ test("hosted module declarations reject path, cfg, inline, duplicate, and nested
   }
 });
 
+test("H2.7c shared comparators remain in the hosted owner-control boundary", () => {
+  const fixture = rustOwnerBoundaryFixture();
+  const entry = "crates/xtask/src/h2_7c_acceptance.rs";
+  const shared = "crates/compiler/tests/integration/h2_7c_corpus.rs";
+  fixture.moduleSources[entry] = fixture.moduleSources[entry].replace(
+    "    let decoy =", "    h2_7c_corpus::run(workspace)?;\n    let decoy =",
+  );
+  fixture.moduleSources[shared] = fixture.moduleSources[shared].replace(
+    "    let decoy =", "    h2_3d_acceptance::run_owner_controls(workspace)?;\n    let decoy =",
+  );
+  repinRustFixture(fixture);
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(fixture),
+    /hosted call graph.*h2_7c_corpus::run.*owner-control symbol/u,
+  );
+
+  const changed = rustOwnerBoundaryFixture();
+  changed.moduleSources[shared] += "\n// shared comparator changed\n";
+  assert.throws(
+    () => validateRustOwnerControlBoundaries(changed),
+    /hosted Rust source pins.*h2_7c_corpus.rs.*content hash drifted/u,
+  );
+});
+
 test("raw source pins close Rust constructs outside the bounded call-graph grammar", () => {
   const modulePath = OWNER_MODULE_PATHS[0];
   const directOwnerVariants = [
@@ -848,7 +889,7 @@ test("policy and every qualification schema boundary are valid", () => {
   assert.equal(policy.hosted_acceptance.only_acceptance_tests, true);
   assert.equal(
     Object.keys(policy.hosted_acceptance.rust_source_sha256).length,
-    16,
+    1 + HOSTED_MODULE_PATHS.length + SHARED_MODULE_PATHS.length,
   );
   assert.match(
     policy.hosted_acceptance.rust_source_sha256["crates/xtask/src/main.rs"],
