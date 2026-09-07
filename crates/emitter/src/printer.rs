@@ -1092,6 +1092,46 @@ impl Printer {
         }
     }
 
+    /// Print a JavaScript SourceFile or Bundle with the actual checker global
+    /// name table. The legacy `print` entry retains its no-oracle contract;
+    /// standalone-node, declaration and map requests keep their own APIs.
+    pub fn print_javascript_with_global_names(
+        &mut self,
+        transformation: &mut TransformationResult<'_>,
+        request: PrintRequest,
+        recording: Option<crate::source_map::SourceMapRecordingInputs>,
+        global_name_oracle: &dyn GlobalNameOracle,
+    ) -> Result<PrintedText, PrinterError> {
+        if self.options.declaration_syntax {
+            return Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::Declaration,
+            ));
+        }
+        match request {
+            PrintRequest::SourceFile(source) => {
+                self.print_source_file(transformation, source, recording, Some(global_name_oracle))
+            }
+            PrintRequest::Bundle(bundle) => self.print_bundle_worker(
+                transformation,
+                &bundle,
+                recording,
+                Some(global_name_oracle),
+            ),
+            PrintRequest::StandaloneNode { .. } => Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::StandaloneNodePrinting,
+            )),
+            PrintRequest::NodeList(_) => Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::NodeListPrinting,
+            )),
+            PrintRequest::JavaScriptMap(_) => Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::JavaScriptMap,
+            )),
+            PrintRequest::Declaration(_) => Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::Declaration,
+            )),
+        }
+    }
+
     /// Print one transformed declaration root with the checker-owned global
     /// name oracle installed for generated file-level uniqueness decisions.
     ///

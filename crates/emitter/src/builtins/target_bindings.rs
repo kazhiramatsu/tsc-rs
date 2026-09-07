@@ -641,7 +641,12 @@ fn finalize_generated_binding_names_with_policy(
         if let Some(parent) = entry.derived_from {
             if !assigned.contains_key(&parent) {
                 if let Some(base) = context.generated_binding_numbered_base(parent) {
-                    let name = scopes.allocate_source_numbered_with_policy(base, false);
+                    let name = allocate_numbered_name_with_global_oracle(
+                        &mut scopes,
+                        base,
+                        false,
+                        global_name_oracle,
+                    )?;
                     assigned.insert(parent, name);
                     shared_numbered_bindings.insert(parent);
                 }
@@ -651,8 +656,12 @@ fn finalize_generated_binding_names_with_policy(
             .derived_from
             .and_then(|parent| assigned.get(&parent).cloned())
             .unwrap_or_else(|| entry.base.clone());
-        let name =
-            scopes.allocate_source_numbered_with_policy(&base, entry.reserve_in_nested_scopes);
+        let name = allocate_numbered_name_with_global_oracle(
+            &mut scopes,
+            &base,
+            entry.reserve_in_nested_scopes,
+            global_name_oracle,
+        )?;
         assigned.insert(entry.binding, name);
         if !entry.reserve_in_nested_scopes {
             shared_numbered_bindings.insert(entry.binding);
@@ -772,6 +781,27 @@ fn finalize_generated_binding_names_with_policy(
         arena.set_generated_identifier_text(node, &name)?;
     }
     Ok(())
+}
+
+// Numbered names (including unprinted parents of derived setter names) use
+// the same checker-owned global-name predicate as file-level names. Rejected
+// candidates remain reserved locally: they are actual global bindings, not
+// generated names to share with the next bundle source. A failed query aborts.
+fn allocate_numbered_name_with_global_oracle(
+    scopes: &mut GeneratedBindingScopes,
+    base: &str,
+    reserve_in_nested_scopes: bool,
+    global_name_oracle: Option<&dyn GlobalNameOracle>,
+) -> Result<String, TransformError> {
+    loop {
+        let candidate = scopes.allocate_source_numbered_with_policy(base, reserve_in_nested_scopes);
+        if let Some(oracle) = global_name_oracle {
+            if oracle.has_global_name(&candidate)? {
+                continue;
+            }
+        }
+        return Ok(candidate);
+    }
 }
 
 /// tsc-port: isUniqueName/isFileLevelUniqueNameInCurrentFile @6.0.3

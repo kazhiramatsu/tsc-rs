@@ -98,6 +98,12 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/compiler/tests/fixtures/declaration-maps.json",
   "crates/compiler/tests/h2_7e_declaration_maps.rs",
   "crates/compiler/tests/h2_7e_original_corpus.rs",
+  "crates/compiler/tests/h2_7e_declaration_map_apis.rs",
+  "crates/compiler/tests/h2_7d_module_identities.rs",
+  "crates/compiler/tests/h2_7d_declaration_bundles.rs",
+  "crates/compiler/Cargo.toml",
+  "crates/emitter/src/declarations/bundle.rs",
+  "crates/compiler/tests/fixtures/declaration-maps-disabled-declaration.json",
   "crates/emitter/src/declaration_map.rs",
   "crates/emitter/tests/fixtures/bundle-plan.json",
   "crates/emitter/tests/unit/bundle_plan/tests.rs",
@@ -105,7 +111,11 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/compiler/tests/fixtures/declaration-map-apis.json",
   "crates/compiler/tests/fixtures/declaration-maps-runtime.json",
   "crates/emitter/tests/fixtures/bundle-module-identities.json",
+  "crates/emitter/tests/fixtures/system-generated-names.json",
   "crates/emitter/tests/fixtures/bundle-declarations.json",
+  "crates/emitter/src/printer/bundle.rs",
+  "crates/emitter/tests/fixtures/bundle-printer.json",
+  "crates/emitter/tests/unit/bundle_printer/tests.rs",
   "crates/emitter/src/external_module_names.rs",
   "crates/emitter/tests/unit/external_module_names/tests.rs",
   "crates/emitter/tests/fixtures/bundle-transform.json",
@@ -670,8 +680,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 297,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 297)`,
+    runtimeInputSet.size === 307,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 307)`,
   );
 
   return withFingerprint(

@@ -61,15 +61,14 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: EXECUTE_RELATIVE_PATH,
     historicalSha256: EXPECTED_EXECUTE_SHA256,
-    item: Object.freeze({ name: "validate_emit_options", line: 85 }),
+    item: Object.freeze({ name: "validate_emit_options", line: 95 }),
     arms: Object.freeze([
-      // Ordinary nonbundle maps with declarations are supported; this arm
-      // retains getter/forced requests and disabled declaration options.
-      Object.freeze({ name: "declarationMap", line: 138, marker: "options.declaration_map == Some(true)" }),
+      // Ordinary maps, getters and forced declarations are observed in E m3/m4.
+      // Bundle composition remains guarded in planning and printing.
       // The ordinary/getter request flavors share this validator.
       // H2.7c stripInternal, declarationDir and the emitDeclarationOnly
       // prerequisite are covered by focused complete observations.
-      Object.freeze({ name: "composite", line: 147, marker: "(options.composite == Some(true), \"composite\")" }),
+      Object.freeze({ name: "composite", line: 149, marker: "(options.composite == Some(true), \"composite\")" }),
     ]),
   }),
   Object.freeze({
@@ -87,9 +86,12 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   }),
   Object.freeze({
     path: PRINTER_RELATIVE_PATH,
-    item: Object.freeze({ name: "print", line: 1041 }),
+    item: Object.freeze({ name: "print", line: 1066 }),
     arms: Object.freeze([
-      Object.freeze({ name: "Bundle", line: 1057, marker: "PrintRequest::Bundle" }),
+      // The dispatch now prints global scripts and delegates retained
+      // declaration/module/JSON/recording guards to printer/bundle.rs.
+      // That complete callee is pinned in the live runtime input closure.
+      Object.freeze({ name: "BundleDispatch", line: 1082, marker: "PrintRequest::Bundle" }),
     ]),
   }),
 ]);

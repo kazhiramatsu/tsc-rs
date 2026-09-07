@@ -18,6 +18,15 @@ use tsc_program::{
     ProgramLoadLimits, ProgramOptions,
 };
 
+// Delegates to the same live resolver borrowed by the checked Program seam.
+// An unavailable/failed lookup is propagated, never interpreted as false.
+struct GlobalNames<'a>(&'a dyn EmitResolver);
+impl tsc_emitter::GlobalNameOracle for GlobalNames<'_> {
+    fn has_global_name(&self, name: &str) -> Result<bool, tsc_emitter::EmitResolverError> {
+        self.0.has_global_name(name)
+    }
+}
+
 fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
@@ -275,6 +284,7 @@ fn compare_facet(
     // transform/print; standalone units use distinct source transformations and
     // print requests, exercising the per-file reset in the same printer.
     let mut printer = create_printer(printer_options);
+    let global_names = GlobalNames(resolver);
     let mut failures = Vec::new();
     for (output_index, (unit, expected_write)) in units.iter().zip(expected_writes).enumerate() {
         let comparison = (|| -> Result<(), String> {
@@ -342,7 +352,7 @@ fn compare_facet(
                 _ => return Err("transform changed the output root kind/count".to_owned()),
             };
             let printed = printer
-                .print(&mut transformed, request, None)
+                .print_javascript_with_global_names(&mut transformed, request, None, &global_names)
                 .map_err(|error| format!("printer: {error}"))?;
             if printed.source_map().is_some() {
                 return Err("unexpected source-map recording".to_owned());

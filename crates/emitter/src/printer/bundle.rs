@@ -51,7 +51,7 @@ impl Printer {
         )
     }
 
-    fn print_bundle_worker(
+    pub(super) fn print_bundle_worker(
         &mut self,
         transformation: &mut TransformationResult<'_>,
         bundle: &TransformBundle,
