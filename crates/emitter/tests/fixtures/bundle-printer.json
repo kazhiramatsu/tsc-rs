@@ -1,0 +1,4156 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "contract": "Complete fresh Program.emit tuples repeat twice. Rust initially compares the internal global-script bundle printer bytes; runtime outFile admission stays closed.",
+  "cases": [
+    {
+      "case_id": "source-order",
+      "files": [
+        {
+          "path": "/project/z.ts",
+          "text": "const z: number = 1;\n"
+        },
+        {
+          "path": "/project/a.ts",
+          "text": "const a: string = 'a';\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/z.ts",
+          "/project/a.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/z.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 19,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 21,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/z.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 2,
+              "character": 0,
+              "position": 28
+            },
+            "callback_utf8_base64": "Y29uc3QgeiA9IDE7CmNvbnN0IGEgPSAnYSc7Cg==",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgeiA9IDE7CmNvbnN0IGEgPSAnYSc7Cg==",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/z.ts",
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "reverse-roots",
+      "files": [
+        {
+          "path": "/project/z.ts",
+          "text": "const z: number = 1;\n"
+        },
+        {
+          "path": "/project/a.ts",
+          "text": "const a: string = 'a';\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "roots": [
+        "/project/a.ts",
+        "/project/z.ts"
+      ],
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/z.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 21,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/z.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 19,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/z.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 2,
+              "character": 0,
+              "position": 28
+            },
+            "callback_utf8_base64": "Y29uc3QgYSA9ICdhJzsKY29uc3QgeiA9IDE7Cg==",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Y29uc3QgYSA9ICdhJzsKY29uc3QgeiA9IDE7Cg==",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/z.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "distinct-prologues",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"one\";\nconst a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"two\";\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 12,
+            "end": 18,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 12,
+            "end": 18,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 14,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 14,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 4,
+              "character": 0,
+              "position": 40
+            },
+            "callback_utf8_base64": "Im9uZSI7CiJ0d28iOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "callback_utf8_bytes": 40,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Im9uZSI7CiJ0d28iOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "materialized_utf8_bytes": 40,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "duplicate-prologue-comments",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "// first\n\"use strict\";\nconst a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "// second\n'use strict';\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 28,
+            "end": 34,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 29,
+            "end": 35,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 28,
+            "end": 30,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 29,
+            "end": 31,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 4,
+              "character": 0,
+              "position": 49
+            },
+            "callback_utf8_base64": "Ly8gZmlyc3QKInVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "callback_utf8_bytes": 49,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8gZmlyc3QKInVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "materialized_utf8_bytes": 49,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "detached-before-prologues",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/* detached */\n\n\"use strict\";\nconst a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "/* second */\n\n\"use strict\";\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 35,
+            "end": 41,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 33,
+            "end": 39,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 35,
+            "end": 37,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 33,
+            "end": 35,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 4,
+              "character": 0,
+              "position": 55
+            },
+            "callback_utf8_base64": "LyogZGV0YWNoZWQgKi8KInVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "callback_utf8_bytes": 55,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyogZGV0YWNoZWQgKi8KInVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "materialized_utf8_bytes": 55,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "all-prologues",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"one\";\n\"two\";\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"two\";\n\"three\";\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [],
+        "referenced_collision_queries": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 3,
+              "character": 0,
+              "position": 23
+            },
+            "callback_utf8_base64": "Im9uZSI7CiJ0d28iOwoidGhyZWUiOwo=",
+            "callback_utf8_bytes": 23,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Im9uZSI7CiJ0d28iOwoidGhyZWUiOwo=",
+            "materialized_utf8_bytes": 23,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "escaped-prologue-dedup",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"u\\u0073e strict\";\n\"🌸\";\nconst a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"use strict\";\n\"\\uD83C\\uDF38\";\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 30,
+            "end": 36,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 35,
+            "end": 41,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 30,
+            "end": 32,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 35,
+            "end": 37,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 4,
+              "character": 0,
+              "position": 51
+            },
+            "callback_utf8_base64": "InVcdTAwNzNlIHN0cmljdCI7CiLwn4y4IjsKY29uc3QgYSA9IDE7CmNvbnN0IGIgPSAyOwo=",
+            "callback_utf8_bytes": 53,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVcdTAwNzNlIHN0cmljdCI7CiLwn4y4IjsKY29uc3QgYSA9IDE7CmNvbnN0IGIgPSAyOwo=",
+            "materialized_utf8_bytes": 53,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "surrogate-prologue-identity",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"\\uD800\";\n\"�\";\nconst a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"\\ud800\";\n\"\\uFFFD\";\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 20,
+            "end": 26,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 25,
+            "end": 31,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 20,
+            "end": 22,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 25,
+            "end": 27,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 4,
+              "character": 0,
+              "position": 41
+            },
+            "callback_utf8_base64": "Ilx1RDgwMCI7CiLvv70iOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "callback_utf8_bytes": 43,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ilx1RDgwMCI7CiLvv70iOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "materialized_utf8_bytes": 43,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "same-line-prologue-comments",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"use strict\"; /* first */ const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"use strict\"; /* second */ const b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 31,
+            "end": 37,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 32,
+            "end": 38,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 31,
+            "end": 33,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 32,
+            "end": 34,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 3,
+              "character": 0,
+              "position": 52
+            },
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOyAvKiBmaXJzdCAqLwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "callback_utf8_bytes": 52,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOyAvKiBmaXJzdCAqLwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "materialized_utf8_bytes": 52,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "prologue-only-eof-comments",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"one\"; // a\n/* eof a */\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"one\"; // b\n/* eof b */\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [],
+        "referenced_collision_queries": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 1,
+              "character": 0,
+              "position": 12
+            },
+            "callback_utf8_base64": "Im9uZSI7IC8vIGEK",
+            "callback_utf8_bytes": 12,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Im9uZSI7IC8vIGEK",
+            "materialized_utf8_bytes": 12,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "later-shebang",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "#!/usr/bin/env node\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 25,
+            "end": 31,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 25,
+            "end": 27,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 3,
+              "character": 0,
+              "position": 46
+            },
+            "callback_utf8_base64": "IyEvdXNyL2Jpbi9lbnYgbm9kZQpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "callback_utf8_bytes": 46,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "IyEvdXNyL2Jpbi9lbnYgbm9kZQpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "materialized_utf8_bytes": 46,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "first-shebang-wins",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "#!/first\nconst a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "#!/second\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 14,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 15,
+            "end": 21,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 16,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 15,
+            "end": 17,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 3,
+              "character": 0,
+              "position": 35
+            },
+            "callback_utf8_base64": "IyEvZmlyc3QKY29uc3QgYSA9IDE7CmNvbnN0IGIgPSAyOwo=",
+            "callback_utf8_bytes": 35,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "IyEvZmlyc3QKY29uc3QgYSA9IDE7CmNvbnN0IGIgPSAyOwo=",
+            "materialized_utf8_bytes": 35,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "empty-source-comments",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/* a */\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "// b\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [],
+        "referenced_collision_queries": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 2,
+              "character": 0,
+              "position": 13
+            },
+            "callback_utf8_base64": "LyogYSAqLwovLyBiCg==",
+            "callback_utf8_bytes": 13,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyogYSAqLwovLyBiCg==",
+            "materialized_utf8_bytes": 13,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "empty-sources",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": ""
+        },
+        {
+          "path": "/project/b.ts",
+          "text": ""
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [],
+        "referenced_collision_queries": [],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 0,
+              "character": 0,
+              "position": 0
+            },
+            "callback_utf8_base64": "",
+            "callback_utf8_bytes": 0,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "",
+            "materialized_utf8_bytes": 0,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "erased-sources",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "interface A { value: number }\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "type B = string;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 9,
+            "end": 11,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 13,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 4,
+            "end": 6,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 0,
+              "character": 0,
+              "position": 0
+            },
+            "callback_utf8_base64": "",
+            "callback_utf8_bytes": 0,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "",
+            "materialized_utf8_bytes": 0,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "comment-topology",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/* file a */\n\n// leading\nconst a: number = 1; // tail\n/* eof a */\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "/* file b */\n\nconst b: number = 2;\n/* eof b */\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 30,
+            "end": 44,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 19,
+            "end": 33,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 30,
+            "end": 32,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 19,
+            "end": 21,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 7,
+              "character": 0,
+              "position": 95
+            },
+            "callback_utf8_base64": "LyogZmlsZSBhICovCi8vIGxlYWRpbmcKY29uc3QgYSA9IDE7IC8vIHRhaWwKLyogZW9mIGEgKi8KLyogZmlsZSBiICovCmNvbnN0IGIgPSAyOwovKiBlb2YgYiAqLwo=",
+            "callback_utf8_bytes": 95,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyogZmlsZSBhICovCi8vIGxlYWRpbmcKY29uc3QgYSA9IDE7IC8vIHRhaWwKLyogZW9mIGEgKi8KLyogZmlsZSBiICovCmNvbnN0IGIgPSAyOwovKiBlb2YgYiAqLwo=",
+            "materialized_utf8_bytes": 95,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "always-strict",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "// first\nconst a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "// second\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": true,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 14,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 15,
+            "end": 21,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 16,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 15,
+            "end": 17,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 5,
+              "character": 0,
+              "position": 59
+            },
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovLyBmaXJzdApjb25zdCBhID0gMTsKLy8gc2Vjb25kCmNvbnN0IGIgPSAyOwo=",
+            "callback_utf8_bytes": 59,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwovLyBmaXJzdApjb25zdCBhID0gMTsKLy8gc2Vjb25kCmNvbnN0IGIgPSAyOwo=",
+            "materialized_utf8_bytes": 59,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "crlf",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "\"one\";\nconst a = 1; // a\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"two\";\nconst b = 2; // b\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 12,
+            "end": 18,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 12,
+            "end": 18,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 14,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 14,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 4,
+              "character": 0,
+              "position": 54
+            },
+            "callback_utf8_base64": "Im9uZSI7DQoidHdvIjsNCmNvbnN0IGEgPSAxOyAvLyBhDQpjb25zdCBiID0gMjsgLy8gYg0K",
+            "callback_utf8_bytes": 54,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Im9uZSI7DQoidHdvIjsNCmNvbnN0IGEgPSAxOyAvLyBhDQpjb25zdCBiID0gMjsgLy8gYg0K",
+            "materialized_utf8_bytes": 54,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "remove-comments",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "/* first */\n\"use strict\";\nconst a = 1; // tail\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "#!/second\n/* second */\n\"use strict\";\nconst b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "removeComments": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 31,
+            "end": 37,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 42,
+            "end": 48,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 31,
+            "end": 33,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 42,
+            "end": 44,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 4,
+              "character": 0,
+              "position": 50
+            },
+            "callback_utf8_base64": "IyEvc2Vjb25kCiJ1c2Ugc3RyaWN0IjsKY29uc3QgYSA9IDE7CmNvbnN0IGIgPSAyOwo=",
+            "callback_utf8_bytes": 50,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "IyEvc2Vjb25kCiJ1c2Ugc3RyaWN0IjsKY29uc3QgYSA9IDE7CmNvbnN0IGIgPSAyOwo=",
+            "materialized_utf8_bytes": 50,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "helper-placement-none",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = {...value};\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "const {c, ...rest} = value;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts",
+          "/project/c.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 26,
+            "value_present": true,
+            "value": false,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 9,
+            "end": 17,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 13,
+            "end": 17,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 20,
+            "end": 26,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 25,
+              "character": 0,
+              "position": 960
+            },
+            "callback_utf8_base64": "dmFyIGEgPSAxOwp2YXIgX19hc3NpZ24gPSAodGhpcyAmJiB0aGlzLl9fYXNzaWduKSB8fCBmdW5jdGlvbiAoKSB7CiAgICBfX2Fzc2lnbiA9IE9iamVjdC5hc3NpZ24gfHwgZnVuY3Rpb24odCkgewogICAgICAgIGZvciAodmFyIHMsIGkgPSAxLCBuID0gYXJndW1lbnRzLmxlbmd0aDsgaSA8IG47IGkrKykgewogICAgICAgICAgICBzID0gYXJndW1lbnRzW2ldOwogICAgICAgICAgICBmb3IgKHZhciBwIGluIHMpIGlmIChPYmplY3QucHJvdG90eXBlLmhhc093blByb3BlcnR5LmNhbGwocywgcCkpCiAgICAgICAgICAgICAgICB0W3BdID0gc1twXTsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIHQ7CiAgICB9OwogICAgcmV0dXJuIF9fYXNzaWduLmFwcGx5KHRoaXMsIGFyZ3VtZW50cyk7Cn07CnZhciBiID0gX19hc3NpZ24oe30sIHZhbHVlKTsKdmFyIF9fcmVzdCA9ICh0aGlzICYmIHRoaXMuX19yZXN0KSB8fCBmdW5jdGlvbiAocywgZSkgewogICAgdmFyIHQgPSB7fTsKICAgIGZvciAodmFyIHAgaW4gcykgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChzLCBwKSAmJiBlLmluZGV4T2YocCkgPCAwKQogICAgICAgIHRbcF0gPSBzW3BdOwogICAgaWYgKHMgIT0gbnVsbCAmJiB0eXBlb2YgT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyA9PT0gImZ1bmN0aW9uIikKICAgICAgICBmb3IgKHZhciBpID0gMCwgcCA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eVN5bWJvbHMocyk7IGkgPCBwLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChlLmluZGV4T2YocFtpXSkgPCAwICYmIE9iamVjdC5wcm90b3R5cGUucHJvcGVydHlJc0VudW1lcmFibGUuY2FsbChzLCBwW2ldKSkKICAgICAgICAgICAgICAgIHRbcFtpXV0gPSBzW3BbaV1dOwogICAgICAgIH0KICAgIHJldHVybiB0Owp9Owp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "callback_utf8_bytes": 960,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIGEgPSAxOwp2YXIgX19hc3NpZ24gPSAodGhpcyAmJiB0aGlzLl9fYXNzaWduKSB8fCBmdW5jdGlvbiAoKSB7CiAgICBfX2Fzc2lnbiA9IE9iamVjdC5hc3NpZ24gfHwgZnVuY3Rpb24odCkgewogICAgICAgIGZvciAodmFyIHMsIGkgPSAxLCBuID0gYXJndW1lbnRzLmxlbmd0aDsgaSA8IG47IGkrKykgewogICAgICAgICAgICBzID0gYXJndW1lbnRzW2ldOwogICAgICAgICAgICBmb3IgKHZhciBwIGluIHMpIGlmIChPYmplY3QucHJvdG90eXBlLmhhc093blByb3BlcnR5LmNhbGwocywgcCkpCiAgICAgICAgICAgICAgICB0W3BdID0gc1twXTsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIHQ7CiAgICB9OwogICAgcmV0dXJuIF9fYXNzaWduLmFwcGx5KHRoaXMsIGFyZ3VtZW50cyk7Cn07CnZhciBiID0gX19hc3NpZ24oe30sIHZhbHVlKTsKdmFyIF9fcmVzdCA9ICh0aGlzICYmIHRoaXMuX19yZXN0KSB8fCBmdW5jdGlvbiAocywgZSkgewogICAgdmFyIHQgPSB7fTsKICAgIGZvciAodmFyIHAgaW4gcykgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChzLCBwKSAmJiBlLmluZGV4T2YocCkgPCAwKQogICAgICAgIHRbcF0gPSBzW3BdOwogICAgaWYgKHMgIT0gbnVsbCAmJiB0eXBlb2YgT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyA9PT0gImZ1bmN0aW9uIikKICAgICAgICBmb3IgKHZhciBpID0gMCwgcCA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eVN5bWJvbHMocyk7IGkgPCBwLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChlLmluZGV4T2YocFtpXSkgPCAwICYmIE9iamVjdC5wcm90b3R5cGUucHJvcGVydHlJc0VudW1lcmFibGUuY2FsbChzLCBwW2ldKSkKICAgICAgICAgICAgICAgIHRbcFtpXV0gPSBzW3BbaV1dOwogICAgICAgIH0KICAgIHJldHVybiB0Owp9Owp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "materialized_utf8_bytes": 960,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/b.ts",
+            "start": 14,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/c.ts",
+            "start": 21,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "helper-placement-commonjs",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = {...value};\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "const {c, ...rest} = value;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 1,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts",
+          "/project/c.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 26,
+            "value_present": true,
+            "value": false,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 9,
+            "end": 17,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 13,
+            "end": 17,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 20,
+            "end": 26,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 25,
+              "character": 0,
+              "position": 960
+            },
+            "callback_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07CnZhciBhID0gMTsKdmFyIGIgPSBfX2Fzc2lnbih7fSwgdmFsdWUpOwp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "callback_utf8_bytes": 960,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07CnZhciBhID0gMTsKdmFyIGIgPSBfX2Fzc2lnbih7fSwgdmFsdWUpOwp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "materialized_utf8_bytes": 960,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 6082,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Only 'amd' and 'system' modules are supported alongside --outFile.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/b.ts",
+            "start": 14,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/c.ts",
+            "start": 21,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "helper-placement-amd",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = {...value};\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "const {c, ...rest} = value;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts",
+          "/project/c.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 26,
+            "value_present": true,
+            "value": false,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 9,
+            "end": 17,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 13,
+            "end": 17,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 20,
+            "end": 26,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 25,
+              "character": 0,
+              "position": 960
+            },
+            "callback_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07CnZhciBhID0gMTsKdmFyIGIgPSBfX2Fzc2lnbih7fSwgdmFsdWUpOwp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "callback_utf8_bytes": 960,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07CnZhciBhID0gMTsKdmFyIGIgPSBfX2Fzc2lnbih7fSwgdmFsdWUpOwp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "materialized_utf8_bytes": 960,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/b.ts",
+            "start": 14,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/c.ts",
+            "start": 21,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "helper-placement-system",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = {...value};\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "const {c, ...rest} = value;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 4,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts",
+          "/project/c.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 26,
+            "value_present": true,
+            "value": false,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 9,
+            "end": 17,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 13,
+            "end": 17,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 20,
+            "end": 26,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 25,
+              "character": 0,
+              "position": 960
+            },
+            "callback_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07CnZhciBhID0gMTsKdmFyIGIgPSBfX2Fzc2lnbih7fSwgdmFsdWUpOwp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "callback_utf8_bytes": 960,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgX19yZXN0ID0gKHRoaXMgJiYgdGhpcy5fX3Jlc3QpIHx8IGZ1bmN0aW9uIChzLCBlKSB7CiAgICB2YXIgdCA9IHt9OwogICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApICYmIGUuaW5kZXhPZihwKSA8IDApCiAgICAgICAgdFtwXSA9IHNbcF07CiAgICBpZiAocyAhPSBudWxsICYmIHR5cGVvZiBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzID09PSAiZnVuY3Rpb24iKQogICAgICAgIGZvciAodmFyIGkgPSAwLCBwID0gT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyhzKTsgaSA8IHAubGVuZ3RoOyBpKyspIHsKICAgICAgICAgICAgaWYgKGUuaW5kZXhPZihwW2ldKSA8IDAgJiYgT2JqZWN0LnByb3RvdHlwZS5wcm9wZXJ0eUlzRW51bWVyYWJsZS5jYWxsKHMsIHBbaV0pKQogICAgICAgICAgICAgICAgdFtwW2ldXSA9IHNbcFtpXV07CiAgICAgICAgfQogICAgcmV0dXJuIHQ7Cn07CnZhciBhID0gMTsKdmFyIGIgPSBfX2Fzc2lnbih7fSwgdmFsdWUpOwp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "materialized_utf8_bytes": 960,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/b.ts",
+            "start": 14,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/c.ts",
+            "start": 21,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "shared-helper",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = {...value};\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = {...value};\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 13,
+              "character": 0,
+              "position": 441
+            },
+            "callback_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgYSA9IF9fYXNzaWduKHt9LCB2YWx1ZSk7CnZhciBiID0gX19hc3NpZ24oe30sIHZhbHVlKTsK",
+            "callback_utf8_bytes": 441,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgYSA9IF9fYXNzaWduKHt9LCB2YWx1ZSk7CnZhciBiID0gX19hc3NpZ24oe30sIHZhbHVlKTsK",
+            "materialized_utf8_bytes": 441,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/a.ts",
+            "start": 14,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/b.ts",
+            "start": 14,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "no-emit-helpers",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = {...value};\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "const {c, ...rest} = value;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "noEmitHelpers": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts",
+          "/project/c.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 26,
+            "value_present": true,
+            "value": false,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 9,
+            "end": 17,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 13,
+            "end": 17,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 20,
+            "end": 26,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 3,
+              "character": 0,
+              "position": 86
+            },
+            "callback_utf8_base64": "dmFyIGEgPSAxOwp2YXIgYiA9IF9fYXNzaWduKHt9LCB2YWx1ZSk7CnZhciBjID0gdmFsdWUuYywgcmVzdCA9IF9fcmVzdCh2YWx1ZSwgWyJjIl0pOwo=",
+            "callback_utf8_bytes": 86,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIGEgPSAxOwp2YXIgYiA9IF9fYXNzaWduKHt9LCB2YWx1ZSk7CnZhciBjID0gdmFsdWUuYywgcmVzdCA9IF9fcmVzdCh2YWx1ZSwgWyJjIl0pOwo=",
+            "materialized_utf8_bytes": 86,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/b.ts",
+            "start": 14,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/c.ts",
+            "start": 21,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "import-helpers-global",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = {...value};\n"
+        },
+        {
+          "path": "/project/c.ts",
+          "text": "const {c, ...rest} = value;\n"
+        }
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "importHelpers": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts",
+          "/project/c.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 26,
+            "value_present": true,
+            "value": false,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "BindingElement",
+            "pos": 9,
+            "end": 17,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 14,
+            "end": 19,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 13,
+            "end": 17,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/c.ts",
+            "kind": "Identifier",
+            "pos": 20,
+            "end": 26,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 25,
+              "character": 0,
+              "position": 960
+            },
+            "callback_utf8_base64": "dmFyIGEgPSAxOwp2YXIgX19hc3NpZ24gPSAodGhpcyAmJiB0aGlzLl9fYXNzaWduKSB8fCBmdW5jdGlvbiAoKSB7CiAgICBfX2Fzc2lnbiA9IE9iamVjdC5hc3NpZ24gfHwgZnVuY3Rpb24odCkgewogICAgICAgIGZvciAodmFyIHMsIGkgPSAxLCBuID0gYXJndW1lbnRzLmxlbmd0aDsgaSA8IG47IGkrKykgewogICAgICAgICAgICBzID0gYXJndW1lbnRzW2ldOwogICAgICAgICAgICBmb3IgKHZhciBwIGluIHMpIGlmIChPYmplY3QucHJvdG90eXBlLmhhc093blByb3BlcnR5LmNhbGwocywgcCkpCiAgICAgICAgICAgICAgICB0W3BdID0gc1twXTsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIHQ7CiAgICB9OwogICAgcmV0dXJuIF9fYXNzaWduLmFwcGx5KHRoaXMsIGFyZ3VtZW50cyk7Cn07CnZhciBiID0gX19hc3NpZ24oe30sIHZhbHVlKTsKdmFyIF9fcmVzdCA9ICh0aGlzICYmIHRoaXMuX19yZXN0KSB8fCBmdW5jdGlvbiAocywgZSkgewogICAgdmFyIHQgPSB7fTsKICAgIGZvciAodmFyIHAgaW4gcykgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChzLCBwKSAmJiBlLmluZGV4T2YocCkgPCAwKQogICAgICAgIHRbcF0gPSBzW3BdOwogICAgaWYgKHMgIT0gbnVsbCAmJiB0eXBlb2YgT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyA9PT0gImZ1bmN0aW9uIikKICAgICAgICBmb3IgKHZhciBpID0gMCwgcCA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eVN5bWJvbHMocyk7IGkgPCBwLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChlLmluZGV4T2YocFtpXSkgPCAwICYmIE9iamVjdC5wcm90b3R5cGUucHJvcGVydHlJc0VudW1lcmFibGUuY2FsbChzLCBwW2ldKSkKICAgICAgICAgICAgICAgIHRbcFtpXV0gPSBzW3BbaV1dOwogICAgICAgIH0KICAgIHJldHVybiB0Owp9Owp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "callback_utf8_bytes": 960,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIGEgPSAxOwp2YXIgX19hc3NpZ24gPSAodGhpcyAmJiB0aGlzLl9fYXNzaWduKSB8fCBmdW5jdGlvbiAoKSB7CiAgICBfX2Fzc2lnbiA9IE9iamVjdC5hc3NpZ24gfHwgZnVuY3Rpb24odCkgewogICAgICAgIGZvciAodmFyIHMsIGkgPSAxLCBuID0gYXJndW1lbnRzLmxlbmd0aDsgaSA8IG47IGkrKykgewogICAgICAgICAgICBzID0gYXJndW1lbnRzW2ldOwogICAgICAgICAgICBmb3IgKHZhciBwIGluIHMpIGlmIChPYmplY3QucHJvdG90eXBlLmhhc093blByb3BlcnR5LmNhbGwocywgcCkpCiAgICAgICAgICAgICAgICB0W3BdID0gc1twXTsKICAgICAgICB9CiAgICAgICAgcmV0dXJuIHQ7CiAgICB9OwogICAgcmV0dXJuIF9fYXNzaWduLmFwcGx5KHRoaXMsIGFyZ3VtZW50cyk7Cn07CnZhciBiID0gX19hc3NpZ24oe30sIHZhbHVlKTsKdmFyIF9fcmVzdCA9ICh0aGlzICYmIHRoaXMuX19yZXN0KSB8fCBmdW5jdGlvbiAocywgZSkgewogICAgdmFyIHQgPSB7fTsKICAgIGZvciAodmFyIHAgaW4gcykgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChzLCBwKSAmJiBlLmluZGV4T2YocCkgPCAwKQogICAgICAgIHRbcF0gPSBzW3BdOwogICAgaWYgKHMgIT0gbnVsbCAmJiB0eXBlb2YgT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyA9PT0gImZ1bmN0aW9uIikKICAgICAgICBmb3IgKHZhciBpID0gMCwgcCA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eVN5bWJvbHMocyk7IGkgPCBwLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChlLmluZGV4T2YocFtpXSkgPCAwICYmIE9iamVjdC5wcm90b3R5cGUucHJvcGVydHlJc0VudW1lcmFibGUuY2FsbChzLCBwW2ldKSkKICAgICAgICAgICAgICAgIHRbcFtpXV0gPSBzW3BbaV1dOwogICAgICAgIH0KICAgIHJldHVybiB0Owp9Owp2YXIgYyA9IHZhbHVlLmMsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYyJdKTsK",
+            "materialized_utf8_bytes": 960,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts",
+              "/project/c.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'target=ES5' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": [
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/b.ts",
+            "start": 14,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          },
+          {
+            "code": 2304,
+            "category": "Error",
+            "file": "/project/c.ts",
+            "start": 21,
+            "length": 5,
+            "message": "Cannot find name 'value'.",
+            "related_information": null
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "javascript-input",
+      "files": [
+        {
+          "path": "/project/a.js",
+          "text": "\"one\";\nconst a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "\"two\";\nconst b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "allowJs": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.js",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.js",
+            "kind": "VariableDeclaration",
+            "pos": 12,
+            "end": 18,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 12,
+            "end": 26,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.js",
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 14,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 12,
+            "end": 14,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 4,
+              "character": 0,
+              "position": 40
+            },
+            "callback_utf8_base64": "Im9uZSI7CiJ0d28iOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "callback_utf8_bytes": 40,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Im9uZSI7CiJ0d28iOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Cg==",
+            "materialized_utf8_bytes": 40,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.js",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bom-and-list",
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;\n"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/bundle.js",
+        "strict": false,
+        "alwaysStrict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "emitBOM": true,
+        "listEmittedFiles": true
+      },
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "typescript_observation": {
+        "source_files": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "common_source_directory": "/project/",
+        "collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "referenced_collision_queries": [
+          {
+            "path": "/project/a.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          },
+          {
+            "path": "/project/b.ts",
+            "kind": "Identifier",
+            "pos": 5,
+            "end": 7,
+            "value_present": false,
+            "value": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "end": {
+              "line": 2,
+              "character": 0,
+              "position": 26
+            },
+            "callback_utf8_base64": "Y29uc3QgYSA9IDE7CmNvbnN0IGIgPSAyOwo=",
+            "callback_utf8_bytes": 26,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/Y29uc3QgYSA9IDE7CmNvbnN0IGIgPSAyOwo=",
+            "materialized_utf8_bytes": 29,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/a.ts",
+              "/project/b.ts"
+            ],
+            "data_present": true,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": []
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/bundle.js"
+          ],
+          "source_maps": null
+        },
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'alwaysStrict=false' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    }
+  ]
+}

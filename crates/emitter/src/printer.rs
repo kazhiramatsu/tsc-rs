@@ -25,6 +25,23 @@ use crate::{
     UnsupportedEmitFeature,
 };
 
+mod bundle;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum SourceFileEmitMode {
+    OwnFile,
+    Bundle,
+}
+
+struct SourceFilePrintBody<'helpers> {
+    source_id: TransformSourceId,
+    root: TransformNode,
+    statement_array: Option<TransformNodeArray>,
+    statements: Vec<NodeId>,
+    helpers: &'helpers [EmitHelper],
+    mode: SourceFileEmitMode,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum ModifierListItemKind {
     Decorator,
@@ -727,6 +744,7 @@ pub struct PrinterOptions {
     omit_brace_source_map_positions: bool,
     never_ascii_escape: bool,
     target: Option<ScriptTarget>,
+    module_kind: Option<i32>,
     source_file_text_mode: SourceFileTextMode,
 }
 
@@ -742,8 +760,15 @@ impl PrinterOptions {
             omit_brace_source_map_positions: false,
             never_ascii_escape: false,
             target: None,
+            module_kind: None,
             source_file_text_mode: SourceFileTextMode::PreserveUnchanged,
         }
+    }
+
+    /// The bundle helper header is omitted only for explicit ModuleKind.None.
+    pub const fn with_module_kind(mut self, value: i32) -> Self {
+        self.module_kind = Some(value);
+        self
     }
 
     pub const fn with_remove_comments(mut self, value: bool) -> Self {
@@ -1054,9 +1079,7 @@ impl Printer {
             PrintRequest::NodeList(_) => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::NodeListPrinting,
             )),
-            PrintRequest::Bundle(_) => Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::BundleRoot,
-            )),
+            PrintRequest::Bundle(bundle) => self.print_bundle(transformation, &bundle, recording),
             PrintRequest::JavaScriptMap(_) => Err(PrinterError::Unsupported(
                 UnsupportedEmitFeature::JavaScriptMap,
             )),
@@ -1384,33 +1407,6 @@ impl Printer {
         statements: Vec<tsc_syntax::NodeId>,
         recording: Option<crate::source_map::SourceMapRecordingInputs>,
     ) -> Result<PrintedText, PrinterError> {
-        transformation.before_emit_node(EmitHint::SourceFile, root)?;
-        let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
-        if emitted_root != root {
-            transformation.after_emit_node(EmitHint::SourceFile, root)?;
-            return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
-        }
-
-        let (original_source_was_statementless, original_first_statement) = {
-            let original_root = transformation.arena().get_original_node(root);
-            match &transformation.arena().node(original_root)?.data {
-                NodeData::SourceFile(data) => {
-                    let statements = data.statements.and_then(|array| {
-                        transformation
-                            .arena()
-                            .node_array_ref(original_root.source(), array)
-                    });
-                    let statements = statements
-                        .map(|array| transformation.arena().node_array(array))
-                        .transpose()?;
-                    let first = statements
-                        .and_then(|array| array.nodes.first().copied())
-                        .and_then(|id| transformation.arena().node_ref(original_root.source(), id));
-                    (statements.is_none_or(|array| array.nodes.is_empty()), first)
-                }
-                _ => (false, None),
-            }
-        };
         let mut writer = create_text_writer(self.options.new_line);
         let source_text = transformation.arena().source(source_id)?.syntax().text();
         if let Some(inputs) = recording {
@@ -1424,10 +1420,69 @@ impl Printer {
             active.set_current_source(source_id, &file_name, source_text);
             writer.set_source_map_recording(Some(active));
         }
-        if let Some(shebang) = source_shebang(source_text) {
-            writer.write_comment(shebang);
-            writer.write_line(false);
+        let helpers = self.sorted_source_emit_helpers(transformation, source_id)?;
+        let system_scoped_helpers = !helpers.is_empty()
+            && statements.first().is_some_and(|statement| {
+                transformation
+                    .arena()
+                    .node_ref(source_id, *statement)
+                    .is_some_and(|statement| {
+                        self.is_system_register_statement(transformation, statement)
+                    })
+            });
+        self.write_transformed_source_file(
+            transformation,
+            SourceFilePrintBody {
+                source_id,
+                root,
+                statement_array,
+                statements,
+                helpers: if system_scoped_helpers { &[] } else { &helpers },
+                mode: SourceFileEmitMode::OwnFile,
+            },
+            &mut writer,
+        )?;
+        let system_helpers = if system_scoped_helpers {
+            helpers
+        } else {
+            Vec::new()
+        };
+        // h2-6a-m-2 §12a: the system-helper splice rewrites finished
+        // output after emission and would invalidate recorded generated
+        // positions; recording under that lane is fail-closed until the
+        // m-3 resolution.
+        if !system_helpers.is_empty() && writer.has_source_map_recording() {
+            return Err(PrinterError::Unsupported(
+                UnsupportedEmitFeature::JavaScriptMap,
+            ));
         }
+        let text = if !system_helpers.is_empty() {
+            self.insert_system_scoped_helpers(writer.text(), &system_helpers)?
+        } else {
+            writer.text().to_owned()
+        };
+        let end = if !system_helpers.is_empty() {
+            let mut measured = create_text_writer(self.options.new_line);
+            measured.raw_write(&text);
+            measured.location()
+        } else {
+            writer.location()
+        };
+        let source_map = writer
+            .take_source_map_recording()
+            .map(crate::source_map::SourceMapRecording::into_generator);
+        Ok(PrintedText {
+            text,
+            end,
+            source_map,
+        })
+    }
+
+    fn sorted_source_emit_helpers(
+        &self,
+        transformation: &TransformationResult<'_>,
+        source_id: TransformSourceId,
+    ) -> Result<Vec<EmitHelper>, PrinterError> {
         // `shouldSkip = printerOptions.noEmitHelpers || hasRecordedExternalHelpers(sourceFile)`
         // (`_tsc.js:117729-117736`): under `importHelpers` an external
         // module's unscoped helpers were rewritten into the tslib import by
@@ -1461,20 +1516,57 @@ impl Printer {
             );
             helpers
         };
-        let system_scoped_helpers = !helpers.is_empty()
-            && statements.first().is_some_and(|statement| {
-                transformation
-                    .arena()
-                    .node_ref(source_id, *statement)
-                    .is_some_and(|statement| {
-                        self.is_system_register_statement(transformation, statement)
-                    })
-            });
-        let source_helpers = if system_scoped_helpers {
-            &[][..]
-        } else {
-            helpers.as_slice()
+        Ok(helpers)
+    }
+
+    fn write_transformed_source_file(
+        &self,
+        transformation: &mut TransformationResult<'_>,
+        body: SourceFilePrintBody<'_>,
+        writer: &mut TextWriter,
+    ) -> Result<(), PrinterError> {
+        let SourceFilePrintBody {
+            source_id,
+            root,
+            statement_array,
+            statements,
+            helpers,
+            mode,
+        } = body;
+        transformation.before_emit_node(EmitHint::SourceFile, root)?;
+        let emitted_root = transformation.substitute_node(EmitHint::SourceFile, root)?;
+        if emitted_root != root {
+            transformation.after_emit_node(EmitHint::SourceFile, root)?;
+            return Err(PrinterError::TransformedNodeWorkerUnavailable(emitted_root));
+        }
+
+        let (original_source_was_statementless, original_first_statement) = {
+            let original_root = transformation.arena().get_original_node(root);
+            match &transformation.arena().node(original_root)?.data {
+                NodeData::SourceFile(data) => {
+                    let statements = data.statements.and_then(|array| {
+                        transformation
+                            .arena()
+                            .node_array_ref(original_root.source(), array)
+                    });
+                    let statements = statements
+                        .map(|array| transformation.arena().node_array(array))
+                        .transpose()?;
+                    let first = statements
+                        .and_then(|array| array.nodes.first().copied())
+                        .and_then(|id| transformation.arena().node_ref(original_root.source(), id));
+                    (statements.is_none_or(|array| array.nodes.is_empty()), first)
+                }
+                _ => (false, None),
+            }
         };
+        let source_text = transformation.arena().source(source_id)?.syntax().text();
+        if mode == SourceFileEmitMode::OwnFile {
+            if let Some(shebang) = source_shebang(source_text) {
+                writer.write_comment(shebang);
+                writer.write_line(false);
+            }
+        }
         let helper_offset = statements
             .iter()
             .take_while(|statement| {
@@ -1508,13 +1600,35 @@ impl Printer {
             .then_some(detached_source_prefix)
             .flatten();
         let mut pending_detached_comments = PendingDetachedComments::default();
-        let mut accounted_for_original_prefix = source_owned_detached_prefix.is_some();
+        let skipped_prologues = if mode == SourceFileEmitMode::Bundle {
+            helper_offset
+        } else {
+            0
+        };
+        let mut accounted_for_original_prefix = source_owned_detached_prefix.is_some()
+            || skipped_prologues > 0
+                && original_first_statement
+                    .is_some_and(|first| self.is_prologue_statement(transformation, first));
         let mut last_original_statement = None;
-        if statements.is_empty() {
+        for raw_statement in statements.iter().take(skipped_prologues) {
+            if let Some(statement) = transformation.arena().node_ref(source_id, *raw_statement) {
+                let original = transformation.arena().get_original_node(statement);
+                let record = transformation.arena().node(original)?;
+                let source = transformation.arena().source(original.source())?.syntax();
+                if matches!(
+                    SourceRange::from_raw(record.pos, record.end, source.positions())?,
+                    SourceRange::Original(_)
+                ) {
+                    last_original_statement = Some(original);
+                }
+            }
+        }
+        let has_body_statements = statements.len() > skipped_prologues;
+        if !has_body_statements {
             self.emit_detached_comment_prefix(
                 transformation,
                 source_owned_detached_prefix,
-                &mut writer,
+                writer,
             )?;
             if self.options.declaration_syntax
                 && original_source_was_statementless
@@ -1523,36 +1637,30 @@ impl Printer {
                 let source = transformation.arena().source(source_id)?.syntax();
                 emit_leading_comments(
                     SourceTrivia::whole(source.text()),
-                    &mut writer,
+                    writer,
                     true,
                     self.options.only_print_js_doc_style,
                 );
             }
-            self.emit_helpers(source_helpers, &mut writer)?;
+            self.emit_helpers(helpers, writer)?;
             if self.options.declaration_syntax {
-                self.emit_triple_slash_directives_if_needed(
-                    transformation,
-                    source_id,
-                    &mut writer,
-                )?;
+                self.emit_triple_slash_directives_if_needed(transformation, source_id, writer)?;
             }
         }
-        for (statement_index, raw_statement) in statements.into_iter().enumerate() {
+        for (statement_index, raw_statement) in
+            statements.into_iter().enumerate().skip(skipped_prologues)
+        {
             if statement_index == helper_offset {
                 self.emit_detached_comment_prefix(
                     transformation,
                     source_owned_detached_prefix,
-                    &mut writer,
+                    writer,
                 )?;
                 pending_detached_comments =
                     PendingDetachedComments::from_prefix(source_owned_detached_prefix);
-                self.emit_helpers(source_helpers, &mut writer)?;
+                self.emit_helpers(helpers, writer)?;
                 if self.options.declaration_syntax {
-                    self.emit_triple_slash_directives_if_needed(
-                        transformation,
-                        source_id,
-                        &mut writer,
-                    )?;
+                    self.emit_triple_slash_directives_if_needed(transformation, source_id, writer)?;
                 }
             }
             let statement = transformation
@@ -1622,7 +1730,7 @@ impl Printer {
                     self.emit_detached_comment_prefix(
                         transformation,
                         detached_source_prefix,
-                        &mut writer,
+                        writer,
                     )?;
                 }
                 accounted_for_original_prefix = true;
@@ -1642,28 +1750,23 @@ impl Printer {
                         LeadingCommentContext::Normal
                     },
                     Some(detached_resume),
-                    &mut writer,
+                    writer,
                 )?;
             } else if had_previous_original_statement && emitted_has_original_range {
                 self.emit_statement_leading_comments_after_sibling(
                     transformation,
                     emitted,
-                    &mut writer,
+                    writer,
                 )?;
             } else {
-                self.emit_statement_leading_comments(transformation, emitted, &mut writer)?;
+                self.emit_statement_leading_comments(transformation, emitted, writer)?;
             }
             // h2-6a-m-2 §4: the statement-level map pair is gone — the
             // node bracket inside emit_transformed_node records the
             // boundary BEFORE the trailing statement comments (the
             // upstream order the old pair violated).
-            self.emit_transformed_node(
-                transformation,
-                emitted,
-                EmitContext::file_root(),
-                &mut writer,
-            )?;
-            self.emit_statement_trailing_comments(transformation, emitted, &mut writer)?;
+            self.emit_transformed_node(transformation, emitted, EmitContext::file_root(), writer)?;
+            self.emit_statement_trailing_comments(transformation, emitted, writer)?;
             transformation.after_emit_node(EmitHint::Unspecified, statement)?;
             writer.write_line(false);
         }
@@ -1674,20 +1777,25 @@ impl Printer {
             let source = transformation.arena().source(source_id)?.syntax();
             emit_leading_comments(
                 SourceTrivia::whole(source.text()),
-                &mut writer,
+                writer,
                 true,
                 self.options.only_print_js_doc_style,
             );
-        } else if !transformation
-            .arena()
-            .metadata(root)
-            .is_some_and(|metadata| metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS))
+        } else if (mode == SourceFileEmitMode::OwnFile
+            || skipped_prologues == 0
+            || has_body_statements)
+            && !transformation
+                .arena()
+                .metadata(root)
+                .is_some_and(|metadata| {
+                    metadata.flags().intersects(EmitFlags::NO_TRAILING_COMMENTS)
+                })
         {
             if let Some(statement_array) = statement_array {
                 self.emit_source_file_statement_list_trailing_comments(
                     transformation,
                     statement_array,
-                    &mut writer,
+                    writer,
                 )?;
             }
         }
@@ -1697,35 +1805,7 @@ impl Printer {
         // multiline comment has just written its separating space.
         writer.write_line(false);
         transformation.after_emit_node(EmitHint::SourceFile, root)?;
-        // h2-6a-m-2 §12a: the system-helper splice rewrites finished
-        // output after emission and would invalidate recorded generated
-        // positions; recording under that lane is fail-closed until the
-        // m-3 resolution.
-        if system_scoped_helpers && writer.has_source_map_recording() {
-            return Err(PrinterError::Unsupported(
-                UnsupportedEmitFeature::JavaScriptMap,
-            ));
-        }
-        let text = if system_scoped_helpers {
-            self.insert_system_scoped_helpers(writer.text(), &helpers)?
-        } else {
-            writer.text().to_owned()
-        };
-        let end = if system_scoped_helpers {
-            let mut measured = create_text_writer(self.options.new_line);
-            measured.raw_write(&text);
-            measured.location()
-        } else {
-            writer.location()
-        };
-        let source_map = writer
-            .take_source_map_recording()
-            .map(crate::source_map::SourceMapRecording::into_generator);
-        Ok(PrintedText {
-            text,
-            end,
-            source_map,
-        })
+        Ok(())
     }
 
     /// tsc-port: emitTripleSlashDirectivesIfNeeded @6.0.3
