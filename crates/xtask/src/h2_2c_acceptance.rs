@@ -6317,3 +6317,7 @@ mod h2_7b_tests;
 #[cfg(test)]
 #[path = "../tests/unit/h2_2c_acceptance/tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "../tests/unit/h2_2c_acceptance/de_legacy_collector.rs"]
+mod h2_6c_de_legacy_collector;
