@@ -20,6 +20,7 @@ struct Host {
     common: PathBuf,
     case_sensitive: bool,
     syntax_available: bool,
+    module_facts_available: bool,
     sources: Vec<Source>,
     ids: Vec<SourceFileId>,
 }
@@ -102,6 +103,7 @@ impl Host {
             common: PathBuf::from(case["common_source_directory"].as_str().unwrap()),
             case_sensitive,
             syntax_available: true,
+            module_facts_available: false,
             ids: (0..sources.len())
                 .map(|index| SourceFileId::from_raw(index as u32))
                 .collect(),
@@ -153,7 +155,11 @@ impl EmitHost for Host {
                 None,
                 self.syntax_available.then_some(&source.syntax),
             )
-            .with_may_emit_forced_declaration(source.may_emit_forced_declaration),
+            .with_may_emit_forced_declaration(source.may_emit_forced_declaration)
+            .with_is_external_module(
+                self.module_facts_available
+                    .then_some(source.syntax.external_module_indicator.is_some()),
+            ),
         )
     }
 }
@@ -384,6 +390,34 @@ fn h2_7d_common_directory_eligibility_includes_excluded_modules_without_syntax()
         .iter()
         .any(|&id| host.source_file(id).unwrap().path() == Path::new("/project/mod.ts")));
     assert!(bundled.iter().all(|id| eligible.contains(id)));
+}
+
+#[test]
+fn h2_7d_retained_module_facts_plan_without_borrowing_checked_syntax() {
+    for case in cases() {
+        let mut host = Host::from_case(&case);
+        host.syntax_available = false;
+        host.module_facts_available = true;
+        let selection = host.selection(&case);
+        assert_eq!(
+            source_names(&host, &get_source_files_to_emit(&host, selection).unwrap()),
+            case["planning_observation"]["source_files"],
+            "{} prepared selection",
+            case["case_id"]
+        );
+        let plan = preflight_emit(&host, selection).unwrap();
+        assert_eq!(
+            json!(plan
+                .plan()
+                .units()
+                .iter()
+                .map(|unit| unit_value(&host, unit.paths(), unit.root()))
+                .collect::<Vec<_>>()),
+            case["planning_observation"]["units"],
+            "{} prepared plan",
+            case["case_id"]
+        );
+    }
 }
 
 #[test]

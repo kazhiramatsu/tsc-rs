@@ -103,6 +103,7 @@ pub struct PreparedSourceFile {
     may_emit_forced_declaration: bool,
     implied_node_format: Option<ResolutionMode>,
     implied_node_format_for_emit: Option<ResolutionMode>,
+    is_external_module: Option<bool>,
     package_scope: Option<CanonicalPath>,
 }
 
@@ -140,6 +141,7 @@ impl PreparedSourceFile {
             may_emit_forced_declaration: may_be_emitted,
             implied_node_format: None,
             implied_node_format_for_emit: None,
+            is_external_module: None,
             package_scope: None,
         }
     }
@@ -173,6 +175,17 @@ impl PreparedSourceFile {
 
     pub const fn may_emit_forced_declaration(&self) -> bool {
         self.may_emit_forced_declaration
+    }
+
+    /// Retain the loader's parsed module-detection fact without another parse.
+    /// Hand-built preparations may leave it unknown until checked syntax is available.
+    pub fn with_is_external_module(mut self, value: bool) -> Self {
+        self.is_external_module = Some(value);
+        self
+    }
+
+    pub const fn is_external_module(&self) -> Option<bool> {
+        self.is_external_module
     }
 
     pub fn with_implied_node_format(mut self, mode: ResolutionMode) -> Self {

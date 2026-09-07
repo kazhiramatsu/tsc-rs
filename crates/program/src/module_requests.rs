@@ -127,6 +127,7 @@ impl PlannedLibReferenceDirective {
 /// Exact source-owned resolution requests discovered by one syntax parse.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SourceRequestPlan {
+    is_external_module: bool,
     path_references: Vec<PlannedPathReference>,
     module_requests: Vec<ResolutionKey>,
     unpreprocessed_module_requests: BTreeSet<ResolutionKey>,
@@ -138,6 +139,11 @@ pub struct SourceRequestPlan {
 }
 
 impl SourceRequestPlan {
+    /// Source-owned module detection from the same parse used for requests.
+    pub const fn is_external_module(&self) -> bool {
+        self.is_external_module
+    }
+
     pub fn path_references(&self) -> &[PlannedPathReference] {
         &self.path_references
     }
@@ -683,6 +689,7 @@ fn plan_module_requests_worker(
     unpreprocessed_module_requests.retain(|key| !seen_module_requests.contains(key));
 
     Ok(SourceRequestPlan {
+        is_external_module: parsed.external_module_indicator.is_some(),
         path_references,
         module_requests,
         unpreprocessed_module_requests,

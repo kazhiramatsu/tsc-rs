@@ -324,12 +324,12 @@ fn select_source_files(
                 // when Program.emit receives a target source. Only AMD,
                 // System, and declaration-only requests include modules.
                 if bundle && !module_emit_enabled {
-                    let Some(syntax) = source.syntax() else {
+                    let Some(is_external_module) = source.is_external_module() else {
                         return Some(Err(EmitFailure::Contract(
                             EmitContractViolation::CheckedSyntaxUnavailable(id),
                         )));
                     };
-                    if syntax.external_module_indicator.is_some() {
+                    if is_external_module {
                         return None;
                     }
                 }

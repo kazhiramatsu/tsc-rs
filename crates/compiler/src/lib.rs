@@ -247,7 +247,8 @@ impl EmitHost for PreparedEmitHost<'_> {
                 source.implied_node_format_for_emit(),
                 None,
             )
-            .with_may_emit_forced_declaration(source.may_emit_forced_declaration()),
+            .with_may_emit_forced_declaration(source.may_emit_forced_declaration())
+            .with_is_external_module(source.is_external_module()),
         )
     }
 }
@@ -314,7 +315,8 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
                 source.implied_node_format_for_emit(),
                 syntax,
             )
-            .with_may_emit_forced_declaration(source.may_emit_forced_declaration()),
+            .with_may_emit_forced_declaration(source.may_emit_forced_declaration())
+            .with_is_external_module(source.is_external_module()),
         )
     }
 }
