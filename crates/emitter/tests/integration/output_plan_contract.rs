@@ -457,7 +457,7 @@ fn h2_3a_javascript_families_keep_their_runtime_extensions_when_relocated() {
 }
 
 #[test]
-fn plan_declaration_paths_prefers_declaration_then_javascript_then_source() {
+fn plan_declaration_paths_forces_source_reference_targets_independently_of_emit() {
     let host = TestEmitHost::new(
         CompilerOptions {
             declaration: Some(true),
@@ -485,11 +485,11 @@ fn plan_declaration_paths_prefers_declaration_then_javascript_then_source() {
     );
     assert_eq!(
         paths.reference_target_path(source(1)),
-        Some(PathBuf::from("/project/dist/data.json"))
+        Some(PathBuf::from("/project/dist/data.d.json.ts"))
     );
     assert_eq!(
         paths.reference_target_path(source(2)),
-        Some(PathBuf::from("/project/src/not-emitted.ts"))
+        Some(PathBuf::from("/project/dist/not-emitted.d.ts"))
     );
 }
 
