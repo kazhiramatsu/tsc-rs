@@ -45,15 +45,15 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: PLAN_RELATIVE_PATH,
     historicalSha256: EXPECTED_PLAN_SHA256,
-    item: Object.freeze({ name: "validate_bootstrap_shape", line: 206 }),
+    item: Object.freeze({ name: "validate_bootstrap_shape", line: 219 }),
     arms: Object.freeze([
-      Object.freeze({ name: "DeclarationOnly", line: 218, marker: "EmitMode::DeclarationOnly" }),
-      Object.freeze({ name: "BuilderSignature", line: 223, marker: "EmitMode::BuilderSignature" }),
-      Object.freeze({ name: "DeclarationMap", line: 238, marker: "UnsupportedEmitFeature::DeclarationMap" }),
-      Object.freeze({ name: "BuildInfo", line: 242, marker: "UnsupportedEmitFeature::BuildInfo));" }),
+      Object.freeze({ name: "DeclarationOnly", line: 231, marker: "EmitMode::DeclarationOnly" }),
+      Object.freeze({ name: "BuilderSignature", line: 236, marker: "EmitMode::BuilderSignature" }),
+      Object.freeze({ name: "DeclarationMap", line: 251, marker: "UnsupportedEmitFeature::DeclarationMap" }),
+      Object.freeze({ name: "BuildInfo", line: 255, marker: "UnsupportedEmitFeature::BuildInfo));" }),
       Object.freeze({
         name: "ScriptOutputMissingJavaScriptPath",
-        line: 248,
+        line: 261,
         marker: "EmitContractViolation::ScriptOutputMissingJavaScriptPath",
       }),
     ]),
@@ -61,13 +61,15 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: EXECUTE_RELATIVE_PATH,
     historicalSha256: EXPECTED_EXECUTE_SHA256,
-    item: Object.freeze({ name: "validate_emit_options", line: 85 }),
+    item: Object.freeze({ name: "validate_emit_options", line: 97 }),
     arms: Object.freeze([
-      Object.freeze({ name: "declarationMap", line: 134, marker: "options.declaration_map == Some(true)" }),
+      // Ordinary maps, getters and forced declarations are observed in E m3/m4.
+      // Bundle composition uses the shared production workers; later option
+      // and malformed-root boundaries remain at their existing owners.
       // The ordinary/getter request flavors share this validator.
       // H2.7c stripInternal, declarationDir and the emitDeclarationOnly
       // prerequisite are covered by focused complete observations.
-      Object.freeze({ name: "composite", line: 140, marker: "(options.composite == Some(true), \"composite\")" }),
+      Object.freeze({ name: "composite", line: 151, marker: "(options.composite == Some(true), \"composite\")" }),
     ]),
   }),
   Object.freeze({
@@ -85,9 +87,12 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   }),
   Object.freeze({
     path: PRINTER_RELATIVE_PATH,
-    item: Object.freeze({ name: "print", line: 1041 }),
+    item: Object.freeze({ name: "print", line: 1066 }),
     arms: Object.freeze([
-      Object.freeze({ name: "Bundle", line: 1057, marker: "PrintRequest::Bundle" }),
+      // The dispatch delegates source-file/bundle printing and retained
+      // unsupported shape checks to printer/bundle.rs.
+      // That complete callee is pinned in the live runtime input closure.
+      Object.freeze({ name: "BundleDispatch", line: 1082, marker: "PrintRequest::Bundle" }),
     ]),
   }),
 ]);

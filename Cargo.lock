@@ -348,6 +348,7 @@ dependencies = [
  "tsc-rs-harness",
  "tsc-rs-host",
  "tsc-rs-program",
+ "tsc-rs-syntax",
 ]
 
 [[package]]

@@ -23,7 +23,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-5h-a-foundation.mjs",
-    "sha256": "dfba7978867803c15b52e50ab728bdf982d52eb1b74b44e40051ce2d891ef999"
+    "sha256": "c6c51ffff0366a9b456f21b03848bc5753cc90306376178c0d3cb2009e8a0843"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-5h-a-foundation.schema.json",
@@ -34,7 +34,7 @@
     "parent_phase": "H2.5g",
     "parent_profile": {
       "path": "ratchets/h2-5g-profile.v1.json",
-      "sha256": "1253c8d7e96e5efdc8f368d186f1f86e42136fcadbb361548207b3fb89b24847"
+      "sha256": "031774dd4160f2b2fc4265669f42a1ba07f6c0957828cd27b0d537b3ae5cc0cd"
     },
     "interpretation": "H2.5h-a freezes candidate identity and semantic controls without activating either H2.5h production transformer"
   },
@@ -21299,5 +21299,5 @@
     "unexecuted_candidates": 932,
     "undispositioned_candidates": 0
   },
-  "foundation_fingerprint_sha256": "4b5ba88976fdc10095855e8e39bd90285297561924182e456585ede80644303f"
+  "foundation_fingerprint_sha256": "2cbf91df529928087f6ba430a0eff3de18b36733ad97558c9c4d984232f14f83"
 }

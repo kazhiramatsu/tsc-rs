@@ -1,0 +1,1314 @@
+{
+  "schema": 1,
+  "kind": "bundle-declaration-map-paths",
+  "status": "internal-path-reference",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "repetitions": 2,
+  "observer": {
+    "path": "scripts/observe-bundle-declaration-map-paths.mjs",
+    "sha256": "565312e73b0bf8ba5f1f7355990cb568acea2228377c48614ee0024d3a409e3c"
+  },
+  "inputs": [
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": ".node-version",
+      "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c"
+    }
+  ],
+  "contract": "Complete ordinary Program.emit tuples on two fresh Programs. Rust root/URL lane replay is a helper facet; it does not assert printer mapping positions, public bundle admission or sourceRoot/mapRoot option admission.",
+  "cases": [
+    {
+      "case_id": "bundle-declaration-map-path/default",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true
+      },
+      "input_sha256": "1222426d69ac4def3da5516111d6b637b88c0a0854a74cfd2074a3be8e1dd2f4",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvbmVzdGVkL2EudHMiLCIuLi9zcmMvZGVlcC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLFVBQVU7QUFDVixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQWMsQ0FBQztBQ0R4QixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQVUsQ0FBQyJ9",
+            "callback_utf8_bytes": 207,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvbmVzdGVkL2EudHMiLCIuLi9zcmMvZGVlcC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLFVBQVU7QUFDVixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQWMsQ0FBQztBQ0R4QixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQVUsQ0FBQyJ9",
+            "materialized_utf8_bytes": 207,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "callback_utf8_bytes": 101,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 101,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../src/nested/a.ts\",\"../src/deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/source-root-relative",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "sourceRoot": "../source root"
+      },
+      "input_sha256": "33fff6a7f03b1096ec0d96aa6f23dd326e3055ba04765ae3145ca51d2ece95a4",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiLi4vc291cmNlIHJvb3QvIiwic291cmNlcyI6WyJuZXN0ZWQvYS50cyIsImRlZXAvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFjLENBQUM7QUNEeEIsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 208,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiLi4vc291cmNlIHJvb3QvIiwic291cmNlcyI6WyJuZXN0ZWQvYS50cyIsImRlZXAvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFjLENBQUM7QUNEeEIsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 208,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "callback_utf8_bytes": 101,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 101,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"../source root/\",\"sources\":[\"nested/a.ts\",\"deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5051,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'sourceRoot can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided.",
+            "related_information": null
+          },
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/source-root-url",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "sourceRoot": "https://sources.test/源"
+      },
+      "input_sha256": "d2fe428f59d22f434c2dc17f1ab7ea0e323fb3cc9957f7cc004df3f9991e869b",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiaHR0cHM6Ly9zb3VyY2VzLnRlc3Qv5rqQLyIsInNvdXJjZXMiOlsibmVzdGVkL2EudHMiLCJkZWVwL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBYyxDQUFDO0FDRHhCLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "callback_utf8_bytes": 218,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiaHR0cHM6Ly9zb3VyY2VzLnRlc3Qv5rqQLyIsInNvdXJjZXMiOlsibmVzdGVkL2EudHMiLCJkZWVwL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBYyxDQUFDO0FDRHhCLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "materialized_utf8_bytes": 218,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "callback_utf8_bytes": 101,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 101,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"https://sources.test/源/\",\"sources\":[\"nested/a.ts\",\"deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5051,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'sourceRoot can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided.",
+            "related_information": null
+          },
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/map-root-relative",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "mapRoot": "maps/nested"
+      },
+      "input_sha256": "fb35282f16fb3faa99700aa1fb66a8475f9c30aee9314f20a3d255e5eb177061",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9uZXN0ZWQvYS50cyIsIi4uLy4uL2RlZXAvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFjLENBQUM7QUNEeEIsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 205,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi8uLi9uZXN0ZWQvYS50cyIsIi4uLy4uL2RlZXAvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFjLENBQUM7QUNEeEIsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 205,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD0uLi9zcmMvbWFwcy9uZXN0ZWQvYnVuZGxlLmQudHMubWFw",
+            "callback_utf8_bytes": 120,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD0uLi9zcmMvbWFwcy9uZXN0ZWQvYnVuZGxlLmQudHMubWFw",
+            "materialized_utf8_bytes": 120,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../../nested/a.ts\",\"../../deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/map-root-absolute",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "mapRoot": "/external maps"
+      },
+      "input_sha256": "9cbb4e7a27e47cc7e8ad0897bebb691fcd3b9bf5322606612c7f9e4ce23a63e6",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9wcm9qZWN0L3NyYy9uZXN0ZWQvYS50cyIsIi4uL3Byb2plY3Qvc3JjL2RlZXAvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFjLENBQUM7QUNEeEIsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 223,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9wcm9qZWN0L3NyYy9uZXN0ZWQvYS50cyIsIi4uL3Byb2plY3Qvc3JjL2RlZXAvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFjLENBQUM7QUNEeEIsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 223,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD0vZXh0ZXJuYWwlMjBtYXBzL2J1bmRsZS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 118,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD0vZXh0ZXJuYWwlMjBtYXBzL2J1bmRsZS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 118,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../project/src/nested/a.ts\",\"../project/src/deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/map-root-url",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "mapRoot": "https://maps.test/mapped path"
+      },
+      "input_sha256": "aa1a6d6ec1fa441d4da106e1d0ee1504298662ed248ab530c9756e6f45957a17",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJmaWxlOi8vL3Byb2plY3Qvc3JjL25lc3RlZC9hLnRzIiwiZmlsZTovLy9wcm9qZWN0L3NyYy9kZWVwL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBYyxDQUFDO0FDRHhCLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "callback_utf8_bytes": 233,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJmaWxlOi8vL3Byb2plY3Qvc3JjL25lc3RlZC9hLnRzIiwiZmlsZTovLy9wcm9qZWN0L3NyYy9kZWVwL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBYyxDQUFDO0FDRHhCLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "materialized_utf8_bytes": 233,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1odHRwczovL21hcHMudGVzdC9tYXBwZWQlMjBwYXRoL2J1bmRsZS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 133,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1odHRwczovL21hcHMudGVzdC9tYXBwZWQlMjBwYXRoL2J1bmRsZS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 133,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"file:///project/src/nested/a.ts\",\"file:///project/src/deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/source-and-map-roots",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "sourceRoot": "https://sources.test/src",
+        "mapRoot": "maps/nested"
+      },
+      "input_sha256": "56bd30635b4de3cbeb04febdca05ef0daf49403f19a9fce6de6d41162cf26531",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiaHR0cHM6Ly9zb3VyY2VzLnRlc3Qvc3JjLyIsInNvdXJjZXMiOlsibmVzdGVkL2EudHMiLCJkZWVwL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBYyxDQUFDO0FDRHhCLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "callback_utf8_bytes": 218,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiaHR0cHM6Ly9zb3VyY2VzLnRlc3Qvc3JjLyIsInNvdXJjZXMiOlsibmVzdGVkL2EudHMiLCJkZWVwL2IudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsVUFBVTtBQUNWLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBYyxDQUFDO0FDRHhCLFFBQUEsTUFBTSxDQUFDLEVBQUUsTUFBVSxDQUFDIn0=",
+            "materialized_utf8_bytes": 218,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD0uLi9zcmMvbWFwcy9uZXN0ZWQvYnVuZGxlLmQudHMubWFw",
+            "callback_utf8_bytes": 120,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD0uLi9zcmMvbWFwcy9uZXN0ZWQvYnVuZGxlLmQudHMubWFw",
+            "materialized_utf8_bytes": 120,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"https://sources.test/src/\",\"sources\":[\"nested/a.ts\",\"deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5051,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'sourceRoot can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided.",
+            "related_information": null
+          },
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/inline-sources",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "inlineSources": true
+      },
+      "input_sha256": "ef8921931e23457bd0d0f4af131767a11bb15bdbea65a1d66c62f61364035fe2",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvbmVzdGVkL2EudHMiLCIuLi9zcmMvZGVlcC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLFVBQVU7QUFDVixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQWMsQ0FBQztBQ0R4QixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQVUsQ0FBQyJ9",
+            "callback_utf8_bytes": 207,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvbmVzdGVkL2EudHMiLCIuLi9zcmMvZGVlcC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLFVBQVU7QUFDVixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQWMsQ0FBQztBQ0R4QixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQVUsQ0FBQyJ9",
+            "materialized_utf8_bytes": 207,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "callback_utf8_bytes": 101,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 101,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../src/nested/a.ts\",\"../src/deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5051,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'inlineSources can only be used when either option '--inlineSourceMap' or option '--sourceMap' is provided.",
+            "related_information": null
+          },
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/inline-map",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 1,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "inlineSourceMap": true
+      },
+      "input_sha256": "3ecb22cab2911f18b2d6eceddb94d2601f96a68dca2c8d0c29f00db77efda73c",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvbmVzdGVkL2EudHMiLCIuLi9zcmMvZGVlcC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLFVBQVU7QUFDVixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQWMsQ0FBQztBQ0R4QixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQVUsQ0FBQyJ9",
+            "callback_utf8_bytes": 207,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyIuLi9zcmMvbmVzdGVkL2EudHMiLCIuLi9zcmMvZGVlcC9iLnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiJBQUFBLFVBQVU7QUFDVixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQWMsQ0FBQztBQ0R4QixRQUFBLE1BQU0sQ0FBQyxFQUFFLE1BQVUsQ0FBQyJ9",
+            "materialized_utf8_bytes": 207,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "callback_utf8_bytes": 101,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "LyoqIOaWh/CfmIAgKi8KZGVjbGFyZSBjb25zdCBhOiBzdHJpbmc7CmRlY2xhcmUgY29uc3QgYjogbnVtYmVyOwovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 101,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 61,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.d.ts",
+            "/project/dist/bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../src/nested/a.ts\",\"../src/deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declaration-map-path/relative-unicode-bom",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/src/nested/a.ts",
+          "text": "/** 文😀 */\nconst a: string = \"文😀\";\n"
+        },
+        {
+          "path": "/project/src/deep/b.ts",
+          "text": "const b: number = 2;\n"
+        }
+      ],
+      "options": {
+        "target": 2,
+        "module": 0,
+        "outFile": "dist/名 bundle.js",
+        "declaration": true,
+        "declarationMap": true,
+        "emitDeclarationOnly": true,
+        "sourceMap": false,
+        "strict": false,
+        "newLine": 0,
+        "noErrorTruncation": true,
+        "skipDefaultLibCheck": true,
+        "listEmittedFiles": true,
+        "emitBOM": true
+      },
+      "input_sha256": "0a051a9de14a39c19631fb9f3ca6ce8dd050f6273d3eb5323a53321a76e87dfc",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/src/nested/a.ts",
+          "/project/src/deep/b.ts"
+        ],
+        "common_source_directory": "/project/src/",
+        "writes": [
+          {
+            "index": 0,
+            "path": "dist/名 bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoi5ZCNIGJ1bmRsZS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL25lc3RlZC9hLnRzIiwiLi4vc3JjL2RlZXAvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFjLENBQUM7QUNEeEIsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "callback_utf8_bytes": 211,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoi5ZCNIGJ1bmRsZS5kLnRzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiLi4vc3JjL25lc3RlZC9hLnRzIiwiLi4vc3JjL2RlZXAvYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxVQUFVO0FBQ1YsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFjLENBQUM7QUNEeEIsUUFBQSxNQUFNLENBQUMsRUFBRSxNQUFVLENBQUMifQ==",
+            "materialized_utf8_bytes": 211,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "dist/名 bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "LyoqIOaWh/CfmIAgKi8NCmRlY2xhcmUgY29uc3QgYTogc3RyaW5nOw0KZGVjbGFyZSBjb25zdCBiOiBudW1iZXI7DQovLyMgc291cmNlTWFwcGluZ1VSTD0lRTUlOTAlOEQlMjBidW5kbGUuZC50cy5tYXA=",
+            "callback_utf8_bytes": 116,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/LyoqIOaWh/CfmIAgKi8NCmRlY2xhcmUgY29uc3QgYTogc3RyaW5nOw0KZGVjbGFyZSBjb25zdCBiOiBudW1iZXI7DQovLyMgc291cmNlTWFwcGluZ1VSTD0lRTUlOTAlOEQlMjBidW5kbGUuZC50cy5tYXA=",
+            "materialized_utf8_bytes": 119,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/nested/a.ts",
+              "/project/src/deep/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 64,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "dist/名 bundle.d.ts",
+            "dist/名 bundle.d.ts.map"
+          ],
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/project/src/nested/a.ts",
+                "/project/src/deep/b.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"名 bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"../src/nested/a.ts\",\"../src/deep/b.ts\"],\"names\":[],\"mappings\":\"AAAA,UAAU;AACV,QAAA,MAAM,CAAC,EAAE,MAAc,CAAC;ACDxB,QAAA,MAAM,CAAC,EAAE,MAAU,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null,
+        "options_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          }
+        ],
+        "syntactic_diagnostics": [],
+        "global_diagnostics": [],
+        "semantic_diagnostics": []
+      }
+    }
+  ],
+  "summary": {
+    "sequences": 10,
+    "writes_per_repetition": 20,
+    "runtime_admitted": 0
+  }
+}

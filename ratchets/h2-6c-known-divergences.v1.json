@@ -28,97 +28,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/compiler/declarationMapsWithSourceMap.ts#default",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "declarationMap",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=1d280d0524c893cea9ae262bfe7fcf40620150e5f29633749799bf1524d94569"
-      ],
-      "facet_fingerprint_sha256": "d881e820b3b231325adc36da4098bcabd1932b1a6a90d107e110770b1981157f"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/inlineSourceMap2.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/inlineSourceMap2.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/inlineSources.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/inlineSources.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/inlineSources2.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/inlineSources2.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/isolatedModulesSourceMap.ts#default",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -151,227 +60,6 @@
         "H2_6c:write:3:presence=74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
       ],
       "facet_fingerprint_sha256": "0ff23ecb2d79d024b7686aab0c82c9ab98ad4eced6569b6eeae8acd2cac37bfa"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/out-flag2.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/out-flag2.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/out-flag3.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/out-flag3.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatAmd.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatAmd.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatCommonjs.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatCommonjs.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatCommonjsDeclarationOnly.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatCommonjsDeclarationOnly.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatES6.ts#default",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatSystem.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatSystem.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatUmd.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleConcatUmd.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleTripleSlashRefs.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/outModuleTripleSlashRefs.ts#target%3Des5",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/compiler/requireOfJsonFileWithSourceMap.ts#default",
@@ -429,19 +117,6 @@
       "facet_fingerprint_sha256": "40a620a23ef707c63813a0a32241c64d0c652591d607983a0fce45e3963ab7cf"
     },
     {
-      "case_id": "typescript-6.0.3/compiler/sourceMapWithCaseSensitiveFileNames.ts#default",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/compiler/sourceMapWithCaseSensitiveFileNamesAndOutDir.ts#default",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 4,
@@ -459,32 +134,6 @@
         "H2_6c:write:3:path=4b2cc8334813dafa08bdc9baedd82ee04df32b3597e186e7c0f437dd9410fb1d"
       ],
       "facet_fingerprint_sha256": "7af64212559938e3a80bc24038b206a2d6597ff2b58ea3b7d33d6fa59866b9f5"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapWithMultipleFilesWithCopyright.ts#default",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/compiler/sourceMapWithMultipleFilesWithFileEndingWithInterface.ts#default",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/compiler/sourceMapWithNonCaseSensitiveFileNames.ts#default",
@@ -519,71 +168,6 @@
       "facet_fingerprint_sha256": "c68a743d687c35086e0318de7407b994f1b30926230b99613cd925dec1ed1cec"
     },
     {
-      "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Des2022",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "declarationMap",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=1d280d0524c893cea9ae262bfe7fcf40620150e5f29633749799bf1524d94569"
-      ],
-      "facet_fingerprint_sha256": "d881e820b3b231325adc36da4098bcabd1932b1a6a90d107e110770b1981157f"
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/classes/classStaticBlock/classStaticBlock25.ts#target%3Desnext",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "declarationMap",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=1d280d0524c893cea9ae262bfe7fcf40620150e5f29633749799bf1524d94569"
-      ],
-      "facet_fingerprint_sha256": "d881e820b3b231325adc36da4098bcabd1932b1a6a90d107e110770b1981157f"
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2015",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "declarationMap",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=1d280d0524c893cea9ae262bfe7fcf40620150e5f29633749799bf1524d94569"
-      ],
-      "facet_fingerprint_sha256": "d881e820b3b231325adc36da4098bcabd1932b1a6a90d107e110770b1981157f"
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Des2022",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "declarationMap",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=1d280d0524c893cea9ae262bfe7fcf40620150e5f29633749799bf1524d94569"
-      ],
-      "facet_fingerprint_sha256": "d881e820b3b231325adc36da4098bcabd1932b1a6a90d107e110770b1981157f"
-    },
-    {
-      "case_id": "typescript-6.0.3/conformance/esDecorators/classDeclaration/esDecorators-classDeclaration-sourceMap.ts#target%3Desnext",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "declarationMap",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=1d280d0524c893cea9ae262bfe7fcf40620150e5f29633749799bf1524d94569"
-      ],
-      "facet_fingerprint_sha256": "d881e820b3b231325adc36da4098bcabd1932b1a6a90d107e110770b1981157f"
-    },
-    {
       "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -608,32 +192,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
@@ -688,32 +246,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -738,32 +270,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -792,32 +298,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -842,32 +322,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -896,32 +350,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -946,32 +374,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -1000,32 +402,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1050,32 +426,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
@@ -1130,32 +480,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1180,32 +504,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -1234,32 +532,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1284,32 +556,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -1338,32 +584,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1388,32 +608,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -1442,32 +636,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/mapRootRelativePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1492,32 +660,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/maprootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
@@ -1572,32 +714,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1622,32 +738,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -1676,32 +766,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1726,32 +790,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -1780,32 +818,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1830,32 +842,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -1884,32 +870,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -1934,32 +894,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
@@ -2014,32 +948,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2064,32 +972,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -2118,32 +1000,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2168,32 +1024,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -2222,32 +1052,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2274,32 +1078,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2324,32 +1102,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/maprootUrlsourcerootUrlSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/rootDirectory.json#module%3Damd",
@@ -2430,32 +1182,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2508,32 +1234,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2558,32 +1258,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -2612,32 +1286,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2662,32 +1310,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -2716,32 +1338,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2766,32 +1362,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -2820,32 +1390,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootAbsolutePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -2870,32 +1414,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourceRootRelativePathMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
@@ -2950,32 +1468,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3000,32 +1492,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -3054,32 +1520,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3104,32 +1544,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -3158,32 +1572,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3208,32 +1596,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -3262,32 +1624,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourceRootRelativePathSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3312,32 +1648,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourcemapMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
@@ -3392,32 +1702,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3442,32 +1726,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -3496,32 +1754,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3546,32 +1778,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -3600,32 +1806,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3650,32 +1830,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -3704,32 +1858,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcemapSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3754,32 +1882,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourcerootUrlMixedSubfolderSpecifyOutputFileAndOutputDirectory.json#module%3Damd",
@@ -3834,32 +1936,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3884,32 +1960,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputDirectory.json#module%3Damd",
@@ -3938,32 +1988,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlModuleSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -3988,32 +2012,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlMultifolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     },
     {
       "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputDirectory.json#module%3Damd",
@@ -4042,32 +2040,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlSimpleSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -4094,32 +2066,6 @@
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
     },
     {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlSingleFileSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
       "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputDirectory.json#module%3Damd",
       "owner": "h2-6c-m-2-divergence-closure",
       "writes_diverging": 0,
@@ -4144,32 +2090,6 @@
         "H2_6c:refusal:0:variant=c44c4a1f9a9a3c8ff674c7d5e66c390cc37d7612ce8478f3f4f9532c77c5af55"
       ],
       "facet_fingerprint_sha256": "6d696d8aa0e9675198d631800805eb414fd97a2e6166a6b71bd677cfc43f4fe0"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputFile.json#module%3Damd",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
-    },
-    {
-      "case_id": "typescript-6.0.3/project/sourcerootUrlSubfolderSpecifyOutputFile.json#module%3Dcommonjs",
-      "owner": "h2-6c-m-2-divergence-closure",
-      "writes_diverging": 0,
-      "diagnostics_diverging": false,
-      "emit_result_diverging": false,
-      "emit_refused": true,
-      "refused_option": "outFile",
-      "mismatch_vector": [
-        "H2_6c:refusal:0:variant=5ad12d0829740f620c5fe9957e5547e87882093a94ea7cb23aa9e7cd04b74127"
-      ],
-      "facet_fingerprint_sha256": "dd35039af919e84c4dcc8df94da05b04a38aab98e2f34a76aafcf81c4d87f8ef"
     }
   ]
 }

@@ -105,7 +105,7 @@ pub fn get_script_transformers<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
 ) -> Result<Vec<Box<dyn Transformer + 'resolver>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_7c_profile();
+    let mut activity = H2ActivityCanary::h2_7e_profile();
     get_script_transformers_with_optional_host(options, resolver, None, &mut activity)
 }
 
@@ -120,7 +120,7 @@ pub fn get_script_transformers_for_source<'transformers>(
     host: &'transformers dyn EmitHost,
     source: SourceFileId,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
-    let mut activity = H2ActivityCanary::h2_7c_profile();
+    let mut activity = H2ActivityCanary::h2_7e_profile();
     get_script_transformers_with_optional_host(
         options,
         resolver,
@@ -139,6 +139,96 @@ pub(crate) fn get_script_transformers_with_activity<'transformers>(
     get_script_transformers_with_optional_host(options, resolver, Some((host, source)), activity)
 }
 
+// The transformer list is shared by a Bundle, while these predicates inspect
+// a particular source. Option-wide owners retain one event per list.
+fn observe_script_source_routing(
+    options: &CompilerOptions,
+    host: &dyn EmitHost,
+    source: SourceFileId,
+    first_source: bool,
+    activity: &mut H2ActivityCanary,
+) {
+    let source_record = host.source_file(source);
+    let source_name = source_record
+        .map(|record| record.path().to_string_lossy().to_ascii_lowercase())
+        .unwrap_or_default();
+    let owns_node_format_option = matches!(
+        options.emit_module_kind(),
+        MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
+    ) || options.rewrite_relative_import_extensions == Some(true);
+    let owns_node_format = (first_source && owns_node_format_option)
+        || (!owns_node_format_option
+            && (source_name.ends_with(".mts")
+                || source_name.ends_with(".cts")
+                || source_record
+                    .and_then(crate::EmitSource::syntax)
+                    .is_some_and(source_contains_import_attributes)));
+    if owns_node_format {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
+    }
+    if source_record
+        .and_then(crate::EmitSource::syntax)
+        .is_some_and(source_contains_runtime_enum)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_2a);
+    }
+    if source_record
+        .and_then(crate::EmitSource::syntax)
+        .is_some_and(source_contains_runtime_namespace)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_2b);
+    }
+    if source_record
+        .and_then(crate::EmitSource::syntax)
+        .is_some_and(source_contains_parameter_property)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
+    }
+    if source_record
+        .and_then(crate::EmitSource::syntax)
+        .is_some_and(source_contains_import_or_export_equals)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
+    }
+    if options.experimental_decorators
+        && source_record
+            .and_then(crate::EmitSource::syntax)
+            .is_some_and(source_contains_decorator)
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
+    }
+    if (first_source && !options.use_define_for_class_fields_effective())
+        || (options.use_define_for_class_fields_effective()
+            && !options.experimental_decorators
+            && source_record
+                .and_then(crate::EmitSource::syntax)
+                .is_some_and(source_contains_decorator))
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
+    }
+}
+
+/// Observe a later actual Bundle member without constructing another list.
+/// Call only after the first source has selected the list and only for sources
+/// in the JavaScript output root (not every mounted Program source).
+pub(crate) fn observe_additional_bundle_source_activity(
+    options: &CompilerOptions,
+    host: &dyn EmitHost,
+    source: SourceFileId,
+    activity: &mut H2ActivityCanary,
+) {
+    observe_script_source_routing(options, host, source, false, activity);
+    if !matches!(options.emit_module_kind(), MODULE_PRESERVE | MODULE_SYSTEM) {
+        let emit_format = host.get_emit_module_format_of_file(source);
+        if emit_format.is_some_and(|format| format < 5) {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1b);
+        }
+        if emit_format.is_some_and(|format| matches!(format, MODULE_AMD | MODULE_UMD)) {
+            activity.observe_runtime_slice(H2RuntimeSlice::H2_1c);
+        }
+    }
+}
+
 fn get_script_transformers_with_optional_host<'transformers>(
     options: &CompilerOptions,
     resolver: &'transformers dyn EmitResolver,
@@ -146,6 +236,17 @@ fn get_script_transformers_with_optional_host<'transformers>(
     activity: &mut H2ActivityCanary,
 ) -> Result<Vec<Box<dyn Transformer + 'transformers>>, TransformError> {
     let target = options.emit_script_target();
+    if host.is_none()
+        && options
+            .out_file
+            .as_deref()
+            .is_some_and(|path| !path.is_empty())
+    {
+        return Err(TransformError::UnsupportedCompilerOption {
+            option: "outFile",
+            detail: "bundle module names require a Program emit host",
+        });
+    }
     if target < ScriptTarget::ES5 || target > ScriptTarget::ES_NEXT {
         return Err(TransformError::UnsupportedCompilerOption {
             option: "target",
@@ -175,61 +276,7 @@ fn get_script_transformers_with_optional_host<'transformers>(
         });
     }
     if let Some((host, source)) = host {
-        let source_record = host.source_file(source);
-        let source_name = source_record
-            .map(|record| record.path().to_string_lossy().to_ascii_lowercase())
-            .unwrap_or_default();
-        let owns_node_format = matches!(
-            options.emit_module_kind(),
-            MODULE_NODE16 | MODULE_NODE18 | MODULE_NODE20 | MODULE_NODE_NEXT
-        ) || options.rewrite_relative_import_extensions == Some(true)
-            || source_name.ends_with(".mts")
-            || source_name.ends_with(".cts")
-            || source_record
-                .and_then(crate::EmitSource::syntax)
-                .is_some_and(source_contains_import_attributes);
-        if owns_node_format {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_1e);
-        }
-        if source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_runtime_enum)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_2a);
-        }
-        if source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_runtime_namespace)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_2b);
-        }
-        if source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_parameter_property)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_2c);
-        }
-        if source_record
-            .and_then(crate::EmitSource::syntax)
-            .is_some_and(source_contains_import_or_export_equals)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_2d);
-        }
-        if options.experimental_decorators
-            && source_record
-                .and_then(crate::EmitSource::syntax)
-                .is_some_and(source_contains_decorator)
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_4a);
-        }
-        if !options.use_define_for_class_fields_effective()
-            || (!options.experimental_decorators
-                && source_record
-                    .and_then(crate::EmitSource::syntax)
-                    .is_some_and(source_contains_decorator))
-        {
-            activity.observe_runtime_slice(H2RuntimeSlice::H2_4b);
-        }
+        observe_script_source_routing(options, host, source, true, activity);
         if target < ScriptTarget::ES_NEXT {
             activity.observe_runtime_slice(H2RuntimeSlice::H2_5a);
         }
@@ -292,7 +339,7 @@ fn get_script_transformers_with_optional_host<'transformers>(
         transform_ecmascript_module(options)
     } else if options.emit_module_kind() == MODULE_SYSTEM {
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1d);
-        system::transform_system_module(options, resolver)
+        system::transform_system_module(options, resolver, host.map(|(host, _)| host))
     } else {
         let (host, source) = host.ok_or(TransformError::EmitHostRequiredForImpliedModuleFormat)?;
         activity.observe_runtime_slice(H2RuntimeSlice::H2_1a);
@@ -767,12 +814,11 @@ impl TypeScriptTransformer<'_> {
                     TransformFlags::NONE,
                 )?,
             };
-            factory.set_text_range(substitute, node)?;
             substitute
         };
-        context
-            .arena_mut()?
-            .set_original_node(substitute, Some(original))?;
+        // TypeScript returns the synthetic constant directly. Giving it the
+        // access expression's range/original adds node and token map spans
+        // which the substitution pipeline does not emit.
         if let Some(value) = javascript_string {
             context
                 .arena_mut()?
@@ -2421,11 +2467,31 @@ impl Transformer for CommonJsModuleTransformer<'_> {
         let has_dynamic_import = source_contains_dynamic_import(context.arena(), current_root)?;
         let has_import_reference_substitution =
             source_contains_import_reference_substitution(context.arena(), current_root)?;
-        let requires_module_rewrite = is_external || has_dynamic_import;
+        // transformModule also enters the AMD outFile branch for JSON even
+        // though JSON has no external-module indicator (_tsc.js:110131).
+        // hasJsonModuleEmitEnabled excludes System/UMD/None; those JSON roots
+        // keep their expression and do not acquire an asynchronous wrapper.
+        let is_json = context
+            .arena()
+            .source(source)?
+            .syntax()
+            .file_name
+            .to_ascii_lowercase()
+            .ends_with(".json");
+        let json_amd_bundle = is_json
+            && self.module_kind == MODULE_AMD
+            && self.host.is_some_and(|host| {
+                host.compiler_options()
+                    .out_file
+                    .as_deref()
+                    .is_some_and(|path| !path.is_empty())
+            });
+        let requires_module_rewrite = is_external || has_dynamic_import || json_amd_bundle;
         if !requires_module_rewrite && !has_import_reference_substitution {
             return Ok(TransformRoot::SourceFile(source));
         }
         if requires_module_rewrite
+            && !is_json
             && (matches!(self.module_kind, MODULE_AMD | MODULE_UMD)
                 || self.always_strict
                 || is_external)
@@ -2458,10 +2524,15 @@ impl Transformer for CommonJsModuleTransformer<'_> {
             },
             info,
         );
-        let mut updated = visitor.transform_source_file(current_root)?;
-        if requires_module_rewrite && matches!(self.module_kind, MODULE_AMD | MODULE_UMD) {
-            updated = visitor.wrap_asynchronous_module(updated)?;
-        }
+        let updated = if json_amd_bundle {
+            visitor.transform_amd_json_module(current_root)?
+        } else {
+            let mut updated = visitor.transform_source_file(current_root)?;
+            if requires_module_rewrite && matches!(self.module_kind, MODULE_AMD | MODULE_UMD) {
+                updated = visitor.wrap_asynchronous_module(updated)?;
+            }
+            updated
+        };
         visitor.context.arena_mut()?.replace_root(source, updated)?;
         Ok(TransformRoot::SourceFile(source))
     }
@@ -2522,12 +2593,14 @@ impl ImportEqualsPublication {
 #[derive(Debug)]
 struct GeneratedModuleNameAllocator {
     used_names: BTreeSet<String>,
+    generated_bases: BTreeMap<String, String>,
 }
 
 impl GeneratedModuleNameAllocator {
     fn new(arena: &TransformArena, source: TransformSourceId) -> Self {
         Self {
             used_names: system::collect_identifier_texts(arena, source),
+            generated_bases: BTreeMap::new(),
         }
     }
 
@@ -2539,6 +2612,15 @@ impl GeneratedModuleNameAllocator {
         for ordinal in 1usize.. {
             let candidate = format!("{base}{ordinal}");
             if self.used_names.insert(candidate.clone()) {
+                // The numbered binding allocator adds exactly one separator.
+                // Remove that one separator from this already-normalized prefix,
+                // preserving any underscores belonging to the module basename.
+                self.generated_bases.insert(
+                    candidate.clone(),
+                    base.strip_suffix('_')
+                        .expect("numbered module prefix has a separator")
+                        .to_owned(),
+                );
                 return candidate.into_boxed_str();
             }
         }
@@ -4396,6 +4478,7 @@ struct CommonJsVisitor<'context, 'resolver> {
     rewrite_relative_import_extensions: bool,
     target: ScriptTarget,
     info: CommonJsModuleInfo,
+    generated_module_bindings: BTreeMap<String, target_bindings::TargetBinding>,
     nodes: BTreeMap<NodeId, NodeId>,
     arrays: BTreeMap<NodeArrayId, NodeArrayId>,
     dynamic_import_ordinal: usize,
@@ -4426,6 +4509,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             rewrite_relative_import_extensions: options.rewrite_relative_import_extensions,
             target: options.target,
             info,
+            generated_module_bindings: BTreeMap::new(),
             nodes: BTreeMap::new(),
             arrays: BTreeMap::new(),
             dynamic_import_ordinal: 0,
@@ -4715,6 +4799,81 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         Ok(AsynchronousDependencies { aliased, unaliased })
     }
 
+    /// JSON arm of transformAMDModule (_tsc.js:110205-110280). Its third
+    /// define argument is the original JSON expression, not a module-body
+    /// function. Empty JSON supplies a synthesized empty object. Only the
+    /// outer statement-list range is copied; the payload keeps its own range.
+    fn transform_amd_json_module(
+        &mut self,
+        root: TransformNode,
+    ) -> Result<TransformNode, TransformError> {
+        let mut source_data = match self.context.arena().node(root)?.data.clone() {
+            NodeData::SourceFile(data) => data,
+            _ => {
+                return Err(TransformError::RootKindExpected {
+                    actual: self.context.arena().node(root)?.kind,
+                })
+            }
+        };
+        let original_array = source_data
+            .statements
+            .and_then(|array| self.context.arena().node_array_ref(self.source, array));
+        let input = node_array_nodes(self.context.arena(), self.source, source_data.statements)?;
+        let payload = if let Some(&statement) = input.first() {
+            let expression = match &self.context.arena().node(statement)?.data {
+                NodeData::ExpressionStatement(data) => data.expression,
+                _ => None,
+            };
+            expression
+                .and_then(|node| self.context.arena().node_ref(self.source, node))
+                .ok_or(TransformError::RequiredChildRemoved {
+                    parent: SyntaxKind::ExpressionStatement,
+                    field: "JSON expression",
+                })?
+        } else {
+            let properties = self
+                .context
+                .factory()?
+                .create_node_array(self.source, Vec::new())?;
+            self.context.factory()?.create_node(
+                self.source,
+                NodeData::ObjectLiteralExpression(tsc_syntax::nodes::ObjectLiteralExpressionData {
+                    properties: Some(properties.array()),
+                }),
+                TransformFlags::NONE,
+            )?
+        };
+        let module_name = crate::external_module_names::try_get_module_name_from_file(
+            self.host,
+            self.context.arena().source(self.source)?.syntax(),
+        );
+        let define = self.create_identifier("define")?;
+        let mut arguments = Vec::new();
+        if let Some(module_name) = module_name {
+            arguments.push(self.create_string_literal(&module_name)?);
+        }
+        arguments.push(self.create_array_literal(Vec::new())?);
+        arguments.push(payload);
+        let call = self.create_call(define, arguments)?;
+        let statement = self.create_expression_statement(call)?;
+        let statements = self
+            .context
+            .factory()?
+            .create_node_array(self.source, vec![statement])?;
+        if let Some(original_array) = original_array {
+            let original_array = self.context.arena().node_array(original_array)?;
+            let (pos, end) = (original_array.pos, original_array.end);
+            self.context
+                .factory()?
+                .set_node_array_text_range(statements, pos, end)?;
+        }
+        source_data.statements = Some(statements.array());
+        let flags = self.context.arena().transform_flags(root);
+        self.context
+            .factory()?
+            .update_node(root, NodeData::SourceFile(source_data), flags)
+    }
+
     fn wrap_asynchronous_module(
         &mut self,
         root: TransformNode,
@@ -4771,13 +4930,10 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
             dependency_elements.push(self.create_string_literal(&path)?);
         }
         let dependencies = self.create_array_literal(dependency_elements)?;
-        let module_name = self
-            .context
-            .arena()
-            .source(self.source)?
-            .syntax()
-            .module_name
-            .clone();
+        let module_name = crate::external_module_names::try_get_module_name_from_file(
+            self.host,
+            self.context.arena().source(self.source)?.syntax(),
+        );
 
         let wrapper = if self.module_kind == MODULE_AMD {
             let define = self.create_identifier("define")?;
@@ -8143,6 +8299,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                     .is_ok_and(|node| node.kind == SyntaxKind::ImportKeyword)
             });
         if is_dynamic_import {
+            // visitImportCallExpression keeps native import() for module None
+            // at ES2020 and later, even when this module visitor is selected
+            // (_tsc.js:110952-110955).
+            if self.module_kind == MODULE_NONE && self.target >= ScriptTarget::ES2020 {
+                return self.update_generic(original, NodeData::CallExpression(data));
+            }
             let arguments = node_array_nodes(self.context.arena(), self.source, data.arguments)?;
             if matches!(
                 self.module_kind,
@@ -8171,6 +8333,23 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 data.type_arguments = None;
                 return self.update_generic_without_visit(original, NodeData::CallExpression(data));
             }
+            // Resolve literal dynamic imports through the same bundle module
+            // identity protocol as static imports (_tsc.js:110956-110958).
+            let external_module_name = if arguments.first().is_some_and(|argument| {
+                self.context
+                    .arena()
+                    .node(*argument)
+                    .is_ok_and(|node| node.kind == SyntaxKind::StringLiteral)
+            }) {
+                crate::external_module_names::resolved_external_module_name_literal(
+                    self.host,
+                    self.resolver,
+                    self.context.arena(),
+                    original,
+                )?
+            } else {
+                None
+            };
             // AMD emits its executor parameters before the dependency
             // expression. Reserve those generated bindings before descending
             // into a nested import so ordinal assignment follows emit order.
@@ -8187,10 +8366,20 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 .copied()
                 .map(|argument| self.visit(argument.node()))
                 .transpose()?;
-            if let Some(amd_bindings) = amd_bindings {
-                let argument = argument
+            let argument = if let Some(module_name) = external_module_name.filter(|name| {
+                !argument.is_some_and(|argument| {
+                    self.context.arena().node(argument).is_ok_and(|node| {
+                        matches!(&node.data, NodeData::StringLiteral(literal) if literal.text.as_str() == name.as_str())
+                    })
+                })
+            }) {
+                Some(self.create_string_literal(&module_name)?)
+            } else {
+                argument
                     .map(|argument| self.rewrite_import_argument(argument))
-                    .transpose()?;
+                    .transpose()?
+            };
+            if let Some(amd_bindings) = amd_bindings {
                 let transformed = self.create_amd_dynamic_import(argument, amd_bindings)?;
                 self.set_original_and_range(transformed, original)?;
                 return Ok(transformed);
@@ -8200,9 +8389,6 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
                 self.set_original_and_range(transformed, original)?;
                 return Ok(transformed);
             }
-            let argument = argument
-                .map(|argument| self.rewrite_import_argument(argument))
-                .transpose()?;
             let transformed = self.create_common_js_dynamic_import_value(argument, false)?;
             self.set_original_and_range(transformed, original)?;
             return Ok(transformed);
@@ -8451,7 +8637,7 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         argument: Option<TransformNode>,
     ) -> Result<TransformNode, TransformError> {
         let argument = match argument {
-            Some(argument) => self.rewrite_import_argument(argument)?,
+            Some(argument) => argument,
             None => self.create_void_zero()?,
         };
         if self.is_simple_copiable_expression(argument)? {
@@ -8969,14 +9155,34 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
     }
 
     fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.create_node(
+        let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: text.to_owned(),
                 text: text.to_owned(),
             }),
             TransformFlags::NONE,
-        )
+        )?;
+        // AMD import/re-export aliases are generated identities, not their
+        // provisional text. Factory parameters and body references must share
+        // one binding so bundle finalization can rename both. Standalone AMD
+        // uses the same identity and the existing per-file name reset.
+        if self.module_kind == MODULE_AMD {
+            if let Some(base) = self.info.generated_module_names.generated_bases.get(text) {
+                let binding = match self.generated_module_bindings.entry(text.to_owned()) {
+                    std::collections::btree_map::Entry::Vacant(entry) => {
+                        entry.insert(target_bindings::TargetBinding::allocate_numbered(
+                            self.context,
+                            base.clone(),
+                            text.to_owned(),
+                        )?)
+                    }
+                    std::collections::btree_map::Entry::Occupied(entry) => entry.into_mut(),
+                };
+                binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+            }
+        }
+        Ok(identifier)
     }
 
     fn create_numeric_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
@@ -9269,39 +9475,12 @@ impl<'context, 'resolver> CommonJsVisitor<'context, 'resolver> {
         declaration: TransformNode,
         fallback: TransformNode,
     ) -> Result<TransformNode, TransformError> {
-        let declaration = self.context.arena().get_original_node(declaration);
-        let has_module_name_source = self.host.is_some_and(|host| {
-            host.source_file_ids().iter().copied().any(|source| {
-                host.source_file(source)
-                    .and_then(|source| source.syntax())
-                    .is_some_and(|source| source.module_name.is_some())
-            })
-        });
-        let target = if has_module_name_source {
-            if let Some(declaration) = self.context.arena().parse_tree_resolver_node(declaration)? {
-                match self
-                    .resolver
-                    .get_external_module_file_from_declaration(declaration)
-                {
-                    Ok(target) => target,
-                    Err(EmitResolverError::Unavailable {
-                        method: EmitResolverMethod::GetExternalModuleFileFromDeclaration,
-                        ..
-                    }) => None,
-                    Err(error) => return Err(error.into()),
-                }
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        let module_name = self.host.and_then(|host| {
-            target
-                .and_then(|target| host.source_file(target.source()))
-                .and_then(|source| source.syntax())
-                .and_then(|source| source.module_name.clone())
-        });
+        let module_name = crate::external_module_names::resolved_external_module_name_literal(
+            self.host,
+            self.resolver,
+            self.context.arena(),
+            declaration,
+        )?;
         if let Some(module_name) = module_name {
             self.create_string_literal(&module_name)
         } else {
@@ -10760,7 +10939,7 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
         self.context
             .arena_mut()?
             .metadata_mut(local_name)
-            .add_flags(EmitFlags::NO_COMMENTS);
+            .set_flags(EmitFlags::NO_COMMENTS);
         let assignment = self.create_assignment(access, local_name)?;
         let statement = self.create_expression_statement(assignment)?;
         self.context
@@ -12469,6 +12648,14 @@ impl<'context, 'resolver> TypeScriptVisitor<'context, 'resolver> {
             return Ok(updated);
         };
         let name = self.node(name);
+        // visitParameter mutates this unchanged name in the original parse
+        // tree. Keep that same-emit side effect even though the JavaScript
+        // representation below isolates its name from parameter-property
+        // projections. A fresh declaration-only emit has no such mutation.
+        if self.context.arena().is_parsed_node(name)? {
+            let metadata = self.context.arena_mut()?.metadata_mut(name);
+            metadata.set_flags(EmitFlags::NO_TRAILING_SOURCE_MAP);
+        }
         let cloned_name = self.context.factory()?.clone_node(name)?;
         self.context.factory()?.set_text_range(cloned_name, name)?;
         data.name = Some(cloned_name.node());

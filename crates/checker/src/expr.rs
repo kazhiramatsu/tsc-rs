@@ -3739,11 +3739,11 @@ impl<'a> CheckerState<'a> {
     /// Combined readonly modifier, excluding parameter properties.
     pub(crate) fn is_declaration_readonly(&self, declaration: NodeId) -> bool {
         let source = self.binder.source_of_node(declaration);
-        node_util::has_syntactic_modifier(source, declaration, ModifierFlags::READONLY)
-            && !(self.kind_of(declaration) == SyntaxKind::Parameter
-                && self
-                    .parent_of(declaration)
-                    .is_some_and(|p| self.kind_of(p) == SyntaxKind::Constructor))
+        node_util::get_combined_modifier_flags(source, declaration)
+            .intersects(ModifierFlags::READONLY)
+            && !self.parent_of(declaration).is_some_and(|parent| {
+                node_util::is_parameter_property_declaration(source, declaration, parent)
+            })
     }
 
     /// tsc-port: isLiteralOfContextualType @6.0.3

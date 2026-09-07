@@ -1,0 +1,2692 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "dependencies": [
+    {
+      "path": "scripts/observe-module-alias-underscores.mjs",
+      "sha256": "77ed5eaa7901e23ef8515607f1ee928c34fabf50735c1d715618634f6af8053f"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/bundle-module-identities.json",
+      "sha256": "965c6ab4b187ac8488b63e572544ea0924afd230af43077092ce57ed69bb91bb"
+    },
+    {
+      "path": "crates/emitter/tests/fixtures/system-generated-names.json",
+      "sha256": "ee524599b64d4d01287ee8ff1a1ff5bfa42ddefadfc0bccd9f1f8b07ae513112"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    },
+    {
+      "path": ".node-version",
+      "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c"
+    }
+  ],
+  "contract": "Complete ordinary Program.emit tuples plus lexical names decoded from emitted JavaScript; no Rust execution, CLI status, forced API or runtime admission. The original module-identity and System-generated-name fixtures are unchanged.",
+  "upstream_references": [
+    {
+      "owner": "AMD generated dependency factory parameters",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 110442,
+      "last_line": 110500,
+      "sha256": "9d228939e0d0ce6a693beaedfbe6142ff46c9bedff789ef411d8cf329ff0e648"
+    },
+    {
+      "owner": "External import local-name identity",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 27696,
+      "last_line": 27718,
+      "sha256": "d0d052f8fca25b9aeaf0e3627b243063fd476adf8b39abc293b6a08d557b270a"
+    },
+    {
+      "owner": "Module basename identifier spelling",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 13703,
+      "last_line": 13710,
+      "sha256": "898f3245492cf6793e8d319f4205649287895ed6f63b5cd9208279800650c3fd"
+    },
+    {
+      "owner": "System generated exports/context",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 112079,
+      "last_line": 112092,
+      "sha256": "862ba2bbab60c3900b95aade03add0257b890ad54d2554664517b520face7c82"
+    },
+    {
+      "owner": "System generated exportedNames/exportStar",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 112292,
+      "last_line": 112319,
+      "sha256": "ed6f3009f870761e492bd24465f2b8c984c7a100e2e33bb86763c87657a64623"
+    },
+    {
+      "owner": "System generated dependency setter parameters",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 112403,
+      "last_line": 112410,
+      "sha256": "2f528a78d332ac60507cfd2e633eca3b94c9c8fb5526ead2b87a65d7ba732467"
+    },
+    {
+      "owner": "Bundle vs standalone writer reset",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 117058,
+      "last_line": 117081,
+      "sha256": "f1944309ed6d7f4f14ddc22e578c13d1ed2c328d8ece416ad3b3d660e1e5531a"
+    },
+    {
+      "owner": "Printer generated-name reset",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 117117,
+      "last_line": 117141,
+      "sha256": "fd783bac486dbc9d5ab0add829f7969be57ed27c0b816b8becb0da687102115d"
+    },
+    {
+      "owner": "Cached generation and current-source/generated-name uniqueness",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 120624,
+      "last_line": 120667,
+      "sha256": "4eec6179af2b274e8d6e022543772713e609f53c413423ba4f76702afe8f5c2b"
+    },
+    {
+      "owner": "makeUniqueName numeric suffix allocation",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 120741,
+      "last_line": 120779,
+      "sha256": "24cb46aa2ba811ebf24cee740aa8ca553970a6bd6f18b7b57ae10ea77cb55f03"
+    },
+    {
+      "owner": "Module-derived name generation",
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "first_line": 120813,
+      "last_line": 120830,
+      "sha256": "996ead9eb36f91cff9ebdb20dc298efc5a4322b2e998d23668c0bb2a0de93e08"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "amd/bundle/dep_",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 2,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/dep_.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/src/bridge.ts",
+          "text": "import { value } from './dep_'; export * from './dep_'; export const bridge: number = value + 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "import { value } from './dep_'; import { bridge } from './bridge'; export * from './bridge'; export const main: number = value + bridge;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/dep_.ts",
+        "/project/src/bridge.ts",
+        "/project/src/main.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "amd/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/dep_.ts",
+          "/project/src/bridge.ts",
+          "/project/src/main.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/dep_.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "dep_",
+            "emitted_module_name": "dep_",
+            "imports": []
+          },
+          {
+            "path": "/project/src/bridge.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "bridge",
+            "emitted_module_name": "bridge",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep_",
+                "resolved_file": "/project/src/dep_.ts",
+                "literal": "dep_",
+                "declaration_name": "dep_"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./dep_",
+                "resolved_file": "/project/src/dep_.ts",
+                "literal": "dep_",
+                "declaration_name": "dep_"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/main.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "main",
+            "emitted_module_name": "main",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep_",
+                "resolved_file": "/project/src/dep_.ts",
+                "literal": "dep_",
+                "declaration_name": "dep_"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "bridge",
+                "declaration_name": "bridge"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "bridge",
+                "declaration_name": "bridge"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgewogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsKICAgIHZhciBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcihtLCBrKTsKICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgewogICAgICBkZXNjID0geyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uKCkgeyByZXR1cm4gbVtrXTsgfSB9OwogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsKfSkgOiAoZnVuY3Rpb24obywgbSwgaywgazIpIHsKICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7CiAgICBvW2syXSA9IG1ba107Cn0pKTsKdmFyIF9fZXhwb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19leHBvcnRTdGFyKSB8fCBmdW5jdGlvbihtLCBleHBvcnRzKSB7CiAgICBmb3IgKHZhciBwIGluIG0pIGlmIChwICE9PSAiZGVmYXVsdCIgJiYgIU9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChleHBvcnRzLCBwKSkgX19jcmVhdGVCaW5kaW5nKGV4cG9ydHMsIG0sIHApOwp9OwpkZWZpbmUoImRlcF8iLCBbInJlcXVpcmUiLCAiZXhwb3J0cyJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cykgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMudmFsdWUgPSB2b2lkIDA7CiAgICBleHBvcnRzLnZhbHVlID0gMTsKfSk7CmRlZmluZSgiYnJpZGdlIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiLCAiZGVwXyIsICJkZXBfIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzLCBkZXBfMSwgZGVwXzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLmJyaWRnZSA9IHZvaWQgMDsKICAgIF9fZXhwb3J0U3RhcihkZXBfMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLmJyaWRnZSA9IGRlcF8xLnZhbHVlICsgMTsKfSk7CmRlZmluZSgibWFpbiIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImRlcF8iLCAiYnJpZGdlIiwgImJyaWRnZSJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cywgZGVwXzMsIGJyaWRnZV8xLCBicmlkZ2VfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMubWFpbiA9IHZvaWQgMDsKICAgIF9fZXhwb3J0U3RhcihicmlkZ2VfMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLm1haW4gPSBkZXBfMy52YWx1ZSArIGJyaWRnZV8xLmJyaWRnZTsKfSk7Cg==",
+            "callback_utf8_bytes": 1507,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgewogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsKICAgIHZhciBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcihtLCBrKTsKICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgewogICAgICBkZXNjID0geyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uKCkgeyByZXR1cm4gbVtrXTsgfSB9OwogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsKfSkgOiAoZnVuY3Rpb24obywgbSwgaywgazIpIHsKICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7CiAgICBvW2syXSA9IG1ba107Cn0pKTsKdmFyIF9fZXhwb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19leHBvcnRTdGFyKSB8fCBmdW5jdGlvbihtLCBleHBvcnRzKSB7CiAgICBmb3IgKHZhciBwIGluIG0pIGlmIChwICE9PSAiZGVmYXVsdCIgJiYgIU9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChleHBvcnRzLCBwKSkgX19jcmVhdGVCaW5kaW5nKGV4cG9ydHMsIG0sIHApOwp9OwpkZWZpbmUoImRlcF8iLCBbInJlcXVpcmUiLCAiZXhwb3J0cyJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cykgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMudmFsdWUgPSB2b2lkIDA7CiAgICBleHBvcnRzLnZhbHVlID0gMTsKfSk7CmRlZmluZSgiYnJpZGdlIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiLCAiZGVwXyIsICJkZXBfIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzLCBkZXBfMSwgZGVwXzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLmJyaWRnZSA9IHZvaWQgMDsKICAgIF9fZXhwb3J0U3RhcihkZXBfMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLmJyaWRnZSA9IGRlcF8xLnZhbHVlICsgMTsKfSk7CmRlZmluZSgibWFpbiIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImRlcF8iLCAiYnJpZGdlIiwgImJyaWRnZSJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cywgZGVwXzMsIGJyaWRnZV8xLCBicmlkZ2VfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMubWFpbiA9IHZvaWQgMDsKICAgIF9fZXhwb3J0U3RhcihicmlkZ2VfMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLm1haW4gPSBkZXBfMy52YWx1ZSArIGJyaWRnZV8xLmJyaWRnZTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep_.ts",
+              "/project/src/bridge.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImRlcF8iIHsKICAgIGV4cG9ydCBjb25zdCB2YWx1ZTogbnVtYmVyOwp9CmRlY2xhcmUgbW9kdWxlICJicmlkZ2UiIHsKICAgIGV4cG9ydCAqIGZyb20gImRlcF8iOwogICAgZXhwb3J0IGNvbnN0IGJyaWRnZTogbnVtYmVyOwp9CmRlY2xhcmUgbW9kdWxlICJtYWluIiB7CiAgICBleHBvcnQgKiBmcm9tICJicmlkZ2UiOwogICAgZXhwb3J0IGNvbnN0IG1haW46IG51bWJlcjsKfQo=",
+            "callback_utf8_bytes": 230,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImRlcF8iIHsKICAgIGV4cG9ydCBjb25zdCB2YWx1ZTogbnVtYmVyOwp9CmRlY2xhcmUgbW9kdWxlICJicmlkZ2UiIHsKICAgIGV4cG9ydCAqIGZyb20gImRlcF8iOwogICAgZXhwb3J0IGNvbnN0IGJyaWRnZTogbnVtYmVyOwp9CmRlY2xhcmUgbW9kdWxlICJtYWluIiB7CiAgICBleHBvcnQgKiBmcm9tICJicmlkZ2UiOwogICAgZXhwb3J0IGNvbnN0IG1haW46IG51bWJlcjsKfQo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep_.ts",
+              "/project/src/bridge.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "module_registrations": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registrations": [
+              {
+                "kind": "amd",
+                "module_name": "dep_",
+                "dependencies": [
+                  "require",
+                  "exports"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "kind": "amd",
+                "module_name": "bridge",
+                "dependencies": [
+                  "require",
+                  "exports",
+                  "dep_",
+                  "dep_"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports",
+                  "dep_1",
+                  "dep_2"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "kind": "amd",
+                "module_name": "main",
+                "dependencies": [
+                  "require",
+                  "exports",
+                  "dep_",
+                  "bridge",
+                  "bridge"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports",
+                  "dep_3",
+                  "bridge_1",
+                  "bridge_2"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "amd/bundle/dep__",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 2,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/dep__.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/src/bridge.ts",
+          "text": "import { value } from './dep__'; export * from './dep__'; export const bridge: number = value + 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "import { value } from './dep__'; import { bridge } from './bridge'; export * from './bridge'; export const main: number = value + bridge;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/dep__.ts",
+        "/project/src/bridge.ts",
+        "/project/src/main.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "amd/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/dep__.ts",
+          "/project/src/bridge.ts",
+          "/project/src/main.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/dep__.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "dep__",
+            "emitted_module_name": "dep__",
+            "imports": []
+          },
+          {
+            "path": "/project/src/bridge.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "bridge",
+            "emitted_module_name": "bridge",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "dep__",
+                "declaration_name": "dep__"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "dep__",
+                "declaration_name": "dep__"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/main.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "main",
+            "emitted_module_name": "main",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "dep__",
+                "declaration_name": "dep__"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "bridge",
+                "declaration_name": "bridge"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "bridge",
+                "declaration_name": "bridge"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgewogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsKICAgIHZhciBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcihtLCBrKTsKICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgewogICAgICBkZXNjID0geyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uKCkgeyByZXR1cm4gbVtrXTsgfSB9OwogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsKfSkgOiAoZnVuY3Rpb24obywgbSwgaywgazIpIHsKICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7CiAgICBvW2syXSA9IG1ba107Cn0pKTsKdmFyIF9fZXhwb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19leHBvcnRTdGFyKSB8fCBmdW5jdGlvbihtLCBleHBvcnRzKSB7CiAgICBmb3IgKHZhciBwIGluIG0pIGlmIChwICE9PSAiZGVmYXVsdCIgJiYgIU9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChleHBvcnRzLCBwKSkgX19jcmVhdGVCaW5kaW5nKGV4cG9ydHMsIG0sIHApOwp9OwpkZWZpbmUoImRlcF9fIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwogICAgZXhwb3J0cy52YWx1ZSA9IDE7Cn0pOwpkZWZpbmUoImJyaWRnZSIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImRlcF9fIiwgImRlcF9fIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzLCBkZXBfXzEsIGRlcF9fMikgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMuYnJpZGdlID0gdm9pZCAwOwogICAgX19leHBvcnRTdGFyKGRlcF9fMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLmJyaWRnZSA9IGRlcF9fMS52YWx1ZSArIDE7Cn0pOwpkZWZpbmUoIm1haW4iLCBbInJlcXVpcmUiLCAiZXhwb3J0cyIsICJkZXBfXyIsICJicmlkZ2UiLCAiYnJpZGdlIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzLCBkZXBfXzMsIGJyaWRnZV8xLCBicmlkZ2VfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMubWFpbiA9IHZvaWQgMDsKICAgIF9fZXhwb3J0U3RhcihicmlkZ2VfMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLm1haW4gPSBkZXBfXzMudmFsdWUgKyBicmlkZ2VfMS5icmlkZ2U7Cn0pOwo=",
+            "callback_utf8_bytes": 1517,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgewogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsKICAgIHZhciBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcihtLCBrKTsKICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgewogICAgICBkZXNjID0geyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uKCkgeyByZXR1cm4gbVtrXTsgfSB9OwogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsKfSkgOiAoZnVuY3Rpb24obywgbSwgaywgazIpIHsKICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7CiAgICBvW2syXSA9IG1ba107Cn0pKTsKdmFyIF9fZXhwb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19leHBvcnRTdGFyKSB8fCBmdW5jdGlvbihtLCBleHBvcnRzKSB7CiAgICBmb3IgKHZhciBwIGluIG0pIGlmIChwICE9PSAiZGVmYXVsdCIgJiYgIU9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChleHBvcnRzLCBwKSkgX19jcmVhdGVCaW5kaW5nKGV4cG9ydHMsIG0sIHApOwp9OwpkZWZpbmUoImRlcF9fIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwogICAgZXhwb3J0cy52YWx1ZSA9IDE7Cn0pOwpkZWZpbmUoImJyaWRnZSIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImRlcF9fIiwgImRlcF9fIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzLCBkZXBfXzEsIGRlcF9fMikgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMuYnJpZGdlID0gdm9pZCAwOwogICAgX19leHBvcnRTdGFyKGRlcF9fMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLmJyaWRnZSA9IGRlcF9fMS52YWx1ZSArIDE7Cn0pOwpkZWZpbmUoIm1haW4iLCBbInJlcXVpcmUiLCAiZXhwb3J0cyIsICJkZXBfXyIsICJicmlkZ2UiLCAiYnJpZGdlIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzLCBkZXBfXzMsIGJyaWRnZV8xLCBicmlkZ2VfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMubWFpbiA9IHZvaWQgMDsKICAgIF9fZXhwb3J0U3RhcihicmlkZ2VfMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLm1haW4gPSBkZXBfXzMudmFsdWUgKyBicmlkZ2VfMS5icmlkZ2U7Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep__.ts",
+              "/project/src/bridge.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImRlcF9fIiB7CiAgICBleHBvcnQgY29uc3QgdmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYnJpZGdlIiB7CiAgICBleHBvcnQgKiBmcm9tICJkZXBfXyI7CiAgICBleHBvcnQgY29uc3QgYnJpZGdlOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgIm1haW4iIHsKICAgIGV4cG9ydCAqIGZyb20gImJyaWRnZSI7CiAgICBleHBvcnQgY29uc3QgbWFpbjogbnVtYmVyOwp9Cg==",
+            "callback_utf8_bytes": 232,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImRlcF9fIiB7CiAgICBleHBvcnQgY29uc3QgdmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYnJpZGdlIiB7CiAgICBleHBvcnQgKiBmcm9tICJkZXBfXyI7CiAgICBleHBvcnQgY29uc3QgYnJpZGdlOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgIm1haW4iIHsKICAgIGV4cG9ydCAqIGZyb20gImJyaWRnZSI7CiAgICBleHBvcnQgY29uc3QgbWFpbjogbnVtYmVyOwp9Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep__.ts",
+              "/project/src/bridge.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "module_registrations": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registrations": [
+              {
+                "kind": "amd",
+                "module_name": "dep__",
+                "dependencies": [
+                  "require",
+                  "exports"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "kind": "amd",
+                "module_name": "bridge",
+                "dependencies": [
+                  "require",
+                  "exports",
+                  "dep__",
+                  "dep__"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports",
+                  "dep__1",
+                  "dep__2"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "kind": "amd",
+                "module_name": "main",
+                "dependencies": [
+                  "require",
+                  "exports",
+                  "dep__",
+                  "bridge",
+                  "bridge"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports",
+                  "dep__3",
+                  "bridge_1",
+                  "bridge_2"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "amd/standalone/dep__",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 2,
+        "moduleResolution": 2,
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1,
+        "outDir": "/project/dist"
+      },
+      "files": [
+        {
+          "path": "/project/src/dep__.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/src/bridge.ts",
+          "text": "import { value } from './dep__'; export * from './dep__'; export const bridge: number = value + 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "import { value } from './dep__'; import { bridge } from './bridge'; export * from './bridge'; export const main: number = value + bridge;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/dep__.ts",
+        "/project/src/bridge.ts",
+        "/project/src/main.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "amd/relative",
+        "option_delta": {
+          "removed": [
+            "outFile"
+          ],
+          "added": {
+            "outDir": "/project/dist"
+          }
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/dep__.ts",
+          "/project/src/bridge.ts",
+          "/project/src/main.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/dep__.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "dep__",
+            "emitted_module_name": null,
+            "imports": []
+          },
+          {
+            "path": "/project/src/bridge.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "bridge",
+            "emitted_module_name": null,
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "./dep__",
+                "declaration_name": "dep__"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "./dep__",
+                "declaration_name": "dep__"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/main.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "main",
+            "emitted_module_name": null,
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "./dep__",
+                "declaration_name": "dep__"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "./bridge",
+                "declaration_name": "bridge"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "./bridge",
+                "declaration_name": "bridge"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/dep__.js",
+            "callback_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsKICAgIGV4cG9ydHMudmFsdWUgPSAxOwp9KTsK",
+            "callback_utf8_bytes": 201,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy52YWx1ZSA9IHZvaWQgMDsKICAgIGV4cG9ydHMudmFsdWUgPSAxOwp9KTsK",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep__.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/dep__.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsK",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsK",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep__.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 2,
+            "path": "/project/dist/bridge.js",
+            "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgewogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsKICAgIHZhciBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcihtLCBrKTsKICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgewogICAgICBkZXNjID0geyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uKCkgeyByZXR1cm4gbVtrXTsgfSB9OwogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsKfSkgOiAoZnVuY3Rpb24obywgbSwgaywgazIpIHsKICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7CiAgICBvW2syXSA9IG1ba107Cn0pKTsKdmFyIF9fZXhwb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19leHBvcnRTdGFyKSB8fCBmdW5jdGlvbihtLCBleHBvcnRzKSB7CiAgICBmb3IgKHZhciBwIGluIG0pIGlmIChwICE9PSAiZGVmYXVsdCIgJiYgIU9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChleHBvcnRzLCBwKSkgX19jcmVhdGVCaW5kaW5nKGV4cG9ydHMsIG0sIHApOwp9OwpkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiLCAiLi9kZXBfXyIsICIuL2RlcF9fIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzLCBkZXBfXzEsIGRlcF9fMikgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMuYnJpZGdlID0gdm9pZCAwOwogICAgX19leHBvcnRTdGFyKGRlcF9fMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLmJyaWRnZSA9IGRlcF9fMS52YWx1ZSArIDE7Cn0pOwo=",
+            "callback_utf8_bytes": 971,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgewogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsKICAgIHZhciBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcihtLCBrKTsKICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgewogICAgICBkZXNjID0geyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uKCkgeyByZXR1cm4gbVtrXTsgfSB9OwogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsKfSkgOiAoZnVuY3Rpb24obywgbSwgaywgazIpIHsKICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7CiAgICBvW2syXSA9IG1ba107Cn0pKTsKdmFyIF9fZXhwb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19leHBvcnRTdGFyKSB8fCBmdW5jdGlvbihtLCBleHBvcnRzKSB7CiAgICBmb3IgKHZhciBwIGluIG0pIGlmIChwICE9PSAiZGVmYXVsdCIgJiYgIU9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChleHBvcnRzLCBwKSkgX19jcmVhdGVCaW5kaW5nKGV4cG9ydHMsIG0sIHApOwp9OwpkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiLCAiLi9kZXBfXyIsICIuL2RlcF9fIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzLCBkZXBfXzEsIGRlcF9fMikgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMuYnJpZGdlID0gdm9pZCAwOwogICAgX19leHBvcnRTdGFyKGRlcF9fMiwgZXhwb3J0cyk7CiAgICBleHBvcnRzLmJyaWRnZSA9IGRlcF9fMS52YWx1ZSArIDE7Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/bridge.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 3,
+            "path": "/project/dist/bridge.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9kZXBfXyc7CmV4cG9ydCBkZWNsYXJlIGNvbnN0IGJyaWRnZTogbnVtYmVyOwo=",
+            "callback_utf8_bytes": 62,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9kZXBfXyc7CmV4cG9ydCBkZWNsYXJlIGNvbnN0IGJyaWRnZTogbnVtYmVyOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/bridge.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 4,
+            "path": "/project/dist/main.js",
+            "callback_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgewogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsKICAgIHZhciBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcihtLCBrKTsKICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgewogICAgICBkZXNjID0geyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uKCkgeyByZXR1cm4gbVtrXTsgfSB9OwogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsKfSkgOiAoZnVuY3Rpb24obywgbSwgaywgazIpIHsKICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7CiAgICBvW2syXSA9IG1ba107Cn0pKTsKdmFyIF9fZXhwb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19leHBvcnRTdGFyKSB8fCBmdW5jdGlvbihtLCBleHBvcnRzKSB7CiAgICBmb3IgKHZhciBwIGluIG0pIGlmIChwICE9PSAiZGVmYXVsdCIgJiYgIU9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChleHBvcnRzLCBwKSkgX19jcmVhdGVCaW5kaW5nKGV4cG9ydHMsIG0sIHApOwp9OwpkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiLCAiLi9kZXBfXyIsICIuL2JyaWRnZSIsICIuL2JyaWRnZSJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cywgZGVwX18xLCBicmlkZ2VfMSwgYnJpZGdlXzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLm1haW4gPSB2b2lkIDA7CiAgICBfX2V4cG9ydFN0YXIoYnJpZGdlXzIsIGV4cG9ydHMpOwogICAgZXhwb3J0cy5tYWluID0gZGVwX18xLnZhbHVlICsgYnJpZGdlXzEuYnJpZGdlOwp9KTsK",
+            "callback_utf8_bytes": 1008,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "dmFyIF9fY3JlYXRlQmluZGluZyA9ICh0aGlzICYmIHRoaXMuX19jcmVhdGVCaW5kaW5nKSB8fCAoT2JqZWN0LmNyZWF0ZSA/IChmdW5jdGlvbihvLCBtLCBrLCBrMikgewogICAgaWYgKGsyID09PSB1bmRlZmluZWQpIGsyID0gazsKICAgIHZhciBkZXNjID0gT2JqZWN0LmdldE93blByb3BlcnR5RGVzY3JpcHRvcihtLCBrKTsKICAgIGlmICghZGVzYyB8fCAoImdldCIgaW4gZGVzYyA/ICFtLl9fZXNNb2R1bGUgOiBkZXNjLndyaXRhYmxlIHx8IGRlc2MuY29uZmlndXJhYmxlKSkgewogICAgICBkZXNjID0geyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uKCkgeyByZXR1cm4gbVtrXTsgfSB9OwogICAgfQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KG8sIGsyLCBkZXNjKTsKfSkgOiAoZnVuY3Rpb24obywgbSwgaywgazIpIHsKICAgIGlmIChrMiA9PT0gdW5kZWZpbmVkKSBrMiA9IGs7CiAgICBvW2syXSA9IG1ba107Cn0pKTsKdmFyIF9fZXhwb3J0U3RhciA9ICh0aGlzICYmIHRoaXMuX19leHBvcnRTdGFyKSB8fCBmdW5jdGlvbihtLCBleHBvcnRzKSB7CiAgICBmb3IgKHZhciBwIGluIG0pIGlmIChwICE9PSAiZGVmYXVsdCIgJiYgIU9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChleHBvcnRzLCBwKSkgX19jcmVhdGVCaW5kaW5nKGV4cG9ydHMsIG0sIHApOwp9OwpkZWZpbmUoWyJyZXF1aXJlIiwgImV4cG9ydHMiLCAiLi9kZXBfXyIsICIuL2JyaWRnZSIsICIuL2JyaWRnZSJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cywgZGVwX18xLCBicmlkZ2VfMSwgYnJpZGdlXzIpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLm1haW4gPSB2b2lkIDA7CiAgICBfX2V4cG9ydFN0YXIoYnJpZGdlXzIsIGV4cG9ydHMpOwogICAgZXhwb3J0cy5tYWluID0gZGVwX18xLnZhbHVlICsgYnJpZGdlXzEuYnJpZGdlOwp9KTsK",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 5,
+            "path": "/project/dist/main.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9icmlkZ2UnOwpleHBvcnQgZGVjbGFyZSBjb25zdCBtYWluOiBudW1iZXI7Cg==",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9icmlkZ2UnOwpleHBvcnQgZGVjbGFyZSBjb25zdCBtYWluOiBudW1iZXI7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/dep__.js",
+            "/project/dist/dep__.d.ts",
+            "/project/dist/bridge.js",
+            "/project/dist/bridge.d.ts",
+            "/project/dist/main.js",
+            "/project/dist/main.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "module_registrations": [
+          {
+            "path": "/project/dist/dep__.js",
+            "registrations": [
+              {
+                "kind": "amd",
+                "module_name": null,
+                "dependencies": [
+                  "require",
+                  "exports"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          },
+          {
+            "path": "/project/dist/bridge.js",
+            "registrations": [
+              {
+                "kind": "amd",
+                "module_name": null,
+                "dependencies": [
+                  "require",
+                  "exports",
+                  "./dep__",
+                  "./dep__"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports",
+                  "dep__1",
+                  "dep__2"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          },
+          {
+            "path": "/project/dist/main.js",
+            "registrations": [
+              {
+                "kind": "amd",
+                "module_name": null,
+                "dependencies": [
+                  "require",
+                  "exports",
+                  "./dep__",
+                  "./bridge",
+                  "./bridge"
+                ],
+                "factory_parameters": [
+                  "require",
+                  "exports",
+                  "dep__1",
+                  "bridge_1",
+                  "bridge_2"
+                ],
+                "setter_parameters": null,
+                "local_variables": [],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "system/bundle/dep_",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/dep_.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/src/bridge.ts",
+          "text": "import { value } from './dep_'; export * from './dep_'; export const bridge: number = value + 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "import { value } from './dep_'; import { bridge } from './bridge'; export * from './bridge'; export const main: number = value + bridge;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/dep_.ts",
+        "/project/src/bridge.ts",
+        "/project/src/main.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/dep_.ts",
+          "/project/src/bridge.ts",
+          "/project/src/main.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/dep_.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "dep_",
+            "emitted_module_name": "dep_",
+            "imports": []
+          },
+          {
+            "path": "/project/src/bridge.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "bridge",
+            "emitted_module_name": "bridge",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep_",
+                "resolved_file": "/project/src/dep_.ts",
+                "literal": "dep_",
+                "declaration_name": "dep_"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./dep_",
+                "resolved_file": "/project/src/dep_.ts",
+                "literal": "dep_",
+                "declaration_name": "dep_"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/main.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "main",
+            "emitted_module_name": "main",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep_",
+                "resolved_file": "/project/src/dep_.ts",
+                "literal": "dep_",
+                "declaration_name": "dep_"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "bridge",
+                "declaration_name": "bridge"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "bridge",
+                "declaration_name": "bridge"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJkZXBfIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIHZhbHVlOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYnJpZGdlIiwgWyJkZXBfIl0sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGRlcF8xLCBicmlkZ2U7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImJyaWRnZSI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMihleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoZGVwXzFfMSkgewogICAgICAgICAgICAgICAgZGVwXzEgPSBkZXBfMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8xKGRlcF8xXzEpOwogICAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMigiYnJpZGdlIiwgYnJpZGdlID0gZGVwXzEudmFsdWUgKyAxKTsKICAgICAgICB9CiAgICB9Owp9KTsKU3lzdGVtLnJlZ2lzdGVyKCJtYWluIiwgWyJkZXBfIiwgImJyaWRnZSJdLCBmdW5jdGlvbiAoZXhwb3J0c18zLCBjb250ZXh0XzMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBkZXBfMiwgYnJpZGdlXzEsIG1haW47CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8zICYmIGNvbnRleHRfMy5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzIgPSB7CiAgICAgICAgIm1haW4iOiB0cnVlCiAgICB9OwogICAgZnVuY3Rpb24gZXhwb3J0U3Rhcl8yKG0pIHsKICAgICAgICB2YXIgZXhwb3J0cyA9IHt9OwogICAgICAgIGZvciAodmFyIG4gaW4gbSkgewogICAgICAgICAgICBpZiAobiAhPT0gImRlZmF1bHQiICYmICFleHBvcnRlZE5hbWVzXzIuaGFzT3duUHJvcGVydHkobikpIGV4cG9ydHNbbl0gPSBtW25dOwogICAgICAgIH0KICAgICAgICBleHBvcnRzXzMoZXhwb3J0cyk7CiAgICB9CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFsKICAgICAgICAgICAgZnVuY3Rpb24gKGRlcF8yXzEpIHsKICAgICAgICAgICAgICAgIGRlcF8yID0gZGVwXzJfMTsKICAgICAgICAgICAgfSwKICAgICAgICAgICAgZnVuY3Rpb24gKGJyaWRnZV8xXzEpIHsKICAgICAgICAgICAgICAgIGJyaWRnZV8xID0gYnJpZGdlXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMihicmlkZ2VfMV8xKTsKICAgICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzMoIm1haW4iLCBtYWluID0gZGVwXzIudmFsdWUgKyBicmlkZ2VfMS5icmlkZ2UpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 1811,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJkZXBfIiwgW10sIGZ1bmN0aW9uIChleHBvcnRzXzEsIGNvbnRleHRfMSkgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIHZhbHVlOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFtdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJ2YWx1ZSIsIHZhbHVlID0gMSk7CiAgICAgICAgfQogICAgfTsKfSk7ClN5c3RlbS5yZWdpc3RlcigiYnJpZGdlIiwgWyJkZXBfIl0sIGZ1bmN0aW9uIChleHBvcnRzXzIsIGNvbnRleHRfMikgewogICAgInVzZSBzdHJpY3QiOwogICAgdmFyIGRlcF8xLCBicmlkZ2U7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImJyaWRnZSI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMihleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoZGVwXzFfMSkgewogICAgICAgICAgICAgICAgZGVwXzEgPSBkZXBfMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8xKGRlcF8xXzEpOwogICAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMigiYnJpZGdlIiwgYnJpZGdlID0gZGVwXzEudmFsdWUgKyAxKTsKICAgICAgICB9CiAgICB9Owp9KTsKU3lzdGVtLnJlZ2lzdGVyKCJtYWluIiwgWyJkZXBfIiwgImJyaWRnZSJdLCBmdW5jdGlvbiAoZXhwb3J0c18zLCBjb250ZXh0XzMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBkZXBfMiwgYnJpZGdlXzEsIG1haW47CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8zICYmIGNvbnRleHRfMy5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzIgPSB7CiAgICAgICAgIm1haW4iOiB0cnVlCiAgICB9OwogICAgZnVuY3Rpb24gZXhwb3J0U3Rhcl8yKG0pIHsKICAgICAgICB2YXIgZXhwb3J0cyA9IHt9OwogICAgICAgIGZvciAodmFyIG4gaW4gbSkgewogICAgICAgICAgICBpZiAobiAhPT0gImRlZmF1bHQiICYmICFleHBvcnRlZE5hbWVzXzIuaGFzT3duUHJvcGVydHkobikpIGV4cG9ydHNbbl0gPSBtW25dOwogICAgICAgIH0KICAgICAgICBleHBvcnRzXzMoZXhwb3J0cyk7CiAgICB9CiAgICByZXR1cm4gewogICAgICAgIHNldHRlcnM6IFsKICAgICAgICAgICAgZnVuY3Rpb24gKGRlcF8yXzEpIHsKICAgICAgICAgICAgICAgIGRlcF8yID0gZGVwXzJfMTsKICAgICAgICAgICAgfSwKICAgICAgICAgICAgZnVuY3Rpb24gKGJyaWRnZV8xXzEpIHsKICAgICAgICAgICAgICAgIGJyaWRnZV8xID0gYnJpZGdlXzFfMTsKICAgICAgICAgICAgICAgIGV4cG9ydFN0YXJfMihicmlkZ2VfMV8xKTsKICAgICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzMoIm1haW4iLCBtYWluID0gZGVwXzIudmFsdWUgKyBicmlkZ2VfMS5icmlkZ2UpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep_.ts",
+              "/project/src/bridge.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImRlcF8iIHsKICAgIGV4cG9ydCBjb25zdCB2YWx1ZTogbnVtYmVyOwp9CmRlY2xhcmUgbW9kdWxlICJicmlkZ2UiIHsKICAgIGV4cG9ydCAqIGZyb20gImRlcF8iOwogICAgZXhwb3J0IGNvbnN0IGJyaWRnZTogbnVtYmVyOwp9CmRlY2xhcmUgbW9kdWxlICJtYWluIiB7CiAgICBleHBvcnQgKiBmcm9tICJicmlkZ2UiOwogICAgZXhwb3J0IGNvbnN0IG1haW46IG51bWJlcjsKfQo=",
+            "callback_utf8_bytes": 230,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImRlcF8iIHsKICAgIGV4cG9ydCBjb25zdCB2YWx1ZTogbnVtYmVyOwp9CmRlY2xhcmUgbW9kdWxlICJicmlkZ2UiIHsKICAgIGV4cG9ydCAqIGZyb20gImRlcF8iOwogICAgZXhwb3J0IGNvbnN0IGJyaWRnZTogbnVtYmVyOwp9CmRlY2xhcmUgbW9kdWxlICJtYWluIiB7CiAgICBleHBvcnQgKiBmcm9tICJicmlkZ2UiOwogICAgZXhwb3J0IGNvbnN0IG1haW46IG51bWJlcjsKfQo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep_.ts",
+              "/project/src/bridge.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "module_registrations": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registrations": [
+              {
+                "kind": "system",
+                "module_name": "dep_",
+                "dependencies": [],
+                "factory_parameters": [
+                  "exports_1",
+                  "context_1"
+                ],
+                "setter_parameters": [],
+                "local_variables": [
+                  "value",
+                  "__moduleName"
+                ],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "kind": "system",
+                "module_name": "bridge",
+                "dependencies": [
+                  "dep_"
+                ],
+                "factory_parameters": [
+                  "exports_2",
+                  "context_2"
+                ],
+                "setter_parameters": [
+                  [
+                    "dep_1_1"
+                  ]
+                ],
+                "local_variables": [
+                  "dep_1",
+                  "bridge",
+                  "__moduleName",
+                  "exportedNames_1"
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              },
+              {
+                "kind": "system",
+                "module_name": "main",
+                "dependencies": [
+                  "dep_",
+                  "bridge"
+                ],
+                "factory_parameters": [
+                  "exports_3",
+                  "context_3"
+                ],
+                "setter_parameters": [
+                  [
+                    "dep_2_1"
+                  ],
+                  [
+                    "bridge_1_1"
+                  ]
+                ],
+                "local_variables": [
+                  "dep_2",
+                  "bridge_1",
+                  "main",
+                  "__moduleName",
+                  "exportedNames_2"
+                ],
+                "export_star_functions": [
+                  "exportStar_2"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_2"
+                ]
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "system/bundle/dep__",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "outFile": "/project/dist/bundle.js",
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1
+      },
+      "files": [
+        {
+          "path": "/project/src/dep__.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/src/bridge.ts",
+          "text": "import { value } from './dep__'; export * from './dep__'; export const bridge: number = value + 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "import { value } from './dep__'; import { bridge } from './bridge'; export * from './bridge'; export const main: number = value + bridge;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/dep__.ts",
+        "/project/src/bridge.ts",
+        "/project/src/main.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [],
+          "added": {}
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/dep__.ts",
+          "/project/src/bridge.ts",
+          "/project/src/main.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/dep__.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "dep__",
+            "emitted_module_name": "dep__",
+            "imports": []
+          },
+          {
+            "path": "/project/src/bridge.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "bridge",
+            "emitted_module_name": "bridge",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "dep__",
+                "declaration_name": "dep__"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "dep__",
+                "declaration_name": "dep__"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/main.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "main",
+            "emitted_module_name": "main",
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "dep__",
+                "declaration_name": "dep__"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "bridge",
+                "declaration_name": "bridge"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "bridge",
+                "declaration_name": "bridge"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5101,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJkZXBfXyIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciB2YWx1ZTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoImJyaWRnZSIsIFsiZGVwX18iXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgZGVwX18xLCBicmlkZ2U7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImJyaWRnZSI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMihleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoZGVwX18xXzEpIHsKICAgICAgICAgICAgICAgIGRlcF9fMSA9IGRlcF9fMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8xKGRlcF9fMV8xKTsKICAgICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzIoImJyaWRnZSIsIGJyaWRnZSA9IGRlcF9fMS52YWx1ZSArIDEpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoIm1haW4iLCBbImRlcF9fIiwgImJyaWRnZSJdLCBmdW5jdGlvbiAoZXhwb3J0c18zLCBjb250ZXh0XzMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBkZXBfXzIsIGJyaWRnZV8xLCBtYWluOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMyAmJiBjb250ZXh0XzMuaWQ7CiAgICB2YXIgZXhwb3J0ZWROYW1lc18yID0gewogICAgICAgICJtYWluIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMihtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18yLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18zKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChkZXBfXzJfMSkgewogICAgICAgICAgICAgICAgZGVwX18yID0gZGVwX18yXzE7CiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIGZ1bmN0aW9uIChicmlkZ2VfMV8xKSB7CiAgICAgICAgICAgICAgICBicmlkZ2VfMSA9IGJyaWRnZV8xXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzIoYnJpZGdlXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18zKCJtYWluIiwgbWFpbiA9IGRlcF9fMi52YWx1ZSArIGJyaWRnZV8xLmJyaWRnZSk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 1825,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKCJkZXBfXyIsIFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciB2YWx1ZTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoImJyaWRnZSIsIFsiZGVwX18iXSwgZnVuY3Rpb24gKGV4cG9ydHNfMiwgY29udGV4dF8yKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgZGVwX18xLCBicmlkZ2U7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8yICYmIGNvbnRleHRfMi5pZDsKICAgIHZhciBleHBvcnRlZE5hbWVzXzEgPSB7CiAgICAgICAgImJyaWRnZSI6IHRydWUKICAgIH07CiAgICBmdW5jdGlvbiBleHBvcnRTdGFyXzEobSkgewogICAgICAgIHZhciBleHBvcnRzID0ge307CiAgICAgICAgZm9yICh2YXIgbiBpbiBtKSB7CiAgICAgICAgICAgIGlmIChuICE9PSAiZGVmYXVsdCIgJiYgIWV4cG9ydGVkTmFtZXNfMS5oYXNPd25Qcm9wZXJ0eShuKSkgZXhwb3J0c1tuXSA9IG1bbl07CiAgICAgICAgfQogICAgICAgIGV4cG9ydHNfMihleHBvcnRzKTsKICAgIH0KICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogWwogICAgICAgICAgICBmdW5jdGlvbiAoZGVwX18xXzEpIHsKICAgICAgICAgICAgICAgIGRlcF9fMSA9IGRlcF9fMV8xOwogICAgICAgICAgICAgICAgZXhwb3J0U3Rhcl8xKGRlcF9fMV8xKTsKICAgICAgICAgICAgfQogICAgICAgIF0sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzIoImJyaWRnZSIsIGJyaWRnZSA9IGRlcF9fMS52YWx1ZSArIDEpOwogICAgICAgIH0KICAgIH07Cn0pOwpTeXN0ZW0ucmVnaXN0ZXIoIm1haW4iLCBbImRlcF9fIiwgImJyaWRnZSJdLCBmdW5jdGlvbiAoZXhwb3J0c18zLCBjb250ZXh0XzMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBkZXBfXzIsIGJyaWRnZV8xLCBtYWluOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMyAmJiBjb250ZXh0XzMuaWQ7CiAgICB2YXIgZXhwb3J0ZWROYW1lc18yID0gewogICAgICAgICJtYWluIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMihtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18yLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18zKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChkZXBfXzJfMSkgewogICAgICAgICAgICAgICAgZGVwX18yID0gZGVwX18yXzE7CiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIGZ1bmN0aW9uIChicmlkZ2VfMV8xKSB7CiAgICAgICAgICAgICAgICBicmlkZ2VfMSA9IGJyaWRnZV8xXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzIoYnJpZGdlXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18zKCJtYWluIiwgbWFpbiA9IGRlcF9fMi52YWx1ZSArIGJyaWRnZV8xLmJyaWRnZSk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep__.ts",
+              "/project/src/bridge.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImRlcF9fIiB7CiAgICBleHBvcnQgY29uc3QgdmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYnJpZGdlIiB7CiAgICBleHBvcnQgKiBmcm9tICJkZXBfXyI7CiAgICBleHBvcnQgY29uc3QgYnJpZGdlOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgIm1haW4iIHsKICAgIGV4cG9ydCAqIGZyb20gImJyaWRnZSI7CiAgICBleHBvcnQgY29uc3QgbWFpbjogbnVtYmVyOwp9Cg==",
+            "callback_utf8_bytes": 232,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImRlcF9fIiB7CiAgICBleHBvcnQgY29uc3QgdmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiYnJpZGdlIiB7CiAgICBleHBvcnQgKiBmcm9tICJkZXBfXyI7CiAgICBleHBvcnQgY29uc3QgYnJpZGdlOiBudW1iZXI7Cn0KZGVjbGFyZSBtb2R1bGUgIm1haW4iIHsKICAgIGV4cG9ydCAqIGZyb20gImJyaWRnZSI7CiAgICBleHBvcnQgY29uc3QgbWFpbjogbnVtYmVyOwp9Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep__.ts",
+              "/project/src/bridge.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "module_registrations": [
+          {
+            "path": "/project/dist/bundle.js",
+            "registrations": [
+              {
+                "kind": "system",
+                "module_name": "dep__",
+                "dependencies": [],
+                "factory_parameters": [
+                  "exports_1",
+                  "context_1"
+                ],
+                "setter_parameters": [],
+                "local_variables": [
+                  "value",
+                  "__moduleName"
+                ],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              },
+              {
+                "kind": "system",
+                "module_name": "bridge",
+                "dependencies": [
+                  "dep__"
+                ],
+                "factory_parameters": [
+                  "exports_2",
+                  "context_2"
+                ],
+                "setter_parameters": [
+                  [
+                    "dep__1_1"
+                  ]
+                ],
+                "local_variables": [
+                  "dep__1",
+                  "bridge",
+                  "__moduleName",
+                  "exportedNames_1"
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              },
+              {
+                "kind": "system",
+                "module_name": "main",
+                "dependencies": [
+                  "dep__",
+                  "bridge"
+                ],
+                "factory_parameters": [
+                  "exports_3",
+                  "context_3"
+                ],
+                "setter_parameters": [
+                  [
+                    "dep__2_1"
+                  ],
+                  [
+                    "bridge_1_1"
+                  ]
+                ],
+                "local_variables": [
+                  "dep__2",
+                  "bridge_1",
+                  "main",
+                  "__moduleName",
+                  "exportedNames_2"
+                ],
+                "export_star_functions": [
+                  "exportStar_2"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_2"
+                ]
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "system/standalone/dep__",
+      "current_directory": "/project",
+      "api_reference": false,
+      "use_case_sensitive_file_names": true,
+      "options": {
+        "target": 2,
+        "module": 4,
+        "moduleResolution": 2,
+        "declaration": true,
+        "listEmittedFiles": true,
+        "strict": true,
+        "skipDefaultLibCheck": true,
+        "noErrorTruncation": true,
+        "newLine": 1,
+        "outDir": "/project/dist"
+      },
+      "files": [
+        {
+          "path": "/project/src/dep__.ts",
+          "text": "export const value: number = 1;\n"
+        },
+        {
+          "path": "/project/src/bridge.ts",
+          "text": "import { value } from './dep__'; export * from './dep__'; export const bridge: number = value + 1;\n"
+        },
+        {
+          "path": "/project/src/main.ts",
+          "text": "import { value } from './dep__'; import { bridge } from './bridge'; export * from './bridge'; export const main: number = value + bridge;\n"
+        }
+      ],
+      "roots": [
+        "/project/src/dep__.ts",
+        "/project/src/bridge.ts",
+        "/project/src/main.ts"
+      ],
+      "origin": {
+        "kind": "focused-control",
+        "baseline_case_id": "system/relative",
+        "option_delta": {
+          "removed": [
+            "outFile"
+          ],
+          "added": {
+            "outDir": "/project/dist"
+          }
+        }
+      },
+      "observation": {
+        "common_source_directory": "/project/src/",
+        "source_order": [
+          "/lib/lib.es6.d.ts",
+          "/lib/lib.es5.d.ts",
+          "/lib/lib.es2015.d.ts",
+          "/lib/lib.dom.d.ts",
+          "/lib/lib.dom.iterable.d.ts",
+          "/lib/lib.webworker.importscripts.d.ts",
+          "/lib/lib.scripthost.d.ts",
+          "/lib/lib.es2015.core.d.ts",
+          "/lib/lib.es2015.collection.d.ts",
+          "/lib/lib.es2015.generator.d.ts",
+          "/lib/lib.es2015.iterable.d.ts",
+          "/lib/lib.es2015.promise.d.ts",
+          "/lib/lib.es2015.proxy.d.ts",
+          "/lib/lib.es2015.reflect.d.ts",
+          "/lib/lib.es2015.symbol.d.ts",
+          "/lib/lib.es2015.symbol.wellknown.d.ts",
+          "/lib/lib.es2018.asynciterable.d.ts",
+          "/lib/lib.decorators.d.ts",
+          "/lib/lib.decorators.legacy.d.ts",
+          "/project/src/dep__.ts",
+          "/project/src/bridge.ts",
+          "/project/src/main.ts"
+        ],
+        "identities": [
+          {
+            "path": "/project/src/dep__.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "dep__",
+            "emitted_module_name": null,
+            "imports": []
+          },
+          {
+            "path": "/project/src/bridge.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "bridge",
+            "emitted_module_name": null,
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "./dep__",
+                "declaration_name": "dep__"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "./dep__",
+                "declaration_name": "dep__"
+              }
+            ]
+          },
+          {
+            "path": "/project/src/main.ts",
+            "declaration_file": false,
+            "explicit_module_name": null,
+            "resolved_name": "main",
+            "emitted_module_name": null,
+            "imports": [
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./dep__",
+                "resolved_file": "/project/src/dep__.ts",
+                "literal": "./dep__",
+                "declaration_name": "dep__"
+              },
+              {
+                "kind": "ImportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "./bridge",
+                "declaration_name": "bridge"
+              },
+              {
+                "kind": "ExportDeclaration",
+                "original_text": "./bridge",
+                "resolved_file": "/project/src/bridge.ts",
+                "literal": "./bridge",
+                "declaration_name": "bridge"
+              }
+            ]
+          }
+        ],
+        "pre_emit_diagnostics": [
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+            "related_information": null
+          },
+          {
+            "code": 5107,
+            "category": "Error",
+            "file": null,
+            "start": null,
+            "length": null,
+            "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+            "related_information": null
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/dep__.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciB2YWx1ZTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "callback_utf8_bytes": 266,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFtdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciB2YWx1ZTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgidmFsdWUiLCB2YWx1ZSA9IDEpOwogICAgICAgIH0KICAgIH07Cn0pOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep__.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/dep__.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsK",
+            "callback_utf8_bytes": 36,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0IGRlY2xhcmUgY29uc3QgdmFsdWU6IG51bWJlcjsK",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/dep__.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 2,
+            "path": "/project/dist/bridge.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9kZXBfXyJdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBkZXBfXzEsIGJyaWRnZTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgdmFyIGV4cG9ydGVkTmFtZXNfMSA9IHsKICAgICAgICAiYnJpZGdlIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMShtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18xLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18xKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChkZXBfXzFfMSkgewogICAgICAgICAgICAgICAgZGVwX18xID0gZGVwX18xXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzEoZGVwX18xXzEpOwogICAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgiYnJpZGdlIiwgYnJpZGdlID0gZGVwX18xLnZhbHVlICsgMSk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 709,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9kZXBfXyJdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBkZXBfXzEsIGJyaWRnZTsKICAgIHZhciBfX21vZHVsZU5hbWUgPSBjb250ZXh0XzEgJiYgY29udGV4dF8xLmlkOwogICAgdmFyIGV4cG9ydGVkTmFtZXNfMSA9IHsKICAgICAgICAiYnJpZGdlIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMShtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18xLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18xKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChkZXBfXzFfMSkgewogICAgICAgICAgICAgICAgZGVwX18xID0gZGVwX18xXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzEoZGVwX18xXzEpOwogICAgICAgICAgICB9CiAgICAgICAgXSwKICAgICAgICBleGVjdXRlOiBmdW5jdGlvbiAoKSB7CiAgICAgICAgICAgIGV4cG9ydHNfMSgiYnJpZGdlIiwgYnJpZGdlID0gZGVwX18xLnZhbHVlICsgMSk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/bridge.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 3,
+            "path": "/project/dist/bridge.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9kZXBfXyc7CmV4cG9ydCBkZWNsYXJlIGNvbnN0IGJyaWRnZTogbnVtYmVyOwo=",
+            "callback_utf8_bytes": 62,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9kZXBfXyc7CmV4cG9ydCBkZWNsYXJlIGNvbnN0IGJyaWRnZTogbnVtYmVyOwo=",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/bridge.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 4,
+            "path": "/project/dist/main.js",
+            "callback_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9kZXBfXyIsICIuL2JyaWRnZSJdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBkZXBfXzEsIGJyaWRnZV8xLCBtYWluOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICB2YXIgZXhwb3J0ZWROYW1lc18xID0gewogICAgICAgICJtYWluIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMShtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18xLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18xKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChkZXBfXzFfMSkgewogICAgICAgICAgICAgICAgZGVwX18xID0gZGVwX18xXzE7CiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIGZ1bmN0aW9uIChicmlkZ2VfMV8xKSB7CiAgICAgICAgICAgICAgICBicmlkZ2VfMSA9IGJyaWRnZV8xXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzEoYnJpZGdlXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJtYWluIiwgbWFpbiA9IGRlcF9fMS52YWx1ZSArIGJyaWRnZV8xLmJyaWRnZSk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 829,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "U3lzdGVtLnJlZ2lzdGVyKFsiLi9kZXBfXyIsICIuL2JyaWRnZSJdLCBmdW5jdGlvbiAoZXhwb3J0c18xLCBjb250ZXh0XzEpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIHZhciBkZXBfXzEsIGJyaWRnZV8xLCBtYWluOwogICAgdmFyIF9fbW9kdWxlTmFtZSA9IGNvbnRleHRfMSAmJiBjb250ZXh0XzEuaWQ7CiAgICB2YXIgZXhwb3J0ZWROYW1lc18xID0gewogICAgICAgICJtYWluIjogdHJ1ZQogICAgfTsKICAgIGZ1bmN0aW9uIGV4cG9ydFN0YXJfMShtKSB7CiAgICAgICAgdmFyIGV4cG9ydHMgPSB7fTsKICAgICAgICBmb3IgKHZhciBuIGluIG0pIHsKICAgICAgICAgICAgaWYgKG4gIT09ICJkZWZhdWx0IiAmJiAhZXhwb3J0ZWROYW1lc18xLmhhc093blByb3BlcnR5KG4pKSBleHBvcnRzW25dID0gbVtuXTsKICAgICAgICB9CiAgICAgICAgZXhwb3J0c18xKGV4cG9ydHMpOwogICAgfQogICAgcmV0dXJuIHsKICAgICAgICBzZXR0ZXJzOiBbCiAgICAgICAgICAgIGZ1bmN0aW9uIChkZXBfXzFfMSkgewogICAgICAgICAgICAgICAgZGVwX18xID0gZGVwX18xXzE7CiAgICAgICAgICAgIH0sCiAgICAgICAgICAgIGZ1bmN0aW9uIChicmlkZ2VfMV8xKSB7CiAgICAgICAgICAgICAgICBicmlkZ2VfMSA9IGJyaWRnZV8xXzE7CiAgICAgICAgICAgICAgICBleHBvcnRTdGFyXzEoYnJpZGdlXzFfMSk7CiAgICAgICAgICAgIH0KICAgICAgICBdLAogICAgICAgIGV4ZWN1dGU6IGZ1bmN0aW9uICgpIHsKICAgICAgICAgICAgZXhwb3J0c18xKCJtYWluIiwgbWFpbiA9IGRlcF9fMS52YWx1ZSArIGJyaWRnZV8xLmJyaWRnZSk7CiAgICAgICAgfQogICAgfTsKfSk7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          },
+          {
+            "index": 5,
+            "path": "/project/dist/main.d.ts",
+            "callback_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9icmlkZ2UnOwpleHBvcnQgZGVjbGFyZSBjb25zdCBtYWluOiBudW1iZXI7Cg==",
+            "callback_utf8_bytes": 61,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZXhwb3J0ICogZnJvbSAnLi9icmlkZ2UnOwpleHBvcnQgZGVjbGFyZSBjb25zdCBtYWluOiBudW1iZXI7Cg==",
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_diagnostics": [],
+            "data_source_map_url_pos": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/dep__.js",
+            "/project/dist/dep__.d.ts",
+            "/project/dist/bridge.js",
+            "/project/dist/bridge.d.ts",
+            "/project/dist/main.js",
+            "/project/dist/main.d.ts"
+          ],
+          "source_maps": null
+        },
+        "program_diagnostics": {
+          "options": [
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=System' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'moduleResolution=node10' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.\n  Visit https://aka.ms/ts6 for migration information.",
+              "related_information": null
+            }
+          ],
+          "syntactic": [],
+          "global": [],
+          "semantic": [],
+          "declaration": []
+        },
+        "exception": null,
+        "module_registrations": [
+          {
+            "path": "/project/dist/dep__.js",
+            "registrations": [
+              {
+                "kind": "system",
+                "module_name": null,
+                "dependencies": [],
+                "factory_parameters": [
+                  "exports_1",
+                  "context_1"
+                ],
+                "setter_parameters": [],
+                "local_variables": [
+                  "value",
+                  "__moduleName"
+                ],
+                "export_star_functions": [],
+                "exported_names_variables": []
+              }
+            ]
+          },
+          {
+            "path": "/project/dist/bridge.js",
+            "registrations": [
+              {
+                "kind": "system",
+                "module_name": null,
+                "dependencies": [
+                  "./dep__"
+                ],
+                "factory_parameters": [
+                  "exports_1",
+                  "context_1"
+                ],
+                "setter_parameters": [
+                  [
+                    "dep__1_1"
+                  ]
+                ],
+                "local_variables": [
+                  "dep__1",
+                  "bridge",
+                  "__moduleName",
+                  "exportedNames_1"
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              }
+            ]
+          },
+          {
+            "path": "/project/dist/main.js",
+            "registrations": [
+              {
+                "kind": "system",
+                "module_name": null,
+                "dependencies": [
+                  "./dep__",
+                  "./bridge"
+                ],
+                "factory_parameters": [
+                  "exports_1",
+                  "context_1"
+                ],
+                "setter_parameters": [
+                  [
+                    "dep__1_1"
+                  ],
+                  [
+                    "bridge_1_1"
+                  ]
+                ],
+                "local_variables": [
+                  "dep__1",
+                  "bridge_1",
+                  "main",
+                  "__moduleName",
+                  "exportedNames_1"
+                ],
+                "export_star_functions": [
+                  "exportStar_1"
+                ],
+                "exported_names_variables": [
+                  "exportedNames_1"
+                ]
+              }
+            ]
+          }
+        ],
+        "libraries": [
+          {
+            "path": "/lib/lib.es6.d.ts",
+            "sha256": "174a0fa01bb60bcb80e09b0b7bdcdddf688891433d6030244df5b44eb9ebd210"
+          },
+          {
+            "path": "/lib/lib.es5.d.ts",
+            "sha256": "bcd24271a113971ba9eb71ff8cb01bc6b0f872a85c23fdbe5d93065b375933cd"
+          },
+          {
+            "path": "/lib/lib.es2015.d.ts",
+            "sha256": "3f88bedbeb09c6f5a6645cb24c7c55f1aa22d19ae96c8e6959cbd8b85a707bc6"
+          },
+          {
+            "path": "/lib/lib.dom.d.ts",
+            "sha256": "d6b1eba8496bdd0eed6fc8a685768fe01b2da4a0388b5fe7df558290bffcf32f"
+          },
+          {
+            "path": "/lib/lib.dom.iterable.d.ts",
+            "sha256": "7f57fc4404ff020bc45b9c620aff2b40f700b95fe31164024c453a5e3c163c54"
+          },
+          {
+            "path": "/lib/lib.webworker.importscripts.d.ts",
+            "sha256": "2a2de5b9459b3fc44decd9ce6100b72f1b002ef523126c1d3d8b2a4a63d74d78"
+          },
+          {
+            "path": "/lib/lib.scripthost.d.ts",
+            "sha256": "f13f4b465c99041e912db5c44129a94588e1aafee35a50eab51044833f50b4ee"
+          },
+          {
+            "path": "/lib/lib.es2015.core.d.ts",
+            "sha256": "eadcffda2aa84802c73938e589b9e58248d74c59cb7fcbca6474e3435ac15504"
+          },
+          {
+            "path": "/lib/lib.es2015.collection.d.ts",
+            "sha256": "105ba8ff7ba746404fe1a2e189d1d3d2e0eb29a08c18dded791af02f29fb4711"
+          },
+          {
+            "path": "/lib/lib.es2015.generator.d.ts",
+            "sha256": "00343ca5b2e3d48fa5df1db6e32ea2a59afab09590274a6cccb1dbae82e60c7c"
+          },
+          {
+            "path": "/lib/lib.es2015.iterable.d.ts",
+            "sha256": "ebd9f816d4002697cb2864bea1f0b70a103124e18a8cd9645eeccc09bdf80ab4"
+          },
+          {
+            "path": "/lib/lib.es2015.promise.d.ts",
+            "sha256": "2c1afac30a01772cd2a9a298a7ce7706b5892e447bb46bdbeef720f7b5da77ad"
+          },
+          {
+            "path": "/lib/lib.es2015.proxy.d.ts",
+            "sha256": "7b0225f483e4fa685625ebe43dd584bb7973bbd84e66a6ba7bbe175ee1048b4f"
+          },
+          {
+            "path": "/lib/lib.es2015.reflect.d.ts",
+            "sha256": "c0a4b8ac6ce74679c1da2b3795296f5896e31c38e888469a8e0f99dc3305de60"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.d.ts",
+            "sha256": "3084a7b5f569088e0146533a00830e206565de65cae2239509168b11434cd84f"
+          },
+          {
+            "path": "/lib/lib.es2015.symbol.wellknown.d.ts",
+            "sha256": "c5079c53f0f141a0698faa903e76cb41cd664e3efb01cc17a5c46ec2eb0bef42"
+          },
+          {
+            "path": "/lib/lib.es2018.asynciterable.d.ts",
+            "sha256": "45e3ab34c1c013c8ab2dc1ba4c80c780744b13b5676800ae2e3be27ae862c40c"
+          },
+          {
+            "path": "/lib/lib.decorators.d.ts",
+            "sha256": "1ce14b81c5cc821994aa8ec1d42b220dd41b27fcc06373bce3958af7421b77d4"
+          },
+          {
+            "path": "/lib/lib.decorators.legacy.d.ts",
+            "sha256": "b3a048b3e9302ef9a34ef4ebb9aecfb28b66abb3bce577206a79fee559c230da"
+          }
+        ]
+      }
+    }
+  ]
+}

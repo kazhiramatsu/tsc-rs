@@ -108,7 +108,46 @@ impl CliEmitSessionOutcome {
     }
 }
 
-struct EmitSessionDiagnostics {
+/// One ordinary whole-Program emit with its command reporting observation.
+/// File writes are delivered to the caller's OutputSink; these status entries
+/// are the same TSFILE strings consumed by the command-line driver.
+pub struct EmitCommandOutcome {
+    emit: EmitOutcome,
+    diagnostics: DiagnosticList,
+    status_writes: Vec<String>,
+    exit_code: i32,
+}
+
+impl EmitCommandOutcome {
+    fn new(outcome: CliEmitSessionOutcome, current_directory: &std::path::Path) -> Self {
+        let (emit, diagnostics, _) = outcome.into_reported(&[]);
+        let (status_writes, exit_code) =
+            cli::emit_command_status(current_directory, &emit, &diagnostics);
+        Self {
+            emit,
+            diagnostics,
+            status_writes,
+            exit_code,
+        }
+    }
+
+    pub fn emit(&self) -> &EmitOutcome {
+        &self.emit
+    }
+    pub fn diagnostics(&self) -> &[Diagnostic] {
+        &self.diagnostics
+    }
+    pub fn status_writes(&self) -> &[String] {
+        &self.status_writes
+    }
+    pub fn exit_code(&self) -> i32 {
+        self.exit_code
+    }
+}
+
+/// Separate Program diagnostic streams in the public getter order.
+/// Config parsing remains independent from compiler option diagnostics.
+pub struct ProgramDiagnostics {
     config: DiagnosticList,
     syntactic: DiagnosticList,
     options: DiagnosticList,
@@ -116,7 +155,25 @@ struct EmitSessionDiagnostics {
     semantic: DiagnosticList,
 }
 
-impl EmitSessionDiagnostics {
+impl ProgramDiagnostics {
+    pub fn config(&self) -> &[Diagnostic] {
+        &self.config
+    }
+    pub fn options(&self) -> &[Diagnostic] {
+        &self.options
+    }
+    pub fn syntactic(&self) -> &[Diagnostic] {
+        &self.syntactic
+    }
+    pub fn global(&self) -> &[Diagnostic] {
+        &self.global
+    }
+    pub fn semantic(&self) -> &[Diagnostic] {
+        &self.semantic
+    }
+}
+
+impl ProgramDiagnostics {
     fn gate(&self) -> EmitDiagnosticGate {
         EmitDiagnosticGate::new(
             self.options.clone(),
@@ -180,10 +237,21 @@ impl<'program> PreparedEmitHost<'program> {
         };
         // getCommonSourceDirectory2 first applies ordinary sourceFileMayBeEmitted
         // (_tsc.js:123142-123157), including noEmitForJsFiles, before comparing
-        // source directories. Source selection does not consult this directory.
-        let emitted_files =
-            tsc_emitter::get_source_files_to_emit(&host, EmitSelection::WholeProgram)
-                .map_err(DriverError::Emit)?;
+        // source directories. It does not apply getSourceFilesToEmit's
+        // outFile external-module filter, which needs checked source syntax.
+        let emitted_files = host
+            .source_files
+            .iter()
+            .copied()
+            .filter_map(|id| match host.source_file(id) {
+                Some(source) => tsc_emitter::source_file_may_be_emitted_for_host(source, &host)
+                    .then_some(Ok(id)),
+                None => Some(Err(tsc_emitter::EmitFailure::Contract(
+                    tsc_emitter::EmitContractViolation::PlannedSourceMissing(id),
+                ))),
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(DriverError::Emit)?;
         host.common_source_directory = common_emit_source_directory(prepared, &emitted_files);
         Ok(host)
     }
@@ -236,7 +304,8 @@ impl EmitHost for PreparedEmitHost<'_> {
                 source.implied_node_format_for_emit(),
                 None,
             )
-            .with_may_emit_forced_declaration(source.may_emit_forced_declaration()),
+            .with_may_emit_forced_declaration(source.may_emit_forced_declaration())
+            .with_is_external_module(source.is_external_module()),
         )
     }
 }
@@ -303,7 +372,8 @@ impl EmitHost for CheckedEmitHost<'_, '_> {
                 source.implied_node_format_for_emit(),
                 syntax,
             )
-            .with_may_emit_forced_declaration(source.may_emit_forced_declaration()),
+            .with_may_emit_forced_declaration(source.may_emit_forced_declaration())
+            .with_is_external_module(source.is_external_module()),
         )
     }
 }
@@ -754,7 +824,7 @@ impl ProgramSession {
         })
     }
 
-    /// Lend declaration getters and forced emits over the same initialized Program.
+    /// Lend Program diagnostics, declaration getters and emits over one checker.
     /// Source checking, resolver borrows and the per-file cache remain inside
     /// this call. The explicit getter accepts either prepared mode; run()
     /// retains its separate no-emitter contract.
@@ -804,7 +874,7 @@ impl ProgramSession {
                 };
                 diagnostic_result = Some((|| {
                     let mut diagnostics =
-                        DeclarationSession::new(&prepared, &checked_host, Some(checker))?;
+                        DeclarationSession::new(&prepared, &checked_host, Some(checker), checked)?;
                     pending_operation
                         .take()
                         .expect("checked callback runs once")(
@@ -840,11 +910,10 @@ impl ProgramSession {
             )
         }
         .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
-        drop(checked);
         if let Some(result) = diagnostic_result {
             return result;
         }
-        let mut diagnostics = DeclarationSession::new(&prepared, &emit_host, None)?;
+        let mut diagnostics = DeclarationSession::new(&prepared, &emit_host, None, &checked)?;
         pending_operation
             .take()
             .expect("empty Program did not run callback")(&mut diagnostics, &[])
@@ -887,6 +956,18 @@ impl ProgramSession {
         })
     }
 
+    /// Retain ordinary Program emission and its production command reporting
+    /// without initializing a declaration-diagnostic session.
+    #[doc(hidden)]
+    pub fn emit_command_for_harness(
+        self,
+        sink: &mut dyn OutputSink,
+    ) -> Result<EmitCommandOutcome, DriverError> {
+        let current_directory = self.prepared.current_directory().display().to_path_buf();
+        self.emit_for_cli(sink)
+            .map(|outcome| EmitCommandOutcome::new(outcome, &current_directory))
+    }
+
     /// Emit through the harness-only bounded library-prefix scope.
     #[doc(hidden)]
     pub fn emit_with_reported_diagnostics_for_harness_with_lib_bundle(
@@ -905,6 +986,110 @@ impl ProgramSession {
         sink: &mut dyn OutputSink,
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.emit_with_command_outcome(sink, None)
+    }
+
+    /// Borrow the production checked host and live resolver for internal
+    /// transform/print comparisons. This eager ordinary-emission facet keeps
+    /// the prepared options, source identities, libraries and module tables.
+    /// It does not run the public emit option guard, create artifacts/sinks,
+    /// or confer runtime admission; public Program emit remains unchanged.
+    ///
+    /// The callback cannot retain the host/resolver borrow. The owned return
+    /// includes the authoritative CheckResult, whose whole-Program semantic
+    /// diagnostics remain explicitly available. None means the checker did
+    /// not construct a snapshot/call the callback (the empty-Program case).
+    /// This eager seam must not represent a cold getter or fresh forced emit.
+    #[doc(hidden)]
+    pub fn with_checked_emit_resolver_for_harness<R>(
+        self,
+        operation: impl FnOnce(
+            &dyn EmitHost,
+            &dyn tsc_emitter::EmitResolver,
+            &CheckResult,
+        ) -> Result<R, DriverError>,
+    ) -> Result<(Option<R>, CheckResult), DriverError> {
+        self.require_mode(PreparedProgramMode::Emit)?;
+        let prepared = self.prepared;
+        let emit_host = PreparedEmitHost::new(&prepared)?;
+        let inputs = project_checker_inputs(&prepared)?;
+        // The eager checker currently harvests authoritative failures before
+        // its emit callback. Preserve failures from first-time emit queries as
+        // well: the delegate owns every resolution rule, this wrapper only
+        // retains the first exact failed request for the outer driver result.
+        struct ObservedProvider<'a> {
+            inner: PreparedModuleProvider<'a>,
+            failure: RefCell<Option<AuthoritativeModuleFailure>>,
+        }
+        impl AuthoritativeModuleProvider for ObservedProvider<'_> {
+            fn resolve_module(
+                &self,
+                request: AuthoritativeModuleRequest<'_>,
+            ) -> Result<AuthoritativeModuleResolution, AuthoritativeModuleLookupFailure>
+            {
+                let result = self.inner.resolve_module(request);
+                if let Err(failure) = &result {
+                    let mut first = self.failure.borrow_mut();
+                    if first.is_none() {
+                        *first = Some(AuthoritativeModuleFailure::Lookup {
+                            source_token: request.source_token,
+                            containing_file: request.containing_file.to_owned(),
+                            specifier: request.specifier.to_owned(),
+                            mode: request.mode,
+                            failure: *failure,
+                        });
+                    }
+                }
+                result
+            }
+        }
+        let provider = ObservedProvider {
+            inner: PreparedModuleProvider {
+                prepared: &prepared,
+                request_plans: RefCell::new(BTreeMap::new()),
+            },
+            failure: RefCell::new(None),
+        };
+        let mut pending_operation = Some(operation);
+        let mut operation_result = None;
+        let checked = check_program_with_authoritative_modules_at_for_emit(
+            &inputs.libs,
+            &inputs.files,
+            &inputs.lib_metadata,
+            &inputs.file_metadata,
+            prepared.compiler_options(),
+            &inputs.current_directory,
+            &provider,
+            |snapshot, checker, checked| {
+                if let Some(partial) = checked.partial_checks.first() {
+                    operation_result = Some(Err(DriverError::IncompleteCheck {
+                        file_name: partial.file_name.clone(),
+                        start: partial.start,
+                        length: partial.length,
+                        reason: partial.reason.clone(),
+                        additional_partial_checks: checked.partial_checks.len().saturating_sub(1),
+                    }));
+                    return;
+                }
+                let checked_host = CheckedEmitHost {
+                    prepared: &emit_host,
+                    snapshot,
+                };
+                operation_result = Some(checker.with_emit_resolver(|resolver| {
+                    pending_operation
+                        .take()
+                        .expect("checked harness callback runs once")(
+                        &checked_host,
+                        resolver,
+                        checked,
+                    )
+                }));
+            },
+        )
+        .map_err(|failure| map_authoritative_failure(&prepared, failure))?;
+        if let Some(failure) = provider.failure.into_inner() {
+            return Err(map_authoritative_failure(&prepared, failure));
+        }
+        Ok((operation_result.transpose()?, checked))
     }
 
     /// h2-6a-m-2 §8-A.1 harness-print bridge: run the production
@@ -982,7 +1167,7 @@ impl ProgramSession {
     ) -> Result<CliEmitSessionOutcome, DriverError> {
         self.require_mode(PreparedProgramMode::Emit)?;
         let prepared = self.prepared;
-        let mut h2_activity = H2ActivityCanary::h2_7c_profile();
+        let mut h2_activity = H2ActivityCanary::h2_7e_profile();
         h2_activity.construct_emit_session();
         let emit_host = PreparedEmitHost::new(&prepared)?;
         validate_bootstrap_emit_request(&emit_host).map_err(DriverError::Emit)?;
@@ -1667,7 +1852,7 @@ const fn checker_resolution_mode(mode: ResolutionMode) -> AuthoritativeResolutio
 fn emit_session_diagnostics(
     prepared: &PreparedProgram,
     checked: &CheckResult,
-) -> EmitSessionDiagnostics {
+) -> ProgramDiagnostics {
     let preparation = prepared.diagnostics();
     let type_reference_diagnostics = prepared
         .resolutions()
@@ -1708,7 +1893,7 @@ fn emit_session_diagnostics(
         checked.global_diagnostics.clone()
     };
 
-    EmitSessionDiagnostics {
+    ProgramDiagnostics {
         config: preparation.config().to_vec(),
         options,
         syntactic,

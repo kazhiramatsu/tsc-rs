@@ -1,0 +1,2559 @@
+{
+  "schema": 1,
+  "kind": "bundle-sinks",
+  "status": "typescript-reference-only",
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "repetitions": 2,
+  "observer": {
+    "path": "scripts/observe-bundle-sinks.mjs",
+    "sha256": "3400b55b74f0c4c589c6f97ef081219210e9455515cef67e9a932cfd3f94b0e1"
+  },
+  "inputs": [
+    {
+      "path": "vendor/typescript-6.0.3/lib/typescript.js",
+      "sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39"
+    },
+    {
+      "path": "vendor/typescript-6.0.3/lib/_tsc.js",
+      "sha256": "1c59e77a54b186ec43fa7f3e0d3c4bb15ca5eb5ba43e96b1d3a267139eddd3e3"
+    },
+    {
+      "path": ".node-version",
+      "sha256": "df753cffe2db3a02f70d9003df80692390d49b459150b5743ea9d4c4d3dd197c"
+    },
+    {
+      "path": "crates/oracle/vfs-directory-overlay.mjs",
+      "sha256": "2868391e75941127f8eb3a352232190fd98c6d794235913e288432e5626aab76"
+    }
+  ],
+  "execution_contract": "Each ordinary full-Program command is repeated twice on a fresh Program and empty in-memory sink. Callback attempts, before/after metadata, actual materialized files, diagnostics, status writes, exit and complete sourceMaps remain separate facets. Rust sink Err corresponds to onError/TS5033; controlled panic corresponds to a direct callback throw with absent command result and retained partial writes. JS and map skips retain listing entries; only skipped DTS text is omitted. No runtime admission or closure is inferred.",
+  "cases": [
+    {
+      "case_id": "bundle/sink#normal",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [],
+      "input_sha256": "841598ff9c62bf3b3947ed9fbc703b5c9e5e231dde807830f83de8b66e9f748f",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 2,
+              "path": "/project/bundle.d.ts.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "callback_utf8_bytes": 160,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "materialized_utf8_bytes": 160,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 3,
+              "path": "/project/bundle.d.ts",
+              "kind": "declaration",
+              "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "callback_utf8_bytes": 78,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "materialized_utf8_bytes": 78,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            }
+          ],
+          "status_writes": [
+            "TSFILE: /project/bundle.js",
+            "TSFILE: /project/bundle.js.map",
+            "TSFILE: /project/bundle.d.ts",
+            "TSFILE: /project/bundle.d.ts.map"
+          ],
+          "exit_code": 2,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": [
+              "/project/bundle.js",
+              "/project/bundle.js.map",
+              "/project/bundle.d.ts",
+              "/project/bundle.d.ts.map"
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC,GAAG,CAAC,CAAC;ACAZ,MAAM,CAAC,GAAG,CAAC,CAAC\"}"
+              },
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,MAAM,CAAC,IAAI,CAAC;ACAZ,QAAA,MAAM,CAAC,IAAI,CAAC\"}"
+              }
+            ]
+          },
+          "exception": null,
+          "materialized_write_indices": [
+            0,
+            1,
+            2,
+            3
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/bundle.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "utf8_bytes": 159
+            },
+            {
+              "path": "/project/bundle.js",
+              "utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "utf8_bytes": 74
+            },
+            {
+              "path": "/project/bundle.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "utf8_bytes": 160
+            },
+            {
+              "path": "/project/bundle.d.ts",
+              "utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "utf8_bytes": 78
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#javascript-map-skip-unchanged",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.js.map",
+          "action": "skip-unchanged"
+        }
+      ],
+      "input_sha256": "cd13ff0eb6e565e176a9e007a7c858a03dedf79941d885022d086f44307479b0",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "skip-unchanged",
+              "sink_materialized": false,
+              "on_error_messages": []
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 2,
+              "path": "/project/bundle.d.ts.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "callback_utf8_bytes": 160,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "materialized_utf8_bytes": 160,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 3,
+              "path": "/project/bundle.d.ts",
+              "kind": "declaration",
+              "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "callback_utf8_bytes": 78,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "materialized_utf8_bytes": 78,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            }
+          ],
+          "status_writes": [
+            "TSFILE: /project/bundle.js",
+            "TSFILE: /project/bundle.js.map",
+            "TSFILE: /project/bundle.d.ts",
+            "TSFILE: /project/bundle.d.ts.map"
+          ],
+          "exit_code": 2,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": [
+              "/project/bundle.js",
+              "/project/bundle.js.map",
+              "/project/bundle.d.ts",
+              "/project/bundle.d.ts.map"
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC,GAAG,CAAC,CAAC;ACAZ,MAAM,CAAC,GAAG,CAAC,CAAC\"}"
+              },
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,MAAM,CAAC,IAAI,CAAC;ACAZ,QAAA,MAAM,CAAC,IAAI,CAAC\"}"
+              }
+            ]
+          },
+          "exception": null,
+          "materialized_write_indices": [
+            1,
+            2,
+            3
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/bundle.js",
+              "utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "utf8_bytes": 74
+            },
+            {
+              "path": "/project/bundle.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "utf8_bytes": 160
+            },
+            {
+              "path": "/project/bundle.d.ts",
+              "utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "utf8_bytes": 78
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#javascript-skip-unchanged",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.js",
+          "action": "skip-unchanged"
+        }
+      ],
+      "input_sha256": "a934199e4b1d7a445586028d78eb5dda3c48861f2c1b976599d1a6594d201f52",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics",
+                  "skippedDtsWrite"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": true
+              },
+              "sink_action": "skip-unchanged",
+              "sink_materialized": false,
+              "on_error_messages": []
+            },
+            {
+              "index": 2,
+              "path": "/project/bundle.d.ts.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "callback_utf8_bytes": 160,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "materialized_utf8_bytes": 160,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 3,
+              "path": "/project/bundle.d.ts",
+              "kind": "declaration",
+              "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "callback_utf8_bytes": 78,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "materialized_utf8_bytes": 78,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            }
+          ],
+          "status_writes": [
+            "TSFILE: /project/bundle.js",
+            "TSFILE: /project/bundle.js.map",
+            "TSFILE: /project/bundle.d.ts",
+            "TSFILE: /project/bundle.d.ts.map"
+          ],
+          "exit_code": 2,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": [
+              "/project/bundle.js",
+              "/project/bundle.js.map",
+              "/project/bundle.d.ts",
+              "/project/bundle.d.ts.map"
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC,GAAG,CAAC,CAAC;ACAZ,MAAM,CAAC,GAAG,CAAC,CAAC\"}"
+              },
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,MAAM,CAAC,IAAI,CAAC;ACAZ,QAAA,MAAM,CAAC,IAAI,CAAC\"}"
+              }
+            ]
+          },
+          "exception": null,
+          "materialized_write_indices": [
+            0,
+            2,
+            3
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/bundle.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "utf8_bytes": 159
+            },
+            {
+              "path": "/project/bundle.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "utf8_bytes": 160
+            },
+            {
+              "path": "/project/bundle.d.ts",
+              "utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "utf8_bytes": 78
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#declaration-map-skip-unchanged",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.d.ts.map",
+          "action": "skip-unchanged"
+        }
+      ],
+      "input_sha256": "2e7289025e7212da8d629841e423375f35c2bcf4f25fe2b37cb20fef2a41ad3c",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 2,
+              "path": "/project/bundle.d.ts.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "callback_utf8_bytes": 160,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "materialized_utf8_bytes": 160,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "skip-unchanged",
+              "sink_materialized": false,
+              "on_error_messages": []
+            },
+            {
+              "index": 3,
+              "path": "/project/bundle.d.ts",
+              "kind": "declaration",
+              "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "callback_utf8_bytes": 78,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "materialized_utf8_bytes": 78,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            }
+          ],
+          "status_writes": [
+            "TSFILE: /project/bundle.js",
+            "TSFILE: /project/bundle.js.map",
+            "TSFILE: /project/bundle.d.ts",
+            "TSFILE: /project/bundle.d.ts.map"
+          ],
+          "exit_code": 2,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": [
+              "/project/bundle.js",
+              "/project/bundle.js.map",
+              "/project/bundle.d.ts",
+              "/project/bundle.d.ts.map"
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC,GAAG,CAAC,CAAC;ACAZ,MAAM,CAAC,GAAG,CAAC,CAAC\"}"
+              },
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,MAAM,CAAC,IAAI,CAAC;ACAZ,QAAA,MAAM,CAAC,IAAI,CAAC\"}"
+              }
+            ]
+          },
+          "exception": null,
+          "materialized_write_indices": [
+            0,
+            1,
+            3
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/bundle.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "utf8_bytes": 159
+            },
+            {
+              "path": "/project/bundle.js",
+              "utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "utf8_bytes": 74
+            },
+            {
+              "path": "/project/bundle.d.ts",
+              "utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "utf8_bytes": 78
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#declaration-skip-unchanged",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.d.ts",
+          "action": "skip-unchanged"
+        }
+      ],
+      "input_sha256": "620629005794c64ffb2a959fec9109b8ec925cb1414aaa3bee4c6ccf6ff1aacb",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 2,
+              "path": "/project/bundle.d.ts.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "callback_utf8_bytes": 160,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "materialized_utf8_bytes": 160,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 3,
+              "path": "/project/bundle.d.ts",
+              "kind": "declaration",
+              "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "callback_utf8_bytes": 78,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "materialized_utf8_bytes": 78,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics",
+                  "skippedDtsWrite"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": true
+              },
+              "sink_action": "skip-unchanged",
+              "sink_materialized": false,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            }
+          ],
+          "status_writes": [
+            "TSFILE: /project/bundle.js",
+            "TSFILE: /project/bundle.js.map",
+            "TSFILE: /project/bundle.d.ts.map"
+          ],
+          "exit_code": 2,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [],
+            "emitted_files": [
+              "/project/bundle.js",
+              "/project/bundle.js.map",
+              "/project/bundle.d.ts.map"
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC,GAAG,CAAC,CAAC;ACAZ,MAAM,CAAC,GAAG,CAAC,CAAC\"}"
+              },
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,MAAM,CAAC,IAAI,CAAC;ACAZ,QAAA,MAAM,CAAC,IAAI,CAAC\"}"
+              }
+            ]
+          },
+          "exception": null,
+          "materialized_write_indices": [
+            0,
+            1,
+            2
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/bundle.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "utf8_bytes": 159
+            },
+            {
+              "path": "/project/bundle.js",
+              "utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "utf8_bytes": 74
+            },
+            {
+              "path": "/project/bundle.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "utf8_bytes": 160
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#all-on-error",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.js.map",
+          "action": "on-error"
+        },
+        {
+          "path": "/project/bundle.js",
+          "action": "on-error"
+        },
+        {
+          "path": "/project/bundle.d.ts.map",
+          "action": "on-error"
+        },
+        {
+          "path": "/project/bundle.d.ts",
+          "action": "on-error"
+        }
+      ],
+      "input_sha256": "80c731c1e923cd22d8181094e47cfdfc1991056726b8aca74898a29a5328808b",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "on-error",
+              "sink_materialized": false,
+              "on_error_messages": [
+                "H2.7 bundle controlled callback failure"
+              ]
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "on-error",
+              "sink_materialized": false,
+              "on_error_messages": [
+                "H2.7 bundle controlled callback failure"
+              ]
+            },
+            {
+              "index": 2,
+              "path": "/project/bundle.d.ts.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "callback_utf8_bytes": 160,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "materialized_utf8_bytes": 160,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "on-error",
+              "sink_materialized": false,
+              "on_error_messages": [
+                "H2.7 bundle controlled callback failure"
+              ]
+            },
+            {
+              "index": 3,
+              "path": "/project/bundle.d.ts",
+              "kind": "declaration",
+              "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "callback_utf8_bytes": 78,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "materialized_utf8_bytes": 78,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "on-error",
+              "sink_materialized": false,
+              "on_error_messages": [
+                "H2.7 bundle controlled callback failure"
+              ]
+            }
+          ],
+          "reported_diagnostics": [
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/bundle.d.ts': H2.7 bundle controlled callback failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/bundle.d.ts.map': H2.7 bundle controlled callback failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/bundle.js': H2.7 bundle controlled callback failure.",
+              "related_information": null
+            },
+            {
+              "code": 5033,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Could not write file '/project/bundle.js.map': H2.7 bundle controlled callback failure.",
+              "related_information": null
+            },
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=AMD' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            }
+          ],
+          "status_writes": [
+            "TSFILE: /project/bundle.js",
+            "TSFILE: /project/bundle.js.map",
+            "TSFILE: /project/bundle.d.ts",
+            "TSFILE: /project/bundle.d.ts.map"
+          ],
+          "exit_code": 2,
+          "emit_result": {
+            "emit_skipped": false,
+            "diagnostics": [
+              {
+                "code": 5033,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Could not write file '/project/bundle.d.ts': H2.7 bundle controlled callback failure.",
+                "related_information": null
+              },
+              {
+                "code": 5033,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Could not write file '/project/bundle.d.ts.map': H2.7 bundle controlled callback failure.",
+                "related_information": null
+              },
+              {
+                "code": 5033,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Could not write file '/project/bundle.js': H2.7 bundle controlled callback failure.",
+                "related_information": null
+              },
+              {
+                "code": 5033,
+                "category": "Error",
+                "file": null,
+                "start": null,
+                "length": null,
+                "message": "Could not write file '/project/bundle.js.map': H2.7 bundle controlled callback failure.",
+                "related_information": null
+              }
+            ],
+            "emitted_files": [
+              "/project/bundle.js",
+              "/project/bundle.js.map",
+              "/project/bundle.d.ts",
+              "/project/bundle.d.ts.map"
+            ],
+            "source_maps": [
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,CAAC,GAAG,CAAC,CAAC;ACAZ,MAAM,CAAC,GAAG,CAAC,CAAC\"}"
+              },
+              {
+                "input_source_file_names": [
+                  "/project/a.ts",
+                  "/project/b.ts"
+                ],
+                "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"b.ts\"],\"names\":[],\"mappings\":\"AAAA,QAAA,MAAM,CAAC,IAAI,CAAC;ACAZ,QAAA,MAAM,CAAC,IAAI,CAAC\"}"
+              }
+            ]
+          },
+          "exception": null,
+          "materialized_write_indices": [],
+          "materialized_files": []
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#javascript-map-throw",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.js.map",
+          "action": "throw"
+        }
+      ],
+      "input_sha256": "12fb36f904b20a7a6beb500060a0af2ec2f02bdddcc0cf026bd2419ffc125806",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "throw",
+              "sink_materialized": false,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [],
+          "status_writes": [],
+          "exit_code": null,
+          "emit_result": null,
+          "exception": {
+            "name": "Error",
+            "message": "H2.7 bundle controlled callback exception"
+          },
+          "materialized_write_indices": [],
+          "materialized_files": []
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#javascript-throw",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.js",
+          "action": "throw"
+        }
+      ],
+      "input_sha256": "0bab202f058c239c4fd7565a7d0f1e179d3352bf7e95249d6989787d45d82e9b",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "throw",
+              "sink_materialized": false,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [],
+          "status_writes": [],
+          "exit_code": null,
+          "emit_result": null,
+          "exception": {
+            "name": "Error",
+            "message": "H2.7 bundle controlled callback exception"
+          },
+          "materialized_write_indices": [
+            0
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/bundle.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "utf8_bytes": 159
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#declaration-map-throw",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.d.ts.map",
+          "action": "throw"
+        }
+      ],
+      "input_sha256": "dbd35fb83f7ebcc05f3101cd132f5d12dc31e65cbf7ee72a2eb7d8f315e61304",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 2,
+              "path": "/project/bundle.d.ts.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "callback_utf8_bytes": 160,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "materialized_utf8_bytes": 160,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "throw",
+              "sink_materialized": false,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [],
+          "status_writes": [],
+          "exit_code": null,
+          "emit_result": null,
+          "exception": {
+            "name": "Error",
+            "message": "H2.7 bundle controlled callback exception"
+          },
+          "materialized_write_indices": [
+            0,
+            1
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/bundle.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "utf8_bytes": 159
+            },
+            {
+              "path": "/project/bundle.js",
+              "utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "utf8_bytes": 74
+            }
+          ]
+        }
+      }
+    },
+    {
+      "case_id": "bundle/sink#declaration-throw",
+      "current_directory": "/project",
+      "use_case_sensitive_file_names": true,
+      "files": [
+        {
+          "path": "/project/a.ts",
+          "text": "const a = 1;"
+        },
+        {
+          "path": "/project/b.ts",
+          "text": "const b = 2;"
+        }
+      ],
+      "roots": [
+        "/project/a.ts",
+        "/project/b.ts"
+      ],
+      "options": {
+        "target": 2,
+        "module": 2,
+        "outFile": "/project/bundle.js",
+        "sourceMap": true,
+        "declaration": true,
+        "declarationMap": true,
+        "listEmittedFiles": true,
+        "skipDefaultLibCheck": true,
+        "newLine": 1
+      },
+      "kind": "ordinary-command",
+      "target_source": null,
+      "sink_rules": [
+        {
+          "path": "/project/bundle.d.ts",
+          "action": "throw"
+        }
+      ],
+      "input_sha256": "b860ace97d3826fefba34d3799376e1b6feb7ae9ac779d7e27f2bdc4b041e066",
+      "typescript_observation": {
+        "program_source_order": [
+          "/project/a.ts",
+          "/project/b.ts"
+        ],
+        "standard_libraries": [
+          "lib.es6.d.ts",
+          "lib.es5.d.ts",
+          "lib.es2015.d.ts",
+          "lib.dom.d.ts",
+          "lib.dom.iterable.d.ts",
+          "lib.webworker.importscripts.d.ts",
+          "lib.scripthost.d.ts",
+          "lib.es2015.core.d.ts",
+          "lib.es2015.collection.d.ts",
+          "lib.es2015.generator.d.ts",
+          "lib.es2015.iterable.d.ts",
+          "lib.es2015.promise.d.ts",
+          "lib.es2015.proxy.d.ts",
+          "lib.es2015.reflect.d.ts",
+          "lib.es2015.symbol.d.ts",
+          "lib.es2015.symbol.wellknown.d.ts",
+          "lib.es2018.asynciterable.d.ts",
+          "lib.decorators.d.ts",
+          "lib.decorators.legacy.d.ts"
+        ],
+        "call": {
+          "kind": "ordinary-command",
+          "target_source": null,
+          "writes": [
+            {
+              "index": 0,
+              "path": "/project/bundle.js.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "callback_utf8_bytes": 159,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "materialized_utf8_bytes": 159,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 1,
+              "path": "/project/bundle.js",
+              "kind": "javascript",
+              "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "callback_utf8_bytes": 74,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "materialized_utf8_bytes": 74,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 40,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 2,
+              "path": "/project/bundle.d.ts.map",
+              "kind": "source-map",
+              "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "callback_utf8_bytes": 160,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "materialized_utf8_bytes": 160,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": false,
+                "keys": null,
+                "source_map_url_pos": null,
+                "diagnostics": null,
+                "skipped_dts_write": null
+              },
+              "sink_action": "write",
+              "sink_materialized": true,
+              "on_error_messages": []
+            },
+            {
+              "index": 3,
+              "path": "/project/bundle.d.ts",
+              "kind": "declaration",
+              "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "callback_utf8_bytes": 78,
+              "write_byte_order_mark": false,
+              "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBhID0gMTsKZGVjbGFyZSBjb25zdCBiID0gMjsKLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+              "materialized_utf8_bytes": 78,
+              "on_error_callback_present": true,
+              "source_files": [
+                "/project/a.ts",
+                "/project/b.ts"
+              ],
+              "data_before": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "data_after": {
+                "present": true,
+                "keys": [
+                  "sourceMapUrlPos",
+                  "diagnostics"
+                ],
+                "source_map_url_pos": 42,
+                "diagnostics": [],
+                "skipped_dts_write": null
+              },
+              "sink_action": "throw",
+              "sink_materialized": false,
+              "on_error_messages": []
+            }
+          ],
+          "reported_diagnostics": [],
+          "status_writes": [],
+          "exit_code": null,
+          "emit_result": null,
+          "exception": {
+            "name": "Error",
+            "message": "H2.7 bundle controlled callback exception"
+          },
+          "materialized_write_indices": [
+            0,
+            1,
+            2
+          ],
+          "materialized_files": [
+            {
+              "path": "/project/bundle.js.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImIudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtBQUFBLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQztBQ0FaLE1BQU0sQ0FBQyxHQUFHLENBQUMsQ0FBQyJ9",
+              "utf8_bytes": 159
+            },
+            {
+              "path": "/project/bundle.js",
+              "utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBhID0gMTsKY29uc3QgYiA9IDI7Ci8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5qcy5tYXA=",
+              "utf8_bytes": 74
+            },
+            {
+              "path": "/project/bundle.d.ts.map",
+              "utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiYi50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQSxRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUM7QUNBWixRQUFBLE1BQU0sQ0FBQyxJQUFJLENBQUMifQ==",
+              "utf8_bytes": 160
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "summary": {
+    "cases": 10,
+    "command_observations_per_repetition": 10,
+    "callback_attempts_per_repetition": 34,
+    "materialized_files_per_repetition": 22,
+    "successful_returns_per_repetition": 6,
+    "direct_exceptions_per_repetition": 4,
+    "fresh_program_repetitions": 2,
+    "runtime_admitted": 0
+  }
+}

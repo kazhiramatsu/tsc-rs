@@ -3234,12 +3234,15 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &self,
         node: TransformNode,
     ) -> Result<Option<TransformNode>, EmitResolverError> {
-        for tag in self.direct_jsdoc_tags(node)? {
-            if self.kind(tag)? == SyntaxKind::JSDocTypeTag {
-                if let Some(r#type) = self.jsdoc_type_from_tag(tag)? {
-                    return Ok(Some(r#type));
-                }
-            }
+        // getJSDocType consults the owned tag chain, including the single
+        // variable's containing statement and an initializer attachment.
+        let source = self
+            .arena
+            .source(node.source())
+            .map_err(|error| self.factory_error(error))?
+            .syntax();
+        if let Some(tag) = node_util::get_jsdoc_type_tag(source, node.node()) {
+            return self.jsdoc_type_from_tag(TransformNode::new(node.source(), tag));
         }
         if self.kind(node)? == SyntaxKind::Parameter {
             let name_text = self
@@ -3454,18 +3457,22 @@ impl<'a, 'tracker> SyntacticBuildSession<'a, 'tracker> {
         &self,
         declaration: TransformNode,
     ) -> Result<bool, EmitResolverError> {
-        let modifiers = match &self.node(declaration)?.data {
-            NodeData::PropertyDeclaration(data) => data.modifiers,
-            NodeData::PropertySignature(data) => data.modifiers,
-            NodeData::Parameter(data) => data.modifiers,
-            _ => None,
-        };
-        for modifier in self.nodes(declaration.source(), modifiers)? {
-            if self.kind(modifier)? == SyntaxKind::ReadonlyKeyword {
-                return Ok(self.kind(declaration)? != SyntaxKind::Parameter);
-            }
-        }
-        Ok(false)
+        let source = self
+            .arena
+            .source(declaration.source())
+            .map_err(|error| self.factory_error(error))?
+            .syntax();
+        Ok(
+            node_util::get_combined_modifier_flags(source, declaration.node())
+                .intersects(tsc_types::ModifierFlags::READONLY)
+                && !self.parent(declaration).is_some_and(|parent| {
+                    node_util::is_parameter_property_declaration(
+                        source,
+                        declaration.node(),
+                        parent.node(),
+                    )
+                }),
+        )
     }
 
     fn is_primitive_literal_value(

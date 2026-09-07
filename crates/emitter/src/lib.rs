@@ -11,9 +11,11 @@ mod activity;
 mod artifact;
 mod builtins;
 mod comment_cursor;
+mod declaration_map;
 mod declarations;
 mod error;
 mod execute;
+mod external_module_names;
 mod factory;
 mod host;
 mod metadata;
@@ -36,6 +38,10 @@ pub use builtins::{
     get_script_transformers, get_script_transformers_for_source, transform_class_fields,
     transform_ecmascript_module, transform_type_script,
 };
+pub use declaration_map::{
+    declaration_bundle_map_recording_inputs_for, declaration_map_recording_inputs_for,
+    finish_declaration_bundle_map, finish_declaration_map, DeclarationMapEmit,
+};
 pub use declarations::{
     get_declaration_diagnostics, transform_declaration_unit_for_harness,
     transform_declaration_unit_with_observer_for_harness, BoundaryEvent, DeclBlockedInputs,
@@ -55,8 +61,8 @@ pub use execute::{
     EmitDiagnosticGate, MapLaneInputs,
 };
 pub use factory::{
-    GeneratedIdentifierFlags, NodeFactory, TransformArena, TransformNode, TransformNodeArray,
-    TransformSource, TransformSourceId, TypeParenthesizer,
+    GeneratedIdentifierFlags, NodeFactory, ParsedEmitMetadata, TransformArena, TransformNode,
+    TransformNodeArray, TransformSource, TransformSourceId, TypeParenthesizer,
 };
 pub use host::{EmitHost, EmitSource};
 pub use metadata::{
@@ -67,8 +73,9 @@ pub use metadata::{
 pub use outcome::{EmitOutcome, SourceMapObservation};
 pub use plan::{
     for_each_emitted_file, get_output_paths_for, get_source_files_to_emit, preflight_emit,
-    source_file_may_be_emitted, EmitBundle, EmitMode, EmitOutputPaths, EmitOutputPlan,
-    EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection, JavascriptOmission,
+    source_file_may_be_emitted, source_file_may_be_emitted_for_host, EmitBundle, EmitMode,
+    EmitOutputPaths, EmitOutputPlan, EmitOutputUnit, EmitPreflight, EmitRoot, EmitSelection,
+    JavascriptOmission,
 };
 pub use position::{
     GeneratedUtf16Location, GeneratedUtf16Position, PositionDomain, SourceBytePosition,

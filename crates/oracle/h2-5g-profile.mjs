@@ -93,6 +93,50 @@ const HISTORICAL_AUTHORITIES = Object.freeze([
 // this append-only set is every non-oracle crate path changed from the trusted
 // H2.5f merge that was not already part of the parent profile.
 const NEW_RUNTIME_INPUTS = Object.freeze([
+  "crates/xtask/tests/unit/h2_2c_acceptance/de_registry_contracts.rs",
+  "crates/xtask/src/h2_6c_de_promotions.rs",
+  "crates/xtask/src/h2_6c_refusal_migrations.rs",
+  // Shared original-corpus acceptance and explicit legacy measurement.
+  "crates/xtask/src/h2_7de_acceptance.rs",
+  "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+  "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs",
+  "crates/xtask/tests/unit/h2_2c_acceptance/de_legacy_collector.rs",
+  // Parallel H2.7d/e foundations and ordinary nonbundle map candidate.
+  // Formal runtime adoption and the remaining API/bundle boundaries stay separate.
+  "crates/compiler/tests/fixtures/declaration-maps.json",
+  "crates/compiler/tests/h2_7e_declaration_maps.rs",
+  "crates/compiler/tests/h2_7e_original_corpus.rs",
+  "crates/compiler/tests/h2_7e_declaration_map_apis.rs",
+  "crates/compiler/tests/h2_7d_module_identities.rs",
+  "crates/compiler/tests/h2_7d_declaration_bundles.rs",
+  "crates/compiler/tests/h2_7d_bundle_program.rs",
+  "crates/compiler/tests/h2_7d_original_corpus.rs",
+  "crates/compiler/tests/h2_7d_bundle_sinks.rs",
+  "crates/emitter/src/factory/parsed_metadata.rs",
+  "crates/emitter/tests/fixtures/bundle-declaration-map-paths.json",
+  "crates/emitter/tests/fixtures/bundle-maps.json",
+  "crates/emitter/tests/fixtures/module-alias-underscores.json",
+  "crates/compiler/tests/fixtures/bundle-sinks.json",
+  "crates/compiler/tests/fixtures/declaration-reference-paths.json",
+  "crates/compiler/Cargo.toml",
+  "crates/emitter/src/declarations/bundle.rs",
+  "crates/compiler/tests/fixtures/declaration-maps-disabled-declaration.json",
+  "crates/emitter/src/declaration_map.rs",
+  "crates/emitter/tests/fixtures/bundle-plan.json",
+  "crates/emitter/tests/unit/bundle_plan/tests.rs",
+  "crates/program/tests/h2_7d_bundle_source_facts.rs",
+  "crates/compiler/tests/fixtures/declaration-map-apis.json",
+  "crates/compiler/tests/fixtures/declaration-maps-runtime.json",
+  "crates/emitter/tests/fixtures/bundle-module-identities.json",
+  "crates/emitter/tests/fixtures/system-generated-names.json",
+  "crates/emitter/tests/fixtures/bundle-declarations.json",
+  "crates/emitter/src/printer/bundle.rs",
+  "crates/emitter/tests/fixtures/bundle-printer.json",
+  "crates/emitter/tests/unit/bundle_printer/tests.rs",
+  "crates/emitter/src/external_module_names.rs",
+  "crates/emitter/tests/unit/external_module_names/tests.rs",
+  "crates/emitter/tests/fixtures/bundle-transform.json",
+  "crates/emitter/tests/unit/bundle_transform/tests.rs",
   "crates/compiler/tests/fixtures/h2-7c-corpus-inputs.json",
   "crates/compiler/tests/integration/h2_7c_corpus.rs",
   "crates/xtask/src/h2_7c_acceptance.rs",
@@ -121,7 +165,6 @@ const NEW_RUNTIME_INPUTS = Object.freeze([
   "crates/compiler/tests/fixtures/declaration-getters.json",
   "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
   "crates/compiler/tests/fixtures/forced-declarations.json",
-  "crates/compiler/tests/fixtures/declaration-reference-paths.json",
   "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
 
   // h2-7b-ca: W5 inputs omitted during the lightweight closure pilot.
@@ -665,8 +708,8 @@ function buildArtifact() {
     `H2.5g new runtime inputs are stale ${staleNewRuntimeInputs.join(", ")}`,
   );
   requireCondition(
-    runtimeInputSet.size === 283,
-    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 283)`,
+    runtimeInputSet.size === 323,
+    `H2.5g runtime input identity changed (measured ${runtimeInputSet.size}, pinned 323)`,
   );
 
   return withFingerprint(
@@ -769,8 +812,8 @@ function buildArtifact() {
         h2_6b_source_deferred_cases: 0,
         h2_6c_candidate_cases: 643,
         h2_6c_admitted_cases: 639,
-        h2_6c_exact_cases: 188,
-        h2_6c_known_divergences: 451,
+        h2_6c_exact_cases: 481,
+        h2_6c_known_divergences: 158,
         h2_6c_source_deferred_cases: 4,
         h2_7b_candidate_cases: 1_593,
         h2_7b_admitted_cases: 1_557,

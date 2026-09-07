@@ -6,11 +6,13 @@ use tsc_syntax::{
 use tsc_types::{CompilerOptions, NodeFlags};
 
 use crate::{
-    factory::EmitHelperName, EmitExportContainerMode, EmitHint, EmitResolver, EmitResolverNode,
-    TransformArena, TransformError, TransformFlags, TransformNode, TransformNodeArray,
-    TransformRoot, TransformSourceId, TransformationContext, Transformer, UnsupportedEmitFeature,
+    factory::EmitHelperName, EmitExportContainerMode, EmitHint, EmitHost, EmitResolver,
+    EmitResolverNode, TransformArena, TransformError, TransformFlags, TransformNode,
+    TransformNodeArray, TransformRoot, TransformSourceId, TransformationContext, Transformer,
+    UnsupportedEmitFeature,
 };
 
+use super::target_bindings::TargetBinding;
 use super::{
     first_runtime_declaration_original, flags_after_update, generated_module_name, has_modifier,
     identifier_or_literal_text, is_identifier_export_name, is_prologue_statement, node_array_nodes,
@@ -25,15 +27,18 @@ use super::{
 pub(super) fn transform_system_module<'resolver>(
     options: &CompilerOptions,
     resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
 ) -> Box<dyn Transformer + 'resolver> {
     Box::new(SystemModuleTransformer {
         resolver,
+        host,
         always_strict: options.always_strict_effective(),
     })
 }
 
 struct SystemModuleTransformer<'resolver> {
     resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
     always_strict: bool,
 }
 
@@ -88,9 +93,22 @@ impl Transformer for SystemModuleTransformer<'_> {
             self.resolver,
             super::MODULE_SYSTEM,
         )?;
-        let info = SystemModuleInfo::collect(context.arena(), source, root, common)?;
-        let mut visitor =
-            SystemVisitor::new(context, source, self.resolver, info, self.always_strict);
+        let info = SystemModuleInfo::collect(
+            context.arena(),
+            source,
+            root,
+            common,
+            self.resolver,
+            self.host,
+        )?;
+        let mut visitor = SystemVisitor::new(
+            context,
+            source,
+            self.resolver,
+            self.host,
+            info,
+            self.always_strict,
+        )?;
         let updated = visitor.transform_source_file(root)?;
         visitor.context.arena_mut()?.replace_root(source, updated)?;
         Ok(TransformRoot::SourceFile(source))
@@ -147,7 +165,6 @@ fn source_contains_import_meta(
 struct SystemDependencyGroup {
     module_specifier: Box<str>,
     entries: Vec<NodeId>,
-    fallback_generated_name: Box<str>,
 }
 
 #[derive(Debug)]
@@ -163,11 +180,12 @@ impl SystemModuleInfo {
         source: TransformSourceId,
         root: TransformNode,
         common: CommonJsModuleInfo,
+        resolver: &dyn EmitResolver,
+        host: Option<&dyn EmitHost>,
     ) -> Result<Self, TransformError> {
         let statements = source_file_statement_nodes(arena, source, root)?;
         let mut group_indices = BTreeMap::<String, usize>::new();
         let mut dependency_groups = Vec::<SystemDependencyGroup>::new();
-        let mut generated_names = BTreeMap::<String, usize>::new();
         let mut non_function_exported_names = Vec::<Box<str>>::new();
 
         for statement in &statements {
@@ -186,19 +204,19 @@ impl SystemModuleInfo {
             }
             .and_then(|id| arena.node_ref(source, id));
             if let Some(module_specifier) = module_specifier {
-                let text = string_literal_text(arena, module_specifier)?.to_owned();
+                let original_text = string_literal_text(arena, module_specifier)?;
+                let text = crate::external_module_names::resolved_external_module_name_literal(
+                    host, resolver, arena, *statement,
+                )?
+                .unwrap_or_else(|| original_text.to_owned());
                 let index = if let Some(index) = group_indices.get(&text).copied() {
                     index
                 } else {
-                    let base = generated_module_name(&text);
-                    let ordinal = generated_names.entry(base.clone()).or_insert(0);
-                    *ordinal += 1;
                     let index = dependency_groups.len();
                     group_indices.insert(text.clone(), index);
                     dependency_groups.push(SystemDependencyGroup {
                         module_specifier: text.clone().into_boxed_str(),
                         entries: Vec::new(),
-                        fallback_generated_name: format!("{base}_{}", *ordinal).into_boxed_str(),
                     });
                     index
                 };
@@ -314,11 +332,14 @@ struct SystemVisitor<'context, 'resolver> {
     context: &'context mut TransformationContext,
     source: TransformSourceId,
     resolver: &'resolver dyn EmitResolver,
+    host: Option<&'resolver dyn EmitHost>,
     info: SystemModuleInfo,
     always_strict: bool,
     exports_name: String,
     context_name: String,
     used_names: BTreeSet<String>,
+    generated_bindings: BTreeMap<String, TargetBinding>,
+    export_star_name: Option<String>,
     hoisted_names: Vec<String>,
     hoisted_declarations: Vec<TransformNode>,
     destructuring_temps: BTreeMap<NodeId, String>,
@@ -444,27 +465,51 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         context: &'context mut TransformationContext,
         source: TransformSourceId,
         resolver: &'resolver dyn EmitResolver,
+        host: Option<&'resolver dyn EmitHost>,
         info: SystemModuleInfo,
         always_strict: bool,
-    ) -> Self {
+    ) -> Result<Self, TransformError> {
         let mut used_names = collect_identifier_texts(context.arena(), source);
+        used_names.extend(
+            info.common
+                .generated_module_names
+                .generated_bases
+                .keys()
+                .cloned(),
+        );
         let exports_name = unique_generated_name(&mut used_names, "exports");
         let context_name = unique_generated_name(&mut used_names, "context");
-        Self {
+        let mut generated_bindings = BTreeMap::new();
+        for (name, base) in &info.common.generated_module_names.generated_bases {
+            generated_bindings.insert(
+                name.clone(),
+                TargetBinding::allocate_numbered(context, base.clone(), name.clone())?,
+            );
+        }
+        for (base, name) in [("exports", &exports_name), ("context", &context_name)] {
+            generated_bindings.insert(
+                name.clone(),
+                TargetBinding::allocate_numbered(context, base.to_owned(), name.clone())?,
+            );
+        }
+        Ok(Self {
             context,
             source,
             resolver,
+            host,
             info,
             always_strict,
             exports_name,
             context_name,
             used_names,
+            generated_bindings,
+            export_star_name: None,
             hoisted_names: Vec::new(),
             hoisted_declarations: Vec::new(),
             destructuring_temps: BTreeMap::new(),
             temp_ordinal: 0,
             arrays: BTreeMap::new(),
-        }
+        })
     }
 
     fn transform_source_file(
@@ -581,14 +626,10 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let system = self.create_identifier("System")?;
         let register = self.create_property_access(system, "register")?;
         let mut arguments = Vec::new();
-        if let Some(module_name) = self
-            .context
-            .arena()
-            .source(self.source)?
-            .syntax()
-            .module_name
-            .clone()
-        {
+        if let Some(module_name) = crate::external_module_names::try_get_module_name_from_file(
+            self.host,
+            self.context.arena().source(self.source)?.syntax(),
+        ) {
             arguments.push(self.create_string_literal(&module_name)?);
         }
         arguments.push(dependencies);
@@ -1645,7 +1686,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         match self.context.arena().node(target)?.data.clone() {
             NodeData::Identifier(data) => {
                 let local = data.text;
-                let target = self.create_identifier(&local)?;
                 let assignment = self.create_assignment(target, value)?;
                 plan.push_binding(local, assignment);
                 Ok(())
@@ -2375,7 +2415,7 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let local_names = if exported_names.is_empty() {
             None
         } else {
-            let name = unique_generated_name(&mut self.used_names, "exportedNames");
+            let name = self.allocate_numbered_name("exportedNames")?;
             let properties = exported_names
                 .into_iter()
                 .map(|export| {
@@ -2393,7 +2433,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
             output.push(self.create_variable_statement(vec![declaration], NodeFlags::NONE)?);
             Some(name)
         };
-        let function_name = unique_generated_name(&mut self.used_names, "exportStar");
+        let function_name = self.allocate_numbered_name("exportStar")?;
+        self.export_star_name = Some(function_name.clone());
         let function = self.create_export_star_function(&function_name, local_names.as_deref())?;
         output.push(function);
         Ok(output)
@@ -2499,13 +2540,11 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         let mut setters = Vec::new();
         for group in groups {
             let mut local_name = None;
-            let mut side_effect_only = true;
             for entry in &group.entries {
                 let entry = self.node(*entry);
                 match &self.context.arena().node(entry)?.data {
                     NodeData::ImportDeclaration(data) => {
                         if data.import_clause.is_some() {
-                            side_effect_only = false;
                             let key = self.context.arena().get_original_node(entry).node();
                             if let Some(plan) = self.info.common.imports.get(&key) {
                                 local_name = plan.runtime_name.as_deref().map(str::to_owned);
@@ -2514,7 +2553,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         }
                     }
                     NodeData::ImportEqualsDeclaration(data) => {
-                        side_effect_only = false;
                         local_name = data
                             .name
                             .and_then(|id| self.context.arena().node_ref(self.source, id))
@@ -2524,7 +2562,6 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                         break;
                     }
                     NodeData::ExportDeclaration(data) => {
-                        side_effect_only = false;
                         if let Some(name) = super::namespace_export_identifier_name(
                             self.context.arena(),
                             self.source,
@@ -2533,18 +2570,27 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
                             local_name = Some(name.into_string());
                             break;
                         }
+                        // getLocalNameForExternalImport returns a generated
+                        // identity even when an export-only dependency never
+                        // prints a local variable. Its setter derives from the
+                        // eventual spelling of that identity.
+                        if let Some(specifier) = data
+                            .module_specifier
+                            .and_then(|id| self.context.arena().node_ref(self.source, id))
+                        {
+                            let base = generated_module_name(string_literal_text(
+                                self.context.arena(),
+                                specifier,
+                            )?);
+                            local_name = Some(self.allocate_numbered_name(&base)?);
+                            break;
+                        }
                     }
-                    _ => side_effect_only = false,
+                    _ => {}
                 }
             }
-            let parameter_base = local_name.clone().unwrap_or_else(|| {
-                if side_effect_only {
-                    String::new()
-                } else {
-                    group.fallback_generated_name.to_string()
-                }
-            });
-            let parameter_name = unique_generated_name(&mut self.used_names, &parameter_base);
+            let parameter_base = local_name.unwrap_or_default();
+            let parameter_name = self.allocate_numbered_name(&parameter_base)?;
             let mut statements = Vec::new();
             for entry in group.entries {
                 let entry = self.node(entry);
@@ -2690,9 +2736,8 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
     }
 
     fn export_star_function_name(&self) -> String {
-        self.used_names
-            .iter()
-            .find(|name| name.starts_with("exportStar_"))
+        self.export_star_name
+            .as_ref()
             .cloned()
             .unwrap_or_else(|| "exportStar_1".to_owned())
     }
@@ -2795,15 +2840,34 @@ impl<'context, 'resolver> SystemVisitor<'context, 'resolver> {
         self.context.factory()?.update_node(original, data, flags)
     }
 
+    fn allocate_numbered_name(&mut self, base: &str) -> Result<String, TransformError> {
+        let name = unique_generated_name(&mut self.used_names, base);
+        let binding = if let Some(parent) = self.generated_bindings.get(base) {
+            TargetBinding::allocate_numbered_derived(self.context, parent, name.clone())?
+        } else {
+            TargetBinding::allocate_numbered(
+                self.context,
+                base.strip_suffix('_').unwrap_or(base).to_owned(),
+                name.clone(),
+            )?
+        };
+        self.generated_bindings.insert(name.clone(), binding);
+        Ok(name)
+    }
+
     fn create_identifier(&mut self, text: &str) -> Result<TransformNode, TransformError> {
-        self.context.factory()?.create_node(
+        let identifier = self.context.factory()?.create_node(
             self.source,
             NodeData::Identifier(tsc_syntax::nodes::IdentifierData {
                 escaped_text: text.to_owned(),
                 text: text.to_owned(),
             }),
             TransformFlags::NONE,
-        )
+        )?;
+        if let Some(binding) = self.generated_bindings.get(text) {
+            binding.write_generated_metadata(self.context.arena_mut()?, identifier);
+        }
+        Ok(identifier)
     }
 
     fn create_string_literal(&mut self, text: &str) -> Result<TransformNode, TransformError> {
@@ -3267,11 +3331,11 @@ pub(super) fn collect_identifier_texts(
 }
 
 fn unique_generated_name(used: &mut BTreeSet<String>, base: &str) -> String {
-    let base = base.trim_end_matches('_');
     let mut ordinal = 1usize;
     loop {
-        let candidate = if base.is_empty() {
-            format!("_{ordinal}")
+        // makeUniqueName appends a separator only when the base lacks one.
+        let candidate = if base.ends_with('_') {
+            format!("{base}{ordinal}")
         } else {
             format!("{base}_{ordinal}")
         };

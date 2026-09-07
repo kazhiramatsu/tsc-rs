@@ -946,7 +946,7 @@ impl<'context> ClassFieldsVisitor<'context> {
                             self.context
                                 .arena_mut()?
                                 .metadata_mut(local_name)
-                                .add_flags(EmitFlags::NO_COMMENTS);
+                                .set_flags(EmitFlags::NO_COMMENTS);
                             if let Some(prefix) = prefix {
                                 self.create_binary(
                                     self.node(prefix),

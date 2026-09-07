@@ -1,5 +1,8 @@
 use std::collections::BTreeMap;
 
+mod parsed_metadata;
+pub use parsed_metadata::ParsedEmitMetadata;
+
 use tsc_program::SourceFileId;
 use tsc_syntax::nodes::*;
 use tsc_syntax::FileReference;
@@ -148,7 +151,11 @@ pub struct TransformSource {
     program_source: Option<SourceFileId>,
     parsed_node_base: u32,
     parsed_node_end: u32,
+    // Retain immutable parse authority separately from the detached syntax
+    // arena, which may append synthetic nodes without extending that lease.
+    parsed_node_identity_lease: Option<tsc_types::IdentityLease>,
     source: SourceFile,
+    has_no_default_lib: Option<bool>,
 }
 
 impl TransformSource {
@@ -158,6 +165,12 @@ impl TransformSource {
 
     pub const fn syntax(&self) -> &SourceFile {
         &self.source
+    }
+
+    /// Explicit hasNoDefaultLib value supplied by updateSourceFile. The
+    /// parser's pragma fact is not projected onto the initial emit copy.
+    pub const fn updated_has_no_default_lib(&self) -> Option<bool> {
+        self.has_no_default_lib
     }
 
     pub const fn contains_parsed_node(&self, node: NodeId) -> bool {
@@ -298,7 +311,9 @@ impl TransformArena {
             program_source,
             parsed_node_base,
             parsed_node_end,
+            parsed_node_identity_lease: source.node_identity_lease().cloned(),
             source: detached,
+            has_no_default_lib: None,
         });
         id
     }
@@ -7116,7 +7131,7 @@ impl<'arena> NodeFactory<'arena> {
         is_declaration_file: bool,
         referenced_files: Vec<FileReference>,
         type_reference_directives: Vec<TypeReferenceDirective>,
-        _has_no_default_lib: bool,
+        has_no_default_lib: bool,
         lib_reference_directives: Vec<FileReference>,
     ) -> Result<TransformNode, TransformError> {
         let record = self.arena.node(original)?.clone();
@@ -7132,7 +7147,11 @@ impl<'arena> NodeFactory<'arena> {
             && source.syntax().referenced_files == referenced_files
             && source.syntax().type_reference_directives == type_reference_directives
             && source.syntax().lib_reference_directives == lib_reference_directives
+            && source
+                .has_no_default_lib
+                .is_none_or(|value| value == has_no_default_lib)
         {
+            self.arena.source_mut(original.source)?.has_no_default_lib = Some(has_no_default_lib);
             return Ok(original);
         }
         let flags = self.children_flags(Some(statements))?
@@ -7149,7 +7168,9 @@ impl<'arena> NodeFactory<'arena> {
             flags,
         )?;
         let updated = self.finish_update(updated, original)?;
-        let syntax = &mut self.arena.source_mut(original.source)?.source;
+        let source = self.arena.source_mut(original.source)?;
+        source.has_no_default_lib = Some(has_no_default_lib);
+        let syntax = &mut source.source;
         syntax.is_declaration_file = is_declaration_file;
         syntax.referenced_files = referenced_files;
         syntax.type_reference_directives = type_reference_directives;

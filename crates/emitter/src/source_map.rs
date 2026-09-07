@@ -868,7 +868,7 @@ pub(crate) mod paths {
     /// rung (packet §12b): every witness replay and the whole 6a band run
     /// case-sensitive; the first case-insensitive-host band packet owns
     /// its first observation.
-    fn to_file_name_lower_case(file_name: &str) -> String {
+    pub(crate) fn to_file_name_lower_case(file_name: &str) -> String {
         fn is_preserved(ch: char) -> bool {
             matches!(ch,
                 '\u{0130}' | '\u{0131}' | '\u{00DF}'

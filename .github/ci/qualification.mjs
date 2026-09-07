@@ -28,18 +28,23 @@ const HOSTED_ACCEPTANCE_MODULES = Object.freeze([
   "crates/xtask/src/h2_3c_acceptance.rs",
   "crates/xtask/src/h2_3d_acceptance.rs",
   "crates/xtask/src/h2_7c_acceptance.rs",
+  "crates/xtask/src/h2_7de_acceptance.rs",
 ]);
 
-// Explicit #[path] comparator dependencies of the H2.7c module. They are part
+// Explicit #[path] comparator dependencies of the H2.7c and H2.7d/e modules. They are part
 // of the same call-graph and raw-source pin closure, without being top-level
 // main.rs module declarations.
 const HOSTED_ACCEPTANCE_SHARED_MODULES = Object.freeze([
+  "crates/xtask/src/h2_6c_de_promotions.rs",
+  "crates/xtask/src/h2_6c_refusal_migrations.rs",
   "crates/compiler/tests/integration/h2_7b_w4a_controls.rs",
   "crates/compiler/tests/integration/h2_7c_corpus.rs",
   "crates/compiler/tests/integration/h2_7c_declaration_blocking.rs",
   "crates/compiler/tests/integration/h2_7c_declaration_getters.rs",
   "crates/compiler/tests/integration/h2_7c_forced_declarations.rs",
   "crates/compiler/tests/integration/h2_7c_strip_internal.rs",
+  "crates/compiler/tests/integration/h2_7d_original_corpus_shared.rs",
+  "crates/compiler/tests/integration/h2_7e_original_corpus_shared.rs",
 ]);
 const HOSTED_ACCEPTANCE_SOURCE_MODULES = Object.freeze([
   ...HOSTED_ACCEPTANCE_MODULES, ...HOSTED_ACCEPTANCE_SHARED_MODULES,
@@ -99,6 +104,7 @@ const HOSTED_ACCEPTANCE_QUALIFIED_CALLS = Object.freeze([
   "h2_2c_acceptance::run_h2_6c",
   "h2_2c_acceptance::run_h2_7b",
   "h2_7c_acceptance::run",
+  "h2_7de_acceptance::run_h2_7de",
 ]);
 
 const HOSTED_ACCEPTANCE_CANONICAL_BODY = [
@@ -225,6 +231,11 @@ export const ARTIFACT_SCHEMA_CONTRACTS = Object.freeze([
     label: "H2.7c qualification",
     schema: ".github/ci/contracts/h2-7c-qualification.schema.json",
     artifact: "ratchets/h2-7c-qualification.v1.json",
+  }),
+  Object.freeze({
+    label: "H2.7d/e qualification",
+    schema: ".github/ci/contracts/h2-7de-qualification.schema.json",
+    artifact: "ratchets/h2-7de-qualification.v1.json",
   }),
 ]);
 

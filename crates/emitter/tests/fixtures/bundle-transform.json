@@ -1,0 +1,851 @@
+{
+  "version": 1,
+  "typescript": "6.0.3",
+  "source_commit": "050880ce59e30b356b686bd3144efe24f875ebc8",
+  "compiler_sha256": "569177652966bd528c319171c7dd22860dbf72bde116cbc4f644f1d02bb12e39",
+  "repetitions": 2,
+  "program_observations": {
+    "path": "crates/emitter/tests/fixtures/bundle-plan.json",
+    "sha256": "c33d0c7460ab56b10a2510dd2e369235d78b0f82ee11b0cecb1c2ad7d1065d39"
+  },
+  "contract": "Rust compares internal transform order, declaration-root gating, retained roots and source-specific helpers. Printed bundle bytes are future printer references; Program outFile stays refused.",
+  "cases": [
+    {
+      "case_id": "bundle",
+      "roots": [
+        [
+          "a.ts",
+          "b.ts"
+        ]
+      ],
+      "allow_declaration_files": false,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "first:b.ts:",
+          "second:a.ts:dependency,shared,first:a.ts",
+          "second:b.ts:dependency,shared,first:b.ts"
+        ],
+        "roots": [
+          {
+            "kind": "bundle",
+            "sources": [
+              {
+                "path": "a.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:a.ts"
+                ],
+                "is_declaration_file": false
+              },
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "sources",
+      "roots": [
+        "a.ts",
+        "b.ts"
+      ],
+      "allow_declaration_files": false,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "second:a.ts:dependency,shared,first:a.ts",
+          "first:b.ts:",
+          "second:b.ts:dependency,shared,first:b.ts"
+        ],
+        "roots": [
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "a.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:a.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          },
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "empty-bundle",
+      "roots": [
+        []
+      ],
+      "allow_declaration_files": false,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize"
+        ],
+        "roots": [
+          {
+            "kind": "bundle",
+            "sources": []
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "empty-roots",
+      "roots": [],
+      "allow_declaration_files": false,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize"
+        ],
+        "roots": [],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declarations",
+      "roots": [
+        [
+          "a.ts",
+          "types.d.ts",
+          "b.ts"
+        ]
+      ],
+      "allow_declaration_files": false,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "first:types.d.ts:",
+          "first:b.ts:",
+          "second:a.ts:dependency,shared,first:a.ts",
+          "second:types.d.ts:dependency,shared,first:types.d.ts",
+          "second:b.ts:dependency,shared,first:b.ts"
+        ],
+        "roots": [
+          {
+            "kind": "bundle",
+            "sources": [
+              {
+                "path": "a.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:a.ts"
+                ],
+                "is_declaration_file": false
+              },
+              {
+                "path": "types.d.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:types.d.ts",
+                  "second:types.d.ts"
+                ],
+                "is_declaration_file": true
+              },
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "bundle-declarations-allowed",
+      "roots": [
+        [
+          "a.ts",
+          "types.d.ts",
+          "b.ts"
+        ]
+      ],
+      "allow_declaration_files": true,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "first:types.d.ts:",
+          "first:b.ts:",
+          "second:a.ts:dependency,shared,first:a.ts",
+          "second:types.d.ts:dependency,shared,first:types.d.ts",
+          "second:b.ts:dependency,shared,first:b.ts"
+        ],
+        "roots": [
+          {
+            "kind": "bundle",
+            "sources": [
+              {
+                "path": "a.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:a.ts"
+                ],
+                "is_declaration_file": false
+              },
+              {
+                "path": "types.d.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:types.d.ts",
+                  "second:types.d.ts"
+                ],
+                "is_declaration_file": true
+              },
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "source-declarations",
+      "roots": [
+        "a.ts",
+        "types.d.ts",
+        "b.ts"
+      ],
+      "allow_declaration_files": false,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "second:a.ts:dependency,shared,first:a.ts",
+          "first:b.ts:",
+          "second:b.ts:dependency,shared,first:b.ts"
+        ],
+        "roots": [
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "a.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:a.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          },
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "types.d.ts",
+                "helpers": [],
+                "is_declaration_file": true
+              }
+            ]
+          },
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "source-declarations-allowed",
+      "roots": [
+        "a.ts",
+        "types.d.ts",
+        "b.ts"
+      ],
+      "allow_declaration_files": true,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "second:a.ts:dependency,shared,first:a.ts",
+          "first:types.d.ts:",
+          "second:types.d.ts:dependency,shared,first:types.d.ts",
+          "first:b.ts:",
+          "second:b.ts:dependency,shared,first:b.ts"
+        ],
+        "roots": [
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "a.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:a.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          },
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "types.d.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:types.d.ts",
+                  "second:types.d.ts"
+                ],
+                "is_declaration_file": true
+              }
+            ]
+          },
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "mixed-roots",
+      "roots": [
+        [
+          "a.ts",
+          "b.ts"
+        ],
+        "c.ts",
+        [
+          "d.ts"
+        ]
+      ],
+      "allow_declaration_files": false,
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "first:b.ts:",
+          "second:a.ts:dependency,shared,first:a.ts",
+          "second:b.ts:dependency,shared,first:b.ts",
+          "first:c.ts:",
+          "second:c.ts:dependency,shared,first:c.ts",
+          "first:d.ts:",
+          "second:d.ts:dependency,shared,first:d.ts"
+        ],
+        "roots": [
+          {
+            "kind": "bundle",
+            "sources": [
+              {
+                "path": "a.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:a.ts"
+                ],
+                "is_declaration_file": false
+              },
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          },
+          {
+            "kind": "source-file",
+            "sources": [
+              {
+                "path": "c.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:c.ts",
+                  "second:c.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          },
+          {
+            "kind": "bundle",
+            "sources": [
+              {
+                "path": "d.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:d.ts",
+                  "second:d.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "replacement-source-first",
+      "roots": [
+        [
+          "a.ts",
+          "b.ts"
+        ]
+      ],
+      "allow_declaration_files": false,
+      "replace_source": "a.ts",
+      "replace_phase": "first",
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "first:b.ts:",
+          "second:replacement.ts:dependency,shared,first:a.ts",
+          "second:b.ts:dependency,shared,first:b.ts"
+        ],
+        "roots": [
+          {
+            "kind": "bundle",
+            "sources": [
+              {
+                "path": "replacement.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:replacement.ts"
+                ],
+                "is_declaration_file": false
+              },
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    },
+    {
+      "case_id": "replacement-source-second",
+      "roots": [
+        [
+          "a.ts",
+          "b.ts"
+        ]
+      ],
+      "allow_declaration_files": false,
+      "replace_source": "a.ts",
+      "replace_phase": "second",
+      "observation": {
+        "log": [
+          "first:initialize",
+          "second:initialize",
+          "first:a.ts:",
+          "first:b.ts:",
+          "second:a.ts:dependency,shared,first:a.ts",
+          "second:b.ts:dependency,shared,first:b.ts"
+        ],
+        "roots": [
+          {
+            "kind": "bundle",
+            "sources": [
+              {
+                "path": "replacement.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:a.ts",
+                  "second:a.ts"
+                ],
+                "is_declaration_file": false
+              },
+              {
+                "path": "b.ts",
+                "helpers": [
+                  "dependency",
+                  "shared",
+                  "first:b.ts",
+                  "second:b.ts"
+                ],
+                "is_declaration_file": false
+              }
+            ]
+          }
+        ],
+        "diagnostics": []
+      }
+    }
+  ],
+  "builtin_cases": [
+    {
+      "case_id": "assign-separated",
+      "files": [
+        [
+          "a.ts",
+          "const a = {...value};\n"
+        ],
+        [
+          "b.ts",
+          "const b = 1;\n"
+        ]
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "outFile": "/bundle.js",
+        "alwaysStrict": false,
+        "strict": false
+      },
+      "observation": {
+        "roots": [
+          {
+            "path": "a.ts",
+            "helpers": [
+              "typescript:assign"
+            ]
+          },
+          {
+            "path": "b.ts",
+            "helpers": []
+          }
+        ],
+        "collision_queries": [
+          {
+            "path": "a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "diagnostics": [],
+        "printed_bundle_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgYSA9IF9fYXNzaWduKHt9LCB2YWx1ZSk7CnZhciBiID0gMTsK"
+      }
+    },
+    {
+      "case_id": "assign-shared",
+      "files": [
+        [
+          "a.ts",
+          "const a = {...value};\n"
+        ],
+        [
+          "b.ts",
+          "const b = {...value};\n"
+        ]
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "outFile": "/bundle.js",
+        "alwaysStrict": false,
+        "strict": false
+      },
+      "observation": {
+        "roots": [
+          {
+            "path": "a.ts",
+            "helpers": [
+              "typescript:assign"
+            ]
+          },
+          {
+            "path": "b.ts",
+            "helpers": [
+              "typescript:assign"
+            ]
+          }
+        ],
+        "collision_queries": [
+          {
+            "path": "a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "diagnostics": [],
+        "printed_bundle_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgYSA9IF9fYXNzaWduKHt9LCB2YWx1ZSk7CnZhciBiID0gX19hc3NpZ24oe30sIHZhbHVlKTsK"
+      }
+    },
+    {
+      "case_id": "rest-separated",
+      "files": [
+        [
+          "a.ts",
+          "const {a, ...rest} = value;\n"
+        ],
+        [
+          "b.ts",
+          "const b = 1;\n"
+        ]
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "outFile": "/bundle.js",
+        "alwaysStrict": false,
+        "strict": false
+      },
+      "observation": {
+        "roots": [
+          {
+            "path": "a.ts",
+            "helpers": [
+              "typescript:rest"
+            ]
+          },
+          {
+            "path": "b.ts",
+            "helpers": []
+          }
+        ],
+        "collision_queries": [
+          {
+            "path": "a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 26,
+            "value_present": true,
+            "value": false,
+            "truthy": false
+          },
+          {
+            "path": "a.ts",
+            "kind": "BindingElement",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "a.ts",
+            "kind": "BindingElement",
+            "pos": 9,
+            "end": 17,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 11,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "diagnostics": [],
+        "printed_bundle_utf8_base64": "dmFyIF9fcmVzdCA9ICh0aGlzICYmIHRoaXMuX19yZXN0KSB8fCBmdW5jdGlvbiAocywgZSkgewogICAgdmFyIHQgPSB7fTsKICAgIGZvciAodmFyIHAgaW4gcykgaWYgKE9iamVjdC5wcm90b3R5cGUuaGFzT3duUHJvcGVydHkuY2FsbChzLCBwKSAmJiBlLmluZGV4T2YocCkgPCAwKQogICAgICAgIHRbcF0gPSBzW3BdOwogICAgaWYgKHMgIT0gbnVsbCAmJiB0eXBlb2YgT2JqZWN0LmdldE93blByb3BlcnR5U3ltYm9scyA9PT0gImZ1bmN0aW9uIikKICAgICAgICBmb3IgKHZhciBpID0gMCwgcCA9IE9iamVjdC5nZXRPd25Qcm9wZXJ0eVN5bWJvbHMocyk7IGkgPCBwLmxlbmd0aDsgaSsrKSB7CiAgICAgICAgICAgIGlmIChlLmluZGV4T2YocFtpXSkgPCAwICYmIE9iamVjdC5wcm90b3R5cGUucHJvcGVydHlJc0VudW1lcmFibGUuY2FsbChzLCBwW2ldKSkKICAgICAgICAgICAgICAgIHRbcFtpXV0gPSBzW3BbaV1dOwogICAgICAgIH0KICAgIHJldHVybiB0Owp9Owp2YXIgYSA9IHZhbHVlLmEsIHJlc3QgPSBfX3Jlc3QodmFsdWUsIFsiYSJdKTsKdmFyIGIgPSAxOwo="
+      }
+    },
+    {
+      "case_id": "mixed-helpers",
+      "files": [
+        [
+          "a.ts",
+          "const a = {...value};\n"
+        ],
+        [
+          "b.ts",
+          "const {b, ...rest} = value;\n"
+        ]
+      ],
+      "options": {
+        "target": 1,
+        "module": 0,
+        "outFile": "/bundle.js",
+        "alwaysStrict": false,
+        "strict": false
+      },
+      "observation": {
+        "roots": [
+          {
+            "path": "a.ts",
+            "helpers": [
+              "typescript:assign"
+            ]
+          },
+          {
+            "path": "b.ts",
+            "helpers": [
+              "typescript:rest"
+            ]
+          }
+        ],
+        "collision_queries": [
+          {
+            "path": "a.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 20,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "b.ts",
+            "kind": "VariableDeclaration",
+            "pos": 5,
+            "end": 26,
+            "value_present": true,
+            "value": false,
+            "truthy": false
+          },
+          {
+            "path": "b.ts",
+            "kind": "BindingElement",
+            "pos": 7,
+            "end": 8,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          },
+          {
+            "path": "b.ts",
+            "kind": "BindingElement",
+            "pos": 9,
+            "end": 17,
+            "value_present": false,
+            "value": null,
+            "truthy": false
+          }
+        ],
+        "diagnostics": [],
+        "printed_bundle_utf8_base64": "dmFyIF9fYXNzaWduID0gKHRoaXMgJiYgdGhpcy5fX2Fzc2lnbikgfHwgZnVuY3Rpb24gKCkgewogICAgX19hc3NpZ24gPSBPYmplY3QuYXNzaWduIHx8IGZ1bmN0aW9uKHQpIHsKICAgICAgICBmb3IgKHZhciBzLCBpID0gMSwgbiA9IGFyZ3VtZW50cy5sZW5ndGg7IGkgPCBuOyBpKyspIHsKICAgICAgICAgICAgcyA9IGFyZ3VtZW50c1tpXTsKICAgICAgICAgICAgZm9yICh2YXIgcCBpbiBzKSBpZiAoT2JqZWN0LnByb3RvdHlwZS5oYXNPd25Qcm9wZXJ0eS5jYWxsKHMsIHApKQogICAgICAgICAgICAgICAgdFtwXSA9IHNbcF07CiAgICAgICAgfQogICAgICAgIHJldHVybiB0OwogICAgfTsKICAgIHJldHVybiBfX2Fzc2lnbi5hcHBseSh0aGlzLCBhcmd1bWVudHMpOwp9Owp2YXIgYSA9IF9fYXNzaWduKHt9LCB2YWx1ZSk7CnZhciBfX3Jlc3QgPSAodGhpcyAmJiB0aGlzLl9fcmVzdCkgfHwgZnVuY3Rpb24gKHMsIGUpIHsKICAgIHZhciB0ID0ge307CiAgICBmb3IgKHZhciBwIGluIHMpIGlmIChPYmplY3QucHJvdG90eXBlLmhhc093blByb3BlcnR5LmNhbGwocywgcCkgJiYgZS5pbmRleE9mKHApIDwgMCkKICAgICAgICB0W3BdID0gc1twXTsKICAgIGlmIChzICE9IG51bGwgJiYgdHlwZW9mIE9iamVjdC5nZXRPd25Qcm9wZXJ0eVN5bWJvbHMgPT09ICJmdW5jdGlvbiIpCiAgICAgICAgZm9yICh2YXIgaSA9IDAsIHAgPSBPYmplY3QuZ2V0T3duUHJvcGVydHlTeW1ib2xzKHMpOyBpIDwgcC5sZW5ndGg7IGkrKykgewogICAgICAgICAgICBpZiAoZS5pbmRleE9mKHBbaV0pIDwgMCAmJiBPYmplY3QucHJvdG90eXBlLnByb3BlcnR5SXNFbnVtZXJhYmxlLmNhbGwocywgcFtpXSkpCiAgICAgICAgICAgICAgICB0W3BbaV1dID0gc1twW2ldXTsKICAgICAgICB9CiAgICByZXR1cm4gdDsKfTsKdmFyIGIgPSB2YWx1ZS5iLCByZXN0ID0gX19yZXN0KHZhbHVlLCBbImIiXSk7Cg=="
+      }
+    }
+  ]
+}
