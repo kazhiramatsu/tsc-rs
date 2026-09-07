@@ -37,15 +37,20 @@ static dispositions did not name: both configurations of
 `declarationEmitPrefersPathKindBasedOnBundling2.ts` and the AMD/System
 `outFilerootDirModuleNames` cases have `rootDir` (H2.8a), while
 `sourceMapWithNonCaseSensitiveFileNames.ts` explicitly requests a
-case-insensitive host (H2.8b). The original options are retained.
+case-insensitive host (H2.8b). Source syntax inspection adds one further
+H2.9 intersection: `jsFileCompilationTypeAssertions.ts` reaches `/src/a.js`
+with parse diagnostics TS17008 and TS1005. The complete observation verifies
+that every source receiving a syntax/depth boundary is actually reached by
+the Program. No source exceeds the existing transform depth limit of 256.
+The original options and source bytes are retained.
 
 | Remaining owners | Cases |
 | --- | ---: |
-| H2.7d | 281 |
+| H2.7d | 280 |
 | H2.7d + H2.7e | 3 |
 | H2.7d + H2.8a | 23 |
 | H2.7d + H2.8b | 5 |
-| H2.7d + H2.9 | 3 |
+| H2.7d + H2.9 | 4 |
 | H2.7e | 8 |
 | H2.7e + H2.8c | 2 |
 
@@ -67,6 +72,14 @@ effective options and a distinct input identity; historical artifacts remain
 unchanged and their observations are not transferred to this input route.
 No local filesystem path is serialized.
 
+Project compiler options, including the resolved paths, are built before
+config parsing and passed as its existing-options argument. The eight
+config-driven project variants have only `outFile` or `outFile` plus
+`allowJs` in their configs; those fields do not conflict with descriptor or
+runner defaults. All 36 path-resolution variants use explicit inputs without
+a config. Correcting the preparer's construction order consequently leaves
+all 325 input records and all 323 complete emit tuples byte-identical.
+
 The compiler baseline remains TypeScript 6.0.3 at
 `050880ce59e30b356b686bd3144efe24f875ebc8`. The pinned native reference rejects
 outFile and retains the legacy skip dispositions documented in the
@@ -77,9 +90,25 @@ Reproduce the input preparation with:
 
 ```sh
 node crates/oracle/h2-7de-candidates.mjs --check
+taskpolicy -b nice -n 15 node crates/oracle/h2-7de-observations.mjs --check
 ```
 
 The source/unit byte checks, config-root agreement, parent joins and complete
-artifact reproduction pass locally. Complete repeated TypeScript emit
-observations are the next packet; focused worker controls have separate
-denominators and are not added to these original case IDs.
+input artifact reproduction pass locally. `h2-7de-observations.v1.json`
+records 323 whole-Program emit tuples, each repeated twice on a fresh Program
+with one serial worker: 646 TypeScript runs, 639 callback writes and five
+emitSkipped cases. All pairs match. The tuple retains complete reported and
+emit diagnostics with related information, callback bytes and materialized
+BOM bytes, write order, callback source files and data keys/diagnostics/map
+URL position/build-info data, raw source-map JSON and input-source arrays,
+emitted-file/source-map absence versus empty arrays, status and exit.
+Input-source order and the names of the pinned libraries are also retained.
+Callback text is checked before encoding to prevent local workspace paths
+from being hidden in base64 fields.
+
+The build-info callback in `incrementalOut.ts` remains a later-owner
+reference. Both transpile API controls remain unexecuted here. This captures
+the one-shot emit tuple; host resolution traces and the project runner's
+separate declaration recheck are not claimed. Focused worker controls have
+separate denominators and are not added to these original case IDs. These
+TypeScript observations do not certify any Rust implementation.

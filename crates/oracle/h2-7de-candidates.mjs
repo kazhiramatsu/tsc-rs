@@ -81,7 +81,7 @@ function verifyUnits(units, recorded) {
   }
 }
 
-export function parseConfig(config, files, cwd, caseSensitive) {
+export function parseConfig(config, files, cwd, caseSensitive, existingOptions) {
   const canonical = name => caseSensitive ? ts.getNormalizedAbsolutePath(name, cwd) : ts.getNormalizedAbsolutePath(name, cwd).toLowerCase();
   const byPath = new Map(files.map(file => [canonical(file.path), file.text]));
   const host = { useCaseSensitiveFileNames: caseSensitive,
@@ -98,7 +98,7 @@ export function parseConfig(config, files, cwd, caseSensitive) {
       }, name => ts.getNormalizedAbsolutePath(name, cwd));
     } };
   const source = ts.parseJsonText(config.path, config.text);
-  const parsed = ts.parseJsonSourceFileConfigFileContent(source, host, ts.getDirectoryPath(config.path), undefined, config.path);
+  const parsed = ts.parseJsonSourceFileConfigFileContent(source, host, ts.getDirectoryPath(config.path), existingOptions, config.path);
   assert.deepEqual(source.parseDiagnostics, []);
   assert.deepEqual(parsed.errors, []);
   return parsed;
@@ -168,15 +168,16 @@ function projectInput(row, expansion, classification, projectFiles) {
   const byPath = new Map(projectFiles.map(file => [file.path, file]));
   const configPath = recorded.root_selection.config?.path;
   const config = configPath ? byPath.get(configPath) : null;
-  const parsed = config ? parseConfig(config, projectFiles, cwd, true) : null;
+  const existingOptions = { moduleResolution: ts.ModuleResolutionKind.Classic,
+    noErrorTruncation: false, skipDefaultLibCheck: false, newLine: ts.NewLineKind.CarriageReturnLineFeed };
+  for (const [name, raw] of Object.entries(descriptor)) if (!structuralProjectNames.has(name)) setOption(existingOptions, name, raw);
+  existingOptions.module = recorded.module_variant.value;
+  // projectsRunner.ts createCompilerOptions resolves these before config parsing.
+  for (const name of ["mapRoot", "sourceRoot"]) if (descriptor[`resolve${name[0].toUpperCase()}${name.slice(1)}`] && descriptor[name]) existingOptions[name] = ts.getNormalizedAbsolutePath(descriptor[name], "/.src");
+  const parsed = config ? parseConfig(config, projectFiles, cwd, true, existingOptions) : null;
+  const options = parsed?.options ?? existingOptions;
   const roots = parsed?.fileNames ?? descriptor.inputFiles.map(name => ts.getNormalizedAbsolutePath(name, cwd));
   assert.deepEqual(roots, recorded.root_selection.roots.map(root => root.path), row.id);
-  const options = { ...parsed?.options, moduleResolution: parsed?.options.moduleResolution ?? ts.ModuleResolutionKind.Classic,
-    noErrorTruncation: false, skipDefaultLibCheck: false, newLine: ts.NewLineKind.CarriageReturnLineFeed };
-  for (const [name, raw] of Object.entries(descriptor)) if (!structuralProjectNames.has(name)) setOption(options, name, raw);
-  options.module = recorded.module_variant.value;
-  // projectsRunner.ts createCompilerOptions resolves these before config parsing.
-  for (const name of ["mapRoot", "sourceRoot"]) if (descriptor[`resolve${name[0].toUpperCase()}${name.slice(1)}`] && descriptor[name]) options[name] = ts.getNormalizedAbsolutePath(descriptor[name], "/.src");
   return { settings: null, selection: recorded.root_selection, project_descriptor: descriptor,
     effective_options: serialOptions(options), input: { route: "whole-program", current_directory: cwd,
       use_case_sensitive_file_names: true, roots, files: [], config,
@@ -197,7 +198,27 @@ function transpileInput(row, inventory) {
       units: units.map(({ name, text }) => ({ name, text })) } };
 }
 
-function remainingOwners(row, prepared) {
+function sourceFacts(prepared, projectFiles) {
+  const parseDiagnostics = [], excessiveDepth = [];
+  if (prepared.input.route !== "whole-program") return { parse_diagnostic_units: parseDiagnostics, excessive_depth_units: excessiveDepth };
+  const files = prepared.input.shared_mount ? projectFiles : prepared.input.files;
+  for (const file of files) {
+    if (!ts.isSupportedSourceFileName(file.path, prepared.effective_options) || ts.isDeclarationFileName(file.path)) continue;
+    const source = ts.createSourceFile(file.path, file.text, ts.getEmitScriptTarget(prepared.effective_options), true, ts.getScriptKindFromFileName(file.path));
+    if (source.parseDiagnostics.length) parseDiagnostics.push({ path: file.path, codes: source.parseDiagnostics.map(d => d.code) });
+    let maximumDepth = 0;
+    const stack = [[source, 0]];
+    while (stack.length) {
+      const [node, depth] = stack.pop();
+      maximumDepth = Math.max(maximumDepth, depth);
+      ts.forEachChild(node, child => { stack.push([child, depth + 1]); });
+    }
+    if (maximumDepth > 256) excessiveDepth.push({ path: file.path, depth: maximumDepth });
+  }
+  return { parse_diagnostic_units: parseDiagnostics, excessive_depth_units: excessiveDepth };
+}
+
+function remainingOwners(row, prepared, facts) {
   const owners = row.required_slices.filter(owner => owner >= "H2.7d" || !owner.startsWith("H2."));
   const added = [], options = prepared.effective_options;
   const add = (owner, reason) => { owners.push(owner); added.push({ owner, reason }); };
@@ -208,8 +229,9 @@ function remainingOwners(row, prepared) {
   if (options.noCheck === true || prepared.input.route === "transpile-api") add("H2.8c", "noCheck/transpile API");
   if (options.noEmit === true) add("H2.9", "effective noEmit=true retained outside emitter admission");
   if (prepared.input.use_case_sensitive_file_names === false) add("H2.8b", "explicit case-insensitive host");
+  if (facts.parse_diagnostic_units.length || facts.excessive_depth_units.length) add("H2.9", "input source syntax/depth boundary; observation verifies affected source is reached");
   return { required_slices: unique(owners), effective_owner_reasons: added,
-    added_slices: unique(owners.filter(owner => !row.required_slices.includes(owner))) };
+    added_slices: unique(owners.filter(owner => !row.required_slices.includes(owner))), source_facts: facts };
 }
 
 export function prepare() {
@@ -219,8 +241,10 @@ export function prepare() {
     "ratchets/h2-7b-qualification.v1.json", "ratchets/h2-7c-qualification.v1.json",
     "vendor/typescript-6.0.3/test-suite-expansion.v1.json", "vendor/typescript-6.0.3/conformance-suite-expansion.v1.json",
     "vendor/typescript-6.0.3/compiler-config-plans.v1.json", "vendor/typescript-6.0.3/project-profile-classification.v1.json",
-    "vendor/typescript-6.0.3/transpile-suite-inventory.v1.json"];
-  const [global, ...rest] = paths.map(read), [h26c, h27b, h27c, test, conformance, plans, project, transpile] = rest;
+    "vendor/typescript-6.0.3/transpile-suite-inventory.v1.json",
+    "vendor/typescript-6.0.3/lib/typescript.js", ".node-version"];
+  const [global, ...rest] = paths.filter(name => name.endsWith(".json")).map(read);
+  const [h26c, h27b, h27c, test, conformance, plans, project, transpile] = rest;
   const parents = new Map([["H2.6c", h26c], ["H2.7b", h27b], ["H2.7c", h27c]]);
   const selected = global.cases.filter(row => row.required_slices.some(owner => ["H2.7d", "H2.7e"].includes(owner)));
   assert.equal(selected.length, 325);
@@ -240,7 +264,7 @@ export function prepare() {
       assert.deepEqual(found.source, row.source, row.id);
       overlaps.push({ parent: name, disposition: found.disposition, remaining_slices: found.remaining_slices ?? found.required_slices });
     }
-    const owners = remainingOwners(row, prepared[index]);
+    const owners = remainingOwners(row, prepared[index], sourceFacts(prepared[index], projectFiles));
     return { case_id: row.id, suite: row.suite, source: row.source, original_required_slices: row.required_slices,
       ...owners, parent_membership: overlaps, input_sha256: sha256(JSON.stringify(prepared[index])),
       disposition: "candidate-only", runtime_admitted: false };
@@ -257,6 +281,8 @@ export function prepare() {
     whole_program_inputs: prepared.filter(row => row.input.route === "whole-program").length,
     transpile_controls: prepared.filter(row => row.input.route === "transpile-api").length,
     runtime_admitted: 0, project_mount_files: projectFiles.length,
+    parent_case_id_overlaps: Object.fromEntries([...parents.keys()].map(name => [name, count(row => row.parent_membership.some(parent => parent.parent === name))])),
+    project_resolve_map_or_source_root: prepared.filter(row => row.project_descriptor?.resolveMapRoot || row.project_descriptor?.resolveSourceRoot).length,
     by_remaining_slices: Object.fromEntries(unique(cases.map(row => row.required_slices.join(","))).map(key => [key, count(row => row.required_slices.join(",") === key)])) };
   const inventory = { schema: 1, kind: "h2-7de-candidates", status: "candidate-inputs-only", typescript: ts.version,
     source_commit: sourceCommit, generator: identity("crates/oracle/h2-7de-candidates.mjs"), inputs: paths.map(identity),
