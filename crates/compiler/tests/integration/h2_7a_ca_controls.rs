@@ -6,7 +6,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::{Path, PathBuf};
 
 use tsc_checker::CompilerOptions;
-use tsc_emitter::{EmitFailure, EmitHost, H2ActivityCanary, H2RuntimeSlice, SourceFileId};
+use tsc_emitter::{EmitHost, H2ActivityCanary, H2RuntimeSlice, SourceFileId};
 
 fn workspace() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
