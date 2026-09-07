@@ -38,6 +38,8 @@ pub enum CompilerOptionViolation {
     DeclarationDirectoryRequiresDeclaration,
     DeclarationDirectoryConflictsWithOutFile,
     DeclarationMapRequiresDeclaration,
+    ResolveJsonModuleConflictsWithClassicResolution,
+    ResolveJsonModuleConflictsWithModule,
     OutFileRequiresAmdOrSystemModule,
     ReactNamespaceConflictsWithJsxFactory,
     JsxFactoryConflictsWithAutomaticRuntime { jsx: &'static str },
@@ -75,6 +77,8 @@ impl CompilerOptionViolation {
             Self::DeclarationDirectoryRequiresDeclaration => &["declarationDir", "declaration"],
             Self::DeclarationDirectoryConflictsWithOutFile => &["declarationDir", "outFile"],
             Self::DeclarationMapRequiresDeclaration => &["declarationMap", "declaration"],
+            Self::ResolveJsonModuleConflictsWithClassicResolution => &["resolveJsonModule"],
+            Self::ResolveJsonModuleConflictsWithModule => &["resolveJsonModule", "module"],
             Self::OutFileRequiresAmdOrSystemModule => &["outFile", "module"],
             Self::ReactNamespaceConflictsWithJsxFactory => &["reactNamespace", "jsxFactory"],
             Self::JsxFactoryConflictsWithAutomaticRuntime { .. }
@@ -153,6 +157,14 @@ impl CompilerOptionViolation {
             Self::OutFileRequiresAmdOrSystemModule => MessageChain::new(
                 &gen::Only_amd_and_system_modules_are_supported_alongside_0,
                 &["outFile".to_owned()],
+            ),
+            Self::ResolveJsonModuleConflictsWithClassicResolution => MessageChain::new(
+                &gen::Option_resolveJsonModule_cannot_be_specified_when_moduleResolution_is_set_to_classic,
+                &[],
+            ),
+            Self::ResolveJsonModuleConflictsWithModule => MessageChain::new(
+                &gen::Option_resolveJsonModule_cannot_be_specified_when_module_is_set_to_none_system_or_umd,
+                &[],
             ),
             Self::ReactNamespaceConflictsWithJsxFactory => MessageChain::new(
                 &gen::Option_0_cannot_be_specified_with_option_1,
@@ -335,6 +347,17 @@ pub fn validate_compiler_options(options: &CompilerOptions) -> Vec<CompilerOptio
             .is_some_and(|module| !matches!(module, 0 | 2 | 4))
     {
         violations.push(CompilerOptionViolation::OutFileRequiresAmdOrSystemModule);
+    }
+    // verifyCompilerOptions (:124901-124907) uses the computed options.
+    // Classic resolution takes precedence over unsupported JSON emit modules.
+    // This relationship is independent of outFile and emitDeclarationOnly.
+    if options.resolve_json_module_effective() {
+        if options.emit_module_resolution_kind() == 1 {
+            violations
+                .push(CompilerOptionViolation::ResolveJsonModuleConflictsWithClassicResolution);
+        } else if matches!(options.emit_module_kind(), 0 | 3 | 4) {
+            violations.push(CompilerOptionViolation::ResolveJsonModuleConflictsWithModule);
+        }
     }
     if options.emit_declaration_only == Some(true)
         && options.declaration != Some(true)

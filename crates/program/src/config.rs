@@ -3142,6 +3142,7 @@ fn option_relationship_diagnostics(
         target: config_option_i32(options, "target"),
         module: config_option_i32(options, "module"),
         module_resolution: config_option_i32(options, "moduleResolution"),
+        resolve_json_module: config_option_bool(options, "resolveJsonModule"),
         strict: config_option_bool(options, "strict"),
         strict_null_checks: config_option_bool(options, "strictNullChecks"),
         strict_property_initialization: config_option_bool(options, "strictPropertyInitialization"),
