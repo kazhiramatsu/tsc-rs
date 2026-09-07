@@ -252,12 +252,17 @@ fn prepare_h2_6c_compiler_case(
     let UpstreamExecutionInput::Compiler(plan) = &recorded.input else {
         panic!("{case_id}: recorded plan is not a compiler plan");
     };
-    load_compiler_emit_with_option_floor(workspace, plan, limits(), EmitOptionFloor::MapFamily)
-        .unwrap_or_else(|error| panic!("{case_id}: prepare 6c compiler plan: {error}"))
+    load_compiler_emit_with_option_floor(
+        workspace,
+        plan,
+        limits(),
+        EmitOptionFloor::MapFamilyWithDeclarationOnly,
+    )
+    .unwrap_or_else(|error| panic!("{case_id}: prepare 6c compiler plan: {error}"))
 }
 
 /// Conformance rows run the same qualified-vfs construction as the H2.6c
-/// acceptance's `case_input_with_floor`, on the complete map-family floor.
+/// acceptance's `case_input_with_floor`, preserving declaration-only mode too.
 fn prepare_h2_6c_qualified_case(workspace: &Path, case: &Value) -> tsc_program::PreparedProgram {
     let case_id = case_id(case);
     let input = &case["input"];
@@ -303,7 +308,7 @@ fn prepare_h2_6c_qualified_case(workspace: &Path, case: &Value) -> tsc_program::
         &roots,
         &settings,
         limits(),
-        EmitOptionFloor::MapFamily,
+        EmitOptionFloor::MapFamilyWithDeclarationOnly,
     )
     .unwrap_or_else(|error| panic!("{case_id}: prepare 6c qualified-vfs case: {error}"))
 }
@@ -414,7 +419,7 @@ fn run_h2_6c_probe(selector: &str) {
     let floor_label = if route == "project-mount" {
         "descriptor-projection"
     } else {
-        "MapFamily"
+        "MapFamilyWithDeclarationOnly"
     };
     println!(
         "H2.6c probe {case_id}: route={route} floor={floor_label} writes={} reported_diagnostics={} dumps under {}",
@@ -717,7 +722,7 @@ fn dump_h2_6c(
         "emit_option_floor": if case["execution_route"] == "project-mount" {
             "descriptor-projection"
         } else {
-            "MapFamily"
+            "MapFamilyWithDeclarationOnly"
         },
         "source_provenance": case["source"],
         "rust": {

@@ -262,3 +262,151 @@ fn compiler_fixture_paths_preserve_drive_roots_outside_posix_current_directory()
         "//?/C:/sdk/file5.ts"
     );
 }
+
+#[test]
+fn current_map_floor_preserves_declaration_only_without_changing_earlier_floors() {
+    // Test both directive and typed-config projection, preserving absent vs false.
+    // DeclarationFamily keeps its existing outFile/declarationMap exclusion.
+    for declaration_only in [None, Some(false), Some(true)] {
+        for (floor, source_map, map_family, bundle_family, declaration_mode) in [
+            (EmitOptionFloor::Established, false, false, false, false),
+            (EmitOptionFloor::SourceMap, true, false, false, false),
+            (EmitOptionFloor::MapFamily, true, true, true, false),
+            (
+                EmitOptionFloor::MapFamilyWithDeclarationOnly,
+                true,
+                true,
+                true,
+                true,
+            ),
+            (EmitOptionFloor::DeclarationFamily, true, true, false, true),
+        ] {
+            let mut settings = vec![
+                ("declaration", "true"),
+                ("sourceMap", "true"),
+                ("inlineSourceMap", "true"),
+                ("inlineSources", "true"),
+                ("sourceRoot", "/sources"),
+                ("mapRoot", "/maps"),
+                ("emitBOM", "true"),
+                ("outFile", "bundle.js"),
+                ("declarationMap", "true"),
+            ];
+            if let Some(value) = declaration_only {
+                settings.push(("eMiTdEcLaRaTiOnOnLy", if value { "true" } else { "false" }));
+            }
+            let mut actual = CompilerOptions::default();
+            apply_compiler_settings(
+                &mut actual,
+                &mut ProgramOptions::default(),
+                "/.src",
+                settings,
+                false,
+                floor,
+            )
+            .expect("project original directive values");
+            let expected = CompilerOptions {
+                declaration: Some(true),
+                source_map: source_map.then_some(true),
+                inline_source_map: map_family.then_some(true),
+                inline_sources: map_family.then_some(true),
+                source_root: map_family.then(|| "/sources".to_owned()),
+                map_root: map_family.then(|| "/maps".to_owned()),
+                emit_bom: map_family.then_some(true),
+                out_file: bundle_family.then(|| "bundle.js".to_owned()),
+                declaration_map: bundle_family.then_some(true),
+                emit_declaration_only: declaration_mode.then_some(declaration_only).flatten(),
+                ..CompilerOptions::default()
+            };
+            assert_eq!(
+                actual, expected,
+                "{floor:?}, directive {declaration_only:?}"
+            );
+
+            let mut config = CompilerOptions {
+                declaration: Some(true),
+                source_map: Some(true),
+                inline_source_map: Some(true),
+                inline_sources: Some(true),
+                source_root: Some("/sources".to_owned()),
+                map_root: Some("/maps".to_owned()),
+                emit_bom: Some(true),
+                out_file: Some("bundle.js".to_owned()),
+                declaration_map: Some(true),
+                emit_declaration_only: declaration_only,
+                ..CompilerOptions::default()
+            };
+            apply_emit_option_floor_to_config(&mut config, floor);
+            assert_eq!(config, expected, "{floor:?}, config {declaration_only:?}");
+        }
+    }
+}
+
+#[test]
+fn current_map_floor_projects_the_two_frozen_commonjs_declaration_only_inputs() {
+    let workspace = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let qualification: Value = serde_json::from_slice(
+        &fs::read(workspace.join("ratchets/h2-6c-qualification.v1.json"))
+            .expect("frozen H2.6c qualification"),
+    )
+    .expect("H2.6c JSON");
+    let cases = qualification["cases"].as_array().expect("H2.6c cases");
+    assert_eq!(cases.len(), 643);
+    let mut selected = BTreeMap::new();
+    for case in cases {
+        let Some(settings) = case["input"]["settings"].as_array() else {
+            continue;
+        };
+        if !settings.iter().any(|setting| {
+            setting["name"]
+                .as_str()
+                .is_some_and(|name| name.eq_ignore_ascii_case("emitDeclarationOnly"))
+        }) {
+            continue;
+        }
+        assert_eq!(case["execution_route"], "recorded-compiler-plan");
+        let project = |floor| {
+            let mut options = CompilerOptions::default();
+            apply_compiler_settings(
+                &mut options,
+                &mut ProgramOptions::default(),
+                case["input"]["current_directory"].as_str().unwrap(),
+                settings.iter().map(|setting| {
+                    (
+                        setting["name"].as_str().unwrap(),
+                        setting["value"].as_str().unwrap(),
+                    )
+                }),
+                false,
+                floor,
+            )
+            .expect("the unchanged frozen compiler settings are projectable");
+            options
+        };
+        let current = project(EmitOptionFloor::MapFamilyWithDeclarationOnly);
+        let mut historical = project(EmitOptionFloor::MapFamily);
+        assert_eq!(historical.emit_declaration_only, None);
+        assert_eq!(current.emit_declaration_only, Some(true));
+        assert_eq!(current.declaration, Some(true));
+        assert_eq!(current.source_map, Some(true));
+        assert_eq!(current.module, Some(1));
+        assert_eq!(current.out_file.as_deref(), Some("all.js"));
+        // Every other projected setting remains identical to the old prepare.
+        historical.emit_declaration_only = Some(true);
+        assert_eq!(current, historical);
+        selected.insert(case["case_id"].as_str().unwrap().to_owned(), current.target);
+    }
+    assert_eq!(
+        selected,
+        BTreeMap::from([
+            (
+                "typescript-6.0.3/compiler/outModuleConcatCommonjsDeclarationOnly.ts#target%3Des2015".to_owned(),
+                Some(2),
+            ),
+            (
+                "typescript-6.0.3/compiler/outModuleConcatCommonjsDeclarationOnly.ts#target%3Des5".to_owned(),
+                Some(1),
+            ),
+        ]),
+    );
+}

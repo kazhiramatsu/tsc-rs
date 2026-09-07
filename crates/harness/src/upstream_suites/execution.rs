@@ -83,13 +83,16 @@ pub fn load_compiler_no_emit(
 /// The established H2.5g/H2.5h acceptance floor DROPS the map family (both
 /// sides of those frozen bands are mapless); the H2.6a band projects only
 /// `sourceMap` (h2-6a-ca-2 — the ca-1 oracle observed WITH maps), and the
-/// H2.6b band projects the complete map family. Every other entry point keeps
-/// its existing floor.
+/// H2.6b band projects the complete map family. H2.6c additionally retains
+/// `emitDeclarationOnly`, which its frozen TypeScript input already contains.
+/// Earlier map floors and the H2.7b declaration floor keep their existing scope.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EmitOptionFloor {
     Established,
     SourceMap,
     MapFamily,
+    /// Current H2.6c map projection, including the original declaration-only mode.
+    MapFamilyWithDeclarationOnly,
     DeclarationFamily,
 }
 
@@ -357,13 +360,16 @@ fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitO
         floor,
         EmitOptionFloor::SourceMap
             | EmitOptionFloor::MapFamily
+            | EmitOptionFloor::MapFamilyWithDeclarationOnly
             | EmitOptionFloor::DeclarationFamily
     ) {
         options.source_map = None;
     }
     if !matches!(
         floor,
-        EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+        EmitOptionFloor::MapFamily
+            | EmitOptionFloor::MapFamilyWithDeclarationOnly
+            | EmitOptionFloor::DeclarationFamily
     ) {
         options.inline_source_map = None;
         options.inline_sources = None;
@@ -371,12 +377,18 @@ fn apply_emit_option_floor_to_config(options: &mut CompilerOptions, floor: EmitO
         options.map_root = None;
         options.emit_bom = None;
     }
-    if floor != EmitOptionFloor::DeclarationFamily {
+    if !matches!(
+        floor,
+        EmitOptionFloor::MapFamilyWithDeclarationOnly | EmitOptionFloor::DeclarationFamily
+    ) {
         options.emit_declaration_only = None;
     }
 
     options.no_emit_helpers = None;
-    if floor != EmitOptionFloor::MapFamily {
+    if !matches!(
+        floor,
+        EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+    ) {
         options.declaration_map = None;
         options.out_file = None;
     }
@@ -1078,6 +1090,7 @@ fn apply_compiler_setting(
                 floor,
                 EmitOptionFloor::SourceMap
                     | EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
                     | EmitOptionFloor::DeclarationFamily
             ) {
                 compiler_options.source_map = Some(boolean()?);
@@ -1086,7 +1099,9 @@ fn apply_compiler_setting(
         "inlinesourcemap" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::DeclarationFamily
             ) {
                 compiler_options.inline_source_map = Some(boolean()?);
             }
@@ -1094,7 +1109,9 @@ fn apply_compiler_setting(
         "inlinesources" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::DeclarationFamily
             ) {
                 compiler_options.inline_sources = Some(boolean()?);
             }
@@ -1102,7 +1119,9 @@ fn apply_compiler_setting(
         "sourceroot" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::DeclarationFamily
             ) {
                 compiler_options.source_root = Some(value.to_owned());
             }
@@ -1110,7 +1129,9 @@ fn apply_compiler_setting(
         "maproot" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::DeclarationFamily
             ) {
                 compiler_options.map_root = Some(value.to_owned());
             }
@@ -1122,23 +1143,34 @@ fn apply_compiler_setting(
         "emitbom" => {
             if matches!(
                 floor,
-                EmitOptionFloor::MapFamily | EmitOptionFloor::DeclarationFamily
+                EmitOptionFloor::MapFamily
+                    | EmitOptionFloor::MapFamilyWithDeclarationOnly
+                    | EmitOptionFloor::DeclarationFamily
             ) {
                 compiler_options.emit_bom = Some(boolean()?);
             }
         }
         "emitdeclarationonly" => {
-            if floor == EmitOptionFloor::DeclarationFamily {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamilyWithDeclarationOnly | EmitOptionFloor::DeclarationFamily
+            ) {
                 compiler_options.emit_declaration_only = Some(boolean()?);
             }
         }
         "declarationmap" => {
-            if floor == EmitOptionFloor::MapFamily {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+            ) {
                 compiler_options.declaration_map = Some(boolean()?);
             }
         }
         "outfile" => {
-            if floor == EmitOptionFloor::MapFamily {
+            if matches!(
+                floor,
+                EmitOptionFloor::MapFamily | EmitOptionFloor::MapFamilyWithDeclarationOnly
+            ) {
                 compiler_options.out_file = Some(value.to_owned());
             }
         }

@@ -4826,8 +4826,8 @@ impl H2_6cExecutionInputs {
 }
 
 /// The 6c prepare mirrors each frozen execution route. Compiler and
-/// conformance rows use the complete map-family floor; project rows use the
-/// established hermetic project mount, whose descriptor/config projection
+/// conformance rows preserve the map family and declaration-only mode; project
+/// rows use the established hermetic mount, whose descriptor/config projection
 /// already includes the applicable map-family options.
 fn prepare_h2_6c_case(
     workspace: &Path,
@@ -4835,7 +4835,11 @@ fn prepare_h2_6c_case(
     inputs: &H2_6cExecutionInputs,
 ) -> Result<tsc_program::PreparedProgram, Box<dyn Error>> {
     match string(case, "execution_route")? {
-        "qualified-vfs" => case_input_with_floor(workspace, case, EmitOptionFloor::MapFamily),
+        "qualified-vfs" => case_input_with_floor(
+            workspace,
+            case,
+            EmitOptionFloor::MapFamilyWithDeclarationOnly,
+        ),
         "recorded-compiler-plan" => {
             let case_id = string(case, "case_id")?;
             let recorded = inputs
@@ -4854,7 +4858,7 @@ fn prepare_h2_6c_case(
                 workspace,
                 &recorded.plan,
                 limits(),
-                EmitOptionFloor::MapFamily,
+                EmitOptionFloor::MapFamilyWithDeclarationOnly,
             )?)
         }
         "project-mount" => {
