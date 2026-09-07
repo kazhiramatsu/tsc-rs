@@ -39,7 +39,7 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
             checker,
             paths,
             cache: BTreeMap::new(),
-            activity: H2ActivityCanary::h2_7c_profile(),
+            activity: H2ActivityCanary::h2_7e_profile(),
             initial_diagnostics: initial_diagnostics.clone(),
         })
     }
@@ -54,6 +54,17 @@ impl<'session, 'program> DeclarationSession<'session, 'program> {
         selection: EmitSelection,
     ) -> Result<DiagnosticList, DriverError> {
         self.activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
+        let options = self.host.compiler_options();
+        if options
+            .out_file
+            .as_deref()
+            .is_some_and(|path| !path.is_empty())
+        {
+            self.activity.observe_runtime_slice(H2RuntimeSlice::H2_7d);
+        }
+        if options.declaration_map == Some(true) {
+            self.activity.observe_runtime_slice(H2RuntimeSlice::H2_7e);
+        }
         self.declaration_diagnostics(selection)
     }
 

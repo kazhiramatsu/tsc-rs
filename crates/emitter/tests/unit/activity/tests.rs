@@ -555,6 +555,16 @@ fn declaration_profiles_admit_only_their_own_completed_runtime_slices() {
             H2RuntimeSlice::H2_7c,
             28,
         ),
+        (
+            H2ActivityCanary::h2_7d_profile as fn() -> H2ActivityCanary,
+            H2RuntimeSlice::H2_7d,
+            29,
+        ),
+        (
+            H2ActivityCanary::h2_7e_profile as fn() -> H2ActivityCanary,
+            H2RuntimeSlice::H2_7e,
+            30,
+        ),
     ] {
         let mut canary = make_profile();
         let mut count = 0;

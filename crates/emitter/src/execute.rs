@@ -316,7 +316,7 @@ pub fn emit_files(
     diagnostic_gate: &EmitDiagnosticGate,
     sink: &mut dyn OutputSink,
 ) -> Result<EmitOutcome, EmitFailure> {
-    let mut activity = H2ActivityCanary::h2_7c_profile();
+    let mut activity = H2ActivityCanary::h2_7e_profile();
     activity.construct_emit_session();
     activity.construct_output_plan();
     if !preflight.plan().units().is_empty() {
@@ -361,7 +361,7 @@ pub fn print_script_units_with_recording_for_harness(
             .with_target(options.emit_script_target())
             .with_source_file_text_mode(SourceFileTextMode::Canonical),
     );
-    let mut activity = H2ActivityCanary::h2_7c_profile();
+    let mut activity = H2ActivityCanary::h2_7e_profile();
     let mut printed_units = Vec::new();
     for unit in preflight.plan().units() {
         let EmitRoot::SourceFile(source_id) = unit.root() else {
@@ -784,6 +784,19 @@ pub fn emit_files_with_activity(
         return Err(EmitFailure::Unsupported(
             crate::UnsupportedEmitFeature::TargetedSelection,
         ));
+    }
+
+    // Count each validated public request once, before diagnostic gates and
+    // zero-unit exits. Internal noEmitOnError getters do not add another request.
+    if options
+        .out_file
+        .as_deref()
+        .is_some_and(|path| !path.is_empty())
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_7d);
+    }
+    if options.declaration_map == Some(true) {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_7e);
     }
 
     // Newly admitted declaration options require H2.7c even when diagnostics
@@ -1230,11 +1243,21 @@ pub fn emit_forced_declarations_with_activity(
 ) -> Result<EmitOutcome, EmitFailure> {
     validate_forced_declaration_request(host)?;
     activity.observe_runtime_slice(H2RuntimeSlice::H2_7c);
+    let options = host.compiler_options();
+    if options
+        .out_file
+        .as_deref()
+        .is_some_and(|path| !path.is_empty())
+    {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_7d);
+    }
+    if options.declaration_map == Some(true) {
+        activity.observe_runtime_slice(H2RuntimeSlice::H2_7e);
+    }
     let preflight = crate::plan::preflight_forced_declarations(host, selection)?;
     activity.construct_emit_session();
     activity.construct_output_plan();
     let paths = PlanDeclarationPaths::for_declaration_diagnostics(host)?;
-    let options = host.compiler_options();
     let maps_enabled = options.source_map == Some(true)
         || options.inline_source_map == Some(true)
         || (options.declaration_map == Some(true)
