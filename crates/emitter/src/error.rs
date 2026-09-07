@@ -73,6 +73,9 @@ pub enum EmitContractViolation {
     /// A mapped unit's print returned no recorded generator, or the URL
     /// offset left the UTF-16 position domain (h2-6a-m-3).
     SourceMapRecordingUnavailable,
+    /// TypeScript's declaration printer reaches Debug.checkDefined when the
+    /// map flag is on but disabled declarations left no output map path.
+    DeclarationMapPathMissing,
 }
 
 /// Typed failure before or while orchestrating emission.
@@ -120,6 +123,9 @@ impl fmt::Display for EmitFailure {
                 .write_str(
                     "invalid emit execution: a mapped unit produced no source-map recording",
                 ),
+            Self::Contract(EmitContractViolation::DeclarationMapPathMissing) => {
+                formatter.write_str("invalid emit execution: declaration map path is missing")
+            }
             Self::Contract(EmitContractViolation::CheckedSyntaxUnavailable(source)) => write!(
                 formatter,
                 "invalid emit execution: SourceFileId {} has no checked syntax",

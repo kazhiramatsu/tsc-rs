@@ -132,13 +132,6 @@ fn validate_emit_options(
             "allowImportingTsExtensions",
         ),
         (
-            // DeclarationMap without declaration is an ordinary options
-            // diagnostic, not an emit refusal. Getter/force intersections
-            // retain their boundary until the separate API integration.
-            options.declaration_map == Some(true) && operation != EmitOperation::Files,
-            "declarationMap",
-        ),
-        (
             options.stable_type_ordering == Some(true),
             "stableTypeOrdering",
         ),
@@ -1058,7 +1051,12 @@ pub fn emit_forced_declarations_with_activity(
     activity.construct_emit_session();
     activity.construct_output_plan();
     let paths = PlanDeclarationPaths::for_declaration_diagnostics(host)?;
-    let mut artifacts = Vec::new();
+    let options = host.compiler_options();
+    let maps_enabled = options.source_map == Some(true)
+        || options.inline_source_map == Some(true)
+        || (options.declaration_map == Some(true)
+            && (options.declaration == Some(true) || options.composite == Some(true)));
+    let mut source_maps = Vec::new();
     let mut listing = Vec::new();
     let mut diagnostics = Vec::new();
     let mut emit_skipped = false;
@@ -1073,25 +1071,46 @@ pub fn emit_forced_declarations_with_activity(
             .declaration_path()
             .expect("forced plan has a declaration path");
         let declaration = emit_declaration_unit(
-            resolver, host, &preflight, &paths, *source, path, None, activity, true,
+            resolver,
+            host,
+            &preflight,
+            &paths,
+            *source,
+            path,
+            unit.paths().declaration_map_path(),
+            activity,
+            true,
         )?;
         emit_skipped |= declaration.decl_blocked;
         diagnostics.extend(declaration.diagnostics);
-        if let Some(artifact) = declaration.artifact {
+        if let Some(map) = declaration.map_observation {
+            source_maps.push(map);
+        }
+        let printed = declaration.artifact.is_some();
+        let mut artifacts = Vec::new();
+        artifacts.extend(declaration.map_artifact);
+        artifacts.extend(declaration.artifact);
+        // Forced emit follows the per-source write boundary. A later TS
+        // assertion must retain earlier JSON writes instead of discarding a
+        // Program-wide preconstructed artifact vector.
+        let written = write_artifacts(artifacts, sink, &mut diagnostics, activity);
+        if written.contains(path) {
             listing.push(path.to_path_buf());
-            artifacts.push(artifact);
+        }
+        if printed {
+            // This list entry is unconditional even for a JSON source, whose
+            // shouldEmitSourceMaps branch produces no map artifact at all.
+            if let Some(map_path) = unit.paths().declaration_map_path() {
+                listing.push(map_path.to_path_buf());
+            }
         }
     }
-    let written = write_artifacts(artifacts, sink, &mut diagnostics, activity);
-    listing.retain(|path| written.contains(path));
     sort_and_dedupe_diagnostics(&mut diagnostics);
-    let options = host.compiler_options();
     Ok(EmitOutcome::new(
         diagnostics,
         emit_skipped,
         (options.list_emitted_files == Some(true)).then_some(listing),
-        (options.source_map == Some(true) || options.inline_source_map == Some(true))
-            .then(Vec::new),
+        maps_enabled.then_some(source_maps),
         activity.counters(),
     ))
 }

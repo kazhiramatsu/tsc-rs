@@ -713,34 +713,11 @@ fn h2_7e_javascript_and_declaration_map_order_matches_typescript() {
 }
 
 #[test]
-fn h2_7e_getters_forced_and_bundle_maps_keep_typed_boundaries() {
+fn h2_7e_bundle_maps_keep_typed_boundary() {
     let fixture: Value =
         serde_json::from_str(include_str!("fixtures/declaration-maps.json")).unwrap();
     let mut case = fixture["cases"][0].clone();
     let host = memory_host(&case);
-    for declaration in [false, true] {
-        case["options"]["declaration"] = json!(declaration);
-        let error = ProgramSession::new(prepared(&case, &host))
-            .get_declaration_diagnostics(tsc_compiler::EmitSelection::WholeProgram)
-            .unwrap_err();
-        assert!(matches!(
-            error,
-            tsc_compiler::DriverError::Emit(tsc_emitter::EmitFailure::UnsupportedCompilerOption {
-                option: "declarationMap"
-            })
-        ));
-        let mut sink = MemoryOutputSink::new();
-        let error = ProgramSession::new(prepared(&case, &host))
-            .emit_forced_declarations(tsc_compiler::EmitSelection::WholeProgram, &mut sink)
-            .unwrap_err();
-        assert!(matches!(
-            error,
-            tsc_compiler::DriverError::Emit(tsc_emitter::EmitFailure::UnsupportedCompilerOption {
-                option: "declarationMap"
-            })
-        ));
-        assert!(sink.writes().is_empty());
-    }
     case["options"]["declaration"] = json!(true);
     case["options"]["outFile"] = json!("/project/bundle.js");
     let mut sink = MemoryOutputSink::new();

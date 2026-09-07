@@ -236,10 +236,12 @@ pub(crate) fn emit_declaration_unit(
         .with_source_file_text_mode(SourceFileTextMode::Canonical);
     activity.construct_printer();
     let global_name_oracle = ResolverGlobalNameOracle(resolver);
-    let map_lane = crate::execute::map_lane_inputs(host);
-    let recording = declaration_map_path.map(|_| {
+    let recording_enabled =
+        options.declaration_map == Some(true) && !syntax.file_name.ends_with(".json");
+    let map_lane = recording_enabled.then(|| crate::execute::map_lane_inputs(host));
+    let recording = map_lane.as_ref().map(|lane| {
         crate::declaration_map_recording_inputs_for(
-            &map_lane,
+            lane,
             options,
             declaration_path,
             emit_source.path(),
@@ -253,9 +255,14 @@ pub(crate) fn emit_declaration_unit(
     );
     result.dispose();
     let printed = printed?;
-    let (artifact, map_artifact, map_observation) = if let Some(map_path) = declaration_map_path {
+    let (artifact, map_artifact, map_observation) = if let Some(map_lane) = &map_lane {
+        // TS prints before getSourceMappingURL's Debug.checkDefined(mapPath).
+        // Keep that failure distinct from a write error and from map absence.
+        let map_path = declaration_map_path.ok_or(EmitFailure::Contract(
+            crate::EmitContractViolation::DeclarationMapPathMissing,
+        ))?;
         let mapped = crate::finish_declaration_map(
-            &map_lane,
+            map_lane,
             options,
             declaration_path,
             map_path,
