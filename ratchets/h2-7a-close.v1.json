@@ -17,7 +17,7 @@
   },
   "generator": {
     "path": "crates/oracle/h2-7a-close.mjs",
-    "sha256": "8d75517f922c97a1fe807fbefa80ed69a7943751b76c101008bb150868a15c56"
+    "sha256": "92f854f24e2288243a79a4bd96cbb43dce21248051afeea38aadbd69f786081d"
   },
   "contract": {
     "path": ".github/ci/contracts/h2-7a-close.schema.json",
@@ -238,7 +238,7 @@
       "retained_arms": [
         {
           "name": "composite",
-          "line": 149,
+          "line": 151,
           "span_sha256": "6989d50f565df3bc031a11a54a3031588953dc39a9c9f67175c0778cef7416eb"
         }
       ],
@@ -297,5 +297,5 @@
     "eligible_cases": 116,
     "h2_7a_first_blocker_rows": 0
   },
-  "close_fingerprint_sha256": "de669b66d37aa9fba393c13ec32b3b5b9db7c24b0439881503a53ee50a808211"
+  "close_fingerprint_sha256": "5ad8ad2b6fcc789076a9ce31be33302375315e889c59d25a47b4cfd08dea6f75"
 }

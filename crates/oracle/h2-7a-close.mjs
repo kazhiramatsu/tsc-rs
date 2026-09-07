@@ -61,7 +61,7 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
   Object.freeze({
     path: EXECUTE_RELATIVE_PATH,
     historicalSha256: EXPECTED_EXECUTE_SHA256,
-    item: Object.freeze({ name: "validate_emit_options", line: 95 }),
+    item: Object.freeze({ name: "validate_emit_options", line: 97 }),
     arms: Object.freeze([
       // Ordinary maps, getters and forced declarations are observed in E m3/m4.
       // Bundle composition uses the shared production workers; later option
@@ -69,7 +69,7 @@ const RETAINED_SURFACE_SPECS = Object.freeze([
       // The ordinary/getter request flavors share this validator.
       // H2.7c stripInternal, declarationDir and the emitDeclarationOnly
       // prerequisite are covered by focused complete observations.
-      Object.freeze({ name: "composite", line: 149, marker: "(options.composite == Some(true), \"composite\")" }),
+      Object.freeze({ name: "composite", line: 151, marker: "(options.composite == Some(true), \"composite\")" }),
     ]),
   }),
   Object.freeze({
