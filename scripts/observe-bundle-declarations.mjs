@@ -225,6 +225,16 @@ function observeDeclarationTree(input) {
   return { owner: "API1", route: "separate-fresh-Program-forced-afterDeclarations-identity-hook", roots,
     writes, emit_result: resultRecord(result), exception: null };
 }
+function observeOrdinaryDeclarationTree(input) {
+  const { program } = makeProgram(input), roots = [], writes = [];
+  const result = program.emit(undefined, (...args) => writes.push(writeRecord(args, writes.length)), undefined, undefined,
+    { afterDeclarations: [() => node => { roots.push(ts.isBundle(node) ? { kind: "Bundle",
+      synthetic_file_references: references(node.syntheticFileReferences), synthetic_type_references: references(node.syntheticTypeReferences),
+      synthetic_lib_references: references(node.syntheticLibReferences), source_files: node.sourceFiles.map(sourceShape) }
+      : { kind: "SourceFile", source_file: sourceShape(node) }); return node; }] });
+  return { owner: "API1", route: "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+    hook_call_count: roots.length, roots, writes, emit_result: resultRecord(result), exception: null };
+}
 function baselineJoin(input, observation) {
   const first = observation.calls[0];
   if (input.origin.kind === "bundle-plan") {
@@ -247,6 +257,10 @@ for (const [index, input] of inputs.entries()) {
   const observation = observeSequence(input); assert.deepEqual(observeSequence(input), observation, input.case_id);
   baselineJoin(input, observation);
   const tree = observeDeclarationTree(input); assert.deepEqual(observeDeclarationTree(input), tree, input.case_id + " tree reference");
+  const ordinaryTree = observeOrdinaryDeclarationTree(input);
+  assert.deepEqual(observeOrdinaryDeclarationTree(input), ordinaryTree, input.case_id + " ordinary tree reference");
+  const ordinary = observation.calls.find(call => call.kind === "ordinary-command");
+  if (ordinary) { assert.deepEqual(ordinaryTree.writes, ordinary.writes); assert.deepEqual(ordinaryTree.emit_result, ordinary.emit_result); }
   const force = observation.calls.find(call => call.kind === "forced-declarations" && call.target_source === null);
   if (force) { assert.deepEqual(tree.writes, force.writes); assert.deepEqual(tree.emit_result, force.emit_result); }
   for (const call of observation.calls) {
@@ -255,7 +269,8 @@ for (const [index, input] of inputs.entries()) {
     for (const write of call.writes) { assert.equal(Buffer.from(write.callback_utf8_base64, "base64").length, write.callback_utf8_bytes);
       assert.equal(Buffer.from(write.materialized_utf8_base64, "base64").length, write.materialized_utf8_bytes); }
   }
-  rows.push({ ...input, input_sha256: sha256(JSON.stringify(input)), typescript_observation: observation, declaration_tree_reference: tree });
+  rows.push({ ...input, input_sha256: sha256(JSON.stringify(input)), typescript_observation: observation, declaration_tree_reference: tree,
+    ordinary_declaration_tree_reference: ordinaryTree });
   console.log(`${index + 1}/${inputs.length} ${input.case_id}`);
 }
 const cases = rows.filter(row => row.owners.includes("H2.7d")), adjacent = rows.filter(row => !row.owners.includes("H2.7d"));
@@ -266,12 +281,22 @@ const artifact = { schema: 1, kind: "bundle-declarations", status: "typescript-r
   existing_coverage: { bundle_plan_sequences: 55, module_identity_programs: 24, module_identity_api_references: 4,
     module_identity_path_helpers: 14, note: "Existing witnesses retain their original inputs/observations; new sequences reuse four plan inputs and three compound corpus inputs without changes. Module identities are referenced, not recounted as new controls." },
   execution_contract: "Every main sequence repeats on a fresh Program; calls share caches within a sequence. The diagnostic snapshot follows calls. Complete command/emit/getter results preserve bytes, BOM, order, metadata, sourceMaps/list absence, diagnostics, exceptions and partial writes. Declaration tree metadata comes from two additional fresh Programs with a forced identity afterDeclarations hook, remains API1 reference, and matches the main forced tuple wherever present. No TypeScript success becomes Rust admission. Ordinary noEmit and targeted APIs remain H2.9/H2.8d references.",
+  ordinary_tree_execution_contract: "Each input additionally repeats ordinary Program.emit with an identity afterDeclarations hook on two fresh Programs, without prior getters or forced emission. Every ordinary write/result tuple equals the existing ordinary command call where present; hook count zero and roots [] preserve hook absence. The original main sequences and forced tree payload remain SHA256-pinned unchanged. These tree probes remain API1 references and confer no runtime admission.",
   cases, adjacent_owner_references: adjacent,
   summary: { new_controls: 18, reused_plan_sequences: 4, original_compound_sequences: 3, main_sequences: cases.length,
     adjacent_sequences: adjacent.length, calls_per_repetition: rows.reduce((sum,row) => sum + row.calls.length,0),
     exception_calls_per_repetition: rows.reduce((sum,row) => sum + row.typescript_observation.calls.filter(call => call.exception).length,0),
-    fresh_sequence_programs: rows.length * 2, fresh_tree_reference_programs: rows.length * 2, runtime_admitted: 0 } };
+    fresh_sequence_programs: rows.length * 2, fresh_tree_reference_programs: rows.length * 2, runtime_admitted: 0,
+    fresh_ordinary_tree_reference_programs: rows.length * 2 } };
 assert.equal(cases.length,25); assert.equal(adjacent.length,2);
+// Pin every pre-existing payload field except the observer's necessarily new
+// source hash. New observation fields cannot replace historical input/tuples.
+const retained = structuredClone(artifact);
+delete retained.observer; delete retained.ordinary_tree_execution_contract;
+delete retained.summary.fresh_ordinary_tree_reference_programs;
+for (const row of [...retained.cases, ...retained.adjacent_owner_references]) delete row.ordinary_declaration_tree_reference;
+assert.equal(sha256(JSON.stringify(retained)), "b51176a375710c3db4d9068e7832baea6a40174262186b9d897029a4047cd0e5",
+  "existing bundle declaration inputs/main/forced payload changed");
 const rendered = JSON.stringify(artifact, null, 2) + "\n"; assert.ok(!rendered.includes(root));
 if (process.argv[2] === "--write") fs.writeFileSync(path.join(root,fixturePath),rendered);
 else assert.equal(fs.readFileSync(path.join(root,fixturePath),"utf8"),rendered,"bundle declaration fixture is stale");

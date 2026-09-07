@@ -49,6 +49,36 @@ main sequence contains forced whole emit, the probe's full write/result tuple
 must equal that call. Input source facts separately preserve external-module,
 CommonJS, JavaScript, JSON and no-default-lib flags.
 
+The additive ordinary-tree observation is stored separately in
+`ordinary_declaration_tree_reference`. It calls ordinary whole `Program.emit`
+with an identity `afterDeclarations` hook on two more fresh Programs per input,
+with no preceding getter or forced call. Its roots use the same complete tree
+shape, with an explicit `hook_call_count`, full writes/result and nullable
+exception. For all 26 inputs having a main ordinary-command call, its write and
+emit-result tuple must equal that existing call. The remaining H2.8d target
+reference retains its targeted main call; its supplemental tree probe is
+explicitly ordinary whole emit. The probes remain API1 references.
+
+This adds 54 ordinary-tree Programs for 162 fresh Programs per observer run;
+the existing 25 main sequences, two boundary references and 54 forced-tree
+Programs are unchanged. A fixed SHA256 covers every pre-existing artifact
+payload field after removing only the observer identity and the newly added
+ordinary-tree fields. Inputs, call tuples, forced trees, source order and
+historical metadata must remain exactly the prior payload. No input is added
+or changed; all 27 existing inputs have declaration enabled, so the separate
+bundle-plan/API declaration-disabled controls remain their own references.
+
+Ordinary hook absence is `hook_call_count: 0, roots: []` for six inputs:
+`diagnostics/no-emit-on-error`, `diagnostics/semantic-gate`,
+`sequence/adjacent/empty-program`, `sequence/adjacent/declaration-only-input`,
+`sequence/adjacent/declaration-collision#true`, and the H2.9 noEmit reference.
+Conversely, `diagnostics/multiple-files` (two TS4094 errors) and
+`sequence/adjacent/declaration-collision#false` still call the hook once and
+retain their tree even though no declaration file is written. Mixed AMD/System
+ordinary trees exclude JSON; the existing forced trees retain its wrapper.
+Ordinary visitor comparisons must use the new field rather than substituting
+the forced tree based on similar text or options.
+
 The relevant observed behavior is:
 
 - Internal emitted TS path references disappear; external declaration references

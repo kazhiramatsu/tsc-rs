@@ -7,7 +7,7 @@
   "repetitions": 2,
   "observer": {
     "path": "scripts/observe-bundle-declarations.mjs",
-    "sha256": "a6794eedb32dcf226dfe08ea13dcded40b8ae908d3cb83311cf2a4184e415d85"
+    "sha256": "0b48e0dccb570d50f185181aa3cd1e75fcb926def06dad06d04e7efa31ced942"
   },
   "inputs": [
     {
@@ -51,6 +51,7 @@
     "note": "Existing witnesses retain their original inputs/observations; new sequences reuse four plan inputs and three compound corpus inputs without changes. Module identities are referenced, not recounted as new controls."
   },
   "execution_contract": "Every main sequence repeats on a fresh Program; calls share caches within a sequence. The diagnostic snapshot follows calls. Complete command/emit/getter results preserve bytes, BOM, order, metadata, sourceMaps/list absence, diagnostics, exceptions and partial writes. Declaration tree metadata comes from two additional fresh Programs with a forced identity afterDeclarations hook, remains API1 reference, and matches the main forced tuple wherever present. No TypeScript success becomes Rust admission. Ordinary noEmit and targeted APIs remain H2.9/H2.8d references.",
+  "ordinary_tree_execution_contract": "Each input additionally repeats ordinary Program.emit with an identity afterDeclarations hook on two fresh Programs, without prior getters or forced emission. Every ordinary write/result tuple equals the existing ordinary command call where present; hook count zero and roots [] preserve hook absence. The original main sequences and forced tree payload remain SHA256-pinned unchanged. These tree probes remain API1 references and confer no runtime admission.",
   "cases": [
     {
       "case_id": "references/path-shared",
@@ -675,6 +676,196 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/other.d.ts",
+                "preserve": true
+              }
+            ],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/inside.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 25,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 25,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "inside"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 256,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 256,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "a"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/b.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 150,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 150,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "b"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBpbnNpZGUgPSAxOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuL2luc2lkZS50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9kcm9wcGVkLmQudHMiIC8+CmNvbnN0IGEgPSB7IG46IGluc2lkZSB9OwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL290aGVyLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpjb25zdCBiID0geyBuOiAyIH07Cg==",
+            "callback_utf8_bytes": 424,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBpbnNpZGUgPSAxOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuL2luc2lkZS50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9kcm9wcGVkLmQudHMiIC8+CmNvbnN0IGEgPSB7IG46IGluc2lkZSB9OwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL290aGVyLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpjb25zdCBiID0geyBuOiAyIH07Cg==",
+            "materialized_utf8_bytes": 424,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/inside.ts",
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+CmRlY2xhcmUgY29uc3QgaW5zaWRlOiBudW1iZXI7CmRlY2xhcmUgY29uc3QgYTogU2hhcmVkOwpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZDsK",
+            "callback_utf8_bytes": 327,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+CmRlY2xhcmUgY29uc3QgaW5zaWRlOiBudW1iZXI7CmRlY2xhcmUgY29uc3QgYTogU2hhcmVkOwpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZDsK",
+            "materialized_utf8_bytes": 327,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/inside.ts",
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -1128,6 +1319,196 @@
           "emit_skipped": false,
           "diagnostics": [],
           "emitted_files": [
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/other.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              }
+            ],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/b.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 150,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 150,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "b"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/inside.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 25,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 25,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "inside"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 256,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 256,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "a"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL290aGVyLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpjb25zdCBiID0geyBuOiAyIH07CmNvbnN0IGluc2lkZSA9IDE7Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4vaW5zaWRlLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL2Ryb3BwZWQuZC50cyIgLz4KY29uc3QgYSA9IHsgbjogaW5zaWRlIH07Cg==",
+            "callback_utf8_bytes": 424,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL290aGVyLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpjb25zdCBiID0geyBuOiAyIH07CmNvbnN0IGluc2lkZSA9IDE7Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4vaW5zaWRlLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL2Ryb3BwZWQuZC50cyIgLz4KY29uc3QgYSA9IHsgbjogaW5zaWRlIH07Cg==",
+            "materialized_utf8_bytes": 424,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts",
+              "/project/src/inside.ts",
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9vdGhlci5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+CmRlY2xhcmUgY29uc3QgYjogU2hhcmVkOwpkZWNsYXJlIGNvbnN0IGluc2lkZTogbnVtYmVyOwpkZWNsYXJlIGNvbnN0IGE6IFNoYXJlZDsK",
+            "callback_utf8_bytes": 327,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9vdGhlci5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+CmRlY2xhcmUgY29uc3QgYjogU2hhcmVkOwpkZWNsYXJlIGNvbnN0IGluc2lkZTogbnVtYmVyOwpkZWNsYXJlIGNvbnN0IGE6IFNoYXJlZDsK",
+            "materialized_utf8_bytes": 327,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts",
+              "/project/src/inside.ts",
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
             "/project/dist/bundle.d.ts"
           ],
           "source_maps": null
@@ -1613,6 +1994,196 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../../types/other.d.ts",
+                "preserve": true
+              }
+            ],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/inside.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 25,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 25,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "inside"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 256,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 256,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "a"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/b.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 150,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 150,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "b"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/out/nested/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY29uc3QgaW5zaWRlID0gMTsNCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4vaW5zaWRlLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4NCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4NCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4NCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL2Ryb3BwZWQuZC50cyIgLz4NCmNvbnN0IGEgPSB7IG46IGluc2lkZSB9Ow0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPg0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+DQpjb25zdCBiID0geyBuOiAyIH07DQo=",
+            "callback_utf8_bytes": 434,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/InVzZSBzdHJpY3QiOw0KY29uc3QgaW5zaWRlID0gMTsNCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4vaW5zaWRlLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4NCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4NCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4NCi8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL2Ryb3BwZWQuZC50cyIgLz4NCmNvbnN0IGEgPSB7IG46IGluc2lkZSB9Ow0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPg0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+DQpjb25zdCBiID0geyBuOiAyIH07DQo=",
+            "materialized_utf8_bytes": 437,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/inside.ts",
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/out/nested/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPg0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPg0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPg0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+DQpkZWNsYXJlIGNvbnN0IGluc2lkZTogbnVtYmVyOw0KZGVjbGFyZSBjb25zdCBhOiBTaGFyZWQ7DQpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZDsNCg==",
+            "callback_utf8_bytes": 346,
+            "write_byte_order_mark": true,
+            "materialized_utf8_base64": "77u/Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPg0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPg0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPg0KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+DQpkZWNsYXJlIGNvbnN0IGluc2lkZTogbnVtYmVyOw0KZGVjbGFyZSBjb25zdCBhOiBTaGFyZWQ7DQpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZDsNCg==",
+            "materialized_utf8_bytes": 349,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/inside.ts",
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/out/nested/bundle.js",
+            "/project/out/nested/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -2038,6 +2609,114 @@
           "emit_skipped": false,
           "diagnostics": [],
           "emitted_files": [
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../src/external.d.ts",
+                "preserve": true
+              }
+            ],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/main.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 78,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 78,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "main"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuL2V4dGVybmFsLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KY29uc3QgbWFpbiA9IDE7Cg==",
+            "callback_utf8_bytes": 85,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuL2V4dGVybmFsLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KY29uc3QgbWFpbiA9IDE7Cg==",
+            "materialized_utf8_bytes": 85,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vc3JjL2V4dGVybmFsLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpkZWNsYXJlIGNvbnN0IG1haW46IG51bWJlcjsK",
+            "callback_utf8_bytes": 90,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vc3JjL2V4dGVybmFsLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpkZWNsYXJlIGNvbnN0IG1haW46IG51bWJlcjsK",
+            "materialized_utf8_bytes": 90,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
             "/project/dist/bundle.d.ts"
           ],
           "source_maps": null
@@ -2527,6 +3206,196 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/other.d.ts",
+                "preserve": true
+              }
+            ],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/inside.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 25,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 25,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "inside"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 256,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 256,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "a"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/b.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 213,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 213,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "b"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBpbnNpZGUgPSAxOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuL2luc2lkZS50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9kcm9wcGVkLmQudHMiIC8+CmNvbnN0IGEgPSB7IG46IGluc2lkZSB9OwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9taXNzaW5nLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL290aGVyLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpjb25zdCBiID0geyBuOiAyIH07Cg==",
+            "callback_utf8_bytes": 487,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBpbnNpZGUgPSAxOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuL2luc2lkZS50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9kcm9wcGVkLmQudHMiIC8+CmNvbnN0IGEgPSB7IG46IGluc2lkZSB9OwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9taXNzaW5nLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL290aGVyLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpjb25zdCBiID0geyBuOiAyIH07Cg==",
+            "materialized_utf8_bytes": 487,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/inside.ts",
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+CmRlY2xhcmUgY29uc3QgaW5zaWRlOiBudW1iZXI7CmRlY2xhcmUgY29uc3QgYTogU2hhcmVkOwpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZDsK",
+            "callback_utf8_bytes": 327,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+CmRlY2xhcmUgY29uc3QgaW5zaWRlOiBudW1iZXI7CmRlY2xhcmUgY29uc3QgYTogU2hhcmVkOwpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZDsK",
+            "materialized_utf8_bytes": 327,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/inside.ts",
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -2916,6 +3785,174 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 99,
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 1,
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 99,
+                "preserve": true
+              }
+            ],
+            "synthetic_lib_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "es2015",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "es2015",
+                "preserve": true
+              }
+            ],
+            "source_files": [
+              {
+                "file_name": "/project/src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 152,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 152,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "a"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/b.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 258,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 258,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "b"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KY29uc3QgYSA9IHsgbjogMSB9OwovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9InJlcXVpcmUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTYiIC8+CmNvbnN0IGIgPSB7IG46IDIgfTsK",
+            "callback_utf8_bytes": 402,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KY29uc3QgYSA9IHsgbjogMSB9OwovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9InJlcXVpcmUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTYiIC8+CmNvbnN0IGIgPSB7IG46IDIgfTsK",
+            "materialized_utf8_bytes": 402,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJpbXBvcnQiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9InJlcXVpcmUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTUiIHByZXNlcnZlPSJ0cnVlIiAvPgpkZWNsYXJlIGNvbnN0IGE6IFNoYXJlZFR5cGU7CmRlY2xhcmUgY29uc3QgYjogU2hhcmVkVHlwZTsK",
+            "callback_utf8_bytes": 375,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJpbXBvcnQiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9InJlcXVpcmUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTUiIHByZXNlcnZlPSJ0cnVlIiAvPgpkZWNsYXJlIGNvbnN0IGE6IFNoYXJlZFR5cGU7CmRlY2xhcmUgY29uc3QgYjogU2hhcmVkVHlwZTsK",
+            "materialized_utf8_bytes": 375,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -3300,6 +4337,174 @@
           "emit_skipped": false,
           "diagnostics": [],
           "emitted_files": [
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 1,
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 99,
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 99,
+                "preserve": true
+              }
+            ],
+            "synthetic_lib_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "es2015",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "es2015",
+                "preserve": true
+              }
+            ],
+            "source_files": [
+              {
+                "file_name": "/project/src/b.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 258,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 258,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "b"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 152,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 152,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "a"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9InJlcXVpcmUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTYiIC8+CmNvbnN0IGIgPSB7IG46IDIgfTsKLy8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJpbXBvcnQiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBsaWI9ImVzMjAxNSIgcHJlc2VydmU9InRydWUiIC8+CmNvbnN0IGEgPSB7IG46IDEgfTsK",
+            "callback_utf8_bytes": 402,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9InJlcXVpcmUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTYiIC8+CmNvbnN0IGIgPSB7IG46IDIgfTsKLy8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJpbXBvcnQiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBsaWI9ImVzMjAxNSIgcHJlc2VydmU9InRydWUiIC8+CmNvbnN0IGEgPSB7IG46IDEgfTsK",
+            "materialized_utf8_bytes": 402,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts",
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJyZXF1aXJlIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJpbXBvcnQiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTUiIHByZXNlcnZlPSJ0cnVlIiAvPgpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZFR5cGU7CmRlY2xhcmUgY29uc3QgYTogU2hhcmVkVHlwZTsK",
+            "callback_utf8_bytes": 375,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJyZXF1aXJlIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJpbXBvcnQiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTUiIHByZXNlcnZlPSJ0cnVlIiAvPgpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZFR5cGU7CmRlY2xhcmUgY29uc3QgYTogU2hhcmVkVHlwZTsK",
+            "materialized_utf8_bytes": 375,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/b.ts",
+              "/project/src/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
             "/project/dist/bundle.d.ts"
           ],
           "source_maps": null
@@ -3743,6 +4948,228 @@
           "emit_skipped": false,
           "diagnostics": [],
           "emitted_files": [
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 99,
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 1,
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "shared",
+                "resolutionMode": 99,
+                "preserve": true
+              }
+            ],
+            "synthetic_lib_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "es2015",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "es2015",
+                "preserve": true
+              }
+            ],
+            "source_files": [
+              {
+                "file_name": "/project/src/a.ts",
+                "is_declaration_file": true,
+                "module_name": "public/a",
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "public/a",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 241,
+                        "statements": [
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 0,
+                            "end": 227,
+                            "name": null,
+                            "modifiers": [],
+                            "declaration_names": [
+                              "a"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "ExportDeclaration",
+                            "pos": 227,
+                            "end": 241,
+                            "name": null,
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/b.ts",
+                "is_declaration_file": true,
+                "module_name": "public/b",
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "public/b",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 307,
+                        "statements": [
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 0,
+                            "end": 293,
+                            "name": null,
+                            "modifiers": [],
+                            "declaration_names": [
+                              "b"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "ExportDeclaration",
+                            "pos": 293,
+                            "end": 307,
+                            "name": null,
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZGVmaW5lKCJwdWJsaWMvYSIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hID0gdm9pZCAwOwogICAgLy8vIDxhbWQtbW9kdWxlIG5hbWU9InB1YmxpYy9hIiAvPgogICAgLy8vIDxyZWZlcmVuY2Ugbm8tZGVmYXVsdC1saWI9InRydWUiIC8+CiAgICAvLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+CiAgICAvLy8gPHJlZmVyZW5jZSBsaWI9ImVzMjAxNSIgcHJlc2VydmU9InRydWUiIC8+CiAgICBjb25zdCBhID0geyBuOiAxIH07CiAgICBleHBvcnRzLmEgPSBhOwp9KTsKZGVmaW5lKCJwdWJsaWMvYiIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5iID0gdm9pZCAwOwogICAgLy8vIDxhbWQtbW9kdWxlIG5hbWU9InB1YmxpYy9iIiAvPgogICAgLy8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJyZXF1aXJlIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KICAgIC8vLyA8cmVmZXJlbmNlIHR5cGVzPSJzaGFyZWQiIHJlc29sdXRpb24tbW9kZT0iaW1wb3J0IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KICAgIC8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KICAgIC8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE2IiAvPgogICAgY29uc3QgYiA9IHsgbjogMiB9OwogICAgZXhwb3J0cy5iID0gYjsKfSk7Cg==",
+            "callback_utf8_bytes": 952,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKCJwdWJsaWMvYSIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hID0gdm9pZCAwOwogICAgLy8vIDxhbWQtbW9kdWxlIG5hbWU9InB1YmxpYy9hIiAvPgogICAgLy8vIDxyZWZlcmVuY2Ugbm8tZGVmYXVsdC1saWI9InRydWUiIC8+CiAgICAvLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+CiAgICAvLy8gPHJlZmVyZW5jZSBsaWI9ImVzMjAxNSIgcHJlc2VydmU9InRydWUiIC8+CiAgICBjb25zdCBhID0geyBuOiAxIH07CiAgICBleHBvcnRzLmEgPSBhOwp9KTsKZGVmaW5lKCJwdWJsaWMvYiIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5iID0gdm9pZCAwOwogICAgLy8vIDxhbWQtbW9kdWxlIG5hbWU9InB1YmxpYy9iIiAvPgogICAgLy8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJyZXF1aXJlIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KICAgIC8vLyA8cmVmZXJlbmNlIHR5cGVzPSJzaGFyZWQiIHJlc29sdXRpb24tbW9kZT0iaW1wb3J0IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KICAgIC8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KICAgIC8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE2IiAvPgogICAgY29uc3QgYiA9IHsgbjogMiB9OwogICAgZXhwb3J0cy5iID0gYjsKfSk7Cg==",
+            "materialized_utf8_bytes": 952,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJpbXBvcnQiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9InJlcXVpcmUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPGFtZC1tb2R1bGUgbmFtZT0icHVibGljL2EiIC8+CmRlY2xhcmUgbW9kdWxlICJwdWJsaWMvYSIgewogICAgY29uc3QgYTogU2hhcmVkVHlwZTsKICAgIGV4cG9ydCB7IGEgfTsKfQovLy8gPGFtZC1tb2R1bGUgbmFtZT0icHVibGljL2IiIC8+CmRlY2xhcmUgbW9kdWxlICJwdWJsaWMvYiIgewogICAgY29uc3QgYjogU2hhcmVkVHlwZTsKICAgIGV4cG9ydCB7IGIgfTsKfQo=",
+            "callback_utf8_bytes": 533,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgdHlwZXM9InNoYXJlZCIgcmVzb2x1dGlvbi1tb2RlPSJpbXBvcnQiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9InJlcXVpcmUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSB0eXBlcz0ic2hhcmVkIiByZXNvbHV0aW9uLW1vZGU9ImltcG9ydCIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIGxpYj0iZXMyMDE1IiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgbGliPSJlczIwMTUiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPGFtZC1tb2R1bGUgbmFtZT0icHVibGljL2EiIC8+CmRlY2xhcmUgbW9kdWxlICJwdWJsaWMvYSIgewogICAgY29uc3QgYTogU2hhcmVkVHlwZTsKICAgIGV4cG9ydCB7IGEgfTsKfQovLy8gPGFtZC1tb2R1bGUgbmFtZT0icHVibGljL2IiIC8+CmRlY2xhcmUgbW9kdWxlICJwdWJsaWMvYiIgewogICAgY29uc3QgYjogU2hhcmVkVHlwZTsKICAgIGV4cG9ydCB7IGIgfTsKfQo=",
+            "materialized_utf8_bytes": 533,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
             "/project/dist/bundle.d.ts"
           ],
           "source_maps": null
@@ -4347,6 +5774,206 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/global.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 30,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 30,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "globalValue"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/module.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "module",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 37,
+                        "statements": [
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 0,
+                            "end": 37,
+                            "name": null,
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": [
+                              "moduleValue"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/common.js",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "common",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 92,
+                        "statements": [
+                          {
+                            "kind": "FunctionDeclaration",
+                            "pos": 0,
+                            "end": 71,
+                            "name": "make",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBnbG9iYWxWYWx1ZSA9IDE7CmRlZmluZSgibW9kdWxlIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLm1vZHVsZVZhbHVlID0gdm9pZCAwOwogICAgZXhwb3J0cy5tb2R1bGVWYWx1ZSA9IDI7Cn0pOwovKiogQHBhcmFtIHtudW1iZXJ9IHZhbHVlICovCmZ1bmN0aW9uIG1ha2UodmFsdWUpIHsgcmV0dXJuIHsgdmFsdWUgfTsgfQpleHBvcnRzLm1ha2UgPSBtYWtlOwpkZWZpbmUoImRhdGEiLCBbXSwgeyAidmFsdWUiOiAxLCAibmFtZSI6ICLmlofwn5iAIiB9KTsK",
+            "callback_utf8_bytes": 408,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBnbG9iYWxWYWx1ZSA9IDE7CmRlZmluZSgibW9kdWxlIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLm1vZHVsZVZhbHVlID0gdm9pZCAwOwogICAgZXhwb3J0cy5tb2R1bGVWYWx1ZSA9IDI7Cn0pOwovKiogQHBhcmFtIHtudW1iZXJ9IHZhbHVlICovCmZ1bmN0aW9uIG1ha2UodmFsdWUpIHsgcmV0dXJuIHsgdmFsdWUgfTsgfQpleHBvcnRzLm1ha2UgPSBtYWtlOwpkZWZpbmUoImRhdGEiLCBbXSwgeyAidmFsdWUiOiAxLCAibmFtZSI6ICLmlofwn5iAIiB9KTsK",
+            "materialized_utf8_bytes": 408,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/global.ts",
+              "/project/src/module.ts",
+              "/project/src/common.js",
+              "/project/src/data.json"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjb25zdCBnbG9iYWxWYWx1ZTogbnVtYmVyOwpkZWNsYXJlIG1vZHVsZSAibW9kdWxlIiB7CiAgICBleHBvcnQgY29uc3QgbW9kdWxlVmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiY29tbW9uIiB7CiAgICAvKiogQHBhcmFtIHtudW1iZXJ9IHZhbHVlICovCiAgICBleHBvcnQgZnVuY3Rpb24gbWFrZSh2YWx1ZTogbnVtYmVyKTogewogICAgICAgIHZhbHVlOiBudW1iZXI7CiAgICB9Owp9Cg==",
+            "callback_utf8_bytes": 235,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCBnbG9iYWxWYWx1ZTogbnVtYmVyOwpkZWNsYXJlIG1vZHVsZSAibW9kdWxlIiB7CiAgICBleHBvcnQgY29uc3QgbW9kdWxlVmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAiY29tbW9uIiB7CiAgICAvKiogQHBhcmFtIHtudW1iZXJ9IHZhbHVlICovCiAgICBleHBvcnQgZnVuY3Rpb24gbWFrZSh2YWx1ZTogbnVtYmVyKTogewogICAgICAgIHZhbHVlOiBudW1iZXI7CiAgICB9Owp9Cg==",
+            "materialized_utf8_bytes": 235,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/global.ts",
+              "/project/src/module.ts",
+              "/project/src/common.js"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -4831,6 +6458,206 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/common.js",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "common",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 92,
+                        "statements": [
+                          {
+                            "kind": "FunctionDeclaration",
+                            "pos": 0,
+                            "end": 71,
+                            "name": "make",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/module.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "module",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 37,
+                        "statements": [
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 0,
+                            "end": 37,
+                            "name": null,
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": [
+                              "moduleValue"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/global.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 30,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 30,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "globalValue"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwp7ICJ2YWx1ZSI6IDEsICJuYW1lIjogIuaWh/CfmIAiIH0KLyoqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZSAqLwpmdW5jdGlvbiBtYWtlKHZhbHVlKSB7IHJldHVybiB7IHZhbHVlIH07IH0KZXhwb3J0cy5tYWtlID0gbWFrZTsKU3lzdGVtLnJlZ2lzdGVyKCJtb2R1bGUiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgbW9kdWxlVmFsdWU7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoIm1vZHVsZVZhbHVlIiwgbW9kdWxlVmFsdWUgPSAyKTsKICAgICAgICB9CiAgICB9Owp9KTsKY29uc3QgZ2xvYmFsVmFsdWUgPSAxOwo=",
+            "callback_utf8_bytes": 458,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwp7ICJ2YWx1ZSI6IDEsICJuYW1lIjogIuaWh/CfmIAiIH0KLyoqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZSAqLwpmdW5jdGlvbiBtYWtlKHZhbHVlKSB7IHJldHVybiB7IHZhbHVlIH07IH0KZXhwb3J0cy5tYWtlID0gbWFrZTsKU3lzdGVtLnJlZ2lzdGVyKCJtb2R1bGUiLCBbXSwgZnVuY3Rpb24gKGV4cG9ydHNfMSwgY29udGV4dF8xKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICB2YXIgbW9kdWxlVmFsdWU7CiAgICB2YXIgX19tb2R1bGVOYW1lID0gY29udGV4dF8xICYmIGNvbnRleHRfMS5pZDsKICAgIHJldHVybiB7CiAgICAgICAgc2V0dGVyczogW10sCiAgICAgICAgZXhlY3V0ZTogZnVuY3Rpb24gKCkgewogICAgICAgICAgICBleHBvcnRzXzEoIm1vZHVsZVZhbHVlIiwgbW9kdWxlVmFsdWUgPSAyKTsKICAgICAgICB9CiAgICB9Owp9KTsKY29uc3QgZ2xvYmFsVmFsdWUgPSAxOwo=",
+            "materialized_utf8_bytes": 458,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/data.json",
+              "/project/src/common.js",
+              "/project/src/module.ts",
+              "/project/src/global.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImNvbW1vbiIgewogICAgLyoqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZSAqLwogICAgZXhwb3J0IGZ1bmN0aW9uIG1ha2UodmFsdWU6IG51bWJlcik6IHsKICAgICAgICB2YWx1ZTogbnVtYmVyOwogICAgfTsKfQpkZWNsYXJlIG1vZHVsZSAibW9kdWxlIiB7CiAgICBleHBvcnQgY29uc3QgbW9kdWxlVmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIGNvbnN0IGdsb2JhbFZhbHVlOiBudW1iZXI7Cg==",
+            "callback_utf8_bytes": 235,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImNvbW1vbiIgewogICAgLyoqIEBwYXJhbSB7bnVtYmVyfSB2YWx1ZSAqLwogICAgZXhwb3J0IGZ1bmN0aW9uIG1ha2UodmFsdWU6IG51bWJlcik6IHsKICAgICAgICB2YWx1ZTogbnVtYmVyOwogICAgfTsKfQpkZWNsYXJlIG1vZHVsZSAibW9kdWxlIiB7CiAgICBleHBvcnQgY29uc3QgbW9kdWxlVmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIGNvbnN0IGdsb2JhbFZhbHVlOiBudW1iZXI7Cg==",
+            "materialized_utf8_bytes": 235,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/common.js",
+              "/project/src/module.ts",
+              "/project/src/global.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -5255,6 +7082,257 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/ambient.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 64,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": 0,
+                      "end": 64,
+                      "name": "pkg",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 22,
+                        "end": 62,
+                        "statements": [
+                          {
+                            "kind": "InterfaceDeclaration",
+                            "pos": 22,
+                            "end": 62,
+                            "name": "Shape",
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/dep.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "dep",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 40,
+                        "statements": [
+                          {
+                            "kind": "InterfaceDeclaration",
+                            "pos": 0,
+                            "end": 40,
+                            "name": "Shape",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/main.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "main",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 145,
+                        "statements": [
+                          {
+                            "kind": "ImportDeclaration",
+                            "pos": 0,
+                            "end": 30,
+                            "name": null,
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": "dep",
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "ModuleDeclaration",
+                            "pos": 30,
+                            "end": 91,
+                            "name": "dep",
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": {
+                              "pos": 55,
+                              "end": 89,
+                              "statements": [
+                                {
+                                  "kind": "InterfaceDeclaration",
+                                  "pos": 55,
+                                  "end": 89,
+                                  "name": "Shape",
+                                  "modifiers": null,
+                                  "declaration_names": null,
+                                  "module_specifier": null,
+                                  "empty_export": false,
+                                  "body": null
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 91,
+                            "end": 145,
+                            "name": null,
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": [
+                              "value"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpkZWZpbmUoImRlcCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp9KTsKZGVmaW5lKCJtYWluIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwogICAgZXhwb3J0cy52YWx1ZSA9IHsgdmFsdWU6IDEsIGV4dHJhOiAieCIgfTsKfSk7Cg==",
+            "callback_utf8_bytes": 403,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpkZWZpbmUoImRlcCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp9KTsKZGVmaW5lKCJtYWluIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLnZhbHVlID0gdm9pZCAwOwogICAgZXhwb3J0cy52YWx1ZSA9IHsgdmFsdWU6IDEsIGV4dHJhOiAieCIgfTsKfSk7Cg==",
+            "materialized_utf8_bytes": 403,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/ambient.ts",
+              "/project/src/dep.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgInBrZyIgewogICAgaW50ZXJmYWNlIFNoYXBlIHsKICAgICAgICBzaXplOiBudW1iZXI7CiAgICB9Cn0KZGVjbGFyZSBtb2R1bGUgImRlcCIgewogICAgZXhwb3J0IGludGVyZmFjZSBTaGFwZSB7CiAgICAgICAgdmFsdWU6IG51bWJlcjsKICAgIH0KfQpkZWNsYXJlIG1vZHVsZSAibWFpbiIgewogICAgaW1wb3J0IHsgU2hhcGUgfSBmcm9tICJkZXAiOwogICAgbW9kdWxlICJkZXAiIHsKICAgICAgICBpbnRlcmZhY2UgU2hhcGUgewogICAgICAgICAgICBleHRyYTogc3RyaW5nOwogICAgICAgIH0KICAgIH0KICAgIGV4cG9ydCBjb25zdCB2YWx1ZTogU2hhcGU7Cn0K",
+            "callback_utf8_bytes": 336,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgInBrZyIgewogICAgaW50ZXJmYWNlIFNoYXBlIHsKICAgICAgICBzaXplOiBudW1iZXI7CiAgICB9Cn0KZGVjbGFyZSBtb2R1bGUgImRlcCIgewogICAgZXhwb3J0IGludGVyZmFjZSBTaGFwZSB7CiAgICAgICAgdmFsdWU6IG51bWJlcjsKICAgIH0KfQpkZWNsYXJlIG1vZHVsZSAibWFpbiIgewogICAgaW1wb3J0IHsgU2hhcGUgfSBmcm9tICJkZXAiOwogICAgbW9kdWxlICJkZXAiIHsKICAgICAgICBpbnRlcmZhY2UgU2hhcGUgewogICAgICAgICAgICBleHRyYTogc3RyaW5nOwogICAgICAgIH0KICAgIH0KICAgIGV4cG9ydCBjb25zdCB2YWx1ZTogU2hhcGU7Cn0K",
+            "materialized_utf8_bytes": 336,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/ambient.ts",
+              "/project/src/dep.ts",
+              "/project/src/main.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -5524,6 +7602,125 @@
           "emit_skipped": false,
           "diagnostics": [],
           "emitted_files": [
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/module.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "module",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 50,
+                        "statements": []
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/global.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 49,
+                  "nodes": []
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpkZWZpbmUoIm1vZHVsZSIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5yZW1vdmVkID0gdm9pZCAwOwogICAgLyoqIEBpbnRlcm5hbCAqLyBleHBvcnRzLnJlbW92ZWQgPSAxOwp9KTsKLyoqIEBpbnRlcm5hbCAqLyBjb25zdCByZW1vdmVkR2xvYmFsID0gMjsK",
+            "callback_utf8_bytes": 288,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpkZWZpbmUoIm1vZHVsZSIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5yZW1vdmVkID0gdm9pZCAwOwogICAgLyoqIEBpbnRlcm5hbCAqLyBleHBvcnRzLnJlbW92ZWQgPSAxOwp9KTsKLyoqIEBpbnRlcm5hbCAqLyBjb25zdCByZW1vdmVkR2xvYmFsID0gMjsK",
+            "materialized_utf8_bytes": 288,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/module.ts",
+              "/project/src/global.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgIm1vZHVsZSIgeyB9Cg==",
+            "callback_utf8_bytes": 28,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgIm1vZHVsZSIgeyB9Cg==",
+            "materialized_utf8_bytes": 28,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/module.ts",
+              "/project/src/global.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
             "/project/dist/bundle.d.ts"
           ],
           "source_maps": null
@@ -6075,6 +8272,212 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/painted.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "painted",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 91,
+                        "statements": [
+                          {
+                            "kind": "ClassDeclaration",
+                            "pos": 0,
+                            "end": 35,
+                            "name": "Hidden",
+                            "modifiers": [],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "FunctionDeclaration",
+                            "pos": 35,
+                            "end": 91,
+                            "name": "make",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/plain.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "plain",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 42,
+                        "statements": [
+                          {
+                            "kind": "InterfaceDeclaration",
+                            "pos": 0,
+                            "end": 42,
+                            "name": "Visible",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/global.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 35,
+                  "nodes": [
+                    {
+                      "kind": "ClassDeclaration",
+                      "pos": 0,
+                      "end": 35,
+                      "name": "Global",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpkZWZpbmUoInBhaW50ZWQiLCBbInJlcXVpcmUiLCAiZXhwb3J0cyJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cykgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMubWFrZSA9IG1ha2U7CiAgICBjbGFzcyBIaWRkZW4gewogICAgICAgIGNvbnN0cnVjdG9yKCkgewogICAgICAgICAgICB0aGlzLnZhbHVlID0gMTsKICAgICAgICB9CiAgICB9CiAgICBmdW5jdGlvbiBtYWtlKCkgeyByZXR1cm4gbmV3IEhpZGRlbigpOyB9Cn0pOwpkZWZpbmUoInBsYWluIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7Cn0pOwpjbGFzcyBHbG9iYWwgewogICAgY29uc3RydWN0b3IoKSB7CiAgICAgICAgdGhpcy52YWx1ZSA9IDM7CiAgICB9Cn0K",
+            "callback_utf8_bytes": 558,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpkZWZpbmUoInBhaW50ZWQiLCBbInJlcXVpcmUiLCAiZXhwb3J0cyJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cykgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMubWFrZSA9IG1ha2U7CiAgICBjbGFzcyBIaWRkZW4gewogICAgICAgIGNvbnN0cnVjdG9yKCkgewogICAgICAgICAgICB0aGlzLnZhbHVlID0gMTsKICAgICAgICB9CiAgICB9CiAgICBmdW5jdGlvbiBtYWtlKCkgeyByZXR1cm4gbmV3IEhpZGRlbigpOyB9Cn0pOwpkZWZpbmUoInBsYWluIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7Cn0pOwpjbGFzcyBHbG9iYWwgewogICAgY29uc3RydWN0b3IoKSB7CiAgICAgICAgdGhpcy52YWx1ZSA9IDM7CiAgICB9Cn0K",
+            "materialized_utf8_bytes": 558,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/painted.ts",
+              "/project/src/plain.ts",
+              "/project/src/global.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgInBhaW50ZWQiIHsKICAgIGNsYXNzIEhpZGRlbiB7CiAgICAgICAgdmFsdWU6IG51bWJlcjsKICAgIH0KICAgIGV4cG9ydCBmdW5jdGlvbiBtYWtlKCk6IEhpZGRlbjsKfQpkZWNsYXJlIG1vZHVsZSAicGxhaW4iIHsKICAgIGV4cG9ydCBpbnRlcmZhY2UgVmlzaWJsZSB7CiAgICAgICAgdmFsdWU6IG51bWJlcjsKICAgIH0KfQpkZWNsYXJlIGNsYXNzIEdsb2JhbCB7CiAgICB2YWx1ZTogbnVtYmVyOwp9Cg==",
+            "callback_utf8_bytes": 244,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgInBhaW50ZWQiIHsKICAgIGNsYXNzIEhpZGRlbiB7CiAgICAgICAgdmFsdWU6IG51bWJlcjsKICAgIH0KICAgIGV4cG9ydCBmdW5jdGlvbiBtYWtlKCk6IEhpZGRlbjsKfQpkZWNsYXJlIG1vZHVsZSAicGxhaW4iIHsKICAgIGV4cG9ydCBpbnRlcmZhY2UgVmlzaWJsZSB7CiAgICAgICAgdmFsdWU6IG51bWJlcjsKICAgIH0KfQpkZWNsYXJlIGNsYXNzIEdsb2JhbCB7CiAgICB2YWx1ZTogbnVtYmVyOwp9Cg==",
+            "materialized_utf8_bytes": 244,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/painted.ts",
+              "/project/src/plain.ts",
+              "/project/src/global.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -6621,6 +9024,212 @@
           "emit_skipped": false,
           "diagnostics": [],
           "emitted_files": [
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/global.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 35,
+                  "nodes": [
+                    {
+                      "kind": "ClassDeclaration",
+                      "pos": 0,
+                      "end": 35,
+                      "name": "Global",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/plain.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "plain",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 42,
+                        "statements": [
+                          {
+                            "kind": "InterfaceDeclaration",
+                            "pos": 0,
+                            "end": 42,
+                            "name": "Visible",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/painted.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "painted",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 91,
+                        "statements": [
+                          {
+                            "kind": "ClassDeclaration",
+                            "pos": 0,
+                            "end": 35,
+                            "name": "Hidden",
+                            "modifiers": [],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "FunctionDeclaration",
+                            "pos": 35,
+                            "end": 91,
+                            "name": "make",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjbGFzcyBHbG9iYWwgewogICAgY29uc3RydWN0b3IoKSB7CiAgICAgICAgdGhpcy52YWx1ZSA9IDM7CiAgICB9Cn0KZGVmaW5lKCJwbGFpbiIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp9KTsKZGVmaW5lKCJwYWludGVkIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLm1ha2UgPSBtYWtlOwogICAgY2xhc3MgSGlkZGVuIHsKICAgICAgICBjb25zdHJ1Y3RvcigpIHsKICAgICAgICAgICAgdGhpcy52YWx1ZSA9IDE7CiAgICAgICAgfQogICAgfQogICAgZnVuY3Rpb24gbWFrZSgpIHsgcmV0dXJuIG5ldyBIaWRkZW4oKTsgfQp9KTsK",
+            "callback_utf8_bytes": 558,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjbGFzcyBHbG9iYWwgewogICAgY29uc3RydWN0b3IoKSB7CiAgICAgICAgdGhpcy52YWx1ZSA9IDM7CiAgICB9Cn0KZGVmaW5lKCJwbGFpbiIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp9KTsKZGVmaW5lKCJwYWludGVkIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLm1ha2UgPSBtYWtlOwogICAgY2xhc3MgSGlkZGVuIHsKICAgICAgICBjb25zdHJ1Y3RvcigpIHsKICAgICAgICAgICAgdGhpcy52YWx1ZSA9IDE7CiAgICAgICAgfQogICAgfQogICAgZnVuY3Rpb24gbWFrZSgpIHsgcmV0dXJuIG5ldyBIaWRkZW4oKTsgfQp9KTsK",
+            "materialized_utf8_bytes": 558,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/global.ts",
+              "/project/src/plain.ts",
+              "/project/src/painted.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBHbG9iYWwgewogICAgdmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAicGxhaW4iIHsKICAgIGV4cG9ydCBpbnRlcmZhY2UgVmlzaWJsZSB7CiAgICAgICAgdmFsdWU6IG51bWJlcjsKICAgIH0KfQpkZWNsYXJlIG1vZHVsZSAicGFpbnRlZCIgewogICAgY2xhc3MgSGlkZGVuIHsKICAgICAgICB2YWx1ZTogbnVtYmVyOwogICAgfQogICAgZXhwb3J0IGZ1bmN0aW9uIG1ha2UoKTogSGlkZGVuOwp9Cg==",
+            "callback_utf8_bytes": 244,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBHbG9iYWwgewogICAgdmFsdWU6IG51bWJlcjsKfQpkZWNsYXJlIG1vZHVsZSAicGxhaW4iIHsKICAgIGV4cG9ydCBpbnRlcmZhY2UgVmlzaWJsZSB7CiAgICAgICAgdmFsdWU6IG51bWJlcjsKICAgIH0KfQpkZWNsYXJlIG1vZHVsZSAicGFpbnRlZCIgewogICAgY2xhc3MgSGlkZGVuIHsKICAgICAgICB2YWx1ZTogbnVtYmVyOwogICAgfQogICAgZXhwb3J0IGZ1bmN0aW9uIG1ha2UoKTogSGlkZGVuOwp9Cg==",
+            "materialized_utf8_bytes": 244,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/global.ts",
+              "/project/src/plain.ts",
+              "/project/src/painted.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
             "/project/dist/bundle.d.ts"
           ],
           "source_maps": null
@@ -7196,6 +9805,241 @@
           "emit_skipped": false,
           "diagnostics": [],
           "emitted_files": [
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/marker.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "marker",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 66,
+                        "statements": [
+                          {
+                            "kind": "ClassDeclaration",
+                            "pos": 0,
+                            "end": 14,
+                            "name": "Local",
+                            "modifiers": [],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 14,
+                            "end": 55,
+                            "name": null,
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": [
+                              "value"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "ExportDeclaration",
+                            "pos": 55,
+                            "end": 66,
+                            "name": null,
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": true,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/erased.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "erased",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 10,
+                        "statements": [
+                          {
+                            "kind": "ExportDeclaration",
+                            "pos": 0,
+                            "end": 10,
+                            "name": null,
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": true,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/plain.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "plain",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 37,
+                        "statements": [
+                          {
+                            "kind": "InterfaceDeclaration",
+                            "pos": 0,
+                            "end": 37,
+                            "name": "Public",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZGVmaW5lKCJtYXJrZXIiLCBbInJlcXVpcmUiLCAiZXhwb3J0cyJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cykgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMudmFsdWUgPSB2b2lkIDA7CiAgICBjbGFzcyBMb2NhbCB7CiAgICB9CiAgICBleHBvcnRzLnZhbHVlID0gbmV3IExvY2FsKCk7Cn0pOwpkZWZpbmUoImVyYXNlZCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp9KTsKZGVmaW5lKCJwbGFpbiIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp9KTsK",
+            "callback_utf8_bytes": 564,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKCJtYXJrZXIiLCBbInJlcXVpcmUiLCAiZXhwb3J0cyJdLCBmdW5jdGlvbiAocmVxdWlyZSwgZXhwb3J0cykgewogICAgInVzZSBzdHJpY3QiOwogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsKICAgIGV4cG9ydHMudmFsdWUgPSB2b2lkIDA7CiAgICBjbGFzcyBMb2NhbCB7CiAgICB9CiAgICBleHBvcnRzLnZhbHVlID0gbmV3IExvY2FsKCk7Cn0pOwpkZWZpbmUoImVyYXNlZCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp9KTsKZGVmaW5lKCJwbGFpbiIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwp9KTsK",
+            "materialized_utf8_bytes": 564,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/marker.ts",
+              "/project/src/erased.ts",
+              "/project/src/plain.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgIm1hcmtlciIgewogICAgY2xhc3MgTG9jYWwgewogICAgfQogICAgZXhwb3J0IGNvbnN0IHZhbHVlOiBMb2NhbDsKICAgIGV4cG9ydCB7fTsKfQpkZWNsYXJlIG1vZHVsZSAiZXJhc2VkIiB7CiAgICBleHBvcnQge307Cn0KZGVjbGFyZSBtb2R1bGUgInBsYWluIiB7CiAgICBleHBvcnQgaW50ZXJmYWNlIFB1YmxpYyB7CiAgICAgICAgbjogbnVtYmVyOwogICAgfQp9Cg==",
+            "callback_utf8_bytes": 223,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgIm1hcmtlciIgewogICAgY2xhc3MgTG9jYWwgewogICAgfQogICAgZXhwb3J0IGNvbnN0IHZhbHVlOiBMb2NhbDsKICAgIGV4cG9ydCB7fTsKfQpkZWNsYXJlIG1vZHVsZSAiZXJhc2VkIiB7CiAgICBleHBvcnQge307Cn0KZGVjbGFyZSBtb2R1bGUgInBsYWluIiB7CiAgICBleHBvcnQgaW50ZXJmYWNlIFB1YmxpYyB7CiAgICAgICAgbjogbnVtYmVyOwogICAgfQp9Cg==",
+            "materialized_utf8_bytes": 223,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/marker.ts",
+              "/project/src/erased.ts",
+              "/project/src/plain.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
             "/project/dist/bundle.d.ts"
           ],
           "source_maps": null
@@ -8330,6 +11174,239 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/good.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "good",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 30,
+                        "statements": [
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 0,
+                            "end": 30,
+                            "name": null,
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": [
+                              "good"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/zbad.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "zbad",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 57,
+                        "statements": [
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 0,
+                            "end": 57,
+                            "name": null,
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": [
+                              "zbad"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/abad.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "abad",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 59,
+                        "statements": [
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 0,
+                            "end": 59,
+                            "name": null,
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": [
+                              "abad"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZGVmaW5lKCJnb29kIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLmdvb2QgPSB2b2lkIDA7CiAgICBleHBvcnRzLmdvb2QgPSAxOwp9KTsKZGVmaW5lKCJ6YmFkIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLnpiYWQgPSB2b2lkIDA7CiAgICBjb25zdCB6YmFkID0gY2xhc3MgewogICAgICAgIGNvbnN0cnVjdG9yKCkgewogICAgICAgICAgICB0aGlzLmZpZWxkID0gMTsKICAgICAgICB9CiAgICB9OwogICAgZXhwb3J0cy56YmFkID0gemJhZDsKfSk7CmRlZmluZSgiYWJhZCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hYmFkID0gdm9pZCAwOwogICAgY29uc3QgYWJhZCA9IGNsYXNzIHsKICAgICAgICBjb25zdHJ1Y3RvcigpIHsKICAgICAgICAgICAgdGhpcy5maWVsZCA9IDI7CiAgICAgICAgfQogICAgfTsKICAgIGV4cG9ydHMuYWJhZCA9IGFiYWQ7Cn0pOwo=",
+            "callback_utf8_bytes": 815,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKCJnb29kIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLmdvb2QgPSB2b2lkIDA7CiAgICBleHBvcnRzLmdvb2QgPSAxOwp9KTsKZGVmaW5lKCJ6YmFkIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsKICAgICJ1c2Ugc3RyaWN0IjsKICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiX19lc01vZHVsZSIsIHsgdmFsdWU6IHRydWUgfSk7CiAgICBleHBvcnRzLnpiYWQgPSB2b2lkIDA7CiAgICBjb25zdCB6YmFkID0gY2xhc3MgewogICAgICAgIGNvbnN0cnVjdG9yKCkgewogICAgICAgICAgICB0aGlzLmZpZWxkID0gMTsKICAgICAgICB9CiAgICB9OwogICAgZXhwb3J0cy56YmFkID0gemJhZDsKfSk7CmRlZmluZSgiYWJhZCIsIFsicmVxdWlyZSIsICJleHBvcnRzIl0sIGZ1bmN0aW9uIChyZXF1aXJlLCBleHBvcnRzKSB7CiAgICAidXNlIHN0cmljdCI7CiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOwogICAgZXhwb3J0cy5hYmFkID0gdm9pZCAwOwogICAgY29uc3QgYWJhZCA9IGNsYXNzIHsKICAgICAgICBjb25zdHJ1Y3RvcigpIHsKICAgICAgICAgICAgdGhpcy5maWVsZCA9IDI7CiAgICAgICAgfQogICAgfTsKICAgIGV4cG9ydHMuYWJhZCA9IGFiYWQ7Cn0pOwo=",
+            "materialized_utf8_bytes": 815,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/good.ts",
+              "/project/src/zbad.ts",
+              "/project/src/abad.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/src/abad.ts",
+              "start": 13,
+              "length": 4,
+              "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/src/abad.ts",
+                  "start": 13,
+                  "length": 4,
+                  "message": "Add a type annotation to the variable abad.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/src/zbad.ts",
+              "start": 13,
+              "length": 4,
+              "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/src/zbad.ts",
+                  "start": 13,
+                  "length": 4,
+                  "message": "Add a type annotation to the variable zbad.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": [
+            "/project/dist/bundle.js"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -9426,6 +12503,59 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 0,
+        "roots": [],
+        "writes": [],
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/src/abad.ts",
+              "start": 13,
+              "length": 4,
+              "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/src/abad.ts",
+                  "start": 13,
+                  "length": 4,
+                  "message": "Add a type annotation to the variable abad.",
+                  "related_information": null
+                }
+              ]
+            },
+            {
+              "code": 4094,
+              "category": "Error",
+              "file": "/project/src/zbad.ts",
+              "start": 13,
+              "length": 4,
+              "message": "Property 'field' of exported anonymous class type may not be private or protected.",
+              "related_information": [
+                {
+                  "code": 9027,
+                  "category": "Error",
+                  "file": "/project/src/zbad.ts",
+                  "start": 13,
+                  "length": 4,
+                  "message": "Add a type annotation to the variable zbad.",
+                  "related_information": null
+                }
+              ]
+            }
+          ],
+          "emitted_files": [],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -9810,6 +12940,30 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 0,
+        "roots": [],
+        "writes": [],
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 2322,
+              "category": "Error",
+              "file": "/project/src/good.ts",
+              "start": 13,
+              "length": 4,
+              "message": "Type 'string' is not assignable to type 'number'.",
+              "related_information": null
+            }
+          ],
+          "emitted_files": [],
+          "source_maps": null
+        },
+        "exception": null
       }
     },
     {
@@ -9975,6 +13129,20 @@
       "declaration_tree_reference": {
         "owner": "API1",
         "route": "separate-fresh-Program-forced-afterDeclarations-identity-hook",
+        "roots": [],
+        "writes": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 0,
         "roots": [],
         "writes": [],
         "emit_result": {
@@ -10218,6 +13386,20 @@
       "declaration_tree_reference": {
         "owner": "API1",
         "route": "separate-fresh-Program-forced-afterDeclarations-identity-hook",
+        "roots": [],
+        "writes": [],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 0,
         "roots": [],
         "writes": [],
         "emit_result": {
@@ -10679,6 +13861,113 @@
             "write_byte_order_mark": false,
             "materialized_utf8_base64": "ZGVjbGFyZSBjb25zdCB6OiBudW1iZXI7CmRlY2xhcmUgY29uc3QgYTogc3RyaW5nOwo=",
             "materialized_utf8_bytes": 50,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/z.ts",
+              "/project/a.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/z.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 20,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 20,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "z"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 22,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 22,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "a"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB6ID0gMTsKY29uc3QgYSA9ICdhJzsK",
+            "callback_utf8_bytes": 42,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCB6ID0gMTsKY29uc3QgYSA9ICdhJzsK",
+            "materialized_utf8_bytes": 42,
             "on_error_callback_present": true,
             "source_files": [
               "/project/z.ts",
@@ -11170,6 +14459,48 @@
         "emit_result": {
           "emit_skipped": true,
           "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 0,
+        "roots": [],
+        "writes": [],
+        "emit_result": {
+          "emit_skipped": true,
+          "diagnostics": [
+            {
+              "code": 5055,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Cannot write file '/project/bundle.d.ts' because it would overwrite input file.\n  Adding a tsconfig.json file will help organize projects that contain both TypeScript and JavaScript files. Learn more at https://aka.ms/tsconfig.",
+              "related_information": null
+            },
+            {
+              "code": 5101,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'outFile' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            },
+            {
+              "code": 5107,
+              "category": "Error",
+              "file": null,
+              "start": null,
+              "length": null,
+              "message": "Option 'module=None' is deprecated and will stop functioning in TypeScript 7.0. Specify compilerOption '\"ignoreDeprecations\": \"6.0\"' to silence this error.",
+              "related_information": null
+            }
+          ],
           "emitted_files": null,
           "source_maps": null
         },
@@ -11803,6 +15134,233 @@
           ]
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/.src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "a",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 133,
+                        "statements": [
+                          {
+                            "kind": "ClassDeclaration",
+                            "pos": 0,
+                            "end": 133,
+                            "name": "Foo",
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/.src/index.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": -1,
+                  "end": -1,
+                  "nodes": [
+                    {
+                      "kind": "ModuleDeclaration",
+                      "pos": -1,
+                      "end": -1,
+                      "name": "index",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": {
+                        "pos": 0,
+                        "end": 121,
+                        "statements": [
+                          {
+                            "kind": "ImportDeclaration",
+                            "pos": 0,
+                            "end": 24,
+                            "name": null,
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": "a",
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 24,
+                            "end": 46,
+                            "name": null,
+                            "modifiers": [],
+                            "declaration_names": [
+                              "c"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "FirstStatement",
+                            "pos": 66,
+                            "end": 102,
+                            "name": null,
+                            "modifiers": [
+                              "ExportKeyword"
+                            ],
+                            "declaration_names": [
+                              "x"
+                            ],
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          },
+                          {
+                            "kind": "ExportDeclaration",
+                            "pos": 102,
+                            "end": 121,
+                            "name": null,
+                            "modifiers": null,
+                            "declaration_names": null,
+                            "module_specifier": null,
+                            "empty_export": false,
+                            "body": null
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "ZGVmaW5lKCJhIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkZvbyA9IHZvaWQgMDsNCiAgICBjbGFzcyBGb28gew0KICAgICAgICBkb1RoaW5nKHgpIHsNCiAgICAgICAgICAgIHJldHVybiB7IGI6IHguYSB9Ow0KICAgICAgICB9DQogICAgICAgIHN0YXRpYyBtYWtlKCkgew0KICAgICAgICAgICAgcmV0dXJuIG5ldyBGb28oKTsNCiAgICAgICAgfQ0KICAgIH0NCiAgICBleHBvcnRzLkZvbyA9IEZvbzsNCn0pOw0KZGVmaW5lKCJpbmRleCIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImEiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMsIGFfMSkgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOw0KICAgIGV4cG9ydHMuRm9vID0gZXhwb3J0cy5jID0gZXhwb3J0cy54ID0gdm9pZCAwOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiRm9vIiwgeyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uICgpIHsgcmV0dXJuIGFfMS5Gb287IH0gfSk7DQogICAgY29uc3QgYyA9IG5ldyBhXzEuRm9vKCk7DQogICAgZXhwb3J0cy5jID0gYzsNCiAgICBjLmRvVGhpbmcoeyBhOiA0MiB9KTsNCiAgICBleHBvcnRzLnggPSBjLmRvVGhpbmcoeyBhOiAxMiB9KTsNCn0pOw0K",
+            "callback_utf8_bytes": 810,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVmaW5lKCJhIiwgWyJyZXF1aXJlIiwgImV4cG9ydHMiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMpIHsNCiAgICAidXNlIHN0cmljdCI7DQogICAgT2JqZWN0LmRlZmluZVByb3BlcnR5KGV4cG9ydHMsICJfX2VzTW9kdWxlIiwgeyB2YWx1ZTogdHJ1ZSB9KTsNCiAgICBleHBvcnRzLkZvbyA9IHZvaWQgMDsNCiAgICBjbGFzcyBGb28gew0KICAgICAgICBkb1RoaW5nKHgpIHsNCiAgICAgICAgICAgIHJldHVybiB7IGI6IHguYSB9Ow0KICAgICAgICB9DQogICAgICAgIHN0YXRpYyBtYWtlKCkgew0KICAgICAgICAgICAgcmV0dXJuIG5ldyBGb28oKTsNCiAgICAgICAgfQ0KICAgIH0NCiAgICBleHBvcnRzLkZvbyA9IEZvbzsNCn0pOw0KZGVmaW5lKCJpbmRleCIsIFsicmVxdWlyZSIsICJleHBvcnRzIiwgImEiXSwgZnVuY3Rpb24gKHJlcXVpcmUsIGV4cG9ydHMsIGFfMSkgew0KICAgICJ1c2Ugc3RyaWN0IjsNCiAgICBPYmplY3QuZGVmaW5lUHJvcGVydHkoZXhwb3J0cywgIl9fZXNNb2R1bGUiLCB7IHZhbHVlOiB0cnVlIH0pOw0KICAgIGV4cG9ydHMuRm9vID0gZXhwb3J0cy5jID0gZXhwb3J0cy54ID0gdm9pZCAwOw0KICAgIE9iamVjdC5kZWZpbmVQcm9wZXJ0eShleHBvcnRzLCAiRm9vIiwgeyBlbnVtZXJhYmxlOiB0cnVlLCBnZXQ6IGZ1bmN0aW9uICgpIHsgcmV0dXJuIGFfMS5Gb287IH0gfSk7DQogICAgY29uc3QgYyA9IG5ldyBhXzEuRm9vKCk7DQogICAgZXhwb3J0cy5jID0gYzsNCiAgICBjLmRvVGhpbmcoeyBhOiA0MiB9KTsNCiAgICBleHBvcnRzLnggPSBjLmRvVGhpbmcoeyBhOiAxMiB9KTsNCn0pOw0K",
+            "materialized_utf8_bytes": 810,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtJQUFBLE1BQU0sT0FBTyxHQUFHO1FBQ1osT0FBTyxDQUFDLEdBQUc7WUFBQyxDQUFDLEVBQUUsTUFBTSxDQUFBO1NBQUM7OztRQUd0QixNQUFNLENBQUMsSUFBSTtLQUdkOzs7SUNQRCxPQUFPLEVBQUMsR0FBRyxFQUFDLFVBQVk7SUFFeEIsTUFBTSxDQUFDLEtBQVksQ0FBQztJQUdwQixNQUFNLENBQUMsSUFBSSxDQUFDOztLQUFxQixDQUFDO0lBQ2xDLE9BQU8sRUFBRSxDQUFDLEVBQUUsR0FBRyxFQUFFLENBQUMifQ==",
+            "callback_utf8_bytes": 340,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IjtJQUFBLE1BQU0sT0FBTyxHQUFHO1FBQ1osT0FBTyxDQUFDLEdBQUc7WUFBQyxDQUFDLEVBQUUsTUFBTSxDQUFBO1NBQUM7OztRQUd0QixNQUFNLENBQUMsSUFBSTtLQUdkOzs7SUNQRCxPQUFPLEVBQUMsR0FBRyxFQUFDLFVBQVk7SUFFeEIsTUFBTSxDQUFDLEtBQVksQ0FBQztJQUdwQixNQUFNLENBQUMsSUFBSSxDQUFDOztLQUFxQixDQUFDO0lBQ2xDLE9BQU8sRUFBRSxDQUFDLEVBQUUsR0FBRyxFQUFFLENBQUMifQ==",
+            "materialized_utf8_bytes": 340,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 2,
+            "path": "bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsNCiAgICBleHBvcnQgY2xhc3MgRm9vIHsNCiAgICAgICAgZG9UaGluZyh4OiB7DQogICAgICAgICAgICBhOiBudW1iZXI7DQogICAgICAgIH0pOiB7DQogICAgICAgICAgICBiOiBudW1iZXI7DQogICAgICAgIH07DQogICAgICAgIHN0YXRpYyBtYWtlKCk6IEZvbzsNCiAgICB9DQp9DQpkZWNsYXJlIG1vZHVsZSAiaW5kZXgiIHsNCiAgICBpbXBvcnQgeyBGb28gfSBmcm9tICJhIjsNCiAgICBjb25zdCBjOiBGb287DQogICAgZXhwb3J0IGxldCB4OiB7DQogICAgICAgIGI6IG51bWJlcjsNCiAgICB9Ow0KICAgIGV4cG9ydCB7IGMsIEZvbyB9Ow0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "callback_utf8_bytes": 369,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBtb2R1bGUgImEiIHsNCiAgICBleHBvcnQgY2xhc3MgRm9vIHsNCiAgICAgICAgZG9UaGluZyh4OiB7DQogICAgICAgICAgICBhOiBudW1iZXI7DQogICAgICAgIH0pOiB7DQogICAgICAgICAgICBiOiBudW1iZXI7DQogICAgICAgIH07DQogICAgICAgIHN0YXRpYyBtYWtlKCk6IEZvbzsNCiAgICB9DQp9DQpkZWNsYXJlIG1vZHVsZSAiaW5kZXgiIHsNCiAgICBpbXBvcnQgeyBGb28gfSBmcm9tICJhIjsNCiAgICBjb25zdCBjOiBGb287DQogICAgZXhwb3J0IGxldCB4OiB7DQogICAgICAgIGI6IG51bWJlcjsNCiAgICB9Ow0KICAgIGV4cG9ydCB7IGMsIEZvbyB9Ow0KfQ0KLy8jIHNvdXJjZU1hcHBpbmdVUkw9YnVuZGxlLmQudHMubWFw",
+            "materialized_utf8_bytes": 369,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 333,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/a.ts",
+                "/.src/index.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"index.ts\"],\"names\":[],\"mappings\":\";IAAA,MAAM,OAAO,GAAG;QACZ,OAAO,CAAC,GAAG;YAAC,CAAC,EAAE,MAAM,CAAA;SAAC;;;QAGtB,MAAM,CAAC,IAAI;KAGd;;;ICPD,OAAO,EAAC,GAAG,EAAC,UAAY;IAExB,MAAM,CAAC,KAAY,CAAC;IAGpB,MAAM,CAAC,IAAI,CAAC;;KAAqB,CAAC;IAClC,OAAO,EAAE,CAAC,EAAE,GAAG,EAAE,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null
       }
     },
     {
@@ -12353,6 +15911,177 @@
                 "/.src/index.ts"
               ],
               "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"index.ts\"],\"names\":[],\"mappings\":\"AAAA,cAAM,GAAG;IACL,OAAO,CAAC,CAAC,EAAE;QAAC,CAAC,EAAE,MAAM,CAAA;KAAC;;;IAGtB,MAAM,CAAC,IAAI;CAGd;ACPD,QAAA,MAAM,CAAC,KAAY,CAAC;AAGpB,QAAA,IAAI,CAAC;;CAAqB,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/.src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 126,
+                  "nodes": [
+                    {
+                      "kind": "ClassDeclaration",
+                      "pos": 0,
+                      "end": 126,
+                      "name": "Foo",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/.src/index.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 69,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 20,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "c"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    },
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 40,
+                      "end": 69,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "x"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBkb1RoaW5nKHgpIHsNCiAgICAgICAgcmV0dXJuIHsgYjogeC5hIH07DQogICAgfQ0KICAgIHN0YXRpYyBtYWtlKCkgew0KICAgICAgICByZXR1cm4gbmV3IEZvbygpOw0KICAgIH0NCn0NCmNvbnN0IGMgPSBuZXcgRm9vKCk7DQpjLmRvVGhpbmcoeyBhOiA0MiB9KTsNCmxldCB4ID0gYy5kb1RoaW5nKHsgYTogMTIgfSk7DQo=",
+            "callback_utf8_bytes": 215,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBkb1RoaW5nKHgpIHsNCiAgICAgICAgcmV0dXJuIHsgYjogeC5hIH07DQogICAgfQ0KICAgIHN0YXRpYyBtYWtlKCkgew0KICAgICAgICByZXR1cm4gbmV3IEZvbygpOw0KICAgIH0NCn0NCmNvbnN0IGMgPSBuZXcgRm9vKCk7DQpjLmRvVGhpbmcoeyBhOiA0MiB9KTsNCmxldCB4ID0gYy5kb1RoaW5nKHsgYTogMTIgfSk7DQo=",
+            "materialized_utf8_bytes": 215,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsY0FBTSxHQUFHO0lBQ0wsT0FBTyxDQUFDLEdBQUc7UUFBQyxDQUFDLEVBQUUsTUFBTSxDQUFBO0tBQUM7OztJQUd0QixNQUFNLENBQUMsSUFBSTtDQUdkO0FDUEQsUUFBQSxNQUFNLENBQUMsS0FBWSxDQUFDO0FBR3BCLFFBQUEsSUFBSSxDQUFDOztDQUFxQixDQUFDIn0=",
+            "callback_utf8_bytes": 260,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsY0FBTSxHQUFHO0lBQ0wsT0FBTyxDQUFDLEdBQUc7UUFBQyxDQUFDLEVBQUUsTUFBTSxDQUFBO0tBQUM7OztJQUd0QixNQUFNLENBQUMsSUFBSTtDQUdkO0FDUEQsUUFBQSxNQUFNLENBQUMsS0FBWSxDQUFDO0FBR3BCLFFBQUEsSUFBSSxDQUFDOztDQUFxQixDQUFDIn0=",
+            "materialized_utf8_bytes": 260,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 2,
+            "path": "bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIGRvVGhpbmcoeDogew0KICAgICAgICBhOiBudW1iZXI7DQogICAgfSk6IHsNCiAgICAgICAgYjogbnVtYmVyOw0KICAgIH07DQogICAgc3RhdGljIG1ha2UoKTogRm9vOw0KfQ0KZGVjbGFyZSBjb25zdCBjOiBGb287DQpkZWNsYXJlIGxldCB4OiB7DQogICAgYjogbnVtYmVyOw0KfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 223,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIGRvVGhpbmcoeDogew0KICAgICAgICBhOiBudW1iZXI7DQogICAgfSk6IHsNCiAgICAgICAgYjogbnVtYmVyOw0KICAgIH07DQogICAgc3RhdGljIG1ha2UoKTogRm9vOw0KfQ0KZGVjbGFyZSBjb25zdCBjOiBGb287DQpkZWNsYXJlIGxldCB4OiB7DQogICAgYjogbnVtYmVyOw0KfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 223,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 187,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/a.ts",
+                "/.src/index.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"index.ts\"],\"names\":[],\"mappings\":\"AAAA,cAAM,GAAG;IACL,OAAO,CAAC,GAAG;QAAC,CAAC,EAAE,MAAM,CAAA;KAAC;;;IAGtB,MAAM,CAAC,IAAI;CAGd;ACPD,QAAA,MAAM,CAAC,KAAY,CAAC;AAGpB,QAAA,IAAI,CAAC;;CAAqB,CAAC\"}"
             }
           ]
         },
@@ -12939,6 +16668,204 @@
           ]
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/.src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 126,
+                  "nodes": [
+                    {
+                      "kind": "ClassDeclaration",
+                      "pos": 0,
+                      "end": 126,
+                      "name": "Foo",
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": null,
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/.src/index.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 69,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 20,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "c"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    },
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 40,
+                      "end": 69,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "x"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "bundle.js.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImluZGV4LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxNQUFNLEdBQUc7SUFDTCxPQUFPLENBQUMsQ0FBYztRQUNsQixPQUFPLEVBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFDLEVBQUMsQ0FBQztJQUNwQixDQUFDO0lBQ0QsTUFBTSxDQUFDLElBQUk7UUFDUCxPQUFPLElBQUksR0FBRyxFQUFFLENBQUM7SUFDckIsQ0FBQztDQUNKO0FDUEQsTUFBTSxDQUFDLEdBQUcsSUFBSSxHQUFHLEVBQUUsQ0FBQztBQUNwQixDQUFDLENBQUMsT0FBTyxDQUFDLEVBQUMsQ0FBQyxFQUFFLEVBQUUsRUFBQyxDQUFDLENBQUM7QUFFbkIsSUFBSSxDQUFDLEdBQUcsQ0FBQyxDQUFDLE9BQU8sQ0FBQyxFQUFDLENBQUMsRUFBRSxFQUFFLEVBQUMsQ0FBQyxDQUFDIn0=",
+            "callback_utf8_bytes": 443,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmpzIiwic291cmNlUm9vdCI6IiIsInNvdXJjZXMiOlsiYS50cyIsImluZGV4LnRzIl0sIm5hbWVzIjpbXSwibWFwcGluZ3MiOiI7QUFBQSxNQUFNLEdBQUc7SUFDTCxPQUFPLENBQUMsQ0FBYztRQUNsQixPQUFPLEVBQUMsQ0FBQyxFQUFFLENBQUMsQ0FBQyxDQUFDLEVBQUMsQ0FBQztJQUNwQixDQUFDO0lBQ0QsTUFBTSxDQUFDLElBQUk7UUFDUCxPQUFPLElBQUksR0FBRyxFQUFFLENBQUM7SUFDckIsQ0FBQztDQUNKO0FDUEQsTUFBTSxDQUFDLEdBQUcsSUFBSSxHQUFHLEVBQUUsQ0FBQztBQUNwQixDQUFDLENBQUMsT0FBTyxDQUFDLEVBQUMsQ0FBQyxFQUFFLEVBQUUsRUFBQyxDQUFDLENBQUM7QUFFbkIsSUFBSSxDQUFDLEdBQUcsQ0FBQyxDQUFDLE9BQU8sQ0FBQyxFQUFDLENBQUMsRUFBRSxFQUFFLEVBQUMsQ0FBQyxDQUFDIn0=",
+            "materialized_utf8_bytes": 443,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBkb1RoaW5nKHgpIHsNCiAgICAgICAgcmV0dXJuIHsgYjogeC5hIH07DQogICAgfQ0KICAgIHN0YXRpYyBtYWtlKCkgew0KICAgICAgICByZXR1cm4gbmV3IEZvbygpOw0KICAgIH0NCn0NCmNvbnN0IGMgPSBuZXcgRm9vKCk7DQpjLmRvVGhpbmcoeyBhOiA0MiB9KTsNCmxldCB4ID0gYy5kb1RoaW5nKHsgYTogMTIgfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuanMubWFw",
+            "callback_utf8_bytes": 249,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOw0KY2xhc3MgRm9vIHsNCiAgICBkb1RoaW5nKHgpIHsNCiAgICAgICAgcmV0dXJuIHsgYjogeC5hIH07DQogICAgfQ0KICAgIHN0YXRpYyBtYWtlKCkgew0KICAgICAgICByZXR1cm4gbmV3IEZvbygpOw0KICAgIH0NCn0NCmNvbnN0IGMgPSBuZXcgRm9vKCk7DQpjLmRvVGhpbmcoeyBhOiA0MiB9KTsNCmxldCB4ID0gYy5kb1RoaW5nKHsgYTogMTIgfSk7DQovLyMgc291cmNlTWFwcGluZ1VSTD1idW5kbGUuanMubWFw",
+            "materialized_utf8_bytes": 249,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 215,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 2,
+            "path": "bundle.d.ts.map",
+            "kind": "source-map",
+            "callback_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsY0FBTSxHQUFHO0lBQ0wsT0FBTyxDQUFDLEdBQUc7UUFBQyxDQUFDLEVBQUUsTUFBTSxDQUFBO0tBQUM7OztJQUd0QixNQUFNLENBQUMsSUFBSTtDQUdkO0FDUEQsUUFBQSxNQUFNLENBQUMsS0FBWSxDQUFDO0FBR3BCLFFBQUEsSUFBSSxDQUFDOztDQUFxQixDQUFDIn0=",
+            "callback_utf8_bytes": 260,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "eyJ2ZXJzaW9uIjozLCJmaWxlIjoiYnVuZGxlLmQudHMiLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJhLnRzIiwiaW5kZXgudHMiXSwibmFtZXMiOltdLCJtYXBwaW5ncyI6IkFBQUEsY0FBTSxHQUFHO0lBQ0wsT0FBTyxDQUFDLEdBQUc7UUFBQyxDQUFDLEVBQUUsTUFBTSxDQUFBO0tBQUM7OztJQUd0QixNQUFNLENBQUMsSUFBSTtDQUdkO0FDUEQsUUFBQSxNQUFNLENBQUMsS0FBWSxDQUFDO0FBR3BCLFFBQUEsSUFBSSxDQUFDOztDQUFxQixDQUFDIn0=",
+            "materialized_utf8_bytes": 260,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": false,
+            "data_keys": null,
+            "data_source_map_url_pos": null,
+            "data_diagnostics": null,
+            "data_build_info": null
+          },
+          {
+            "index": 3,
+            "path": "bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIGRvVGhpbmcoeDogew0KICAgICAgICBhOiBudW1iZXI7DQogICAgfSk6IHsNCiAgICAgICAgYjogbnVtYmVyOw0KICAgIH07DQogICAgc3RhdGljIG1ha2UoKTogRm9vOw0KfQ0KZGVjbGFyZSBjb25zdCBjOiBGb287DQpkZWNsYXJlIGxldCB4OiB7DQogICAgYjogbnVtYmVyOw0KfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5kLnRzLm1hcA==",
+            "callback_utf8_bytes": 223,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "ZGVjbGFyZSBjbGFzcyBGb28gew0KICAgIGRvVGhpbmcoeDogew0KICAgICAgICBhOiBudW1iZXI7DQogICAgfSk6IHsNCiAgICAgICAgYjogbnVtYmVyOw0KICAgIH07DQogICAgc3RhdGljIG1ha2UoKTogRm9vOw0KfQ0KZGVjbGFyZSBjb25zdCBjOiBGb287DQpkZWNsYXJlIGxldCB4OiB7DQogICAgYjogbnVtYmVyOw0KfTsNCi8vIyBzb3VyY2VNYXBwaW5nVVJMPWJ1bmRsZS5kLnRzLm1hcA==",
+            "materialized_utf8_bytes": 223,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/.src/a.ts",
+              "/.src/index.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": 187,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": [
+            {
+              "input_source_file_names": [
+                "/.src/a.ts",
+                "/.src/index.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.js\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"index.ts\"],\"names\":[],\"mappings\":\";AAAA,MAAM,GAAG;IACL,OAAO,CAAC,CAAc;QAClB,OAAO,EAAC,CAAC,EAAE,CAAC,CAAC,CAAC,EAAC,CAAC;IACpB,CAAC;IACD,MAAM,CAAC,IAAI;QACP,OAAO,IAAI,GAAG,EAAE,CAAC;IACrB,CAAC;CACJ;ACPD,MAAM,CAAC,GAAG,IAAI,GAAG,EAAE,CAAC;AACpB,CAAC,CAAC,OAAO,CAAC,EAAC,CAAC,EAAE,EAAE,EAAC,CAAC,CAAC;AAEnB,IAAI,CAAC,GAAG,CAAC,CAAC,OAAO,CAAC,EAAC,CAAC,EAAE,EAAE,EAAC,CAAC,CAAC\"}"
+            },
+            {
+              "input_source_file_names": [
+                "/.src/a.ts",
+                "/.src/index.ts"
+              ],
+              "source_map_json": "{\"version\":3,\"file\":\"bundle.d.ts\",\"sourceRoot\":\"\",\"sources\":[\"a.ts\",\"index.ts\"],\"names\":[],\"mappings\":\"AAAA,cAAM,GAAG;IACL,OAAO,CAAC,GAAG;QAAC,CAAC,EAAE,MAAM,CAAA;KAAC;;;IAGtB,MAAM,CAAC,IAAI;CAGd;ACPD,QAAA,MAAM,CAAC,KAAY,CAAC;AAGpB,QAAA,IAAI,CAAC;;CAAqB,CAAC\"}"
+            }
+          ]
+        },
+        "exception": null
       }
     }
   ],
@@ -13344,6 +17271,20 @@
         ],
         "emit_result": {
           "emit_skipped": true,
+          "diagnostics": [],
+          "emitted_files": null,
+          "source_maps": null
+        },
+        "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 0,
+        "roots": [],
+        "writes": [],
+        "emit_result": {
+          "emit_skipped": false,
           "diagnostics": [],
           "emitted_files": null,
           "source_maps": null
@@ -13805,6 +17746,196 @@
           "source_maps": null
         },
         "exception": null
+      },
+      "ordinary_declaration_tree_reference": {
+        "owner": "API1",
+        "route": "separate-fresh-Program-ordinary-emit-afterDeclarations-identity-hook",
+        "hook_call_count": 1,
+        "roots": [
+          {
+            "kind": "Bundle",
+            "synthetic_file_references": [
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/shared.d.ts",
+                "preserve": true
+              },
+              {
+                "pos": -1,
+                "end": -1,
+                "fileName": "../types/other.d.ts",
+                "preserve": true
+              }
+            ],
+            "synthetic_type_references": [],
+            "synthetic_lib_references": [],
+            "source_files": [
+              {
+                "file_name": "/project/src/inside.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 25,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 25,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "inside"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/a.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 256,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 256,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "a"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              },
+              {
+                "file_name": "/project/src/b.ts",
+                "is_declaration_file": true,
+                "module_name": null,
+                "has_no_default_lib": false,
+                "referenced_files": [],
+                "type_reference_directives": [],
+                "lib_reference_directives": [],
+                "statements": {
+                  "pos": 0,
+                  "end": 150,
+                  "nodes": [
+                    {
+                      "kind": "FirstStatement",
+                      "pos": 0,
+                      "end": 150,
+                      "name": null,
+                      "modifiers": [
+                        "DeclareKeyword"
+                      ],
+                      "declaration_names": [
+                        "b"
+                      ],
+                      "module_specifier": null,
+                      "empty_export": false,
+                      "body": null
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ],
+        "writes": [
+          {
+            "index": 0,
+            "path": "/project/dist/bundle.js",
+            "kind": "javascript",
+            "callback_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBpbnNpZGUgPSAxOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuL2luc2lkZS50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9kcm9wcGVkLmQudHMiIC8+CmNvbnN0IGEgPSB7IG46IGluc2lkZSB9OwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL290aGVyLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpjb25zdCBiID0geyBuOiAyIH07Cg==",
+            "callback_utf8_bytes": 424,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "InVzZSBzdHJpY3QiOwpjb25zdCBpbnNpZGUgPSAxOwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuL2luc2lkZS50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9kcm9wcGVkLmQudHMiIC8+CmNvbnN0IGEgPSB7IG46IGluc2lkZSB9OwovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL290aGVyLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgpjb25zdCBiID0geyBuOiAyIH07Cg==",
+            "materialized_utf8_bytes": 424,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/inside.ts",
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          },
+          {
+            "index": 1,
+            "path": "/project/dist/bundle.d.ts",
+            "kind": "declaration",
+            "callback_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+CmRlY2xhcmUgY29uc3QgaW5zaWRlOiBudW1iZXI7CmRlY2xhcmUgY29uc3QgYTogU2hhcmVkOwpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZDsK",
+            "callback_utf8_bytes": 327,
+            "write_byte_order_mark": false,
+            "materialized_utf8_base64": "Ly8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvc2hhcmVkLmQudHMiIHByZXNlcnZlPSJ0cnVlIiAvPgovLy8gPHJlZmVyZW5jZSBwYXRoPSIuLi90eXBlcy9zaGFyZWQuZC50cyIgcHJlc2VydmU9InRydWUiIC8+Ci8vLyA8cmVmZXJlbmNlIHBhdGg9Ii4uL3R5cGVzL3NoYXJlZC5kLnRzIiBwcmVzZXJ2ZT0idHJ1ZSIgLz4KLy8vIDxyZWZlcmVuY2UgcGF0aD0iLi4vdHlwZXMvb3RoZXIuZC50cyIgcHJlc2VydmU9InRydWUiIC8+CmRlY2xhcmUgY29uc3QgaW5zaWRlOiBudW1iZXI7CmRlY2xhcmUgY29uc3QgYTogU2hhcmVkOwpkZWNsYXJlIGNvbnN0IGI6IFNoYXJlZDsK",
+            "materialized_utf8_bytes": 327,
+            "on_error_callback_present": true,
+            "source_files": [
+              "/project/src/inside.ts",
+              "/project/src/a.ts",
+              "/project/src/b.ts"
+            ],
+            "data_present": true,
+            "data_keys": [
+              "sourceMapUrlPos",
+              "diagnostics"
+            ],
+            "data_source_map_url_pos": null,
+            "data_diagnostics": [],
+            "data_build_info": null
+          }
+        ],
+        "emit_result": {
+          "emit_skipped": false,
+          "diagnostics": [],
+          "emitted_files": [
+            "/project/dist/bundle.js",
+            "/project/dist/bundle.d.ts"
+          ],
+          "source_maps": null
+        },
+        "exception": null
       }
     }
   ],
@@ -13818,6 +17949,7 @@
     "exception_calls_per_repetition": 0,
     "fresh_sequence_programs": 54,
     "fresh_tree_reference_programs": 54,
-    "runtime_admitted": 0
+    "runtime_admitted": 0,
+    "fresh_ordinary_tree_reference_programs": 54
   }
 }
